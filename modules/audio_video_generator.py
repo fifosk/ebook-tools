@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
 from typing import Iterable, List, Mapping, Optional, Sequence
 
 from gtts import gTTS
@@ -16,6 +17,28 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 
 logger = log_mgr.logger
+
+
+_SILENCE_LOCK = Lock()
+_SILENCE_FILENAME = "silence.wav"
+_SILENCE_DURATION_MS = 100
+
+
+def _silence_audio_path() -> str:
+    """Return the shared silence audio file, creating it if necessary."""
+
+    tmp_dir = cfg.TMP_DIR or tempfile.gettempdir()
+    os.makedirs(tmp_dir, exist_ok=True)
+    silence_path = os.path.join(tmp_dir, _SILENCE_FILENAME)
+
+    if os.path.exists(silence_path):
+        return silence_path
+
+    with _SILENCE_LOCK:
+        if not os.path.exists(silence_path):
+            silent = AudioSegment.silent(duration=_SILENCE_DURATION_MS)
+            silent.export(silence_path, format="wav")
+    return silence_path
 
 
 # ---------------------------------------------------------------------------
@@ -615,7 +638,7 @@ def generate_word_synced_sentence_video(
             "-i",
             img_path,
             "-i",
-            os.path.join(cfg.TMP_DIR, "silence.wav"),
+            _silence_audio_path(),
             "-c:v",
             "libx264",
             "-t",
@@ -756,10 +779,7 @@ def generate_video_slides_ffmpeg(
 
     logger.info("Generating video slide set for sentences %s to %s...", batch_start, batch_end)
     sentence_video_files: List[str] = []
-    silence_audio_path = os.path.join(cfg.TMP_DIR, "silence.wav")
-    if not os.path.exists(silence_audio_path):
-        silent = AudioSegment.silent(duration=100)
-        silent.export(silence_audio_path, format="wav")
+    silence_audio_path = _silence_audio_path()
 
     tasks = list(enumerate(zip(text_blocks, audio_segments)))
     worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
@@ -861,8 +881,7 @@ def generate_video_slides_ffmpeg(
         for video_file in sentence_video_files:
             if os.path.exists(video_file):
                 os.remove(video_file)
-        if os.path.exists(silence_audio_path):
-            os.remove(silence_audio_path)
+        # The shared silence clip is reused across batches, so we keep it on disk.
 
     return final_video_path
 
