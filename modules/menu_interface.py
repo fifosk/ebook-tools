@@ -103,6 +103,11 @@ def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--tmp-dir", help="Override the temporary directory for transient files.")
     parser.add_argument("--ffmpeg-path", help="Override the path to the FFmpeg executable.")
     parser.add_argument("--ollama-url", help="Override the Ollama API URL.")
+    parser.add_argument(
+        "--thread-count",
+        type=int,
+        help="Number of worker threads to use for translation and media generation.",
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging output.")
     return parser.parse_args(argv)
 

@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Iterable, List, Mapping, Optional, Sequence
 
 from gtts import gTTS
@@ -100,49 +101,66 @@ def generate_audio_for_sentence(
 
     silence = AudioSegment.silent(duration=100)
 
+    tasks = []
+
+    def enqueue(key: str, text: str, lang_code: str) -> None:
+        tasks.append((key, text, lang_code))
+
+    target_lang_code = _lang_code(target_language)
+    source_lang_code = _lang_code(input_language)
+
+    numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
+
     if audio_mode == "1":
-        audio_translation = generate_audio_segment(
-            fluent_translation, _lang_code(target_language), selected_voice, macos_reading_speed
-        )
-        audio = audio_translation + silence
+        enqueue("translation", fluent_translation, target_lang_code)
+        sequence = ["translation"]
     elif audio_mode == "2":
-        numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
-        audio_number = generate_audio_segment(numbering_str, "en", selected_voice, macos_reading_speed)
-        audio_translation = generate_audio_segment(
-            fluent_translation, _lang_code(target_language), selected_voice, macos_reading_speed
-        )
-        audio = audio_number + silence + audio_translation + silence
+        enqueue("number", numbering_str, "en")
+        enqueue("translation", fluent_translation, target_lang_code)
+        sequence = ["number", "translation"]
     elif audio_mode == "3":
-        numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
-        audio_number = generate_audio_segment(numbering_str, "en", selected_voice, macos_reading_speed)
-        audio_input = generate_audio_segment(
-            input_sentence, _lang_code(input_language), selected_voice, macos_reading_speed
-        )
-        audio_translation = generate_audio_segment(
-            fluent_translation, _lang_code(target_language), selected_voice, macos_reading_speed
-        )
-        audio = audio_number + silence + audio_input + silence + audio_translation + silence
+        enqueue("number", numbering_str, "en")
+        enqueue("input", input_sentence, source_lang_code)
+        enqueue("translation", fluent_translation, target_lang_code)
+        sequence = ["number", "input", "translation"]
     elif audio_mode == "4":
-        audio_original = generate_audio_segment(
-            input_sentence, _lang_code(input_language), selected_voice, macos_reading_speed
-        )
-        audio_translation = generate_audio_segment(
-            fluent_translation, _lang_code(target_language), selected_voice, macos_reading_speed
-        )
-        audio = audio_original + silence + audio_translation + silence
+        enqueue("input", input_sentence, source_lang_code)
+        enqueue("translation", fluent_translation, target_lang_code)
+        sequence = ["input", "translation"]
     elif audio_mode == "5":
-        audio_original = generate_audio_segment(
-            input_sentence, _lang_code(input_language), selected_voice, macos_reading_speed
-        )
-        audio = audio_original + silence
+        enqueue("input", input_sentence, source_lang_code)
+        sequence = ["input"]
     else:
-        audio_original = generate_audio_segment(
-            input_sentence, _lang_code(input_language), selected_voice, macos_reading_speed
-        )
-        audio_translation = generate_audio_segment(
-            fluent_translation, _lang_code(target_language), selected_voice, macos_reading_speed
-        )
-        audio = audio_original + silence + audio_translation + silence
+        enqueue("input", input_sentence, source_lang_code)
+        enqueue("translation", fluent_translation, target_lang_code)
+        sequence = ["input", "translation"]
+
+    if not tasks:
+        return change_audio_tempo(AudioSegment.silent(duration=0), tempo)
+
+    worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
+    segments = {}
+
+    if worker_count == 1:
+        for key, text, lang_code in tasks:
+            segments[key] = generate_audio_segment(text, lang_code, selected_voice, macos_reading_speed)
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            future_map = {
+                executor.submit(generate_audio_segment, text, lang_code, selected_voice, macos_reading_speed): key
+                for key, text, lang_code in tasks
+            }
+            for future in as_completed(future_map):
+                key = future_map[future]
+                try:
+                    segments[key] = future.result()
+                except Exception as exc:  # pragma: no cover - defensive
+                    logger.error("Audio synthesis failed for segment '%s': %s", key, exc)
+                    segments[key] = AudioSegment.silent(duration=0)
+
+    audio = AudioSegment.silent(duration=0)
+    for key in sequence:
+        audio += segments.get(key, AudioSegment.silent(duration=0)) + silence
 
     return change_audio_tempo(audio, tempo)
 
@@ -743,8 +761,12 @@ def generate_video_slides_ffmpeg(
         silent = AudioSegment.silent(duration=100)
         silent.export(silence_audio_path, format="wav")
 
-    for idx, (block, audio_seg) in enumerate(zip(text_blocks, audio_segments)):
-        sentence_number = batch_start + idx
+    tasks = list(enumerate(zip(text_blocks, audio_segments)))
+    worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
+    ordered_results: List[Optional[str]] = [None] * len(tasks)
+
+    def _render_sentence(index: int, block: str, audio_seg: AudioSegment) -> str:
+        sentence_number = batch_start + index
         words_processed = cumulative_word_counts[sentence_number - 1]
         remaining_words = total_word_count - words_processed
         if macos_reading_speed > 0:
@@ -764,23 +786,40 @@ def generate_video_slides_ffmpeg(
             f"Sentence: {sentence_number}/{total_sentences} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}"
         )
 
-        try:
-            sentence_video = generate_word_synced_sentence_video(
-                block,
-                audio_seg,
-                sentence_number,
-                sync_ratio=sync_ratio,
-                word_highlighting=word_highlighting,
-                slide_size=slide_size,
-                initial_font_size=initial_font_size,
-                default_font_path=get_default_font_path(),
-                bg_color=bg_color,
-                cover_img=cover_img,
-                header_info=header_info,
-            )
-            sentence_video_files.append(sentence_video)
-        except Exception as exc:  # pylint: disable=broad-except
-            logger.error("Error generating sentence video for sentence %s: %s", sentence_number, exc)
+        return generate_word_synced_sentence_video(
+            block,
+            audio_seg,
+            sentence_number,
+            sync_ratio=sync_ratio,
+            word_highlighting=word_highlighting,
+            slide_size=slide_size,
+            initial_font_size=initial_font_size,
+            default_font_path=get_default_font_path(),
+            bg_color=bg_color,
+            cover_img=cover_img,
+            header_info=header_info,
+        )
+
+    if worker_count == 1:
+        for idx, (block, audio_seg) in tasks:
+            try:
+                ordered_results[idx] = _render_sentence(idx, block, audio_seg)
+            except Exception as exc:  # pylint: disable=broad-except
+                logger.error("Error generating sentence video for sentence %s: %s", batch_start + idx, exc)
+    else:
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            future_map = {
+                executor.submit(_render_sentence, idx, block, audio_seg): idx
+                for idx, (block, audio_seg) in tasks
+            }
+            for future in as_completed(future_map):
+                idx = future_map[future]
+                try:
+                    ordered_results[idx] = future.result()
+                except Exception as exc:  # pylint: disable=broad-except
+                    logger.error("Error generating sentence video for sentence %s: %s", batch_start + idx, exc)
+
+    sentence_video_files.extend(path for path in ordered_results if path)
 
     concat_list_path = os.path.join(output_dir, f"concat_{batch_start}_{batch_end}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
