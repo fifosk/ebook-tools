@@ -18,7 +18,12 @@ from PIL import Image
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import translation_engine
-from .audio_video_generator import AUTO_MACOS_VOICE, macos_voice_inventory
+from .audio_video_generator import (
+    AUTO_MACOS_VOICE,
+    AUTO_MACOS_VOICE_FEMALE,
+    AUTO_MACOS_VOICE_MALE,
+    macos_voice_inventory,
+)
 from .epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
@@ -250,15 +255,20 @@ def update_sentence_config(config: Dict[str, Any], refined_list: Sequence[str]) 
 def get_macos_voices(debug_enabled: bool = False) -> List[str]:
     """Return available macOS voices filtered to Enhanced/Premium quality."""
 
-    voices = [
-        f"{name} - {locale} - ({quality})"
-        for name, locale, quality in macos_voice_inventory(debug_enabled=debug_enabled)
-        if quality in {"Enhanced", "Premium"}
-    ]
+    voices = []
+    for name, locale, quality, gender in macos_voice_inventory(debug_enabled=debug_enabled):
+        if quality not in {"Enhanced", "Premium"}:
+            continue
+        gender_suffix = f" - {gender.capitalize()}" if gender else ""
+        voices.append(f"{name} - {locale} - ({quality}){gender_suffix}")
     return voices
 
 
 def _format_selected_voice(selected: str) -> str:
+    if selected == AUTO_MACOS_VOICE_FEMALE:
+        return "macOS auto (Premium/Enhanced preferred, female)"
+    if selected == AUTO_MACOS_VOICE_MALE:
+        return "macOS auto (Premium/Enhanced preferred, male)"
     if selected == AUTO_MACOS_VOICE:
         return "macOS auto (Premium/Enhanced preferred)"
     return selected
@@ -485,24 +495,31 @@ def edit_parameter(
         config["generate_video"] = True if inp_val in ["yes", "y"] else False
     elif selection == 8:
         default_voice = config.get("selected_voice", "gTTS")
+        if default_voice == AUTO_MACOS_VOICE:
+            default_voice = AUTO_MACOS_VOICE_FEMALE
+            config["selected_voice"] = default_voice
+
         if default_voice == "gTTS":
             default_option = "1"
-        elif default_voice == AUTO_MACOS_VOICE:
+        elif default_voice == AUTO_MACOS_VOICE_FEMALE:
             default_option = "3"
+        elif default_voice == AUTO_MACOS_VOICE_MALE:
+            default_option = "4"
         else:
             default_option = "2"
 
         logger.info("\nSelect voice for audio generation:")
         logger.info("1. Use gTTS (online text-to-speech)")
         logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
-        logger.info("3. Auto-select best macOS voice per language (Premium preferred)")
+        logger.info("3. Auto-select best macOS voice per language (Premium female preferred)")
+        logger.info("4. Auto-select best macOS voice per language (Premium male preferred)")
         prompt = (
-            "Enter 1 for gTTS, 2 to choose a macOS voice, or 3 for auto selection "
+            "Enter 1 for gTTS, 2 to choose a macOS voice, 3 for female auto, or 4 for male auto "
             f"(default: {default_option}): "
         )
         raw_choice = _prompt_user(prompt).strip()
         voice_choice = raw_choice or default_option
-        if voice_choice not in {"1", "2", "3"}:
+        if voice_choice not in {"1", "2", "3", "4"}:
             voice_choice = default_option
 
         if voice_choice == "2":
@@ -525,7 +542,9 @@ def edit_parameter(
             else:
                 voice_selected = default_voice
         elif voice_choice == "3":
-            voice_selected = AUTO_MACOS_VOICE
+            voice_selected = AUTO_MACOS_VOICE_FEMALE
+        elif voice_choice == "4":
+            voice_selected = AUTO_MACOS_VOICE_MALE
         else:
             voice_selected = "gTTS"
         config["selected_voice"] = voice_selected
