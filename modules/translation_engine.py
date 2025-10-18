@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from queue import Full, Queue
+import threading
+import time
 from typing import List, Optional, Sequence
 
 from modules import config_manager as cfg
@@ -11,6 +15,17 @@ from modules import logging_manager as log_mgr
 from modules import prompt_templates
 
 logger = log_mgr.logger
+
+
+@dataclass(slots=True)
+class TranslationTask:
+    """Unit of work produced by the translation pipeline."""
+
+    index: int
+    sentence_number: int
+    sentence: str
+    target_language: str
+    translation: str
 
 
 def set_model(model: Optional[str]) -> None:
@@ -182,3 +197,88 @@ def translate_batch(
                 results[idx] = "N/A"
 
     return results
+
+
+def start_translation_pipeline(
+    sentences: Sequence[str],
+    input_language: str,
+    target_language: Sequence[str],
+    *,
+    start_sentence: int,
+    output_queue: Queue[Optional[TranslationTask]],
+    consumer_count: int,
+    stop_event: Optional[threading.Event] = None,
+    max_workers: Optional[int] = None,
+) -> threading.Thread:
+    """Spawn a background producer thread that streams translations into ``output_queue``."""
+
+    worker_count = max_workers or cfg.get_thread_count()
+    worker_count = max(1, min(worker_count, len(sentences) or 1))
+
+    def _producer() -> None:
+        if not sentences:
+            for _ in range(max(1, consumer_count)):
+                output_queue.put(None)
+            return
+
+        futures_map: dict = {}
+
+        def _translate(index: int, sentence: str, target: str) -> str:
+            start = time.perf_counter()
+            try:
+                translated = translate_sentence_simple(
+                    sentence,
+                    input_language,
+                    target,
+                )
+            finally:
+                elapsed = time.perf_counter() - start
+                logger.debug(
+                    "Producer translated sentence %s in %.3fs", start_sentence + index, elapsed
+                )
+            return translated
+
+        try:
+            with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                futures_map = {
+                    executor.submit(_translate, idx, sentence, target): idx
+                    for idx, (sentence, target) in enumerate(zip(sentences, target_language))
+                }
+                for future in as_completed(futures_map):
+                    if stop_event and stop_event.is_set():
+                        break
+                    idx = futures_map[future]
+                    sentence_number = start_sentence + idx
+                    sentence = sentences[idx]
+                    target = target_language[idx]
+                    try:
+                        translation = future.result()
+                    except Exception as exc:  # pragma: no cover - defensive logging
+                        logger.error(
+                            "Translation failed for sentence %s: %s", sentence_number, exc
+                        )
+                        translation = "N/A"
+                    task = TranslationTask(
+                        index=idx,
+                        sentence_number=sentence_number,
+                        sentence=sentence,
+                        target_language=target,
+                        translation=translation,
+                    )
+                    while True:
+                        if stop_event and stop_event.is_set():
+                            break
+                        try:
+                            output_queue.put(task, timeout=0.1)
+                            break
+                        except Full:
+                            continue
+                    if stop_event and stop_event.is_set():
+                        break
+        finally:
+            for _ in range(max(1, consumer_count)):
+                output_queue.put(None)
+
+    thread = threading.Thread(target=_producer, name="TranslationProducer", daemon=True)
+    thread.start()
+    return thread
