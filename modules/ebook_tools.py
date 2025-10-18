@@ -389,6 +389,85 @@ def translate_sentence_simple(sentence, input_language, target_language, include
 def transliterate_sentence(translated_sentence, target_language):
     return translation_engine.transliterate_sentence(translated_sentence, target_language)
 
+def _export_pipeline_batch(
+    *,
+    base_dir,
+    base_no_ext,
+    batch_start,
+    batch_end,
+    written_blocks,
+    target_language,
+    output_html,
+    output_pdf,
+    generate_audio,
+    audio_segments,
+    generate_video,
+    video_blocks,
+    cover_img,
+    book_author,
+    book_title,
+    global_cumulative_word_counts,
+    total_book_words,
+    macos_reading_speed,
+    input_language,
+    total_sentences,
+    tempo,
+    sync_ratio,
+    word_highlighting,
+):
+    """Write batch outputs for a contiguous block of sentences."""
+
+    try:
+        output_formatter.export_batch_documents(
+            base_dir,
+            base_no_ext,
+            batch_start,
+            batch_end,
+            list(written_blocks),
+            target_language,
+            output_html=output_html,
+            output_pdf=output_pdf,
+        )
+
+        audio_segments = list(audio_segments) if audio_segments else []
+        video_blocks = list(video_blocks) if video_blocks else []
+        video_path = None
+
+        if generate_audio and audio_segments:
+            combined = AudioSegment.empty()
+            for segment in audio_segments:
+                combined += segment
+            audio_filename = os.path.join(
+                base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3"
+            )
+            combined.export(audio_filename, format="mp3", bitrate="320k")
+
+        if generate_video and audio_segments:
+            video_path = av_gen.generate_video_slides_ffmpeg(
+                video_blocks,
+                audio_segments,
+                base_dir,
+                batch_start,
+                batch_end,
+                base_no_ext,
+                cover_img,
+                book_author,
+                book_title,
+                global_cumulative_word_counts,
+                total_book_words,
+                macos_reading_speed,
+                input_language,
+                total_sentences,
+                tempo,
+                sync_ratio,
+                word_highlighting,
+            )
+        return video_path
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error("Failed to export batch %s-%s: %s", batch_start, batch_end, exc)
+        return None
+
+
 # -----------------------
 # Main EPUB Processing Function
 # -----------------------
@@ -474,6 +553,8 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     translation_queue = None
     media_queue = None
     stop_event = None
+    finalize_executor = None
+    export_futures = []
 
     if not pipeline_enabled:
         batch_size = worker_count
@@ -533,42 +614,32 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                 if (sentence_number - start_sentence + 1) % sentences_per_file == 0:
                     batch_start = current_batch_start
                     batch_end = sentence_number
-                    output_formatter.export_batch_documents(
-                        base_dir,
-                        base_no_ext,
-                        batch_start,
-                        batch_end,
-                        written_blocks,
-                        current_target,
+                    video_path = _export_pipeline_batch(
+                        base_dir=base_dir,
+                        base_no_ext=base_no_ext,
+                        batch_start=batch_start,
+                        batch_end=batch_end,
+                        written_blocks=written_blocks,
+                        target_language=current_target,
                         output_html=output_html,
                         output_pdf=output_pdf,
+                        generate_audio=generate_audio,
+                        audio_segments=current_audio or [],
+                        generate_video=generate_video,
+                        video_blocks=video_blocks,
+                        cover_img=cover_img,
+                        book_author=book_author,
+                        book_title=book_title,
+                        global_cumulative_word_counts=global_cumulative_word_counts,
+                        total_book_words=total_book_words,
+                        macos_reading_speed=MACOS_READING_SPEED,
+                        input_language=input_language,
+                        total_sentences=total_fully,
+                        tempo=TEMPO,
+                        sync_ratio=SYNC_RATIO,
+                        word_highlighting=WORD_HIGHLIGHTING,
                     )
-                    if generate_audio and current_audio:
-                        combined = AudioSegment.empty()
-                        for seg in current_audio:
-                            combined += seg
-                        audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
-                        combined.export(audio_filename, format="mp3", bitrate="320k")
-                    if generate_video and current_audio:
-                        video_path = av_gen.generate_video_slides_ffmpeg(
-                            video_blocks,
-                            current_audio,
-                            base_dir,
-                            batch_start,
-                            batch_end,
-                            base_no_ext,
-                            cover_img,
-                            book_author,
-                            book_title,
-                            global_cumulative_word_counts,
-                            total_book_words,
-                            MACOS_READING_SPEED,
-                            input_language,
-                            total_fully,
-                            TEMPO,
-                            SYNC_RATIO,
-                            WORD_HIGHLIGHTING,
-                        )
+                    if video_path:
                         batch_video_files.append(video_path)
                     written_blocks = []
                     video_blocks = []
@@ -582,6 +653,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     else:
         stop_event = threading.Event()
         translation_queue = queue.Queue(maxsize=queue_size)
+        finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         media_queue, media_threads = av_gen.start_media_pipeline(
             translation_queue,
             worker_count=worker_count,
@@ -655,45 +727,33 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                     if (item.sentence_number - start_sentence + 1) % sentences_per_file == 0:
                         batch_start = current_batch_start
                         batch_end = item.sentence_number
-                        output_formatter.export_batch_documents(
-                            base_dir,
-                            base_no_ext,
-                            batch_start,
-                            batch_end,
-                            written_blocks,
-                            item.target_language or last_target_language,
+                        future = finalize_executor.submit(
+                            _export_pipeline_batch,
+                            base_dir=base_dir,
+                            base_no_ext=base_no_ext,
+                            batch_start=batch_start,
+                            batch_end=batch_end,
+                            written_blocks=written_blocks,
+                            target_language=item.target_language or last_target_language,
                             output_html=output_html,
                             output_pdf=output_pdf,
+                            generate_audio=generate_audio,
+                            audio_segments=current_audio or [],
+                            generate_video=generate_video,
+                            video_blocks=video_blocks,
+                            cover_img=cover_img,
+                            book_author=book_author,
+                            book_title=book_title,
+                            global_cumulative_word_counts=global_cumulative_word_counts,
+                            total_book_words=total_book_words,
+                            macos_reading_speed=MACOS_READING_SPEED,
+                            input_language=input_language,
+                            total_sentences=total_fully,
+                            tempo=TEMPO,
+                            sync_ratio=SYNC_RATIO,
+                            word_highlighting=WORD_HIGHLIGHTING,
                         )
-                        if generate_audio and current_audio:
-                            combined = AudioSegment.empty()
-                            for seg in current_audio:
-                                combined += seg
-                            audio_filename = os.path.join(
-                                base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3"
-                            )
-                            combined.export(audio_filename, format="mp3", bitrate="320k")
-                        if generate_video and current_audio:
-                            video_path = av_gen.generate_video_slides_ffmpeg(
-                                video_blocks,
-                                current_audio,
-                                base_dir,
-                                batch_start,
-                                batch_end,
-                                base_no_ext,
-                                cover_img,
-                                book_author,
-                                book_title,
-                                global_cumulative_word_counts,
-                                total_book_words,
-                                MACOS_READING_SPEED,
-                                input_language,
-                                total_fully,
-                                TEMPO,
-                                SYNC_RATIO,
-                                WORD_HIGHLIGHTING,
-                            )
-                            batch_video_files.append(video_path)
+                        export_futures.append(future)
                         written_blocks = []
                         video_blocks = []
                         if generate_audio:
@@ -714,47 +774,50 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                 worker.join(timeout=1.0)
             if translation_thread is not None:
                 translation_thread.join(timeout=1.0)
+            if finalize_executor is not None:
+                finalize_executor.shutdown(wait=True)
+                for future in export_futures:
+                    try:
+                        video_path = future.result()
+                    except Exception as exc:  # pragma: no cover - defensive logging
+                        logger.error("Failed to finalize batch export: %s", exc)
+                    else:
+                        if video_path:
+                            batch_video_files.append(video_path)
 
     progress.close()
     if written_blocks:
         batch_start = current_batch_start
-        batch_end = start_sentence + len(written_blocks) - 1
-        output_formatter.export_batch_documents(
-            base_dir,
-            base_no_ext,
-            batch_start,
-            batch_end,
-            written_blocks,
-            target_languages[0],
+        batch_end = current_batch_start + len(written_blocks) - 1
+        target_for_batch = last_target_language or (
+            target_languages[0] if target_languages else ""
+        )
+        video_path = _export_pipeline_batch(
+            base_dir=base_dir,
+            base_no_ext=base_no_ext,
+            batch_start=batch_start,
+            batch_end=batch_end,
+            written_blocks=written_blocks,
+            target_language=target_for_batch,
             output_html=output_html,
             output_pdf=output_pdf,
+            generate_audio=generate_audio,
+            audio_segments=current_audio or [],
+            generate_video=generate_video,
+            video_blocks=video_blocks,
+            cover_img=cover_img,
+            book_author=book_author,
+            book_title=book_title,
+            global_cumulative_word_counts=global_cumulative_word_counts,
+            total_book_words=total_book_words,
+            macos_reading_speed=MACOS_READING_SPEED,
+            input_language=input_language,
+            total_sentences=total_fully,
+            tempo=TEMPO,
+            sync_ratio=SYNC_RATIO,
+            word_highlighting=WORD_HIGHLIGHTING,
         )
-        if generate_audio and current_audio:
-            combined = AudioSegment.empty()
-            for seg in current_audio:
-                combined += seg
-            audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
-            combined.export(audio_filename, format="mp3", bitrate="320k")
-        if generate_video and current_audio:
-            video_path = av_gen.generate_video_slides_ffmpeg(
-                video_blocks,
-                current_audio,
-                base_dir,
-                batch_start,
-                batch_end,
-                base_no_ext,
-                cover_img,
-                book_author,
-                book_title,
-                global_cumulative_word_counts,
-                total_book_words,
-                MACOS_READING_SPEED,
-                input_language,
-                total_fully,
-                TEMPO,
-                SYNC_RATIO,
-                WORD_HIGHLIGHTING,
-            )
+        if video_path:
             batch_video_files.append(video_path)
     logger.info("EPUB processing complete!")
     logger.info("Total sentences processed: %s", total_refined)
