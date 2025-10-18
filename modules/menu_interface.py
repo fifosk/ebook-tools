@@ -70,11 +70,43 @@ TOP_LANGUAGES = [
 def _prompt_user(prompt: str) -> str:
     """Return sanitized user input for interactive prompts."""
 
-    try:
-        response = input(prompt)
-    except EOFError:
+    stream = getattr(sys.stdin, "readline", None)
+    if stream is None:
+        try:
+            response = input(prompt)
+        except EOFError:
+            return ""
+        except KeyboardInterrupt:  # pragma: no cover - manual interruption
+            print()
+            raise
+    else:
+        try:
+            print(prompt, end="", flush=True)
+        except Exception:  # pragma: no cover - very defensive
+            pass
+        try:
+            response = stream()
+        except EOFError:
+            return ""
+        except KeyboardInterrupt:  # pragma: no cover - manual interruption
+            print()
+            raise
+        except io.UnsupportedOperation:
+            # Fall back to built-in input() if readline isn't usable.
+            try:
+                response = input()
+            except EOFError:
+                return ""
+            except KeyboardInterrupt:  # pragma: no cover - manual interruption
+                print()
+                raise
+
+    if not response:
         return ""
-    return response.replace("\r", "").strip()
+
+    cleaned = response.replace("\r", "")
+    cleaned = cleaned.rstrip("\n")
+    return cleaned.strip()
 
 
 def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
