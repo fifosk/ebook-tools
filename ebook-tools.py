@@ -6,16 +6,18 @@ import argparse
 import shutil
 from pathlib import Path
 from tqdm import tqdm
-from ebooklib import epub
-from bs4 import BeautifulSoup
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import audio_video_generator as av_gen
 from modules import translation_engine
-
-# Suppress warnings from ebooklib
-warnings.filterwarnings("ignore", category=UserWarning, module="ebooklib.epub")
-warnings.filterwarnings("ignore", category=FutureWarning, module="ebooklib.epub")
+from modules.epub_parser import (
+    DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    DEFAULT_MAX_WORDS,
+    extract_text_from_epub,
+    remove_quotes,
+    split_text_into_sentences,
+    split_text_into_sentences_no_refine,
+)
 
 # ReportLab imports for PDF generation
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
@@ -146,7 +148,11 @@ def get_refined_sentences(input_file, force_refresh=False, metadata=None):
             return cached.get("refined_list", []), False
 
     text = extract_text_from_epub(input_file)
-    refined = split_text_into_sentences(text)
+    refined = split_text_into_sentences(
+        text,
+        max_words=MAX_WORDS,
+        extend_split_with_comma_semicolon=EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    )
     save_refined_list(refined, input_file, metadata=metadata)
     return refined, True
 
@@ -183,8 +189,8 @@ def parse_arguments():
 SELECTED_VOICE = "gTTS"
 DEBUG = True
 translation_engine.set_debug(DEBUG)
-MAX_WORDS = 18
-EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
+MAX_WORDS = DEFAULT_MAX_WORDS
+EXTEND_SPLIT_WITH_COMMA_SEMICOLON = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON
 MACOS_READING_SPEED = 100
 SYNC_RATIO = 0.9
 # New global tempo variable; 1.0 means normal speed.
@@ -408,8 +414,8 @@ SELECTED_VOICE = "gTTS"
 DEBUG = False
 translation_engine.set_debug(DEBUG)
 
-MAX_WORDS = 18
-EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
+MAX_WORDS = DEFAULT_MAX_WORDS
+EXTEND_SPLIT_WITH_COMMA_SEMICOLON = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON
 
 MACOS_READING_SPEED = 100
 
@@ -483,139 +489,6 @@ def update_book_cover_file_in_config(config, ebooks_dir_value):
         else:
             config["book_cover_file"] = None
     return config
-
-# -----------------------
-# Utility Functions (Text Processing, File Generation, etc.)
-# -----------------------
-def remove_quotes(text):
-    for quote in ["“", "”", "‘", "’"]:
-        text = text.replace(quote, "")
-    return text
-
-def extract_text_from_epub(epub_file):
-    epub_path = resolve_file_path(epub_file, cfg.BOOKS_DIR)
-    if not epub_path or not epub_path.exists():
-        raise FileNotFoundError(f"EPUB file '{epub_file}' could not be found.")
-    try:
-        book = epub.read_epub(str(epub_path))
-    except Exception as e:
-        logger.error("Error reading EPUB file '%s': %s", epub_path, e)
-        sys.exit(1)
-    text_content = ""
-    for item in book.get_items():
-        if isinstance(item, epub.EpubHtml):
-            soup = BeautifulSoup(item.get_content(), "html.parser")
-            text_content += soup.get_text(separator=" ", strip=True) + "\n"
-    return text_content
-
-def split_text_into_sentences_no_refine(text):
-    text = re.sub(r'\s+', ' ', text).strip()
-    text = re.sub(r'([.?!])["\']\s+', r'\1 ', text)
-    pattern = re.compile(
-        r'(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)'
-        r'(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)'
-        r'(?<=[.?!])\s+(?=[A-Z“])'
-    )
-    sentences = [s.strip() for s in pattern.split(text) if s.strip()]
-    if EXTEND_SPLIT_WITH_COMMA_SEMICOLON:
-        new_sentences = []
-        for s in sentences:
-            parts = re.split(r"[;,]\s*", s)
-            new_sentences.extend([p.strip() for p in parts if p.strip()])
-        return new_sentences
-    return sentences
-
-def refine_and_split_sentence(sentence, max_words):
-    segments = []
-    pattern_brackets = re.compile(r"\([^)]*\)")
-    pos = 0
-    for m in pattern_brackets.finditer(sentence):
-        before = sentence[pos:m.start()].strip()
-        if before:
-            segments.append(before)
-        bracket_text = m.group().strip("()").strip()
-        if bracket_text:
-            segments.append(bracket_text)
-        pos = m.end()
-    remainder = sentence[pos:].strip()
-    if remainder:
-        segments.append(remainder)
-    if not segments:
-        segments = [sentence]
-    refined_segments = []
-    pattern_quotes = re.compile(r'"([^"]+)"')
-    for seg in segments:
-        pos = 0
-        parts = []
-        for m in pattern_quotes.finditer(seg):
-            before = seg[pos:m.start()].strip()
-            if before:
-                parts.append(before)
-            quote_text = m.group(1).strip()
-            if quote_text:
-                parts.append(quote_text)
-            pos = m.end()
-        remainder = seg[pos:].strip()
-        if remainder:
-            parts.append(remainder)
-        if parts:
-            refined_segments.extend(parts)
-        else:
-            refined_segments.append(seg)
-    final_segments = []
-    for seg in refined_segments:
-        if seg.startswith("- "):
-            final_segments.append(seg[2:].strip())
-        else:
-            final_segments.append(seg)
-    if EXTEND_SPLIT_WITH_COMMA_SEMICOLON:
-        extended = []
-        for seg in final_segments:
-            parts = re.split(r"[;,]\s*", seg)
-            extended.extend([p.strip() for p in parts if p.strip()])
-        final_segments = extended
-    final_sentences = []
-    for seg in final_segments:
-        words = seg.split()
-        if len(words) > max_words:
-            for i in range(0, len(words), max_words):
-                final_sentences.append(" ".join(words[i:i+max_words]))
-        else:
-            final_sentences.append(seg)
-    return final_sentences
-
-def merge_single_char_sentences(sentences):
-    if not sentences:
-        return sentences
-    merged = [sentences[0]]
-    for sentence in sentences[1:]:
-        if len(sentence.strip()) == 1:
-            merged[-1] = merged[-1] + " " + sentence
-        else:
-            merged.append(sentence)
-    return merged
-
-def split_text_into_sentences(text):
-    text = re.sub(r'\s+', ' ', text).strip()
-    text = re.sub(r'([.?!])["\']\s+', r'\1 ', text)
-    pattern = re.compile(
-        r'(?<!Mr\.)(?<!Mrs\.)(?<!Ms\.)(?<!Dr\.)(?<!Jr\.)(?<!Sr\.)'
-        r'(?<!Prof\.)(?<!St\.)(?<!e\.g\.)(?<!i\.e\.)(?<!vs\.)(?<!etc\.)'
-        r'(?<=[.?!])\s+(?=[A-Z“])'
-    )
-    raw = pattern.split(text)
-    final = []
-    for sentence in raw:
-        sentence = sentence.replace("\n", " ").strip()
-        if not sentence:
-            continue
-        if (sentence.startswith('"') and sentence.endswith('"')) or (sentence.startswith("“") and sentence.endswith("”")):
-            final.append(sentence)
-        else:
-            refined = refine_and_split_sentence(sentence, max_words=MAX_WORDS)
-            final.extend(refined)
-    final = merge_single_char_sentences(final)
-    return final
 
 def update_sentence_config(config, refined_list):
     if config.get("start_sentence_lookup"):
@@ -1249,7 +1122,11 @@ def interactive_menu(overrides=None, config_path=None):
                     config["max_words_manual"] = True
                     MAX_WORDS = new_max
                     text = extract_text_from_epub(config["input_file"])
-                    refined_tmp = split_text_into_sentences(text)
+                    refined_tmp = split_text_into_sentences(
+                        text,
+                        max_words=MAX_WORDS,
+                        extend_split_with_comma_semicolon=EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+                    )
                     lengths = [len(s.split()) for s in refined_tmp]
                     new_perc = None
                     for i, length in enumerate(lengths):
@@ -1273,7 +1150,11 @@ def interactive_menu(overrides=None, config_path=None):
                     if 0 < p_val <= 100:
                         config["percentile"] = p_val
                         text = extract_text_from_epub(config["input_file"])
-                        refined_tmp = split_text_into_sentences(text)
+                        refined_tmp = split_text_into_sentences(
+                            text,
+                            max_words=MAX_WORDS,
+                            extend_split_with_comma_semicolon=EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+                        )
                         if refined_tmp:
                             lengths = [len(s.split()) for s in refined_tmp]
                             lengths.sort()
