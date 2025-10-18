@@ -2,7 +2,8 @@
 
 ## Configuration overview
 
-`ebook-tools.py` reads its baked-in defaults from `conf/config.json`. To keep
+`main.py` (and the backward-compatible `ebook-tools.py` wrapper) read their
+baked-in defaults from `conf/config.json`. To keep
 secrets and machine-specific tweaks out of version control, copy any fields you
 want to change into `conf/config.local.json`; those overrides are merged on top
 of the defaults at runtime. All relative paths are resolved from the repository
@@ -41,7 +42,7 @@ Both values accept overrides through CLI flags (`--ffmpeg-path`,
 `--ollama-url`) or the environment variables `FFMPEG_PATH` and `OLLAMA_URL`.
 
 ### Using the settings
-- Interactive mode (`python ebook-tools.py -i`) exposes each knob in the
+- Interactive mode (`python main.py -i` or `python ebook-tools.py -i`) exposes each knob in the
   menu, so you can persist new defaults back into `conf/config.local.json`.
 - In non-interactive mode, CLI flags or environment variables take precedence
   over the JSON values. The script resolves relative paths against the working
