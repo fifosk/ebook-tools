@@ -2,6 +2,8 @@
 import os
 import concurrent.futures
 import sys, re, json, subprocess, requests, io, tempfile, warnings, statistics, math, urllib.parse, base64, time
+import logging
+from logging.handlers import RotatingFileHandler
 import argparse
 import shutil
 from pathlib import Path
@@ -33,6 +35,8 @@ from PIL import Image, ImageDraw, ImageFont
 # Global Paths and Environment Configuration
 # -----------------------------------------------------------------------------
 SCRIPT_DIR = Path(__file__).resolve().parent
+LOG_DIR = SCRIPT_DIR / "log"
+LOG_FILE = LOG_DIR / "app.log"
 DEFAULT_WORKING_RELATIVE = Path("output")
 DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
 DEFAULT_TMP_RELATIVE = Path("tmp")
@@ -52,6 +56,44 @@ DERIVED_CONFIG_KEYS = {"refined_list"}
 
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
+
+
+def setup_logging(log_level=logging.INFO):
+    """Configure application-wide logging with a rotating file handler."""
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+    logger = logging.getLogger("ebook_tools")
+    if logger.handlers:
+        return logger
+
+    logger.setLevel(log_level)
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    )
+
+    file_handler = RotatingFileHandler(
+        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=5
+    )
+    file_handler.setFormatter(formatter)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(logging.Formatter("%(message)s"))
+
+    logger.addHandler(file_handler)
+    logger.addHandler(stream_handler)
+    logger.propagate = False
+    return logger
+
+
+logger = setup_logging()
+
+
+def configure_logging_level(debug_enabled=False):
+    """Adjust the global logger level based on debug preference."""
+    level = logging.DEBUG if debug_enabled else logging.INFO
+    logger.setLevel(level)
+    for handler in logger.handlers:
+        handler.setLevel(level)
+    return level
 
 # Explicitly set ffmpeg converter for pydub using configurable path
 AudioSegment.converter = DEFAULT_FFMPEG_PATH
@@ -216,15 +258,15 @@ def _read_config_json(path, verbose=False, label="configuration"):
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         if verbose:
-            print(f"\nLoaded {label} from {path}")
+            logger.info("Loaded %s from %s", label, path)
         return data
     except FileNotFoundError:
         if verbose:
-            print(f"\nNo {label} found at {path}.")
+            logger.info("No %s found at %s.", label, path)
         return {}
     except Exception as e:
         if verbose:
-            print(f"\nError loading {label} from {path}: {e}. Proceeding without it.")
+            logger.warning("Error loading %s from %s: %s. Proceeding without it.", label, path, e)
         return {}
 
 
@@ -257,9 +299,9 @@ def load_configuration(config_file=None, verbose=False):
 
     if verbose and override_path and not override_config:
         if override_path == DEFAULT_LOCAL_CONFIG_PATH:
-            print(f"\nProceeding with defaults from {DEFAULT_CONFIG_PATH}")
+            logger.info("Proceeding with defaults from %s", DEFAULT_CONFIG_PATH)
         else:
-            print(f"\nProceeding with defaults because {override_path} could not be loaded")
+            logger.info("Proceeding with defaults because %s could not be loaded", override_path)
 
     config.setdefault("input_file", "")
     config.setdefault("ebooks_dir", str(DEFAULT_BOOKS_RELATIVE))
@@ -440,7 +482,7 @@ def print_languages_in_four_columns():
             idx = r + c * rows
             if idx < n:
                 row_items.append(f"{idx+1:2d}. {languages[idx]:<{col_width}}")
-        print("".join(row_items))
+        logger.info("%s", "".join(row_items))
 
 # -----------------------
 # Helper Functions for Text Wrapping & Font Adjustment
@@ -644,7 +686,7 @@ def fetch_book_cover(query):
         return None
     except Exception as e:
         if DEBUG:
-            print("Error fetching book cover:", e)
+            logger.error("Error fetching book cover: %s", e)
         return None
 
 # -----------------------
@@ -692,7 +734,7 @@ def extract_text_from_epub(epub_file):
     try:
         book = epub.read_epub(str(epub_path))
     except Exception as e:
-        print(f"Error reading EPUB file '{epub_path}': {e}")
+        logger.error("Error reading EPUB file '%s': %s", epub_path, e)
         sys.exit(1)
     text_content = ""
     for item in book.get_items():
@@ -820,10 +862,14 @@ def update_sentence_config(config, refined_list):
                 break
         if found is not None:
             config["start_sentence"] = found + 1
-            print(f"(Lookup) Starting sentence updated to {config['start_sentence']} based on query '{query}'.")
+            logger.info(
+                "(Lookup) Starting sentence updated to %s based on query '%s'.",
+                config["start_sentence"],
+                query,
+            )
         else:
             config["start_sentence"] = 1
-            print(f"(Lookup) Query '{query}' not found. Starting sentence set to 1.")
+            logger.info("(Lookup) Query '%s' not found. Starting sentence set to 1.", query)
         config["start_sentence_lookup"] = ""
     else:
         try:
@@ -840,7 +886,7 @@ def get_macOS_voices():
         output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
     except Exception as e:
         if DEBUG:
-            print("Error retrieving macOS voices:", e)
+            logger.error("Error retrieving macOS voices: %s", e)
         return []
     voices = []
     for line in output.splitlines():
@@ -873,8 +919,11 @@ def generate_macos_tts_audio(text, voice, lang_code):
         cmd = ["say", "-v", voice, "-r", str(MACOS_READING_SPEED), "-o", tmp_filename, text]
         subprocess.run(cmd, check=True)
         audio = AudioSegment.from_file(tmp_filename, format="aiff")
-    except subprocess.CalledProcessError as e:
-        print(f"MacOS TTS command failed for voice '{voice}'. Falling back to default gTTS voice.", flush=True)
+    except subprocess.CalledProcessError:
+        logger.warning(
+            "MacOS TTS command failed for voice '%s'. Falling back to default gTTS voice.",
+            voice,
+        )
         tts = gTTS(text=text, lang=lang_code)
         fp = io.BytesIO()
         tts.write_to_fp(fp)
@@ -951,7 +1000,7 @@ def write_html_file(filename, content_list):
             f.write("</body>\n</html>")
     except Exception as e:
         if DEBUG:
-            print(f"Error writing HTML file '{filename}': {e}")
+            logger.error("Error writing HTML file '%s': %s", filename, e)
 
 def write_pdf_file(filename, content_list, target_language):
     try:
@@ -970,7 +1019,9 @@ def write_pdf_file(filename, content_list, target_language):
             pdfmetrics.registerFontFamily("UnicodeFont", normal="UnicodeFont")
         else:
             if DEBUG:
-                print("Warning: Unicode font file not found; PDF output may not render non-Latin characters correctly.")
+                logger.warning(
+                    "Warning: Unicode font file not found; PDF output may not render non-Latin characters correctly."
+                )
             pdfmetrics.registerFont(TTFont("UnicodeFont", "Helvetica"))
             pdfmetrics.registerFontFamily("UnicodeFont", normal="UnicodeFont")
         styles = getSampleStyleSheet()
@@ -983,7 +1034,7 @@ def write_pdf_file(filename, content_list, target_language):
         doc.build(Story)
     except Exception as e:
         if DEBUG:
-            print(f"Error writing PDF file '{filename}': {e}")
+            logger.error("Error writing PDF file '%s': %s", filename, e)
 
 def write_epub_file(filename, content_list, book_title):
     try:
@@ -1006,7 +1057,7 @@ def write_epub_file(filename, content_list, book_title):
         epub.write_epub(filename, book)
     except Exception as e:
         if DEBUG:
-            print(f"Error writing EPUB file '{filename}': {e}")
+            logger.error("Error writing EPUB file '%s': %s", filename, e)
 
 # -----------------------
 # Modified Function: Combined Translation
@@ -1036,13 +1087,16 @@ def translate_sentence_simple(sentence, input_language, target_language, include
     for attempt in range(3):
         try:
             if DEBUG:
-                print(f"Sending translation request (attempt {attempt + 1})...")
-                print(f"Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}")
+                logger.debug("Sending translation request (attempt %s)...", attempt + 1)
+                logger.debug(
+                    "Payload: %s",
+                    json.dumps(payload, indent=2, ensure_ascii=False),
+                )
 
             response = requests.post(OLLAMA_API_URL, json=payload, stream=True, timeout=90)
             if response.status_code != 200:
                 if DEBUG:
-                    print(f"HTTP {response.status_code}: {response.text[:300]}")
+                    logger.debug("HTTP %s: %s", response.status_code, response.text[:300])
                 continue
 
             # --- Stream and accumulate all message.content chunks ---
@@ -1061,12 +1115,12 @@ def translate_sentence_simple(sentence, input_language, target_language, include
             full_text = full_text.strip()
 
             if DEBUG:
-                print(f"Raw translation result: {full_text!r}")
+                logger.debug("Raw translation result: %r", full_text)
 
             # Retry if the model replied with an empty or prompt-like message
             if not full_text or "please provide the text" in full_text.lower():
                 if DEBUG:
-                    print("Empty or invalid translation, retrying...")
+                    logger.debug("Empty or invalid translation, retrying...")
                 time.sleep(1)
                 continue
 
@@ -1074,12 +1128,12 @@ def translate_sentence_simple(sentence, input_language, target_language, include
 
         except requests.exceptions.RequestException as e:
             if DEBUG:
-                print(f"Request error: {e}")
+                logger.debug("Request error: %s", e)
             time.sleep(1)
             continue
         except Exception as e:
             if DEBUG:
-                print(f"Unexpected error: {e}")
+                logger.debug("Unexpected error: %s", e)
             time.sleep(1)
             continue
 
@@ -1117,7 +1171,7 @@ def transliterate_sentence(translated_sentence, target_language):
 #            return unidecode(translated_sentence)
     except Exception as e:
         if DEBUG:
-            print(f"Non-LLM transliteration error for {target_language}: {e}")
+            logger.debug("Non-LLM transliteration error for %s: %s", target_language, e)
     # Fallback to LLM prompt if the dedicated package fails or if the language is not covered.
     prompt = (
         f"Transliterate the following sentence in {target_language} for English pronounciation.\n"
@@ -1133,19 +1187,26 @@ def transliterate_sentence(translated_sentence, target_language):
     }
     try:
         if DEBUG:
-            print("Sending transliteration request via LLM fallback...")
-            print(f"Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}")
+            logger.debug("Sending transliteration request via LLM fallback...")
+            logger.debug(
+                "Payload: %s",
+                json.dumps(payload, indent=2, ensure_ascii=False),
+            )
         response = requests.post(OLLAMA_API_URL, json=payload)
         if response.status_code == 200:
             result = response.json().get("message", {}).get("content", "")
             return result.strip()
         else:
             if DEBUG:
-                print(f"LLM fallback transliteration error: {response.status_code} - {response.text}")
+                logger.debug(
+                    "LLM fallback transliteration error: %s - %s",
+                    response.status_code,
+                    response.text,
+                )
             return ""
     except Exception as e:
         if DEBUG:
-            print(f"Exception during LLM fallback transliteration: {e}")
+            logger.debug("Exception during LLM fallback transliteration: %s", e)
         return ""
 
 # -----------------------
@@ -1656,7 +1717,7 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"FFmpeg error on word slide {sentence_index}_{idx}: {e}")
+            logger.error("FFmpeg error on word slide %s_%s: %s", sentence_index, idx, e)
 
         word_video_files.append(video_path)
         os.remove(img_path)
@@ -1681,10 +1742,10 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
     try:
         result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode != 0:
-            print("FFmpeg concat error:", result.stderr.decode())
+            logger.error("FFmpeg concat error: %s", result.stderr.decode())
             raise subprocess.CalledProcessError(result.returncode, cmd_concat)
     except subprocess.CalledProcessError as e:
-        print(f"Error concatenating word slides for sentence {sentence_index}: {e}")
+        logger.error("Error concatenating word slides for sentence %s: %s", sentence_index, e)
 
     os.remove(concat_list_path)
     for vf in word_video_files:
@@ -1709,7 +1770,7 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
     try:
         subprocess.run(cmd_merge, check=True)
     except subprocess.CalledProcessError as e:
-        print(f"FFmpeg error merging audio for sentence {sentence_index}: {e}")
+        logger.error("FFmpeg error merging audio for sentence %s: %s", sentence_index, e)
 
     os.remove(audio_temp_path)
     os.remove(sentence_video_path)
@@ -1729,7 +1790,7 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
         try:
             subprocess.run(cmd_tpad, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"FFmpeg error adding pad for sentence {sentence_index}: {e}")
+            logger.error("FFmpeg error adding pad for sentence %s: %s", sentence_index, e)
         os.remove(merged_video_path)
     else:
         # No leftover time, just rename merged to final
@@ -1744,7 +1805,11 @@ def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_
                                  cover_img, book_author, book_title, cumulative_word_counts, total_word_count,
                                  macos_reading_speed, cleanup=True,
                                  slide_size=(1280,720), initial_font_size=60, bg_color=(0,0,0)):
-    print(f"Generating video slide set for sentences {batch_start} to {batch_end}...")
+    logger.info(
+        "Generating video slide set for sentences %s to %s...",
+        batch_start,
+        batch_end,
+    )
     sentence_video_files = []
     silence_audio_path = os.path.join(TMP_DIR, "silence.wav")
     if not os.path.exists(silence_audio_path):
@@ -1778,7 +1843,7 @@ def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_
                                                                  cover_img=cover_img, header_info=header_info)
             sentence_video_files.append(sentence_video)
         except Exception as e:
-            print(f"Error generating sentence video for sentence {sentence_number}: {e}")
+            logger.error("Error generating sentence video for sentence %s: %s", sentence_number, e)
     concat_list_path = os.path.join(output_dir, f"concat_{batch_start}_{batch_end}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in sentence_video_files:
@@ -1797,12 +1862,12 @@ def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_
     try:
         result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode != 0:
-            print("FFmpeg final concat error:", result.stderr.decode())
+            logger.error("FFmpeg final concat error: %s", result.stderr.decode())
             raise subprocess.CalledProcessError(result.returncode, cmd_concat)
     except subprocess.CalledProcessError as e:
-        print(f"Error concatenating sentence slides: {e}")
+        logger.error("Error concatenating sentence slides: %s", e)
     os.remove(concat_list_path)
-    print(f"Final stitched video slide output saved to: {final_video_path}")
+    logger.info("Final stitched video slide output saved to: %s", final_video_path)
     
     for video_file in sentence_video_files:
         if os.path.exists(video_file):
@@ -1819,14 +1884,18 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                  generate_audio, audio_mode, written_mode, output_html, output_pdf,
                  refined_list, generate_video, include_transliteration=False,
                  book_metadata={}):
-    print(f"\nExtracting text from '{input_file}'...")
+    logger.info("Extracting text from '%s'...", input_file)
     total_fully = len(refined_list)
-    print(f"Total fully split sentences extracted: {total_fully}")
+    logger.info("Total fully split sentences extracted: %s", total_fully)
     start_idx = max(start_sentence - 1, 0)
     end_idx = end_sentence if (end_sentence is not None and end_sentence <= total_fully) else total_fully
     selected_sentences = refined_list[start_idx:end_idx]
     total_refined = len(selected_sentences)
-    print(f"Processing {total_refined} sentences starting from refined sentence #{start_sentence}")
+    logger.info(
+        "Processing %s sentences starting from refined sentence #%s",
+        total_refined,
+        start_sentence,
+    )
     
         # --- Updated output folder naming convention ---
     # [Author]_[BookTitle]_[SRC_LANGCODE]_[TGT_LANGCODE]
@@ -1860,7 +1929,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
             cover_img = Image.open(cover_file_path)
         except Exception as e:
             if DEBUG:
-                print("Error loading cover image from file:", e)
+                logger.debug("Error loading cover image from file: %s", e)
             cover_img = None
     else:
         cover_img = fetch_book_cover(f"{book_title} {book_author}")
@@ -1962,8 +2031,8 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                                                       global_cumulative_word_counts, total_book_words,
                                                       MACOS_READING_SPEED)
             batch_video_files.append(video_path)
-    print("\nEPUB processing complete!")
-    print(f"Total sentences processed: {total_refined}")
+    logger.info("EPUB processing complete!")
+    logger.info("Total sentences processed: %s", total_refined)
     return written_blocks, all_audio_segments, batch_video_files
 
 # -----------------------
@@ -1979,6 +2048,7 @@ def interactive_menu(overrides=None, config_path=None):
     else:
         config_file_path = DEFAULT_LOCAL_CONFIG_PATH
     config = load_configuration(config_file_path, verbose=True)
+    configure_logging_level(config.get("debug", False))
 
     if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
         config["start_sentence_lookup"] = config["start_sentence"]
@@ -2006,58 +2076,96 @@ def interactive_menu(overrides=None, config_path=None):
                 metadata={"mode": "interactive"}
             )
             if refreshed:
-                print(f"Refined sentence list written to: {refined_list_output_path(config['input_file'])}")
+                logger.info(
+                    "Refined sentence list written to: %s",
+                    refined_list_output_path(config["input_file"]),
+                )
             refined_cache_stale = False
         else:
             refined = []
         config = update_sentence_config(config, refined)
 
-        print("\n--- File / Language Settings ---")
-        print(f"1. Input EPUB file: {input_display}")
-        print(f"2. Base output file: {config.get('base_output_file', '')}")
-        print(f"3. Input language: {config.get('input_language', 'English')}")
-        print(f"4. Target languages: {', '.join(config.get('target_languages', ['Arabic']))}")
-        
-        print("\n--- LLM, Audio, Video Settings ---")
-        print(f"5. Ollama model: {config.get('ollama_model', DEFAULT_MODEL)}")
-        print(f"6. Generate audio output: {config.get('generate_audio', True)}")
-        print(f"7. Generate video slide output: {config.get('generate_video', False)}")
-        print(f"8. Selected voice for audio generation: {config.get('selected_voice', 'gTTS')}")
-        print(f"9. macOS TTS reading speed (words per minute): {config.get('macos_reading_speed', 100)}")
-        print(f"10. Audio tempo (default: {config.get('tempo', 1.0)})")
-        print(f"11. Sync ratio for word slides: {config.get('sync_ratio', 0.9)}")
-        
-        print("\n--- Sentence Parsing Settings ---")
-        print(f"12. Sentences per output file: {config.get('sentences_per_output_file', 10)}")
-        print(f"13. Starting sentence (number or lookup word): {config.get('start_sentence', 1)}")
-        print(f"14. Ending sentence (absolute or offset): {config.get('end_sentence', f'Last sentence [{len(refined)}]')}")
-        print(f"15. Max words per sentence chunk: {config.get('max_words', 18)}")
-        print(f"16. Percentile for computing suggested max words: {config.get('percentile', 96)}")
-        
-        print("\n--- Format Options ---")
-        print(f"17. Audio output mode: {config.get('audio_mode', '1')} ({AUDIO_MODE_DESC.get(config.get('audio_mode', '1'), '')})")
-        print(f"18. Written output mode: {config.get('written_mode', '4')} ({WRITTEN_MODE_DESC.get(config.get('written_mode', '4'), '')})")
-        print(f"19. Extend split logic with comma and semicolon: {'Yes' if config.get('split_on_comma_semicolon', False) else 'No'}")
-        print(f"20. Include transliteration for non-Latin alphabets: {config.get('include_transliteration', False)}")
-        print(f"21. Word highlighting for video slides: {'Yes' if config.get('word_highlighting', True) else 'No'}")
-        print(f"22. Debug mode: {config.get('debug', False)}")
-        print(f"23. HTML output: {config.get('output_html', True)}")
-        print(f"24. PDF output: {config.get('output_pdf', False)}")
-        print(f"25. Generate stitched full output file: {config.get('stitch_full', False)}")
-        
-        print("\n--- Book Metadata ---")
-        print(f"26. Book Title: {config.get('book_title')}")
-        print(f"27. Author: {config.get('book_author')}")
-        print(f"28. Year: {config.get('book_year')}")
-        print(f"29. Summary: {config.get('book_summary')}")
-        print(f"30. Book Cover File: {config.get('book_cover_file', 'None')}")
-        print("\n--- Paths and Services ---")
-        print(f"31. Working directory: {config.get('working_dir')}")
-        print(f"32. Output directory: {config.get('output_dir')}")
-        print(f"33. Ebooks directory: {config.get('ebooks_dir')}")
-        print(f"34. Temporary directory: {config.get('tmp_dir')}")
-        print(f"35. FFmpeg path: {config.get('ffmpeg_path')}")
-        print(f"36. Ollama API URL: {config.get('ollama_url')}")
+        logger.info("\n--- File / Language Settings ---")
+        logger.info("1. Input EPUB file: %s", input_display)
+        logger.info("2. Base output file: %s", config.get("base_output_file", ""))
+        logger.info("3. Input language: %s", config.get("input_language", "English"))
+        logger.info(
+            "4. Target languages: %s",
+            ", ".join(config.get("target_languages", ["Arabic"])),
+        )
+
+        logger.info("\n--- LLM, Audio, Video Settings ---")
+        logger.info("5. Ollama model: %s", config.get("ollama_model", DEFAULT_MODEL))
+        logger.info("6. Generate audio output: %s", config.get("generate_audio", True))
+        logger.info("7. Generate video slide output: %s", config.get("generate_video", False))
+        logger.info("8. Selected voice for audio generation: %s", config.get("selected_voice", "gTTS"))
+        logger.info(
+            "9. macOS TTS reading speed (words per minute): %s",
+            config.get("macos_reading_speed", 100),
+        )
+        logger.info("10. Audio tempo (default: %s)", config.get("tempo", 1.0))
+        logger.info("11. Sync ratio for word slides: %s", config.get("sync_ratio", 0.9))
+
+        logger.info("\n--- Sentence Parsing Settings ---")
+        logger.info(
+            "12. Sentences per output file: %s",
+            config.get("sentences_per_output_file", 10),
+        )
+        logger.info(
+            "13. Starting sentence (number or lookup word): %s",
+            config.get("start_sentence", 1),
+        )
+        logger.info(
+            "14. Ending sentence (absolute or offset): %s",
+            config.get("end_sentence", f"Last sentence [{len(refined)}]"),
+        )
+        logger.info("15. Max words per sentence chunk: %s", config.get("max_words", 18))
+        logger.info(
+            "16. Percentile for computing suggested max words: %s",
+            config.get("percentile", 96),
+        )
+
+        logger.info("\n--- Format Options ---")
+        logger.info(
+            "17. Audio output mode: %s (%s)",
+            config.get("audio_mode", "1"),
+            AUDIO_MODE_DESC.get(config.get("audio_mode", "1"), ""),
+        )
+        logger.info(
+            "18. Written output mode: %s (%s)",
+            config.get("written_mode", "4"),
+            WRITTEN_MODE_DESC.get(config.get("written_mode", "4"), ""),
+        )
+        logger.info(
+            "19. Extend split logic with comma and semicolon: %s",
+            "Yes" if config.get("split_on_comma_semicolon", False) else "No",
+        )
+        logger.info(
+            "20. Include transliteration for non-Latin alphabets: %s",
+            config.get("include_transliteration", False),
+        )
+        logger.info(
+            "21. Word highlighting for video slides: %s",
+            "Yes" if config.get("word_highlighting", True) else "No",
+        )
+        logger.info("22. Debug mode: %s", config.get("debug", False))
+        logger.info("23. HTML output: %s", config.get("output_html", True))
+        logger.info("24. PDF output: %s", config.get("output_pdf", False))
+        logger.info("25. Generate stitched full output file: %s", config.get("stitch_full", False))
+
+        logger.info("\n--- Book Metadata ---")
+        logger.info("26. Book Title: %s", config.get("book_title"))
+        logger.info("27. Author: %s", config.get("book_author"))
+        logger.info("28. Year: %s", config.get("book_year"))
+        logger.info("29. Summary: %s", config.get("book_summary"))
+        logger.info("30. Book Cover File: %s", config.get("book_cover_file", "None"))
+        logger.info("\n--- Paths and Services ---")
+        logger.info("31. Working directory: %s", config.get("working_dir"))
+        logger.info("32. Output directory: %s", config.get("output_dir"))
+        logger.info("33. Ebooks directory: %s", config.get("ebooks_dir"))
+        logger.info("34. Temporary directory: %s", config.get("tmp_dir"))
+        logger.info("35. FFmpeg path: %s", config.get("ffmpeg_path"))
+        logger.info("36. Ollama API URL: %s", config.get("ollama_url"))
         
         inp_choice = input("\nEnter a parameter number to change (or press Enter to confirm): ").strip()
         if inp_choice == "":
@@ -2069,9 +2177,9 @@ def interactive_menu(overrides=None, config_path=None):
                 epub_files = sorted([p.name for p in books_dir_path.glob("*.epub")])
                 if epub_files:
                     for idx, file in enumerate(epub_files, start=1):
-                        print(f"{idx}. {file}")
+                        logger.info("%s. %s", idx, file)
                 else:
-                    print(f"No EPUB files found in {books_dir_path}. You can type a custom path.")
+                    logger.info("No EPUB files found in %s. You can type a custom path.", books_dir_path)
                 default_input = config.get("input_file", epub_files[0] if epub_files else "")
                 default_display = str(resolve_file_path(default_input, BOOKS_DIR)) if default_input else ""
                 prompt_default = default_display or default_input
@@ -2092,7 +2200,7 @@ def interactive_menu(overrides=None, config_path=None):
                 inp_val = input(f"Enter base output file name (default: {default_file}): ").strip()
                 config["base_output_file"] = inp_val if inp_val else default_file
             elif num == 3:
-                print("\nSelect input language:")
+                logger.info("\nSelect input language:")
                 print_languages_in_four_columns()
                 default_in = config.get("input_language", "English")
                 inp_val = input(f"Select input language by number (default: {default_in}): ").strip()
@@ -2101,7 +2209,7 @@ def interactive_menu(overrides=None, config_path=None):
                 else:
                     config["input_language"] = default_in
             elif num == 4:
-                print("\nSelect target languages (separate choices by comma, e.g. 1,4,7):")
+                logger.info("\nSelect target languages (separate choices by comma, e.g. 1,4,7):")
                 print_languages_in_four_columns()
                 default_t = config.get("target_languages", ["Arabic"])
                 inp_val = input(f"Select target languages by number (default: {', '.join(default_t)}): ").strip()
@@ -2116,7 +2224,7 @@ def interactive_menu(overrides=None, config_path=None):
                     result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
                     models = result.stdout.strip().split("\n")[1:]
                     for idx, model in enumerate(models, start=1):
-                        print(f"{idx}. {model}")
+                        logger.info("%s. %s", idx, model)
                     default_model = config.get("ollama_model", models[0].split()[0])
                     inp_val = input(f"Select a model by number (default: {default_model}): ").strip()
                     if inp_val.isdigit():
@@ -2124,7 +2232,7 @@ def interactive_menu(overrides=None, config_path=None):
                     else:
                         config["ollama_model"] = default_model
                 except Exception as e:
-                    print(f"Error listing models: {e}")
+                    logger.error("Error listing models: %s", e)
             elif num == 6:
                 default_audio = config.get("generate_audio", True)
                 inp_val = input(f"Generate audio output files? (yes/no, default {'yes' if default_audio else 'no'}): ").strip().lower()
@@ -2135,23 +2243,23 @@ def interactive_menu(overrides=None, config_path=None):
                 config["generate_video"] = True if inp_val in ["yes", "y"] else False
             elif num == 8:
                 default_voice = config.get("selected_voice", "gTTS")
-                print("\nSelect voice for audio generation:")
-                print("1. Use gTTS (online text-to-speech)")
-                print("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
+                logger.info("\nSelect voice for audio generation:")
+                logger.info("1. Use gTTS (online text-to-speech)")
+                logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
                 voice_choice = input("Enter 1 for gTTS or 2 for macOS voice (default: 1): ").strip()
                 if voice_choice == "2":
                     voices = get_macOS_voices()
                     if voices:
-                        print("Available macOS voices (Enhanced/Premium):")
+                        logger.info("Available macOS voices (Enhanced/Premium):")
                         for idx, v in enumerate(voices, start=1):
-                            print(f"{idx}. {v}")
+                            logger.info("%s. %s", idx, v)
                         inp = input(f"Select a macOS voice by number (default: {voices[0]}): ").strip()
                         if inp.isdigit() and 1 <= int(inp) <= len(voices):
                             voice_selected = voices[int(inp)-1]
                         else:
                             voice_selected = voices[0]
                     else:
-                        print("No macOS voices found, defaulting to gTTS")
+                        logger.warning("No macOS voices found, defaulting to gTTS")
                         voice_selected = "gTTS"
                 else:
                     voice_selected = "gTTS"
@@ -2202,7 +2310,7 @@ def interactive_menu(overrides=None, config_path=None):
                         offset = int(inp_val)
                         start_val = int(config.get("start_sentence", 1))
                         config["end_sentence"] = start_val + offset
-                        print(f"Ending sentence updated to {config['end_sentence']}")
+                        logger.info("Ending sentence updated to %s", config["end_sentence"])
                     except Exception:
                         config["end_sentence"] = default_end
                 elif inp_val.isdigit():
@@ -2226,7 +2334,10 @@ def interactive_menu(overrides=None, config_path=None):
                             new_perc = int(((i+1) / len(lengths)) * 100)
                             break
                     config["percentile"] = new_perc if new_perc is not None else 100
-                    print(f"Recomputed percentile based on new max words: {config['percentile']}%")
+                    logger.info(
+                        "Recomputed percentile based on new max words: %s%%",
+                        config["percentile"],
+                    )
                 else:
                     config["max_words"] = default_max
                     MAX_WORDS = config["max_words"]
@@ -2246,28 +2357,34 @@ def interactive_menu(overrides=None, config_path=None):
                             idx_p = int((p_val/100.0) * len(lengths))
                             config["max_words"] = lengths[idx_p] if idx_p < len(lengths) else lengths[-1]
                             MAX_WORDS = config["max_words"]
-                        print(f"Updated percentile to {p_val}%, and max words set to {config['max_words']}")
+                        logger.info(
+                            "Updated percentile to %s%%, and max words set to %s",
+                            p_val,
+                            config["max_words"],
+                        )
                     else:
-                        print("Invalid percentile, must be between 1 and 100. Keeping previous value.")
+                        logger.warning(
+                            "Invalid percentile, must be between 1 and 100. Keeping previous value."
+                        )
                 else:
                     config["percentile"] = default_perc
                 refined_cache_stale = True
             elif num == 17:
                 default_am = config.get("audio_mode", "1")
-                print("\nChoose audio output mode:")
-                print("1: Only translated sentence")
-                print("2: Sentence numbering + translated sentence")
-                print("3: Full original format (numbering, original sentence, translated sentence)")
-                print("4: Original sentence + translated sentence")
+                logger.info("\nChoose audio output mode:")
+                logger.info("1: Only translated sentence")
+                logger.info("2: Sentence numbering + translated sentence")
+                logger.info("3: Full original format (numbering, original sentence, translated sentence)")
+                logger.info("4: Original sentence + translated sentence")
                 inp_val = input(f"Select audio output mode (default {default_am}): ").strip()
                 config["audio_mode"] = inp_val if inp_val in ["1", "2", "3", "4"] else default_am
             elif num == 18:
                 default_wm = config.get("written_mode", "4")
-                print("\nChoose written output mode:")
-                print("1: Only fluent translation")
-                print("2: Sentence numbering + fluent translation")
-                print("3: Full original format (numbering, original sentence, fluent translation)")
-                print("4: Original sentence + fluent translation")
+                logger.info("\nChoose written output mode:")
+                logger.info("1: Only fluent translation")
+                logger.info("2: Sentence numbering + fluent translation")
+                logger.info("3: Full original format (numbering, original sentence, fluent translation)")
+                logger.info("4: Original sentence + fluent translation")
                 inp_val = input(f"Select written output mode (default {default_wm}): ").strip()
                 config["written_mode"] = inp_val if inp_val in ["1", "2", "3", "4"] else default_wm
             elif num == 19:
@@ -2288,6 +2405,7 @@ def interactive_menu(overrides=None, config_path=None):
                 default_debug = config.get("debug", False)
                 inp_val = input(f"Enable debug mode? (yes/no, default {'yes' if default_debug else 'no'}): ").strip().lower()
                 config["debug"] = True if inp_val == "yes" else False
+                configure_logging_level(config["debug"])
             elif num == 23:
                 default_html = config.get("output_html", True)
                 inp_val = input(f"HTML output? (yes/no, default {'yes' if default_html else 'no'}): ").strip().lower()
@@ -2318,7 +2436,7 @@ def interactive_menu(overrides=None, config_path=None):
                     if os.path.exists(inp_val):
                         config["book_cover_file"] = inp_val
                     else:
-                        print("File does not exist. Keeping previous value.")
+                        logger.warning("File does not exist. Keeping previous value.")
                 else:
                     config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
             elif num == 31:
@@ -2363,17 +2481,18 @@ def interactive_menu(overrides=None, config_path=None):
                     config["ollama_url"] = inp_val
                 initialize_environment(config, overrides)
             else:
-                print("Invalid parameter number. Please try again.")
+                logger.warning("Invalid parameter number. Please try again.")
         else:
-            print("Invalid input. Please enter a number or press Enter.")
+            logger.warning("Invalid input. Please enter a number or press Enter.")
         try:
             config_file_path.parent.mkdir(parents=True, exist_ok=True)
             with open(config_file_path, "w", encoding="utf-8") as f:
                 json.dump(strip_derived_config(config), f, indent=4)
-            print(f"Configuration saved to {config_file_path}")
+            logger.info("Configuration saved to %s", config_file_path)
         except Exception as e:
-            print(f"Error saving configuration: {e}")
+            logger.error("Error saving configuration: %s", e)
     OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
+    configure_logging_level(config.get("debug", False))
     MAX_WORDS = config.get("max_words", 18)
     MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
     SYNC_RATIO = config.get("sync_ratio", 0.9)
@@ -2395,8 +2514,8 @@ def interactive_menu(overrides=None, config_path=None):
     if config["debug"]:
         cmd_parts.append("--debug")
     full_command = " ".join(cmd_parts)
-    print("\nTo run non-interactively with these settings, use the following command:")
-    print(full_command)
+    logger.info("\nTo run non-interactively with these settings, use the following command:")
+    logger.info("%s", full_command)
     book_metadata = {
         "book_title": config.get("book_title"),
         "book_author": config.get("book_author"),
@@ -2441,13 +2560,17 @@ if __name__ == "__main__":
 
         input_file = args.input_file or config.get("input_file")
         if not input_file:
-            print("Error: An input EPUB file must be specified either via CLI or configuration.")
+            logger.error("Error: An input EPUB file must be specified either via CLI or configuration.")
             sys.exit(1)
 
         resolved_input_path = resolve_file_path(input_file, BOOKS_DIR)
         if not resolved_input_path or not resolved_input_path.exists():
             search_hint = BOOKS_DIR or config.get("ebooks_dir")
-            print(f"Error: EPUB file '{input_file}' was not found. Check the ebooks directory ({search_hint}).")
+            logger.error(
+                "Error: EPUB file '%s' was not found. Check the ebooks directory (%s).",
+                input_file,
+                search_hint,
+            )
             sys.exit(1)
         input_file = str(resolved_input_path)
 
@@ -2515,6 +2638,7 @@ if __name__ == "__main__":
 
         OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
         DEBUG = config.get("debug", False)
+        configure_logging_level(DEBUG)
         MAX_WORDS = config.get("max_words", 18)
         EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
         MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
@@ -2522,17 +2646,17 @@ if __name__ == "__main__":
         WORD_HIGHLIGHTING = config.get("word_highlighting", True)
 
     try:
-        print("\nStarting EPUB processing...")
-        print(f"Input file: {input_file}")
-        print(f"Base output file: {base_output_file}")
-        print(f"Input language: {input_language}")
-        print(f"Target languages: {', '.join(target_languages)}")
-        print(f"Sentences per output file: {sentences_per_output_file}")
-        print(f"Starting from sentence: {start_sentence}")
+        logger.info("Starting EPUB processing...")
+        logger.info("Input file: %s", input_file)
+        logger.info("Base output file: %s", base_output_file)
+        logger.info("Input language: %s", input_language)
+        logger.info("Target languages: %s", ", ".join(target_languages))
+        logger.info("Sentences per output file: %s", sentences_per_output_file)
+        logger.info("Starting from sentence: %s", start_sentence)
         if end_sentence is not None:
-            print(f"Ending at sentence: {end_sentence}")
+            logger.info("Ending at sentence: %s", end_sentence)
         else:
-            print("Processing until end of file")
+            logger.info("Processing until end of file")
 
         refined_list, refined_updated = get_refined_sentences(
             input_file,
@@ -2545,7 +2669,7 @@ if __name__ == "__main__":
         )
         if refined_updated:
             refined_output_path = refined_list_output_path(input_file)
-            print(f"Refined sentence list written to: {refined_output_path}")
+            logger.info("Refined sentence list written to: %s", refined_output_path)
         written_blocks, all_audio_segments, batch_video_files = process_epub(
             input_file, base_output_file, input_language, target_languages,
             sentences_per_output_file, start_sentence, end_sentence,
@@ -2574,7 +2698,7 @@ if __name__ == "__main__":
                 stitched_audio_filename = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{base_no_ext}.mp3")
                 stitched_audio.export(stitched_audio_filename, format="mp3", bitrate="320k")
             if generate_video and batch_video_files:
-                print("Generating stitched video slide output by concatenating batch video files...")
+                logger.info("Generating stitched video slide output by concatenating batch video files...")
                 concat_list_path = os.path.join(base_dir, f"concat_full_{base_no_ext}.txt")
                 with open(concat_list_path, "w", encoding="utf-8") as f:
                     for video_file in batch_video_files:
@@ -2592,7 +2716,7 @@ if __name__ == "__main__":
                 ]
                 subprocess.run(cmd_concat, check=True)
                 os.remove(concat_list_path)
-                print(f"Stitched video slide output saved to: {final_video_path}")
-        print("\nProcessing complete.")
+                logger.info("Stitched video slide output saved to: %s", final_video_path)
+        logger.info("Processing complete.")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error("An error occurred: %s", e)
