@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from queue import Full, Queue
 import threading
 import time
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from modules.progress_tracker import ProgressTracker
 
 from modules import config_manager as cfg
 from modules import llm_client
@@ -209,6 +212,7 @@ def start_translation_pipeline(
     consumer_count: int,
     stop_event: Optional[threading.Event] = None,
     max_workers: Optional[int] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> threading.Thread:
     """Spawn a background producer thread that streams translations into ``output_queue``."""
 
@@ -265,6 +269,10 @@ def start_translation_pipeline(
                         target_language=target,
                         translation=translation,
                     )
+                    if progress_tracker:
+                        progress_tracker.record_translation_completion(
+                            task.index, task.sentence_number
+                        )
                     while True:
                         if stop_event and stop_event.is_set():
                             break

@@ -6,7 +6,7 @@ import shutil
 import queue
 import threading
 from pathlib import Path
-from tqdm import tqdm
+from typing import Optional
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import audio_video_generator as av_gen
@@ -38,6 +38,7 @@ from pydub import AudioSegment
 from PIL import Image
 
 from . import output_formatter
+from .progress_tracker import ProgressTracker
 
 SCRIPT_DIR = cfg.SCRIPT_DIR
 LOG_DIR = log_mgr.LOG_DIR
@@ -471,11 +472,27 @@ def _export_pipeline_batch(
 # -----------------------
 # Main EPUB Processing Function
 # -----------------------
-def process_epub(input_file, base_output_file, input_language, target_languages,
-                 sentences_per_file, start_sentence, end_sentence,
-                 generate_audio, audio_mode, written_mode, output_html, output_pdf,
-                 refined_list, generate_video, include_transliteration=False,
-                 book_metadata={}):
+def process_epub(
+    input_file,
+    base_output_file,
+    input_language,
+    target_languages,
+    sentences_per_file,
+    start_sentence,
+    end_sentence,
+    generate_audio,
+    audio_mode,
+    written_mode,
+    output_html,
+    output_pdf,
+    refined_list,
+    generate_video,
+    include_transliteration=False,
+    book_metadata={},
+    *,
+    progress_tracker: Optional[ProgressTracker] = None,
+    stop_event: Optional[threading.Event] = None,
+):
     logger.info("Extracting text from '%s'...", input_file)
     total_fully = len(refined_list)
     logger.info("Total fully split sentences extracted: %s", total_fully)
@@ -488,6 +505,8 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
         total_refined,
         start_sentence,
     )
+    if progress_tracker is not None:
+        progress_tracker.set_total(total_refined)
     
         # --- Updated output folder naming convention ---
     # [Author]_[BookTitle]_[SRC_LANGCODE]_[TGT_LANGCODE]
@@ -542,7 +561,6 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     batch_video_files = []
     current_audio = [] if generate_audio else None
     current_batch_start = start_sentence
-    progress = tqdm(total=total_refined, desc="Processing sentences", unit="sentence")
     processed = 0
     last_target_language = target_languages[0] if target_languages else ""
     pipeline_enabled = cfg.is_pipeline_mode()
@@ -552,7 +570,6 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     media_threads = []
     translation_queue = None
     media_queue = None
-    stop_event = None
     finalize_executor = None
     export_futures = []
 
@@ -560,7 +577,9 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
         batch_size = worker_count
         while processed < total_refined:
             batch_sentences = selected_sentences[processed : processed + batch_size]
-            batch_sentence_numbers = [start_sentence + processed + idx for idx in range(len(batch_sentences))]
+            batch_sentence_numbers = [
+                start_sentence + processed + idx for idx in range(len(batch_sentences))
+            ]
             batch_targets = [
                 target_languages[((number - start_sentence) % len(target_languages))]
                 for number in batch_sentence_numbers
@@ -572,8 +591,13 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                 include_transliteration=False,
             )
 
-            for sentence_number, sentence, current_target, translation_result in zip(
-                batch_sentence_numbers, batch_sentences, batch_targets, translations
+            for offset, (
+                sentence_number,
+                sentence,
+                current_target,
+                translation_result,
+            ) in enumerate(
+                zip(batch_sentence_numbers, batch_sentences, batch_targets, translations)
             ):
                 fluent = remove_quotes(translation_result or "")
                 should_transliterate = include_transliteration and current_target in NON_LATIN_LANGUAGES
@@ -647,11 +671,14 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                         current_audio = []
                     current_batch_start = sentence_number + 1
                 last_target_language = current_target
-                progress.update(1)
+                if progress_tracker is not None:
+                    progress_tracker.record_media_completion(
+                        processed + offset, sentence_number
+                    )
 
             processed += len(batch_sentences)
     else:
-        stop_event = threading.Event()
+        pipeline_stop_event = stop_event or threading.Event()
         translation_queue = queue.Queue(maxsize=queue_size)
         finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         media_queue, media_threads = av_gen.start_media_pipeline(
@@ -666,7 +693,8 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
             macos_reading_speed=MACOS_READING_SPEED,
             generate_audio=generate_audio,
             queue_size=queue_size,
-            stop_event=stop_event,
+            stop_event=pipeline_stop_event,
+            progress_tracker=progress_tracker,
         )
         target_sequence = [
             target_languages[((start_sentence + idx) - start_sentence) % len(target_languages)]
@@ -679,8 +707,9 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
             start_sentence=start_sentence,
             output_queue=translation_queue,
             consumer_count=len(media_threads) or 1,
-            stop_event=stop_event,
+            stop_event=pipeline_stop_event,
             max_workers=worker_count,
+            progress_tracker=progress_tracker,
         )
         buffered_results = {}
         next_index = 0
@@ -689,7 +718,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                 try:
                     media_item = media_queue.get(timeout=0.1)
                 except queue.Empty:
-                    if stop_event.is_set() and translation_queue.empty():
+                    if pipeline_stop_event.is_set() and translation_queue.empty():
                         break
                     continue
                 if media_item is None:
@@ -761,15 +790,13 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                         current_batch_start = item.sentence_number + 1
                     last_target_language = item.target_language
                     processed += 1
-                    progress.update(1)
                     next_index += 1
         except KeyboardInterrupt:
             logger.warning("Processing interrupted by user; shutting down pipeline...")
-            if stop_event is not None:
-                stop_event.set()
+            pipeline_stop_event.set()
         finally:
-            if stop_event is not None and not stop_event.is_set():
-                stop_event.set()
+            if not pipeline_stop_event.is_set():
+                pipeline_stop_event.set()
             for worker in media_threads:
                 worker.join(timeout=1.0)
             if translation_thread is not None:
@@ -785,7 +812,6 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                         if video_path:
                             batch_video_files.append(video_path)
 
-    progress.close()
     if written_blocks:
         batch_start = current_batch_start
         batch_end = current_batch_start + len(written_blocks) - 1
@@ -826,7 +852,11 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
 # -----------------------
 # Interactive Menu with Grouped Options and Dynamic Summary
 # -----------------------
-def run_pipeline():
+def run_pipeline(
+    *,
+    progress_tracker: Optional[ProgressTracker] = None,
+    stop_event: Optional[threading.Event] = None,
+):
     """Entry point for executing the ebook processing pipeline."""
     global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON
     global MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO
@@ -1031,6 +1061,8 @@ def run_pipeline():
             generate_video=generate_video,
             include_transliteration=include_transliteration,
             book_metadata=book_metadata,
+            progress_tracker=progress_tracker,
+            stop_event=stop_event,
         )
         if stitch_full:
             final_sentence = start_sentence + len(written_blocks) - 1 if written_blocks else start_sentence

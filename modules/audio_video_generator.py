@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from queue import Empty, Full, Queue
 from threading import Lock
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from gtts import gTTS
 from pydub import AudioSegment
@@ -21,6 +21,8 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules.translation_engine import TranslationTask
 
+if TYPE_CHECKING:
+    from modules.progress_tracker import ProgressTracker
 logger = log_mgr.logger
 
 
@@ -219,6 +221,7 @@ def _media_worker(
     macos_reading_speed: int,
     generate_audio: bool,
     stop_event: Optional[threading.Event] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> None:
     """Consume translation results and emit completed media payloads."""
 
@@ -277,6 +280,10 @@ def _media_worker(
                 break
             try:
                 result_queue.put(payload, timeout=0.1)
+                if progress_tracker:
+                    progress_tracker.record_media_completion(
+                        payload.index, payload.sentence_number
+                    )
                 break
             except Full:
                 continue
@@ -296,6 +303,7 @@ def start_media_pipeline(
     generate_audio: bool,
     queue_size: Optional[int] = None,
     stop_event: Optional[threading.Event] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> Tuple[Queue[Optional[MediaPipelineResult]], List[threading.Thread]]:
     """Start consumer threads that transform translations into media artifacts."""
 
@@ -325,6 +333,7 @@ def start_media_pipeline(
                 "macos_reading_speed": macos_reading_speed,
                 "generate_audio": generate_audio,
                 "stop_event": stop_event,
+                "progress_tracker": progress_tracker,
             },
             daemon=True,
         )
