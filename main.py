@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import io
 import os
+import select
 import sys
 import threading
 import time
@@ -89,10 +90,27 @@ def run_pipeline(report_interval: float = 5.0):
         if not interactive:
             return
 
+        try:
+            fileno = stdin.fileno()
+        except (AttributeError, io.UnsupportedOperation):
+            fileno = None
+
         while not pipeline_stop.is_set():
             if os.environ.get("EBOOK_MENU_ACTIVE") == "1":
                 time.sleep(0.1)
                 continue
+
+            if fileno is not None:
+                try:
+                    ready, _, _ = select.select([stdin], [], [], 0.1)
+                except (OSError, ValueError):
+                    fileno = None
+                    continue
+                if not ready:
+                    continue
+                if os.environ.get("EBOOK_MENU_ACTIVE") == "1":
+                    continue
+
             try:
                 line = stdin.readline()
             except (EOFError, io.UnsupportedOperation):
