@@ -2,14 +2,13 @@
 import os
 import concurrent.futures
 import sys, re, json, subprocess, requests, io, tempfile, warnings, statistics, math, urllib.parse, base64, time
-import logging
-from logging.handlers import RotatingFileHandler
 import argparse
 import shutil
 from pathlib import Path
 from tqdm import tqdm
 from ebooklib import epub
 from bs4 import BeautifulSoup
+from modules import config_manager as cfg
 
 # Suppress warnings from ebooklib
 warnings.filterwarnings("ignore", category=UserWarning, module="ebooklib.epub")
@@ -31,111 +30,46 @@ from pydub import AudioSegment
 # Video generation using Pillow and ffmpeg
 from PIL import Image, ImageDraw, ImageFont
 
-# -----------------------------------------------------------------------------
-# Global Paths and Environment Configuration
-# -----------------------------------------------------------------------------
-SCRIPT_DIR = Path(__file__).resolve().parent
-LOG_DIR = SCRIPT_DIR / "log"
-LOG_FILE = LOG_DIR / "app.log"
-DEFAULT_WORKING_RELATIVE = Path("output")
-DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
-DEFAULT_TMP_RELATIVE = Path("tmp")
-DEFAULT_BOOKS_RELATIVE = Path("books")
-CONF_DIR = SCRIPT_DIR / "conf"
-DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
-DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
+SCRIPT_DIR = cfg.SCRIPT_DIR
+LOG_DIR = cfg.LOG_DIR
+LOG_FILE = cfg.LOG_FILE
+DEFAULT_WORKING_RELATIVE = cfg.DEFAULT_WORKING_RELATIVE
+DEFAULT_OUTPUT_RELATIVE = cfg.DEFAULT_OUTPUT_RELATIVE
+DEFAULT_TMP_RELATIVE = cfg.DEFAULT_TMP_RELATIVE
+DEFAULT_BOOKS_RELATIVE = cfg.DEFAULT_BOOKS_RELATIVE
+CONF_DIR = cfg.CONF_DIR
+DEFAULT_CONFIG_PATH = cfg.DEFAULT_CONFIG_PATH
+DEFAULT_LOCAL_CONFIG_PATH = cfg.DEFAULT_LOCAL_CONFIG_PATH
 
-WORKING_DIR = None
-EBOOK_DIR = None
-TMP_DIR = None
-BOOKS_DIR = None
+DERIVED_RUNTIME_DIRNAME = cfg.DERIVED_RUNTIME_DIRNAME
+DERIVED_REFINED_FILENAME_TEMPLATE = cfg.DERIVED_REFINED_FILENAME_TEMPLATE
+DERIVED_CONFIG_KEYS = cfg.DERIVED_CONFIG_KEYS
 
-DERIVED_RUNTIME_DIRNAME = "runtime"
-DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
-DERIVED_CONFIG_KEYS = {"refined_list"}
+DEFAULT_OLLAMA_URL = cfg.DEFAULT_OLLAMA_URL
+DEFAULT_FFMPEG_PATH = cfg.DEFAULT_FFMPEG_PATH
 
-DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
-DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
-
-
-def setup_logging(log_level=logging.INFO):
-    """Configure application-wide logging with a rotating file handler."""
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    logger = logging.getLogger("ebook_tools")
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(log_level)
-    formatter = logging.Formatter(
-        "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    )
-
-    file_handler = RotatingFileHandler(
-        LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=5
-    )
-    file_handler.setFormatter(formatter)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("%(message)s"))
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    logger.propagate = False
-    return logger
-
-
-logger = setup_logging()
-
-
-def configure_logging_level(debug_enabled=False):
-    """Adjust the global logger level based on debug preference."""
-    level = logging.DEBUG if debug_enabled else logging.INFO
-    logger.setLevel(level)
-    for handler in logger.handlers:
-        handler.setLevel(level)
-    return level
+logger = cfg.logger
+configure_logging_level = cfg.configure_logging_level
+resolve_directory = cfg.resolve_directory
+resolve_file_path = cfg.resolve_file_path
+initialize_environment = cfg.initialize_environment
+load_configuration = cfg.load_configuration
+strip_derived_config = cfg.strip_derived_config
+DEFAULT_MODEL = cfg.DEFAULT_MODEL
+OLLAMA_MODEL = DEFAULT_MODEL
 
 # Explicitly set ffmpeg converter for pydub using configurable path
 AudioSegment.converter = DEFAULT_FFMPEG_PATH
 
-# Will be updated once configuration is loaded
-OLLAMA_API_URL = DEFAULT_OLLAMA_URL
+# Will be updated once configuration is loaded via cfg
 
 # -----------------------
 # Path Helpers
 # -----------------------
-def resolve_directory(path_value, default_relative):
-    """Resolve a directory path relative to the script directory and ensure it exists."""
-    base_value = path_value if path_value not in [None, ""] else default_relative
-    base_path = Path(os.path.expanduser(str(base_value)))
-    if not base_path.is_absolute():
-        base_path = (SCRIPT_DIR / base_path).resolve()
-    base_path.mkdir(parents=True, exist_ok=True)
-    return base_path
-
-
-def resolve_file_path(path_value, base_dir=None):
-    """Resolve a potentially relative file path relative to a base directory."""
-    if not path_value:
-        return None
-    file_path = Path(os.path.expanduser(str(path_value)))
-    if file_path.is_absolute():
-        return file_path
-    if base_dir:
-        base = Path(base_dir)
-        if file_path.parts and base.name == file_path.parts[0]:
-            file_path = (SCRIPT_DIR / file_path).resolve()
-        else:
-            file_path = (base / file_path).resolve()
-    else:
-        file_path = (SCRIPT_DIR / file_path).resolve()
-    return file_path
-
-
 def get_runtime_output_dir():
     """Return the directory used for storing derived runtime artifacts."""
-    if WORKING_DIR:
-        base_path = Path(WORKING_DIR)
+    if cfg.WORKING_DIR:
+        base_path = Path(cfg.WORKING_DIR)
     else:
         base_path = Path(resolve_directory(None, DEFAULT_WORKING_RELATIVE))
     runtime_dir = base_path / DERIVED_RUNTIME_DIRNAME
@@ -189,7 +123,7 @@ def get_refined_sentences(input_file, force_refresh=False, metadata=None):
     if not input_file:
         return [], False
 
-    resolved_input = resolve_file_path(input_file, BOOKS_DIR)
+    resolved_input = resolve_file_path(input_file, cfg.BOOKS_DIR)
     if not resolved_input:
         return [], False
     input_file = str(resolved_input)
@@ -212,135 +146,6 @@ def get_refined_sentences(input_file, force_refresh=False, metadata=None):
     refined = split_text_into_sentences(text)
     save_refined_list(refined, input_file, metadata=metadata)
     return refined, True
-
-
-def initialize_environment(config, overrides=None):
-    """Configure directories and external tool locations based on config and overrides."""
-    overrides = overrides or {}
-
-    working_override = overrides.get("working_dir")
-    output_override = overrides.get("output_dir")
-    tmp_override = overrides.get("tmp_dir")
-    books_override = overrides.get("ebooks_dir")
-    ffmpeg_override = overrides.get("ffmpeg_path")
-    ollama_override = overrides.get("ollama_url")
-
-    working_path = resolve_directory(working_override or config.get("working_dir"), DEFAULT_WORKING_RELATIVE)
-
-    if output_override or config.get("output_dir"):
-        output_path = resolve_directory(output_override or config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE)
-    else:
-        output_path = (working_path / "ebook")
-        output_path.mkdir(parents=True, exist_ok=True)
-
-    tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
-    books_path = resolve_directory(books_override or config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
-
-    global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL
-    WORKING_DIR = str(working_path)
-    EBOOK_DIR = str(output_path)
-    TMP_DIR = str(tmp_path)
-    BOOKS_DIR = str(books_path)
-
-    ffmpeg_path = os.path.expanduser(str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH))
-    AudioSegment.converter = ffmpeg_path
-
-    OLLAMA_API_URL = ollama_override or config.get("ollama_url") or DEFAULT_OLLAMA_URL
-
-
-# -----------------------
-# Configuration helpers
-# -----------------------
-def _read_config_json(path, verbose=False, label="configuration"):
-    if not path:
-        return {}
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-        if verbose:
-            logger.info("Loaded %s from %s", label, path)
-        return data
-    except FileNotFoundError:
-        if verbose:
-            logger.info("No %s found at %s.", label, path)
-        return {}
-    except Exception as e:
-        if verbose:
-            logger.warning("Error loading %s from %s: %s. Proceeding without it.", label, path, e)
-        return {}
-
-
-def _deep_merge_dict(base, override):
-    result = dict(base)
-    for key, value in override.items():
-        if isinstance(value, dict) and isinstance(result.get(key), dict):
-            result[key] = _deep_merge_dict(result[key], value)
-        else:
-            result[key] = value
-    return result
-
-
-def load_configuration(config_file=None, verbose=False):
-    config = {}
-
-    default_config = _read_config_json(DEFAULT_CONFIG_PATH, verbose=verbose, label="default configuration")
-    config = _deep_merge_dict(config, default_config)
-
-    override_path = None
-    if config_file:
-        override_path = Path(config_file).expanduser()
-        if not override_path.is_absolute():
-            override_path = (Path.cwd() / override_path).resolve()
-    else:
-        override_path = DEFAULT_LOCAL_CONFIG_PATH
-
-    override_config = _read_config_json(override_path, verbose=verbose, label="local configuration") if override_path else {}
-    config = _deep_merge_dict(config, override_config)
-
-    if verbose and override_path and not override_config:
-        if override_path == DEFAULT_LOCAL_CONFIG_PATH:
-            logger.info("Proceeding with defaults from %s", DEFAULT_CONFIG_PATH)
-        else:
-            logger.info("Proceeding with defaults because %s could not be loaded", override_path)
-
-    config.setdefault("input_file", "")
-    config.setdefault("ebooks_dir", str(DEFAULT_BOOKS_RELATIVE))
-    config.setdefault("base_output_file", "")
-    config.setdefault("input_language", "English")
-    config.setdefault("target_languages", ["Arabic"])
-    config.setdefault("ollama_model", DEFAULT_MODEL)
-    config.setdefault("generate_audio", True)
-    config.setdefault("generate_video", True)
-    config.setdefault("sentences_per_output_file", 10)
-    config.setdefault("start_sentence", 1)
-    config.setdefault("end_sentence", None)
-    config.setdefault("max_words", 18)
-    config.setdefault("percentile", 96)
-    config.setdefault("split_on_comma_semicolon", False)
-    config.setdefault("audio_mode", "1")
-    config.setdefault("written_mode", "4")
-    config.setdefault("include_transliteration", False)
-    config.setdefault("debug", False)
-    config.setdefault("output_html", True)
-    config.setdefault("output_pdf", False)
-    config.setdefault("stitch_full", False)
-    config.setdefault("selected_voice", "gTTS")
-    config.setdefault("book_title", "Unknown Title")
-    config.setdefault("book_author", "Unknown Author")
-    config.setdefault("book_year", "Unknown Year")
-    config.setdefault("book_summary", "No summary provided.")
-    config.setdefault("book_cover_file", None)
-    config.setdefault("macos_reading_speed", 100)
-    config.setdefault("tempo", 1.0)
-    config.setdefault("sync_ratio", 0.9)
-    config.setdefault("word_highlighting", True)
-    config.setdefault("working_dir", str(DEFAULT_WORKING_RELATIVE))
-    config.setdefault("output_dir", str(DEFAULT_OUTPUT_RELATIVE))
-    config.setdefault("tmp_dir", str(DEFAULT_TMP_RELATIVE))
-    config.setdefault("ollama_url", DEFAULT_OLLAMA_URL)
-    config.setdefault("ffmpeg_path", DEFAULT_FFMPEG_PATH)
-
-    return config
 
 
 def parse_arguments():
@@ -373,8 +178,6 @@ def parse_arguments():
 # Global Variables for Audio/Video Options
 # -----------------------
 SELECTED_VOICE = "gTTS"
-DEFAULT_MODEL = "gpt-oss:120b-cloud"
-OLLAMA_MODEL = DEFAULT_MODEL
 DEBUG = True
 MAX_WORDS = 18
 EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
@@ -639,8 +442,6 @@ LANGUAGE_CODES = {
 
 # Use "gTTS" as the default voice selection.
 SELECTED_VOICE = "gTTS"
-DEFAULT_MODEL = "gemma2:27b"
-OLLAMA_MODEL = DEFAULT_MODEL
 DEBUG = False
 
 MAX_WORDS = 18
@@ -696,11 +497,11 @@ def update_book_cover_file_in_config(config, ebooks_dir_value):
     title = config.get("book_title", "Unknown Title")
     author = config.get("book_author", "Unknown Author")
     ebooks_dir_value = ebooks_dir_value or str(DEFAULT_BOOKS_RELATIVE)
-    ebooks_dir_path = Path(BOOKS_DIR) if BOOKS_DIR else resolve_directory(ebooks_dir_value, DEFAULT_BOOKS_RELATIVE)
+    ebooks_dir_path = Path(cfg.BOOKS_DIR) if cfg.BOOKS_DIR else resolve_directory(ebooks_dir_value, DEFAULT_BOOKS_RELATIVE)
     default_cover_relative = "book_cover.jpg"
     default_cover_path = ebooks_dir_path / default_cover_relative
     cover_file = config.get("book_cover_file")
-    cover_path = resolve_file_path(cover_file, BOOKS_DIR)
+    cover_path = resolve_file_path(cover_file, cfg.BOOKS_DIR)
     if cover_path and cover_path.exists():
         return config
     # Otherwise, check if the default cover exists in the ebooks directory.
@@ -728,7 +529,7 @@ def remove_quotes(text):
     return text
 
 def extract_text_from_epub(epub_file):
-    epub_path = resolve_file_path(epub_file, BOOKS_DIR)
+    epub_path = resolve_file_path(epub_file, cfg.BOOKS_DIR)
     if not epub_path or not epub_path.exists():
         raise FileNotFoundError(f"EPUB file '{epub_file}' could not be found.")
     try:
@@ -913,7 +714,7 @@ def get_macOS_voices():
 # Audio Generation Functions
 # -----------------------
 def generate_macos_tts_audio(text, voice, lang_code):
-    with tempfile.NamedTemporaryFile(suffix=".aiff", dir=TMP_DIR, delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".aiff", dir=cfg.TMP_DIR, delete=False) as tmp:
         tmp_filename = tmp.name
     try:
         cmd = ["say", "-v", voice, "-r", str(MACOS_READING_SPEED), "-o", tmp_filename, text]
@@ -1093,7 +894,7 @@ def translate_sentence_simple(sentence, input_language, target_language, include
                     json.dumps(payload, indent=2, ensure_ascii=False),
                 )
 
-            response = requests.post(OLLAMA_API_URL, json=payload, stream=True, timeout=90)
+            response = requests.post(cfg.OLLAMA_API_URL, json=payload, stream=True, timeout=90)
             if response.status_code != 200:
                 if DEBUG:
                     logger.debug("HTTP %s: %s", response.status_code, response.text[:300])
@@ -1192,7 +993,7 @@ def transliterate_sentence(translated_sentence, target_language):
                 "Payload: %s",
                 json.dumps(payload, indent=2, ensure_ascii=False),
             )
-        response = requests.post(OLLAMA_API_URL, json=payload)
+        response = requests.post(cfg.OLLAMA_API_URL, json=payload)
         if response.status_code == 200:
             result = response.json().get("message", {}).get("content", "")
             return result.strip()
@@ -1695,10 +1496,10 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
         )
 
         # Save this slide as a PNG, then create a short MP4
-        img_path = os.path.join(TMP_DIR, f"word_slide_{sentence_index}_{idx}.png")
+        img_path = os.path.join(cfg.TMP_DIR, f"word_slide_{sentence_index}_{idx}.png")
         img.save(img_path)
 
-        video_path = os.path.join(TMP_DIR, f"word_slide_{sentence_index}_{idx}.mp4")
+        video_path = os.path.join(cfg.TMP_DIR, f"word_slide_{sentence_index}_{idx}.mp4")
         cmd = [
             "ffmpeg",
             "-loglevel", "quiet",
@@ -1706,7 +1507,7 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
             "-loop", "1",
             "-i", img_path,
             # We need a short silent audio input for ffmpeg to create a video
-            "-i", os.path.join(TMP_DIR, "silence.wav"),
+            "-i", os.path.join(cfg.TMP_DIR, "silence.wav"),
             "-c:v", "libx264",
             "-t", f"{duration:.2f}",
             "-pix_fmt", "yuv420p",
@@ -1723,12 +1524,12 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
         os.remove(img_path)
 
     # 6) Concatenate all short MP4 segments
-    concat_list_path = os.path.join(TMP_DIR, f"concat_word_{sentence_index}.txt")
+    concat_list_path = os.path.join(cfg.TMP_DIR, f"concat_word_{sentence_index}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in word_video_files:
             f.write(f"file '{video_file}'\n")
 
-    sentence_video_path = os.path.join(TMP_DIR, f"sentence_slide_{sentence_index}.mp4")
+    sentence_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}.mp4")
     cmd_concat = [
         "ffmpeg",
         "-loglevel", "quiet",
@@ -1753,9 +1554,9 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
             os.remove(vf)
 
     # 7) Merge with the real sentence audio
-    audio_temp_path = os.path.join(TMP_DIR, f"sentence_audio_{sentence_index}.wav")
+    audio_temp_path = os.path.join(cfg.TMP_DIR, f"sentence_audio_{sentence_index}.wav")
     audio_seg.export(audio_temp_path, format="wav")
-    merged_video_path = os.path.join(TMP_DIR, f"sentence_slide_{sentence_index}_merged.mp4")
+    merged_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}_merged.mp4")
 
     cmd_merge = [
         "ffmpeg",
@@ -1776,7 +1577,7 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
     os.remove(sentence_video_path)
 
     # 8) If there’s leftover time, pad the final video so its length matches the audio
-    final_video_path = os.path.join(TMP_DIR, f"sentence_slide_{sentence_index}_final.mp4")
+    final_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}_final.mp4")
     if pad_duration > 0:
         cmd_tpad = [
             "ffmpeg",
@@ -1811,7 +1612,7 @@ def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_
         batch_end,
     )
     sentence_video_files = []
-    silence_audio_path = os.path.join(TMP_DIR, "silence.wav")
+    silence_audio_path = os.path.join(cfg.TMP_DIR, "silence.wav")
     if not os.path.exists(silence_audio_path):
         silent = AudioSegment.silent(duration=100)
         silent.export(silence_audio_path, format="wav")
@@ -1913,7 +1714,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     import re
     folder_name = re.sub(r"_+", "_", folder_name).strip("_")
 
-    base_dir = os.path.join(EBOOK_DIR, folder_name)
+    base_dir = os.path.join(cfg.EBOOK_DIR, folder_name)
     os.makedirs(base_dir, exist_ok=True)
 
     base_output_file = os.path.join(base_dir, f"{folder_name}.html")
@@ -1923,7 +1724,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     book_author = book_metadata.get("book_author", "Unknown Author")
     
     cover_img = None
-    cover_file_path = resolve_file_path(book_metadata.get("book_cover_file"), BOOKS_DIR)
+    cover_file_path = resolve_file_path(book_metadata.get("book_cover_file"), cfg.BOOKS_DIR)
     if cover_file_path and cover_file_path.exists():
         try:
             cover_img = Image.open(cover_file_path)
@@ -2066,7 +1867,7 @@ def interactive_menu(overrides=None, config_path=None):
         MAX_WORDS = config.get("max_words", MAX_WORDS)
         EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
 
-        resolved_input_path = resolve_file_path(config.get("input_file"), BOOKS_DIR)
+        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
         input_display = str(resolved_input_path) if resolved_input_path else config.get("input_file", "")
 
         if config.get("input_file"):
@@ -2173,7 +1974,7 @@ def interactive_menu(overrides=None, config_path=None):
         elif inp_choice.isdigit():
             num = int(inp_choice)
             if num == 1:
-                books_dir_path = Path(BOOKS_DIR) if BOOKS_DIR else resolve_directory(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
+                books_dir_path = Path(cfg.BOOKS_DIR) if cfg.BOOKS_DIR else resolve_directory(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
                 epub_files = sorted([p.name for p in books_dir_path.glob("*.epub")])
                 if epub_files:
                     for idx, file in enumerate(epub_files, start=1):
@@ -2181,7 +1982,7 @@ def interactive_menu(overrides=None, config_path=None):
                 else:
                     logger.info("No EPUB files found in %s. You can type a custom path.", books_dir_path)
                 default_input = config.get("input_file", epub_files[0] if epub_files else "")
-                default_display = str(resolve_file_path(default_input, BOOKS_DIR)) if default_input else ""
+                default_display = str(resolve_file_path(default_input, cfg.BOOKS_DIR)) if default_input else ""
                 prompt_default = default_display or default_input
                 inp_val = input(f"Select an input file by number or enter a path (default: {prompt_default}): ").strip()
                 if inp_val.isdigit() and 0 < int(inp_val) <= len(epub_files):
@@ -2194,9 +1995,9 @@ def interactive_menu(overrides=None, config_path=None):
             elif num == 2:
                 if config.get("input_file"):
                     base = os.path.splitext(os.path.basename(config["input_file"]))[0]
-                    default_file = os.path.join(EBOOK_DIR, base, f"{', '.join(config.get('target_languages', ['Arabic']))}_{base}.html")
+                    default_file = os.path.join(cfg.EBOOK_DIR, base, f"{', '.join(config.get('target_languages', ['Arabic']))}_{base}.html")
                 else:
-                    default_file = os.path.join(EBOOK_DIR, "output.html")
+                    default_file = os.path.join(cfg.EBOOK_DIR, "output.html")
                 inp_val = input(f"Enter base output file name (default: {default_file}): ").strip()
                 config["base_output_file"] = inp_val if inp_val else default_file
             elif num == 3:
@@ -2498,7 +2299,7 @@ def interactive_menu(overrides=None, config_path=None):
     SYNC_RATIO = config.get("sync_ratio", 0.9)
     WORD_HIGHLIGHTING = config.get("word_highlighting", True)
     TEMPO = config.get("tempo", 1.0)
-    resolved_input = resolve_file_path(config["input_file"], BOOKS_DIR)
+    resolved_input = resolve_file_path(config["input_file"], cfg.BOOKS_DIR)
     input_arg = f"\"{resolved_input}\"" if resolved_input else f"\"{config['input_file']}\""
     cmd_parts = [
         sys.executable, os.path.basename(__file__),
@@ -2523,7 +2324,7 @@ def interactive_menu(overrides=None, config_path=None):
         "book_summary": config.get("book_summary"),
         "book_cover_file": config.get("book_cover_file")
     }
-    resolved_input = resolve_file_path(config["input_file"], BOOKS_DIR)
+    resolved_input = resolve_file_path(config["input_file"], cfg.BOOKS_DIR)
     input_file_value = str(resolved_input) if resolved_input else config["input_file"]
     return (
         input_file_value, config["base_output_file"], config["input_language"],
@@ -2563,9 +2364,9 @@ if __name__ == "__main__":
             logger.error("Error: An input EPUB file must be specified either via CLI or configuration.")
             sys.exit(1)
 
-        resolved_input_path = resolve_file_path(input_file, BOOKS_DIR)
+        resolved_input_path = resolve_file_path(input_file, cfg.BOOKS_DIR)
         if not resolved_input_path or not resolved_input_path.exists():
-            search_hint = BOOKS_DIR or config.get("ebooks_dir")
+            search_hint = cfg.BOOKS_DIR or config.get("ebooks_dir")
             logger.error(
                 "Error: EPUB file '%s' was not found. Check the ebooks directory (%s).",
                 input_file,
@@ -2587,11 +2388,11 @@ if __name__ == "__main__":
         base_name = os.path.splitext(os.path.basename(input_file))[0]
         target_lang_str = "_".join(target_languages)
         if base_output_file:
-            resolved_base = resolve_file_path(base_output_file, EBOOK_DIR)
+            resolved_base = resolve_file_path(base_output_file, cfg.EBOOK_DIR)
             os.makedirs(resolved_base.parent, exist_ok=True)
             base_output_file = str(resolved_base)
         else:
-            output_folder = os.path.join(EBOOK_DIR, f"{target_lang_str}_{base_name}")
+            output_folder = os.path.join(cfg.EBOOK_DIR, f"{target_lang_str}_{base_name}")
             os.makedirs(output_folder, exist_ok=True)
             base_output_file = os.path.join(output_folder, f"{target_lang_str}_{base_name}.html")
 
