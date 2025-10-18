@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 import os
 import concurrent.futures
-import sys, re, json, subprocess, requests, io, warnings, statistics, math, urllib.parse, base64, time
-import argparse
+import sys, re, json, subprocess, warnings, statistics, math, base64, time
 import shutil
 from pathlib import Path
 from tqdm import tqdm
@@ -10,6 +9,12 @@ from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import audio_video_generator as av_gen
 from . import translation_engine
+from .menu_interface import (
+    parse_arguments,
+    run_interactive_menu,
+    update_book_cover_file_in_config,
+    fetch_book_cover,
+)
 from .epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
@@ -56,7 +61,6 @@ resolve_directory = cfg.resolve_directory
 resolve_file_path = cfg.resolve_file_path
 initialize_environment = cfg.initialize_environment
 load_configuration = cfg.load_configuration
-strip_derived_config = cfg.strip_derived_config
 DEFAULT_MODEL = cfg.DEFAULT_MODEL
 OLLAMA_MODEL = DEFAULT_MODEL
 translation_engine.set_model(OLLAMA_MODEL)
@@ -118,11 +122,6 @@ def load_refined_list(input_file):
         return None
 
 
-def strip_derived_config(config):
-    """Return a copy of the configuration without derived runtime keys."""
-    return {k: v for k, v in config.items() if k not in DERIVED_CONFIG_KEYS}
-
-
 def get_refined_sentences(input_file, force_refresh=False, metadata=None):
     """Return the refined sentence list and whether it was regenerated."""
     if not input_file:
@@ -157,32 +156,6 @@ def get_refined_sentences(input_file, force_refresh=False, metadata=None):
     return refined, True
 
 
-def parse_arguments():
-    parser = argparse.ArgumentParser(description="Generate translated outputs from EPUB files.")
-    parser.add_argument("input_file", nargs="?", help="Path to the input EPUB file.")
-    parser.add_argument("input_language", nargs="?", help="Source language of the EPUB text.")
-    parser.add_argument("target_languages", nargs="?", help="Comma-separated list of target languages.")
-    parser.add_argument("sentences_per_output_file", nargs="?", type=int,
-                        help="Number of sentences per generated output file.")
-    parser.add_argument("base_output_file", nargs="?", help="Base path for generated output files.")
-    parser.add_argument("start_sentence", nargs="?", type=int, help="Sentence number to start processing from.")
-    parser.add_argument("end_sentence", nargs="?", help="Sentence number (or offset) to stop processing at.")
-    parser.add_argument(
-        "--config",
-        default=None,
-        help="Path to a configuration override JSON file (defaults to conf/config.local.json if present).",
-    )
-    parser.add_argument("-i", "--interactive", action="store_true", help="Open the interactive configuration menu.")
-    parser.add_argument("--ebooks-dir", help="Directory containing source EPUB files and cover images.")
-    parser.add_argument("--working-dir", help="Override the working directory for intermediate files.")
-    parser.add_argument("--output-dir", help="Override the output directory for generated files.")
-    parser.add_argument("--tmp-dir", help="Override the temporary directory for transient files.")
-    parser.add_argument("--ffmpeg-path", help="Override the path to the FFmpeg executable.")
-    parser.add_argument("--ollama-url", help="Override the Ollama API URL.")
-    parser.add_argument("--debug", action="store_true", help="Enable debug logging output.")
-    return parser.parse_args()
-
-
 # -----------------------
 # Global Variables for Audio/Video Options
 # -----------------------
@@ -196,36 +169,6 @@ SYNC_RATIO = 0.9
 # New global tempo variable; 1.0 means normal speed.
 TEMPO = 1.0
 
-AUDIO_MODE_DESC = {
-    "1": "Only translated sentence",
-    "2": "Sentence numbering + translated sentence",
-    "3": "Full original format (numbering, original sentence, translated sentence)",
-    "4": "Original sentence + translated sentence",
-    "5": "Only Original sentence"
-}
-
-WRITTEN_MODE_DESC = {
-    "1": "Only fluent translation",
-    "2": "Sentence numbering + fluent translation",
-    "3": "Full original format (numbering, original sentence, fluent translation)",
-    "4": "Original sentence + fluent translation"
-}
-
-# -----------------------
-# Updated TOP_LANGUAGES List (Added Persian)
-# -----------------------
-TOP_LANGUAGES = [
-    "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali", "Bosnian", "Burmese",
-    "Catalan", "Chinese (Simplified)", "Chinese (Traditional)", "Czech", "Croatian", "Danish",
-    "Dutch", "English", "Esperanto", "Estonian", "Filipino", "Finnish", "French", "German",
-    "Greek", "Gujarati", "Hausa", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian",
-    "Italian", "Japanese", "Javanese", "Kannada", "Khmer", "Korean", "Latin", "Latvian",
-    "Macedonian", "Malay", "Malayalam", "Marathi", "Nepali", "Norwegian", "Polish",
-    "Portuguese", "Romanian", "Russian", "Sinhala", "Slovak", "Serbian", "Sundanese",
-    "Swahili", "Swedish", "Tamil", "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu",
-    "Vietnamese", "Welsh", "Xhosa", "Yoruba", "Zulu", "Persian"
-]
-
 # -----------------------
 # Global variable for non-Latin languages (Added Persian)
 # -----------------------
@@ -238,23 +181,6 @@ NON_LATIN_LANGUAGES = {
 # Global option: Word highlighting for video slides (default enabled)
 # -----------------------
 WORD_HIGHLIGHTING = True
-
-# -----------------------
-# Function: Print Languages in Four Columns
-# -----------------------
-def print_languages_in_four_columns():
-    languages = TOP_LANGUAGES[:]
-    n = len(languages)
-    cols = 4
-    rows = math.ceil(n / cols)
-    col_width = max(len(s) for s in languages) + 4
-    for r in range(rows):
-        row_items = []
-        for c in range(cols):
-            idx = r + c * rows
-            if idx < n:
-                row_items.append(f"{idx+1:2d}. {languages[idx]:<{col_width}}")
-        logger.info("%s", "".join(row_items))
 
 # -----------------------
 # Helper Functions for Text Wrapping & Font Adjustment
@@ -408,144 +334,6 @@ LANGUAGE_CODES = {
     "Zulu": "zu",
     "Persian": "fa"
 }
-
-# Use "gTTS" as the default voice selection.
-SELECTED_VOICE = "gTTS"
-DEBUG = False
-translation_engine.set_debug(DEBUG)
-
-MAX_WORDS = DEFAULT_MAX_WORDS
-EXTEND_SPLIT_WITH_COMMA_SEMICOLON = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON
-
-MACOS_READING_SPEED = 100
-
-SYNC_RATIO = 0.9
-
-AUDIO_MODE_DESC = {
-    "1": "Only translated sentence",
-    "2": "Sentence numbering + translated sentence",
-    "3": "Full original format (numbering, original sentence, translated sentence)",
-    "4": "Original sentence + translated sentence"
-}
-
-WRITTEN_MODE_DESC = {
-    "1": "Only fluent translation",
-    "2": "Sentence numbering + fluent translation",
-    "3": "Full original format (numbering, original sentence, fluent translation)",
-    "4": "Original sentence + fluent translation"
-}
-
-# -----------------------
-# New Function: Fetch Book Cover from OpenLibrary
-# -----------------------
-def fetch_book_cover(query):
-    q = urllib.parse.quote(query)
-    url = f"http://openlibrary.org/search.json?title={q}"
-    try:
-        r = requests.get(url, timeout=10)
-        if r.status_code == 200:
-            data = r.json()
-            docs = data.get("docs", [])
-            for doc in docs:
-                if "cover_i" in doc:
-                    cover_id = doc["cover_i"]
-                    cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
-                    cover_response = requests.get(cover_url, stream=True, timeout=10)
-                    if cover_response.status_code == 200:
-                        cover_img = Image.open(io.BytesIO(cover_response.content))
-                        return cover_img
-        return None
-    except Exception as e:
-        if DEBUG:
-            logger.error("Error fetching book cover: %s", e)
-        return None
-
-# -----------------------
-# New Function: Update Book Cover File in Config
-# -----------------------
-def update_book_cover_file_in_config(config, ebooks_dir_value):
-    title = config.get("book_title", "Unknown Title")
-    author = config.get("book_author", "Unknown Author")
-    ebooks_dir_value = ebooks_dir_value or str(DEFAULT_BOOKS_RELATIVE)
-    ebooks_dir_path = Path(cfg.BOOKS_DIR) if cfg.BOOKS_DIR else resolve_directory(ebooks_dir_value, DEFAULT_BOOKS_RELATIVE)
-    default_cover_relative = "book_cover.jpg"
-    default_cover_path = ebooks_dir_path / default_cover_relative
-    cover_file = config.get("book_cover_file")
-    cover_path = resolve_file_path(cover_file, cfg.BOOKS_DIR)
-    if cover_path and cover_path.exists():
-        return config
-    # Otherwise, check if the default cover exists in the ebooks directory.
-    if default_cover_path and default_cover_path.exists():
-        config["book_cover_file"] = default_cover_relative
-        config["book_cover_title"] = title
-    else:
-        cover_img = fetch_book_cover(f"{title} {author}")
-        if cover_img:
-            cover_img.thumbnail((80, 80))
-            if default_cover_path:
-                cover_img.save(default_cover_path, format="JPEG")
-            config["book_cover_file"] = default_cover_relative
-            config["book_cover_title"] = title
-        else:
-            config["book_cover_file"] = None
-    return config
-
-def update_sentence_config(config, refined_list):
-    if config.get("start_sentence_lookup"):
-        query = config["start_sentence_lookup"].strip()
-        found = None
-        for idx, s in enumerate(refined_list):
-            if query.lower() in s.lower():
-                found = idx
-                break
-        if found is not None:
-            config["start_sentence"] = found + 1
-            logger.info(
-                "(Lookup) Starting sentence updated to %s based on query '%s'.",
-                config["start_sentence"],
-                query,
-            )
-        else:
-            config["start_sentence"] = 1
-            logger.info("(Lookup) Query '%s' not found. Starting sentence set to 1.", query)
-        config["start_sentence_lookup"] = ""
-    else:
-        try:
-            config["start_sentence"] = int(config.get("start_sentence", 1))
-        except:
-            config["start_sentence"] = 1
-    return config
-
-# -----------------------
-# New Function: Get macOS Voices (Enhanced/Premium only)
-# -----------------------
-def get_macOS_voices():
-    try:
-        output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
-    except Exception as e:
-        if DEBUG:
-            logger.error("Error retrieving macOS voices: %s", e)
-        return []
-    voices = []
-    for line in output.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        parts = line.split("#")
-        details = parts[0].strip().split()
-        if len(details) >= 3 and details[1].startswith("("):
-            voice_name = details[0]
-            quality = details[1].strip("()")
-            locale = details[2]
-        elif len(details) >= 2:
-            voice_name = details[0]
-            locale = details[1]
-            quality = ""
-        else:
-            continue
-        if quality in ["Enhanced", "Premium"]:
-            voices.append(f"{voice_name} - {locale} - ({quality})")
-    return voices
 
 # -----------------------
 # Modified Function: Combined Translation
@@ -766,514 +554,6 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
 # -----------------------
 # Interactive Menu with Grouped Options and Dynamic Summary
 # -----------------------
-def interactive_menu(overrides=None, config_path=None):
-    global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON, MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO
-    overrides = overrides or {}
-    if config_path:
-        config_file_path = Path(config_path).expanduser()
-        if not config_file_path.is_absolute():
-            config_file_path = (Path.cwd() / config_file_path).resolve()
-    else:
-        config_file_path = DEFAULT_LOCAL_CONFIG_PATH
-    config = load_configuration(config_file_path, verbose=True)
-    configure_logging_level(config.get("debug", False))
-
-    if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
-        config["start_sentence_lookup"] = config["start_sentence"]
-
-    initialize_environment(config, overrides)
-
-    config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
-
-    MAX_WORDS = config.get("max_words", MAX_WORDS)
-    EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
-    refined_cache_stale = True
-    refined = []
-
-    while True:
-        MAX_WORDS = config.get("max_words", MAX_WORDS)
-        EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
-
-        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
-        input_display = str(resolved_input_path) if resolved_input_path else config.get("input_file", "")
-
-        if config.get("input_file"):
-            refined, refreshed = get_refined_sentences(
-                config["input_file"],
-                force_refresh=refined_cache_stale,
-                metadata={"mode": "interactive"}
-            )
-            if refreshed:
-                logger.info(
-                    "Refined sentence list written to: %s",
-                    refined_list_output_path(config["input_file"]),
-                )
-            refined_cache_stale = False
-        else:
-            refined = []
-        config = update_sentence_config(config, refined)
-
-        logger.info("\n--- File / Language Settings ---")
-        logger.info("1. Input EPUB file: %s", input_display)
-        logger.info("2. Base output file: %s", config.get("base_output_file", ""))
-        logger.info("3. Input language: %s", config.get("input_language", "English"))
-        logger.info(
-            "4. Target languages: %s",
-            ", ".join(config.get("target_languages", ["Arabic"])),
-        )
-
-        logger.info("\n--- LLM, Audio, Video Settings ---")
-        logger.info("5. Ollama model: %s", config.get("ollama_model", DEFAULT_MODEL))
-        logger.info("6. Generate audio output: %s", config.get("generate_audio", True))
-        logger.info("7. Generate video slide output: %s", config.get("generate_video", False))
-        logger.info("8. Selected voice for audio generation: %s", config.get("selected_voice", "gTTS"))
-        logger.info(
-            "9. macOS TTS reading speed (words per minute): %s",
-            config.get("macos_reading_speed", 100),
-        )
-        logger.info("10. Audio tempo (default: %s)", config.get("tempo", 1.0))
-        logger.info("11. Sync ratio for word slides: %s", config.get("sync_ratio", 0.9))
-
-        logger.info("\n--- Sentence Parsing Settings ---")
-        logger.info(
-            "12. Sentences per output file: %s",
-            config.get("sentences_per_output_file", 10),
-        )
-        logger.info(
-            "13. Starting sentence (number or lookup word): %s",
-            config.get("start_sentence", 1),
-        )
-        logger.info(
-            "14. Ending sentence (absolute or offset): %s",
-            config.get("end_sentence", f"Last sentence [{len(refined)}]"),
-        )
-        logger.info("15. Max words per sentence chunk: %s", config.get("max_words", 18))
-        logger.info(
-            "16. Percentile for computing suggested max words: %s",
-            config.get("percentile", 96),
-        )
-
-        logger.info("\n--- Format Options ---")
-        logger.info(
-            "17. Audio output mode: %s (%s)",
-            config.get("audio_mode", "1"),
-            AUDIO_MODE_DESC.get(config.get("audio_mode", "1"), ""),
-        )
-        logger.info(
-            "18. Written output mode: %s (%s)",
-            config.get("written_mode", "4"),
-            WRITTEN_MODE_DESC.get(config.get("written_mode", "4"), ""),
-        )
-        logger.info(
-            "19. Extend split logic with comma and semicolon: %s",
-            "Yes" if config.get("split_on_comma_semicolon", False) else "No",
-        )
-        logger.info(
-            "20. Include transliteration for non-Latin alphabets: %s",
-            config.get("include_transliteration", False),
-        )
-        logger.info(
-            "21. Word highlighting for video slides: %s",
-            "Yes" if config.get("word_highlighting", True) else "No",
-        )
-        logger.info("22. Debug mode: %s", config.get("debug", False))
-        logger.info("23. HTML output: %s", config.get("output_html", True))
-        logger.info("24. PDF output: %s", config.get("output_pdf", False))
-        logger.info("25. Generate stitched full output file: %s", config.get("stitch_full", False))
-
-        logger.info("\n--- Book Metadata ---")
-        logger.info("26. Book Title: %s", config.get("book_title"))
-        logger.info("27. Author: %s", config.get("book_author"))
-        logger.info("28. Year: %s", config.get("book_year"))
-        logger.info("29. Summary: %s", config.get("book_summary"))
-        logger.info("30. Book Cover File: %s", config.get("book_cover_file", "None"))
-        logger.info("\n--- Paths and Services ---")
-        logger.info("31. Working directory: %s", config.get("working_dir"))
-        logger.info("32. Output directory: %s", config.get("output_dir"))
-        logger.info("33. Ebooks directory: %s", config.get("ebooks_dir"))
-        logger.info("34. Temporary directory: %s", config.get("tmp_dir"))
-        logger.info("35. FFmpeg path: %s", config.get("ffmpeg_path"))
-        logger.info("36. Ollama API URL: %s", config.get("ollama_url"))
-        
-        inp_choice = input("\nEnter a parameter number to change (or press Enter to confirm): ").strip()
-        if inp_choice == "":
-            break
-        elif inp_choice.isdigit():
-            num = int(inp_choice)
-            if num == 1:
-                books_dir_path = Path(cfg.BOOKS_DIR) if cfg.BOOKS_DIR else resolve_directory(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
-                epub_files = sorted([p.name for p in books_dir_path.glob("*.epub")])
-                if epub_files:
-                    for idx, file in enumerate(epub_files, start=1):
-                        logger.info("%s. %s", idx, file)
-                else:
-                    logger.info("No EPUB files found in %s. You can type a custom path.", books_dir_path)
-                default_input = config.get("input_file", epub_files[0] if epub_files else "")
-                default_display = str(resolve_file_path(default_input, cfg.BOOKS_DIR)) if default_input else ""
-                prompt_default = default_display or default_input
-                inp_val = input(f"Select an input file by number or enter a path (default: {prompt_default}): ").strip()
-                if inp_val.isdigit() and 0 < int(inp_val) <= len(epub_files):
-                    config["input_file"] = epub_files[int(inp_val)-1]
-                elif inp_val:
-                    config["input_file"] = inp_val
-                else:
-                    config["input_file"] = default_input
-                refined_cache_stale = True
-            elif num == 2:
-                if config.get("input_file"):
-                    base = os.path.splitext(os.path.basename(config["input_file"]))[0]
-                    default_file = os.path.join(cfg.EBOOK_DIR, base, f"{', '.join(config.get('target_languages', ['Arabic']))}_{base}.html")
-                else:
-                    default_file = os.path.join(cfg.EBOOK_DIR, "output.html")
-                inp_val = input(f"Enter base output file name (default: {default_file}): ").strip()
-                config["base_output_file"] = inp_val if inp_val else default_file
-            elif num == 3:
-                logger.info("\nSelect input language:")
-                print_languages_in_four_columns()
-                default_in = config.get("input_language", "English")
-                inp_val = input(f"Select input language by number (default: {default_in}): ").strip()
-                if inp_val.isdigit():
-                    config["input_language"] = TOP_LANGUAGES[int(inp_val)-1]
-                else:
-                    config["input_language"] = default_in
-            elif num == 4:
-                logger.info("\nSelect target languages (separate choices by comma, e.g. 1,4,7):")
-                print_languages_in_four_columns()
-                default_t = config.get("target_languages", ["Arabic"])
-                inp_val = input(f"Select target languages by number (default: {', '.join(default_t)}): ").strip()
-                if inp_val:
-                    choices = [int(x) for x in inp_val.split(",") if x.strip().isdigit()]
-                    selected_langs = [TOP_LANGUAGES[x-1] for x in choices if 0 < x <= len(TOP_LANGUAGES)]
-                    config["target_languages"] = selected_langs if selected_langs else default_t
-                else:
-                    config["target_languages"] = default_t
-            elif num == 5:
-                try:
-                    result = subprocess.run(["ollama", "list"], capture_output=True, text=True)
-                    models = result.stdout.strip().split("\n")[1:]
-                    for idx, model in enumerate(models, start=1):
-                        logger.info("%s. %s", idx, model)
-                    default_model = config.get("ollama_model", models[0].split()[0])
-                    inp_val = input(f"Select a model by number (default: {default_model}): ").strip()
-                    if inp_val.isdigit():
-                        config["ollama_model"] = models[int(inp_val)-1].split()[0]
-                    else:
-                        config["ollama_model"] = default_model
-                except Exception as e:
-                    logger.error("Error listing models: %s", e)
-            elif num == 6:
-                default_audio = config.get("generate_audio", True)
-                inp_val = input(f"Generate audio output files? (yes/no, default {'yes' if default_audio else 'no'}): ").strip().lower()
-                config["generate_audio"] = True if inp_val in ["", "yes", "y"] else False
-            elif num == 7:
-                default_video = config.get("generate_video", False)
-                inp_val = input(f"Generate video slide output? (yes/no, default {'yes' if default_video else 'no'}): ").strip().lower()
-                config["generate_video"] = True if inp_val in ["yes", "y"] else False
-            elif num == 8:
-                default_voice = config.get("selected_voice", "gTTS")
-                logger.info("\nSelect voice for audio generation:")
-                logger.info("1. Use gTTS (online text-to-speech)")
-                logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
-                voice_choice = input("Enter 1 for gTTS or 2 for macOS voice (default: 1): ").strip()
-                if voice_choice == "2":
-                    voices = get_macOS_voices()
-                    if voices:
-                        logger.info("Available macOS voices (Enhanced/Premium):")
-                        for idx, v in enumerate(voices, start=1):
-                            logger.info("%s. %s", idx, v)
-                        inp = input(f"Select a macOS voice by number (default: {voices[0]}): ").strip()
-                        if inp.isdigit() and 1 <= int(inp) <= len(voices):
-                            voice_selected = voices[int(inp)-1]
-                        else:
-                            voice_selected = voices[0]
-                    else:
-                        logger.warning("No macOS voices found, defaulting to gTTS")
-                        voice_selected = "gTTS"
-                else:
-                    voice_selected = "gTTS"
-                config["selected_voice"] = voice_selected
-            elif num == 9:
-                default_reading_speed = config.get("macos_reading_speed", 100)
-                inp_val = input(f"Enter macOS TTS reading speed (words per minute) (default {default_reading_speed}): ").strip()
-                config["macos_reading_speed"] = int(inp_val) if inp_val.isdigit() else default_reading_speed
-            elif num == 10:
-                default_tempo = config.get("tempo", 1.0)
-                inp_val = input(f"Enter audio tempo (e.g. 1 for normal, 1.5 for faster, 0.75 for slower) (default {default_tempo}): ").strip()
-                try:
-                    config["tempo"] = float(inp_val) if inp_val else default_tempo
-                except:
-                    config["tempo"] = default_tempo
-            elif num == 11:
-                default_sync = config.get("sync_ratio", 0.9)
-                inp_val = input(f"Enter sync ratio for word slides (default {default_sync}): ").strip()
-                try:
-                    new_sync = float(inp_val)
-                    config["sync_ratio"] = new_sync
-                except:
-                    config["sync_ratio"] = default_sync
-            elif num == 12:
-                default_sent = config.get("sentences_per_output_file", 10)
-                inp_val = input(f"Enter number of sentences per output file (default {default_sent}): ").strip()
-                config["sentences_per_output_file"] = int(inp_val) if inp_val.isdigit() else default_sent
-            elif num == 13:
-                default_start = config.get("start_sentence", 1)
-                inp_val = input(f"Enter starting sentence (number or lookup word) (default: {default_start}): ").strip()
-                if inp_val:
-                    if inp_val.isdigit():
-                        config["start_sentence"] = int(inp_val)
-                        config["start_sentence_lookup"] = ""
-                    else:
-                        config["start_sentence_lookup"] = inp_val
-                        config["start_sentence"] = inp_val
-                else:
-                    config["start_sentence"] = default_start
-            elif num == 14:
-                total_sent = len(refined)
-                default_end = config.get("end_sentence")
-                inp_val = input(f"Enter ending sentence (absolute or offset, e.g. +100) (default: last sentence [{total_sent}]): ").strip()
-                if inp_val == "":
-                    config["end_sentence"] = total_sent
-                elif inp_val[0] in ['+', '-']:
-                    try:
-                        offset = int(inp_val)
-                        start_val = int(config.get("start_sentence", 1))
-                        config["end_sentence"] = start_val + offset
-                        logger.info("Ending sentence updated to %s", config["end_sentence"])
-                    except Exception:
-                        config["end_sentence"] = default_end
-                elif inp_val.isdigit():
-                    config["end_sentence"] = int(inp_val)
-                else:
-                    config["end_sentence"] = default_end
-            elif num == 15:
-                default_max = config.get("max_words", 18)
-                inp_val = input(f"Enter maximum words per sentence chunk (default {default_max}): ").strip()
-                if inp_val.isdigit():
-                    new_max = int(inp_val)
-                    config["max_words"] = new_max
-                    config["max_words_manual"] = True
-                    MAX_WORDS = new_max
-                    text = extract_text_from_epub(config["input_file"])
-                    refined_tmp = split_text_into_sentences(
-                        text,
-                        max_words=MAX_WORDS,
-                        extend_split_with_comma_semicolon=EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
-                    )
-                    lengths = [len(s.split()) for s in refined_tmp]
-                    new_perc = None
-                    for i, length in enumerate(lengths):
-                        if length >= new_max:
-                            new_perc = int(((i+1) / len(lengths)) * 100)
-                            break
-                    config["percentile"] = new_perc if new_perc is not None else 100
-                    logger.info(
-                        "Recomputed percentile based on new max words: %s%%",
-                        config["percentile"],
-                    )
-                else:
-                    config["max_words"] = default_max
-                    MAX_WORDS = config["max_words"]
-                refined_cache_stale = True
-            elif num == 16:
-                default_perc = config.get("percentile", 96)
-                inp_val = input(f"Enter percentile for computing suggested max words (0-100) (default {default_perc}): ").strip()
-                if inp_val.isdigit():
-                    p_val = int(inp_val)
-                    if 0 < p_val <= 100:
-                        config["percentile"] = p_val
-                        text = extract_text_from_epub(config["input_file"])
-                        refined_tmp = split_text_into_sentences(
-                            text,
-                            max_words=MAX_WORDS,
-                            extend_split_with_comma_semicolon=EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
-                        )
-                        if refined_tmp:
-                            lengths = [len(s.split()) for s in refined_tmp]
-                            lengths.sort()
-                            idx_p = int((p_val/100.0) * len(lengths))
-                            config["max_words"] = lengths[idx_p] if idx_p < len(lengths) else lengths[-1]
-                            MAX_WORDS = config["max_words"]
-                        logger.info(
-                            "Updated percentile to %s%%, and max words set to %s",
-                            p_val,
-                            config["max_words"],
-                        )
-                    else:
-                        logger.warning(
-                            "Invalid percentile, must be between 1 and 100. Keeping previous value."
-                        )
-                else:
-                    config["percentile"] = default_perc
-                refined_cache_stale = True
-            elif num == 17:
-                default_am = config.get("audio_mode", "1")
-                logger.info("\nChoose audio output mode:")
-                logger.info("1: Only translated sentence")
-                logger.info("2: Sentence numbering + translated sentence")
-                logger.info("3: Full original format (numbering, original sentence, translated sentence)")
-                logger.info("4: Original sentence + translated sentence")
-                inp_val = input(f"Select audio output mode (default {default_am}): ").strip()
-                config["audio_mode"] = inp_val if inp_val in ["1", "2", "3", "4"] else default_am
-            elif num == 18:
-                default_wm = config.get("written_mode", "4")
-                logger.info("\nChoose written output mode:")
-                logger.info("1: Only fluent translation")
-                logger.info("2: Sentence numbering + fluent translation")
-                logger.info("3: Full original format (numbering, original sentence, fluent translation)")
-                logger.info("4: Original sentence + fluent translation")
-                inp_val = input(f"Select written output mode (default {default_wm}): ").strip()
-                config["written_mode"] = inp_val if inp_val in ["1", "2", "3", "4"] else default_wm
-            elif num == 19:
-                default_extend = config.get("split_on_comma_semicolon", False)
-                inp_val = input(f"Extend split logic with comma and semicolon? (yes/no, default {'yes' if default_extend else 'no'}): ").strip().lower()
-                config["split_on_comma_semicolon"] = True if inp_val in ["yes", "y"] else False
-                EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config["split_on_comma_semicolon"]
-                refined_cache_stale = True
-            elif num == 20:
-                default_translit = config.get("include_transliteration", False)
-                inp_val = input(f"Include transliteration for non-Latin alphabets? (yes/no, default {'yes' if default_translit else 'no'}): ").strip().lower()
-                config["include_transliteration"] = True if inp_val in ["yes", "y"] else False
-            elif num == 21:
-                default_highlight = config.get("word_highlighting", True)
-                inp_val = input(f"Enable word highlighting for video slides? (yes/no, default {'yes' if default_highlight else 'no'}): ").strip().lower()
-                config["word_highlighting"] = True if inp_val in ["", "yes", "y"] else False
-            elif num == 22:
-                default_debug = config.get("debug", False)
-                inp_val = input(f"Enable debug mode? (yes/no, default {'yes' if default_debug else 'no'}): ").strip().lower()
-                config["debug"] = True if inp_val == "yes" else False
-                configure_logging_level(config["debug"])
-            elif num == 23:
-                default_html = config.get("output_html", True)
-                inp_val = input(f"HTML output? (yes/no, default {'yes' if default_html else 'no'}): ").strip().lower()
-                config["output_html"] = True if inp_val in ["", "yes", "y"] else False
-            elif num == 24:
-                default_pdf = config.get("output_pdf", False)
-                inp_val = input(f"PDF output? (yes/no, default {'yes' if default_pdf else 'no'}): ").strip().lower()
-                config["output_pdf"] = True if inp_val in ["", "yes", "y"] else False
-            elif num == 25:
-                default_stitch = config.get("stitch_full", False)
-                inp_val = input(f"Generate stitched full output file? (yes/no, default {'yes' if default_stitch else 'no'}): ").strip().lower()
-                config["stitch_full"] = True if inp_val in ["yes", "y"] else False
-            elif num == 26:
-                inp_val = input("Enter Book Title: ").strip()
-                config["book_title"] = inp_val if inp_val else config.get("book_title")
-            elif num == 27:
-                inp_val = input("Enter Book Author: ").strip()
-                config["book_author"] = inp_val if inp_val else config.get("book_author")
-            elif num == 28:
-                inp_val = input("Enter Book Year: ").strip()
-                config["book_year"] = inp_val if inp_val else config.get("book_year")
-            elif num == 29:
-                inp_val = input("Enter a short Summary of the Book: ").strip()
-                config["book_summary"] = inp_val if inp_val else config.get("book_summary")
-            elif num == 30:
-                inp_val = input("Enter full path for Book Cover file (or leave blank to use default): ").strip()
-                if inp_val:
-                    if os.path.exists(inp_val):
-                        config["book_cover_file"] = inp_val
-                    else:
-                        logger.warning("File does not exist. Keeping previous value.")
-                else:
-                    config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
-            elif num == 31:
-                current = config.get("working_dir")
-                inp_val = input(f"Enter working directory (default: {current}): ").strip()
-                if inp_val:
-                    config["working_dir"] = inp_val
-                initialize_environment(config, overrides)
-                config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
-                refined_cache_stale = True
-            elif num == 32:
-                current = config.get("output_dir")
-                inp_val = input(f"Enter output directory (default: {current}): ").strip()
-                if inp_val:
-                    config["output_dir"] = inp_val
-                initialize_environment(config, overrides)
-                refined_cache_stale = True
-            elif num == 33:
-                current = config.get("ebooks_dir")
-                inp_val = input(f"Enter ebooks directory (default: {current}): ").strip()
-                if inp_val:
-                    config["ebooks_dir"] = inp_val
-                initialize_environment(config, overrides)
-                config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
-                refined_cache_stale = True
-            elif num == 34:
-                current = config.get("tmp_dir")
-                inp_val = input(f"Enter temporary directory (default: {current}): ").strip()
-                if inp_val:
-                    config["tmp_dir"] = inp_val
-                initialize_environment(config, overrides)
-            elif num == 35:
-                current = config.get("ffmpeg_path")
-                inp_val = input(f"Enter FFmpeg executable path (default: {current}): ").strip()
-                if inp_val:
-                    config["ffmpeg_path"] = inp_val
-                initialize_environment(config, overrides)
-            elif num == 36:
-                current = config.get("ollama_url")
-                inp_val = input(f"Enter Ollama API URL (default: {current}): ").strip()
-                if inp_val:
-                    config["ollama_url"] = inp_val
-                initialize_environment(config, overrides)
-            else:
-                logger.warning("Invalid parameter number. Please try again.")
-        else:
-            logger.warning("Invalid input. Please enter a number or press Enter.")
-        try:
-            config_file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(config_file_path, "w", encoding="utf-8") as f:
-                json.dump(strip_derived_config(config), f, indent=4)
-            logger.info("Configuration saved to %s", config_file_path)
-        except Exception as e:
-            logger.error("Error saving configuration: %s", e)
-    OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
-    translation_engine.set_model(OLLAMA_MODEL)
-    debug_enabled = config.get("debug", False)
-    translation_engine.set_debug(debug_enabled)
-    configure_logging_level(debug_enabled)
-    MAX_WORDS = config.get("max_words", 18)
-    MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
-    SYNC_RATIO = config.get("sync_ratio", 0.9)
-    WORD_HIGHLIGHTING = config.get("word_highlighting", True)
-    TEMPO = config.get("tempo", 1.0)
-    resolved_input = resolve_file_path(config["input_file"], cfg.BOOKS_DIR)
-    input_arg = f"\"{resolved_input}\"" if resolved_input else f"\"{config['input_file']}\""
-    cmd_parts = [
-        sys.executable,
-        ENTRY_SCRIPT_NAME,
-        input_arg,
-        f"\"{config['input_language']}\"",
-        f"\"{','.join(config['target_languages'])}\"",
-        str(config["sentences_per_output_file"]),
-        f"\"{config['base_output_file']}\"",
-        str(config["start_sentence"])
-    ]
-    if config.get("end_sentence") is not None:
-        cmd_parts.append(str(config["end_sentence"]))
-    if config["debug"]:
-        cmd_parts.append("--debug")
-    full_command = " ".join(cmd_parts)
-    logger.info("\nTo run non-interactively with these settings, use the following command:")
-    logger.info("%s", full_command)
-    book_metadata = {
-        "book_title": config.get("book_title"),
-        "book_author": config.get("book_author"),
-        "book_year": config.get("book_year"),
-        "book_summary": config.get("book_summary"),
-        "book_cover_file": config.get("book_cover_file")
-    }
-    resolved_input = resolve_file_path(config["input_file"], cfg.BOOKS_DIR)
-    input_file_value = str(resolved_input) if resolved_input else config["input_file"]
-    return (
-        input_file_value, config["base_output_file"], config["input_language"],
-        config["target_languages"], config["sentences_per_output_file"], config["start_sentence"],
-        config.get("end_sentence"), config["stitch_full"], config["generate_audio"],
-        config["audio_mode"], config["written_mode"], config.get("selected_voice", "gTTS"),
-        config.get("output_html", True), config.get("output_pdf", False), config.get("generate_video", False),
-        config.get("include_transliteration", False), config.get("tempo", 1.0), book_metadata
-    )
-
 def run_pipeline():
     """Entry point for executing the ebook processing pipeline."""
     global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON
@@ -1291,6 +571,11 @@ def run_pipeline():
     }
 
     if args.interactive:
+        config, interactive_results = run_interactive_menu(
+            overrides,
+            args.config,
+            entry_script_name=ENTRY_SCRIPT_NAME,
+        )
         (
             input_file,
             base_output_file,
@@ -1310,13 +595,30 @@ def run_pipeline():
             include_transliteration,
             tempo,
             book_metadata,
-        ) = interactive_menu(overrides, args.config)
-        SELECTED_VOICE = selected_voice
-        TEMPO = tempo
+        ) = interactive_results
+        SELECTED_VOICE = config.get("selected_voice", selected_voice)
+        TEMPO = config.get("tempo", tempo)
+        OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
+        DEBUG = config.get("debug", False)
+        MAX_WORDS = config.get("max_words", DEFAULT_MAX_WORDS)
+        EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get(
+            "split_on_comma_semicolon",
+            DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+        )
+        MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
+        SYNC_RATIO = config.get("sync_ratio", 0.9)
+        WORD_HIGHLIGHTING = config.get("word_highlighting", True)
+        translation_engine.set_model(OLLAMA_MODEL)
+        translation_engine.set_debug(DEBUG)
+        configure_logging_level(DEBUG)
     else:
         config = load_configuration(args.config, verbose=False)
         initialize_environment(config, overrides)
-        config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
+        config = update_book_cover_file_in_config(
+            config,
+            config.get("ebooks_dir"),
+            debug_enabled=config.get("debug", False),
+        )
 
         input_file = args.input_file or config.get("input_file")
         if not input_file:
