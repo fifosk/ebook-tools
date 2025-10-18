@@ -9,6 +9,7 @@ from tqdm import tqdm
 from ebooklib import epub
 from bs4 import BeautifulSoup
 from modules import config_manager as cfg
+from modules import logging_manager as log_mgr
 
 # Suppress warnings from ebooklib
 warnings.filterwarnings("ignore", category=UserWarning, module="ebooklib.epub")
@@ -31,8 +32,8 @@ from pydub import AudioSegment
 from PIL import Image, ImageDraw, ImageFont
 
 SCRIPT_DIR = cfg.SCRIPT_DIR
-LOG_DIR = cfg.LOG_DIR
-LOG_FILE = cfg.LOG_FILE
+LOG_DIR = log_mgr.LOG_DIR
+LOG_FILE = log_mgr.LOG_FILE
 DEFAULT_WORKING_RELATIVE = cfg.DEFAULT_WORKING_RELATIVE
 DEFAULT_OUTPUT_RELATIVE = cfg.DEFAULT_OUTPUT_RELATIVE
 DEFAULT_TMP_RELATIVE = cfg.DEFAULT_TMP_RELATIVE
@@ -48,8 +49,8 @@ DERIVED_CONFIG_KEYS = cfg.DERIVED_CONFIG_KEYS
 DEFAULT_OLLAMA_URL = cfg.DEFAULT_OLLAMA_URL
 DEFAULT_FFMPEG_PATH = cfg.DEFAULT_FFMPEG_PATH
 
-logger = cfg.logger
-configure_logging_level = cfg.configure_logging_level
+logger = log_mgr.logger
+configure_logging_level = log_mgr.configure_logging_level
 resolve_directory = cfg.resolve_directory
 resolve_file_path = cfg.resolve_file_path
 initialize_environment = cfg.initialize_environment
