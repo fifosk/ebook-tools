@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import io
 import json
 import os
 import subprocess
@@ -19,6 +18,12 @@ from PIL import Image
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import translation_engine
+from .audio_video_generator import (
+    AUTO_MACOS_VOICE,
+    AUTO_MACOS_VOICE_FEMALE,
+    AUTO_MACOS_VOICE_MALE,
+    macos_voice_inventory,
+)
 from .epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
@@ -74,7 +79,16 @@ def _prompt_user(prompt: str) -> str:
         response = input(prompt)
     except EOFError:
         return ""
-    return response.replace("\r", "").strip()
+    except KeyboardInterrupt:  # pragma: no cover - manual interruption
+        print()
+        raise
+
+    if not response:
+        return ""
+
+    cleaned = response.replace("\r", "")
+    cleaned = cleaned.rstrip("\n")
+    return cleaned.strip()
 
 
 def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -240,29 +254,24 @@ def update_sentence_config(config: Dict[str, Any], refined_list: Sequence[str]) 
 
 def get_macos_voices(debug_enabled: bool = False) -> List[str]:
     """Return available macOS voices filtered to Enhanced/Premium quality."""
-    try:
-        output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
-    except Exception as exc:  # pragma: no cover - platform specific
-        if debug_enabled:
-            logger.error("Error retrieving macOS voices: %s", exc)
-        return []
 
-    voices: List[str] = []
-    for line in output.splitlines():
-        details = line.strip().split("#")[0].strip().split()
-        if len(details) >= 3 and details[1].startswith("("):
-            voice_name = details[0]
-            quality = details[1].strip("()")
-            locale = details[2]
-        elif len(details) >= 2:
-            voice_name = details[0]
-            locale = details[1]
-            quality = ""
-        else:
+    voices = []
+    for name, locale, quality, gender in macos_voice_inventory(debug_enabled=debug_enabled):
+        if quality not in {"Enhanced", "Premium"}:
             continue
-        if quality in {"Enhanced", "Premium"}:
-            voices.append(f"{voice_name} - {locale} - ({quality})")
+        gender_suffix = f" - {gender.capitalize()}" if gender else ""
+        voices.append(f"{name} - {locale} - ({quality}){gender_suffix}")
     return voices
+
+
+def _format_selected_voice(selected: str) -> str:
+    if selected == AUTO_MACOS_VOICE_FEMALE:
+        return "macOS auto (Premium/Enhanced preferred, female)"
+    if selected == AUTO_MACOS_VOICE_MALE:
+        return "macOS auto (Premium/Enhanced preferred, male)"
+    if selected == AUTO_MACOS_VOICE:
+        return "macOS auto (Premium/Enhanced preferred)"
+    return selected
 
 
 def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input: Optional[Path]) -> None:
@@ -281,7 +290,10 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     logger.info("5. Ollama model: %s", config.get("ollama_model", DEFAULT_MODEL))
     logger.info("6. Generate audio output: %s", config.get("generate_audio", True))
     logger.info("7. Generate video slides: %s", config.get("generate_video", False))
-    logger.info("8. Selected voice for audio generation: %s", config.get("selected_voice", "gTTS"))
+    logger.info(
+        "8. Selected voice for audio generation: %s",
+        _format_selected_voice(config.get("selected_voice", "gTTS")),
+    )
     logger.info(
         "9. macOS TTS reading speed (words per minute): %s",
         config.get("macos_reading_speed", 100),
@@ -483,28 +495,58 @@ def edit_parameter(
         config["generate_video"] = True if inp_val in ["yes", "y"] else False
     elif selection == 8:
         default_voice = config.get("selected_voice", "gTTS")
+        if default_voice == AUTO_MACOS_VOICE:
+            default_voice = AUTO_MACOS_VOICE_FEMALE
+            config["selected_voice"] = default_voice
+
+        if default_voice == "gTTS":
+            default_option = "1"
+        elif default_voice == AUTO_MACOS_VOICE_FEMALE:
+            default_option = "3"
+        elif default_voice == AUTO_MACOS_VOICE_MALE:
+            default_option = "4"
+        else:
+            default_option = "2"
+
         logger.info("\nSelect voice for audio generation:")
         logger.info("1. Use gTTS (online text-to-speech)")
         logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
-        voice_choice = _prompt_user("Enter 1 for gTTS or 2 for macOS voice (default: 1): ")
+        logger.info("3. Auto-select best macOS voice per language (Premium female preferred)")
+        logger.info("4. Auto-select best macOS voice per language (Premium male preferred)")
+        prompt = (
+            "Enter 1 for gTTS, 2 to choose a macOS voice, 3 for female auto, or 4 for male auto "
+            f"(default: {default_option}): "
+        )
+        raw_choice = _prompt_user(prompt).strip()
+        voice_choice = raw_choice or default_option
+        if voice_choice not in {"1", "2", "3", "4"}:
+            voice_choice = default_option
+
         if voice_choice == "2":
-            voices = get_macos_voices(debug_enabled=debug_enabled)
-            if voices:
-                logger.info("Available macOS voices (Enhanced/Premium):")
-                for idx, voice in enumerate(voices, start=1):
-                    logger.info("%s. %s", idx, voice)
-                inp = _prompt_user(
-                    f"Select a macOS voice by number (default: {voices[0]}): "
-                )
-                if inp.isdigit() and 1 <= int(inp) <= len(voices):
-                    voice_selected = voices[int(inp) - 1]
+            if raw_choice == "2" or default_option != "2":
+                voices = get_macos_voices(debug_enabled=debug_enabled)
+                if voices:
+                    logger.info("Available macOS voices (Enhanced/Premium):")
+                    for idx, voice in enumerate(voices, start=1):
+                        logger.info("%s. %s", idx, voice)
+                    inp = _prompt_user(
+                        f"Select a macOS voice by number (default: {voices[0]}): "
+                    )
+                    if inp.isdigit() and 1 <= int(inp) <= len(voices):
+                        voice_selected = voices[int(inp) - 1]
+                    else:
+                        voice_selected = voices[0]
                 else:
-                    voice_selected = voices[0]
+                    logger.warning("No macOS voices found, defaulting to gTTS")
+                    voice_selected = "gTTS"
             else:
-                logger.warning("No macOS voices found, defaulting to gTTS")
-                voice_selected = "gTTS"
+                voice_selected = default_voice
+        elif voice_choice == "3":
+            voice_selected = AUTO_MACOS_VOICE_FEMALE
+        elif voice_choice == "4":
+            voice_selected = AUTO_MACOS_VOICE_MALE
         else:
-            voice_selected = default_voice
+            voice_selected = "gTTS"
         config["selected_voice"] = voice_selected
     elif selection == 9:
         default_speed = config.get("macos_reading_speed", 100)
@@ -886,84 +928,92 @@ def run_interactive_menu(
 ) -> Tuple[Dict[str, Any], Tuple[Any, ...]]:
     """Run the interactive configuration menu and return the final configuration."""
     overrides = overrides or {}
-    if config_path:
-        config_file_path = Path(config_path).expanduser()
-        if not config_file_path.is_absolute():
-            config_file_path = (Path.cwd() / config_file_path).resolve()
-    else:
-        config_file_path = DEFAULT_LOCAL_CONFIG_PATH
-
-    config = load_configuration(config_file_path, verbose=True)
-    configure_logging_level(config.get("debug", False))
-
-    if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
-        config["start_sentence_lookup"] = config["start_sentence"]
-
-    initialize_environment(config, overrides)
-    config = update_book_cover_file_in_config(
-        config,
-        config.get("ebooks_dir"),
-        debug_enabled=config.get("debug", False),
-    )
-
-    refined_cache_stale = True
-    refined: List[str] = []
-
-    from . import ebook_tools as pipeline  # Local import to avoid circular dependency
-
-    while True:
-        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
-
-        if config.get("input_file"):
-            refined, refreshed = pipeline.get_refined_sentences(
-                config["input_file"],
-                force_refresh=refined_cache_stale,
-                metadata={"mode": "interactive"},
-            )
-            if refreshed:
-                logger.info(
-                    "Refined sentence list written to: %s",
-                    pipeline.refined_list_output_path(config["input_file"]),
-                )
-            refined_cache_stale = False
+    previous_menu_flag = os.environ.get("EBOOK_MENU_ACTIVE")
+    os.environ["EBOOK_MENU_ACTIVE"] = "1"
+    try:
+        if config_path:
+            config_file_path = Path(config_path).expanduser()
+            if not config_file_path.is_absolute():
+                config_file_path = (Path.cwd() / config_file_path).resolve()
         else:
-            refined = []
+            config_file_path = DEFAULT_LOCAL_CONFIG_PATH
 
-        config = update_sentence_config(config, refined)
+        config = load_configuration(config_file_path, verbose=True)
+        configure_logging_level(config.get("debug", False))
 
-        display_menu(config, refined, resolved_input_path)
+        if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
+            config["start_sentence_lookup"] = config["start_sentence"]
 
-        inp_choice = _prompt_user(
-            "\nEnter a parameter number to change (or press Enter to confirm): "
-        )
-        if inp_choice == "":
-            break
-        if not inp_choice.isdigit():
-            logger.warning("Invalid input. Please enter a number or press Enter.")
-            continue
-        selection = int(inp_choice)
-        config, made_stale = edit_parameter(
+        initialize_environment(config, overrides)
+        config = update_book_cover_file_in_config(
             config,
-            selection,
-            refined,
-            overrides,
-            config.get("debug", False),
+            config.get("ebooks_dir"),
+            debug_enabled=config.get("debug", False),
         )
-        refined_cache_stale = refined_cache_stale or made_stale
 
-        try:
-            config_file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(config_file_path, "w", encoding="utf-8") as cfg_file:
-                json.dump(strip_derived_config(config), cfg_file, indent=4)
-            logger.info("Configuration saved to %s", config_file_path)
-        except Exception as exc:
-            logger.error("Error saving configuration: %s", exc)
+        refined_cache_stale = True
+        refined: List[str] = []
 
-    resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
-    config, pipeline_args = confirm_settings(config, resolved_input_path, entry_script_name)
+        from . import ebook_tools as pipeline  # Local import to avoid circular dependency
 
-    translation_engine.set_model(config.get("ollama_model", DEFAULT_MODEL))
-    translation_engine.set_debug(config.get("debug", False))
-    configure_logging_level(config.get("debug", False))
+        while True:
+            resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
 
-    return config, pipeline_args
+            if config.get("input_file"):
+                refined, refreshed = pipeline.get_refined_sentences(
+                    config["input_file"],
+                    force_refresh=refined_cache_stale,
+                    metadata={"mode": "interactive"},
+                )
+                if refreshed:
+                    logger.info(
+                        "Refined sentence list written to: %s",
+                        pipeline.refined_list_output_path(config["input_file"]),
+                    )
+                refined_cache_stale = False
+            else:
+                refined = []
+
+            config = update_sentence_config(config, refined)
+
+            display_menu(config, refined, resolved_input_path)
+
+            inp_choice = _prompt_user(
+                "\nEnter a parameter number to change (or press Enter to confirm): "
+            )
+            if inp_choice == "":
+                break
+            if not inp_choice.isdigit():
+                logger.warning("Invalid input. Please enter a number or press Enter.")
+                continue
+            selection = int(inp_choice)
+            config, made_stale = edit_parameter(
+                config,
+                selection,
+                refined,
+                overrides,
+                config.get("debug", False),
+            )
+            refined_cache_stale = refined_cache_stale or made_stale
+
+            try:
+                config_file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(config_file_path, "w", encoding="utf-8") as cfg_file:
+                    json.dump(strip_derived_config(config), cfg_file, indent=4)
+                logger.info("Configuration saved to %s", config_file_path)
+            except Exception as exc:
+                logger.error("Error saving configuration: %s", exc)
+
+        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+        config, pipeline_args = confirm_settings(config, resolved_input_path, entry_script_name)
+
+        translation_engine.set_model(config.get("ollama_model", DEFAULT_MODEL))
+        translation_engine.set_debug(config.get("debug", False))
+        configure_logging_level(config.get("debug", False))
+
+        return config, pipeline_args
+    finally:
+        if previous_menu_flag is None:
+            os.environ.pop("EBOOK_MENU_ACTIVE", None)
+        else:
+            os.environ["EBOOK_MENU_ACTIVE"] = previous_menu_flag

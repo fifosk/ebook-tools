@@ -2,6 +2,7 @@
 
 import io
 import os
+import plistlib
 import subprocess
 import sys
 import tempfile
@@ -9,9 +10,11 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from functools import lru_cache
+from pathlib import Path
 from queue import Empty, Full, Queue
 from threading import Lock
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from gtts import gTTS
 from pydub import AudioSegment
@@ -29,6 +32,144 @@ logger = log_mgr.logger
 _SILENCE_LOCK = Lock()
 _SILENCE_FILENAME = "silence.wav"
 _SILENCE_DURATION_MS = 100
+AUTO_MACOS_VOICE = "macOS-auto"
+AUTO_MACOS_VOICE_FEMALE = "macOS-auto-female"
+AUTO_MACOS_VOICE_MALE = "macOS-auto-male"
+_VOICE_QUALITIES = ("Premium", "Enhanced")
+_AUTO_VOICE_CACHE: Dict[Tuple[str, str], Optional[Tuple[str, str, str, Optional[str]]]] = {}
+
+
+def _macos_voice_directories() -> Tuple[Path, ...]:
+    return (
+        Path("/System/Library/Speech/Voices"),
+        Path("/Library/Speech/Voices"),
+        Path.home() / "Library/Speech/Voices",
+    )
+
+
+@lru_cache(maxsize=1)
+def _macos_voice_gender_map() -> Dict[str, Optional[str]]:
+    """Return a mapping of macOS voice names to gender identifiers."""
+
+    if sys.platform != "darwin":  # pragma: no cover - platform specific
+        return {}
+
+    genders: Dict[str, Optional[str]] = {}
+    for directory in _macos_voice_directories():
+        if not directory.exists():
+            continue
+        for voice_dir in directory.rglob("*.SpeechVoice"):
+            info_plist = voice_dir / "Contents" / "Info.plist"
+            if not info_plist.exists():
+                continue
+            try:
+                with info_plist.open("rb") as fh:
+                    info = plistlib.load(fh)
+            except Exception as exc:  # pragma: no cover - defensive parsing
+                logger.debug("Unable to load metadata for %s: %s", voice_dir, exc)
+                continue
+            voice_name = info.get("VoiceName") or voice_dir.stem
+            raw_gender = info.get("VoiceGender") or info.get("VoiceGenderIdentifier")
+            normalized: Optional[str] = None
+            if isinstance(raw_gender, str):
+                lowered = raw_gender.lower()
+                if "female" in lowered:
+                    normalized = "female"
+                elif "male" in lowered:
+                    normalized = "male"
+            genders.setdefault(voice_name, normalized)
+    return genders
+
+
+@lru_cache(maxsize=1)
+def _cached_macos_voice_inventory() -> Tuple[Tuple[str, str, str, Optional[str]], ...]:
+    """Return macOS voice inventory as tuples of (voice, locale, quality, gender)."""
+
+    if sys.platform != "darwin":  # pragma: no cover - platform specific
+        return tuple()
+    try:
+        output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
+    except Exception as exc:  # pragma: no cover - platform specific
+        logger.debug("Unable to query macOS voices: %s", exc)
+        return tuple()
+
+    gender_map = _macos_voice_gender_map()
+    voices: List[Tuple[str, str, str, Optional[str]]] = []
+    for line in output.splitlines():
+        details = line.strip().split("#")[0].strip().split()
+        if not details:
+            continue
+        quality = ""
+        if len(details) >= 3 and details[1].startswith("("):
+            quality = details[1].strip("()")
+            locale = details[2]
+        elif len(details) >= 2:
+            locale = details[1]
+        else:
+            continue
+        voice_name = details[0]
+        gender = gender_map.get(voice_name)
+        voices.append((voice_name, locale, quality, gender))
+    return tuple(voices)
+
+
+def macos_voice_inventory(*, debug_enabled: bool = False) -> List[Tuple[str, str, str, Optional[str]]]:
+    """Expose cached macOS voice inventory for other modules."""
+
+    voices = list(_cached_macos_voice_inventory())
+    if debug_enabled and sys.platform == "darwin" and not voices:  # pragma: no cover - platform specific
+        logger.debug("No macOS voices discovered via `say -v ?`.")
+    return voices
+
+
+def _normalize_locale(locale: str) -> str:
+    return locale.lower().replace("_", "-")
+
+
+def _locale_matches(lang_code: str, locale: str) -> bool:
+    normalized = lang_code.lower()
+    short = normalized.split("-")[0]
+    candidate = _normalize_locale(locale)
+    return (
+        candidate == normalized
+        or candidate.startswith(f"{normalized}-")
+        or candidate == short
+        or candidate.startswith(f"{short}-")
+    )
+
+
+def _select_best_macos_voice(lang_code: str, gender_preference: str) -> Optional[Tuple[str, str, str, Optional[str]]]:
+    """Return the best matching macOS voice for ``lang_code`` and gender preference."""
+
+    voices = macos_voice_inventory()
+    if not voices:
+        return None
+
+    candidates = [
+        voice
+        for voice in voices
+        if voice[2] in _VOICE_QUALITIES and _locale_matches(lang_code, voice[1])
+    ]
+    if not candidates:
+        return None
+
+    gender_cycles: List[Optional[Iterable[str]]]
+    if gender_preference == "female":
+        gender_cycles = [["female"], ["male"], None]
+    elif gender_preference == "male":
+        gender_cycles = [["male"], ["female"], None]
+    else:
+        gender_cycles = [["female", "male"], None]
+
+    for genders in gender_cycles:
+        for desired_quality in _VOICE_QUALITIES:
+            for voice in candidates:
+                voice_gender = voice[3]
+                if genders is not None and voice_gender not in genders:
+                    continue
+                if voice[2] == desired_quality:
+                    return voice
+    return None
 
 
 @dataclass(slots=True)
@@ -110,6 +251,24 @@ def generate_audio_segment(
     if selected_voice == "gTTS":
         return _synthesize_with_gtts(text, lang_code)
 
+    if selected_voice in {AUTO_MACOS_VOICE, AUTO_MACOS_VOICE_FEMALE, AUTO_MACOS_VOICE_MALE}:
+        if selected_voice == AUTO_MACOS_VOICE_FEMALE:
+            preference = "female"
+        elif selected_voice == AUTO_MACOS_VOICE_MALE:
+            preference = "male"
+        else:
+            preference = "any"
+
+        cache_key = (lang_code, preference)
+        cached_voice = _AUTO_VOICE_CACHE.get(cache_key)
+        if cache_key not in _AUTO_VOICE_CACHE:
+            cached_voice = _select_best_macos_voice(lang_code, preference)
+            _AUTO_VOICE_CACHE[cache_key] = cached_voice
+        if cached_voice:
+            voice_name, _locale, _quality, _gender = cached_voice
+            return generate_macos_tts_audio(text, voice_name, lang_code, macos_reading_speed)
+        return _synthesize_with_gtts(text, lang_code)
+
     parts = selected_voice.split(" - ")
     if len(parts) >= 2:
         voice_name = parts[0].strip()
@@ -118,7 +277,7 @@ def generate_audio_segment(
         voice_name = selected_voice
         voice_locale = ""
 
-    if voice_locale.lower().startswith(lang_code.lower()):
+    if voice_locale and _locale_matches(lang_code, voice_locale):
         return generate_macos_tts_audio(text, voice_name, lang_code, macos_reading_speed)
     return _synthesize_with_gtts(text, lang_code)
 
