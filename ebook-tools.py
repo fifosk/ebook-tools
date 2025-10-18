@@ -331,8 +331,6 @@ MACOS_READING_SPEED = 100
 
 SYNC_RATIO = 0.9
 
-OLLAMA_API_URL = "http://localhost:11434/api/chat"
-
 AUDIO_MODE_DESC = {
     "1": "Only translated sentence",
     "2": "Sentence numbering + translated sentence",
@@ -1547,13 +1545,27 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     total_refined = len(selected_sentences)
     print(f"Processing {total_refined} sentences starting from refined sentence #{start_sentence}")
     
-    target_lang_str = "_".join(target_languages)
+        # --- Updated output folder naming convention ---
+    # [Author]_[BookTitle]_[SRC_LANGCODE]_[TGT_LANGCODE]
+
+    book_author = book_metadata.get("book_author", "Unknown_Author").strip().replace(" ", "_")
+    book_title = book_metadata.get("book_title", "Unknown_Book").strip().replace(" ", "_")
+
+    # NEW: reintroduce base filename (needed by later parts of process_epub)
     base = os.path.splitext(os.path.basename(input_file))[0]
-    base_dir = os.path.join(EBOOK_DIR, f"{target_lang_str}_{base}")
-    if not os.path.exists(base_dir):
-        os.makedirs(base_dir)
-    base_output_file = os.path.join(base_dir, f"{target_lang_str}_{base}.html")
-    base_no_ext = f"{target_lang_str}_{base}"
+
+    src_code = LANGUAGE_CODES.get(input_language, "XX").upper()
+    tgt_code = LANGUAGE_CODES.get(target_languages[0], "XX").upper()
+
+    folder_name = f"{book_author}_{book_title}_{src_code}_{tgt_code}"
+    import re
+    folder_name = re.sub(r"_+", "_", folder_name).strip("_")
+
+    base_dir = os.path.join(EBOOK_DIR, folder_name)
+    os.makedirs(base_dir, exist_ok=True)
+
+    base_output_file = os.path.join(base_dir, f"{folder_name}.html")
+    base_no_ext = folder_name
     
     book_title = book_metadata.get("book_title", "Unknown Title")
     book_author = book_metadata.get("book_author", "Unknown Author")
