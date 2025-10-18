@@ -18,6 +18,7 @@ from PIL import Image
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import translation_engine
+from .audio_video_generator import AUTO_MACOS_VOICE, macos_voice_inventory
 from .epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
@@ -248,29 +249,19 @@ def update_sentence_config(config: Dict[str, Any], refined_list: Sequence[str]) 
 
 def get_macos_voices(debug_enabled: bool = False) -> List[str]:
     """Return available macOS voices filtered to Enhanced/Premium quality."""
-    try:
-        output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
-    except Exception as exc:  # pragma: no cover - platform specific
-        if debug_enabled:
-            logger.error("Error retrieving macOS voices: %s", exc)
-        return []
 
-    voices: List[str] = []
-    for line in output.splitlines():
-        details = line.strip().split("#")[0].strip().split()
-        if len(details) >= 3 and details[1].startswith("("):
-            voice_name = details[0]
-            quality = details[1].strip("()")
-            locale = details[2]
-        elif len(details) >= 2:
-            voice_name = details[0]
-            locale = details[1]
-            quality = ""
-        else:
-            continue
-        if quality in {"Enhanced", "Premium"}:
-            voices.append(f"{voice_name} - {locale} - ({quality})")
+    voices = [
+        f"{name} - {locale} - ({quality})"
+        for name, locale, quality in macos_voice_inventory(debug_enabled=debug_enabled)
+        if quality in {"Enhanced", "Premium"}
+    ]
     return voices
+
+
+def _format_selected_voice(selected: str) -> str:
+    if selected == AUTO_MACOS_VOICE:
+        return "macOS auto (Premium/Enhanced preferred)"
+    return selected
 
 
 def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input: Optional[Path]) -> None:
@@ -289,7 +280,10 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     logger.info("5. Ollama model: %s", config.get("ollama_model", DEFAULT_MODEL))
     logger.info("6. Generate audio output: %s", config.get("generate_audio", True))
     logger.info("7. Generate video slides: %s", config.get("generate_video", False))
-    logger.info("8. Selected voice for audio generation: %s", config.get("selected_voice", "gTTS"))
+    logger.info(
+        "8. Selected voice for audio generation: %s",
+        _format_selected_voice(config.get("selected_voice", "gTTS")),
+    )
     logger.info(
         "9. macOS TTS reading speed (words per minute): %s",
         config.get("macos_reading_speed", 100),
@@ -491,28 +485,49 @@ def edit_parameter(
         config["generate_video"] = True if inp_val in ["yes", "y"] else False
     elif selection == 8:
         default_voice = config.get("selected_voice", "gTTS")
+        if default_voice == "gTTS":
+            default_option = "1"
+        elif default_voice == AUTO_MACOS_VOICE:
+            default_option = "3"
+        else:
+            default_option = "2"
+
         logger.info("\nSelect voice for audio generation:")
         logger.info("1. Use gTTS (online text-to-speech)")
         logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
-        voice_choice = _prompt_user("Enter 1 for gTTS or 2 for macOS voice (default: 1): ")
+        logger.info("3. Auto-select best macOS voice per language (Premium preferred)")
+        prompt = (
+            "Enter 1 for gTTS, 2 to choose a macOS voice, or 3 for auto selection "
+            f"(default: {default_option}): "
+        )
+        raw_choice = _prompt_user(prompt).strip()
+        voice_choice = raw_choice or default_option
+        if voice_choice not in {"1", "2", "3"}:
+            voice_choice = default_option
+
         if voice_choice == "2":
-            voices = get_macos_voices(debug_enabled=debug_enabled)
-            if voices:
-                logger.info("Available macOS voices (Enhanced/Premium):")
-                for idx, voice in enumerate(voices, start=1):
-                    logger.info("%s. %s", idx, voice)
-                inp = _prompt_user(
-                    f"Select a macOS voice by number (default: {voices[0]}): "
-                )
-                if inp.isdigit() and 1 <= int(inp) <= len(voices):
-                    voice_selected = voices[int(inp) - 1]
+            if raw_choice == "2" or default_option != "2":
+                voices = get_macos_voices(debug_enabled=debug_enabled)
+                if voices:
+                    logger.info("Available macOS voices (Enhanced/Premium):")
+                    for idx, voice in enumerate(voices, start=1):
+                        logger.info("%s. %s", idx, voice)
+                    inp = _prompt_user(
+                        f"Select a macOS voice by number (default: {voices[0]}): "
+                    )
+                    if inp.isdigit() and 1 <= int(inp) <= len(voices):
+                        voice_selected = voices[int(inp) - 1]
+                    else:
+                        voice_selected = voices[0]
                 else:
-                    voice_selected = voices[0]
+                    logger.warning("No macOS voices found, defaulting to gTTS")
+                    voice_selected = "gTTS"
             else:
-                logger.warning("No macOS voices found, defaulting to gTTS")
-                voice_selected = "gTTS"
+                voice_selected = default_voice
+        elif voice_choice == "3":
+            voice_selected = AUTO_MACOS_VOICE
         else:
-            voice_selected = default_voice
+            voice_selected = "gTTS"
         config["selected_voice"] = voice_selected
     elif selection == 9:
         default_speed = config.get("macos_reading_speed", 100)

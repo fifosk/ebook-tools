@@ -9,9 +9,10 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from functools import lru_cache
 from queue import Empty, Full, Queue
 from threading import Lock
-from typing import Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from gtts import gTTS
 from pydub import AudioSegment
@@ -29,6 +30,86 @@ logger = log_mgr.logger
 _SILENCE_LOCK = Lock()
 _SILENCE_FILENAME = "silence.wav"
 _SILENCE_DURATION_MS = 100
+AUTO_MACOS_VOICE = "macOS-auto"
+_VOICE_QUALITIES = ("Premium", "Enhanced")
+_AUTO_VOICE_CACHE: Dict[str, Optional[Tuple[str, str, str]]] = {}
+
+
+@lru_cache(maxsize=1)
+def _cached_macos_voice_inventory() -> Tuple[Tuple[str, str, str], ...]:
+    """Return macOS voice inventory as tuples of (voice, locale, quality)."""
+
+    if sys.platform != "darwin":  # pragma: no cover - platform specific
+        return tuple()
+    try:
+        output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
+    except Exception as exc:  # pragma: no cover - platform specific
+        logger.debug("Unable to query macOS voices: %s", exc)
+        return tuple()
+
+    voices: List[Tuple[str, str, str]] = []
+    for line in output.splitlines():
+        details = line.strip().split("#")[0].strip().split()
+        if not details:
+            continue
+        quality = ""
+        if len(details) >= 3 and details[1].startswith("("):
+            quality = details[1].strip("()")
+            locale = details[2]
+        elif len(details) >= 2:
+            locale = details[1]
+        else:
+            continue
+        voice_name = details[0]
+        voices.append((voice_name, locale, quality))
+    return tuple(voices)
+
+
+def macos_voice_inventory(*, debug_enabled: bool = False) -> List[Tuple[str, str, str]]:
+    """Expose cached macOS voice inventory for other modules."""
+
+    voices = list(_cached_macos_voice_inventory())
+    if debug_enabled and sys.platform == "darwin" and not voices:  # pragma: no cover - platform specific
+        logger.debug("No macOS voices discovered via `say -v ?`.")
+    return voices
+
+
+def _normalize_locale(locale: str) -> str:
+    return locale.lower().replace("_", "-")
+
+
+def _locale_matches(lang_code: str, locale: str) -> bool:
+    normalized = lang_code.lower()
+    short = normalized.split("-")[0]
+    candidate = _normalize_locale(locale)
+    return (
+        candidate == normalized
+        or candidate.startswith(f"{normalized}-")
+        or candidate == short
+        or candidate.startswith(f"{short}-")
+    )
+
+
+def _select_best_macos_voice(lang_code: str) -> Optional[Tuple[str, str, str]]:
+    """Return the best matching macOS voice for ``lang_code``."""
+
+    voices = macos_voice_inventory()
+    if not voices:
+        return None
+
+    candidates = [
+        voice
+        for voice in voices
+        if voice[2] in _VOICE_QUALITIES and _locale_matches(lang_code, voice[1])
+    ]
+    if not candidates:
+        return None
+
+    for desired_quality in _VOICE_QUALITIES:
+        for voice in candidates:
+            if voice[2] == desired_quality:
+                return voice
+    return None
 
 
 @dataclass(slots=True)
@@ -110,6 +191,16 @@ def generate_audio_segment(
     if selected_voice == "gTTS":
         return _synthesize_with_gtts(text, lang_code)
 
+    if selected_voice == AUTO_MACOS_VOICE:
+        cached_voice = _AUTO_VOICE_CACHE.get(lang_code)
+        if lang_code not in _AUTO_VOICE_CACHE:
+            cached_voice = _select_best_macos_voice(lang_code)
+            _AUTO_VOICE_CACHE[lang_code] = cached_voice
+        if cached_voice:
+            voice_name, _locale, _quality = cached_voice
+            return generate_macos_tts_audio(text, voice_name, lang_code, macos_reading_speed)
+        return _synthesize_with_gtts(text, lang_code)
+
     parts = selected_voice.split(" - ")
     if len(parts) >= 2:
         voice_name = parts[0].strip()
@@ -118,7 +209,7 @@ def generate_audio_segment(
         voice_name = selected_voice
         voice_locale = ""
 
-    if voice_locale.lower().startswith(lang_code.lower()):
+    if voice_locale and _locale_matches(lang_code, voice_locale):
         return generate_macos_tts_audio(text, voice_name, lang_code, macos_reading_speed)
     return _synthesize_with_gtts(text, lang_code)
 
