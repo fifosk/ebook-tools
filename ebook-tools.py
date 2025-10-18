@@ -20,10 +20,6 @@ from modules.epub_parser import (
 )
 
 # ReportLab imports for PDF generation
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.pagesizes import letter
-
 # Arabic/Hebrew processing
 import arabic_reshaper
 from bidi.algorithm import get_display
@@ -33,6 +29,8 @@ from pydub import AudioSegment
 
 # Video generation using Pillow and ffmpeg
 from PIL import Image
+
+from modules import output_formatter
 
 SCRIPT_DIR = cfg.SCRIPT_DIR
 LOG_DIR = log_mgr.LOG_DIR
@@ -547,74 +545,6 @@ def get_macOS_voices():
             voices.append(f"{voice_name} - {locale} - ({quality})")
     return voices
 
-def write_html_file(filename, content_list):
-    try:
-        with open(filename, "w", encoding="utf-8") as f:
-            f.write("<html>\n<head>\n<meta charset='utf-8'>\n<title>Translation Output</title>\n</head>\n<body>\n")
-            for block in content_list:
-                f.write(f"<p>{block.replace(chr(10), '<br>')}</p>\n")
-            f.write("</body>\n</html>")
-    except Exception as e:
-        if DEBUG:
-            logger.error("Error writing HTML file '%s': %s", filename, e)
-
-def write_pdf_file(filename, content_list, target_language):
-    try:
-        from reportlab.pdfbase.ttfonts import TTFont
-        from reportlab.pdfbase import pdfmetrics
-        font_path = None
-        if sys.platform == "darwin":
-            font_path = "/System/Library/Fonts/Supplemental/Arial Unicode.ttf"
-        else:
-            for path in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "C:/Windows/Fonts/arialuni.ttf"]:
-                if os.path.exists(path):
-                    font_path = path
-                    break
-        if font_path and os.path.exists(font_path):
-            pdfmetrics.registerFont(TTFont("UnicodeFont", font_path))
-            pdfmetrics.registerFontFamily("UnicodeFont", normal="UnicodeFont")
-        else:
-            if DEBUG:
-                logger.warning(
-                    "Warning: Unicode font file not found; PDF output may not render non-Latin characters correctly."
-                )
-            pdfmetrics.registerFont(TTFont("UnicodeFont", "Helvetica"))
-            pdfmetrics.registerFontFamily("UnicodeFont", normal="UnicodeFont")
-        styles = getSampleStyleSheet()
-        styles["Normal"].fontName = "UnicodeFont"
-        doc = SimpleDocTemplate(filename, pagesize=letter)
-        Story = []
-        for block in content_list:
-            Story.append(Paragraph(block.replace(chr(10), "<br>"), styles["Normal"]))
-            Story.append(Spacer(1, 12))
-        doc.build(Story)
-    except Exception as e:
-        if DEBUG:
-            logger.error("Error writing PDF file '%s': %s", filename, e)
-
-def write_epub_file(filename, content_list, book_title):
-    try:
-        book = epub.EpubBook()
-        book.set_identifier("id123456")
-        book.set_title(book_title)
-        book.set_language("en")
-        book.add_author("Translation Bot")
-        chapter = epub.EpubHtml(title="Full Translation", file_name="full.xhtml", lang="en")
-        chapter_content = "<html><head><meta charset='utf-8'/></head><body>\n"
-        for block in content_list:
-            chapter_content += f"<p>{block.replace(chr(10), '<br>')}</p>\n"
-        chapter_content += "</body></html>"
-        chapter.content = chapter_content
-        book.add_item(chapter)
-        book.toc = (epub.Link("full.xhtml", "Full Translation", "full"),)
-        book.add_item(epub.EpubNcx())
-        book.add_item(epub.EpubNav())
-        book.spine = ["nav", chapter]
-        epub.write_epub(filename, book)
-    except Exception as e:
-        if DEBUG:
-            logger.error("Error writing EPUB file '%s': %s", filename, e)
-
 # -----------------------
 # Modified Function: Combined Translation
 # -----------------------
@@ -654,24 +584,16 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
         # --- Updated output folder naming convention ---
     # [Author]_[BookTitle]_[SRC_LANGCODE]_[TGT_LANGCODE]
 
-    book_author = book_metadata.get("book_author", "Unknown_Author").strip().replace(" ", "_")
-    book_title = book_metadata.get("book_title", "Unknown_Book").strip().replace(" ", "_")
-
-    # NEW: reintroduce base filename (needed by later parts of process_epub)
-    base = os.path.splitext(os.path.basename(input_file))[0]
-
     src_code = LANGUAGE_CODES.get(input_language, "XX").upper()
     tgt_code = LANGUAGE_CODES.get(target_languages[0], "XX").upper()
 
-    folder_name = f"{book_author}_{book_title}_{src_code}_{tgt_code}"
-    import re
-    folder_name = re.sub(r"_+", "_", folder_name).strip("_")
-
-    base_dir = os.path.join(cfg.EBOOK_DIR, folder_name)
-    os.makedirs(base_dir, exist_ok=True)
-
-    base_output_file = os.path.join(base_dir, f"{folder_name}.html")
-    base_no_ext = folder_name
+    base_dir, base_no_ext, base_output_file = output_formatter.prepare_output_directory(
+        input_file,
+        book_metadata.get("book_author"),
+        book_metadata.get("book_title"),
+        src_code,
+        tgt_code,
+    )
     
     book_title = book_metadata.get("book_title", "Unknown Title")
     book_author = book_metadata.get("book_author", "Unknown Author")
@@ -753,12 +675,16 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
         if (i - start_sentence + 1) % sentences_per_file == 0:
             batch_start = current_batch_start
             batch_end = i
-            if output_html:
-                html_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.html")
-                write_html_file(html_filename, written_blocks)
-            if output_pdf:
-                pdf_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.pdf")
-                write_pdf_file(pdf_filename, written_blocks, current_target)
+            output_formatter.export_batch_documents(
+                base_dir,
+                base_no_ext,
+                batch_start,
+                batch_end,
+                written_blocks,
+                current_target,
+                output_html=output_html,
+                output_pdf=output_pdf,
+            )
             if generate_audio and current_audio:
                 combined = AudioSegment.empty()
                 for seg in current_audio:
@@ -794,12 +720,16 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     if written_blocks:
         batch_start = current_batch_start
         batch_end = start_sentence + len(written_blocks) - 1
-        if output_html:
-            html_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.html")
-            write_html_file(html_filename, written_blocks)
-        if output_pdf:
-            pdf_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.pdf")
-            write_pdf_file(pdf_filename, written_blocks, target_languages[0])
+        output_formatter.export_batch_documents(
+            base_dir,
+            base_no_ext,
+            batch_start,
+            batch_end,
+            written_blocks,
+            target_languages[0],
+            output_html=output_html,
+            output_pdf=output_pdf,
+        )
         if generate_audio and current_audio:
             combined = AudioSegment.empty()
             for seg in current_audio:
@@ -829,7 +759,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
             batch_video_files.append(video_path)
     logger.info("EPUB processing complete!")
     logger.info("Total sentences processed: %s", total_refined)
-    return written_blocks, all_audio_segments, batch_video_files
+    return written_blocks, all_audio_segments, batch_video_files, base_dir, base_no_ext
 
 # -----------------------
 # Interactive Menu with Grouped Options and Dynamic Summary
@@ -1479,7 +1409,7 @@ if __name__ == "__main__":
         if refined_updated:
             refined_output_path = refined_list_output_path(input_file)
             logger.info("Refined sentence list written to: %s", refined_output_path)
-        written_blocks, all_audio_segments, batch_video_files = process_epub(
+        written_blocks, all_audio_segments, batch_video_files, base_dir, base_no_ext = process_epub(
             input_file, base_output_file, input_language, target_languages,
             sentences_per_output_file, start_sentence, end_sentence,
             generate_audio, audio_mode, written_mode, output_html, output_pdf,
@@ -1487,32 +1417,32 @@ if __name__ == "__main__":
             book_metadata=book_metadata
         )
         if stitch_full:
-            base_dir = os.path.dirname(base_output_file)
-            base = os.path.splitext(os.path.basename(input_file))[0]
-            target_lang_str = "_".join(target_languages)
-            base_no_ext = f"{target_lang_str}_{base}"
-            final_sentence = start_sentence + len(written_blocks) - 1
-            if output_html:
-                stitched_html = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{base_no_ext}.html")
-                write_html_file(stitched_html, written_blocks)
-            if output_pdf:
-                stitched_pdf = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{base_no_ext}.pdf")
-                write_pdf_file(stitched_pdf, written_blocks, target_languages[0])
-            stitched_epub = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{base_no_ext}.epub")
-            write_epub_file(stitched_epub, written_blocks, f"Stitched Translation: {start_sentence}-{final_sentence} {base_no_ext}")
+            final_sentence = start_sentence + len(written_blocks) - 1 if written_blocks else start_sentence
+            stitched_basename = output_formatter.compute_stitched_basename(input_file, target_languages)
+            output_formatter.stitch_full_output(
+                base_dir,
+                start_sentence,
+                final_sentence,
+                stitched_basename,
+                written_blocks,
+                target_languages[0],
+                output_html=output_html,
+                output_pdf=output_pdf,
+                epub_title=f"Stitched Translation: {start_sentence}-{final_sentence} {stitched_basename}",
+            )
             if generate_audio and all_audio_segments:
                 stitched_audio = AudioSegment.empty()
                 for seg in all_audio_segments:
                     stitched_audio += seg
-                stitched_audio_filename = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{base_no_ext}.mp3")
+                stitched_audio_filename = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{stitched_basename}.mp3")
                 stitched_audio.export(stitched_audio_filename, format="mp3", bitrate="320k")
             if generate_video and batch_video_files:
                 logger.info("Generating stitched video slide output by concatenating batch video files...")
-                concat_list_path = os.path.join(base_dir, f"concat_full_{base_no_ext}.txt")
+                concat_list_path = os.path.join(base_dir, f"concat_full_{stitched_basename}.txt")
                 with open(concat_list_path, "w", encoding="utf-8") as f:
                     for video_file in batch_video_files:
                         f.write(f"file '{video_file}'\n")
-                final_video_path = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{base_no_ext}_stitched.mp4")
+                final_video_path = os.path.join(base_dir, f"{start_sentence}-{final_sentence}_{stitched_basename}_stitched.mp4")
                 cmd_concat = [
                     "ffmpeg",
                     "-loglevel", "quiet",
