@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+import io
+import sys
 import threading
 from typing import Optional
 
@@ -32,6 +34,12 @@ def run_pipeline(report_interval: float = 5.0):
     tracker = ProgressTracker(report_interval=report_interval)
     monitor_stop = threading.Event()
     pipeline_stop = threading.Event()
+    def _request_shutdown(reason: str) -> None:
+        """Signal that the pipeline should stop and log the triggering reason."""
+
+        if not pipeline_stop.is_set():
+            logger.info("Shutdown requested via %s; stopping pipeline...", reason)
+        pipeline_stop.set()
 
     def _monitor() -> None:
         while not monitor_stop.wait(tracker.report_interval):
@@ -57,16 +65,67 @@ def run_pipeline(report_interval: float = 5.0):
     monitor_thread = threading.Thread(target=_monitor, name="ProgressMonitor", daemon=True)
     monitor_thread.start()
 
+    input_thread: Optional[threading.Thread] = None
+
+    def _input_listener() -> None:
+        """Watch stdin for a 'q' command to trigger shutdown."""
+
+        try:
+            stdin = sys.stdin
+        except Exception:  # pragma: no cover - defensive guard
+            return
+
+        if stdin is None:
+            return
+
+        # ``isatty`` may be unavailable (e.g. when running under some IDEs).
+        try:
+            interactive = stdin.isatty()
+        except Exception:
+            interactive = False
+
+        if not interactive:
+            return
+
+        while not pipeline_stop.is_set():
+            try:
+                line = stdin.readline()
+            except (EOFError, io.UnsupportedOperation):
+                break
+            except Exception:  # pragma: no cover - defensive guard
+                break
+            if not line:
+                break
+            if line.strip().lower() == "q":
+                _request_shutdown("'q' command")
+                break
+
+    if hasattr(sys.stdin, "readline"):
+        try:
+            if sys.stdin.isatty():
+                logger.info("Press 'q' then Enter at any time to stop the pipeline gracefully.")
+        except Exception:
+            pass
+        input_thread = threading.Thread(
+            target=_input_listener,
+            name="ShutdownListener",
+            daemon=True,
+        )
+        input_thread.start()
+
     try:
         result = _run_pipeline(progress_tracker=tracker, stop_event=pipeline_stop)
     except KeyboardInterrupt:
-        logger.warning("Pipeline interrupted by user request. Cleaning up...")
-        pipeline_stop.set()
+        logger.warning("Pipeline interrupted by Ctrl+C; shutting down...")
+        _request_shutdown("Ctrl+C")
         result = None
     finally:
         tracker.mark_finished()
         monitor_stop.set()
         monitor_thread.join(timeout=1.0)
+        if input_thread is not None:
+            pipeline_stop.set()
+            input_thread.join(timeout=1.0)
         final_snapshot = tracker.snapshot()
         total = final_snapshot.total
         if total is not None and total > 0:

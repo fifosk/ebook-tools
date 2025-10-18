@@ -576,6 +576,9 @@ def process_epub(
     if not pipeline_enabled:
         batch_size = worker_count
         while processed < total_refined:
+            if stop_event and stop_event.is_set():
+                logger.info("Stop requested; halting remaining sequential processing.")
+                break
             batch_sentences = selected_sentences[processed : processed + batch_size]
             batch_sentence_numbers = [
                 start_sentence + processed + idx for idx in range(len(batch_sentences))
@@ -591,14 +594,14 @@ def process_epub(
                 include_transliteration=False,
             )
 
-            for offset, (
+            for (
                 sentence_number,
                 sentence,
                 current_target,
                 translation_result,
-            ) in enumerate(
-                zip(batch_sentence_numbers, batch_sentences, batch_targets, translations)
-            ):
+            ) in zip(batch_sentence_numbers, batch_sentences, batch_targets, translations):
+                if stop_event and stop_event.is_set():
+                    break
                 fluent = remove_quotes(translation_result or "")
                 should_transliterate = include_transliteration and current_target in NON_LATIN_LANGUAGES
                 transliteration_result = ""
@@ -671,12 +674,14 @@ def process_epub(
                         current_audio = []
                     current_batch_start = sentence_number + 1
                 last_target_language = current_target
+                processed += 1
                 if progress_tracker is not None:
                     progress_tracker.record_media_completion(
-                        processed + offset, sentence_number
+                        processed - 1, sentence_number
                     )
 
-            processed += len(batch_sentences)
+            if stop_event and stop_event.is_set():
+                break
     else:
         pipeline_stop_event = stop_event or threading.Event()
         translation_queue = queue.Queue(maxsize=queue_size)
@@ -715,10 +720,12 @@ def process_epub(
         next_index = 0
         try:
             while processed < total_refined:
+                if pipeline_stop_event.is_set() and not buffered_results:
+                    break
                 try:
                     media_item = media_queue.get(timeout=0.1)
                 except queue.Empty:
-                    if pipeline_stop_event.is_set() and translation_queue.empty():
+                    if pipeline_stop_event.is_set():
                         break
                     continue
                 if media_item is None:
@@ -753,7 +760,10 @@ def process_epub(
                         segment = item.audio_segment or AudioSegment.silent(duration=0)
                         current_audio.append(segment)
                         all_audio_segments.append(segment)
-                    if (item.sentence_number - start_sentence + 1) % sentences_per_file == 0:
+                    if (
+                        (item.sentence_number - start_sentence + 1) % sentences_per_file == 0
+                        and not pipeline_stop_event.is_set()
+                    ):
                         batch_start = current_batch_start
                         batch_end = item.sentence_number
                         future = finalize_executor.submit(
@@ -791,6 +801,8 @@ def process_epub(
                     last_target_language = item.target_language
                     processed += 1
                     next_index += 1
+                if pipeline_stop_event.is_set() and not buffered_results:
+                    break
         except KeyboardInterrupt:
             logger.warning("Processing interrupted by user; shutting down pipeline...")
             pipeline_stop_event.set()
@@ -812,7 +824,7 @@ def process_epub(
                         if video_path:
                             batch_video_files.append(video_path)
 
-    if written_blocks:
+    if written_blocks and not (stop_event and stop_event.is_set()):
         batch_start = current_batch_start
         batch_end = current_batch_start + len(written_blocks) - 1
         target_for_batch = last_target_language or (
@@ -845,6 +857,8 @@ def process_epub(
         )
         if video_path:
             batch_video_files.append(video_path)
+    elif stop_event and stop_event.is_set():
+        logger.info("Skip final batch export due to shutdown request.")
     logger.info("EPUB processing complete!")
     logger.info("Total sentences processed: %s", total_refined)
     return written_blocks, all_audio_segments, batch_video_files, base_dir, base_no_ext
@@ -1064,7 +1078,9 @@ def run_pipeline(
             progress_tracker=progress_tracker,
             stop_event=stop_event,
         )
-        if stitch_full:
+        if stop_event and stop_event.is_set():
+            logger.info("Shutdown request acknowledged; skipping remaining post-processing steps.")
+        if stitch_full and not (stop_event and stop_event.is_set()):
             final_sentence = start_sentence + len(written_blocks) - 1 if written_blocks else start_sentence
             stitched_basename = output_formatter.compute_stitched_basename(input_file, target_languages)
             output_formatter.stitch_full_output(
@@ -1119,6 +1135,8 @@ def run_pipeline(
                 subprocess.run(cmd_concat, check=True)
                 os.remove(concat_list_path)
                 logger.info("Stitched video slide output saved to: %s", final_video_path)
+        elif stitch_full and stop_event and stop_event.is_set():
+            logger.info("Skipping stitched outputs due to shutdown request.")
         logger.info("Processing complete.")
     except Exception as e:
         logger.error("An error occurred: %s", e)
