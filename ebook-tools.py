@@ -36,10 +36,15 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_WORKING_RELATIVE = Path("output")
 DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
 DEFAULT_TMP_RELATIVE = Path("tmp")
+DEFAULT_BOOKS_RELATIVE = Path("books")
+CONF_DIR = SCRIPT_DIR / "conf"
+DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
+DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
 
 WORKING_DIR = None
 EBOOK_DIR = None
 TMP_DIR = None
+BOOKS_DIR = None
 
 DERIVED_RUNTIME_DIRNAME = "runtime"
 DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
@@ -72,9 +77,16 @@ def resolve_file_path(path_value, base_dir=None):
     if not path_value:
         return None
     file_path = Path(os.path.expanduser(str(path_value)))
-    if not file_path.is_absolute():
-        base = Path(base_dir) if base_dir else SCRIPT_DIR
-        file_path = (base / file_path).resolve()
+    if file_path.is_absolute():
+        return file_path
+    if base_dir:
+        base = Path(base_dir)
+        if file_path.parts and base.name == file_path.parts[0]:
+            file_path = (SCRIPT_DIR / file_path).resolve()
+        else:
+            file_path = (base / file_path).resolve()
+    else:
+        file_path = (SCRIPT_DIR / file_path).resolve()
     return file_path
 
 
@@ -135,6 +147,11 @@ def get_refined_sentences(input_file, force_refresh=False, metadata=None):
     if not input_file:
         return [], False
 
+    resolved_input = resolve_file_path(input_file, BOOKS_DIR)
+    if not resolved_input:
+        return [], False
+    input_file = str(resolved_input)
+
     expected_settings = {
         "max_words": MAX_WORDS,
         "split_on_comma_semicolon": EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
@@ -162,6 +179,7 @@ def initialize_environment(config, overrides=None):
     working_override = overrides.get("working_dir")
     output_override = overrides.get("output_dir")
     tmp_override = overrides.get("tmp_dir")
+    books_override = overrides.get("ebooks_dir")
     ffmpeg_override = overrides.get("ffmpeg_path")
     ollama_override = overrides.get("ollama_url")
 
@@ -174,11 +192,13 @@ def initialize_environment(config, overrides=None):
         output_path.mkdir(parents=True, exist_ok=True)
 
     tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
+    books_path = resolve_directory(books_override or config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
 
-    global WORKING_DIR, EBOOK_DIR, TMP_DIR, OLLAMA_API_URL
+    global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL
     WORKING_DIR = str(working_path)
     EBOOK_DIR = str(output_path)
     TMP_DIR = str(tmp_path)
+    BOOKS_DIR = str(books_path)
 
     ffmpeg_path = os.path.expanduser(str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH))
     AudioSegment.converter = ffmpeg_path
@@ -189,22 +209,60 @@ def initialize_environment(config, overrides=None):
 # -----------------------
 # Configuration helpers
 # -----------------------
-def load_configuration(config_file, verbose=False):
+def _read_config_json(path, verbose=False, label="configuration"):
+    if not path:
+        return {}
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if verbose:
+            print(f"\nLoaded {label} from {path}")
+        return data
+    except FileNotFoundError:
+        if verbose:
+            print(f"\nNo {label} found at {path}.")
+        return {}
+    except Exception as e:
+        if verbose:
+            print(f"\nError loading {label} from {path}: {e}. Proceeding without it.")
+        return {}
+
+
+def _deep_merge_dict(base, override):
+    result = dict(base)
+    for key, value in override.items():
+        if isinstance(value, dict) and isinstance(result.get(key), dict):
+            result[key] = _deep_merge_dict(result[key], value)
+        else:
+            result[key] = value
+    return result
+
+
+def load_configuration(config_file=None, verbose=False):
     config = {}
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            if verbose:
-                print(f"\nLoaded configuration from {config_file}")
-        except Exception as e:
-            if verbose:
-                print(f"\nError loading config file: {e}. Proceeding with defaults.")
-            config = {}
+
+    default_config = _read_config_json(DEFAULT_CONFIG_PATH, verbose=verbose, label="default configuration")
+    config = _deep_merge_dict(config, default_config)
+
+    override_path = None
+    if config_file:
+        override_path = Path(config_file).expanduser()
+        if not override_path.is_absolute():
+            override_path = (Path.cwd() / override_path).resolve()
     else:
-        config = {}
+        override_path = DEFAULT_LOCAL_CONFIG_PATH
+
+    override_config = _read_config_json(override_path, verbose=verbose, label="local configuration") if override_path else {}
+    config = _deep_merge_dict(config, override_config)
+
+    if verbose and override_path and not override_config:
+        if override_path == DEFAULT_LOCAL_CONFIG_PATH:
+            print(f"\nProceeding with defaults from {DEFAULT_CONFIG_PATH}")
+        else:
+            print(f"\nProceeding with defaults because {override_path} could not be loaded")
 
     config.setdefault("input_file", "")
+    config.setdefault("ebooks_dir", str(DEFAULT_BOOKS_RELATIVE))
     config.setdefault("base_output_file", "")
     config.setdefault("input_language", "English")
     config.setdefault("target_languages", ["Arabic"])
@@ -253,8 +311,13 @@ def parse_arguments():
     parser.add_argument("base_output_file", nargs="?", help="Base path for generated output files.")
     parser.add_argument("start_sentence", nargs="?", type=int, help="Sentence number to start processing from.")
     parser.add_argument("end_sentence", nargs="?", help="Sentence number (or offset) to stop processing at.")
-    parser.add_argument("--config", default=str(SCRIPT_DIR / "config.json"), help="Path to the configuration JSON file.")
+    parser.add_argument(
+        "--config",
+        default=None,
+        help="Path to a configuration override JSON file (defaults to conf/config.local.json if present).",
+    )
     parser.add_argument("-i", "--interactive", action="store_true", help="Open the interactive configuration menu.")
+    parser.add_argument("--ebooks-dir", help="Directory containing source EPUB files and cover images.")
     parser.add_argument("--working-dir", help="Override the working directory for intermediate files.")
     parser.add_argument("--output-dir", help="Override the output directory for generated files.")
     parser.add_argument("--tmp-dir", help="Override the temporary directory for transient files.")
@@ -587,17 +650,18 @@ def fetch_book_cover(query):
 # -----------------------
 # New Function: Update Book Cover File in Config
 # -----------------------
-def update_book_cover_file_in_config(config, working_dir_value):
+def update_book_cover_file_in_config(config, ebooks_dir_value):
     title = config.get("book_title", "Unknown Title")
     author = config.get("book_author", "Unknown Author")
-    working_dir_value = working_dir_value or str(DEFAULT_WORKING_RELATIVE)
-    default_cover_relative = os.path.join(working_dir_value, "book_cover.jpg")
-    default_cover_path = resolve_file_path(default_cover_relative)
+    ebooks_dir_value = ebooks_dir_value or str(DEFAULT_BOOKS_RELATIVE)
+    ebooks_dir_path = Path(BOOKS_DIR) if BOOKS_DIR else resolve_directory(ebooks_dir_value, DEFAULT_BOOKS_RELATIVE)
+    default_cover_relative = "book_cover.jpg"
+    default_cover_path = ebooks_dir_path / default_cover_relative
     cover_file = config.get("book_cover_file")
-    cover_path = resolve_file_path(cover_file)
+    cover_path = resolve_file_path(cover_file, BOOKS_DIR)
     if cover_path and cover_path.exists():
         return config
-    # Otherwise, check if the default cover exists in WORKING_DIR.
+    # Otherwise, check if the default cover exists in the ebooks directory.
     if default_cover_path and default_cover_path.exists():
         config["book_cover_file"] = default_cover_relative
         config["book_cover_title"] = title
@@ -622,10 +686,13 @@ def remove_quotes(text):
     return text
 
 def extract_text_from_epub(epub_file):
+    epub_path = resolve_file_path(epub_file, BOOKS_DIR)
+    if not epub_path or not epub_path.exists():
+        raise FileNotFoundError(f"EPUB file '{epub_file}' could not be found.")
     try:
-        book = epub.read_epub(epub_file)
+        book = epub.read_epub(str(epub_path))
     except Exception as e:
-        print(f"Error reading EPUB file '{epub_file}': {e}")
+        print(f"Error reading EPUB file '{epub_path}': {e}")
         sys.exit(1)
     text_content = ""
     for item in book.get_items():
@@ -1787,7 +1854,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     book_author = book_metadata.get("book_author", "Unknown Author")
     
     cover_img = None
-    cover_file_path = resolve_file_path(book_metadata.get("book_cover_file"))
+    cover_file_path = resolve_file_path(book_metadata.get("book_cover_file"), BOOKS_DIR)
     if cover_file_path and cover_file_path.exists():
         try:
             cover_img = Image.open(cover_file_path)
@@ -1905,15 +1972,20 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
 def interactive_menu(overrides=None, config_path=None):
     global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON, MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO
     overrides = overrides or {}
-    config_file = config_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-    config = load_configuration(config_file, verbose=True)
+    if config_path:
+        config_file_path = Path(config_path).expanduser()
+        if not config_file_path.is_absolute():
+            config_file_path = (Path.cwd() / config_file_path).resolve()
+    else:
+        config_file_path = DEFAULT_LOCAL_CONFIG_PATH
+    config = load_configuration(config_file_path, verbose=True)
 
     if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
         config["start_sentence_lookup"] = config["start_sentence"]
 
     initialize_environment(config, overrides)
 
-    config = update_book_cover_file_in_config(config, config.get("working_dir"))
+    config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
 
     MAX_WORDS = config.get("max_words", MAX_WORDS)
     EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
@@ -1923,6 +1995,9 @@ def interactive_menu(overrides=None, config_path=None):
     while True:
         MAX_WORDS = config.get("max_words", MAX_WORDS)
         EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
+
+        resolved_input_path = resolve_file_path(config.get("input_file"), BOOKS_DIR)
+        input_display = str(resolved_input_path) if resolved_input_path else config.get("input_file", "")
 
         if config.get("input_file"):
             refined, refreshed = get_refined_sentences(
@@ -1938,7 +2013,7 @@ def interactive_menu(overrides=None, config_path=None):
         config = update_sentence_config(config, refined)
 
         print("\n--- File / Language Settings ---")
-        print(f"1. Input EPUB file: {config.get('input_file', '')}")
+        print(f"1. Input EPUB file: {input_display}")
         print(f"2. Base output file: {config.get('base_output_file', '')}")
         print(f"3. Input language: {config.get('input_language', 'English')}")
         print(f"4. Target languages: {', '.join(config.get('target_languages', ['Arabic']))}")
@@ -1979,9 +2054,10 @@ def interactive_menu(overrides=None, config_path=None):
         print("\n--- Paths and Services ---")
         print(f"31. Working directory: {config.get('working_dir')}")
         print(f"32. Output directory: {config.get('output_dir')}")
-        print(f"33. Temporary directory: {config.get('tmp_dir')}")
-        print(f"34. FFmpeg path: {config.get('ffmpeg_path')}")
-        print(f"35. Ollama API URL: {config.get('ollama_url')}")
+        print(f"33. Ebooks directory: {config.get('ebooks_dir')}")
+        print(f"34. Temporary directory: {config.get('tmp_dir')}")
+        print(f"35. FFmpeg path: {config.get('ffmpeg_path')}")
+        print(f"36. Ollama API URL: {config.get('ollama_url')}")
         
         inp_choice = input("\nEnter a parameter number to change (or press Enter to confirm): ").strip()
         if inp_choice == "":
@@ -1989,13 +2065,21 @@ def interactive_menu(overrides=None, config_path=None):
         elif inp_choice.isdigit():
             num = int(inp_choice)
             if num == 1:
-                epub_files = [f for f in os.listdir(os.getcwd()) if f.endswith(".epub")]
-                for idx, file in enumerate(epub_files, start=1):
-                    print(f"{idx}. {file}")
+                books_dir_path = Path(BOOKS_DIR) if BOOKS_DIR else resolve_directory(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
+                epub_files = sorted([p.name for p in books_dir_path.glob("*.epub")])
+                if epub_files:
+                    for idx, file in enumerate(epub_files, start=1):
+                        print(f"{idx}. {file}")
+                else:
+                    print(f"No EPUB files found in {books_dir_path}. You can type a custom path.")
                 default_input = config.get("input_file", epub_files[0] if epub_files else "")
-                inp_val = input(f"Select an input file by number (default: {default_input}): ").strip()
-                if inp_val.isdigit():
+                default_display = str(resolve_file_path(default_input, BOOKS_DIR)) if default_input else ""
+                prompt_default = default_display or default_input
+                inp_val = input(f"Select an input file by number or enter a path (default: {prompt_default}): ").strip()
+                if inp_val.isdigit() and 0 < int(inp_val) <= len(epub_files):
                     config["input_file"] = epub_files[int(inp_val)-1]
+                elif inp_val:
+                    config["input_file"] = inp_val
                 else:
                     config["input_file"] = default_input
                 refined_cache_stale = True
@@ -2236,14 +2320,14 @@ def interactive_menu(overrides=None, config_path=None):
                     else:
                         print("File does not exist. Keeping previous value.")
                 else:
-                    config = update_book_cover_file_in_config(config, config.get("working_dir"))
+                    config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
             elif num == 31:
                 current = config.get("working_dir")
                 inp_val = input(f"Enter working directory (default: {current}): ").strip()
                 if inp_val:
                     config["working_dir"] = inp_val
                 initialize_environment(config, overrides)
-                config = update_book_cover_file_in_config(config, config.get("working_dir"))
+                config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
                 refined_cache_stale = True
             elif num == 32:
                 current = config.get("output_dir")
@@ -2253,18 +2337,26 @@ def interactive_menu(overrides=None, config_path=None):
                 initialize_environment(config, overrides)
                 refined_cache_stale = True
             elif num == 33:
+                current = config.get("ebooks_dir")
+                inp_val = input(f"Enter ebooks directory (default: {current}): ").strip()
+                if inp_val:
+                    config["ebooks_dir"] = inp_val
+                initialize_environment(config, overrides)
+                config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
+                refined_cache_stale = True
+            elif num == 34:
                 current = config.get("tmp_dir")
                 inp_val = input(f"Enter temporary directory (default: {current}): ").strip()
                 if inp_val:
                     config["tmp_dir"] = inp_val
                 initialize_environment(config, overrides)
-            elif num == 34:
+            elif num == 35:
                 current = config.get("ffmpeg_path")
                 inp_val = input(f"Enter FFmpeg executable path (default: {current}): ").strip()
                 if inp_val:
                     config["ffmpeg_path"] = inp_val
                 initialize_environment(config, overrides)
-            elif num == 35:
+            elif num == 36:
                 current = config.get("ollama_url")
                 inp_val = input(f"Enter Ollama API URL (default: {current}): ").strip()
                 if inp_val:
@@ -2275,9 +2367,10 @@ def interactive_menu(overrides=None, config_path=None):
         else:
             print("Invalid input. Please enter a number or press Enter.")
         try:
-            with open(config_file, "w", encoding="utf-8") as f:
+            config_file_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(config_file_path, "w", encoding="utf-8") as f:
                 json.dump(strip_derived_config(config), f, indent=4)
-            print(f"Configuration saved to {config_file}")
+            print(f"Configuration saved to {config_file_path}")
         except Exception as e:
             print(f"Error saving configuration: {e}")
     OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
@@ -2286,9 +2379,11 @@ def interactive_menu(overrides=None, config_path=None):
     SYNC_RATIO = config.get("sync_ratio", 0.9)
     WORD_HIGHLIGHTING = config.get("word_highlighting", True)
     TEMPO = config.get("tempo", 1.0)
+    resolved_input = resolve_file_path(config["input_file"], BOOKS_DIR)
+    input_arg = f"\"{resolved_input}\"" if resolved_input else f"\"{config['input_file']}\""
     cmd_parts = [
         sys.executable, os.path.basename(__file__),
-        f"\"{config['input_file']}\"",
+        input_arg,
         f"\"{config['input_language']}\"",
         f"\"{','.join(config['target_languages'])}\"",
         str(config["sentences_per_output_file"]),
@@ -2309,8 +2404,10 @@ def interactive_menu(overrides=None, config_path=None):
         "book_summary": config.get("book_summary"),
         "book_cover_file": config.get("book_cover_file")
     }
+    resolved_input = resolve_file_path(config["input_file"], BOOKS_DIR)
+    input_file_value = str(resolved_input) if resolved_input else config["input_file"]
     return (
-        config["input_file"], config["base_output_file"], config["input_language"],
+        input_file_value, config["base_output_file"], config["input_language"],
         config["target_languages"], config["sentences_per_output_file"], config["start_sentence"],
         config.get("end_sentence"), config["stitch_full"], config["generate_audio"],
         config["audio_mode"], config["written_mode"], config.get("selected_voice", "gTTS"),
@@ -2322,6 +2419,7 @@ if __name__ == "__main__":
     args = parse_arguments()
 
     overrides = {
+        "ebooks_dir": args.ebooks_dir or os.environ.get("EBOOKS_DIR"),
         "working_dir": args.working_dir or os.environ.get("EBOOK_WORKING_DIR"),
         "output_dir": args.output_dir or os.environ.get("EBOOK_OUTPUT_DIR"),
         "tmp_dir": args.tmp_dir or os.environ.get("EBOOK_TMP_DIR"),
@@ -2339,12 +2437,19 @@ if __name__ == "__main__":
     else:
         config = load_configuration(args.config, verbose=False)
         initialize_environment(config, overrides)
-        config = update_book_cover_file_in_config(config, config.get("working_dir"))
+        config = update_book_cover_file_in_config(config, config.get("ebooks_dir"))
 
         input_file = args.input_file or config.get("input_file")
         if not input_file:
             print("Error: An input EPUB file must be specified either via CLI or configuration.")
             sys.exit(1)
+
+        resolved_input_path = resolve_file_path(input_file, BOOKS_DIR)
+        if not resolved_input_path or not resolved_input_path.exists():
+            search_hint = BOOKS_DIR or config.get("ebooks_dir")
+            print(f"Error: EPUB file '{input_file}' was not found. Check the ebooks directory ({search_hint}).")
+            sys.exit(1)
+        input_file = str(resolved_input_path)
 
         input_language = args.input_language or config.get("input_language", "English")
         target_languages = config.get("target_languages", ["Arabic"])

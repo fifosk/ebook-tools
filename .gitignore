@@ -10,3 +10,6 @@ venv/
 !.vscode/settings.json
 output/
 tmp/
+conf/config.local.json
+books/*
+!books/.gitkeep
