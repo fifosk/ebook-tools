@@ -145,7 +145,9 @@ def fetch_book_cover(query: str, debug_enabled: bool = False) -> Optional[Image.
             cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
             cover_response = requests.get(cover_url, stream=True, timeout=10)
             if cover_response.status_code == 200:
-                return Image.open(io.BytesIO(cover_response.content))
+                image = Image.open(io.BytesIO(cover_response.content))
+                image.load()
+                return image
         return None
     except Exception as exc:  # pragma: no cover - network errors
         if debug_enabled:

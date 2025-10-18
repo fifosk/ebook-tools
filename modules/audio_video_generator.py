@@ -786,6 +786,8 @@ def generate_video_slides_ffmpeg(
             f"Sentence: {sentence_number}/{total_sentences} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}"
         )
 
+        local_cover = cover_img.copy() if cover_img else None
+
         return generate_word_synced_sentence_video(
             block,
             audio_seg,
@@ -796,7 +798,7 @@ def generate_video_slides_ffmpeg(
             initial_font_size=initial_font_size,
             default_font_path=get_default_font_path(),
             bg_color=bg_color,
-            cover_img=cover_img,
+            cover_img=local_cover,
             header_info=header_info,
         )
 

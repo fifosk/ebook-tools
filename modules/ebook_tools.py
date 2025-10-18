@@ -392,13 +392,24 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     cover_file_path = resolve_file_path(book_metadata.get("book_cover_file"), cfg.BOOKS_DIR)
     if cover_file_path and cover_file_path.exists():
         try:
-            cover_img = Image.open(cover_file_path)
+            with Image.open(cover_file_path) as img:
+                cover_img = img.convert("RGB")
+                cover_img.load()
         except Exception as e:
             if DEBUG:
                 logger.debug("Error loading cover image from file: %s", e)
             cover_img = None
     else:
-        cover_img = fetch_book_cover(f"{book_title} {book_author}")
+        remote_cover = fetch_book_cover(f"{book_title} {book_author}")
+        if remote_cover:
+            try:
+                cover_img = remote_cover.convert("RGB")
+                cover_img.load()
+            finally:
+                try:
+                    remote_cover.close()
+                except Exception:  # pragma: no cover - best effort cleanup
+                    pass
     
     global_cumulative_word_counts = []
     running = 0
