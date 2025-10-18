@@ -67,6 +67,16 @@ TOP_LANGUAGES = [
 ]
 
 
+def _prompt_user(prompt: str) -> str:
+    """Return sanitized user input for interactive prompts."""
+
+    try:
+        response = input(prompt)
+    except EOFError:
+        return ""
+    return response.replace("\r", "").strip()
+
+
 def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse command line arguments for the ebook tools pipeline."""
     parser = argparse.ArgumentParser(description="Generate translated outputs from EPUB files.")
@@ -103,6 +113,11 @@ def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     parser.add_argument("--tmp-dir", help="Override the temporary directory for transient files.")
     parser.add_argument("--ffmpeg-path", help="Override the path to the FFmpeg executable.")
     parser.add_argument("--ollama-url", help="Override the Ollama API URL.")
+    parser.add_argument(
+        "--thread-count",
+        type=int,
+        help="Number of worker threads to use for translation and media generation.",
+    )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging output.")
     return parser.parse_args(argv)
 
@@ -140,7 +155,9 @@ def fetch_book_cover(query: str, debug_enabled: bool = False) -> Optional[Image.
             cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
             cover_response = requests.get(cover_url, stream=True, timeout=10)
             if cover_response.status_code == 200:
-                return Image.open(io.BytesIO(cover_response.content))
+                image = Image.open(io.BytesIO(cover_response.content))
+                image.load()
+                return image
         return None
     except Exception as exc:  # pragma: no cover - network errors
         if debug_enabled:
@@ -271,68 +288,72 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     )
     logger.info("10. Audio tempo (default: %s)", config.get("tempo", 1.0))
     logger.info("11. Sync ratio for word slides: %s", config.get("sync_ratio", 0.9))
+    logger.info(
+        "12. Worker thread count (1-10): %s",
+        config.get("thread_count", cfg.DEFAULT_THREADS),
+    )
 
     logger.info("\n--- Sentence Parsing Settings ---")
     logger.info(
-        "12. Sentences per output file: %s",
+        "13. Sentences per output file: %s",
         config.get("sentences_per_output_file", 10),
     )
     logger.info(
-        "13. Starting sentence (number or lookup word): %s",
+        "14. Starting sentence (number or lookup word): %s",
         config.get("start_sentence", 1),
     )
     logger.info(
-        "14. Ending sentence (absolute or offset): %s",
+        "15. Ending sentence (absolute or offset): %s",
         config.get("end_sentence", f"Last sentence [{len(refined)}]"),
     )
-    logger.info("15. Max words per sentence chunk: %s", config.get("max_words", 18))
+    logger.info("16. Max words per sentence chunk: %s", config.get("max_words", 18))
     logger.info(
-        "16. Percentile for computing suggested max words: %s",
+        "17. Percentile for computing suggested max words: %s",
         config.get("percentile", 96),
     )
 
     logger.info("\n--- Format Options ---")
     logger.info(
-        "17. Audio output mode: %s (%s)",
+        "18. Audio output mode: %s (%s)",
         config.get("audio_mode", "1"),
         AUDIO_MODE_DESC.get(config.get("audio_mode", "1"), ""),
     )
     logger.info(
-        "18. Written output mode: %s (%s)",
+        "19. Written output mode: %s (%s)",
         config.get("written_mode", "4"),
         WRITTEN_MODE_DESC.get(config.get("written_mode", "4"), ""),
     )
     logger.info(
-        "19. Extend split logic with comma and semicolon: %s",
+        "20. Extend split logic with comma and semicolon: %s",
         "Yes" if config.get("split_on_comma_semicolon", False) else "No",
     )
     logger.info(
-        "20. Include transliteration for non-Latin alphabets: %s",
+        "21. Include transliteration for non-Latin alphabets: %s",
         config.get("include_transliteration", False),
     )
     logger.info(
-        "21. Word highlighting for video slides: %s",
+        "22. Word highlighting for video slides: %s",
         "Yes" if config.get("word_highlighting", True) else "No",
     )
-    logger.info("22. Debug mode: %s", config.get("debug", False))
-    logger.info("23. HTML output: %s", config.get("output_html", True))
-    logger.info("24. PDF output: %s", config.get("output_pdf", False))
-    logger.info("25. Generate stitched full output file: %s", config.get("stitch_full", False))
+    logger.info("23. Debug mode: %s", config.get("debug", False))
+    logger.info("24. HTML output: %s", config.get("output_html", True))
+    logger.info("25. PDF output: %s", config.get("output_pdf", False))
+    logger.info("26. Generate stitched full output file: %s", config.get("stitch_full", False))
 
     logger.info("\n--- Book Metadata ---")
-    logger.info("26. Book Title: %s", config.get("book_title"))
-    logger.info("27. Author: %s", config.get("book_author"))
-    logger.info("28. Year: %s", config.get("book_year"))
-    logger.info("29. Summary: %s", config.get("book_summary"))
-    logger.info("30. Book Cover File: %s", config.get("book_cover_file", "None"))
+    logger.info("27. Book Title: %s", config.get("book_title"))
+    logger.info("28. Author: %s", config.get("book_author"))
+    logger.info("29. Year: %s", config.get("book_year"))
+    logger.info("30. Summary: %s", config.get("book_summary"))
+    logger.info("31. Book Cover File: %s", config.get("book_cover_file", "None"))
 
     logger.info("\n--- Paths and Services ---")
-    logger.info("31. Working directory: %s", config.get("working_dir"))
-    logger.info("32. Output directory: %s", config.get("output_dir"))
-    logger.info("33. Ebooks directory: %s", config.get("ebooks_dir"))
-    logger.info("34. Temporary directory: %s", config.get("tmp_dir"))
-    logger.info("35. FFmpeg path: %s", config.get("ffmpeg_path"))
-    logger.info("36. Ollama API URL: %s", config.get("ollama_url"))
+    logger.info("32. Working directory: %s", config.get("working_dir"))
+    logger.info("33. Output directory: %s", config.get("output_dir"))
+    logger.info("34. Ebooks directory: %s", config.get("ebooks_dir"))
+    logger.info("35. Temporary directory: %s", config.get("tmp_dir"))
+    logger.info("36. FFmpeg path: %s", config.get("ffmpeg_path"))
+    logger.info("37. Ollama API URL: %s", config.get("ollama_url"))
 
 
 def _select_from_epub_directory(config: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
@@ -352,9 +373,9 @@ def _select_from_epub_directory(config: Dict[str, Any]) -> Tuple[Dict[str, Any],
         str(resolve_file_path(default_input, cfg.BOOKS_DIR)) if default_input else ""
     )
     prompt_default = default_display or default_input
-    inp_val = input(
+    inp_val = _prompt_user(
         f"Select an input file by number or enter a path (default: {prompt_default}): "
-    ).strip()
+    )
     if inp_val.isdigit() and 0 < int(inp_val) <= len(epub_files):
         config["input_file"] = epub_files[int(inp_val) - 1]
     elif inp_val:
@@ -392,17 +413,17 @@ def edit_parameter(
         config, refined_cache_stale = _select_from_epub_directory(config)
     elif selection == 2:
         default_file = _default_base_output_file(config)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter base output file name (default: {default_file}): "
-        ).strip()
+        )
         config["base_output_file"] = inp_val if inp_val else default_file
     elif selection == 3:
         logger.info("\nSelect input language:")
         print_languages_in_four_columns()
         default_in = config.get("input_language", "English")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Select input language by number (default: {default_in}): "
-        ).strip()
+        )
         if inp_val.isdigit() and 0 < int(inp_val) <= len(TOP_LANGUAGES):
             config["input_language"] = TOP_LANGUAGES[int(inp_val) - 1]
         else:
@@ -413,9 +434,9 @@ def edit_parameter(
         )
         print_languages_in_four_columns()
         default_targets = config.get("target_languages", ["Arabic"])
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Select target languages by number (default: {', '.join(default_targets)}): "
-        ).strip()
+        )
         if inp_val:
             choices = [int(x) for x in inp_val.split(",") if x.strip().isdigit()]
             selected = [
@@ -438,9 +459,9 @@ def edit_parameter(
             for idx, model in enumerate(models, start=1):
                 logger.info("%s. %s", idx, model)
             default_model = config.get("ollama_model", models[0].split()[0] if models else DEFAULT_MODEL)
-            inp_val = input(
+            inp_val = _prompt_user(
                 f"Select a model by number (default: {default_model}): "
-            ).strip()
+            )
             if inp_val.isdigit() and models:
                 chosen = models[int(inp_val) - 1].split()[0]
                 config["ollama_model"] = chosen
@@ -450,31 +471,31 @@ def edit_parameter(
             logger.error("Error listing models: %s", exc)
     elif selection == 6:
         default_audio = config.get("generate_audio", True)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Generate audio output files? (yes/no, default {'yes' if default_audio else 'no'}): "
-        ).strip().lower()
+        ).lower()
         config["generate_audio"] = True if inp_val in ["", "yes", "y"] else False
     elif selection == 7:
         default_video = config.get("generate_video", False)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Generate video slide output? (yes/no, default {'yes' if default_video else 'no'}): "
-        ).strip().lower()
+        ).lower()
         config["generate_video"] = True if inp_val in ["yes", "y"] else False
     elif selection == 8:
         default_voice = config.get("selected_voice", "gTTS")
         logger.info("\nSelect voice for audio generation:")
         logger.info("1. Use gTTS (online text-to-speech)")
         logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
-        voice_choice = input("Enter 1 for gTTS or 2 for macOS voice (default: 1): ").strip()
+        voice_choice = _prompt_user("Enter 1 for gTTS or 2 for macOS voice (default: 1): ")
         if voice_choice == "2":
             voices = get_macos_voices(debug_enabled=debug_enabled)
             if voices:
                 logger.info("Available macOS voices (Enhanced/Premium):")
                 for idx, voice in enumerate(voices, start=1):
                     logger.info("%s. %s", idx, voice)
-                inp = input(
+                inp = _prompt_user(
                     f"Select a macOS voice by number (default: {voices[0]}): "
-                ).strip()
+                )
                 if inp.isdigit() and 1 <= int(inp) <= len(voices):
                     voice_selected = voices[int(inp) - 1]
                 else:
@@ -487,39 +508,58 @@ def edit_parameter(
         config["selected_voice"] = voice_selected
     elif selection == 9:
         default_speed = config.get("macos_reading_speed", 100)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter macOS TTS reading speed (words per minute) (default {default_speed}): "
-        ).strip()
+        )
         config["macos_reading_speed"] = int(inp_val) if inp_val.isdigit() else default_speed
     elif selection == 10:
         default_tempo = config.get("tempo", 1.0)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter audio tempo (e.g. 1 for normal, 1.5 for faster, 0.75 for slower) (default {default_tempo}): "
-        ).strip()
+        )
         try:
             config["tempo"] = float(inp_val) if inp_val else default_tempo
         except Exception:
             config["tempo"] = default_tempo
     elif selection == 11:
         default_sync = config.get("sync_ratio", 0.9)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter sync ratio for word slides (default {default_sync}): "
-        ).strip()
+        )
         try:
             config["sync_ratio"] = float(inp_val)
         except Exception:
             config["sync_ratio"] = default_sync
     elif selection == 12:
-        default_sent = config.get("sentences_per_output_file", 10)
-        inp_val = input(
-            f"Enter number of sentences per output file (default {default_sent}): "
-        ).strip()
-        config["sentences_per_output_file"] = int(inp_val) if inp_val.isdigit() else default_sent
+        default_threads = int(config.get("thread_count", cfg.DEFAULT_THREADS))
+        inp_val = _prompt_user(
+            f"Enter worker thread count (1-10, default {default_threads}): "
+        )
+        if inp_val:
+            try:
+                parsed_threads = int(inp_val)
+            except ValueError:
+                logger.warning("Invalid number entered. Keeping previous thread count.")
+            else:
+                if 1 <= parsed_threads <= 10:
+                    default_threads = parsed_threads
+                else:
+                    logger.warning(
+                        "Thread count must be between 1 and 10. Keeping previous value."
+                    )
+        config["thread_count"] = default_threads
+        cfg.set_thread_count(default_threads)
     elif selection == 13:
+        default_sent = config.get("sentences_per_output_file", 10)
+        inp_val = _prompt_user(
+            f"Enter number of sentences per output file (default {default_sent}): "
+        )
+        config["sentences_per_output_file"] = int(inp_val) if inp_val.isdigit() else default_sent
+    elif selection == 14:
         default_start = config.get("start_sentence", 1)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter starting sentence (number or lookup word) (default: {default_start}): "
-        ).strip()
+        )
         if inp_val:
             if inp_val.isdigit():
                 config["start_sentence"] = int(inp_val)
@@ -529,12 +569,12 @@ def edit_parameter(
                 config["start_sentence"] = inp_val
         else:
             config["start_sentence"] = default_start
-    elif selection == 14:
+    elif selection == 15:
         total_sent = len(refined)
         default_end = config.get("end_sentence")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter ending sentence (absolute or offset, e.g. +100) (default: last sentence [{total_sent}]): "
-        ).strip()
+        )
         if inp_val == "":
             config["end_sentence"] = total_sent
         elif inp_val[0] in ["+", "-"]:
@@ -549,11 +589,11 @@ def edit_parameter(
             config["end_sentence"] = int(inp_val)
         else:
             config["end_sentence"] = default_end
-    elif selection == 15:
+    elif selection == 16:
         default_max = config.get("max_words", DEFAULT_MAX)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter maximum words per sentence chunk (default {default_max}): "
-        ).strip()
+        )
         if inp_val.isdigit():
             new_max = int(inp_val)
             config["max_words"] = new_max
@@ -576,11 +616,11 @@ def edit_parameter(
             config["percentile"] = new_percentile if new_percentile is not None else 100
         else:
             config["max_words"] = default_max
-    elif selection == 16:
+    elif selection == 17:
         default_perc = config.get("percentile", 96)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter percentile for suggested max words (default {default_perc}): "
-        ).strip()
+        )
         if inp_val.isdigit():
             perc = int(inp_val)
             if 1 <= perc <= 100:
@@ -589,101 +629,101 @@ def edit_parameter(
                 logger.warning("Invalid percentile, must be between 1 and 100. Keeping previous value.")
         else:
             config["percentile"] = default_perc
-    elif selection == 17:
+    elif selection == 18:
         default_am = config.get("audio_mode", "1")
         logger.info("\nChoose audio output mode:")
         for key, description in AUDIO_MODE_DESC.items():
             logger.info("%s: %s", key, description)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Select audio output mode (default {default_am}): "
-        ).strip()
+        )
         config["audio_mode"] = inp_val if inp_val in AUDIO_MODE_DESC else default_am
-    elif selection == 18:
+    elif selection == 19:
         default_wm = config.get("written_mode", "4")
         logger.info("\nChoose written output mode:")
         for key, description in WRITTEN_MODE_DESC.items():
             logger.info("%s: %s", key, description)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Select written output mode (default {default_wm}): "
-        ).strip()
+        )
         config["written_mode"] = inp_val if inp_val in WRITTEN_MODE_DESC else default_wm
-    elif selection == 19:
-        default_split = config.get("split_on_comma_semicolon", False)
-        inp_val = input(
-            f"Extend split logic with comma and semicolon? (yes/no, default {'yes' if default_split else 'no'}): "
-        ).strip().lower()
-        config["split_on_comma_semicolon"] = True if inp_val in ["yes", "y"] else default_split
     elif selection == 20:
-        default_translit = config.get("include_transliteration", False)
-        inp_val = input(
-            f"Include transliteration for non-Latin alphabets? (yes/no, default {'yes' if default_translit else 'no'}): "
-        ).strip().lower()
-        config["include_transliteration"] = True if inp_val in ["yes", "y"] else False
+        default_split = config.get("split_on_comma_semicolon", False)
+        inp_val = _prompt_user(
+            f"Extend split logic with comma and semicolon? (yes/no, default {'yes' if default_split else 'no'}): "
+        ).lower()
+        config["split_on_comma_semicolon"] = True if inp_val in ["yes", "y"] else default_split
     elif selection == 21:
-        default_highlight = config.get("word_highlighting", True)
-        inp_val = input(
-            f"Enable word highlighting for video slides? (yes/no, default {'yes' if default_highlight else 'no'}): "
-        ).strip().lower()
-        config["word_highlighting"] = True if inp_val in ["", "yes", "y"] else False
+        default_translit = config.get("include_transliteration", False)
+        inp_val = _prompt_user(
+            f"Include transliteration for non-Latin alphabets? (yes/no, default {'yes' if default_translit else 'no'}): "
+        ).lower()
+        config["include_transliteration"] = True if inp_val in ["yes", "y"] else False
     elif selection == 22:
+        default_highlight = config.get("word_highlighting", True)
+        inp_val = _prompt_user(
+            f"Enable word highlighting for video slides? (yes/no, default {'yes' if default_highlight else 'no'}): "
+        ).lower()
+        config["word_highlighting"] = True if inp_val in ["", "yes", "y"] else False
+    elif selection == 23:
         default_debug = config.get("debug", False)
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enable debug mode? (yes/no, default {'yes' if default_debug else 'no'}): "
-        ).strip().lower()
+        ).lower()
         config["debug"] = True if inp_val in ["yes", "y"] else False
         configure_logging_level(config["debug"])
         translation_engine.set_debug(config["debug"])
-    elif selection == 23:
-        default_html = config.get("output_html", True)
-        inp_val = input(
-            f"Generate HTML output? (yes/no, default {'yes' if default_html else 'no'}): "
-        ).strip().lower()
-        config["output_html"] = True if inp_val in ["", "yes", "y"] else False
     elif selection == 24:
-        default_pdf = config.get("output_pdf", False)
-        inp_val = input(
-            f"Generate PDF output? (yes/no, default {'yes' if default_pdf else 'no'}): "
-        ).strip().lower()
-        config["output_pdf"] = True if inp_val in ["yes", "y"] else False
+        default_html = config.get("output_html", True)
+        inp_val = _prompt_user(
+            f"Generate HTML output? (yes/no, default {'yes' if default_html else 'no'}): "
+        ).lower()
+        config["output_html"] = True if inp_val in ["", "yes", "y"] else False
     elif selection == 25:
-        default_stitch = config.get("stitch_full", False)
-        inp_val = input(
-            f"Generate stitched full output file? (yes/no, default {'yes' if default_stitch else 'no'}): "
-        ).strip().lower()
-        config["stitch_full"] = True if inp_val in ["yes", "y"] else False
+        default_pdf = config.get("output_pdf", False)
+        inp_val = _prompt_user(
+            f"Generate PDF output? (yes/no, default {'yes' if default_pdf else 'no'}): "
+        ).lower()
+        config["output_pdf"] = True if inp_val in ["yes", "y"] else False
     elif selection == 26:
+        default_stitch = config.get("stitch_full", False)
+        inp_val = _prompt_user(
+            f"Generate stitched full output file? (yes/no, default {'yes' if default_stitch else 'no'}): "
+        ).lower()
+        config["stitch_full"] = True if inp_val in ["yes", "y"] else False
+    elif selection == 27:
         default_title = config.get("book_title", "")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter book title (default: {default_title}): "
-        ).strip()
+        )
         if inp_val:
             config["book_title"] = inp_val
-    elif selection == 27:
+    elif selection == 28:
         default_author = config.get("book_author", "")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter author name (default: {default_author}): "
-        ).strip()
+        )
         if inp_val:
             config["book_author"] = inp_val
-    elif selection == 28:
+    elif selection == 29:
         default_year = config.get("book_year", "")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter publication year (default: {default_year}): "
-        ).strip()
+        )
         if inp_val:
             config["book_year"] = inp_val
-    elif selection == 29:
+    elif selection == 30:
         default_summary = config.get("book_summary", "")
-        inp_val = input(
+        inp_val = _prompt_user(
             "Enter book summary (press Enter to keep current): "
-        ).strip()
+        )
         if inp_val:
             config["book_summary"] = inp_val
-    elif selection == 30:
+    elif selection == 31:
         current_cover = config.get("book_cover_file") or "None"
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter book cover file path (default: {current_cover}): "
-        ).strip()
+        )
         if inp_val:
             config["book_cover_file"] = inp_val
         debug_enabled = config.get("debug", False)
@@ -692,11 +732,11 @@ def edit_parameter(
             config.get("ebooks_dir"),
             debug_enabled=debug_enabled,
         )
-    elif selection == 31:
+    elif selection == 32:
         current = config.get("working_dir")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter working directory (default: {current}): "
-        ).strip()
+        )
         if inp_val:
             config["working_dir"] = inp_val
         initialize_environment(config, overrides)
@@ -706,20 +746,20 @@ def edit_parameter(
             debug_enabled=debug_enabled,
         )
         refined_cache_stale = True
-    elif selection == 32:
+    elif selection == 33:
         current = config.get("output_dir")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter output directory (default: {current}): "
-        ).strip()
+        )
         if inp_val:
             config["output_dir"] = inp_val
         initialize_environment(config, overrides)
         refined_cache_stale = True
-    elif selection == 33:
+    elif selection == 34:
         current = config.get("ebooks_dir")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter ebooks directory (default: {current}): "
-        ).strip()
+        )
         if inp_val:
             config["ebooks_dir"] = inp_val
         initialize_environment(config, overrides)
@@ -729,27 +769,27 @@ def edit_parameter(
             debug_enabled=debug_enabled,
         )
         refined_cache_stale = True
-    elif selection == 34:
+    elif selection == 35:
         current = config.get("tmp_dir")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter temporary directory (default: {current}): "
-        ).strip()
+        )
         if inp_val:
             config["tmp_dir"] = inp_val
         initialize_environment(config, overrides)
-    elif selection == 35:
+    elif selection == 36:
         current = config.get("ffmpeg_path")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter FFmpeg executable path (default: {current}): "
-        ).strip()
+        )
         if inp_val:
             config["ffmpeg_path"] = inp_val
         initialize_environment(config, overrides)
-    elif selection == 36:
+    elif selection == 37:
         current = config.get("ollama_url")
-        inp_val = input(
+        inp_val = _prompt_user(
             f"Enter Ollama API URL (default: {current}): "
-        ).strip()
+        )
         if inp_val:
             config["ollama_url"] = inp_val
         initialize_environment(config, overrides)
@@ -893,9 +933,9 @@ def run_interactive_menu(
 
         display_menu(config, refined, resolved_input_path)
 
-        inp_choice = input(
+        inp_choice = _prompt_user(
             "\nEnter a parameter number to change (or press Enter to confirm): "
-        ).strip()
+        )
         if inp_choice == "":
             break
         if not inp_choice.isdigit():

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Optional, Sequence
 
+from modules import config_manager as cfg
 from modules import llm_client
 from modules import logging_manager as log_mgr
 from modules import prompt_templates
@@ -122,3 +124,61 @@ def transliterate_sentence(translated_sentence: str, target_language: str) -> st
         logger.debug("LLM transliteration failed: %s", response.error)
 
     return ""
+
+
+def _normalize_target_sequence(
+    target_language: str | Sequence[str],
+    sentence_count: int,
+) -> List[str]:
+    if isinstance(target_language, str):
+        return [target_language] * sentence_count
+    if not target_language:
+        return [""] * sentence_count
+    if len(target_language) == 1 and sentence_count > 1:
+        return list(target_language) * sentence_count
+    if len(target_language) != sentence_count:
+        raise ValueError("target_language sequence length must match sentences")
+    return list(target_language)
+
+
+def translate_batch(
+    sentences: Sequence[str],
+    input_language: str,
+    target_language: str | Sequence[str],
+    *,
+    include_transliteration: bool = False,
+    max_workers: Optional[int] = None,
+) -> List[str]:
+    """Translate ``sentences`` concurrently while preserving order."""
+
+    if not sentences:
+        return []
+
+    targets = _normalize_target_sequence(target_language, len(sentences))
+    worker_count = max_workers or cfg.get_thread_count()
+    worker_count = max(1, min(worker_count, len(sentences)))
+
+    results: List[str] = ["" for _ in sentences]
+
+    def _translate(index: int, sentence: str, target: str) -> str:
+        return translate_sentence_simple(
+            sentence,
+            input_language,
+            target,
+            include_transliteration=include_transliteration,
+        )
+
+    with ThreadPoolExecutor(max_workers=worker_count) as executor:
+        future_map = {
+            executor.submit(_translate, idx, sentence, target): idx
+            for idx, (sentence, target) in enumerate(zip(sentences, targets))
+        }
+        for future in as_completed(future_map):
+            idx = future_map[future]
+            try:
+                results[idx] = future.result()
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.error("Translation failed for sentence %s: %s", idx, exc)
+                results[idx] = "N/A"
+
+    return results

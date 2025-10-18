@@ -30,6 +30,7 @@ DERIVED_CONFIG_KEYS = {"refined_list"}
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
 DEFAULT_MODEL = "gemma2:27b"
+DEFAULT_THREADS = 5
 
 
 logger = logging_manager.get_logger()
@@ -40,6 +41,7 @@ AudioSegment.converter = DEFAULT_FFMPEG_PATH
 
 # Will be updated once configuration is loaded
 OLLAMA_API_URL = DEFAULT_OLLAMA_URL
+THREAD_COUNT = DEFAULT_THREADS
 
 
 def resolve_directory(path_value, default_relative: Path) -> Path:
@@ -68,6 +70,26 @@ def resolve_file_path(path_value, base_dir=None) -> Optional[Path]:
     else:
         file_path = (SCRIPT_DIR / file_path).resolve()
     return file_path
+
+
+def _coerce_thread_count(value: Optional[Any]) -> int:
+    """Return a safe worker count based on ``value``."""
+
+    if value is None:
+        return DEFAULT_THREADS
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_THREADS
+    return max(1, parsed)
+
+
+def set_thread_count(value: Optional[Any]) -> int:
+    """Update the global thread count used by worker pools."""
+
+    global THREAD_COUNT
+    THREAD_COUNT = _coerce_thread_count(value)
+    return THREAD_COUNT
 
 
 def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None) -> None:
@@ -102,6 +124,9 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
     AudioSegment.converter = ffmpeg_path
 
     OLLAMA_API_URL = ollama_override or config.get("ollama_url") or DEFAULT_OLLAMA_URL
+
+    thread_override = overrides.get("thread_count") if overrides else None
+    set_thread_count(thread_override or config.get("thread_count"))
 
 
 def _read_config_json(path, verbose: bool = False, label: str = "configuration") -> Dict[str, Any]:
@@ -195,6 +220,7 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
     config.setdefault("tmp_dir", str(DEFAULT_TMP_RELATIVE))
     config.setdefault("ollama_url", DEFAULT_OLLAMA_URL)
     config.setdefault("ffmpeg_path", DEFAULT_FFMPEG_PATH)
+    config.setdefault("thread_count", DEFAULT_THREADS)
 
     return config
 
@@ -202,3 +228,9 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
 def strip_derived_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Return a copy of the configuration without derived runtime keys."""
     return {k: v for k, v in config.items() if k not in DERIVED_CONFIG_KEYS}
+
+
+def get_thread_count() -> int:
+    """Return the currently configured worker thread count."""
+
+    return THREAD_COUNT
