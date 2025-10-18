@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os
 import concurrent.futures
-import sys, re, json, subprocess, requests, io, tempfile, warnings, statistics, math, urllib.parse, base64, time
+import sys, re, json, subprocess, requests, io, warnings, statistics, math, urllib.parse, base64, time
 import argparse
 import shutil
 from pathlib import Path
@@ -10,6 +10,7 @@ from ebooklib import epub
 from bs4 import BeautifulSoup
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules import audio_video_generator as av_gen
 from modules import translation_engine
 
 # Suppress warnings from ebooklib
@@ -26,11 +27,10 @@ import arabic_reshaper
 from bidi.algorithm import get_display
 
 # Audio generation (gTTS and pydub)
-from gtts import gTTS
 from pydub import AudioSegment
 
 # Video generation using Pillow and ffmpeg
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image
 
 SCRIPT_DIR = cfg.SCRIPT_DIR
 LOG_DIR = log_mgr.LOG_DIR
@@ -206,34 +206,6 @@ WRITTEN_MODE_DESC = {
 }
 
 # -----------------------
-# Function: Get a Default Unicode-capable Font Path
-# -----------------------
-def get_default_font_path():
-    if sys.platform == "darwin":
-        for path in ["/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-                     "/System/Library/Fonts/Supplemental/AppleGothic.ttf"]:
-            if os.path.exists(path):
-                return path
-    elif sys.platform == "win32":
-        path = r"C:\Windows\Fonts\arialuni.ttf"
-        if os.path.exists(path):
-            return path
-    else:
-        for path in ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                     "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc"]:
-            if os.path.exists(path):
-                return path
-    return "Arial.ttf"
-
-# -----------------------
-# Colors for slide text
-# -----------------------
-original_sentence_color = (255, 255, 0)    # standard yellow
-translation_color = (153, 255, 153)  # lighter, pastel green
-transliteration_color = (255, 255, 0)  # light grey
-highlight_color        = (255, 255, 204)    # light yellow for current word highlight (unchanged)
-
-# -----------------------
 # Updated TOP_LANGUAGES List (Added Persian)
 # -----------------------
 TOP_LANGUAGES = [
@@ -260,19 +232,6 @@ NON_LATIN_LANGUAGES = {
 # Global option: Word highlighting for video slides (default enabled)
 # -----------------------
 WORD_HIGHLIGHTING = True
-
-# -----------------------
-# Helper Function: Change Audio Tempo
-# -----------------------
-def change_audio_tempo(sound, tempo=1.0):
-    """
-    Adjusts the tempo of an AudioSegment by modifying its frame_rate.
-    (Note: This method also changes the pitch.)
-    """
-    if tempo == 1.0:
-        return sound
-    new_frame_rate = int(sound.frame_rate * tempo)
-    return sound._spawn(sound.raw_data, overrides={'frame_rate': new_frame_rate}).set_frame_rate(sound.frame_rate)
 
 # -----------------------
 # Function: Print Languages in Four Columns
@@ -715,88 +674,6 @@ def get_macOS_voices():
             voices.append(f"{voice_name} - {locale} - ({quality})")
     return voices
 
-# -----------------------
-# Audio Generation Functions
-# -----------------------
-def generate_macos_tts_audio(text, voice, lang_code):
-    with tempfile.NamedTemporaryFile(suffix=".aiff", dir=cfg.TMP_DIR, delete=False) as tmp:
-        tmp_filename = tmp.name
-    try:
-        cmd = ["say", "-v", voice, "-r", str(MACOS_READING_SPEED), "-o", tmp_filename, text]
-        subprocess.run(cmd, check=True)
-        audio = AudioSegment.from_file(tmp_filename, format="aiff")
-    except subprocess.CalledProcessError:
-        logger.warning(
-            "MacOS TTS command failed for voice '%s'. Falling back to default gTTS voice.",
-            voice,
-        )
-        tts = gTTS(text=text, lang=lang_code)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        fp.seek(0)
-        audio = AudioSegment.from_file(fp, format="mp3")
-    finally:
-        if os.path.exists(tmp_filename):
-            os.remove(tmp_filename)
-    return audio
-
-def generate_audio_segment(text, lang_code):
-    global SELECTED_VOICE
-    if SELECTED_VOICE == "gTTS":
-        tts = gTTS(text=text, lang=lang_code)
-        fp = io.BytesIO()
-        tts.write_to_fp(fp)
-        fp.seek(0)
-        return AudioSegment.from_file(fp, format="mp3")
-    else:
-        parts = SELECTED_VOICE.split(" - ")
-        if len(parts) >= 2:
-            voice_name = parts[0].strip()
-            voice_locale = parts[1].strip()
-        else:
-            voice_name = SELECTED_VOICE
-            voice_locale = ""
-        if voice_locale.lower().startswith(lang_code.lower()):
-            return generate_macos_tts_audio(text, voice_name, lang_code)
-        else:
-            tts = gTTS(text=text, lang=lang_code)
-            fp = io.BytesIO()
-            tts.write_to_fp(fp)
-            fp.seek(0)
-            return AudioSegment.from_file(fp, format="mp3")
-
-def generate_audio_for_sentence(sentence_number, input_sentence, fluent_translation, input_language, target_language, audio_mode, total_sentences):
-    silence = AudioSegment.silent(duration=100)
-    if audio_mode == "1":
-        audio_translation = generate_audio_segment(fluent_translation, LANGUAGE_CODES.get(target_language, "en"))
-        audio = audio_translation + silence
-    elif audio_mode == "2":
-        numbering_str = f"{sentence_number} - {(sentence_number/total_sentences * 100):.2f}%"
-        audio_number = generate_audio_segment(numbering_str, "en")
-        audio_translation = generate_audio_segment(fluent_translation, LANGUAGE_CODES.get(target_language, "en"))
-        audio = audio_number + silence + audio_translation + silence
-    elif audio_mode == "3":
-        numbering_str = f"{sentence_number} - {(sentence_number/total_sentences * 100):.2f}%"
-        audio_number = generate_audio_segment(numbering_str, "en")
-        audio_input = generate_audio_segment(input_sentence, LANGUAGE_CODES.get(input_language, "en"))
-        audio_translation = generate_audio_segment(fluent_translation, LANGUAGE_CODES.get(target_language, "en"))
-        audio = audio_number + silence + audio_input + silence + audio_translation + silence
-    elif audio_mode == "4":
-        audio_original = generate_audio_segment(input_sentence, LANGUAGE_CODES.get(input_language, "en"))
-        audio_translation = generate_audio_segment(fluent_translation, LANGUAGE_CODES.get(target_language, "en"))
-        audio = audio_original + silence + audio_translation + silence
-    elif audio_mode == "5":
-        audio_original = generate_audio_segment(input_sentence, LANGUAGE_CODES.get(input_language, "en"))
-        audio = audio_original + silence
-    else:
-        # Fallback to mode 4 behavior
-        audio_original = generate_audio_segment(input_sentence, LANGUAGE_CODES.get(input_language, "en"))
-        audio_translation = generate_audio_segment(fluent_translation, LANGUAGE_CODES.get(target_language, "en"))
-        audio = audio_original + silence + audio_translation + silence
-    global TEMPO
-    audio = change_audio_tempo(audio, TEMPO)
-    return audio
-
 def write_html_file(filename, content_list):
     try:
         with open(filename, "w", encoding="utf-8") as f:
@@ -879,673 +756,6 @@ def translate_sentence_simple(sentence, input_language, target_language, include
 
 def transliterate_sentence(translated_sentence, target_language):
     return translation_engine.transliterate_sentence(translated_sentence, target_language)
-
-# -----------------------
-# NEW: Helper Function to Generate a Sentence Slide Image
-# -----------------------
-from PIL import Image, ImageDraw, ImageFont
-
-def generate_sentence_slide_image(block,
-                                              original_highlight_word_index=None,
-                                              translation_highlight_word_index=None,
-                                              transliteration_highlight_word_index=None,
-                                              slide_size=(1280, 720),
-                                              initial_font_size=50,
-                                              default_font_path="Arial.ttf",
-                                              bg_color=(0, 0, 0),
-                                              cover_img=None,
-                                              header_info=""):
-    """
-    Draws a slide image for a sentence block with a multi-line header,
-    adjusted for an audiobook-style cover display.
-    
-    The block should contain multiple lines:
-      - The first line is used as header information (or replaced by header_info if provided).
-      - The remaining lines are expected to contain:
-          • The original sentence,
-          • The translation,
-          • (Optionally) the transliteration.
-    
-    Progressive Highlighting:
-      - Original text: words with index < original_highlight_word_index are drawn in a highlight color.
-      - Translation text:
-          • For Chinese/Japanese: characters with index < translation_highlight_word_index are highlighted.
-          • For other languages: words with index < translation_highlight_word_index are highlighted.
-      - Transliteration text: words with index < transliteration_highlight_word_index are drawn in a highlight color.
-    
-    A thin separator line is drawn between segments for better visual delimitation.
-    If a book cover image is provided, it is pasted as a larger thumbnail on the left side of the header.
-    """
-    from PIL import Image, ImageDraw, ImageFont
-    
-    # Create base image and drawing context
-    img = Image.new("RGB", slide_size, bg_color)
-    draw = ImageDraw.Draw(img)
-    
-    # Adjusted header height for audiobook style
-    header_height = 150
-    left_area_width = header_height  # reserved area for the cover thumbnail
-
-    # Use header_info if provided; otherwise, take the first line of the block
-    raw_lines = block.split("\n")
-    header_line = raw_lines[0] if raw_lines else ""
-    header_text = header_info if header_info else header_line
-
-    # Draw header background
-    draw.rectangle([0, 0, slide_size[0], header_height], fill=bg_color)
-
-    # Paste cover image if available with larger dimensions (approx. 130x130 pixels)
-    if cover_img:
-        cover_thumb = cover_img.copy()
-        new_width = left_area_width - 20  # e.g., 150 - 20 = 130 pixels
-        new_height = header_height - 20     # e.g., 130 pixels
-        cover_thumb.thumbnail((new_width, new_height))
-        img.paste(cover_thumb, (10, (header_height - cover_thumb.height) // 2))
-
-    # Load header font
-    try:
-        header_font = ImageFont.truetype(default_font_path, 24)
-    except IOError:
-        header_font = ImageFont.load_default()
-
-    # Calculate header text dimensions to center it in the remaining space
-    header_lines = header_text.split("\n")
-    header_line_spacing = 4
-    max_header_width = 0
-    total_header_height = 0
-    for line in header_lines:
-        bbox = draw.textbbox((0, 0), line, font=header_font)
-        line_width = bbox[2] - bbox[0]
-        line_height = bbox[3] - bbox[1]
-        max_header_width = max(max_header_width, line_width)
-        total_header_height += line_height
-    total_header_height += header_line_spacing * (len(header_lines) - 1)
-    if cover_img:
-        available_width = slide_size[0] - left_area_width
-        header_x = left_area_width + (available_width - max_header_width) // 2
-    else:
-        header_x = (slide_size[0] - max_header_width) // 2
-    header_y = (header_height - total_header_height) // 2
-
-    # Draw header text
-    draw.multiline_text((header_x, header_y), header_text,
-                        font=header_font,
-                        fill=(255, 255, 255),
-                        spacing=header_line_spacing,
-                        align="center")
-
-    # --- Active Text Section: Centering & Spacing Adjustments ---
-    extra_line_spacing = 10   # extra pixels between wrapped lines
-    segment_spacing = 20      # extra spacing between segments
-    separator_pre_margin = 10 # extra space before drawing the separator line
-
-    # Separator settings
-    separator_color = (150, 150, 150)
-    separator_thickness = 2
-    separator_margin = 40
-
-    # Extract content segments (skip header)
-    content = "\n".join(raw_lines[1:]).strip()
-    content_lines = [line.strip() for line in content.split("\n") if line.strip()]
-    if len(content_lines) >= 3:
-        original_seg = content_lines[0]
-        translation_seg = content_lines[1]
-        transliteration_seg = content_lines[2]
-    elif len(content_lines) >= 2:
-        original_seg = content_lines[0]
-        translation_seg = " ".join(content_lines[1:])
-        transliteration_seg = ""
-    else:
-        original_seg = translation_seg = content
-        transliteration_seg = ""
-
-    # Minimal text wrapping helper
-    def wrap_text(text, draw, font, max_width):
-        if " " not in text:
-            lines_ = []
-            current_line = ""
-            for ch in text:
-                test_line = current_line + ch
-                bbox = draw.textbbox((0, 0), test_line, font=font)
-                if bbox[2] - bbox[0] <= max_width:
-                    current_line = test_line
-                else:
-                    if current_line:
-                        lines_.append(current_line)
-                    current_line = ch
-            if current_line:
-                lines_.append(current_line)
-            return "\n".join(lines_)
-        else:
-            words = text.split()
-            lines_ = []
-            current_line = words[0]
-            for word in words[1:]:
-                test_line = current_line + " " + word
-                bbox = draw.textbbox((0, 0), test_line, font=font)
-                if bbox[2] - bbox[0] <= max_width:
-                    current_line = test_line
-                else:
-                    lines_.append(current_line)
-                    current_line = word
-            lines_.append(current_line)
-            return "\n".join(lines_)
-
-    def get_wrapped_text_and_font(text, draw, slide_size, initial_font_size, font_path):
-        max_width = slide_size[0] * 0.9
-        max_height = slide_size[1] * 0.9
-        font_size = int(initial_font_size * 0.85)
-        chosen_font = None
-        wrapped_text = text
-        while font_size > 10:
-            try:
-                test_font = ImageFont.truetype(font_path, font_size)
-            except IOError:
-                test_font = ImageFont.load_default()
-            candidate_wrapped = wrap_text(text, draw, test_font, max_width)
-            total_height = 0
-            lines = candidate_wrapped.split("\n")
-            for i, line in enumerate(lines):
-                bbox = draw.textbbox((0, 0), line, font=test_font)
-                total_height += (bbox[3] - bbox[1])
-                if i < len(lines) - 1:
-                    total_height += extra_line_spacing
-            if total_height <= max_height:
-                wrapped_text = candidate_wrapped
-                chosen_font = test_font
-                break
-            font_size -= 2
-        if chosen_font is None:
-            chosen_font = ImageFont.load_default()
-        return wrapped_text, chosen_font
-
-    # Wrap segments and calculate heights
-    wrapped_orig, font_orig = get_wrapped_text_and_font(original_seg, draw, slide_size, initial_font_size, default_font_path)
-    orig_lines = wrapped_orig.split("\n")
-    def compute_height(lines, font):
-        total = 0
-        for i, line in enumerate(lines):
-            bbox = draw.textbbox((0, 0), line, font=font)
-            total += (bbox[3] - bbox[1])
-            if i < len(lines) - 1:
-                total += extra_line_spacing
-        return total
-    orig_height = compute_height(orig_lines, font_orig)
-
-    wrapped_trans, font_trans = get_wrapped_text_and_font(translation_seg, draw, slide_size, initial_font_size, default_font_path)
-    trans_lines = wrapped_trans.split("\n")
-    trans_height = compute_height(trans_lines, font_trans)
-
-    translit_lines = []
-    translit_height = 0
-    if transliteration_seg:
-        wrapped_translit, font_translit = get_wrapped_text_and_font(transliteration_seg, draw, slide_size, initial_font_size, default_font_path)
-        translit_lines = wrapped_translit.split("\n")
-        translit_height = compute_height(translit_lines, font_translit)
-
-    # Total active text height including separators
-    segments_heights = [orig_height, trans_height]
-    if transliteration_seg:
-        segments_heights.append(translit_height)
-    num_segments = len(segments_heights)
-    num_separators = num_segments - 1
-    total_text_height_active = sum(segments_heights) + segment_spacing * num_separators + separator_thickness * num_separators
-
-    # Center active text vertically in the remaining area below header
-    available_area = slide_size[1] - header_height
-    y_text = header_height + (available_area - total_text_height_active) // 2
-
-    # --- Colors & Highlight Config ---
-    global original_sentence_color, translation_color, transliteration_color
-    original_sentence_color = (255, 255, 0)    # yellow
-    translation_color = (153, 255, 153)          # pastel green
-    transliteration_color = (255, 255, 0)      # light grey
-    highlight_color = (255, 165, 0)              # bright orange
-    scale_factor = 1.05
-
-    # --- Draw Original Segment with Progressive Highlighting ---
-    word_counter = 0
-    orig_index_limit = original_highlight_word_index if original_highlight_word_index is not None else 0
-    for line in orig_lines:
-        words_line = line.split()
-        space_bbox = draw.textbbox((0, 0), " ", font=font_orig)
-        space_width = space_bbox[2] - space_bbox[0]
-        total_width = sum((draw.textbbox((0, 0), w, font=font_orig)[2] - draw.textbbox((0, 0), w, font=font_orig)[0])
-                          for w in words_line) + space_width * (len(words_line) - 1)
-        x_line = (slide_size[0] - total_width) // 2
-        for w in words_line:
-            if word_counter < orig_index_limit:
-                try:
-                    highlight_font = ImageFont.truetype(default_font_path, int(font_orig.size * scale_factor))
-                except IOError:
-                    highlight_font = font_orig
-                draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
-            else:
-                draw.text((x_line, y_text), w, font=font_orig, fill=original_sentence_color)
-            w_bbox = draw.textbbox((0, 0), w, font=font_orig)
-            w_width = w_bbox[2] - w_bbox[0]
-            x_line += w_width + space_width
-            word_counter += 1
-        line_height = draw.textbbox((0, 0), line, font=font_orig)[3] - draw.textbbox((0, 0), line, font=font_orig)[1]
-        y_text += line_height + extra_line_spacing
-
-    # Draw separator line after the original segment (if translation exists)
-    if translation_seg:
-        y_text += separator_pre_margin
-        draw.line([(separator_margin, y_text), (slide_size[0]-separator_margin, y_text)],
-                  fill=separator_color, width=separator_thickness)
-        y_text += separator_thickness + segment_spacing
-
-    # --- Draw Translation Segment with Progressive Highlighting ---
-    rtl_languages = {"Arabic", "Hebrew", "Urdu", "Persian"}
-    is_rtl = any(lang in header_info for lang in rtl_languages) if header_info else False
-    is_cjk = any(lang in header_info for lang in ["Chinese", "Japanese"])
-    if translation_seg:
-        if is_rtl:
-            word_counter = 0
-            for line in trans_lines:
-                words_line = line.split()
-                if not words_line:
-                    continue
-                space_bbox = draw.textbbox((0, 0), " ", font=font_trans)
-                space_width = space_bbox[2] - space_bbox[0]
-                total_width = sum((draw.textbbox((0, 0), w, font=font_trans)[2] - draw.textbbox((0, 0), w, font=font_trans)[0])
-                                  for w in words_line) + space_width * (len(words_line)-1)
-                x_line = (slide_size[0] - total_width) // 2 + total_width
-                for w in words_line:
-                    w_width = draw.textbbox((0, 0), w, font=font_trans)[2] - draw.textbbox((0, 0), w, font=font_trans)[0]
-                    if word_counter < (translation_highlight_word_index or 0):
-                        try:
-                            highlight_font = ImageFont.truetype(default_font_path, int(font_trans.size * scale_factor))
-                        except IOError:
-                            highlight_font = font_trans
-                        draw.text((x_line - w_width, y_text), w, font=highlight_font, fill=highlight_color)
-                    else:
-                        draw.text((x_line - w_width, y_text), w, font=font_trans, fill=translation_color)
-                    x_line -= (w_width + space_width)
-                    word_counter += 1
-                line_height = draw.textbbox((0, 0), line, font=font_trans)[3] - draw.textbbox((0, 0), line, font=font_trans)[1]
-                y_text += line_height + extra_line_spacing
-        else:
-            if is_cjk:
-                char_counter = 0
-                for line in trans_lines:
-                    line_chars = list(line)
-                    total_width = sum((draw.textbbox((0, 0), ch, font=font_trans)[2] - 
-                                       draw.textbbox((0, 0), ch, font=font_trans)[0])
-                                      for ch in line_chars)
-                    x_line = (slide_size[0] - total_width) // 2
-                    for ch in line_chars:
-                        ch_width = draw.textbbox((0, 0), ch, font=font_trans)[2] - draw.textbbox((0, 0), ch, font=font_trans)[0]
-                        if char_counter < (translation_highlight_word_index or 0):
-                            try:
-                                highlight_font = ImageFont.truetype(default_font_path, int(font_trans.size * scale_factor))
-                            except IOError:
-                                highlight_font = font_trans
-                            draw.text((x_line, y_text), ch, font=highlight_font, fill=highlight_color)
-                        else:
-                            draw.text((x_line, y_text), ch, font=font_trans, fill=translation_color)
-                        x_line += ch_width
-                        char_counter += 1
-                    line_height = draw.textbbox((0, 0), line, font=font_trans)[3] - draw.textbbox((0, 0), line, font=font_trans)[1]
-                    y_text += line_height + extra_line_spacing
-            else:
-                word_counter = 0
-                for line in trans_lines:
-                    words_line = line.split()
-                    space_bbox = draw.textbbox((0, 0), " ", font=font_trans)
-                    space_width = space_bbox[2] - space_bbox[0]
-                    total_width = sum((draw.textbbox((0, 0), w, font=font_trans)[2] - 
-                                       draw.textbbox((0, 0), w, font=font_trans)[0])
-                                      for w in words_line) + space_width * (len(words_line) - 1)
-                    x_line = (slide_size[0] - total_width) // 2
-                    for w in words_line:
-                        if word_counter < (translation_highlight_word_index or 0):
-                            try:
-                                highlight_font = ImageFont.truetype(default_font_path, int(font_trans.size * scale_factor))
-                            except IOError:
-                                highlight_font = font_trans
-                            draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
-                        else:
-                            draw.text((x_line, y_text), w, font=font_trans, fill=translation_color)
-                        w_width = draw.textbbox((0, 0), w, font=font_trans)[2] - draw.textbbox((0, 0), w, font=font_trans)[0]
-                        x_line += w_width + space_width
-                        word_counter += 1
-                    line_height = draw.textbbox((0, 0), line, font=font_trans)[3] - draw.textbbox((0, 0), line, font=font_trans)[1]
-                    y_text += line_height + extra_line_spacing
-
-    # If a transliteration segment exists, draw a separator before it
-    if transliteration_seg:
-        y_text += separator_pre_margin
-        draw.line([(separator_margin, y_text), (slide_size[0]-separator_margin, y_text)],
-                  fill=separator_color, width=separator_thickness)
-        y_text += separator_thickness + segment_spacing
-
-    # --- Draw Transliteration Segment (if present) ---
-    if transliteration_seg:
-        word_counter = 0
-        for line in translit_lines:
-            words_line = line.split()
-            space_bbox = draw.textbbox((0, 0), " ", font=font_translit)
-            space_width = space_bbox[2] - space_bbox[0]
-            total_width = sum((draw.textbbox((0, 0), w, font=font_translit)[2] - 
-                               draw.textbbox((0, 0), w, font=font_translit)[0])
-                              for w in words_line) + space_width * (len(words_line)-1)
-            x_line = (slide_size[0] - total_width) // 2
-            for w in words_line:
-                if word_counter < (transliteration_highlight_word_index or 0):
-                    try:
-                        highlight_font = ImageFont.truetype(default_font_path, int(font_translit.size * scale_factor))
-                    except IOError:
-                        highlight_font = font_translit
-                    draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
-                else:
-                    draw.text((x_line, y_text), w, font=font_translit, fill=transliteration_color)
-                w_bbox = draw.textbbox((0, 0), w, font=font_translit)
-                w_width = w_bbox[2] - w_bbox[0]
-                x_line += w_width + space_width
-                word_counter += 1
-            line_height = draw.textbbox((0, 0), line, font=font_translit)[3] - draw.textbbox((0, 0), line, font=font_translit)[1]
-            y_text += line_height + extra_line_spacing
-
-    return img
-# -----------------------
-# NEW: Generate a Word-Synced Sentence Video (with Audio Merging)
-# -----------------------
-def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_size=(1280,720),
-                                        initial_font_size=50, default_font_path="Arial.ttf",
-                                        bg_color=(0,0,0), cover_img=None, header_info=""):
-    """
-    Generates a word-synced sentence video with progressive highlighting for:
-      • Original text,
-      • Translation,
-      • Transliteration.
-
-    On the last iteration, fraction is forced to 1.0 so that every word is highlighted
-    by the final slide. Each short slide is concatenated into a single MP4, then merged
-    with the provided audio segment.
-
-    Arguments:
-      block: a string containing multiple lines:
-         1) [header info or language tags],
-         2) original sentence,
-         3) translation,
-         4) optional transliteration
-      audio_seg: a pydub AudioSegment for this sentence
-      sentence_index: integer, used to label temporary output
-      slide_size, initial_font_size, default_font_path, bg_color, cover_img, header_info:
-         various layout parameters for the slide image
-    """
-    import os, subprocess
-
-    # 1) Parse the block into original, translation, transliteration segments
-    raw_lines = block.split("\n")
-    content = "\n".join(raw_lines[1:]).strip()
-    lines = [line.strip() for line in content.split("\n") if line.strip()]
-
-    if len(lines) >= 3:
-        original_seg = lines[0]
-        translation_seg = lines[1]
-        transliteration_seg = lines[2]
-    elif len(lines) >= 2:
-        original_seg = lines[0]
-        translation_seg = " ".join(lines[1:])
-        transliteration_seg = ""
-    else:
-        original_seg = translation_seg = content
-        transliteration_seg = ""
-
-    # Count words in original
-    original_words = original_seg.split()
-    num_original_words = len(original_words)
-
-    # 2) Determine how to split the translation (words or chars)
-    header_line = block.split("\n")[0]
-    if "Chinese" in header_line or "Japanese" in header_line:
-        translation_words = list(translation_seg)  # character-based
-    else:
-        translation_words = translation_seg.split()
-        if not translation_words:
-            translation_words = [translation_seg]
-    num_translation_words = len(translation_words)
-
-    # 3) If there's a transliteration segment, count words
-    transliteration_words = transliteration_seg.split()
-    num_translit_words = len(transliteration_words)
-
-    # 4) Compute durations for each "unit" (word or char) in the translation
-    audio_duration = audio_seg.duration_seconds
-    sync_ratio = SYNC_RATIO  # If you have a global variable for time ratio
-    total_letters = sum(len(w) for w in translation_words)  # used for weighting
-
-    word_durations = []
-    for w in translation_words:
-        if total_letters > 0:
-            dur = (len(w) / total_letters) * audio_duration * sync_ratio
-        else:
-            # fallback if somehow the translation is empty
-            dur = (audio_duration / max(1, len(translation_words))) * sync_ratio
-        word_durations.append(dur)
-
-    video_duration = sum(word_durations)
-    pad_duration = audio_duration - video_duration
-    if pad_duration < 0:
-        pad_duration = 0
-
-    word_video_files = []
-    accumulated_time = 0
-
-    # 5) For each translation "word" (or char), generate a slide
-    for idx, duration in enumerate(word_durations):
-        accumulated_time += duration
-
-        # fraction of audio elapsed
-        if idx == len(word_durations) - 1:
-            # Force fraction = 1.0 on the last iteration
-            fraction = 1.0
-        else:
-            fraction = accumulated_time / audio_duration
-
-        # Compute highlight indices for each segment, cumulatively
-        original_highlight_index = int(fraction * num_original_words) if num_original_words else 0
-        translation_highlight_index = int(fraction * num_translation_words) if num_translation_words else 0
-        transliteration_highlight_index = int(fraction * num_translit_words) if num_translit_words else 0
-
-        # Now generate the slide
-        img = generate_sentence_slide_image(
-            block,
-            original_highlight_word_index=original_highlight_index,
-            translation_highlight_word_index=translation_highlight_index,
-            transliteration_highlight_word_index=transliteration_highlight_index,
-            slide_size=slide_size,
-            initial_font_size=initial_font_size,
-            default_font_path=default_font_path,
-            bg_color=bg_color,
-            cover_img=cover_img,
-            header_info=header_info
-        )
-
-        # Save this slide as a PNG, then create a short MP4
-        img_path = os.path.join(cfg.TMP_DIR, f"word_slide_{sentence_index}_{idx}.png")
-        img.save(img_path)
-
-        video_path = os.path.join(cfg.TMP_DIR, f"word_slide_{sentence_index}_{idx}.mp4")
-        cmd = [
-            "ffmpeg",
-            "-loglevel", "quiet",
-            "-y",
-            "-loop", "1",
-            "-i", img_path,
-            # We need a short silent audio input for ffmpeg to create a video
-            "-i", os.path.join(cfg.TMP_DIR, "silence.wav"),
-            "-c:v", "libx264",
-            "-t", f"{duration:.2f}",
-            "-pix_fmt", "yuv420p",
-            "-vf", "format=yuv420p",
-            "-an",  # no audio here
-            video_path
-        ]
-        try:
-            subprocess.run(cmd, check=True)
-        except subprocess.CalledProcessError as e:
-            logger.error("FFmpeg error on word slide %s_%s: %s", sentence_index, idx, e)
-
-        word_video_files.append(video_path)
-        os.remove(img_path)
-
-    # 6) Concatenate all short MP4 segments
-    concat_list_path = os.path.join(cfg.TMP_DIR, f"concat_word_{sentence_index}.txt")
-    with open(concat_list_path, "w", encoding="utf-8") as f:
-        for video_file in word_video_files:
-            f.write(f"file '{video_file}'\n")
-
-    sentence_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}.mp4")
-    cmd_concat = [
-        "ffmpeg",
-        "-loglevel", "quiet",
-        "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_list_path,
-        "-c", "copy",
-        sentence_video_path
-    ]
-    try:
-        result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            logger.error("FFmpeg concat error: %s", result.stderr.decode())
-            raise subprocess.CalledProcessError(result.returncode, cmd_concat)
-    except subprocess.CalledProcessError as e:
-        logger.error("Error concatenating word slides for sentence %s: %s", sentence_index, e)
-
-    os.remove(concat_list_path)
-    for vf in word_video_files:
-        if os.path.exists(vf):
-            os.remove(vf)
-
-    # 7) Merge with the real sentence audio
-    audio_temp_path = os.path.join(cfg.TMP_DIR, f"sentence_audio_{sentence_index}.wav")
-    audio_seg.export(audio_temp_path, format="wav")
-    merged_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}_merged.mp4")
-
-    cmd_merge = [
-        "ffmpeg",
-        "-loglevel", "quiet",
-        "-y",
-        "-i", sentence_video_path,
-        "-i", audio_temp_path,
-        "-c:v", "copy",
-        "-c:a", "aac",
-        merged_video_path
-    ]
-    try:
-        subprocess.run(cmd_merge, check=True)
-    except subprocess.CalledProcessError as e:
-        logger.error("FFmpeg error merging audio for sentence %s: %s", sentence_index, e)
-
-    os.remove(audio_temp_path)
-    os.remove(sentence_video_path)
-
-    # 8) If there’s leftover time, pad the final video so its length matches the audio
-    final_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}_final.mp4")
-    if pad_duration > 0:
-        cmd_tpad = [
-            "ffmpeg",
-            "-loglevel", "quiet",
-            "-y",
-            "-i", merged_video_path,
-            "-vf", f"tpad=stop_mode=clone:stop_duration={pad_duration:.2f}",
-            "-af", f"apad=pad_dur={pad_duration:.2f}",
-            final_video_path
-        ]
-        try:
-            subprocess.run(cmd_tpad, check=True)
-        except subprocess.CalledProcessError as e:
-            logger.error("FFmpeg error adding pad for sentence %s: %s", sentence_index, e)
-        os.remove(merged_video_path)
-    else:
-        # No leftover time, just rename merged to final
-        os.rename(merged_video_path, final_video_path)
-
-    return final_video_path
-
-# -----------------------
-# Modified Function: Video Slide Generation with Word-Level Syncing
-# -----------------------
-def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_start, batch_end, base_no_ext,
-                                 cover_img, book_author, book_title, cumulative_word_counts, total_word_count,
-                                 macos_reading_speed, cleanup=True,
-                                 slide_size=(1280,720), initial_font_size=60, bg_color=(0,0,0)):
-    logger.info(
-        "Generating video slide set for sentences %s to %s...",
-        batch_start,
-        batch_end,
-    )
-    sentence_video_files = []
-    silence_audio_path = os.path.join(cfg.TMP_DIR, "silence.wav")
-    if not os.path.exists(silence_audio_path):
-        silent = AudioSegment.silent(duration=100)
-        silent.export(silence_audio_path, format="wav")
-        
-    for idx, (block, audio_seg) in enumerate(zip(text_blocks, audio_segments)):
-        sentence_number = batch_start + idx
-        words_processed = cumulative_word_counts[sentence_number - 1]
-        remaining_words = total_word_count - words_processed
-        if macos_reading_speed > 0:
-            est_seconds = int(remaining_words * 60 / macos_reading_speed)
-        else:
-            est_seconds = 0
-        hours = est_seconds // 3600
-        minutes = (est_seconds % 3600) // 60
-        seconds = est_seconds % 60
-        remaining_time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        header_tokens = block.split("\n")[0].split(" - ")
-        target_lang = header_tokens[0].strip() if header_tokens else ""
-        total_fully = len(refined_list)
-        progress_percentage = (sentence_number / total_fully) * 100
-        header_info = (f"Book: {book_title} | Author: {book_author}\n"
-               f"Source Language: {input_language} | Target: {target_lang} | Speed: {TEMPO}\n"
-               f"Sentence: {sentence_number}/{total_fully} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}")
-        
-        try:
-            sentence_video = generate_word_synced_sentence_video(block, audio_seg, sentence_number,
-                                                                 slide_size=slide_size, initial_font_size=initial_font_size,
-                                                                 default_font_path=get_default_font_path(), bg_color=bg_color,
-                                                                 cover_img=cover_img, header_info=header_info)
-            sentence_video_files.append(sentence_video)
-        except Exception as e:
-            logger.error("Error generating sentence video for sentence %s: %s", sentence_number, e)
-    concat_list_path = os.path.join(output_dir, f"concat_{batch_start}_{batch_end}.txt")
-    with open(concat_list_path, "w", encoding="utf-8") as f:
-        for video_file in sentence_video_files:
-            f.write(f"file '{video_file}'\n")
-    final_video_path = os.path.join(output_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp4")
-    cmd_concat = [
-        "ffmpeg",
-        "-loglevel", "quiet",
-        "-y",
-        "-f", "concat",
-        "-safe", "0",
-        "-i", concat_list_path,
-        "-c", "copy",
-        final_video_path
-    ]
-    try:
-        result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            logger.error("FFmpeg final concat error: %s", result.stderr.decode())
-            raise subprocess.CalledProcessError(result.returncode, cmd_concat)
-    except subprocess.CalledProcessError as e:
-        logger.error("Error concatenating sentence slides: %s", e)
-    os.remove(concat_list_path)
-    logger.info("Final stitched video slide output saved to: %s", final_video_path)
-    
-    for video_file in sentence_video_files:
-        if os.path.exists(video_file):
-            os.remove(video_file)
-    if os.path.exists(silence_audio_path):
-        os.remove(silence_audio_path)
-    return final_video_path
 
 # -----------------------
 # Main EPUB Processing Function
@@ -1652,7 +862,19 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
         if generate_video:
             video_blocks.append(video_block)
         if generate_audio:
-            audio_seg = generate_audio_for_sentence(i, sentence, fluent, input_language, current_target, audio_mode, total_fully)
+            audio_seg = av_gen.generate_audio_for_sentence(
+                i,
+                sentence,
+                fluent,
+                input_language,
+                current_target,
+                audio_mode,
+                total_fully,
+                LANGUAGE_CODES,
+                SELECTED_VOICE,
+                TEMPO,
+                MACOS_READING_SPEED,
+            )
             current_audio.append(audio_seg)
             all_audio_segments.append(audio_seg)
         if (i - start_sentence + 1) % sentences_per_file == 0:
@@ -1671,10 +893,25 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                 audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
                 combined.export(audio_filename, format="mp3", bitrate="320k")
             if generate_video and current_audio:
-                video_path = generate_video_slides_ffmpeg(video_blocks, current_audio, base_dir, batch_start, batch_end, base_no_ext,
-                                                          cover_img, book_author, book_title,
-                                                          global_cumulative_word_counts, total_book_words,
-                                                          MACOS_READING_SPEED)
+                video_path = av_gen.generate_video_slides_ffmpeg(
+                    video_blocks,
+                    current_audio,
+                    base_dir,
+                    batch_start,
+                    batch_end,
+                    base_no_ext,
+                    cover_img,
+                    book_author,
+                    book_title,
+                    global_cumulative_word_counts,
+                    total_book_words,
+                    MACOS_READING_SPEED,
+                    input_language,
+                    total_fully,
+                    TEMPO,
+                    SYNC_RATIO,
+                    WORD_HIGHLIGHTING,
+                )
                 batch_video_files.append(video_path)
             written_blocks = []
             video_blocks = []
@@ -1697,10 +934,25 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
             audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
             combined.export(audio_filename, format="mp3", bitrate="320k")
         if generate_video and current_audio:
-            video_path = generate_video_slides_ffmpeg(video_blocks, current_audio, base_dir, batch_start, batch_end, base_no_ext,
-                                                      cover_img, book_author, book_title,
-                                                      global_cumulative_word_counts, total_book_words,
-                                                      MACOS_READING_SPEED)
+            video_path = av_gen.generate_video_slides_ffmpeg(
+                video_blocks,
+                current_audio,
+                base_dir,
+                batch_start,
+                batch_end,
+                base_no_ext,
+                cover_img,
+                book_author,
+                book_title,
+                global_cumulative_word_counts,
+                total_book_words,
+                MACOS_READING_SPEED,
+                input_language,
+                total_fully,
+                TEMPO,
+                SYNC_RATIO,
+                WORD_HIGHLIGHTING,
+            )
             batch_video_files.append(video_path)
     logger.info("EPUB processing complete!")
     logger.info("Total sentences processed: %s", total_refined)
