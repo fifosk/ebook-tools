@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from pydub import AudioSegment
 
 from modules import logging_manager
+from modules import ramdisk_manager
 
 MODULE_DIR = Path(__file__).resolve().parent
 SCRIPT_DIR = MODULE_DIR.parent.resolve()
@@ -151,6 +152,7 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
         output_path.mkdir(parents=True, exist_ok=True)
 
     tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
+    ramdisk_manager.ensure_ramdisk(tmp_path)
     books_path = resolve_directory(books_override or config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
 
     global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL
