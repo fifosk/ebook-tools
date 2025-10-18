@@ -54,7 +54,7 @@ if not os.path.exists(TMP_DIR):
 SELECTED_VOICE = "gTTS"
 DEFAULT_MODEL = "gpt-oss:120b-cloud"
 OLLAMA_MODEL = DEFAULT_MODEL
-DEBUG = False
+DEBUG = True
 MAX_WORDS = 18
 EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 MACOS_READING_SPEED = 100
@@ -62,7 +62,7 @@ SYNC_RATIO = 0.9
 # New global tempo variable; 1.0 means normal speed.
 TEMPO = 1.0
 
-OLLAMA_API_URL = "http://localhost:11434/api/chat"
+OLLAMA_API_URL = "http://192.168.1.9:11434/api/chat"
 
 AUDIO_MODE_DESC = {
     "1": "Only translated sentence",
@@ -731,45 +731,77 @@ def write_epub_file(filename, content_list, book_title):
 # Modified Function: Combined Translation
 # -----------------------
 def translate_sentence_simple(sentence, input_language, target_language, include_transliteration=False):
-    # Wrap the sentence to make it clear what should be translated
+    """
+    Simple translation function using Ollama API.
+    Supports streamed responses and retries up to 3 times.
+    """
     wrapped_sentence = f"<<<{sentence}>>>"
-    
+
     prompt = (
         f"Translate the following text from {input_language} to {target_language}.\n"
         "The text to be translated is enclosed between <<< and >>>.\n"
-        "Provide ONLY the translated text on a SINGLE LINE , without any extra commentary or markers."
+        "Provide ONLY the translated text on a SINGLE LINE without commentary or markers."
     )
-    
+
     payload = {
         "model": OLLAMA_MODEL,
         "messages": [
             {"role": "system", "content": prompt},
             {"role": "user", "content": wrapped_sentence}
         ],
-        "stream": False
+        "stream": True
     }
-    
+
     for attempt in range(3):
         try:
             if DEBUG:
                 print(f"Sending translation request (attempt {attempt + 1})...")
                 print(f"Payload: {json.dumps(payload, indent=2, ensure_ascii=False)}")
-                
-            response = requests.post(OLLAMA_API_URL, json=payload)
-            if response.status_code == 200:
-                result = response.json().get("message", {}).get("content", "").strip()
-                # Check for error responses indicating a missing text prompt or an incorrect translation response
-                if ("please provide the text" in result.lower()) or ("في ترجمته إلى العربية" in result):
-                    if DEBUG:
-                        print("Received an error prompt response. Retrying...")
-                    continue  # Retry if error found
-                return result
-            else:
+
+            response = requests.post(OLLAMA_API_URL, json=payload, stream=True, timeout=90)
+            if response.status_code != 200:
                 if DEBUG:
-                    print(f"Translation error: {response.status_code} - {response.text}")
+                    print(f"HTTP {response.status_code}: {response.text[:300]}")
+                continue
+
+            # --- Stream and accumulate all message.content chunks ---
+            full_text = ""
+            for line in response.iter_lines(decode_unicode=True):
+                if not line:
+                    continue
+                try:
+                    data = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                msg = data.get("message", {}).get("content", "")
+                if msg:
+                    full_text += msg
+
+            full_text = full_text.strip()
+
+            if DEBUG:
+                print(f"Raw translation result: {full_text!r}")
+
+            # Retry if the model replied with an empty or prompt-like message
+            if not full_text or "please provide the text" in full_text.lower():
+                if DEBUG:
+                    print("Empty or invalid translation, retrying...")
+                time.sleep(1)
+                continue
+
+            return full_text
+
+        except requests.exceptions.RequestException as e:
+            if DEBUG:
+                print(f"Request error: {e}")
+            time.sleep(1)
+            continue
         except Exception as e:
             if DEBUG:
-                print(f"Exception during translation: {e}")
+                print(f"Unexpected error: {e}")
+            time.sleep(1)
+            continue
+
     return "N/A"
 
 def transliterate_sentence(translated_sentence, target_language):
