@@ -31,6 +31,14 @@ def ensure_ramdisk(path: os.PathLike[str] | str, *, size_bytes: int = _DEFAULT_R
         logger.debug("Temporary directory %s already resides on a RAM-backed filesystem.", target)
         return True
 
+    if _has_required_capacity(target, size_bytes):
+        logger.debug(
+            "Temporary directory %s already has at least %s capacity; skipping RAM disk creation.",
+            target,
+            _format_size(size_bytes),
+        )
+        return True
+
     system = platform.system()
     if system == "Linux":
         return _mount_ramdisk_linux(target, size_bytes)
@@ -123,6 +131,44 @@ def _decode_mount_token(token: str) -> str:
         .replace("\\012", "\n")
         .replace("\\134", "\\")
     )
+
+
+def _has_required_capacity(path: Path, size_bytes: int) -> bool:
+    mount = _find_mount_for_path(path)
+    if not mount:
+        return False
+
+    _device, mount_point, _fs_type = mount
+    if Path(mount_point).resolve() != path.resolve():
+        return False
+
+    capacity = _filesystem_capacity_bytes(path)
+    if capacity is None:
+        return False
+
+    return capacity >= size_bytes
+
+
+def _filesystem_capacity_bytes(path: Path) -> Optional[int]:
+    try:
+        output = subprocess.check_output(["df", "-k", str(path)], text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+    lines = output.strip().splitlines()
+    if len(lines) < 2:
+        return None
+
+    parts = lines[1].split()
+    if len(parts) < 2:
+        return None
+
+    try:
+        blocks_kib = int(parts[1])
+    except ValueError:
+        return None
+
+    return blocks_kib * 1024
 
 
 def _mount_ramdisk_linux(target: Path, size_bytes: int) -> bool:
