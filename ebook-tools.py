@@ -52,7 +52,7 @@ if not os.path.exists(TMP_DIR):
 # Global Variables for Audio/Video Options
 # -----------------------
 SELECTED_VOICE = "gTTS"
-DEFAULT_MODEL = "gemma2:27b"
+DEFAULT_MODEL = "gpt-oss:120b-cloud"
 OLLAMA_MODEL = DEFAULT_MODEL
 DEBUG = False
 MAX_WORDS = 18
