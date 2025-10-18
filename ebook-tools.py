@@ -10,6 +10,7 @@ from ebooklib import epub
 from bs4 import BeautifulSoup
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules import translation_engine
 
 # Suppress warnings from ebooklib
 warnings.filterwarnings("ignore", category=UserWarning, module="ebooklib.epub")
@@ -58,6 +59,7 @@ load_configuration = cfg.load_configuration
 strip_derived_config = cfg.strip_derived_config
 DEFAULT_MODEL = cfg.DEFAULT_MODEL
 OLLAMA_MODEL = DEFAULT_MODEL
+translation_engine.set_model(OLLAMA_MODEL)
 
 # Explicitly set ffmpeg converter for pydub using configurable path
 AudioSegment.converter = DEFAULT_FFMPEG_PATH
@@ -180,6 +182,7 @@ def parse_arguments():
 # -----------------------
 SELECTED_VOICE = "gTTS"
 DEBUG = True
+translation_engine.set_debug(DEBUG)
 MAX_WORDS = 18
 EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
 MACOS_READING_SPEED = 100
@@ -444,6 +447,7 @@ LANGUAGE_CODES = {
 # Use "gTTS" as the default voice selection.
 SELECTED_VOICE = "gTTS"
 DEBUG = False
+translation_engine.set_debug(DEBUG)
 
 MAX_WORDS = 18
 EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
@@ -865,151 +869,16 @@ def write_epub_file(filename, content_list, book_title):
 # Modified Function: Combined Translation
 # -----------------------
 def translate_sentence_simple(sentence, input_language, target_language, include_transliteration=False):
-    """
-    Simple translation function using Ollama API.
-    Supports streamed responses and retries up to 3 times.
-    """
-    wrapped_sentence = f"<<<{sentence}>>>"
-
-    prompt = (
-        f"Translate the following text from {input_language} to {target_language}.\n"
-        "The text to be translated is enclosed between <<< and >>>.\n"
-        "Provide ONLY the translated text on a SINGLE LINE without commentary or markers."
+    return translation_engine.translate_sentence_simple(
+        sentence,
+        input_language,
+        target_language,
+        include_transliteration=include_transliteration,
     )
 
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": wrapped_sentence}
-        ],
-        "stream": True
-    }
-
-    for attempt in range(3):
-        try:
-            if DEBUG:
-                logger.debug("Sending translation request (attempt %s)...", attempt + 1)
-                logger.debug(
-                    "Payload: %s",
-                    json.dumps(payload, indent=2, ensure_ascii=False),
-                )
-
-            response = requests.post(cfg.OLLAMA_API_URL, json=payload, stream=True, timeout=90)
-            if response.status_code != 200:
-                if DEBUG:
-                    logger.debug("HTTP %s: %s", response.status_code, response.text[:300])
-                continue
-
-            # --- Stream and accumulate all message.content chunks ---
-            full_text = ""
-            for line in response.iter_lines(decode_unicode=True):
-                if not line:
-                    continue
-                try:
-                    data = json.loads(line)
-                except json.JSONDecodeError:
-                    continue
-                msg = data.get("message", {}).get("content", "")
-                if msg:
-                    full_text += msg
-
-            full_text = full_text.strip()
-
-            if DEBUG:
-                logger.debug("Raw translation result: %r", full_text)
-
-            # Retry if the model replied with an empty or prompt-like message
-            if not full_text or "please provide the text" in full_text.lower():
-                if DEBUG:
-                    logger.debug("Empty or invalid translation, retrying...")
-                time.sleep(1)
-                continue
-
-            return full_text
-
-        except requests.exceptions.RequestException as e:
-            if DEBUG:
-                logger.debug("Request error: %s", e)
-            time.sleep(1)
-            continue
-        except Exception as e:
-            if DEBUG:
-                logger.debug("Unexpected error: %s", e)
-            time.sleep(1)
-            continue
-
-    return "N/A"
 
 def transliterate_sentence(translated_sentence, target_language):
-    """
-    Transliterate the given translated_sentence into a romanized form suitable for English pronunciation,
-    using dedicated non-LLM packages for specific languages.
-    """
-    lang = target_language.lower()
-    try:
-        if lang == "arabic":
-            from camel_tools.transliteration import Transliterator
-            transliterator = Transliterator("buckwalter")
-            return transliterator.transliterate(translated_sentence)
-        elif lang == "chinese":
-            import pypinyin
-            # Convert Chinese characters to pinyin (without tone marks)
-            pinyin_list = pypinyin.lazy_pinyin(translated_sentence)
-            return " ".join(pinyin_list)
-        elif lang == "japanese":
-            import pykakasi
-            kks = pykakasi.kakasi()
-            result = kks.convert(translated_sentence)
-            # Join the romanized output (Hepburn style)
-            return " ".join(item['hepburn'] for item in result)
-#        elif lang == "hindi":
-#            from indic_transliteration.sanscript import transliterate, DEVANAGARI, ITRANS
-#            # Convert from Devanagari to ITRANS (you can change ITRANS to any other supported scheme)
-#            return transliterate(translated_sentence, DEVANAGARI, ITRANS)
-#        elif lang == "hebrew":
-#            # Using Unidecode as a basic transliteration tool for Hebrew.
-#            from unidecode import unidecode
-#            return unidecode(translated_sentence)
-    except Exception as e:
-        if DEBUG:
-            logger.debug("Non-LLM transliteration error for %s: %s", target_language, e)
-    # Fallback to LLM prompt if the dedicated package fails or if the language is not covered.
-    prompt = (
-        f"Transliterate the following sentence in {target_language} for English pronounciation.\n"
-        "Provide ONLY the transliteration on a SINGLE LINE without ANY additional text or commentary."
-    )
-    payload = {
-        "model": OLLAMA_MODEL,
-        "messages": [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": translated_sentence}
-        ],
-        "stream": False
-    }
-    try:
-        if DEBUG:
-            logger.debug("Sending transliteration request via LLM fallback...")
-            logger.debug(
-                "Payload: %s",
-                json.dumps(payload, indent=2, ensure_ascii=False),
-            )
-        response = requests.post(cfg.OLLAMA_API_URL, json=payload)
-        if response.status_code == 200:
-            result = response.json().get("message", {}).get("content", "")
-            return result.strip()
-        else:
-            if DEBUG:
-                logger.debug(
-                    "LLM fallback transliteration error: %s - %s",
-                    response.status_code,
-                    response.text,
-                )
-            return ""
-    except Exception as e:
-        if DEBUG:
-            logger.debug("Exception during LLM fallback transliteration: %s", e)
-        return ""
+    return translation_engine.transliterate_sentence(translated_sentence, target_language)
 
 # -----------------------
 # NEW: Helper Function to Generate a Sentence Slide Image
@@ -2294,7 +2163,10 @@ def interactive_menu(overrides=None, config_path=None):
         except Exception as e:
             logger.error("Error saving configuration: %s", e)
     OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
-    configure_logging_level(config.get("debug", False))
+    translation_engine.set_model(OLLAMA_MODEL)
+    debug_enabled = config.get("debug", False)
+    translation_engine.set_debug(debug_enabled)
+    configure_logging_level(debug_enabled)
     MAX_WORDS = config.get("max_words", 18)
     MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
     SYNC_RATIO = config.get("sync_ratio", 0.9)
@@ -2439,7 +2311,9 @@ if __name__ == "__main__":
             config["debug"] = True
 
         OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
+        translation_engine.set_model(OLLAMA_MODEL)
         DEBUG = config.get("debug", False)
+        translation_engine.set_debug(DEBUG)
         configure_logging_level(DEBUG)
         MAX_WORDS = config.get("max_words", 18)
         EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
