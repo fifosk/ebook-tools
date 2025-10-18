@@ -2,6 +2,8 @@
 import os
 import concurrent.futures
 import sys, re, json, subprocess, requests, io, tempfile, warnings, statistics, math, urllib.parse, base64, time
+from dataclasses import dataclass
+from typing import Optional
 import logging
 from logging.handlers import RotatingFileHandler
 import argparse
@@ -56,6 +58,9 @@ DERIVED_CONFIG_KEYS = {"refined_list"}
 
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
+
+# Concurrency defaults
+DEFAULT_THREAD_POOL_WORKERS = 10
 
 
 def setup_logging(log_level=logging.INFO):
@@ -280,6 +285,16 @@ def _deep_merge_dict(base, override):
     return result
 
 
+def _coerce_positive_int(value, default):
+    try:
+        coerced = int(value)
+        if coerced > 0:
+            return coerced
+    except (TypeError, ValueError):
+        pass
+    return default
+
+
 def load_configuration(config_file=None, verbose=False):
     config = {}
 
@@ -339,6 +354,7 @@ def load_configuration(config_file=None, verbose=False):
     config.setdefault("tmp_dir", str(DEFAULT_TMP_RELATIVE))
     config.setdefault("ollama_url", DEFAULT_OLLAMA_URL)
     config.setdefault("ffmpeg_path", DEFAULT_FFMPEG_PATH)
+    config.setdefault("thread_pool_workers", DEFAULT_THREAD_POOL_WORKERS)
 
     return config
 
@@ -365,6 +381,7 @@ def parse_arguments():
     parser.add_argument("--tmp-dir", help="Override the temporary directory for transient files.")
     parser.add_argument("--ffmpeg-path", help="Override the path to the FFmpeg executable.")
     parser.add_argument("--ollama-url", help="Override the Ollama API URL.")
+    parser.add_argument("--thread-pool-workers", type=int, help="Maximum worker threads for concurrent generation tasks.")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging output.")
     return parser.parse_args()
 
@@ -382,6 +399,7 @@ MACOS_READING_SPEED = 100
 SYNC_RATIO = 0.9
 # New global tempo variable; 1.0 means normal speed.
 TEMPO = 1.0
+THREAD_POOL_WORKERS = DEFAULT_THREAD_POOL_WORKERS
 
 AUDIO_MODE_DESC = {
     "1": "Only translated sentence",
@@ -990,6 +1008,90 @@ def generate_audio_for_sentence(sentence_number, input_sentence, fluent_translat
     global TEMPO
     audio = change_audio_tempo(audio, TEMPO)
     return audio
+
+
+@dataclass
+class SentenceProcessingResult:
+    index: int
+    written_block: str
+    video_block: Optional[str]
+    audio_segment: Optional[AudioSegment]
+    target_language: str
+
+
+def process_sentence_task(
+    sentence_index,
+    sentence,
+    input_language,
+    target_language,
+    total_sentences,
+    written_mode,
+    total_fully,
+    include_transliteration,
+    generate_audio,
+    audio_mode,
+):
+    """Dispatch translation, transliteration, and audio generation for a sentence."""
+
+    if include_transliteration and target_language in NON_LATIN_LANGUAGES:
+        translation_result = translate_sentence_simple(
+            sentence,
+            input_language,
+            target_language,
+            include_transliteration=False,
+        )
+        translation_result = remove_quotes(translation_result)
+        transliteration_result = transliterate_sentence(translation_result, target_language)
+        transliteration_result = remove_quotes(transliteration_result)
+        fluent = translation_result
+        if written_mode == "1":
+            written_block = f"{fluent}\n"
+        elif written_mode == "2":
+            written_block = f"{sentence_index} - {(sentence_index/total_fully*100):.2f}%\n{fluent}\n"
+        elif written_mode == "3":
+            written_block = f"{sentence_index} - {(sentence_index/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
+        else:
+            written_block = f"{sentence}\n\n{fluent}\n"
+        written_block = written_block.rstrip() + f"\n{transliteration_result}\n"
+        video_block = (
+            f"{target_language} - {sentence_index} - {(sentence_index/total_fully*100):.2f}%\n"
+            f"{sentence}\n\n{fluent}\n{transliteration_result}\n"
+        )
+    else:
+        fluent = translate_sentence_simple(sentence, input_language, target_language)
+        fluent = remove_quotes(fluent)
+        if written_mode == "1":
+            written_block = f"{fluent}\n"
+        elif written_mode == "2":
+            written_block = f"{sentence_index} - {(sentence_index/total_fully*100):.2f}%\n{fluent}\n"
+        elif written_mode == "3":
+            written_block = f"{sentence_index} - {(sentence_index/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
+        else:
+            written_block = f"{sentence}\n\n{fluent}\n"
+        video_block = (
+            f"{target_language} - {sentence_index} - {(sentence_index/total_fully*100):.2f}%\n"
+            f"{sentence}\n\n{fluent}\n"
+        )
+
+    audio_seg = None
+    if generate_audio:
+        audio_seg = generate_audio_for_sentence(
+            sentence_index,
+            sentence,
+            fluent,
+            input_language,
+            target_language,
+            audio_mode,
+            total_sentences,
+        )
+
+    return SentenceProcessingResult(
+        index=sentence_index,
+        written_block=written_block,
+        video_block=video_block,
+        audio_segment=audio_seg,
+        target_language=target_language,
+    )
 
 def write_html_file(filename, content_list):
     try:
@@ -1801,22 +1903,43 @@ def generate_word_synced_sentence_video(block, audio_seg, sentence_index, slide_
 # -----------------------
 # Modified Function: Video Slide Generation with Word-Level Syncing
 # -----------------------
-def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_start, batch_end, base_no_ext,
-                                 cover_img, book_author, book_title, cumulative_word_counts, total_word_count,
-                                 macos_reading_speed, cleanup=True,
-                                 slide_size=(1280,720), initial_font_size=60, bg_color=(0,0,0)):
+def generate_video_slides_ffmpeg(
+    text_blocks,
+    audio_segments,
+    output_dir,
+    batch_start,
+    batch_end,
+    base_no_ext,
+    cover_img,
+    book_author,
+    book_title,
+    cumulative_word_counts,
+    total_word_count,
+    macos_reading_speed,
+    *,
+    total_sentences,
+    input_language,
+    executor=None,
+    cleanup=True,
+    slide_size=(1280, 720),
+    initial_font_size=60,
+    bg_color=(0, 0, 0),
+):
     logger.info(
         "Generating video slide set for sentences %s to %s...",
         batch_start,
         batch_end,
     )
-    sentence_video_files = []
+    block_audio_pairs = list(zip(text_blocks, audio_segments))
+    sentence_video_files = [None] * len(block_audio_pairs)
     silence_audio_path = os.path.join(TMP_DIR, "silence.wav")
     if not os.path.exists(silence_audio_path):
         silent = AudioSegment.silent(duration=100)
         silent.export(silence_audio_path, format="wav")
-        
-    for idx, (block, audio_seg) in enumerate(zip(text_blocks, audio_segments)):
+
+    font_path = get_default_font_path()
+
+    def build_sentence_video(idx, block, audio_seg):
         sentence_number = batch_start + idx
         words_processed = cumulative_word_counts[sentence_number - 1]
         remaining_words = total_word_count - words_processed
@@ -1830,24 +1953,47 @@ def generate_video_slides_ffmpeg(text_blocks, audio_segments, output_dir, batch_
         remaining_time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         header_tokens = block.split("\n")[0].split(" - ")
         target_lang = header_tokens[0].strip() if header_tokens else ""
-        total_fully = len(refined_list)
-        progress_percentage = (sentence_number / total_fully) * 100
-        header_info = (f"Book: {book_title} | Author: {book_author}\n"
-               f"Source Language: {input_language} | Target: {target_lang} | Speed: {TEMPO}\n"
-               f"Sentence: {sentence_number}/{total_fully} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}")
-        
-        try:
-            sentence_video = generate_word_synced_sentence_video(block, audio_seg, sentence_number,
-                                                                 slide_size=slide_size, initial_font_size=initial_font_size,
-                                                                 default_font_path=get_default_font_path(), bg_color=bg_color,
-                                                                 cover_img=cover_img, header_info=header_info)
-            sentence_video_files.append(sentence_video)
-        except Exception as e:
-            logger.error("Error generating sentence video for sentence %s: %s", sentence_number, e)
+        total_fully = total_sentences if total_sentences else len(block_audio_pairs)
+        progress_percentage = (sentence_number / total_fully) * 100 if total_fully else 0
+        header_info = (
+            f"Book: {book_title} | Author: {book_author}\n"
+            f"Source Language: {input_language} | Target: {target_lang} | Speed: {TEMPO}\n"
+            f"Sentence: {sentence_number}/{total_fully} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}"
+        )
+        return generate_word_synced_sentence_video(
+            block,
+            audio_seg,
+            sentence_number,
+            slide_size,
+            initial_font_size,
+            font_path,
+            bg_color,
+            cover_img,
+            header_info,
+        )
+
+    if executor:
+        future_map = {}
+        for idx, (block, audio_seg) in enumerate(block_audio_pairs):
+            future = executor.submit(build_sentence_video, idx, block, audio_seg)
+            future_map[future] = idx
+        for future in concurrent.futures.as_completed(future_map):
+            idx = future_map[future]
+            try:
+                sentence_video_files[idx] = future.result()
+            except Exception as e:
+                logger.error("Error generating sentence video for sentence %s: %s", batch_start + idx, e)
+    else:
+        for idx, (block, audio_seg) in enumerate(block_audio_pairs):
+            try:
+                sentence_video_files[idx] = build_sentence_video(idx, block, audio_seg)
+            except Exception as e:
+                logger.error("Error generating sentence video for sentence %s: %s", batch_start + idx, e)
     concat_list_path = os.path.join(output_dir, f"concat_{batch_start}_{batch_end}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in sentence_video_files:
-            f.write(f"file '{video_file}'\n")
+            if video_file:
+                f.write(f"file '{video_file}'\n")
     final_video_path = os.path.join(output_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp4")
     cmd_concat = [
         "ffmpeg",
@@ -1883,7 +2029,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                  sentences_per_file, start_sentence, end_sentence,
                  generate_audio, audio_mode, written_mode, output_html, output_pdf,
                  refined_list, generate_video, include_transliteration=False,
-                 book_metadata={}):
+                 book_metadata={}, thread_pool_workers=None):
     logger.info("Extracting text from '%s'...", input_file)
     total_fully = len(refined_list)
     logger.info("Total fully split sentences extracted: %s", total_fully)
@@ -1947,52 +2093,121 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     batch_video_files = []
     current_audio = [] if generate_audio else None
     current_batch_start = start_sentence
-    for i, sentence in enumerate(tqdm(selected_sentences, desc="Processing sentences", unit="sentence"), start=start_sentence):
-        current_target = target_languages[(i - start_sentence) % len(target_languages)]
-        if include_transliteration and current_target in NON_LATIN_LANGUAGES:
-            translation_result = translate_sentence_simple(sentence, input_language, current_target, include_transliteration=False)
-            translation_result = remove_quotes(translation_result)
-            transliteration_result = transliterate_sentence(translation_result, current_target)
-            transliteration_result = remove_quotes(transliteration_result)
-            fluent = translation_result
-            if written_mode == "1":
-                written_block = f"{fluent}\n"
-            elif written_mode == "2":
-                written_block = f"{i} - {(i/total_fully*100):.2f}%\n{fluent}\n"
-            elif written_mode == "3":
-                written_block = f"{i} - {(i/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
-            else:
-                written_block = f"{sentence}\n\n{fluent}\n"
-            written_block = written_block.rstrip() + f"\n{transliteration_result}\n"
-            video_block = f"{current_target} - {i} - {(i/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n{transliteration_result}\n"
-        else:
-            fluent = translate_sentence_simple(sentence, input_language, current_target)
-            fluent = remove_quotes(fluent)
-            if written_mode == "1":
-                written_block = f"{fluent}\n"
-            elif written_mode == "2":
-                written_block = f"{i} - {(i/total_fully*100):.2f}%\n{fluent}\n"
-            elif written_mode == "3":
-                written_block = f"{i} - {(i/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
-            else:
-                written_block = f"{sentence}\n\n{fluent}\n"
-            video_block = f"{current_target} - {i} - {(i/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
-        written_blocks.append(written_block)
-        if generate_video:
-            video_blocks.append(video_block)
-        if generate_audio:
-            audio_seg = generate_audio_for_sentence(i, sentence, fluent, input_language, current_target, audio_mode, total_fully)
-            current_audio.append(audio_seg)
-            all_audio_segments.append(audio_seg)
-        if (i - start_sentence + 1) % sentences_per_file == 0:
+
+    effective_default = THREAD_POOL_WORKERS
+    max_workers = _coerce_positive_int(
+        thread_pool_workers if thread_pool_workers is not None else THREAD_POOL_WORKERS,
+        effective_default,
+    )
+    if max_workers != thread_pool_workers and thread_pool_workers is not None:
+        logger.warning(
+            "Invalid thread pool worker count '%s'; falling back to %s workers.",
+            thread_pool_workers,
+            max_workers,
+        )
+    logger.info("Using thread pool with up to %s workers", max_workers)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+    try:
+        futures = {}
+        for offset, sentence in enumerate(
+            tqdm(selected_sentences, desc="Processing sentences", unit="sentence"),
+            start=0,
+        ):
+            sentence_index = start_sentence + offset
+            current_target = target_languages[(sentence_index - start_sentence) % len(target_languages)]
+            future = executor.submit(
+                process_sentence_task,
+                sentence_index,
+                sentence,
+                input_language,
+                current_target,
+                total_fully,
+                written_mode,
+                total_fully,
+                include_transliteration,
+                generate_audio,
+                audio_mode,
+            )
+            futures[future] = sentence_index
+
+        sentence_results = {}
+        for future in concurrent.futures.as_completed(futures):
+            idx = futures[future]
+            try:
+                sentence_results[idx] = future.result()
+            except Exception as exc:
+                logger.error("Error processing sentence %s: %s", idx, exc)
+                for pending in futures:
+                    pending.cancel()
+                raise
+
+        ordered_results = [
+            sentence_results[idx]
+            for idx in range(start_sentence, start_sentence + len(selected_sentences))
+        ]
+
+        last_target_language = target_languages[0] if target_languages else ""
+        for result in ordered_results:
+            written_blocks.append(result.written_block)
+            if generate_video and result.video_block is not None:
+                video_blocks.append(result.video_block)
+            if generate_audio and result.audio_segment is not None and current_audio is not None:
+                current_audio.append(result.audio_segment)
+                if all_audio_segments is not None:
+                    all_audio_segments.append(result.audio_segment)
+            last_target_language = result.target_language
+
+            if (
+                (result.index - start_sentence + 1) % sentences_per_file == 0
+            ):
+                batch_start = current_batch_start
+                batch_end = result.index
+                if output_html:
+                    html_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.html")
+                    write_html_file(html_filename, written_blocks)
+                if output_pdf:
+                    pdf_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.pdf")
+                    write_pdf_file(pdf_filename, written_blocks, last_target_language)
+                if generate_audio and current_audio:
+                    combined = AudioSegment.empty()
+                    for seg in current_audio:
+                        combined += seg
+                    audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
+                    combined.export(audio_filename, format="mp3", bitrate="320k")
+                if generate_video and current_audio:
+                    video_path = generate_video_slides_ffmpeg(
+                        video_blocks,
+                        current_audio,
+                        base_dir,
+                        batch_start,
+                        batch_end,
+                        base_no_ext,
+                        cover_img,
+                        book_author,
+                        book_title,
+                        global_cumulative_word_counts,
+                        total_book_words,
+                        MACOS_READING_SPEED,
+                        total_sentences=total_fully,
+                        input_language=input_language,
+                        executor=executor,
+                    )
+                    batch_video_files.append(video_path)
+                written_blocks = []
+                video_blocks = []
+                if generate_audio:
+                    current_audio = []
+                current_batch_start = result.index + 1
+
+        if written_blocks:
             batch_start = current_batch_start
-            batch_end = i
+            batch_end = ordered_results[-1].index if ordered_results else current_batch_start
             if output_html:
                 html_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.html")
                 write_html_file(html_filename, written_blocks)
             if output_pdf:
                 pdf_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.pdf")
-                write_pdf_file(pdf_filename, written_blocks, current_target)
+                write_pdf_file(pdf_filename, written_blocks, last_target_language)
             if generate_audio and current_audio:
                 combined = AudioSegment.empty()
                 for seg in current_audio:
@@ -2000,37 +2215,26 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
                 audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
                 combined.export(audio_filename, format="mp3", bitrate="320k")
             if generate_video and current_audio:
-                video_path = generate_video_slides_ffmpeg(video_blocks, current_audio, base_dir, batch_start, batch_end, base_no_ext,
-                                                          cover_img, book_author, book_title,
-                                                          global_cumulative_word_counts, total_book_words,
-                                                          MACOS_READING_SPEED)
+                video_path = generate_video_slides_ffmpeg(
+                    video_blocks,
+                    current_audio,
+                    base_dir,
+                    batch_start,
+                    batch_end,
+                    base_no_ext,
+                    cover_img,
+                    book_author,
+                    book_title,
+                    global_cumulative_word_counts,
+                    total_book_words,
+                    MACOS_READING_SPEED,
+                    total_sentences=total_fully,
+                    input_language=input_language,
+                    executor=executor,
+                )
                 batch_video_files.append(video_path)
-            written_blocks = []
-            video_blocks = []
-            if generate_audio:
-                current_audio = []
-            current_batch_start = i + 1
-    if written_blocks:
-        batch_start = current_batch_start
-        batch_end = start_sentence + len(written_blocks) - 1
-        if output_html:
-            html_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.html")
-            write_html_file(html_filename, written_blocks)
-        if output_pdf:
-            pdf_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.pdf")
-            write_pdf_file(pdf_filename, written_blocks, target_languages[0])
-        if generate_audio and current_audio:
-            combined = AudioSegment.empty()
-            for seg in current_audio:
-                combined += seg
-            audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
-            combined.export(audio_filename, format="mp3", bitrate="320k")
-        if generate_video and current_audio:
-            video_path = generate_video_slides_ffmpeg(video_blocks, current_audio, base_dir, batch_start, batch_end, base_no_ext,
-                                                      cover_img, book_author, book_title,
-                                                      global_cumulative_word_counts, total_book_words,
-                                                      MACOS_READING_SPEED)
-            batch_video_files.append(video_path)
+    finally:
+        executor.shutdown(wait=True)
     logger.info("EPUB processing complete!")
     logger.info("Total sentences processed: %s", total_refined)
     return written_blocks, all_audio_segments, batch_video_files
@@ -2039,7 +2243,7 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
 # Interactive Menu with Grouped Options and Dynamic Summary
 # -----------------------
 def interactive_menu(overrides=None, config_path=None):
-    global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON, MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO
+    global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON, MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO, THREAD_POOL_WORKERS
     overrides = overrides or {}
     if config_path:
         config_file_path = Path(config_path).expanduser()
@@ -2166,6 +2370,7 @@ def interactive_menu(overrides=None, config_path=None):
         logger.info("34. Temporary directory: %s", config.get("tmp_dir"))
         logger.info("35. FFmpeg path: %s", config.get("ffmpeg_path"))
         logger.info("36. Ollama API URL: %s", config.get("ollama_url"))
+        logger.info("37. Thread pool workers: %s", config.get("thread_pool_workers", THREAD_POOL_WORKERS))
         
         inp_choice = input("\nEnter a parameter number to change (or press Enter to confirm): ").strip()
         if inp_choice == "":
@@ -2480,6 +2685,13 @@ def interactive_menu(overrides=None, config_path=None):
                 if inp_val:
                     config["ollama_url"] = inp_val
                 initialize_environment(config, overrides)
+            elif num == 37:
+                default_workers = _coerce_positive_int(
+                    config.get("thread_pool_workers", THREAD_POOL_WORKERS),
+                    THREAD_POOL_WORKERS,
+                )
+                inp_val = input(f"Enter max thread pool workers (default: {default_workers}): ").strip()
+                config["thread_pool_workers"] = _coerce_positive_int(inp_val or default_workers, default_workers)
             else:
                 logger.warning("Invalid parameter number. Please try again.")
         else:
@@ -2498,6 +2710,10 @@ def interactive_menu(overrides=None, config_path=None):
     SYNC_RATIO = config.get("sync_ratio", 0.9)
     WORD_HIGHLIGHTING = config.get("word_highlighting", True)
     TEMPO = config.get("tempo", 1.0)
+    THREAD_POOL_WORKERS = _coerce_positive_int(
+        config.get("thread_pool_workers", THREAD_POOL_WORKERS),
+        DEFAULT_THREAD_POOL_WORKERS,
+    )
     resolved_input = resolve_file_path(config["input_file"], BOOKS_DIR)
     input_arg = f"\"{resolved_input}\"" if resolved_input else f"\"{config['input_file']}\""
     cmd_parts = [
@@ -2513,6 +2729,8 @@ def interactive_menu(overrides=None, config_path=None):
         cmd_parts.append(str(config["end_sentence"]))
     if config["debug"]:
         cmd_parts.append("--debug")
+    if config.get("thread_pool_workers"):
+        cmd_parts.extend(["--thread-pool-workers", str(config["thread_pool_workers"])])
     full_command = " ".join(cmd_parts)
     logger.info("\nTo run non-interactively with these settings, use the following command:")
     logger.info("%s", full_command)
@@ -2531,7 +2749,8 @@ def interactive_menu(overrides=None, config_path=None):
         config.get("end_sentence"), config["stitch_full"], config["generate_audio"],
         config["audio_mode"], config["written_mode"], config.get("selected_voice", "gTTS"),
         config.get("output_html", True), config.get("output_pdf", False), config.get("generate_video", False),
-        config.get("include_transliteration", False), config.get("tempo", 1.0), book_metadata
+        config.get("include_transliteration", False), config.get("tempo", 1.0), book_metadata,
+        config.get("thread_pool_workers", THREAD_POOL_WORKERS)
     )
 
 if __name__ == "__main__":
@@ -2550,9 +2769,11 @@ if __name__ == "__main__":
         (input_file, base_output_file, input_language, target_languages,
          sentences_per_output_file, start_sentence, end_sentence, stitch_full,
          generate_audio, audio_mode, written_mode, selected_voice,
-         output_html, output_pdf, generate_video, include_transliteration, tempo, book_metadata) = interactive_menu(overrides, args.config)
+         output_html, output_pdf, generate_video, include_transliteration, tempo, book_metadata,
+         thread_pool_workers) = interactive_menu(overrides, args.config)
         SELECTED_VOICE = selected_voice
         TEMPO = tempo
+        THREAD_POOL_WORKERS = _coerce_positive_int(thread_pool_workers, DEFAULT_THREAD_POOL_WORKERS)
     else:
         config = load_configuration(args.config, verbose=False)
         initialize_environment(config, overrides)
@@ -2644,6 +2865,16 @@ if __name__ == "__main__":
         MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
         SYNC_RATIO = config.get("sync_ratio", 0.9)
         WORD_HIGHLIGHTING = config.get("word_highlighting", True)
+        THREAD_POOL_WORKERS = _coerce_positive_int(
+            config.get("thread_pool_workers", THREAD_POOL_WORKERS),
+            DEFAULT_THREAD_POOL_WORKERS,
+        )
+        if args.thread_pool_workers is not None:
+            THREAD_POOL_WORKERS = _coerce_positive_int(
+                args.thread_pool_workers,
+                THREAD_POOL_WORKERS,
+            )
+            config["thread_pool_workers"] = THREAD_POOL_WORKERS
 
     try:
         logger.info("Starting EPUB processing...")
@@ -2657,6 +2888,7 @@ if __name__ == "__main__":
             logger.info("Ending at sentence: %s", end_sentence)
         else:
             logger.info("Processing until end of file")
+        logger.info("Thread pool workers: %s", THREAD_POOL_WORKERS)
 
         refined_list, refined_updated = get_refined_sentences(
             input_file,
@@ -2675,7 +2907,7 @@ if __name__ == "__main__":
             sentences_per_output_file, start_sentence, end_sentence,
             generate_audio, audio_mode, written_mode, output_html, output_pdf,
             refined_list=refined_list, generate_video=generate_video, include_transliteration=include_transliteration,
-            book_metadata=book_metadata
+            book_metadata=book_metadata, thread_pool_workers=THREAD_POOL_WORKERS
         )
         if stitch_full:
             base_dir = os.path.dirname(base_output_file)
