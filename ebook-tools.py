@@ -41,6 +41,10 @@ WORKING_DIR = None
 EBOOK_DIR = None
 TMP_DIR = None
 
+DERIVED_RUNTIME_DIRNAME = "runtime"
+DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
+DERIVED_CONFIG_KEYS = {"refined_list"}
+
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
 
@@ -72,6 +76,83 @@ def resolve_file_path(path_value, base_dir=None):
         base = Path(base_dir) if base_dir else SCRIPT_DIR
         file_path = (base / file_path).resolve()
     return file_path
+
+
+def get_runtime_output_dir():
+    """Return the directory used for storing derived runtime artifacts."""
+    if WORKING_DIR:
+        base_path = Path(WORKING_DIR)
+    else:
+        base_path = Path(resolve_directory(None, DEFAULT_WORKING_RELATIVE))
+    runtime_dir = base_path / DERIVED_RUNTIME_DIRNAME
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    return runtime_dir
+
+
+def refined_list_output_path(input_file):
+    base_name = Path(input_file).stem if input_file else "refined"
+    safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", base_name)
+    runtime_dir = get_runtime_output_dir()
+    return runtime_dir / DERIVED_REFINED_FILENAME_TEMPLATE.format(base_name=safe_base)
+
+
+def save_refined_list(refined_list, input_file, metadata=None):
+    """Persist the refined sentence list to the runtime output directory."""
+    output_path = refined_list_output_path(input_file)
+    payload = {
+        "generated_at": time.time(),
+        "input_file": input_file,
+        "max_words": MAX_WORDS,
+        "split_on_comma_semicolon": EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+        "metadata": metadata or {},
+        "refined_list": refined_list,
+    }
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    return output_path
+
+
+def load_refined_list(input_file):
+    """Load a previously generated refined list from the runtime directory if available."""
+    output_path = refined_list_output_path(input_file)
+    if not output_path.exists():
+        return None
+    try:
+        with open(output_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        return data
+    except (json.JSONDecodeError, OSError):
+        return None
+
+
+def strip_derived_config(config):
+    """Return a copy of the configuration without derived runtime keys."""
+    return {k: v for k, v in config.items() if k not in DERIVED_CONFIG_KEYS}
+
+
+def get_refined_sentences(input_file, force_refresh=False, metadata=None):
+    """Return the refined sentence list and whether it was regenerated."""
+    if not input_file:
+        return [], False
+
+    expected_settings = {
+        "max_words": MAX_WORDS,
+        "split_on_comma_semicolon": EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    }
+
+    cached = None if force_refresh else load_refined_list(input_file)
+    if cached and cached.get("refined_list") is not None:
+        cached_settings = {
+            "max_words": cached.get("max_words"),
+            "split_on_comma_semicolon": cached.get("split_on_comma_semicolon"),
+        }
+        if cached_settings == expected_settings:
+            return cached.get("refined_list", []), False
+
+    text = extract_text_from_epub(input_file)
+    refined = split_text_into_sentences(text)
+    save_refined_list(refined, input_file, metadata=metadata)
+    return refined, True
 
 
 def initialize_environment(config, overrides=None):
@@ -663,7 +744,6 @@ def split_text_into_sentences(text):
     return final
 
 def update_sentence_config(config, refined_list):
-    config["refined_list"] = refined_list
     if config.get("start_sentence_lookup"):
         query = config["start_sentence_lookup"].strip()
         found = None
@@ -1835,19 +1915,24 @@ def interactive_menu(overrides=None, config_path=None):
 
     config = update_book_cover_file_in_config(config, config.get("working_dir"))
 
-    if config.get("input_file"):
-        text = extract_text_from_epub(config["input_file"])
-        refined = split_text_into_sentences(text)
-    else:
-        refined = []
-    config = update_sentence_config(config, refined)
+    MAX_WORDS = config.get("max_words", MAX_WORDS)
     EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
+    refined_cache_stale = True
+    refined = []
 
     while True:
+        MAX_WORDS = config.get("max_words", MAX_WORDS)
+        EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
+
         if config.get("input_file"):
-            text = extract_text_from_epub(config["input_file"])
-            refined = split_text_into_sentences(text)
-            config["refined_list"] = refined
+            refined, refreshed = get_refined_sentences(
+                config["input_file"],
+                force_refresh=refined_cache_stale,
+                metadata={"mode": "interactive"}
+            )
+            if refreshed:
+                print(f"Refined sentence list written to: {refined_list_output_path(config['input_file'])}")
+            refined_cache_stale = False
         else:
             refined = []
         config = update_sentence_config(config, refined)
@@ -1913,6 +1998,7 @@ def interactive_menu(overrides=None, config_path=None):
                     config["input_file"] = epub_files[int(inp_val)-1]
                 else:
                     config["input_file"] = default_input
+                refined_cache_stale = True
             elif num == 2:
                 if config.get("input_file"):
                     base = os.path.splitext(os.path.basename(config["input_file"]))[0]
@@ -2046,6 +2132,7 @@ def interactive_menu(overrides=None, config_path=None):
                     new_max = int(inp_val)
                     config["max_words"] = new_max
                     config["max_words_manual"] = True
+                    MAX_WORDS = new_max
                     text = extract_text_from_epub(config["input_file"])
                     refined_tmp = split_text_into_sentences(text)
                     lengths = [len(s.split()) for s in refined_tmp]
@@ -2058,6 +2145,8 @@ def interactive_menu(overrides=None, config_path=None):
                     print(f"Recomputed percentile based on new max words: {config['percentile']}%")
                 else:
                     config["max_words"] = default_max
+                    MAX_WORDS = config["max_words"]
+                refined_cache_stale = True
             elif num == 16:
                 default_perc = config.get("percentile", 96)
                 inp_val = input(f"Enter percentile for computing suggested max words (0-100) (default {default_perc}): ").strip()
@@ -2072,11 +2161,13 @@ def interactive_menu(overrides=None, config_path=None):
                             lengths.sort()
                             idx_p = int((p_val/100.0) * len(lengths))
                             config["max_words"] = lengths[idx_p] if idx_p < len(lengths) else lengths[-1]
+                            MAX_WORDS = config["max_words"]
                         print(f"Updated percentile to {p_val}%, and max words set to {config['max_words']}")
                     else:
                         print("Invalid percentile, must be between 1 and 100. Keeping previous value.")
                 else:
                     config["percentile"] = default_perc
+                refined_cache_stale = True
             elif num == 17:
                 default_am = config.get("audio_mode", "1")
                 print("\nChoose audio output mode:")
@@ -2099,6 +2190,8 @@ def interactive_menu(overrides=None, config_path=None):
                 default_extend = config.get("split_on_comma_semicolon", False)
                 inp_val = input(f"Extend split logic with comma and semicolon? (yes/no, default {'yes' if default_extend else 'no'}): ").strip().lower()
                 config["split_on_comma_semicolon"] = True if inp_val in ["yes", "y"] else False
+                EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config["split_on_comma_semicolon"]
+                refined_cache_stale = True
             elif num == 20:
                 default_translit = config.get("include_transliteration", False)
                 inp_val = input(f"Include transliteration for non-Latin alphabets? (yes/no, default {'yes' if default_translit else 'no'}): ").strip().lower()
@@ -2151,12 +2244,14 @@ def interactive_menu(overrides=None, config_path=None):
                     config["working_dir"] = inp_val
                 initialize_environment(config, overrides)
                 config = update_book_cover_file_in_config(config, config.get("working_dir"))
+                refined_cache_stale = True
             elif num == 32:
                 current = config.get("output_dir")
                 inp_val = input(f"Enter output directory (default: {current}): ").strip()
                 if inp_val:
                     config["output_dir"] = inp_val
                 initialize_environment(config, overrides)
+                refined_cache_stale = True
             elif num == 33:
                 current = config.get("tmp_dir")
                 inp_val = input(f"Enter temporary directory (default: {current}): ").strip()
@@ -2181,7 +2276,7 @@ def interactive_menu(overrides=None, config_path=None):
             print("Invalid input. Please enter a number or press Enter.")
         try:
             with open(config_file, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=4)
+                json.dump(strip_derived_config(config), f, indent=4)
             print(f"Configuration saved to {config_file}")
         except Exception as e:
             print(f"Error saving configuration: {e}")
@@ -2334,8 +2429,18 @@ if __name__ == "__main__":
         else:
             print("Processing until end of file")
 
-        text = extract_text_from_epub(input_file)
-        refined_list = split_text_into_sentences(text)
+        refined_list, refined_updated = get_refined_sentences(
+            input_file,
+            force_refresh=True,
+            metadata={
+                "mode": "cli",
+                "target_languages": target_languages,
+                "max_words": MAX_WORDS,
+            },
+        )
+        if refined_updated:
+            refined_output_path = refined_list_output_path(input_file)
+            print(f"Refined sentence list written to: {refined_output_path}")
         written_blocks, all_audio_segments, batch_video_files = process_epub(
             input_file, base_output_file, input_language, target_languages,
             sentences_per_output_file, start_sentence, end_sentence,

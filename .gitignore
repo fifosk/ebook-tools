@@ -8,3 +8,5 @@ venv/
 .idea/
 .vscode/
 !.vscode/settings.json
+output/
+tmp/
