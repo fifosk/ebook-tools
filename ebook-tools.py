@@ -2,6 +2,9 @@
 import os
 import concurrent.futures
 import sys, re, json, subprocess, requests, io, tempfile, warnings, statistics, math, urllib.parse, base64, time
+import argparse
+import shutil
+from pathlib import Path
 from tqdm import tqdm
 from ebooklib import epub
 from bs4 import BeautifulSoup
@@ -22,31 +25,163 @@ from bidi.algorithm import get_display
 # Audio generation (gTTS and pydub)
 from gtts import gTTS
 from pydub import AudioSegment
-# Explicitly set ffmpeg converter for pydub
-AudioSegment.converter = "/opt/homebrew/bin/ffmpeg"
 
 # Video generation using Pillow and ffmpeg
 from PIL import Image, ImageDraw, ImageFont
 
 # -----------------------------------------------------------------------------
-# Global Directories
+# Global Paths and Environment Configuration
 # -----------------------------------------------------------------------------
-# Working directory for EPUB files and final outputs
-DEFAULT_WORKING_DIR = "/Volumes/Data/Download/Subs"
-if not os.path.exists(DEFAULT_WORKING_DIR):
-    os.makedirs(DEFAULT_WORKING_DIR)
-os.chdir(DEFAULT_WORKING_DIR)
+SCRIPT_DIR = Path(__file__).resolve().parent
+DEFAULT_WORKING_RELATIVE = Path("output")
+DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
+DEFAULT_TMP_RELATIVE = Path("tmp")
 
-# Final output (stitched block files) are written to the "ebook" subfolder in DEFAULT_WORKING_DIR.
-EBOOK_DIR = os.path.join(DEFAULT_WORKING_DIR, "ebook")
-if not os.path.exists(EBOOK_DIR):
-    os.makedirs(EBOOK_DIR)
+WORKING_DIR = None
+EBOOK_DIR = None
+TMP_DIR = None
 
-# Temporary files (including individual sentence MP4 files) are written to the script's own "tmp" subfolder.
-SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-TMP_DIR = os.path.join(SCRIPT_DIR, "tmp")
-if not os.path.exists(TMP_DIR):
-    os.makedirs(TMP_DIR)
+DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
+DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
+
+# Explicitly set ffmpeg converter for pydub using configurable path
+AudioSegment.converter = DEFAULT_FFMPEG_PATH
+
+# Will be updated once configuration is loaded
+OLLAMA_API_URL = DEFAULT_OLLAMA_URL
+
+# -----------------------
+# Path Helpers
+# -----------------------
+def resolve_directory(path_value, default_relative):
+    """Resolve a directory path relative to the script directory and ensure it exists."""
+    base_value = path_value if path_value not in [None, ""] else default_relative
+    base_path = Path(os.path.expanduser(str(base_value)))
+    if not base_path.is_absolute():
+        base_path = (SCRIPT_DIR / base_path).resolve()
+    base_path.mkdir(parents=True, exist_ok=True)
+    return base_path
+
+
+def resolve_file_path(path_value, base_dir=None):
+    """Resolve a potentially relative file path relative to a base directory."""
+    if not path_value:
+        return None
+    file_path = Path(os.path.expanduser(str(path_value)))
+    if not file_path.is_absolute():
+        base = Path(base_dir) if base_dir else SCRIPT_DIR
+        file_path = (base / file_path).resolve()
+    return file_path
+
+
+def initialize_environment(config, overrides=None):
+    """Configure directories and external tool locations based on config and overrides."""
+    overrides = overrides or {}
+
+    working_override = overrides.get("working_dir")
+    output_override = overrides.get("output_dir")
+    tmp_override = overrides.get("tmp_dir")
+    ffmpeg_override = overrides.get("ffmpeg_path")
+    ollama_override = overrides.get("ollama_url")
+
+    working_path = resolve_directory(working_override or config.get("working_dir"), DEFAULT_WORKING_RELATIVE)
+
+    if output_override or config.get("output_dir"):
+        output_path = resolve_directory(output_override or config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE)
+    else:
+        output_path = (working_path / "ebook")
+        output_path.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
+
+    global WORKING_DIR, EBOOK_DIR, TMP_DIR, OLLAMA_API_URL
+    WORKING_DIR = str(working_path)
+    EBOOK_DIR = str(output_path)
+    TMP_DIR = str(tmp_path)
+
+    ffmpeg_path = os.path.expanduser(str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH))
+    AudioSegment.converter = ffmpeg_path
+
+    OLLAMA_API_URL = ollama_override or config.get("ollama_url") or DEFAULT_OLLAMA_URL
+
+
+# -----------------------
+# Configuration helpers
+# -----------------------
+def load_configuration(config_file, verbose=False):
+    config = {}
+    if os.path.exists(config_file):
+        try:
+            with open(config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            if verbose:
+                print(f"\nLoaded configuration from {config_file}")
+        except Exception as e:
+            if verbose:
+                print(f"\nError loading config file: {e}. Proceeding with defaults.")
+            config = {}
+    else:
+        config = {}
+
+    config.setdefault("input_file", "")
+    config.setdefault("base_output_file", "")
+    config.setdefault("input_language", "English")
+    config.setdefault("target_languages", ["Arabic"])
+    config.setdefault("ollama_model", DEFAULT_MODEL)
+    config.setdefault("generate_audio", True)
+    config.setdefault("generate_video", True)
+    config.setdefault("sentences_per_output_file", 10)
+    config.setdefault("start_sentence", 1)
+    config.setdefault("end_sentence", None)
+    config.setdefault("max_words", 18)
+    config.setdefault("percentile", 96)
+    config.setdefault("split_on_comma_semicolon", False)
+    config.setdefault("audio_mode", "1")
+    config.setdefault("written_mode", "4")
+    config.setdefault("include_transliteration", False)
+    config.setdefault("debug", False)
+    config.setdefault("output_html", True)
+    config.setdefault("output_pdf", False)
+    config.setdefault("stitch_full", False)
+    config.setdefault("selected_voice", "gTTS")
+    config.setdefault("book_title", "Unknown Title")
+    config.setdefault("book_author", "Unknown Author")
+    config.setdefault("book_year", "Unknown Year")
+    config.setdefault("book_summary", "No summary provided.")
+    config.setdefault("book_cover_file", None)
+    config.setdefault("macos_reading_speed", 100)
+    config.setdefault("tempo", 1.0)
+    config.setdefault("sync_ratio", 0.9)
+    config.setdefault("word_highlighting", True)
+    config.setdefault("working_dir", str(DEFAULT_WORKING_RELATIVE))
+    config.setdefault("output_dir", str(DEFAULT_OUTPUT_RELATIVE))
+    config.setdefault("tmp_dir", str(DEFAULT_TMP_RELATIVE))
+    config.setdefault("ollama_url", DEFAULT_OLLAMA_URL)
+    config.setdefault("ffmpeg_path", DEFAULT_FFMPEG_PATH)
+
+    return config
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description="Generate translated outputs from EPUB files.")
+    parser.add_argument("input_file", nargs="?", help="Path to the input EPUB file.")
+    parser.add_argument("input_language", nargs="?", help="Source language of the EPUB text.")
+    parser.add_argument("target_languages", nargs="?", help="Comma-separated list of target languages.")
+    parser.add_argument("sentences_per_output_file", nargs="?", type=int,
+                        help="Number of sentences per generated output file.")
+    parser.add_argument("base_output_file", nargs="?", help="Base path for generated output files.")
+    parser.add_argument("start_sentence", nargs="?", type=int, help="Sentence number to start processing from.")
+    parser.add_argument("end_sentence", nargs="?", help="Sentence number (or offset) to stop processing at.")
+    parser.add_argument("--config", default=str(SCRIPT_DIR / "config.json"), help="Path to the configuration JSON file.")
+    parser.add_argument("-i", "--interactive", action="store_true", help="Open the interactive configuration menu.")
+    parser.add_argument("--working-dir", help="Override the working directory for intermediate files.")
+    parser.add_argument("--output-dir", help="Override the output directory for generated files.")
+    parser.add_argument("--tmp-dir", help="Override the temporary directory for transient files.")
+    parser.add_argument("--ffmpeg-path", help="Override the path to the FFmpeg executable.")
+    parser.add_argument("--ollama-url", help="Override the Ollama API URL.")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging output.")
+    return parser.parse_args()
+
 
 # -----------------------
 # Global Variables for Audio/Video Options
@@ -61,8 +196,6 @@ MACOS_READING_SPEED = 100
 SYNC_RATIO = 0.9
 # New global tempo variable; 1.0 means normal speed.
 TEMPO = 1.0
-
-OLLAMA_API_URL = "http://192.168.1.9:11434/api/chat"
 
 AUDIO_MODE_DESC = {
     "1": "Only translated sentence",
@@ -373,24 +506,27 @@ def fetch_book_cover(query):
 # -----------------------
 # New Function: Update Book Cover File in Config
 # -----------------------
-def update_book_cover_file_in_config(config):
+def update_book_cover_file_in_config(config, working_dir_value):
     title = config.get("book_title", "Unknown Title")
     author = config.get("book_author", "Unknown Author")
-    default_cover_path = os.path.join(DEFAULT_WORKING_DIR, "book_cover.jpg")
+    working_dir_value = working_dir_value or str(DEFAULT_WORKING_RELATIVE)
+    default_cover_relative = os.path.join(working_dir_value, "book_cover.jpg")
+    default_cover_path = resolve_file_path(default_cover_relative)
     cover_file = config.get("book_cover_file")
-    # If a cover file is already set and exists, use it.
-    if cover_file and os.path.exists(cover_file):
+    cover_path = resolve_file_path(cover_file)
+    if cover_path and cover_path.exists():
         return config
     # Otherwise, check if the default cover exists in WORKING_DIR.
-    if os.path.exists(default_cover_path):
-        config["book_cover_file"] = default_cover_path
+    if default_cover_path and default_cover_path.exists():
+        config["book_cover_file"] = default_cover_relative
         config["book_cover_title"] = title
     else:
         cover_img = fetch_book_cover(f"{title} {author}")
         if cover_img:
             cover_img.thumbnail((80, 80))
-            cover_img.save(default_cover_path, format="JPEG")
-            config["book_cover_file"] = default_cover_path
+            if default_cover_path:
+                cover_img.save(default_cover_path, format="JPEG")
+            config["book_cover_file"] = default_cover_relative
             config["book_cover_title"] = title
         else:
             config["book_cover_file"] = None
@@ -1571,10 +1707,10 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     book_author = book_metadata.get("book_author", "Unknown Author")
     
     cover_img = None
-    cover_file = book_metadata.get("book_cover_file")
-    if cover_file and os.path.exists(cover_file):
+    cover_file_path = resolve_file_path(book_metadata.get("book_cover_file"))
+    if cover_file_path and cover_file_path.exists():
         try:
-            cover_img = Image.open(cover_file)
+            cover_img = Image.open(cover_file_path)
         except Exception as e:
             if DEBUG:
                 print("Error loading cover image from file:", e)
@@ -1686,56 +1822,18 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
 # -----------------------
 # Interactive Menu with Grouped Options and Dynamic Summary
 # -----------------------
-def interactive_menu():
+def interactive_menu(overrides=None, config_path=None):
     global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON, MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO
-    config = {}
-    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
-    if os.path.exists(config_file):
-        try:
-            with open(config_file, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            print(f"\nLoaded configuration from {config_file}")
-        except Exception as e:
-            print(f"\nError loading config file: {e}. Proceeding with defaults.")
-            config = {}
-    else:
-        config = {}
-
-    config.setdefault("input_file", "")
-    config.setdefault("base_output_file", "")
-    config.setdefault("input_language", "English")
-    config.setdefault("target_languages", ["Arabic"])
-    config.setdefault("ollama_model", DEFAULT_MODEL)
-    config.setdefault("generate_audio", True)
-    config.setdefault("generate_video", True)
-    config.setdefault("sentences_per_output_file", 10)
-    config.setdefault("start_sentence", 1)
-    config.setdefault("end_sentence", None)
-    config.setdefault("max_words", 18)
-    config.setdefault("percentile", 96)
-    config.setdefault("split_on_comma_semicolon", False)
-    config.setdefault("audio_mode", "1")
-    config.setdefault("written_mode", "4")
-    config.setdefault("include_transliteration", False)
-    config.setdefault("debug", False)
-    config.setdefault("output_html", True)
-    config.setdefault("output_pdf", False)
-    config.setdefault("stitch_full", False)
-    config.setdefault("selected_voice", "gTTS")
-    config.setdefault("book_title", "Unknown Title")
-    config.setdefault("book_author", "Unknown Author")
-    config.setdefault("book_year", "Unknown Year")
-    config.setdefault("book_summary", "No summary provided.")
-    config.setdefault("book_cover_file", None)
-    config.setdefault("macos_reading_speed", 100)
-    config.setdefault("tempo", 1.0)  # New tempo default
-    config.setdefault("sync_ratio", 0.9)
-    config.setdefault("word_highlighting", True)
+    overrides = overrides or {}
+    config_file = config_path or os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.json")
+    config = load_configuration(config_file, verbose=True)
 
     if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
         config["start_sentence_lookup"] = config["start_sentence"]
 
-    config = update_book_cover_file_in_config(config)
+    initialize_environment(config, overrides)
+
+    config = update_book_cover_file_in_config(config, config.get("working_dir"))
 
     if config.get("input_file"):
         text = extract_text_from_epub(config["input_file"])
@@ -1793,6 +1891,12 @@ def interactive_menu():
         print(f"28. Year: {config.get('book_year')}")
         print(f"29. Summary: {config.get('book_summary')}")
         print(f"30. Book Cover File: {config.get('book_cover_file', 'None')}")
+        print("\n--- Paths and Services ---")
+        print(f"31. Working directory: {config.get('working_dir')}")
+        print(f"32. Output directory: {config.get('output_dir')}")
+        print(f"33. Temporary directory: {config.get('tmp_dir')}")
+        print(f"34. FFmpeg path: {config.get('ffmpeg_path')}")
+        print(f"35. Ollama API URL: {config.get('ollama_url')}")
         
         inp_choice = input("\nEnter a parameter number to change (or press Enter to confirm): ").strip()
         if inp_choice == "":
@@ -2039,7 +2143,38 @@ def interactive_menu():
                     else:
                         print("File does not exist. Keeping previous value.")
                 else:
-                    config = update_book_cover_file_in_config(config)
+                    config = update_book_cover_file_in_config(config, config.get("working_dir"))
+            elif num == 31:
+                current = config.get("working_dir")
+                inp_val = input(f"Enter working directory (default: {current}): ").strip()
+                if inp_val:
+                    config["working_dir"] = inp_val
+                initialize_environment(config, overrides)
+                config = update_book_cover_file_in_config(config, config.get("working_dir"))
+            elif num == 32:
+                current = config.get("output_dir")
+                inp_val = input(f"Enter output directory (default: {current}): ").strip()
+                if inp_val:
+                    config["output_dir"] = inp_val
+                initialize_environment(config, overrides)
+            elif num == 33:
+                current = config.get("tmp_dir")
+                inp_val = input(f"Enter temporary directory (default: {current}): ").strip()
+                if inp_val:
+                    config["tmp_dir"] = inp_val
+                initialize_environment(config, overrides)
+            elif num == 34:
+                current = config.get("ffmpeg_path")
+                inp_val = input(f"Enter FFmpeg executable path (default: {current}): ").strip()
+                if inp_val:
+                    config["ffmpeg_path"] = inp_val
+                initialize_environment(config, overrides)
+            elif num == 35:
+                current = config.get("ollama_url")
+                inp_val = input(f"Enter Ollama API URL (default: {current}): ").strip()
+                if inp_val:
+                    config["ollama_url"] = inp_val
+                initialize_environment(config, overrides)
             else:
                 print("Invalid parameter number. Please try again.")
         else:
@@ -2089,62 +2224,103 @@ def interactive_menu():
     )
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2 and sys.argv[1] == "-i":
+    args = parse_arguments()
+
+    overrides = {
+        "working_dir": args.working_dir or os.environ.get("EBOOK_WORKING_DIR"),
+        "output_dir": args.output_dir or os.environ.get("EBOOK_OUTPUT_DIR"),
+        "tmp_dir": args.tmp_dir or os.environ.get("EBOOK_TMP_DIR"),
+        "ffmpeg_path": args.ffmpeg_path or os.environ.get("FFMPEG_PATH"),
+        "ollama_url": args.ollama_url or os.environ.get("OLLAMA_URL"),
+    }
+
+    if args.interactive:
         (input_file, base_output_file, input_language, target_languages,
          sentences_per_output_file, start_sentence, end_sentence, stitch_full,
          generate_audio, audio_mode, written_mode, selected_voice,
-         output_html, output_pdf, generate_video, include_transliteration, tempo, book_metadata) = interactive_menu()
+         output_html, output_pdf, generate_video, include_transliteration, tempo, book_metadata) = interactive_menu(overrides, args.config)
         SELECTED_VOICE = selected_voice
         TEMPO = tempo
-    elif len(sys.argv) >= 2:
-        input_file = sys.argv[1]
-        input_language = sys.argv[2] if len(sys.argv) > 2 else "English"
-        if len(sys.argv) > 3:
-            target_language_input = sys.argv[3]
-            if ',' in target_language_input:
-                target_languages = [x.strip() for x in target_language_input.split(',')]
-            else:
-                target_languages = [target_language_input.strip()]
-        else:
+    else:
+        config = load_configuration(args.config, verbose=False)
+        initialize_environment(config, overrides)
+        config = update_book_cover_file_in_config(config, config.get("working_dir"))
+
+        input_file = args.input_file or config.get("input_file")
+        if not input_file:
+            print("Error: An input EPUB file must be specified either via CLI or configuration.")
+            sys.exit(1)
+
+        input_language = args.input_language or config.get("input_language", "English")
+        target_languages = config.get("target_languages", ["Arabic"])
+        if args.target_languages:
+            target_languages = [x.strip() for x in args.target_languages.split(",") if x.strip()]
+        if not target_languages:
             target_languages = ["Arabic"]
+
+        sentences_per_output_file = args.sentences_per_output_file or config.get("sentences_per_output_file", 10)
+
+        base_output_file = args.base_output_file or config.get("base_output_file")
         base_name = os.path.splitext(os.path.basename(input_file))[0]
         target_lang_str = "_".join(target_languages)
-        output_folder = os.path.join(EBOOK_DIR, f"{target_lang_str}_{base_name}")
-        if not os.path.exists(output_folder):
-            os.makedirs(output_folder)
-        sentences_per_output_file = int(sys.argv[4]) if len(sys.argv) > 4 and sys.argv[4].isdigit() else 10
-        base_output_file = os.path.join(output_folder, f"{target_lang_str}_{base_name}.html")
-        start_sentence = int(sys.argv[6]) if len(sys.argv) > 6 and sys.argv[6].isdigit() else 1
-        if len(sys.argv) > 7:
-            end_in = sys.argv[7]
-            if end_in.startswith('+') or end_in.startswith('-'):
-                end_sentence = start_sentence + int(end_in)
-            elif end_in.isdigit():
-                end_sentence = int(end_in)
-            else:
-                end_sentence = None
+        if base_output_file:
+            resolved_base = resolve_file_path(base_output_file, EBOOK_DIR)
+            os.makedirs(resolved_base.parent, exist_ok=True)
+            base_output_file = str(resolved_base)
         else:
-            end_sentence = None
-        stitch_full = False
-        generate_audio = True
-        audio_mode = "1"
-        written_mode = "4"
-        SELECTED_VOICE = "gTTS"
-        output_html = True
-        output_pdf = False
-        generate_video = False
-        include_transliteration = False
-        # TEMPO remains default (1.0) in non-interactive mode
-        book_metadata = {"book_title": "Unknown Title", "book_author": "Unknown Author", "book_year": "Unknown Year", "book_summary": "No summary provided.", "book_cover_file": None}
-        if "--debug" in sys.argv:
-            DEBUG = True
-    else:
-        print("Usage:")
-        print("  python script.py -i")
-        print("  or")
-        print("  python script.py <input_epub_file> [<input_language>] [<target_languages_comma_separated>] [<sentences_per_output_file>]")
-        print("         [<base_output_file>] [<start_sentence>] [<end_sentence>] [--debug]")
-        sys.exit(1)
+            output_folder = os.path.join(EBOOK_DIR, f"{target_lang_str}_{base_name}")
+            os.makedirs(output_folder, exist_ok=True)
+            base_output_file = os.path.join(output_folder, f"{target_lang_str}_{base_name}.html")
+
+        start_sentence = args.start_sentence if args.start_sentence is not None else config.get("start_sentence", 1)
+        try:
+            start_sentence = int(start_sentence)
+        except (TypeError, ValueError):
+            start_sentence = 1
+
+        end_sentence = None
+        end_arg = args.end_sentence if args.end_sentence is not None else config.get("end_sentence")
+        if isinstance(end_arg, str):
+            end_arg = end_arg.strip()
+            if end_arg.startswith("+") or end_arg.startswith("-"):
+                try:
+                    end_sentence = start_sentence + int(end_arg)
+                except ValueError:
+                    end_sentence = None
+            elif end_arg.isdigit():
+                end_sentence = int(end_arg)
+        elif isinstance(end_arg, int):
+            end_sentence = end_arg
+
+        stitch_full = config.get("stitch_full", False)
+        generate_audio = config.get("generate_audio", True)
+        audio_mode = config.get("audio_mode", "1")
+        written_mode = config.get("written_mode", "4")
+        SELECTED_VOICE = config.get("selected_voice", "gTTS")
+        output_html = config.get("output_html", True)
+        output_pdf = config.get("output_pdf", False)
+        generate_video = config.get("generate_video", False)
+        include_transliteration = config.get("include_transliteration", False)
+        TEMPO = config.get("tempo", 1.0)
+        book_metadata = {
+            "book_title": config.get("book_title"),
+            "book_author": config.get("book_author"),
+            "book_year": config.get("book_year"),
+            "book_summary": config.get("book_summary"),
+            "book_cover_file": config.get("book_cover_file"),
+        }
+
+        if args.debug:
+            config["debug"] = True
+
+        OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
+        DEBUG = config.get("debug", False)
+        MAX_WORDS = config.get("max_words", 18)
+        EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
+        MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
+        SYNC_RATIO = config.get("sync_ratio", 0.9)
+        WORD_HIGHLIGHTING = config.get("word_highlighting", True)
+
     try:
         print("\nStarting EPUB processing...")
         print(f"Input file: {input_file}")
@@ -2153,10 +2329,11 @@ if __name__ == "__main__":
         print(f"Target languages: {', '.join(target_languages)}")
         print(f"Sentences per output file: {sentences_per_output_file}")
         print(f"Starting from sentence: {start_sentence}")
-        if end_sentence:
+        if end_sentence is not None:
             print(f"Ending at sentence: {end_sentence}")
         else:
             print("Processing until end of file")
+
         text = extract_text_from_epub(input_file)
         refined_list = split_text_into_sentences(text)
         written_blocks, all_audio_segments, batch_video_files = process_epub(
