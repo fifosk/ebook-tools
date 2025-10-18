@@ -1,17 +1,15 @@
 import os
 import json
-import logging
 import shutil
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pydub import AudioSegment
 
+from modules import logging_manager
+
 MODULE_DIR = Path(__file__).resolve().parent
 SCRIPT_DIR = MODULE_DIR.parent.resolve()
-LOG_DIR = SCRIPT_DIR / "log"
-LOG_FILE = LOG_DIR / "app.log"
 DEFAULT_WORKING_RELATIVE = Path("output")
 DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
 DEFAULT_TMP_RELATIVE = Path("tmp")
@@ -34,38 +32,7 @@ DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or
 DEFAULT_MODEL = "gemma2:27b"
 
 
-def setup_logging(log_level: int = logging.INFO) -> logging.Logger:
-    """Configure application-wide logging with a rotating file handler."""
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    logger = logging.getLogger("ebook_tools")
-    if logger.handlers:
-        return logger
-
-    logger.setLevel(log_level)
-    formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s")
-
-    file_handler = RotatingFileHandler(LOG_FILE, maxBytes=5 * 1024 * 1024, backupCount=5)
-    file_handler.setFormatter(formatter)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setFormatter(logging.Formatter("%(message)s"))
-
-    logger.addHandler(file_handler)
-    logger.addHandler(stream_handler)
-    logger.propagate = False
-    return logger
-
-
-logger = setup_logging()
-
-
-def configure_logging_level(debug_enabled: bool = False) -> int:
-    """Adjust the global logger level based on debug preference."""
-    level = logging.DEBUG if debug_enabled else logging.INFO
-    logger.setLevel(level)
-    for handler in logger.handlers:
-        handler.setLevel(level)
-    return level
+logger = logging_manager.get_logger()
 
 
 # Explicitly set ffmpeg converter for pydub using configurable path
