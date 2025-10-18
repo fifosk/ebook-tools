@@ -193,8 +193,7 @@ def generate_sentence_slide_image(
     header_height = 150
     left_area_width = header_height
 
-    raw_lines = block.split("
-")
+    raw_lines = block.split("\n")
     header_line = raw_lines[0] if raw_lines else ""
     header_text = header_info if header_info else header_line
 
@@ -212,8 +211,7 @@ def generate_sentence_slide_image(
     except IOError:
         header_font = ImageFont.load_default()
 
-    header_lines = header_text.split("
-")
+    header_lines = header_text.split("\n")
     header_line_spacing = 4
     max_header_width = 0
     total_header_height = 0
@@ -248,10 +246,8 @@ def generate_sentence_slide_image(
     separator_thickness = 2
     separator_margin = 40
 
-    content = "
-".join(raw_lines[1:]).strip()
-    content_lines = [line.strip() for line in content.split("
-") if line.strip()]
+    content = "\n".join(raw_lines[1:]).strip()
+    content_lines = [line.strip() for line in content.split("\n") if line.strip()]
     if len(content_lines) >= 3:
         original_seg = content_lines[0]
         translation_seg = content_lines[1]
@@ -279,8 +275,7 @@ def generate_sentence_slide_image(
                     current_line = ch
             if current_line:
                 lines_.append(current_line)
-            return "
-".join(lines_)
+            return "\n".join(lines_)
         words = text.split()
         if not words:
             return ""
@@ -295,8 +290,7 @@ def generate_sentence_slide_image(
                 lines_.append(current_line)
                 current_line = word
         lines_.append(current_line)
-        return "
-".join(lines_)
+        return "\n".join(lines_)
 
     def get_wrapped_text_and_font(text: str) -> tuple[str, ImageFont.FreeTypeFont]:
         max_width = slide_size[0] * 0.9
@@ -311,8 +305,7 @@ def generate_sentence_slide_image(
                 test_font = ImageFont.load_default()
             candidate_wrapped = wrap_text_local(text, draw, test_font, max_width)
             total_height = 0
-            lines = candidate_wrapped.split("
-")
+            lines = candidate_wrapped.split("\n")
             for i, line in enumerate(lines):
                 bbox = draw.textbbox((0, 0), line, font=test_font)
                 total_height += bbox[3] - bbox[1]
@@ -338,21 +331,18 @@ def generate_sentence_slide_image(
         return total
 
     wrapped_orig, font_orig = get_wrapped_text_and_font(original_seg)
-    orig_lines = wrapped_orig.split("
-")
+    orig_lines = wrapped_orig.split("\n")
     orig_height = compute_height(orig_lines, font_orig)
 
     wrapped_trans, font_trans = get_wrapped_text_and_font(translation_seg)
-    trans_lines = wrapped_trans.split("
-")
+    trans_lines = wrapped_trans.split("\n")
     trans_height = compute_height(trans_lines, font_trans)
 
     translit_lines: List[str] = []
     translit_height = 0
     if transliteration_seg:
         wrapped_translit, font_translit = get_wrapped_text_and_font(transliteration_seg)
-        translit_lines = wrapped_translit.split("
-")
+        translit_lines = wrapped_translit.split("\n")
         translit_height = compute_height(translit_lines, font_translit)
     else:
         font_translit = font_trans
@@ -518,12 +508,9 @@ def generate_word_synced_sentence_video(
     if default_font_path is None:
         default_font_path = get_default_font_path()
 
-    raw_lines = block.split("
-")
-    content = "
-".join(raw_lines[1:]).strip()
-    lines = [line.strip() for line in content.split("
-") if line.strip()]
+    raw_lines = block.split("\n")
+    content = "\n".join(raw_lines[1:]).strip()
+    lines = [line.strip() for line in content.split("\n") if line.strip()]
 
     if len(lines) >= 3:
         original_seg = lines[0]
@@ -634,8 +621,7 @@ def generate_word_synced_sentence_video(
     concat_list_path = os.path.join(cfg.TMP_DIR, f"concat_word_{sentence_index}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in word_video_files:
-            f.write(f"file '{video_file}'
-")
+            f.write(f"file '{video_file}'\n")
 
     sentence_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}.mp4")
     cmd_concat = [
@@ -769,15 +755,12 @@ def generate_video_slides_ffmpeg(
         minutes = (est_seconds % 3600) // 60
         seconds = est_seconds % 60
         remaining_time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        header_tokens = block.split("
-")[0].split(" - ")
+        header_tokens = block.split("\n")[0].split(" - ")
         target_lang = header_tokens[0].strip() if header_tokens else ""
         progress_percentage = (sentence_number / total_sentences) * 100 if total_sentences else 0
         header_info = (
-            f"Book: {book_title} | Author: {book_author}
-"
-            f"Source Language: {input_language} | Target: {target_lang} | Speed: {tempo}
-"
+            f"Book: {book_title} | Author: {book_author}\n"
+            f"Source Language: {input_language} | Target: {target_lang} | Speed: {tempo}\n"
             f"Sentence: {sentence_number}/{total_sentences} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}"
         )
 
@@ -802,8 +785,7 @@ def generate_video_slides_ffmpeg(
     concat_list_path = os.path.join(output_dir, f"concat_{batch_start}_{batch_end}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in sentence_video_files:
-            f.write(f"file '{video_file}'
-")
+            f.write(f"file '{video_file}'\n")
 
     final_video_path = os.path.join(output_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp4")
     cmd_concat = [
