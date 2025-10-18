@@ -3,6 +3,8 @@ import os
 import concurrent.futures
 import sys, re, json, subprocess, warnings, statistics, math, base64, time
 import shutil
+import queue
+import threading
 from pathlib import Path
 from tqdm import tqdm
 from . import config_manager as cfg
@@ -185,6 +187,43 @@ WORD_HIGHLIGHTING = True
 # -----------------------
 # Helper Functions for Text Wrapping & Font Adjustment
 # -----------------------
+
+
+def _build_written_and_video_blocks(
+    *,
+    sentence_number: int,
+    sentence: str,
+    fluent: str,
+    transliteration: str,
+    current_target: str,
+    written_mode: str,
+    total_sentences: int,
+    include_transliteration: bool,
+) -> tuple[str, str]:
+    """Return formatted written and video blocks mirroring the legacy output."""
+
+    percent = (sentence_number / total_sentences * 100) if total_sentences else 0.0
+    header = f"{current_target} - {sentence_number} - {percent:.2f}%\n"
+
+    if written_mode == "1":
+        written_block = f"{fluent}\n"
+    elif written_mode == "2":
+        written_block = f"{sentence_number} - {percent:.2f}%\n{fluent}\n"
+    elif written_mode == "3":
+        written_block = f"{sentence_number} - {percent:.2f}%\n{sentence}\n\n{fluent}\n"
+    else:
+        written_block = f"{sentence}\n\n{fluent}\n"
+
+    if include_transliteration and transliteration:
+        written_block = written_block.rstrip() + f"\n{transliteration}\n"
+        video_block = (
+            f"{header}"
+            f"{sentence}\n\n{fluent}\n{transliteration}\n"
+        )
+    else:
+        video_block = f"{header}{sentence}\n\n{fluent}\n"
+
+    return written_block, video_block
 def wrap_text(text, draw, font, max_width):
     if " " in text:
         words = text.split()
@@ -350,6 +389,85 @@ def translate_sentence_simple(sentence, input_language, target_language, include
 def transliterate_sentence(translated_sentence, target_language):
     return translation_engine.transliterate_sentence(translated_sentence, target_language)
 
+def _export_pipeline_batch(
+    *,
+    base_dir,
+    base_no_ext,
+    batch_start,
+    batch_end,
+    written_blocks,
+    target_language,
+    output_html,
+    output_pdf,
+    generate_audio,
+    audio_segments,
+    generate_video,
+    video_blocks,
+    cover_img,
+    book_author,
+    book_title,
+    global_cumulative_word_counts,
+    total_book_words,
+    macos_reading_speed,
+    input_language,
+    total_sentences,
+    tempo,
+    sync_ratio,
+    word_highlighting,
+):
+    """Write batch outputs for a contiguous block of sentences."""
+
+    try:
+        output_formatter.export_batch_documents(
+            base_dir,
+            base_no_ext,
+            batch_start,
+            batch_end,
+            list(written_blocks),
+            target_language,
+            output_html=output_html,
+            output_pdf=output_pdf,
+        )
+
+        audio_segments = list(audio_segments) if audio_segments else []
+        video_blocks = list(video_blocks) if video_blocks else []
+        video_path = None
+
+        if generate_audio and audio_segments:
+            combined = AudioSegment.empty()
+            for segment in audio_segments:
+                combined += segment
+            audio_filename = os.path.join(
+                base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3"
+            )
+            combined.export(audio_filename, format="mp3", bitrate="320k")
+
+        if generate_video and audio_segments:
+            video_path = av_gen.generate_video_slides_ffmpeg(
+                video_blocks,
+                audio_segments,
+                base_dir,
+                batch_start,
+                batch_end,
+                base_no_ext,
+                cover_img,
+                book_author,
+                book_title,
+                global_cumulative_word_counts,
+                total_book_words,
+                macos_reading_speed,
+                input_language,
+                total_sentences,
+                tempo,
+                sync_ratio,
+                word_highlighting,
+            )
+        return video_path
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.error("Failed to export batch %s-%s: %s", batch_start, batch_end, exc)
+        return None
+
+
 # -----------------------
 # Main EPUB Processing Function
 # -----------------------
@@ -424,171 +542,282 @@ def process_epub(input_file, base_output_file, input_language, target_languages,
     batch_video_files = []
     current_audio = [] if generate_audio else None
     current_batch_start = start_sentence
-    batch_size = max(1, cfg.get_thread_count())
     progress = tqdm(total=total_refined, desc="Processing sentences", unit="sentence")
     processed = 0
-    while processed < total_refined:
-        batch_sentences = selected_sentences[processed : processed + batch_size]
-        batch_sentence_numbers = [start_sentence + processed + idx for idx in range(len(batch_sentences))]
-        batch_targets = [
-            target_languages[((number - start_sentence) % len(target_languages))]
-            for number in batch_sentence_numbers
-        ]
-        translations = translation_engine.translate_batch(
-            batch_sentences,
-            input_language,
-            batch_targets,
-            include_transliteration=False,
-        )
+    last_target_language = target_languages[0] if target_languages else ""
+    pipeline_enabled = cfg.is_pipeline_mode()
+    queue_size = cfg.get_queue_size()
+    worker_count = max(1, cfg.get_thread_count())
+    translation_thread = None
+    media_threads = []
+    translation_queue = None
+    media_queue = None
+    stop_event = None
+    finalize_executor = None
+    export_futures = []
 
-        for sentence_number, sentence, current_target, translation_result in zip(
-            batch_sentence_numbers, batch_sentences, batch_targets, translations
-        ):
-            fluent = remove_quotes(translation_result or "")
-            if include_transliteration and current_target in NON_LATIN_LANGUAGES:
-                transliteration_result = transliterate_sentence(fluent, current_target)
-                transliteration_result = remove_quotes(transliteration_result)
-                if written_mode == "1":
-                    written_block = f"{fluent}\n"
-                elif written_mode == "2":
-                    written_block = f"{sentence_number} - {(sentence_number/total_fully*100):.2f}%\n{fluent}\n"
-                elif written_mode == "3":
-                    written_block = (
-                        f"{sentence_number} - {(sentence_number/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
-                    )
-                else:
-                    written_block = f"{sentence}\n\n{fluent}\n"
-                written_block = written_block.rstrip() + f"\n{transliteration_result}\n"
-                video_block = (
-                    f"{current_target} - {sentence_number} - {(sentence_number/total_fully*100):.2f}%\n"
-                    f"{sentence}\n\n{fluent}\n{transliteration_result}\n"
-                )
-            else:
-                if written_mode == "1":
-                    written_block = f"{fluent}\n"
-                elif written_mode == "2":
-                    written_block = f"{sentence_number} - {(sentence_number/total_fully*100):.2f}%\n{fluent}\n"
-                elif written_mode == "3":
-                    written_block = (
-                        f"{sentence_number} - {(sentence_number/total_fully*100):.2f}%\n{sentence}\n\n{fluent}\n"
-                    )
-                else:
-                    written_block = f"{sentence}\n\n{fluent}\n"
-                video_block = (
-                    f"{current_target} - {sentence_number} - {(sentence_number/total_fully*100):.2f}%\n"
-                    f"{sentence}\n\n{fluent}\n"
-                )
+    if not pipeline_enabled:
+        batch_size = worker_count
+        while processed < total_refined:
+            batch_sentences = selected_sentences[processed : processed + batch_size]
+            batch_sentence_numbers = [start_sentence + processed + idx for idx in range(len(batch_sentences))]
+            batch_targets = [
+                target_languages[((number - start_sentence) % len(target_languages))]
+                for number in batch_sentence_numbers
+            ]
+            translations = translation_engine.translate_batch(
+                batch_sentences,
+                input_language,
+                batch_targets,
+                include_transliteration=False,
+            )
 
-            written_blocks.append(written_block)
-            if generate_video:
-                video_blocks.append(video_block)
-            if generate_audio:
-                audio_seg = av_gen.generate_audio_for_sentence(
-                    sentence_number,
-                    sentence,
-                    fluent,
-                    input_language,
-                    current_target,
-                    audio_mode,
-                    total_fully,
-                    LANGUAGE_CODES,
-                    SELECTED_VOICE,
-                    TEMPO,
-                    MACOS_READING_SPEED,
+            for sentence_number, sentence, current_target, translation_result in zip(
+                batch_sentence_numbers, batch_sentences, batch_targets, translations
+            ):
+                fluent = remove_quotes(translation_result or "")
+                should_transliterate = include_transliteration and current_target in NON_LATIN_LANGUAGES
+                transliteration_result = ""
+                if should_transliterate:
+                    transliteration_result = transliterate_sentence(fluent, current_target)
+                    transliteration_result = remove_quotes(transliteration_result)
+                written_block, video_block = _build_written_and_video_blocks(
+                    sentence_number=sentence_number,
+                    sentence=sentence,
+                    fluent=fluent,
+                    transliteration=transliteration_result,
+                    current_target=current_target,
+                    written_mode=written_mode,
+                    total_sentences=total_fully,
+                    include_transliteration=should_transliterate,
                 )
-                current_audio.append(audio_seg)
-                all_audio_segments.append(audio_seg)
-
-            if (sentence_number - start_sentence + 1) % sentences_per_file == 0:
-                batch_start = current_batch_start
-                batch_end = sentence_number
-                output_formatter.export_batch_documents(
-                    base_dir,
-                    base_no_ext,
-                    batch_start,
-                    batch_end,
-                    written_blocks,
-                    current_target,
-                    output_html=output_html,
-                    output_pdf=output_pdf,
-                )
-                if generate_audio and current_audio:
-                    combined = AudioSegment.empty()
-                    for seg in current_audio:
-                        combined += seg
-                    audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
-                    combined.export(audio_filename, format="mp3", bitrate="320k")
-                if generate_video and current_audio:
-                    video_path = av_gen.generate_video_slides_ffmpeg(
-                        video_blocks,
-                        current_audio,
-                        base_dir,
-                        batch_start,
-                        batch_end,
-                        base_no_ext,
-                        cover_img,
-                        book_author,
-                        book_title,
-                        global_cumulative_word_counts,
-                        total_book_words,
-                        MACOS_READING_SPEED,
+                written_blocks.append(written_block)
+                if generate_video:
+                    video_blocks.append(video_block)
+                if generate_audio and current_audio is not None and all_audio_segments is not None:
+                    audio_seg = av_gen.generate_audio_for_sentence(
+                        sentence_number,
+                        sentence,
+                        fluent,
                         input_language,
+                        current_target,
+                        audio_mode,
                         total_fully,
+                        LANGUAGE_CODES,
+                        SELECTED_VOICE,
                         TEMPO,
-                        SYNC_RATIO,
-                        WORD_HIGHLIGHTING,
+                        MACOS_READING_SPEED,
                     )
-                    batch_video_files.append(video_path)
-                written_blocks = []
-                video_blocks = []
-                if generate_audio:
-                    current_audio = []
-                current_batch_start = sentence_number + 1
+                    current_audio.append(audio_seg)
+                    all_audio_segments.append(audio_seg)
 
-            progress.update(1)
+                if (sentence_number - start_sentence + 1) % sentences_per_file == 0:
+                    batch_start = current_batch_start
+                    batch_end = sentence_number
+                    video_path = _export_pipeline_batch(
+                        base_dir=base_dir,
+                        base_no_ext=base_no_ext,
+                        batch_start=batch_start,
+                        batch_end=batch_end,
+                        written_blocks=written_blocks,
+                        target_language=current_target,
+                        output_html=output_html,
+                        output_pdf=output_pdf,
+                        generate_audio=generate_audio,
+                        audio_segments=current_audio or [],
+                        generate_video=generate_video,
+                        video_blocks=video_blocks,
+                        cover_img=cover_img,
+                        book_author=book_author,
+                        book_title=book_title,
+                        global_cumulative_word_counts=global_cumulative_word_counts,
+                        total_book_words=total_book_words,
+                        macos_reading_speed=MACOS_READING_SPEED,
+                        input_language=input_language,
+                        total_sentences=total_fully,
+                        tempo=TEMPO,
+                        sync_ratio=SYNC_RATIO,
+                        word_highlighting=WORD_HIGHLIGHTING,
+                    )
+                    if video_path:
+                        batch_video_files.append(video_path)
+                    written_blocks = []
+                    video_blocks = []
+                    if generate_audio:
+                        current_audio = []
+                    current_batch_start = sentence_number + 1
+                last_target_language = current_target
+                progress.update(1)
 
-        processed += len(batch_sentences)
+            processed += len(batch_sentences)
+    else:
+        stop_event = threading.Event()
+        translation_queue = queue.Queue(maxsize=queue_size)
+        finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        media_queue, media_threads = av_gen.start_media_pipeline(
+            translation_queue,
+            worker_count=worker_count,
+            total_sentences=total_fully,
+            input_language=input_language,
+            audio_mode=audio_mode,
+            language_codes=LANGUAGE_CODES,
+            selected_voice=SELECTED_VOICE,
+            tempo=TEMPO,
+            macos_reading_speed=MACOS_READING_SPEED,
+            generate_audio=generate_audio,
+            queue_size=queue_size,
+            stop_event=stop_event,
+        )
+        target_sequence = [
+            target_languages[((start_sentence + idx) - start_sentence) % len(target_languages)]
+            for idx in range(total_refined)
+        ] if target_languages else ["" for _ in range(total_refined)]
+        translation_thread = translation_engine.start_translation_pipeline(
+            selected_sentences,
+            input_language,
+            target_sequence,
+            start_sentence=start_sentence,
+            output_queue=translation_queue,
+            consumer_count=len(media_threads) or 1,
+            stop_event=stop_event,
+            max_workers=worker_count,
+        )
+        buffered_results = {}
+        next_index = 0
+        try:
+            while processed < total_refined:
+                try:
+                    media_item = media_queue.get(timeout=0.1)
+                except queue.Empty:
+                    if stop_event.is_set() and translation_queue.empty():
+                        break
+                    continue
+                if media_item is None:
+                    continue
+                buffered_results[media_item.index] = media_item
+                while next_index in buffered_results:
+                    item = buffered_results.pop(next_index)
+                    fluent = remove_quotes(item.translation or "")
+                    should_transliterate = (
+                        include_transliteration and item.target_language in NON_LATIN_LANGUAGES
+                    )
+                    transliteration_result = ""
+                    if should_transliterate:
+                        transliteration_result = transliterate_sentence(
+                            fluent, item.target_language
+                        )
+                        transliteration_result = remove_quotes(transliteration_result)
+                    written_block, video_block = _build_written_and_video_blocks(
+                        sentence_number=item.sentence_number,
+                        sentence=item.sentence,
+                        fluent=fluent,
+                        transliteration=transliteration_result,
+                        current_target=item.target_language,
+                        written_mode=written_mode,
+                        total_sentences=total_fully,
+                        include_transliteration=should_transliterate,
+                    )
+                    written_blocks.append(written_block)
+                    if generate_video:
+                        video_blocks.append(video_block)
+                    if generate_audio and current_audio is not None and all_audio_segments is not None:
+                        segment = item.audio_segment or AudioSegment.silent(duration=0)
+                        current_audio.append(segment)
+                        all_audio_segments.append(segment)
+                    if (item.sentence_number - start_sentence + 1) % sentences_per_file == 0:
+                        batch_start = current_batch_start
+                        batch_end = item.sentence_number
+                        future = finalize_executor.submit(
+                            _export_pipeline_batch,
+                            base_dir=base_dir,
+                            base_no_ext=base_no_ext,
+                            batch_start=batch_start,
+                            batch_end=batch_end,
+                            written_blocks=written_blocks,
+                            target_language=item.target_language or last_target_language,
+                            output_html=output_html,
+                            output_pdf=output_pdf,
+                            generate_audio=generate_audio,
+                            audio_segments=current_audio or [],
+                            generate_video=generate_video,
+                            video_blocks=video_blocks,
+                            cover_img=cover_img,
+                            book_author=book_author,
+                            book_title=book_title,
+                            global_cumulative_word_counts=global_cumulative_word_counts,
+                            total_book_words=total_book_words,
+                            macos_reading_speed=MACOS_READING_SPEED,
+                            input_language=input_language,
+                            total_sentences=total_fully,
+                            tempo=TEMPO,
+                            sync_ratio=SYNC_RATIO,
+                            word_highlighting=WORD_HIGHLIGHTING,
+                        )
+                        export_futures.append(future)
+                        written_blocks = []
+                        video_blocks = []
+                        if generate_audio:
+                            current_audio = []
+                        current_batch_start = item.sentence_number + 1
+                    last_target_language = item.target_language
+                    processed += 1
+                    progress.update(1)
+                    next_index += 1
+        except KeyboardInterrupt:
+            logger.warning("Processing interrupted by user; shutting down pipeline...")
+            if stop_event is not None:
+                stop_event.set()
+        finally:
+            if stop_event is not None and not stop_event.is_set():
+                stop_event.set()
+            for worker in media_threads:
+                worker.join(timeout=1.0)
+            if translation_thread is not None:
+                translation_thread.join(timeout=1.0)
+            if finalize_executor is not None:
+                finalize_executor.shutdown(wait=True)
+                for future in export_futures:
+                    try:
+                        video_path = future.result()
+                    except Exception as exc:  # pragma: no cover - defensive logging
+                        logger.error("Failed to finalize batch export: %s", exc)
+                    else:
+                        if video_path:
+                            batch_video_files.append(video_path)
 
     progress.close()
     if written_blocks:
         batch_start = current_batch_start
-        batch_end = start_sentence + len(written_blocks) - 1
-        output_formatter.export_batch_documents(
-            base_dir,
-            base_no_ext,
-            batch_start,
-            batch_end,
-            written_blocks,
-            target_languages[0],
+        batch_end = current_batch_start + len(written_blocks) - 1
+        target_for_batch = last_target_language or (
+            target_languages[0] if target_languages else ""
+        )
+        video_path = _export_pipeline_batch(
+            base_dir=base_dir,
+            base_no_ext=base_no_ext,
+            batch_start=batch_start,
+            batch_end=batch_end,
+            written_blocks=written_blocks,
+            target_language=target_for_batch,
             output_html=output_html,
             output_pdf=output_pdf,
+            generate_audio=generate_audio,
+            audio_segments=current_audio or [],
+            generate_video=generate_video,
+            video_blocks=video_blocks,
+            cover_img=cover_img,
+            book_author=book_author,
+            book_title=book_title,
+            global_cumulative_word_counts=global_cumulative_word_counts,
+            total_book_words=total_book_words,
+            macos_reading_speed=MACOS_READING_SPEED,
+            input_language=input_language,
+            total_sentences=total_fully,
+            tempo=TEMPO,
+            sync_ratio=SYNC_RATIO,
+            word_highlighting=WORD_HIGHLIGHTING,
         )
-        if generate_audio and current_audio:
-            combined = AudioSegment.empty()
-            for seg in current_audio:
-                combined += seg
-            audio_filename = os.path.join(base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3")
-            combined.export(audio_filename, format="mp3", bitrate="320k")
-        if generate_video and current_audio:
-            video_path = av_gen.generate_video_slides_ffmpeg(
-                video_blocks,
-                current_audio,
-                base_dir,
-                batch_start,
-                batch_end,
-                base_no_ext,
-                cover_img,
-                book_author,
-                book_title,
-                global_cumulative_word_counts,
-                total_book_words,
-                MACOS_READING_SPEED,
-                input_language,
-                total_fully,
-                TEMPO,
-                SYNC_RATIO,
-                WORD_HIGHLIGHTING,
-            )
+        if video_path:
             batch_video_files.append(video_path)
     logger.info("EPUB processing complete!")
     logger.info("Total sentences processed: %s", total_refined)

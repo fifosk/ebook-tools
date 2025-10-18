@@ -79,14 +79,24 @@ def _log_debug(message: str, *args: Any) -> None:
         logger.debug(message, *args)
 
 
+def _log_token_usage(usage: TokenUsage) -> None:
+    """Emit token usage diagnostics when debug logging is enabled."""
+
+    if not usage:
+        return
+    _log_debug(
+        "Token usage - prompt: %s, completion: %s",
+        usage.get("prompt_eval_count", 0),
+        usage.get("eval_count", 0),
+    )
+
+
 def _extract_token_usage(data: Dict[str, Any]) -> TokenUsage:
     usage: TokenUsage = {}
     for key in ("prompt_eval_count", "eval_count"):
         value = data.get(key)
         if isinstance(value, int):
             usage[key] = value
-    if usage:
-        logger.info("Token usage - prompt: %s, completion: %s", usage.get("prompt_eval_count", 0), usage.get("eval_count", 0))
     return usage
 
 
@@ -116,12 +126,14 @@ def _parse_stream(response: requests.Response) -> LLMResponse:
             full_text += payload["response"]
         _merge_token_usage(token_usage, payload)
 
-    return LLMResponse(
+    response_payload = LLMResponse(
         text=full_text,
         status_code=response.status_code,
         token_usage=token_usage,
         raw=raw_chunks,
     )
+    _log_token_usage(token_usage)
+    return response_payload
 
 
 def _parse_json_response(response: requests.Response) -> LLMResponse:
@@ -148,12 +160,14 @@ def _parse_json_response(response: requests.Response) -> LLMResponse:
     else:
         text = ""
 
-    return LLMResponse(
+    response_payload = LLMResponse(
         text=text,
         status_code=response.status_code,
         token_usage=token_usage,
         raw=data,
     )
+    _log_token_usage(token_usage)
+    return response_payload
 
 
 def _execute_request(payload: Dict[str, Any], timeout: Optional[int] = None) -> LLMResponse:

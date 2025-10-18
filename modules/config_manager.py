@@ -31,6 +31,7 @@ DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/ch
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
 DEFAULT_MODEL = "gemma2:27b"
 DEFAULT_THREADS = 5
+DEFAULT_QUEUE_SIZE = 20
 
 
 logger = logging_manager.get_logger()
@@ -42,6 +43,8 @@ AudioSegment.converter = DEFAULT_FFMPEG_PATH
 # Will be updated once configuration is loaded
 OLLAMA_API_URL = DEFAULT_OLLAMA_URL
 THREAD_COUNT = DEFAULT_THREADS
+QUEUE_SIZE = DEFAULT_QUEUE_SIZE
+PIPELINE_MODE = False
 
 
 def resolve_directory(path_value, default_relative: Path) -> Path:
@@ -92,6 +95,42 @@ def set_thread_count(value: Optional[Any]) -> int:
     return THREAD_COUNT
 
 
+def _coerce_queue_size(value: Optional[Any]) -> int:
+    if value is None:
+        return DEFAULT_QUEUE_SIZE
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return DEFAULT_QUEUE_SIZE
+    return max(1, parsed)
+
+
+def set_queue_size(value: Optional[Any]) -> int:
+    """Update the bounded pipeline queue size."""
+
+    global QUEUE_SIZE
+    QUEUE_SIZE = _coerce_queue_size(value)
+    return QUEUE_SIZE
+
+
+def _coerce_bool(value: Optional[Any]) -> bool:
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return bool(value)
+
+
+def set_pipeline_mode(value: Optional[Any]) -> bool:
+    """Toggle whether the concurrent translation/media pipeline is enabled."""
+
+    global PIPELINE_MODE
+    PIPELINE_MODE = _coerce_bool(value)
+    return PIPELINE_MODE
+
+
 def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None) -> None:
     """Configure directories and external tool locations based on config and overrides."""
     overrides = overrides or {}
@@ -127,6 +166,12 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
 
     thread_override = overrides.get("thread_count") if overrides else None
     set_thread_count(thread_override or config.get("thread_count"))
+
+    queue_override = overrides.get("queue_size") if overrides else None
+    set_queue_size(queue_override or config.get("queue_size"))
+
+    pipeline_override = overrides.get("pipeline_mode") if overrides else None
+    set_pipeline_mode(pipeline_override if pipeline_override is not None else config.get("pipeline_mode"))
 
 
 def _read_config_json(path, verbose: bool = False, label: str = "configuration") -> Dict[str, Any]:
@@ -221,6 +266,8 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
     config.setdefault("ollama_url", DEFAULT_OLLAMA_URL)
     config.setdefault("ffmpeg_path", DEFAULT_FFMPEG_PATH)
     config.setdefault("thread_count", DEFAULT_THREADS)
+    config.setdefault("queue_size", DEFAULT_QUEUE_SIZE)
+    config.setdefault("pipeline_mode", False)
 
     return config
 
@@ -234,3 +281,15 @@ def get_thread_count() -> int:
     """Return the currently configured worker thread count."""
 
     return THREAD_COUNT
+
+
+def get_queue_size() -> int:
+    """Return the configured bounded queue size for the pipeline."""
+
+    return QUEUE_SIZE
+
+
+def is_pipeline_mode() -> bool:
+    """Return whether the concurrent translation/media pipeline is enabled."""
+
+    return PIPELINE_MODE

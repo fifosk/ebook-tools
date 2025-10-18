@@ -5,9 +5,13 @@ import os
 import subprocess
 import sys
 import tempfile
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
+from queue import Empty, Full, Queue
 from threading import Lock
-from typing import Iterable, List, Mapping, Optional, Sequence
+from typing import Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from gtts import gTTS
 from pydub import AudioSegment
@@ -15,6 +19,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules.translation_engine import TranslationTask
 
 logger = log_mgr.logger
 
@@ -22,6 +27,18 @@ logger = log_mgr.logger
 _SILENCE_LOCK = Lock()
 _SILENCE_FILENAME = "silence.wav"
 _SILENCE_DURATION_MS = 100
+
+
+@dataclass(slots=True)
+class MediaPipelineResult:
+    """Result produced by the media generation workers."""
+
+    index: int
+    sentence_number: int
+    sentence: str
+    target_language: str
+    translation: str
+    audio_segment: Optional[AudioSegment]
 
 
 def _silence_audio_path() -> str:
@@ -186,6 +203,134 @@ def generate_audio_for_sentence(
         audio += segments.get(key, AudioSegment.silent(duration=0)) + silence
 
     return change_audio_tempo(audio, tempo)
+
+
+def _media_worker(
+    name: str,
+    task_queue: Queue[Optional[TranslationTask]],
+    result_queue: Queue[Optional[MediaPipelineResult]],
+    *,
+    total_sentences: int,
+    input_language: str,
+    audio_mode: str,
+    language_codes: Mapping[str, str],
+    selected_voice: str,
+    tempo: float,
+    macos_reading_speed: int,
+    generate_audio: bool,
+    stop_event: Optional[threading.Event] = None,
+) -> None:
+    """Consume translation results and emit completed media payloads."""
+
+    while True:
+        if stop_event and stop_event.is_set():
+            break
+        try:
+            task = task_queue.get(timeout=0.1)
+        except Empty:
+            continue
+        if task is None:
+            task_queue.task_done()
+            break
+        start_time = time.perf_counter()
+        audio_segment: Optional[AudioSegment] = None
+        try:
+            if generate_audio:
+                audio_segment = generate_audio_for_sentence(
+                    task.sentence_number,
+                    task.sentence,
+                    task.translation,
+                    input_language,
+                    task.target_language,
+                    audio_mode,
+                    total_sentences,
+                    language_codes,
+                    selected_voice,
+                    tempo,
+                    macos_reading_speed,
+                )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error(
+                "Consumer %s failed for sentence %s: %s", name, task.sentence_number, exc
+            )
+            if generate_audio:
+                audio_segment = AudioSegment.silent(duration=0)
+        finally:
+            task_queue.task_done()
+        elapsed = time.perf_counter() - start_time
+        logger.debug(
+            "Consumer %s processed sentence %s in %.3fs",
+            name,
+            task.sentence_number,
+            elapsed,
+        )
+        payload = MediaPipelineResult(
+            index=task.index,
+            sentence_number=task.sentence_number,
+            sentence=task.sentence,
+            target_language=task.target_language,
+            translation=task.translation,
+            audio_segment=audio_segment,
+        )
+        while True:
+            if stop_event and stop_event.is_set():
+                break
+            try:
+                result_queue.put(payload, timeout=0.1)
+                break
+            except Full:
+                continue
+
+
+def start_media_pipeline(
+    task_queue: Queue[Optional[TranslationTask]],
+    *,
+    worker_count: Optional[int] = None,
+    total_sentences: int,
+    input_language: str,
+    audio_mode: str,
+    language_codes: Mapping[str, str],
+    selected_voice: str,
+    tempo: float,
+    macos_reading_speed: int,
+    generate_audio: bool,
+    queue_size: Optional[int] = None,
+    stop_event: Optional[threading.Event] = None,
+) -> Tuple[Queue[Optional[MediaPipelineResult]], List[threading.Thread]]:
+    """Start consumer threads that transform translations into media artifacts."""
+
+    worker_total = worker_count or cfg.get_thread_count()
+    worker_total = max(1, worker_total)
+    result_queue: Queue[Optional[MediaPipelineResult]] = Queue(maxsize=queue_size or 0)
+    stop_event = stop_event or threading.Event()
+    workers: List[threading.Thread] = []
+
+    for idx in range(worker_total):
+        thread_name = f"Consumer-{idx + 1}"
+        thread = threading.Thread(
+            target=_media_worker,
+            name=thread_name,
+            args=(
+                thread_name,
+                task_queue,
+                result_queue,
+            ),
+            kwargs={
+                "total_sentences": total_sentences,
+                "input_language": input_language,
+                "audio_mode": audio_mode,
+                "language_codes": language_codes,
+                "selected_voice": selected_voice,
+                "tempo": tempo,
+                "macos_reading_speed": macos_reading_speed,
+                "generate_audio": generate_audio,
+                "stop_event": stop_event,
+            },
+            daemon=True,
+        )
+        thread.start()
+        workers.append(thread)
+    return result_queue, workers
 
 
 # ---------------------------------------------------------------------------
