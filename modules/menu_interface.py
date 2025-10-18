@@ -894,84 +894,92 @@ def run_interactive_menu(
 ) -> Tuple[Dict[str, Any], Tuple[Any, ...]]:
     """Run the interactive configuration menu and return the final configuration."""
     overrides = overrides or {}
-    if config_path:
-        config_file_path = Path(config_path).expanduser()
-        if not config_file_path.is_absolute():
-            config_file_path = (Path.cwd() / config_file_path).resolve()
-    else:
-        config_file_path = DEFAULT_LOCAL_CONFIG_PATH
-
-    config = load_configuration(config_file_path, verbose=True)
-    configure_logging_level(config.get("debug", False))
-
-    if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
-        config["start_sentence_lookup"] = config["start_sentence"]
-
-    initialize_environment(config, overrides)
-    config = update_book_cover_file_in_config(
-        config,
-        config.get("ebooks_dir"),
-        debug_enabled=config.get("debug", False),
-    )
-
-    refined_cache_stale = True
-    refined: List[str] = []
-
-    from . import ebook_tools as pipeline  # Local import to avoid circular dependency
-
-    while True:
-        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
-
-        if config.get("input_file"):
-            refined, refreshed = pipeline.get_refined_sentences(
-                config["input_file"],
-                force_refresh=refined_cache_stale,
-                metadata={"mode": "interactive"},
-            )
-            if refreshed:
-                logger.info(
-                    "Refined sentence list written to: %s",
-                    pipeline.refined_list_output_path(config["input_file"]),
-                )
-            refined_cache_stale = False
+    previous_menu_flag = os.environ.get("EBOOK_MENU_ACTIVE")
+    os.environ["EBOOK_MENU_ACTIVE"] = "1"
+    try:
+        if config_path:
+            config_file_path = Path(config_path).expanduser()
+            if not config_file_path.is_absolute():
+                config_file_path = (Path.cwd() / config_file_path).resolve()
         else:
-            refined = []
+            config_file_path = DEFAULT_LOCAL_CONFIG_PATH
 
-        config = update_sentence_config(config, refined)
+        config = load_configuration(config_file_path, verbose=True)
+        configure_logging_level(config.get("debug", False))
 
-        display_menu(config, refined, resolved_input_path)
+        if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
+            config["start_sentence_lookup"] = config["start_sentence"]
 
-        inp_choice = _prompt_user(
-            "\nEnter a parameter number to change (or press Enter to confirm): "
-        )
-        if inp_choice == "":
-            break
-        if not inp_choice.isdigit():
-            logger.warning("Invalid input. Please enter a number or press Enter.")
-            continue
-        selection = int(inp_choice)
-        config, made_stale = edit_parameter(
+        initialize_environment(config, overrides)
+        config = update_book_cover_file_in_config(
             config,
-            selection,
-            refined,
-            overrides,
-            config.get("debug", False),
+            config.get("ebooks_dir"),
+            debug_enabled=config.get("debug", False),
         )
-        refined_cache_stale = refined_cache_stale or made_stale
 
-        try:
-            config_file_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(config_file_path, "w", encoding="utf-8") as cfg_file:
-                json.dump(strip_derived_config(config), cfg_file, indent=4)
-            logger.info("Configuration saved to %s", config_file_path)
-        except Exception as exc:
-            logger.error("Error saving configuration: %s", exc)
+        refined_cache_stale = True
+        refined: List[str] = []
 
-    resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
-    config, pipeline_args = confirm_settings(config, resolved_input_path, entry_script_name)
+        from . import ebook_tools as pipeline  # Local import to avoid circular dependency
 
-    translation_engine.set_model(config.get("ollama_model", DEFAULT_MODEL))
-    translation_engine.set_debug(config.get("debug", False))
-    configure_logging_level(config.get("debug", False))
+        while True:
+            resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
 
-    return config, pipeline_args
+            if config.get("input_file"):
+                refined, refreshed = pipeline.get_refined_sentences(
+                    config["input_file"],
+                    force_refresh=refined_cache_stale,
+                    metadata={"mode": "interactive"},
+                )
+                if refreshed:
+                    logger.info(
+                        "Refined sentence list written to: %s",
+                        pipeline.refined_list_output_path(config["input_file"]),
+                    )
+                refined_cache_stale = False
+            else:
+                refined = []
+
+            config = update_sentence_config(config, refined)
+
+            display_menu(config, refined, resolved_input_path)
+
+            inp_choice = _prompt_user(
+                "\nEnter a parameter number to change (or press Enter to confirm): "
+            )
+            if inp_choice == "":
+                break
+            if not inp_choice.isdigit():
+                logger.warning("Invalid input. Please enter a number or press Enter.")
+                continue
+            selection = int(inp_choice)
+            config, made_stale = edit_parameter(
+                config,
+                selection,
+                refined,
+                overrides,
+                config.get("debug", False),
+            )
+            refined_cache_stale = refined_cache_stale or made_stale
+
+            try:
+                config_file_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(config_file_path, "w", encoding="utf-8") as cfg_file:
+                    json.dump(strip_derived_config(config), cfg_file, indent=4)
+                logger.info("Configuration saved to %s", config_file_path)
+            except Exception as exc:
+                logger.error("Error saving configuration: %s", exc)
+
+        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+        config, pipeline_args = confirm_settings(config, resolved_input_path, entry_script_name)
+
+        translation_engine.set_model(config.get("ollama_model", DEFAULT_MODEL))
+        translation_engine.set_debug(config.get("debug", False))
+        configure_logging_level(config.get("debug", False))
+
+        return config, pipeline_args
+    finally:
+        if previous_menu_flag is None:
+            os.environ.pop("EBOOK_MENU_ACTIVE", None)
+        else:
+            os.environ["EBOOK_MENU_ACTIVE"] = previous_menu_flag

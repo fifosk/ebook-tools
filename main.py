@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import io
+import os
 import sys
 import threading
+import time
 from typing import Optional
 
 from modules import logging_manager as log_mgr
@@ -88,6 +90,9 @@ def run_pipeline(report_interval: float = 5.0):
             return
 
         while not pipeline_stop.is_set():
+            if os.environ.get("EBOOK_MENU_ACTIVE") == "1":
+                time.sleep(0.1)
+                continue
             try:
                 line = stdin.readline()
             except (EOFError, io.UnsupportedOperation):
