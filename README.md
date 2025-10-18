@@ -2,11 +2,19 @@
 
 ## Configuration overview
 
-`ebook-tools.py` reads most defaults from `config.json`, but you can now point the
-script at different directories or external services without editing the code.
-All relative paths are resolved from the repository directory.
+`ebook-tools.py` reads its baked-in defaults from `conf/config.json`. To keep
+secrets and machine-specific tweaks out of version control, copy any fields you
+want to change into `conf/config.local.json`; those overrides are merged on top
+of the defaults at runtime. All relative paths are resolved from the repository
+directory.
+
+> **Tip:** `conf/config.local.json` is ignored by Git, so it's safe to add API
+> keys, alternate model names, or other machine-specific values there.
 
 ### Directory settings
+- **`ebooks_dir`**: Directory for source EPUB files and optional cover images.
+  Defaults to `books/`, which lives next to `conf/`. The script resolves
+  `input_file` and `book_cover_file` relative to this folder.
 - **`working_dir`**: Root directory for downloaded covers and other
   long-lived artifacts. Defaults to `output/`.
 - **`output_dir`**: Location for generated HTML/PDF/EPUB/audio/video files.
@@ -14,9 +22,14 @@ All relative paths are resolved from the repository directory.
 - **`tmp_dir`**: Scratch space for intermediate assets such as slide images
   and concatenation lists. Defaults to `tmp/`.
 
-You can override any of these via the matching CLI flags (`--working-dir`,
-`--output-dir`, `--tmp-dir`) or environment variables (`EBOOK_WORKING_DIR`,
-`EBOOK_OUTPUT_DIR`, `EBOOK_TMP_DIR`).
+You can override any of these via the matching CLI flags (`--ebooks-dir`,
+`--working-dir`, `--output-dir`, `--tmp-dir`) or environment variables
+(`EBOOKS_DIR`, `EBOOK_WORKING_DIR`, `EBOOK_OUTPUT_DIR`, `EBOOK_TMP_DIR`).
+
+The default `books/` directory is ignored by Git so you can drop
+`book.epub`, `book_cover.jpg`, and other local assets there without
+accidentally committing them. Create the folder manually if it does not
+already exist.
 
 ### External tool settings
 - **`ffmpeg_path`**: Path to the FFmpeg binary used by `pydub` and the video
@@ -29,7 +42,7 @@ Both values accept overrides through CLI flags (`--ffmpeg-path`,
 
 ### Using the settings
 - Interactive mode (`python ebook-tools.py -i`) exposes each knob in the
-  menu, so you can persist new defaults back into `config.json`.
+  menu, so you can persist new defaults back into `conf/config.local.json`.
 - In non-interactive mode, CLI flags or environment variables take precedence
   over the JSON values. The script resolves relative paths against the working
   copy and creates directories as needed.
