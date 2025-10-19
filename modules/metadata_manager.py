@@ -14,6 +14,7 @@ import requests
 from PIL import Image, ImageDraw, ImageFont
 from bs4 import BeautifulSoup
 from ebooklib import epub
+from datetime import datetime
 
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
@@ -136,6 +137,7 @@ def _invoke_llm_enrichment(
     preview: str,
     base_metadata: Dict[str, Optional[str]],
     *,
+    summary_hint: Optional[str] = None,
     missing_fields: Iterable[str] = (),
     timeout: int = 90,
 ) -> Dict[str, Optional[str]]:
@@ -152,17 +154,19 @@ def _invoke_llm_enrichment(
         "known_metadata": {k: v for k, v in base_metadata.items() if v},
         "preview_excerpt": preview[:4000],
         "first_block_excerpt": leading_excerpt,
+        "summary_hint": summary_hint,
         "requested_fields": list(missing_fields),
     }
     messages = [
         {
             "role": "system",
             "content": (
-                "You extract bibliographic metadata for EPUB ebooks. "
-                "Infer missing values using filename hints and especially the opening paragraphs when metadata is absent. "
-                "Return a compact JSON object with keys book_title, book_author, book_year, book_summary. "
-                "Summaries should be 2-3 sentences. Use four digit years when possible. "
-                "If unsure about year, provide your best estimate rather than leaving it blank."
+                "You are an expert bibliographic researcher. "
+                "Infer the true published title, author, original publication year, and a 2-3 sentence summary for an EPUB. "
+                "Prioritize evidence from the supplied summary and opening paragraphs. "
+                "Return valid JSON with keys book_title, book_author, book_year, book_summary. "
+                "Use historically plausible four-digit years; never invent future years. "
+                "Avoid generic placeholders such as 'Book' or 'Unknown'."
             ),
         },
         {
@@ -199,10 +203,28 @@ def _invoke_llm_enrichment(
         return {}
 
     enriched: Dict[str, Optional[str]] = {}
+    current_year = datetime.utcnow().year
     for key in ["book_title", "book_author", "book_year", "book_summary"]:
         value = parsed.get(key)
-        if isinstance(value, str) and value.strip():
-            enriched[key] = value.strip()
+        if not isinstance(value, str):
+            continue
+        cleaned = value.strip()
+        if not cleaned:
+            continue
+        if key == "book_title" and cleaned.lower() in {"book", "unknown", "novel", "story"}:
+            logger.debug("Discarding non-specific LLM title suggestion: %s", cleaned)
+            continue
+        if key == "book_year":
+            match = re.search(r"(\d{4})", cleaned)
+            if not match:
+                logger.debug("Ignoring LLM year without four digits: %s", cleaned)
+                continue
+            year_int = int(match.group(1))
+            if year_int > current_year:
+                logger.debug("Ignoring implausible future year suggested by LLM: %s", cleaned)
+                continue
+            cleaned = match.group(1)
+        enriched[key] = cleaned
     return enriched
 
 
@@ -364,12 +386,17 @@ def infer_metadata(
             metadata[key] = value
             logger.debug("EPUB embedded metadata provided %s: %s", key, value)
 
-    if preview_text and _is_placeholder("book_summary", metadata.get("book_summary")):
+    summary_hint = metadata.get("book_summary")
+    if _is_placeholder("book_summary", summary_hint):
+        summary_hint = None
+
+    if preview_text and not summary_hint:
         logger.debug("Using preview text fallback to craft summary")
         sentences = re.split(r"(?<=[.!?])\s+", preview_text.strip())
         summary = " ".join(sentences[:3]).strip()
         if summary:
             metadata["book_summary"] = summary
+            summary_hint = summary
 
     missing_fields = [
         key
@@ -382,6 +409,7 @@ def infer_metadata(
             epub_path.name,
             preview_text,
             metadata,
+            summary_hint=summary_hint,
             missing_fields=missing_fields,
         )
         for key, value in enriched.items():
