@@ -6,7 +6,7 @@ import json
 import os
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from ollama import Client
 from ollama import RequestError, ResponseError
@@ -129,6 +129,28 @@ def _summarize_text(text: str, *, limit: int = 200) -> str:
     return condensed
 
 
+def _coerce_text(value: Union[str, Dict[str, Any], Iterable[Any], None]) -> str:
+    """Normalise Ollama SDK response fragments into a plain string."""
+
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        # Prefer explicit ``text`` payloads, then nested ``content`` fields.
+        if "text" in value:
+            return _coerce_text(value.get("text"))
+        if "content" in value:
+            return _coerce_text(value.get("content"))
+        # Some responses may provide a list of items under ``parts``.
+        if "parts" in value:
+            return _coerce_text(value.get("parts"))
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return "".join(_coerce_text(item) for item in value)
+    return ""
+
+
 def _normalize_host(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
@@ -224,10 +246,11 @@ def _chat_with_client(
         full_text = ""
         raw_chunks: List[Dict[str, Any]] = []
 
-        def _append_text(part: Optional[str]) -> None:
+        def _append_text(part: Any) -> None:
             nonlocal full_text
-            if part:
-                full_text += part
+            text = _coerce_text(part)
+            if text:
+                full_text += text
 
         for chunk in response:
             if not isinstance(chunk, dict):
@@ -235,24 +258,16 @@ def _chat_with_client(
             raw_chunks.append(chunk)
 
             message = chunk.get("message")
-            if isinstance(message, dict):
-                _append_text(message.get("content"))
-            elif isinstance(message, str):
-                _append_text(message)
+            _append_text(message)
 
             delta = chunk.get("delta")
-            if isinstance(delta, dict):
-                _append_text(delta.get("content"))
-            elif isinstance(delta, str):
-                _append_text(delta)
+            _append_text(delta)
 
             response_text = chunk.get("response")
-            if isinstance(response_text, str):
-                _append_text(response_text)
+            _append_text(response_text)
 
             content = chunk.get("content")
-            if isinstance(content, str):
-                _append_text(content)
+            _append_text(content)
 
             _merge_token_usage(token_usage, chunk)
         reply = LLMResponse(
@@ -267,9 +282,11 @@ def _chat_with_client(
         else:
             data = response
         _merge_token_usage(token_usage, data)
-        message = data.get("message", {}).get("content")
-        if not message and isinstance(data.get("response"), str):
-            message = data["response"]
+        message = _coerce_text(data.get("message"))
+        if not message:
+            message = _coerce_text(data.get("response"))
+        if not message:
+            message = _coerce_text(data.get("content"))
         reply = LLMResponse(
             text=message or "",
             status_code=200,

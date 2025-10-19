@@ -129,7 +129,13 @@ def build_parser() -> argparse.ArgumentParser:
             "print debugging information."
         )
     )
-    parser.add_argument("--prompt", "-p", help="Prompt text to send to the model.")
+    parser.add_argument(
+        "--prompt",
+        "-p",
+        "--promt",
+        dest="prompt",
+        help="Prompt text to send to the model.",
+    )
     parser.add_argument("--prompt-file", help="File containing the prompt text.")
     parser.add_argument("--system-message", help="Optional system message to prepend.")
     parser.add_argument("--stream", action="store_true", help="Enable streaming mode for the request.")
