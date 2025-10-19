@@ -22,6 +22,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules import output_formatter
 from modules.translation_engine import TranslationTask
 
 if TYPE_CHECKING:
@@ -1156,12 +1157,15 @@ def generate_video_slides_ffmpeg(
 
     sentence_video_files.extend(path for path in ordered_results if path)
 
-    concat_list_path = os.path.join(output_dir, f"concat_{batch_start}_{batch_end}.txt")
+    range_fragment = output_formatter.format_sentence_range(
+        batch_start, batch_end, total_sentences
+    )
+    concat_list_path = os.path.join(output_dir, f"concat_{range_fragment}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in sentence_video_files:
             f.write(f"file '{video_file}'\n")
 
-    final_video_path = os.path.join(output_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp4")
+    final_video_path = os.path.join(output_dir, f"{range_fragment}_{base_no_ext}.mp4")
     cmd_concat = [
         "ffmpeg",
         "-loglevel",
