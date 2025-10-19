@@ -6,6 +6,7 @@ import contextlib
 import contextvars
 import json
 import logging
+import sys
 from datetime import datetime, timezone
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
@@ -217,6 +218,73 @@ def ensure_correlation_context(*, correlation_id: Optional[str], job_id: Optiona
         updates["job_id"] = job_id
     if updates:
         push_log_context(**updates)
+
+
+def _format_console_message(message: object, args: tuple[object, ...]) -> str:
+    if not args:
+        return str(message)
+    try:
+        return str(message) % args
+    except Exception:
+        return " ".join([str(message), *map(str, args)])
+
+
+def console_log(
+    level: int,
+    message: object,
+    *args: object,
+    logger_obj: Optional[logging.Logger] = None,
+    stderr: bool = False,
+    **kwargs: object,
+) -> None:
+    """Log ``message`` while emitting a plain-text console echo."""
+
+    logger_instance = logger_obj or get_logger()
+    formatted = _format_console_message(message, args)
+    with log_context(console_suppress=True):
+        logger_instance.log(level, message, *args, **kwargs)
+    stream = sys.stderr if stderr else sys.stdout
+    print(formatted, file=stream, flush=True)
+
+
+def console_info(
+    message: object,
+    *args: object,
+    logger_obj: Optional[logging.Logger] = None,
+    **kwargs: object,
+) -> None:
+    """Emit an ``INFO`` log record while printing to the console."""
+
+    console_log(logging.INFO, message, *args, logger_obj=logger_obj, **kwargs)
+
+
+def console_warning(
+    message: object,
+    *args: object,
+    logger_obj: Optional[logging.Logger] = None,
+    **kwargs: object,
+) -> None:
+    """Emit a ``WARNING`` log record while printing to the console."""
+
+    console_log(logging.WARNING, message, *args, logger_obj=logger_obj, **kwargs)
+
+
+def console_error(
+    message: object,
+    *args: object,
+    logger_obj: Optional[logging.Logger] = None,
+    **kwargs: object,
+) -> None:
+    """Emit an ``ERROR`` log record while printing to the console."""
+
+    console_log(
+        logging.ERROR,
+        message,
+        *args,
+        logger_obj=logger_obj,
+        stderr=True,
+        **kwargs,
+    )
 
 
 # Initialize logger on import to maintain existing behaviour

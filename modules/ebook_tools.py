@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import threading
 from typing import Optional
 from uuid import uuid4
@@ -23,7 +24,8 @@ from .services.pipeline_service import (
     run_pipeline as run_pipeline_service,
 )
 
-logger = log_mgr.logger
+console_info = log_mgr.console_info
+console_error = log_mgr.console_error
 configure_logging_level = log_mgr.configure_logging_level
 resolve_file_path = cfg.resolve_file_path
 build_runtime_context = cfg.build_runtime_context
@@ -63,7 +65,7 @@ def run_pipeline(
                 entry_script_name=ENTRY_SCRIPT_NAME,
             )
         except MenuExit:
-            logger.info("Interactive configuration cancelled by user.")
+            console_info("Interactive configuration cancelled by user.")
             return None
         context = cfg.get_runtime_context(None)
         config.setdefault("selected_voice", pipeline_input.selected_voice)
@@ -108,7 +110,7 @@ def run_pipeline(
 
         input_file = args.input_file or config.get("input_file")
         if not input_file:
-            logger.error(
+            console_error(
                 "Error: An input EPUB file must be specified either via CLI or configuration."
             )
             sys.exit(1)
@@ -116,7 +118,7 @@ def run_pipeline(
         resolved_input_path = resolve_file_path(input_file, context.books_dir)
         if not resolved_input_path or not resolved_input_path.exists():
             search_hint = str(context.books_dir)
-            logger.error(
+            console_error(
                 "Error: EPUB file '%s' was not found. Check the ebooks directory (%s).",
                 input_file,
                 search_hint,
@@ -256,7 +258,7 @@ def run_pipeline(
     }
 
     if pipeline_input is None:
-        logger.error("Pipeline input could not be constructed.")
+        console_error("Pipeline input could not be constructed.")
         return None
 
     if context is None:
