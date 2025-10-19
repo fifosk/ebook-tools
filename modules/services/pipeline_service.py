@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -13,6 +13,7 @@ from pydub import AudioSegment
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
+from .. import metadata_manager
 from .. import output_formatter
 from .. import observability
 from ..core import ingestion
@@ -84,6 +85,7 @@ class PipelineResponse:
     stitched_documents: Dict[str, str] = field(default_factory=dict)
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
+    book_metadata: Dict[str, Any] = field(default_factory=dict)
 
 
 def run_pipeline(request: PipelineRequest) -> PipelineResponse:
@@ -114,11 +116,35 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
 
     try:
         overrides = {**request.environment_overrides, **request.pipeline_overrides}
+        selected_voice = request.inputs.selected_voice
+        if selected_voice and "selected_voice" not in overrides:
+            overrides["selected_voice"] = selected_voice
         pipeline_config = build_pipeline_config(context, request.config, overrides=overrides)
         pipeline_config.apply_runtime_settings()
         configure_logging_level(pipeline_config.debug)
 
         inputs = request.inputs
+        metadata: Dict[str, Any] = dict(inputs.book_metadata)
+        if request.config.get("auto_metadata", True):
+            try:
+                input_path = cfg.resolve_file_path(inputs.input_file, context.books_dir)
+                if input_path:
+                    inferred = metadata_manager.infer_metadata(
+                        str(input_path),
+                        existing_metadata=metadata,
+                        force_refresh=bool(
+                            request.pipeline_overrides.get("force_metadata_refresh")
+                            or request.pipeline_overrides.get("refresh_metadata")
+                        ),
+                    )
+                    metadata.update({k: v for k, v in inferred.items() if v is not None})
+            except Exception as metadata_error:  # pragma: no cover - defensive logging
+                logger.debug(
+                    "Metadata inference failed for %s: %s",
+                    inputs.input_file,
+                    metadata_error,
+                )
+        inputs.book_metadata = metadata
         generate_audio = pipeline_config.generate_audio
         audio_mode = pipeline_config.audio_mode
 
@@ -217,7 +243,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                     refined_list=refined_list,
                     generate_video=inputs.generate_video,
                     include_transliteration=inputs.include_transliteration,
-                    book_metadata=inputs.book_metadata,
+                    book_metadata=metadata,
                     pipeline_config=pipeline_config,
                     progress_tracker=request.progress_tracker,
                     stop_event=request.stop_event,
@@ -354,6 +380,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             stitched_documents=stitched_documents,
             stitched_audio_path=stitched_audio_path,
             stitched_video_path=stitched_video_path,
+            book_metadata=metadata,
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         with log_mgr.log_context(correlation_id=correlation_id, job_id=job_id):
@@ -368,7 +395,11 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
         if tracker is not None:
             tracker.record_error(exc, {"stage": "pipeline"})
             tracker.mark_finished(reason="pipeline error", forced=True)
-        return PipelineResponse(success=False, pipeline_config=pipeline_config)
+        return PipelineResponse(
+            success=False,
+            pipeline_config=pipeline_config,
+            book_metadata=inputs.book_metadata,
+        )
     finally:
         if context is not None:
             try:
@@ -424,10 +455,27 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "stitched_documents": dict(response.stitched_documents),
         "stitched_audio_path": response.stitched_audio_path,
         "stitched_video_path": response.stitched_video_path,
+        "book_metadata": dict(response.book_metadata),
     }
 
     if response.pipeline_config is not None:
         payload["pipeline_config"] = _serialize_pipeline_config(response.pipeline_config)
+
+    return payload
+
+
+def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
+    """Convert ``request`` into a JSON-serializable mapping."""
+
+    payload: Dict[str, Any] = {
+        "config": dict(request.config),
+        "environment_overrides": dict(request.environment_overrides),
+        "pipeline_overrides": dict(request.pipeline_overrides),
+        "inputs": asdict(request.inputs),
+    }
+
+    if request.correlation_id is not None:
+        payload["correlation_id"] = request.correlation_id
 
     return payload
 
@@ -457,3 +505,8 @@ class PipelineService:
         """Execute ``request`` synchronously and return the pipeline response."""
 
         return run_pipeline(request)
+
+    def refresh_metadata(self, job_id: str) -> "PipelineJob":
+        """Force-refresh metadata for the specified job and return the updated handle."""
+
+        return self._job_manager.refresh_metadata(job_id)

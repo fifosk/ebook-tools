@@ -3,16 +3,63 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from copy import deepcopy
 from functools import lru_cache
-from typing import Dict, Iterator, Optional
+from typing import Any, Dict, Iterator, Mapping, Optional, cast
 
 from .. import config_manager as cfg
+from .. import logging_manager as log_mgr
 from ..services.pipeline_service import PipelineService
 from .jobs import PipelineJobManager
 
 
+logger = log_mgr.logger
+
+
+def _deep_merge(base: Mapping[str, Any], overrides: Mapping[str, Any]) -> Dict[str, Any]:
+    """Recursively merge ``overrides`` into ``base`` and return a copy."""
+
+    merged: Dict[str, Any] = dict(base)
+    for key, value in overrides.items():
+        if isinstance(value, dict) and isinstance(merged.get(key), dict):
+            merged[key] = _deep_merge(
+                cast(Mapping[str, Any], merged[key]),
+                value,
+            )
+        else:
+            merged[key] = value
+    return merged
+
+
 class RuntimeContextProvider:
     """Factory responsible for building runtime contexts for requests."""
+
+    def __init__(self) -> None:
+        try:
+            self._base_config = cfg.load_configuration(verbose=False)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "Failed to load base configuration; falling back to defaults.",
+                exc_info=exc,
+                extra={"event": "config.load.failed", "console_suppress": True},
+            )
+            self._base_config: Dict[str, Any] = {}
+
+    def resolve_config(self, updates: Optional[Mapping[str, Any]] = None) -> Dict[str, Any]:
+        """Return the default configuration merged with ``updates``."""
+
+        if not updates:
+            return deepcopy(self._base_config)
+        return _deep_merge(self._base_config, dict(updates))
+
+    def build_context(
+        self,
+        config: Mapping[str, Any],
+        overrides: Optional[Dict[str, Any]] = None,
+    ) -> cfg.RuntimeContext:
+        """Construct a :class:`RuntimeContext` from a resolved configuration."""
+
+        return cfg.build_runtime_context(dict(config), overrides or {})
 
     def create(
         self,
@@ -21,7 +68,8 @@ class RuntimeContextProvider:
     ) -> cfg.RuntimeContext:
         """Construct a :class:`RuntimeContext` for the supplied settings."""
 
-        return cfg.build_runtime_context(config, overrides or {})
+        resolved = self.resolve_config(config)
+        return self.build_context(resolved, overrides)
 
     @contextmanager
     def activation(
@@ -31,7 +79,8 @@ class RuntimeContextProvider:
     ) -> Iterator[cfg.RuntimeContext]:
         """Context manager that activates and cleans up the runtime context."""
 
-        context = self.create(config, overrides)
+        resolved = self.resolve_config(config)
+        context = self.build_context(resolved, overrides)
         cfg.set_runtime_context(context)
         try:
             yield context

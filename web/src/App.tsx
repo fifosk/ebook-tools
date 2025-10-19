@@ -7,7 +7,7 @@ import {
   PipelineSubmissionResponse,
   ProgressEventPayload
 } from './api/dtos';
-import { fetchPipelineStatus, submitPipeline } from './api/client';
+import { fetchPipelineStatus, refreshPipelineMetadata, submitPipeline } from './api/client';
 
 interface JobRegistryEntry {
   submission: PipelineSubmissionResponse;
@@ -19,6 +19,7 @@ export function App() {
   const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
 
   const jobIds = useMemo(() => Object.keys(jobs), [jobs]);
   const jobKey = useMemo(() => jobIds.join('|'), [jobIds]);
@@ -117,6 +118,52 @@ export function App() {
       delete next[jobId];
       return next;
     });
+    setReloadingJobs((previous) => {
+      if (!previous[jobId]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[jobId];
+      return next;
+    });
+  }, []);
+
+  const handleReloadJob = useCallback(async (jobId: string) => {
+    setReloadingJobs((previous) => ({ ...previous, [jobId]: true }));
+    try {
+      let status: PipelineStatusResponse;
+      try {
+        status = await refreshPipelineMetadata(jobId);
+      } catch (refreshError) {
+        console.warn('Unable to force metadata refresh for job', jobId, refreshError);
+        status = await fetchPipelineStatus(jobId);
+      }
+      setJobs((previous) => {
+        const current = previous[jobId];
+        if (!current) {
+          return previous;
+        }
+        return {
+          ...previous,
+          [jobId]: {
+            ...current,
+            status,
+            latestEvent: status.latest_event ?? current.latestEvent
+          }
+        };
+      });
+    } catch (error) {
+      console.warn('Unable to reload job metadata', jobId, error);
+    } finally {
+      setReloadingJobs((previous) => {
+        if (!previous[jobId]) {
+          return previous;
+        }
+        const next = { ...previous };
+        delete next[jobId];
+        return next;
+      });
+    }
   }, []);
 
   const jobList: JobState[] = useMemo(() => {
@@ -124,9 +171,10 @@ export function App() {
       jobId,
       submission: entry.submission,
       status: entry.status,
-      latestEvent: entry.latestEvent
+      latestEvent: entry.latestEvent,
+      isReloading: Boolean(reloadingJobs[jobId])
     }));
-  }, [jobs]);
+  }, [jobs, reloadingJobs]);
 
   return (
     <main>
@@ -139,7 +187,12 @@ export function App() {
       </header>
       {submitError ? <div className="alert">{submitError}</div> : null}
       <PipelineSubmissionForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
-      <JobList jobs={jobList} onProgressEvent={handleProgressEvent} onRemoveJob={handleRemoveJob} />
+      <JobList
+        jobs={jobList}
+        onProgressEvent={handleProgressEvent}
+        onRemoveJob={handleRemoveJob}
+        onReloadJob={handleReloadJob}
+      />
     </main>
   );
 }

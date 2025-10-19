@@ -1,5 +1,6 @@
-import { FormEvent, useMemo, useState } from 'react';
-import { PipelineRequestPayload } from '../api/dtos';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { PipelineFileBrowserResponse, PipelineRequestPayload } from '../api/dtos';
+import { fetchPipelineFiles } from '../api/client';
 import LanguageSelector from './LanguageSelector';
 import {
   AUDIO_MODE_OPTIONS,
@@ -7,6 +8,7 @@ import {
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
 } from '../constants/menuOptions';
+import FileSelectionDialog from './FileSelectionDialog';
 
 type Props = {
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
@@ -89,6 +91,10 @@ function parseJsonField(label: JsonFields, value: string): Record<string, unknow
 export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props) {
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [error, setError] = useState<string | null>(null);
+  const [fileOptions, setFileOptions] = useState<PipelineFileBrowserResponse | null>(null);
+  const [fileDialogError, setFileDialogError] = useState<string | null>(null);
+  const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(true);
+  const [activeFileDialog, setActiveFileDialog] = useState<'input' | 'output' | null>(null);
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((previous) => ({
@@ -97,9 +103,52 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
     }));
   };
 
+  const handleInputFileChange = (value: string) => {
+    setFormState((previous) => {
+      if (previous.input_file === value) {
+        return previous;
+      }
+      return {
+        ...previous,
+        input_file: value,
+        book_metadata: '{}'
+      };
+    });
+  };
+
   const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
   const availableWrittenModes = useMemo<MenuOption[]>(() => WRITTEN_MODE_OPTIONS, []);
   const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setIsLoadingFiles(true);
+    fetchPipelineFiles()
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setFileOptions(response);
+        setFileDialogError(null);
+      })
+      .catch((fetchError) => {
+        if (cancelled) {
+          return;
+        }
+        const message =
+          fetchError instanceof Error ? fetchError.message : 'Unable to load available files.';
+        setFileDialogError(message);
+        setFileOptions(null);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingFiles(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -180,10 +229,23 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
             name="input_file"
             type="text"
             value={formState.input_file}
-            onChange={(event) => handleChange('input_file', event.target.value)}
+            onChange={(event) => handleInputFileChange(event.target.value)}
             placeholder="/books/source.epub"
             required
           />
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => setActiveFileDialog('input')}
+            disabled={!fileOptions || isLoadingFiles}
+          >
+            {isLoadingFiles ? 'Loading…' : 'Browse ebooks'}
+          </button>
+          {fileDialogError ? (
+            <p className="form-help-text" role="status">
+              {fileDialogError}
+            </p>
+          ) : null}
 
           <label htmlFor="base_output_file">Base output file</label>
           <input
@@ -195,6 +257,14 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
             placeholder="ebooks/output"
             required
           />
+          <button
+            type="button"
+            className="link-button"
+            onClick={() => setActiveFileDialog('output')}
+            disabled={!fileOptions || isLoadingFiles}
+          >
+            {isLoadingFiles ? 'Loading…' : 'Browse output paths'}
+          </button>
 
           <label htmlFor="input_language">Input language</label>
           <input
@@ -451,6 +521,26 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
           {isSubmitting ? 'Submitting…' : 'Submit job'}
         </button>
       </form>
+      {activeFileDialog && fileOptions ? (
+        <FileSelectionDialog
+          title={activeFileDialog === 'input' ? 'Select ebook file' : 'Select output path'}
+          description={
+            activeFileDialog === 'input'
+              ? 'Choose an EPUB file from the configured books directory.'
+              : 'Select an existing output file or directory as the base path.'
+          }
+          files={activeFileDialog === 'input' ? fileOptions.ebooks : fileOptions.outputs}
+          onSelect={(path) => {
+            if (activeFileDialog === 'input') {
+              handleInputFileChange(path);
+            } else {
+              handleChange('base_output_file', path);
+            }
+            setActiveFileDialog(null);
+          }}
+          onClose={() => setActiveFileDialog(null)}
+        />
+      ) : null}
     </section>
   );
 }

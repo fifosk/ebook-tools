@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import AsyncIterator
+from pathlib import Path
+from typing import AsyncIterator, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -15,6 +16,8 @@ from .dependencies import (
 from .jobs import PipelineJob
 from ..services.pipeline_service import PipelineService
 from .schemas import (
+    PipelineFileBrowserResponse,
+    PipelineFileEntry,
     PipelineRequestPayload,
     PipelineStatusResponse,
     PipelineSubmissionResponse,
@@ -22,6 +25,54 @@ from .schemas import (
 )
 
 router = APIRouter()
+
+
+def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
+    entries: List[PipelineFileEntry] = []
+    if not root.exists():
+        return entries
+    for path in sorted(root.glob("*.epub")):
+        if not path.is_file():
+            continue
+        entries.append(
+            PipelineFileEntry(
+                name=path.name,
+                path=str(path),
+                type="file",
+            )
+        )
+    return entries
+
+
+def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
+    entries: List[PipelineFileEntry] = []
+    if not root.exists():
+        return entries
+    for path in sorted(root.iterdir()):
+        if path.name.startswith("."):
+            continue
+        entry_type = "directory" if path.is_dir() else "file"
+        entries.append(
+            PipelineFileEntry(
+                name=path.name,
+                path=str(path),
+                type=entry_type,
+            )
+        )
+    return entries
+
+
+@router.get("/files", response_model=PipelineFileBrowserResponse)
+async def list_pipeline_files(
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Return available ebook and output paths for client-side file pickers."""
+
+    with context_provider.activation({}, {}) as context:
+        ebooks = _list_ebook_files(context.books_dir)
+        outputs = _list_output_entries(context.output_dir)
+
+    return PipelineFileBrowserResponse(ebooks=ebooks, outputs=outputs)
 
 
 @router.post("/", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
@@ -32,14 +83,38 @@ async def submit_pipeline(
 ):
     """Submit a pipeline execution request and return an identifier."""
 
-    context = context_provider.create(payload.config, payload.environment_overrides)
-    request = payload.to_pipeline_request(context=context)
+    resolved_config = context_provider.resolve_config(payload.config)
+    context = context_provider.build_context(
+        resolved_config,
+        payload.environment_overrides,
+    )
+    request = payload.to_pipeline_request(
+        context=context,
+        resolved_config=resolved_config,
+    )
     job = pipeline_service.enqueue(request)
     return PipelineSubmissionResponse(
         job_id=job.job_id,
         status=job.status,
         created_at=job.created_at,
     )
+
+
+@router.post("/{job_id}/metadata/refresh", response_model=PipelineStatusResponse)
+async def refresh_pipeline_metadata(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Trigger metadata inference again for ``job_id`` and return the updated status."""
+
+    try:
+        job = pipeline_service.refresh_metadata(job_id)
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return PipelineStatusResponse.from_job(job)
 
 
 @router.get("/{job_id}", response_model=PipelineStatusResponse)

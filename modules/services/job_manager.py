@@ -19,6 +19,7 @@ except Exception:  # pragma: no cover - defensive import guard
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
+from .. import metadata_manager
 from .. import observability
 from ..progress_tracker import ProgressEvent, ProgressSnapshot, ProgressTracker
 from ..translation_engine import TranslationWorkerPool
@@ -26,6 +27,7 @@ from .pipeline_service import (
     PipelineRequest,
     PipelineResponse,
     run_pipeline,
+    serialize_pipeline_request,
     serialize_pipeline_response,
 )
 
@@ -54,6 +56,7 @@ class PipelineJobMetadata:
     error_message: Optional[str] = None
     last_event: Optional[Dict[str, Any]] = None
     result: Optional[Dict[str, Any]] = None
+    request_payload: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -69,6 +72,8 @@ class PipelineJobMetadata:
             "last_event": self.last_event,
             "result": self.result,
         }
+        if self.request_payload is not None:
+            payload["request"] = self.request_payload
         return payload
 
     def to_json(self) -> str:
@@ -91,6 +96,7 @@ class PipelineJobMetadata:
             error_message=data.get("error_message"),
             last_event=data.get("last_event"),
             result=data.get("result"),
+            request_payload=data.get("request"),
         )
 
     @classmethod
@@ -199,6 +205,7 @@ class PipelineJob:
     last_event: Optional[ProgressEvent] = None
     result_payload: Optional[Dict[str, Any]] = None
     owns_translation_pool: bool = False
+    request_payload: Optional[Dict[str, Any]] = None
 
 
 def _serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
@@ -279,6 +286,10 @@ class PipelineJobManager:
         result_payload = job.result_payload
         if result_payload is None and job.result is not None:
             result_payload = serialize_pipeline_response(job.result)
+        if job.request is not None:
+            request_payload = serialize_pipeline_request(job.request)
+        else:
+            request_payload = dict(job.request_payload) if job.request_payload else None
         return PipelineJobMetadata(
             job_id=job.job_id,
             status=job.status,
@@ -288,6 +299,7 @@ class PipelineJobManager:
             error_message=job.error_message,
             last_event=last_event,
             result=result_payload,
+            request_payload=request_payload,
         )
 
     def submit(self, request: PipelineRequest) -> PipelineJob:
@@ -309,6 +321,7 @@ class PipelineJobManager:
             request=request,
             tracker=tracker,
             stop_event=stop_event,
+            request_payload=serialize_pipeline_request(request),
         )
 
         tracker.register_observer(lambda event: self._store_event(job_id, event))
@@ -479,6 +492,7 @@ class PipelineJobManager:
             completed_at=metadata.completed_at,
             error_message=metadata.error_message,
             result_payload=metadata.result,
+            request_payload=metadata.request_payload,
         )
         if metadata.last_event is not None:
             job.last_event = _deserialize_progress_event(metadata.last_event)
@@ -493,3 +507,81 @@ class PipelineJobManager:
         for job_id, metadata in stored.items():
             active_jobs.setdefault(job_id, self._build_job_from_metadata(metadata))
         return active_jobs
+
+    def refresh_metadata(self, job_id: str) -> PipelineJob:
+        """Force a metadata refresh for ``job_id`` and persist the updated state."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+
+        if job is None:
+            metadata = self._store.get(job_id)
+            job = self._build_job_from_metadata(metadata)
+
+        if job.request is not None:
+            request_payload = serialize_pipeline_request(job.request)
+        elif job.request_payload is not None:
+            request_payload = dict(job.request_payload)
+        else:
+            raise KeyError(job_id)
+
+        inputs_payload = dict(request_payload.get("inputs", {}))
+        input_file = str(inputs_payload.get("input_file") or "").strip()
+        if not input_file:
+            raise ValueError(f"Job {job_id} does not include an input file for metadata refresh")
+
+        existing_metadata = inputs_payload.get("book_metadata")
+        if not isinstance(existing_metadata, dict):
+            existing_metadata = {}
+
+        config_payload = request_payload.get("config")
+        if not isinstance(config_payload, dict):
+            config_payload = {}
+        environment_overrides = request_payload.get("environment_overrides")
+        if not isinstance(environment_overrides, dict):
+            environment_overrides = {}
+
+        context = cfg.build_runtime_context(dict(config_payload), dict(environment_overrides))
+        cfg.set_runtime_context(context)
+        try:
+            metadata = metadata_manager.infer_metadata(
+                input_file,
+                existing_metadata=dict(existing_metadata),
+                force_refresh=True,
+            )
+        finally:
+            try:
+                cfg.cleanup_environment(context)
+            finally:
+                cfg.clear_runtime_context()
+
+        inputs_payload["book_metadata"] = dict(metadata)
+        request_payload["inputs"] = inputs_payload
+
+        if job.request is not None:
+            job.request.inputs.book_metadata = dict(metadata)
+        job.request_payload = request_payload
+
+        if job.result is not None:
+            job.result.book_metadata = dict(metadata)
+            job.result_payload = serialize_pipeline_response(job.result)
+        else:
+            result_payload = dict(job.result_payload or {})
+            result_payload["book_metadata"] = dict(metadata)
+            job.result_payload = result_payload
+
+        with log_mgr.log_context(job_id=job_id):
+            logger.info(
+                "Pipeline job metadata refreshed",
+                extra={
+                    "event": "pipeline.job.metadata.refreshed",
+                    "console_suppress": True,
+                },
+            )
+
+        with self._lock:
+            if job_id in self._jobs:
+                self._jobs[job_id] = job
+            self._store.update(self._snapshot(job))
+
+        return job

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -53,9 +53,10 @@ class PipelineRequestPayload(BaseModel):
         self,
         *,
         context=None,
+        resolved_config: Optional[Dict[str, Any]] = None,
     ) -> PipelineRequest:
         return PipelineRequest(
-            config=dict(self.config),
+            config=dict(resolved_config) if resolved_config is not None else dict(self.config),
             context=context,
             environment_overrides=dict(self.environment_overrides),
             pipeline_overrides=dict(self.pipeline_overrides),
@@ -87,6 +88,7 @@ class PipelineResponsePayload(BaseModel):
     stitched_documents: Dict[str, str] = Field(default_factory=dict)
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
+    book_metadata: Dict[str, Any] = Field(default_factory=dict)
 
     @staticmethod
     def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
@@ -137,6 +139,7 @@ class PipelineResponsePayload(BaseModel):
             stitched_documents=dict(response.stitched_documents),
             stitched_audio_path=response.stitched_audio_path,
             stitched_video_path=response.stitched_video_path,
+            book_metadata=dict(response.book_metadata),
         )
 
 
@@ -218,3 +221,18 @@ class PipelineStatusResponse(BaseModel):
             error=job.error_message,
             latest_event=latest_event,
         )
+
+
+class PipelineFileEntry(BaseModel):
+    """Describes a selectable file within the dashboard."""
+
+    name: str
+    path: str
+    type: Literal["file", "directory"]
+
+
+class PipelineFileBrowserResponse(BaseModel):
+    """Response payload listing available ebook and output files."""
+
+    ebooks: List[PipelineFileEntry] = Field(default_factory=list)
+    outputs: List[PipelineFileEntry] = Field(default_factory=list)

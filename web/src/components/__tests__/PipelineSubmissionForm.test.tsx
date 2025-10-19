@@ -1,7 +1,29 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PipelineRequestPayload } from '../../api/dtos';
+import { fetchPipelineFiles } from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
+
+vi.mock('../../api/client', () => ({
+  fetchPipelineFiles: vi.fn()
+}));
+
+const mockFileListing = {
+  ebooks: [
+    { name: 'example.epub', path: '/books/example.epub', type: 'file' as const }
+  ],
+  outputs: [
+    { name: 'output', path: '/output/output', type: 'directory' as const }
+  ]
+};
+
+beforeEach(() => {
+  vi.mocked(fetchPipelineFiles).mockResolvedValue(mockFileListing);
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('PipelineSubmissionForm', () => {
   it('submits normalized payloads when valid', async () => {
@@ -9,6 +31,8 @@ describe('PipelineSubmissionForm', () => {
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
 
     render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
 
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
@@ -43,6 +67,9 @@ describe('PipelineSubmissionForm', () => {
 
     render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
 
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+
+
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
     await user.clear(screen.getByLabelText(/Input language/i));
@@ -59,3 +86,19 @@ describe('PipelineSubmissionForm', () => {
     expect(handleSubmit).not.toHaveBeenCalled();
   });
 });
+  it('allows selecting files from the dialog', async () => {
+    const user = userEvent.setup();
+    render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+
+    await user.click(screen.getByRole('button', { name: /browse ebooks/i }));
+    await user.click(screen.getByRole('button', { name: /select example.epub/i }));
+
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/example.epub');
+
+    await user.click(screen.getByRole('button', { name: /browse output paths/i }));
+    await user.click(screen.getByRole('button', { name: /select output/i }));
+
+    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/output');
+  });
