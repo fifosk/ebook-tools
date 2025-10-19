@@ -16,6 +16,10 @@ DEFAULT_WORKING_RELATIVE = Path("output")
 DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
 DEFAULT_TMP_RELATIVE = Path("tmp")
 DEFAULT_BOOKS_RELATIVE = Path("books")
+DEFAULT_SMB_SHARE_ROOT = Path("/Volumes/Data/Download/Subs")
+DEFAULT_SMB_OUTPUT_PATH = DEFAULT_SMB_SHARE_ROOT / "ebook"
+DEFAULT_SMB_BOOKS_PATH = DEFAULT_SMB_SHARE_ROOT
+_SMB_WRITE_PROBE_NAME = ".ebook_tools_smb_write_probe"
 CONF_DIR = SCRIPT_DIR / "conf"
 DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
 DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
@@ -170,11 +174,58 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
 
     working_path = resolve_directory(working_override or config.get("working_dir"), DEFAULT_WORKING_RELATIVE)
 
-    if output_override or config.get("output_dir"):
-        output_path = resolve_directory(output_override or config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE)
+    def _should_use_default(value: Optional[str], default_relative: Path) -> bool:
+        return value in [None, "", str(default_relative)]
+
+    def _try_smb_directory(candidate: Path, *, require_write: bool) -> Optional[Path]:
+        candidate_path = Path(os.path.expanduser(str(candidate)))
+        if not candidate_path.exists():
+            parent = candidate_path.parent
+            if not parent.exists() or not parent.is_dir():
+                return None
+            try:
+                candidate_path.mkdir(parents=False, exist_ok=True)
+            except OSError:
+                return None
+        if not candidate_path.is_dir():
+            return None
+        if not os.access(candidate_path, os.R_OK):
+            return None
+        if require_write:
+            if not os.access(candidate_path, os.W_OK):
+                return None
+            probe_path = candidate_path / _SMB_WRITE_PROBE_NAME
+            try:
+                with open(probe_path, "w", encoding="utf-8") as probe:
+                    probe.write("probe")
+            except OSError:
+                return None
+            finally:
+                try:
+                    probe_path.unlink()
+                except FileNotFoundError:
+                    pass
+                except OSError:
+                    logger.debug("Failed to remove SMB probe file at %s", probe_path)
+        return candidate_path
+
+    smb_output_path = None
+    if not output_override and _should_use_default(config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE):
+        smb_output_path = _try_smb_directory(DEFAULT_SMB_OUTPUT_PATH, require_write=True)
+
+    if output_override not in [None, ""]:
+        output_path = resolve_directory(output_override, DEFAULT_OUTPUT_RELATIVE)
+    elif not _should_use_default(config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE):
+        output_path = resolve_directory(config.get("output_dir"), DEFAULT_OUTPUT_RELATIVE)
+    elif smb_output_path is not None:
+        output_path = smb_output_path
     else:
         output_path = (working_path / "ebook")
         output_path.mkdir(parents=True, exist_ok=True)
+        logger.info(
+            "SMB ebook share unavailable or unwritable; using local output directory at %s.",
+            output_path,
+        )
 
     tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
 
@@ -198,7 +249,23 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
         tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
 
     tmp_path = Path(tmp_path)
-    books_path = resolve_directory(books_override or config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
+
+    smb_books_path = None
+    if not books_override and _should_use_default(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE):
+        smb_books_path = _try_smb_directory(DEFAULT_SMB_BOOKS_PATH, require_write=False)
+
+    if books_override not in [None, ""]:
+        books_path = resolve_directory(books_override, DEFAULT_BOOKS_RELATIVE)
+    elif not _should_use_default(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE):
+        books_path = resolve_directory(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
+    elif smb_books_path is not None:
+        books_path = smb_books_path
+    else:
+        books_path = resolve_directory(None, DEFAULT_BOOKS_RELATIVE)
+        logger.info(
+            "SMB ebook share unavailable; using local books directory at %s.",
+            books_path,
+        )
 
     global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL, _RAMDISK_ACTIVE, _CLEANUP_REGISTERED
     WORKING_DIR = str(working_path)
