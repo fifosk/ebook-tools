@@ -17,7 +17,7 @@ from ebooklib import epub
 
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
-from . import llm_client
+from .llm_client import LLMClient, create_client
 
 logger = log_mgr.get_logger()
 
@@ -186,20 +186,30 @@ def _invoke_llm_metadata(
     sentences: List[str],
     seed_metadata: Dict[str, Optional[str]],
     timeout: int = 90,
+    *,
+    client: Optional[LLMClient] = None,
 ) -> Dict[str, Optional[str]]:
-    if not sentences or not llm_client.get_model():
+    if not sentences:
         return {}
 
-    messages = _build_llm_messages(filename, sentences, seed_metadata)
+    managed_client = client or create_client()
     try:
-        response = llm_client.send_chat_request(
-            {"messages": messages, "stream": False},
-            max_attempts=1,
-            timeout=timeout,
-        )
-    except Exception as exc:  # pragma: no cover - network issues
-        logger.debug("LLM request failed: %s", exc)
-        return {}
+        if not managed_client.model:
+            return {}
+
+        messages = _build_llm_messages(filename, sentences, seed_metadata)
+        try:
+            response = managed_client.send_chat_request(
+                {"messages": messages, "stream": False},
+                max_attempts=1,
+                timeout=timeout,
+            )
+        except Exception as exc:  # pragma: no cover - network issues
+            logger.debug("LLM request failed: %s", exc)
+            return {}
+    finally:
+        if client is None:
+            managed_client.close()
 
     if response.error or not response.text:
         if response.error:

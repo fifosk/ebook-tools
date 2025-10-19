@@ -12,6 +12,7 @@ from pydub import AudioSegment
 from .. import audio_video_generator as av_gen
 from .. import output_formatter
 from ..config_manager import resolve_file_path
+from ..llm_client import create_client
 from ..epub_parser import remove_quotes
 from ..logging_manager import logger
 from ..book_cover import fetch_book_cover
@@ -23,6 +24,7 @@ from .translation import (
     start_translation_pipeline,
     translate_batch,
     transliterate_sentence,
+    TranslationWorkerPool,
 )
 
 
@@ -436,6 +438,13 @@ def process_epub(
     pipeline_enabled = pipeline_config.pipeline_enabled
     queue_size = pipeline_config.queue_size
     worker_count = max(1, pipeline_config.thread_count)
+    translation_client = getattr(pipeline_config, "translation_client", None)
+    if translation_client is None:
+        translation_client = create_client(
+            model=pipeline_config.ollama_model,
+            api_url=pipeline_config.ollama_url,
+            debug=pipeline_config.debug,
+        )
     translation_thread = None
     media_threads: List[threading.Thread] = []
     translation_queue = None
@@ -443,194 +452,60 @@ def process_epub(
     finalize_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
     export_futures: List[concurrent.futures.Future] = []
 
-    if not pipeline_enabled:
-        batch_size = worker_count
-        while processed < total_refined:
-            if stop_event and stop_event.is_set():
-                logger.info("Stop requested; halting remaining sequential processing.")
-                break
-            batch_sentences = selected_sentences[processed : processed + batch_size]
-            batch_sentence_numbers = [
-                start_sentence + processed + idx for idx in range(len(batch_sentences))
-            ]
-            batch_targets = [
-                target_languages[((number - start_sentence) % len(target_languages))]
-                for number in batch_sentence_numbers
-            ] if target_languages else [""] * len(batch_sentence_numbers)
-            translations = translate_batch(
-                batch_sentences,
-                input_language,
-                batch_targets,
-                include_transliteration=False,
-            )
+    translation_pool: Optional[TranslationWorkerPool] = None
+    try:
+        translation_pool = TranslationWorkerPool(max_workers=worker_count)
 
-            for (
-                sentence_number,
-                sentence,
-                current_target,
-                translation_result,
-            ) in zip(batch_sentence_numbers, batch_sentences, batch_targets, translations):
-                if stop_event and stop_event.is_set():
-                    break
-                fluent = remove_quotes(translation_result or "")
-                should_transliterate = (
-                    include_transliteration and current_target in NON_LATIN_LANGUAGES
-                )
-                transliteration_result = ""
-                if should_transliterate:
-                    transliteration_result = transliterate_sentence(
-                        fluent, current_target
-                    )
-                    transliteration_result = remove_quotes(transliteration_result)
-                written_block, video_block = _build_written_and_video_blocks(
-                    sentence_number=sentence_number,
-                    sentence=sentence,
-                    fluent=fluent,
-                    transliteration=transliteration_result,
-                    current_target=current_target,
-                    written_mode=written_mode,
-                    total_sentences=total_fully,
-                    include_transliteration=should_transliterate,
-                )
-                written_blocks.append(written_block)
-                if generate_video:
-                    video_blocks.append(video_block)
-                if (
-                    generate_audio
-                    and current_audio is not None
-                    and all_audio_segments is not None
-                ):
-                    audio_seg = av_gen.generate_audio_for_sentence(
-                        sentence_number,
-                        sentence,
-                        fluent,
-                        input_language,
-                        current_target,
-                        audio_mode,
-                        total_fully,
-                        LANGUAGE_CODES,
-                        pipeline_config.selected_voice,
-                        pipeline_config.tempo,
-                        pipeline_config.macos_reading_speed,
-                    )
-                    current_audio.append(audio_seg)
-                    all_audio_segments.append(audio_seg)
-
-                if (sentence_number - start_sentence + 1) % sentences_per_file == 0:
-                    batch_start = current_batch_start
-                    batch_end = sentence_number
-                    video_path = _export_pipeline_batch(
-                        base_dir=base_dir,
-                        base_no_ext=base_no_ext,
-                        batch_start=batch_start,
-                        batch_end=batch_end,
-                        written_blocks=written_blocks,
-                        target_language=current_target,
-                        output_html=output_html,
-                        output_pdf=output_pdf,
-                        generate_audio=generate_audio,
-                        audio_segments=current_audio or [],
-                        generate_video=generate_video,
-                        video_blocks=video_blocks,
-                        cover_img=cover_img,
-                        book_author=book_author,
-                        book_title=book_title,
-                        global_cumulative_word_counts=global_cumulative_word_counts,
-                        total_book_words=total_book_words,
-                        macos_reading_speed=pipeline_config.macos_reading_speed,
-                        input_language=input_language,
-                        total_sentences=total_fully,
-                        tempo=pipeline_config.tempo,
-                        sync_ratio=pipeline_config.sync_ratio,
-                        word_highlighting=pipeline_config.word_highlighting,
-                    )
-                    if video_path:
-                        batch_video_files.append(video_path)
-                    written_blocks = []
-                    video_blocks = []
-                    if generate_audio:
-                        current_audio = []
-                    current_batch_start = sentence_number + 1
-                last_target_language = current_target
-                processed += 1
-                if progress_tracker is not None:
-                    progress_tracker.record_media_completion(
-                        processed - 1, sentence_number
-                    )
-
-            if stop_event and stop_event.is_set():
-                break
-    else:
-        pipeline_stop_event = stop_event or threading.Event()
-        translation_queue = create_translation_queue(queue_size)
-        finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        media_queue, media_threads = av_gen.start_media_pipeline(
-            translation_queue,
-            worker_count=worker_count,
-            total_sentences=total_fully,
-            input_language=input_language,
-            audio_mode=audio_mode,
-            language_codes=LANGUAGE_CODES,
-            selected_voice=pipeline_config.selected_voice,
-            tempo=pipeline_config.tempo,
-            macos_reading_speed=pipeline_config.macos_reading_speed,
-            generate_audio=generate_audio,
-            queue_size=queue_size,
-            stop_event=pipeline_stop_event,
-            progress_tracker=progress_tracker,
-        )
-        target_sequence = build_target_sequence(
-            target_languages,
-            total_refined,
-            start_sentence=start_sentence,
-        )
-        translation_thread = start_translation_pipeline(
-            selected_sentences,
-            input_language,
-            target_sequence,
-            start_sentence=start_sentence,
-            output_queue=translation_queue,
-            consumer_count=len(media_threads) or 1,
-            stop_event=pipeline_stop_event,
-            worker_count=worker_count,
-            progress_tracker=progress_tracker,
-        )
-        buffered_results = {}
-        next_index = 0
-        try:
+        if not pipeline_enabled:
+            batch_size = worker_count
             while processed < total_refined:
-                if pipeline_stop_event.is_set() and not buffered_results:
+                if stop_event and stop_event.is_set():
+                    logger.info("Stop requested; halting remaining sequential processing.")
                     break
-                try:
-                    media_item = media_queue.get(timeout=0.1)
-                except queue.Empty:
-                    if pipeline_stop_event.is_set():
+                batch_sentences = selected_sentences[processed : processed + batch_size]
+                batch_sentence_numbers = [
+                    start_sentence + processed + idx for idx in range(len(batch_sentences))
+                ]
+                batch_targets = [
+                    target_languages[((number - start_sentence) % len(target_languages))]
+                    for number in batch_sentence_numbers
+                ] if target_languages else ["" for _ in range(len(batch_sentence_numbers))]
+                translations = translate_batch(
+                    batch_sentences,
+                    input_language,
+                    batch_targets,
+                    include_transliteration=include_transliteration,
+                    client=translation_client,
+                    worker_pool=translation_pool,
+                    max_workers=worker_count,
+                )
+
+                for (
+                    sentence_number,
+                    sentence,
+                    current_target,
+                    translation_result,
+                ) in zip(
+                    batch_sentence_numbers, batch_sentences, batch_targets, translations
+                ):
+                    if stop_event and stop_event.is_set():
                         break
-                    continue
-                if media_item is None:
-                    continue
-                buffered_results[media_item.index] = media_item
-                while next_index in buffered_results:
-                    item = buffered_results.pop(next_index)
-                    fluent = remove_quotes(item.translation or "")
+                    fluent = remove_quotes(translation_result or "")
                     should_transliterate = (
-                        include_transliteration
-                        and item.target_language in NON_LATIN_LANGUAGES
+                        include_transliteration and current_target in NON_LATIN_LANGUAGES
                     )
                     transliteration_result = ""
                     if should_transliterate:
                         transliteration_result = transliterate_sentence(
-                            fluent, item.target_language
+                            fluent, current_target, client=translation_client
                         )
-                        transliteration_result = remove_quotes(
-                            transliteration_result
-                        )
+                        transliteration_result = remove_quotes(transliteration_result)
                     written_block, video_block = _build_written_and_video_blocks(
-                        sentence_number=item.sentence_number,
-                        sentence=item.sentence,
+                        sentence_number=sentence_number,
+                        sentence=sentence,
                         fluent=fluent,
                         transliteration=transliteration_result,
-                        current_target=item.target_language,
+                        current_target=current_target,
                         written_mode=written_mode,
                         total_sentences=total_fully,
                         include_transliteration=should_transliterate,
@@ -643,23 +518,32 @@ def process_epub(
                         and current_audio is not None
                         and all_audio_segments is not None
                     ):
-                        segment = item.audio_segment or AudioSegment.silent(duration=0)
-                        current_audio.append(segment)
-                        all_audio_segments.append(segment)
-                    if (
-                        (item.sentence_number - start_sentence + 1) % sentences_per_file == 0
-                        and not pipeline_stop_event.is_set()
-                    ):
+                        audio_seg = av_gen.generate_audio_for_sentence(
+                            sentence_number,
+                            sentence,
+                            fluent,
+                            input_language,
+                            current_target,
+                            audio_mode,
+                            total_fully,
+                            LANGUAGE_CODES,
+                            pipeline_config.selected_voice,
+                            pipeline_config.tempo,
+                            pipeline_config.macos_reading_speed,
+                        )
+                        current_audio.append(audio_seg)
+                        all_audio_segments.append(audio_seg)
+
+                    if (sentence_number - start_sentence + 1) % sentences_per_file == 0:
                         batch_start = current_batch_start
-                        batch_end = item.sentence_number
-                        future = finalize_executor.submit(
-                            _export_pipeline_batch,
+                        batch_end = sentence_number
+                        video_path = _export_pipeline_batch(
                             base_dir=base_dir,
                             base_no_ext=base_no_ext,
                             batch_start=batch_start,
                             batch_end=batch_end,
                             written_blocks=written_blocks,
-                            target_language=item.target_language or last_target_language,
+                            target_language=current_target,
                             output_html=output_html,
                             output_pdf=output_pdf,
                             generate_audio=generate_audio,
@@ -678,38 +562,178 @@ def process_epub(
                             sync_ratio=pipeline_config.sync_ratio,
                             word_highlighting=pipeline_config.word_highlighting,
                         )
-                        export_futures.append(future)
+                        if video_path:
+                            batch_video_files.append(video_path)
                         written_blocks = []
                         video_blocks = []
                         if generate_audio:
                             current_audio = []
-                        current_batch_start = item.sentence_number + 1
-                    last_target_language = item.target_language
+                        current_batch_start = sentence_number + 1
+                    last_target_language = current_target
                     processed += 1
-                    next_index += 1
-                if pipeline_stop_event.is_set() and not buffered_results:
-                    break
-        except KeyboardInterrupt:
-            logger.warning("Processing interrupted by user; shutting down pipeline...")
-            pipeline_stop_event.set()
-        finally:
-            if not pipeline_stop_event.is_set():
-                pipeline_stop_event.set()
-            for worker in media_threads:
-                worker.join(timeout=1.0)
-            if translation_thread is not None:
-                translation_thread.join(timeout=1.0)
-            if finalize_executor is not None:
-                finalize_executor.shutdown(wait=True)
-                for future in export_futures:
-                    try:
-                        video_path = future.result()
-                    except Exception as exc:  # pragma: no cover - defensive logging
-                        logger.error("Failed to finalize batch export: %s", exc)
-                    else:
-                        if video_path:
-                            batch_video_files.append(video_path)
+                    if progress_tracker is not None:
+                        progress_tracker.record_media_completion(
+                            processed - 1, sentence_number
+                        )
 
+            if stop_event and stop_event.is_set():
+                logger.info(
+                    "Stop requested; exiting pipeline early before media generation."
+                )
+        else:
+            pipeline_stop_event = stop_event or threading.Event()
+            translation_queue = create_translation_queue(queue_size)
+            finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            media_queue, media_threads = av_gen.start_media_pipeline(
+                translation_queue,
+                worker_count=worker_count,
+                total_sentences=total_fully,
+                input_language=input_language,
+                audio_mode=audio_mode,
+                language_codes=LANGUAGE_CODES,
+                selected_voice=pipeline_config.selected_voice,
+                tempo=pipeline_config.tempo,
+                macos_reading_speed=pipeline_config.macos_reading_speed,
+                generate_audio=generate_audio,
+                queue_size=queue_size,
+                stop_event=pipeline_stop_event,
+                progress_tracker=progress_tracker,
+            )
+            target_sequence = build_target_sequence(
+                target_languages,
+                total_refined,
+                start_sentence=start_sentence,
+            )
+            translation_thread = start_translation_pipeline(
+                selected_sentences,
+                input_language,
+                target_sequence,
+                start_sentence=start_sentence,
+                output_queue=translation_queue,
+                consumer_count=len(media_threads) or 1,
+                stop_event=pipeline_stop_event,
+                worker_count=worker_count,
+                progress_tracker=progress_tracker,
+                client=translation_client,
+                worker_pool=translation_pool,
+            )
+            buffered_results = {}
+            next_index = 0
+            try:
+                while processed < total_refined:
+                    if pipeline_stop_event.is_set() and not buffered_results:
+                        break
+                    try:
+                        media_item = media_queue.get(timeout=0.1)
+                    except queue.Empty:
+                        if pipeline_stop_event.is_set():
+                            break
+                        continue
+                    if media_item is None:
+                        continue
+                    buffered_results[media_item.index] = media_item
+                    while next_index in buffered_results:
+                        item = buffered_results.pop(next_index)
+                        fluent = remove_quotes(item.translation or "")
+                        should_transliterate = (
+                            include_transliteration
+                            and item.target_language in NON_LATIN_LANGUAGES
+                        )
+                        transliteration_result = ""
+                        if should_transliterate:
+                            transliteration_result = transliterate_sentence(
+                                fluent, item.target_language, client=translation_client
+                            )
+                            transliteration_result = remove_quotes(
+                                transliteration_result
+                            )
+                        written_block, video_block = _build_written_and_video_blocks(
+                            sentence_number=item.sentence_number,
+                            sentence=item.sentence,
+                            fluent=fluent,
+                            transliteration=transliteration_result,
+                            current_target=item.target_language,
+                            written_mode=written_mode,
+                            total_sentences=total_fully,
+                            include_transliteration=should_transliterate,
+                        )
+                        written_blocks.append(written_block)
+                        if generate_video:
+                            video_blocks.append(video_block)
+                        if (
+                            generate_audio
+                            and current_audio is not None
+                            and all_audio_segments is not None
+                        ):
+                            segment = item.audio_segment or AudioSegment.silent(duration=0)
+                            current_audio.append(segment)
+                            all_audio_segments.append(segment)
+                        if (
+                            (item.sentence_number - start_sentence + 1) % sentences_per_file == 0
+                            and not pipeline_stop_event.is_set()
+                        ):
+                            batch_start = current_batch_start
+                            batch_end = item.sentence_number
+                            future = finalize_executor.submit(
+                                _export_pipeline_batch,
+                                base_dir=base_dir,
+                                base_no_ext=base_no_ext,
+                                batch_start=batch_start,
+                                batch_end=batch_end,
+                                written_blocks=written_blocks,
+                                target_language=item.target_language or last_target_language,
+                                output_html=output_html,
+                                output_pdf=output_pdf,
+                                generate_audio=generate_audio,
+                                audio_segments=current_audio or [],
+                                generate_video=generate_video,
+                                video_blocks=video_blocks,
+                                cover_img=cover_img,
+                                book_author=book_author,
+                                book_title=book_title,
+                                global_cumulative_word_counts=global_cumulative_word_counts,
+                                total_book_words=total_book_words,
+                                macos_reading_speed=pipeline_config.macos_reading_speed,
+                                input_language=input_language,
+                                total_sentences=total_fully,
+                                tempo=pipeline_config.tempo,
+                                sync_ratio=pipeline_config.sync_ratio,
+                                word_highlighting=pipeline_config.word_highlighting,
+                            )
+                            export_futures.append(future)
+                            written_blocks = []
+                            video_blocks = []
+                            if generate_audio:
+                                current_audio = []
+                            current_batch_start = item.sentence_number + 1
+                        last_target_language = item.target_language
+                        processed += 1
+                        next_index += 1
+                    if pipeline_stop_event.is_set() and not buffered_results:
+                        break
+            except KeyboardInterrupt:
+                logger.warning("Processing interrupted by user; shutting down pipeline...")
+                pipeline_stop_event.set()
+            finally:
+                if not pipeline_stop_event.is_set():
+                    pipeline_stop_event.set()
+                for worker in media_threads:
+                    worker.join(timeout=1.0)
+                if translation_thread is not None:
+                    translation_thread.join(timeout=1.0)
+                if finalize_executor is not None:
+                    finalize_executor.shutdown(wait=True)
+                    for future in export_futures:
+                        try:
+                            video_path = future.result()
+                        except Exception as exc:  # pragma: no cover - defensive logging
+                            logger.error("Failed to finalize batch export: %s", exc)
+                        else:
+                            if video_path:
+                                batch_video_files.append(video_path)
+    finally:
+        if translation_pool is not None:
+            translation_pool.shutdown()
     if written_blocks and not (stop_event and stop_event.is_set()):
         batch_start = current_batch_start
         batch_end = current_batch_start + len(written_blocks) - 1

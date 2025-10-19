@@ -767,7 +767,7 @@ def edit_parameter(
         ).lower()
         config["debug"] = True if inp_val in ["yes", "y"] else False
         configure_logging_level(config["debug"])
-        translation_engine.set_debug(config["debug"])
+        translation_engine.configure_default_client(debug=config["debug"])
     elif selection == 24:
         default_html = config.get("output_html", True)
         inp_val = _prompt_user(
