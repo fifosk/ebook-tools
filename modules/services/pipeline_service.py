@@ -114,6 +114,9 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
 
     try:
         overrides = {**request.environment_overrides, **request.pipeline_overrides}
+        selected_voice = request.inputs.selected_voice
+        if selected_voice and "selected_voice" not in overrides:
+            overrides["selected_voice"] = selected_voice
         pipeline_config = build_pipeline_config(context, request.config, overrides=overrides)
         pipeline_config.apply_runtime_settings()
         configure_logging_level(pipeline_config.debug)
