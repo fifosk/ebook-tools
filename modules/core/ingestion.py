@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 import time
 from pathlib import Path
@@ -83,6 +84,12 @@ def get_refined_sentences(
         input_file, pipeline_config.resolved_books_dir()
     )
     if not resolved_input:
+        return [], False
+
+    if not resolved_input.exists():
+        logging.getLogger(__name__).warning(
+            "EPUB file '%s' could not be found.", resolved_input
+        )
         return [], False
 
     input_file = str(resolved_input)
