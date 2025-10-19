@@ -45,11 +45,6 @@ logger = logging_manager.get_logger()
 # Explicitly set ffmpeg converter for pydub using configurable path
 AudioSegment.converter = DEFAULT_FFMPEG_PATH
 
-_REGISTERED_CONTEXT_IDS: set[int] = set()
-_ACTIVE_CONTEXT: ContextVar[Optional[RuntimeContext]] = ContextVar(
-    "ebook_tools_runtime_context", default=None
-)
-
 
 @dataclass(frozen=True)
 class RuntimeContext:
@@ -81,6 +76,12 @@ class RuntimeContext:
             "pipeline_enabled": self.pipeline_enabled,
             "is_tmp_ramdisk": self.is_tmp_ramdisk,
         }
+
+
+_REGISTERED_CONTEXT_IDS: set[int] = set()
+_ACTIVE_CONTEXT: ContextVar[Optional["RuntimeContext"]] = ContextVar(
+    "ebook_tools_runtime_context", default=None
+)
 
 
 def set_runtime_context(context: RuntimeContext) -> None:
