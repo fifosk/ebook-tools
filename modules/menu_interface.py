@@ -1016,15 +1016,19 @@ def run_interactive_menu(
                 )
 
             if config.get("input_file"):
-                refined, refreshed = pipeline.get_refined_sentences(
+                pipeline_config = pipeline.build_pipeline_config(config)
+                refined, refreshed = pipeline.ingestion.get_refined_sentences(
                     config["input_file"],
+                    pipeline_config,
                     force_refresh=refined_cache_stale,
                     metadata={"mode": "interactive"},
                 )
                 if refreshed:
                     logger.info(
                         "Refined sentence list written to: %s",
-                        pipeline.refined_list_output_path(config["input_file"]),
+                        pipeline.ingestion.refined_list_output_path(
+                            config["input_file"], pipeline_config
+                        ),
                     )
                 refined_cache_stale = False
             else:
