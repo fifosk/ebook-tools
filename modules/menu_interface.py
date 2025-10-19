@@ -431,6 +431,17 @@ def edit_parameter(
 
     if selection == 1:
         config, refined_cache_stale = _select_from_epub_directory(config)
+        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+        if (
+            resolved_input_path
+            and config.get("auto_metadata", True)
+            and resolved_input_path.exists()
+        ):
+            metadata_manager.populate_config_metadata(
+                config,
+                str(resolved_input_path),
+                force=True,
+            )
     elif selection == 2:
         default_file = _default_base_output_file(config)
         inp_val = _prompt_user(
