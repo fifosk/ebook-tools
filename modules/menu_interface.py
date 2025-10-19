@@ -18,6 +18,7 @@ from PIL import Image
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import translation_engine
+from . import metadata_manager
 from .audio_video_generator import (
     AUTO_MACOS_VOICE,
     AUTO_MACOS_VOICE_FEMALE,
@@ -965,6 +966,16 @@ def run_interactive_menu(
 
         while True:
             resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+
+            if (
+                resolved_input_path
+                and config.get("auto_metadata", True)
+                and resolved_input_path.exists()
+            ):
+                metadata_manager.populate_config_metadata(
+                    config,
+                    str(resolved_input_path),
+                )
 
             if config.get("input_file"):
                 refined, refreshed = pipeline.get_refined_sentences(
