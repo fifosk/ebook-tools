@@ -17,7 +17,7 @@ from modules import logging_manager as log_mgr
 logger = log_mgr.get_logger()
 
 _DEFAULT_MODEL = cfg.DEFAULT_MODEL
-_REMOTE_HOST = "https://ollama.com"
+_REMOTE_HOST = "https://api.ollama.com"
 _LOCAL_HOST = "http://localhost:11434"
 _api_url_override: Optional[str] = None
 _model = _DEFAULT_MODEL
@@ -137,15 +137,30 @@ def _coerce_text(value: Union[str, Dict[str, Any], Iterable[Any], None]) -> str:
     if isinstance(value, str):
         return value
     if isinstance(value, dict):
-        # Prefer explicit ``text`` payloads, then nested ``content`` fields.
-        if "text" in value:
-            return _coerce_text(value.get("text"))
-        if "content" in value:
-            return _coerce_text(value.get("content"))
-        # Some responses may provide a list of items under ``parts``.
-        if "parts" in value:
-            return _coerce_text(value.get("parts"))
-        return ""
+        # Prefer explicit ``text`` payloads, then nested ``content``-style fields.
+        for key in (
+            "text",
+            "content",
+            "value",
+            "values",
+            "data",
+            "message",
+            "response",
+            "output",
+            "outputs",
+            "parts",
+        ):
+            if key in value:
+                coerced = _coerce_text(value.get(key))
+                if coerced:
+                    return coerced
+        # Fall back to scanning all values to capture deeply nested strings.
+        aggregate = "".join(
+            _coerce_text(item)
+            for item in value.values()
+            if isinstance(item, (str, dict, list, tuple, set)) or item is None
+        )
+        return aggregate
     if isinstance(value, (list, tuple, set)):
         return "".join(_coerce_text(item) for item in value)
     return ""
