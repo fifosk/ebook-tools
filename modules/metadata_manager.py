@@ -23,11 +23,20 @@ logger = log_mgr.get_logger()
 
 _METADATA_CACHE: Dict[str, Dict[str, Optional[str]]] = {}
 _DEFAULT_PLACEHOLDERS = {
-    "book_title": {"", None, "Unknown", "Unknown Title"},
+    "book_title": {"", None, "Unknown", "Unknown Title", "Book"},
     "book_author": {"", None, "Unknown", "Unknown Author"},
     "book_year": {"", None, "Unknown", "Unknown Year"},
     "book_summary": {"", None, "No summary provided.", "Summary unavailable."},
     "book_cover_file": {"", None},
+}
+
+_PLACEHOLDER_LOOKUP = {
+    key: {
+        value.strip().casefold()
+        for value in values
+        if isinstance(value, str) and value.strip()
+    }
+    for key, values in _DEFAULT_PLACEHOLDERS.items()
 }
 
 _SENTENCE_LIMIT = 10
@@ -39,7 +48,10 @@ def _is_placeholder(key: str, value: Optional[str]) -> bool:
     if value is None:
         return True
     if isinstance(value, str):
-        return value.strip() in _DEFAULT_PLACEHOLDERS.get(key, set())
+        cleaned = value.strip()
+        if not cleaned:
+            return True
+        return cleaned.casefold() in _PLACEHOLDER_LOOKUP.get(key, set())
     return False
 
 
@@ -436,6 +448,7 @@ def infer_metadata(
     input_file: str,
     *,
     existing_metadata: Optional[Dict[str, Optional[str]]] = None,
+    force_refresh: bool = False,
 ) -> Dict[str, Optional[str]]:
     epub_path = cfg.resolve_file_path(input_file, cfg.BOOKS_DIR)
     if not epub_path:
@@ -443,14 +456,20 @@ def infer_metadata(
         return existing_metadata or {}
 
     cache_key = str(epub_path)
+    metadata: Dict[str, Optional[str]] = dict(existing_metadata or {})
+
     if cache_key in _METADATA_CACHE:
         cached = _METADATA_CACHE[cache_key].copy()
-        merged = dict(existing_metadata or {})
-        merged.update({k: v for k, v in cached.items() if v})
-        return merged
+        if force_refresh:
+            logger.debug("Force refreshing metadata for %s", epub_path.name)
+            metadata.update({k: v for k, v in cached.items() if v})
+        elif _needs_metadata(cached):
+            logger.debug("Metadata cache contains placeholders for %s; refreshing", epub_path.name)
+        else:
+            metadata.update({k: v for k, v in cached.items() if v})
+            return metadata
 
     logger.info("Inferring metadata for %s", epub_path.name)
-    metadata: Dict[str, Optional[str]] = dict(existing_metadata or {})
 
     filename_guesses = _parse_filename_metadata(epub_path)
     metadata_seed = metadata.copy()
@@ -515,7 +534,11 @@ def populate_config_metadata(
     if not force and not _needs_metadata(existing):
         return config
 
-    inferred = infer_metadata(input_file, existing_metadata=existing)
+    inferred = infer_metadata(
+        input_file,
+        existing_metadata=existing,
+        force_refresh=force,
+    )
 
     for key, value in inferred.items():
         if key not in existing:
