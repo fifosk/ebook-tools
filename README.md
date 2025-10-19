@@ -1,5 +1,138 @@
 # ebook-tools
 
+## Backend setup
+
+### Install dependencies
+
+1. Ensure Python 3.10 or newer is available on your system.
+2. Create a virtual environment and install the package dependencies:
+
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+   python -m pip install --upgrade pip
+   pip install -e .
+   ```
+
+   The editable install wires up the `ebook-tools-api` console script and pulls in
+   the FastAPI/uvicorn runtime declared in `pyproject.toml`.
+
+### Launch the FastAPI server
+
+With the virtual environment activated you can start the backend with any of the
+following commands:
+
+```bash
+# Standard uvicorn invocation
+uvicorn modules.webapi.application:create_app --factory --reload
+
+# Python module entry point (resolves to the same uvicorn call)
+python -m modules.webapi --reload --port 8000
+
+# Installed console script shortcut
+ebook-tools-api --reload --log-level debug
+
+# Shell helper (wraps the module runner and adds a --port flag)
+./scripts/run-webapi.sh --port 9000
+```
+
+Use `--reload` while iterating locally to enable hot-reloading. Once the server
+starts, confirm it is reachable:
+
+```bash
+curl http://127.0.0.1:8000/
+# {"status":"ok"}
+```
+
+If you prefer to verify via a browser, open <http://127.0.0.1:8000/>.
+
+### Web API environment variables
+
+The FastAPI application inspects a few environment variables at startup to
+control cross-origin requests and optional static hosting of the bundled
+single-page application:
+
+- **`EBOOK_API_CORS_ORIGINS`** – Comma or whitespace separated list of allowed
+  origins for CORS. Defaults to the local Vite dev server URLs
+  (`http://localhost:5173` and `http://127.0.0.1:5173`). Set to `*` to allow
+  every origin or to an empty string to disable the middleware entirely.
+- **`EBOOK_API_STATIC_ROOT`** – Filesystem path to the built web assets. When
+  unset, the server looks for `web/dist/` relative to the repository root. Set
+  this value to an empty string to run in API-only mode even if the directory
+  exists.
+- **`EBOOK_API_STATIC_INDEX`** – Filename served for client-side routes when
+  static hosting is enabled (default: `index.html`).
+- **`EBOOK_API_STATIC_MOUNT`** – URL prefix where the static files are exposed
+  (default: `/`).
+
+When static hosting is disabled the JSON healthcheck remains available at `/`.
+If the frontend bundle is served, the healthcheck can always be reached at
+`/_health`.
+
+## Web UI workspace
+
+The React/Vite client lives under `web/` and expects a Node 18+ toolchain.
+
+### Install dependencies
+
+```bash
+cd web
+npm install
+```
+
+### Run or build the client
+
+- `npm run dev` starts the Vite development server on port 5173. Pass
+  `-- --host 0.0.0.0` if you need to expose it to other devices on your network.
+- `npm run build` produces a production bundle in `web/dist/`. Copy or point the
+  backend's `EBOOK_API_STATIC_ROOT` at this directory to serve the build from
+  FastAPI.
+- `npm run preview` serves the production build for smoke testing.
+
+### Configure the API base URL
+
+The frontend reads `import.meta.env.VITE_API_BASE_URL` to determine where to
+send requests. Create `web/.env.local` (git-ignored by default) and add:
+
+```bash
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+Adjust the value if the backend listens on another host or port. Vite reloads
+the configuration automatically when the file changes.
+
+## Run the stack end-to-end
+
+1. **Start the backend.** Activate the Python virtual environment and launch
+   uvicorn (`python -m modules.webapi --reload`). Ensure the healthcheck at
+   <http://127.0.0.1:8000/> returns `{"status":"ok"}`.
+2. **Start the frontend.** In a separate terminal run `npm run dev` from `web/`.
+   The app becomes available at <http://127.0.0.1:5173/> and proxies API calls
+   to the URL specified by `VITE_API_BASE_URL`.
+3. **Submit a pipeline job.** Trigger a run through the UI or by calling the API
+   directly:
+
+   ```bash
+   curl -X POST http://127.0.0.1:8000/pipelines \
+     -H 'Content-Type: application/json' \
+     -d @payload.json
+   ```
+
+   The response contains a `job_id`.
+4. **Watch progress via Server-Sent Events (SSE).** Stream updates with any SSE
+   client. For example, `curl -N` keeps the connection open and prints each
+   event:
+
+   ```bash
+   curl -N http://127.0.0.1:8000/pipelines/<job_id>/events
+   ```
+
+   Each message contains a JSON `data:` payload shaped like
+   `ProgressEventPayload` (see `modules/webapi/schemas.py`) with fields such as
+   `event_type`, `timestamp`, `metadata`, and a `snapshot` describing counts and
+   estimated time remaining. The stream automatically closes after a
+   `complete` event or when the job tracker finishes emitting updates.
+
 ## Configuration overview
 
 `main.py` (and the backward-compatible `ebook-tools.py` wrapper) read their
@@ -47,46 +180,3 @@ Both values accept overrides through CLI flags (`--ffmpeg-path`,
 - In non-interactive mode, CLI flags or environment variables take precedence
   over the JSON values. The script resolves relative paths against the working
   copy and creates directories as needed.
-
-## Running the web API
-
-The FastAPI backend can be launched with uvicorn using either the module entry
-point or the helper script:
-
-```bash
-python -m modules.webapi --reload
-# or
-./scripts/run-webapi.sh --port 9000
-```
-
-Both commands call into the same application factory (`modules.webapi.application.create_app`) and accept the standard uvicorn host/port options. Use the `--reload` flag for local development to enable automatic code reloading.
-
-Once the server is running, open <http://127.0.0.1:8000/> in a browser or use `curl` to hit the built-in healthcheck and confirm the API is reachable:
-
-```bash
-curl http://127.0.0.1:8000/
-# {"status":"ok"}
-```
-
-### Web API environment variables
-
-The FastAPI application inspects a few environment variables at startup to control
-cross-origin requests and optional static hosting of the bundled single-page
-application:
-
-- **`EBOOK_API_CORS_ORIGINS`** – Comma or whitespace separated list of
-  allowed origins for CORS. Defaults to the local Vite dev server URLs
-  (`http://localhost:5173` and `http://127.0.0.1:5173`). Set to `*` to allow
-  every origin or to an empty string to disable the middleware entirely.
-- **`EBOOK_API_STATIC_ROOT`** – Filesystem path to the built web assets. When
-  unset, the server looks for `web/dist/` relative to the repository root. Set
-  this value to an empty string to run in API-only mode even if the directory
-  exists.
-- **`EBOOK_API_STATIC_INDEX`** – Filename served for client-side routes when
-  static hosting is enabled (default: `index.html`).
-- **`EBOOK_API_STATIC_MOUNT`** – URL prefix where the static files are exposed
-  (default: `/`).
-
-When static hosting is disabled the JSON healthcheck remains available at `/`.
-If the frontend bundle is served, the healthcheck can always be reached at
-`/_health`.
