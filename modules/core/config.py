@@ -61,7 +61,7 @@ class PipelineConfig:
         default_factory=lambda: cfg.DERIVED_REFINED_FILENAME_TEMPLATE
     )
     ollama_model: str = field(default_factory=lambda: cfg.DEFAULT_MODEL)
-    ollama_url: str = field(default_factory=lambda: cfg.OLLAMA_API_URL)
+    ollama_url: str = field(default_factory=lambda: cfg.DEFAULT_OLLAMA_URL)
     ffmpeg_path: Optional[str] = None
     thread_count: int = field(default_factory=cfg.get_thread_count)
     queue_size: int = field(default_factory=cfg.get_queue_size)
@@ -186,9 +186,10 @@ def build_pipeline_config(
         _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
         or cfg.DEFAULT_MODEL
     )
+    ollama_url_default = context.ollama_url
     ollama_url = str(
-        _select_value("ollama_url", config, overrides, cfg.OLLAMA_API_URL)
-        or cfg.OLLAMA_API_URL
+        _select_value("ollama_url", config, overrides, ollama_url_default)
+        or ollama_url_default
     )
     raw_ffmpeg = _select_value(
         "ffmpeg_path", config, overrides, context.ffmpeg_path or cfg.DEFAULT_FFMPEG_PATH

@@ -58,7 +58,7 @@ def set_api_url(url: Optional[str]) -> None:
 def get_api_url() -> str:
     """Return the configured Ollama chat endpoint URL."""
 
-    return _api_url_override or cfg.OLLAMA_API_URL
+    return _api_url_override or cfg.get_ollama_url()
 
 
 def set_debug(enabled: bool) -> None:

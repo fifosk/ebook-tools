@@ -529,3 +529,10 @@ def is_pipeline_mode() -> bool:
 
     context = _ACTIVE_CONTEXT.get()
     return context.pipeline_enabled if context else False
+
+
+def get_ollama_url() -> str:
+    """Return the Ollama endpoint URL for the active runtime context."""
+
+    context = _ACTIVE_CONTEXT.get()
+    return context.ollama_url if context else DEFAULT_OLLAMA_URL
