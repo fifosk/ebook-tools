@@ -60,3 +60,10 @@ python -m modules.webapi --reload
 ```
 
 Both commands call into the same application factory (`modules.webapi.application.create_app`) and accept the standard uvicorn host/port options. Use the `--reload` flag for local development to enable automatic code reloading.
+
+Once the server is running, open <http://127.0.0.1:8000/> in a browser or use `curl` to hit the built-in healthcheck and confirm the API is reachable:
+
+```bash
+curl http://127.0.0.1:8000/
+# {"status":"ok"}
+```
