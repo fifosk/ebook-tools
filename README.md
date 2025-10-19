@@ -4,7 +4,8 @@
 
 ### Install dependencies
 
-1. Ensure Python 3.10 or newer is available on your system.
+1. Ensure Python 3.10 or newer is available on your system (the project is
+   regularly verified against Python 3.11).
 2. Create a virtual environment and install the package dependencies:
 
    ```bash
@@ -15,7 +16,9 @@
    ```
 
    The editable install wires up the `ebook-tools-api` console script and pulls in
-   the FastAPI/uvicorn runtime declared in `pyproject.toml`.
+   the FastAPI/uvicorn runtime declared in `pyproject.toml`. If you plan to run
+   the test suite or lint checks, append `[dev]` to install the optional tooling
+   bundle (`pip install -e .[dev]`).
 
 ### Launch the FastAPI server
 
@@ -149,7 +152,17 @@ mode (`npm run build -- --mode production`).
    `ProgressEventPayload` (see `modules/webapi/schemas.py`) with fields such as
    `event_type`, `timestamp`, `metadata`, and a `snapshot` describing counts and
    estimated time remaining. The stream automatically closes after a
-   `complete` event or when the job tracker finishes emitting updates.
+   `complete` event or when the job tracker finishes emitting updates. In the
+   browser, the UI listens to the same endpoint with the native `EventSource`
+   API:
+
+   ```ts
+   const events = new EventSource(`${API_BASE_URL}/pipelines/${jobId}/events`);
+   events.onmessage = (message) => {
+     const payload = JSON.parse(message.data);
+     console.log(payload.event_type, payload.snapshot);
+   };
+   ```
 
 ## Configuration overview
 
