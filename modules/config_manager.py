@@ -5,7 +5,7 @@ import atexit
 import errno
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast, overload
 
 from pydub import AudioSegment
 
@@ -83,6 +83,8 @@ _ACTIVE_CONTEXT: ContextVar[Optional["RuntimeContext"]] = ContextVar(
     "ebook_tools_runtime_context", default=None
 )
 
+_DEFAULT_CONTEXT_SENTINEL = object()
+
 
 def set_runtime_context(context: RuntimeContext) -> None:
     """Make ``context`` the active runtime context for the current execution scope."""
@@ -90,16 +92,30 @@ def set_runtime_context(context: RuntimeContext) -> None:
     _ACTIVE_CONTEXT.set(context)
 
 
-def get_runtime_context(default: Optional[RuntimeContext] = None) -> RuntimeContext:
-    """Return the active :class:`RuntimeContext` for the caller."""
+@overload
+def get_runtime_context() -> RuntimeContext:
+    ...
+
+
+@overload
+def get_runtime_context(default: Optional[RuntimeContext]) -> Optional[RuntimeContext]:
+    ...
+
+
+def get_runtime_context(default=_DEFAULT_CONTEXT_SENTINEL):
+    """Return the active :class:`RuntimeContext` for the caller.
+
+    When ``default`` is provided (even if ``None``), that value will be returned if
+    no runtime context has been activated for the current execution scope.
+    """
 
     context = _ACTIVE_CONTEXT.get()
     if context is None:
-        if default is not None:
-            return default
-        raise RuntimeError(
-            "Runtime context has not been initialized. Call set_runtime_context() first."
-        )
+        if default is _DEFAULT_CONTEXT_SENTINEL:
+            raise RuntimeError(
+                "Runtime context has not been initialized. Call set_runtime_context() first."
+            )
+        return cast(Optional[RuntimeContext], default)
     return context
 
 

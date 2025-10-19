@@ -722,11 +722,21 @@ def start_media_pipeline(
     result_queue: Queue[Optional[MediaPipelineResult]] = Queue(maxsize=queue_size or 0)
     stop_event = stop_event or threading.Event()
     workers: List[threading.Thread] = []
+    active_context = cfg.get_runtime_context(None)
+
+    def _thread_target(*args, **kwargs) -> None:
+        if active_context is not None:
+            cfg.set_runtime_context(active_context)
+        try:
+            _media_worker(*args, **kwargs)
+        finally:
+            if active_context is not None:
+                cfg.clear_runtime_context()
 
     for idx in range(worker_total):
         thread_name = f"Consumer-{idx + 1}"
         thread = threading.Thread(
-            target=_media_worker,
+            target=_thread_target,
             name=thread_name,
             args=(
                 thread_name,

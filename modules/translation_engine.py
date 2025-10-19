@@ -219,7 +219,12 @@ def start_translation_pipeline(
     worker_count = max_workers or cfg.get_thread_count()
     worker_count = max(1, min(worker_count, len(sentences) or 1))
 
+    active_context = cfg.get_runtime_context(None)
+
     def _producer() -> None:
+        if active_context is not None:
+            cfg.set_runtime_context(active_context)
+
         if not sentences:
             for _ in range(max(1, consumer_count)):
                 output_queue.put(None)
@@ -286,6 +291,8 @@ def start_translation_pipeline(
         finally:
             for _ in range(max(1, consumer_count)):
                 output_queue.put(None)
+            if active_context is not None:
+                cfg.clear_runtime_context()
 
     thread = threading.Thread(target=_producer, name="TranslationProducer", daemon=True)
     thread.start()
