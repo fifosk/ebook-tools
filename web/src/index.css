@@ -1,0 +1,166 @@
+:root {
+  color-scheme: light dark;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background-color: #0f172a;
+  color: #e2e8f0;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
+
+main {
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+h1,
+ h2 {
+  color: #f8fafc;
+}
+
+section {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  backdrop-filter: blur(6px);
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+}
+
+input[type='text'],
+input[type='number'],
+textarea,
+select {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background-color: rgba(15, 23, 42, 0.9);
+  color: inherit;
+  margin-bottom: 0.75rem;
+}
+
+textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+button {
+  background: linear-gradient(135deg, #38bdf8, #818cf8);
+  border: none;
+  color: #0f172a;
+  font-weight: 700;
+  border-radius: 9999px;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.job-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.job-card {
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  padding: 1rem 1.25rem;
+  background: rgba(30, 41, 59, 0.7);
+}
+
+.job-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  text-transform: capitalize;
+}
+
+.job-status[data-state='completed'] {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.job-status[data-state='running'] {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.job-status[data-state='failed'] {
+  background: rgba(248, 113, 113, 0.2);
+  color: #f87171;
+}
+
+.job-status[data-state='pending'] {
+  background: rgba(251, 191, 36, 0.2);
+  color: #fbbf24;
+}
+
+.job-status[data-state='cancelled'] {
+  background: rgba(156, 163, 175, 0.2);
+  color: #cbd5f5;
+}
+
+.progress-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.progress-metric {
+  background: rgba(15, 23, 42, 0.65);
+  border-radius: 10px;
+  padding: 0.75rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.progress-metric strong {
+  display: block;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #cbd5f5;
+}
+
+.progress-metric span {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.alert {
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.1);
+  color: #fecaca;
+  margin-bottom: 1rem;
+}
+
+small {
+  color: rgba(148, 163, 184, 0.85);
+}
