@@ -26,6 +26,7 @@ class ClientSettings:
     model: str = cfg.DEFAULT_MODEL
     api_url: Optional[str] = None
     debug: bool = False
+    api_key: Optional[str] = None
 
     def resolve_api_url(self) -> str:
         """Return the concrete API URL, honoring the runtime context defaults."""
@@ -81,6 +82,12 @@ class LLMClient:
         """Return the resolved API endpoint URL."""
 
         return self._settings.resolve_api_url()
+
+    @property
+    def api_key(self) -> Optional[str]:
+        """Return the configured API key if available."""
+
+        return self._settings.api_key
 
     @property
     def debug_enabled(self) -> bool:
@@ -191,7 +198,17 @@ class LLMClient:
         self._log_debug("Dispatching LLM request to %s with stream=%s", api_url, stream)
         self._log_debug("Payload: %s", json.dumps(payload, indent=2, ensure_ascii=False))
 
-        response = self._session.post(api_url, json=payload, stream=stream, timeout=timeout)
+        headers: Dict[str, str] = {}
+        if self._settings.api_key:
+            headers["Authorization"] = f"Bearer {self._settings.api_key}"
+
+        response = self._session.post(
+            api_url,
+            json=payload,
+            headers=headers or None,
+            stream=stream,
+            timeout=timeout,
+        )
 
         if response.status_code != 200:
             self._log_debug(
@@ -317,6 +334,7 @@ def create_client(
     model: Optional[str] = None,
     api_url: Optional[str] = None,
     debug: bool = False,
+    api_key: Optional[str] = None,
     session: Optional[requests.Session] = None,
 ) -> LLMClient:
     """Return a new :class:`LLMClient` with the provided configuration."""
@@ -325,5 +343,6 @@ def create_client(
         model=model or cfg.DEFAULT_MODEL,
         api_url=api_url,
         debug=debug,
+        api_key=api_key,
     )
     return LLMClient(settings=settings, session=session)

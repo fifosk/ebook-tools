@@ -78,6 +78,7 @@ class PipelineConfig:
     macos_reading_speed: int = 100
     sync_ratio: float = 0.9
     word_highlighting: bool = True
+    ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
     def resolved_working_dir(self) -> Path:
@@ -111,10 +112,16 @@ class PipelineConfig:
         """Propagate configuration to dependent subsystems."""
 
         translation_engine.configure_default_client(
-            model=self.ollama_model, api_url=self.ollama_url, debug=self.debug
+            model=self.ollama_model,
+            api_url=self.ollama_url,
+            debug=self.debug,
+            api_key=self.ollama_api_key,
         )
         self.translation_client = create_client(
-            model=self.ollama_model, api_url=self.ollama_url, debug=self.debug
+            model=self.ollama_model,
+            api_url=self.ollama_url,
+            debug=self.debug,
+            api_key=self.ollama_api_key,
         )
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
@@ -195,6 +202,14 @@ def build_pipeline_config(
         _select_value("ollama_url", config, overrides, ollama_url_default)
         or ollama_url_default
     )
+    ollama_api_key: Optional[str] = None
+    api_key_override = overrides.get("ollama_api_key")
+    if api_key_override:
+        ollama_api_key = str(api_key_override)
+    else:
+        settings = cfg.get_settings()
+        secret = settings.ollama_api_key
+        ollama_api_key = secret.get_secret_value() if secret is not None else None
     raw_ffmpeg = _select_value(
         "ffmpeg_path", config, overrides, context.ffmpeg_path or cfg.DEFAULT_FFMPEG_PATH
     )
@@ -240,4 +255,5 @@ def build_pipeline_config(
         thread_count=thread_count,
         queue_size=queue_size,
         pipeline_enabled=pipeline_enabled,
+        ollama_api_key=ollama_api_key,
     )

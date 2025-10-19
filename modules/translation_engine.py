@@ -133,7 +133,11 @@ _DEFAULT_CLIENT_SETTINGS = ClientSettings()
 
 
 def configure_default_client(
-    *, model: Optional[str] = None, api_url: Optional[str] = None, debug: Optional[bool] = None
+    *,
+    model: Optional[str] = None,
+    api_url: Optional[str] = None,
+    debug: Optional[bool] = None,
+    api_key: Optional[str] = None,
 ) -> None:
     """Adjust the fallback client settings used when no explicit client is provided."""
 
@@ -145,6 +149,8 @@ def configure_default_client(
         updates["api_url"] = api_url
     if debug is not None:
         updates["debug"] = debug
+    if api_key is not None:
+        updates["api_key"] = api_key
     if updates:
         _DEFAULT_CLIENT_SETTINGS = _DEFAULT_CLIENT_SETTINGS.with_updates(**updates)
 
@@ -157,6 +163,7 @@ def _borrow_client(client: Optional[LLMClient]) -> tuple[LLMClient, bool]:
             model=_DEFAULT_CLIENT_SETTINGS.model,
             api_url=_DEFAULT_CLIENT_SETTINGS.api_url,
             debug=_DEFAULT_CLIENT_SETTINGS.debug,
+            api_key=_DEFAULT_CLIENT_SETTINGS.api_key,
         ),
         True,
     )
