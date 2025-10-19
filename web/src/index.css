@@ -212,6 +212,27 @@ button.link-button:focus {
   background: rgba(30, 41, 59, 0.7);
 }
 
+.metadata-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 200px) 1fr;
+  gap: 0.35rem 1rem;
+  margin: 0;
+}
+
+.metadata-grid__row {
+  display: contents;
+}
+
+.metadata-grid dt {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.metadata-grid dd {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.9);
+}
+
 .job-status {
   display: inline-flex;
   align-items: center;

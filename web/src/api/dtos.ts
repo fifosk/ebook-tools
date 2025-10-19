@@ -69,6 +69,7 @@ export interface PipelineResponsePayload {
   stitched_documents: Record<string, string>;
   stitched_audio_path?: string | null;
   stitched_video_path?: string | null;
+  book_metadata: Record<string, unknown>;
 }
 
 export interface PipelineStatusResponse {

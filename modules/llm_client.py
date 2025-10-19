@@ -211,17 +211,21 @@ class LLMClient:
         )
 
         if response.status_code != 200:
+            body_preview = response.text[:300]
             self._log_debug(
                 "Received non-200 response: %s - %s",
                 response.status_code,
-                response.text[:300],
+                body_preview,
             )
+            error_message = f"HTTP {response.status_code}"
+            if body_preview:
+                error_message = f"{error_message}: {body_preview}"
             return LLMResponse(
                 text="",
                 status_code=response.status_code,
                 token_usage={},
                 raw=response.text,
-                error=f"HTTP {response.status_code}",
+                error=error_message,
             )
 
         parsed = self._parse_stream(response) if stream else self._parse_json_response(response)

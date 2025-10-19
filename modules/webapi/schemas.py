@@ -87,6 +87,7 @@ class PipelineResponsePayload(BaseModel):
     stitched_documents: Dict[str, str] = Field(default_factory=dict)
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
+    book_metadata: Dict[str, Any] = Field(default_factory=dict)
 
     @staticmethod
     def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
@@ -137,6 +138,7 @@ class PipelineResponsePayload(BaseModel):
             stitched_documents=dict(response.stitched_documents),
             stitched_audio_path=response.stitched_audio_path,
             stitched_video_path=response.stitched_video_path,
+            book_metadata=dict(response.book_metadata),
         )
 
 

@@ -14,6 +14,8 @@ type Props = {
   latestEvent: ProgressEventPayload | undefined;
   onEvent: (event: ProgressEventPayload) => void;
   onRemove: () => void;
+  onReload: () => void;
+  isReloading?: boolean;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -27,7 +29,37 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString();
 }
 
-export function JobProgress({ jobId, status, latestEvent, onEvent, onRemove }: Props) {
+const METADATA_LABELS: Record<string, string> = {
+  book_title: 'Title',
+  book_author: 'Author',
+  book_year: 'Publication year',
+  book_summary: 'Summary',
+  book_cover_file: 'Cover file'
+};
+
+function formatMetadataLabel(key: string): string {
+  return METADATA_LABELS[key] ?? key.replace(/_/g, ' ');
+}
+
+function normalizeMetadataValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+  return String(value);
+}
+
+export function JobProgress({
+  jobId,
+  status,
+  latestEvent,
+  onEvent,
+  onRemove,
+  onReload,
+  isReloading = false
+}: Props) {
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -38,6 +70,21 @@ export function JobProgress({ jobId, status, latestEvent, onEvent, onRemove }: P
   usePipelineEvents(jobId, !isTerminal, onEvent);
 
   const event = latestEvent ?? status?.latest_event ?? undefined;
+  const metadata = status?.result?.book_metadata ?? {};
+  const metadataEntries = Object.entries(metadata).filter(([, value]) => {
+    const normalized = normalizeMetadataValue(value);
+    return normalized.length > 0;
+  });
+  const translations = status?.result?.written_blocks ?? [];
+  const translationsUnavailable = Array.isArray(translations)
+    ? translations.length > 0 && translations.every((block) => {
+        if (typeof block !== 'string') {
+          return false;
+        }
+        const cleaned = block.trim();
+        return cleaned.length === 0 || cleaned.toUpperCase() === 'N/A';
+      })
+    : false;
 
   return (
     <div className="job-card" aria-live="polite">
@@ -62,6 +109,12 @@ export function JobProgress({ jobId, status, latestEvent, onEvent, onRemove }: P
         <strong>Completed:</strong> {formatDate(status?.completed_at)}
       </p>
       {status?.error ? <div className="alert">{status.error}</div> : null}
+      {translationsUnavailable ? (
+        <div className="alert" role="status">
+          Translated content was not returned by the LLM. Verify your model configuration and try reloading once the
+          metadata has been refreshed.
+        </div>
+      ) : null}
       {event ? (
         <div>
           <h4>Latest progress</h4>
@@ -97,6 +150,37 @@ export function JobProgress({ jobId, status, latestEvent, onEvent, onRemove }: P
       ) : (
         <p>No progress events received yet.</p>
       )}
+      <div style={{ marginTop: '1rem' }}>
+        <h4>Book metadata</h4>
+        {metadataEntries.length > 0 ? (
+          <dl className="metadata-grid">
+            {metadataEntries.map(([key, value]) => {
+              const normalized = normalizeMetadataValue(value);
+              if (!normalized) {
+                return null;
+              }
+              return (
+                <div key={key} className="metadata-grid__row">
+                  <dt>{formatMetadataLabel(key)}</dt>
+                  <dd>{normalized}</dd>
+                </div>
+              );
+            })}
+          </dl>
+        ) : (
+          <p style={{ marginTop: 0 }}>Metadata is not available yet.</p>
+        )}
+        <button
+          type="button"
+          className="link-button"
+          onClick={onReload}
+          disabled={isReloading}
+          aria-busy={isReloading}
+          style={{ marginTop: '0.5rem' }}
+        >
+          {isReloading ? 'Reloading…' : 'Reload metadata'}
+        </button>
+      </div>
       {status?.result ? (
         <details style={{ marginTop: '1rem' }}>
           <summary>View pipeline result payload</summary>
