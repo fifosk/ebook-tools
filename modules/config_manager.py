@@ -375,6 +375,7 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
     config.setdefault("book_year", "Unknown Year")
     config.setdefault("book_summary", "No summary provided.")
     config.setdefault("book_cover_file", None)
+    config.setdefault("auto_metadata", True)
     config.setdefault("macos_reading_speed", 100)
     config.setdefault("tempo", 1.0)
     config.setdefault("sync_ratio", 0.9)

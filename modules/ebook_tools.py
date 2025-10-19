@@ -11,6 +11,7 @@ from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import audio_video_generator as av_gen
 from . import translation_engine
+from . import metadata_manager
 from .menu_interface import (
     MenuExit,
     parse_arguments,
@@ -923,6 +924,17 @@ def run_pipeline(
         ) = interactive_results
         SELECTED_VOICE = config.get("selected_voice", selected_voice)
         TEMPO = config.get("tempo", tempo)
+
+        if config.get("auto_metadata", True) and input_file:
+            metadata_manager.populate_config_metadata(config, input_file)
+            book_metadata = {
+                "book_title": config.get("book_title"),
+                "book_author": config.get("book_author"),
+                "book_year": config.get("book_year"),
+                "book_summary": config.get("book_summary"),
+                "book_cover_file": config.get("book_cover_file"),
+            }
+
         OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
         DEBUG = config.get("debug", False)
         MAX_WORDS = config.get("max_words", DEFAULT_MAX_WORDS)
@@ -1013,6 +1025,10 @@ def run_pipeline(
         generate_video = config.get("generate_video", False)
         include_transliteration = config.get("include_transliteration", False)
         TEMPO = config.get("tempo", 1.0)
+
+        if config.get("auto_metadata", True):
+            metadata_manager.populate_config_metadata(config, input_file)
+
         book_metadata = {
             "book_title": config.get("book_title"),
             "book_author": config.get("book_author"),
