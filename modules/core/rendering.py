@@ -14,7 +14,7 @@ from .. import output_formatter
 from ..config_manager import resolve_file_path
 from ..llm_client import create_client
 from ..epub_parser import remove_quotes
-from ..logging_manager import logger
+from ..logging_manager import console_info, console_warning, logger
 from ..book_cover import fetch_book_cover
 from ..progress_tracker import ProgressTracker
 from .config import PipelineConfig
@@ -367,17 +367,18 @@ def process_epub(
     if book_metadata is None:
         book_metadata = {}
 
-    logger.info("Extracting text from '%s'...", input_file)
+    console_info("Extracting text from '%s'...", input_file, logger_obj=logger)
     total_fully = len(refined_list)
-    logger.info("Total fully split sentences extracted: %s", total_fully)
+    console_info("Total fully split sentences extracted: %s", total_fully, logger_obj=logger)
     start_idx = max(start_sentence - 1, 0)
     end_idx = end_sentence if (end_sentence is not None and end_sentence <= total_fully) else total_fully
     selected_sentences = refined_list[start_idx:end_idx]
     total_refined = len(selected_sentences)
-    logger.info(
+    console_info(
         "Processing %s sentences starting from refined sentence #%s",
         total_refined,
         start_sentence,
+        logger_obj=logger,
     )
     if progress_tracker is not None:
         progress_tracker.set_total(total_refined)
@@ -463,7 +464,10 @@ def process_epub(
             batch_size = worker_count
             while processed < total_refined:
                 if stop_event and stop_event.is_set():
-                    logger.info("Stop requested; halting remaining sequential processing.")
+                    console_info(
+                        "Stop requested; halting remaining sequential processing.",
+                        logger_obj=logger,
+                    )
                     break
                 batch_sentences = selected_sentences[processed : processed + batch_size]
                 batch_sentence_numbers = [
@@ -580,8 +584,9 @@ def process_epub(
                         )
 
             if stop_event and stop_event.is_set():
-                logger.info(
-                    "Stop requested; exiting pipeline early before media generation."
+                console_info(
+                    "Stop requested; exiting pipeline early before media generation.",
+                    logger_obj=logger,
                 )
         else:
             pipeline_stop_event = stop_event or threading.Event()
@@ -715,7 +720,10 @@ def process_epub(
                     if pipeline_stop_event.is_set() and not buffered_results:
                         break
             except KeyboardInterrupt:
-                logger.warning("Processing interrupted by user; shutting down pipeline...")
+                console_warning(
+                    "Processing interrupted by user; shutting down pipeline...",
+                    logger_obj=logger,
+                )
                 pipeline_stop_event.set()
             finally:
                 if not pipeline_stop_event.is_set():
@@ -771,7 +779,12 @@ def process_epub(
         if video_path:
             batch_video_files.append(video_path)
     elif stop_event and stop_event.is_set():
-        logger.info("Skip final batch export due to shutdown request.")
-    logger.info("EPUB processing complete!")
-    logger.info("Total sentences processed: %s", total_refined)
+        console_info(
+            "Skip final batch export due to shutdown request.",
+            logger_obj=logger,
+        )
+    console_info("EPUB processing complete!", logger_obj=logger)
+    console_info(
+        "Total sentences processed: %s", total_refined, logger_obj=logger
+    )
     return written_blocks, all_audio_segments, batch_video_files, base_dir, base_no_ext

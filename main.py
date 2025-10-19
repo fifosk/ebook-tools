@@ -235,7 +235,10 @@ def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
     try:
         response = _run_pipeline(progress_tracker=tracker, stop_event=pipeline_stop)
     except KeyboardInterrupt as exc:
-        logger.warning("Pipeline interrupted by Ctrl+C; shutting down...")
+        log_mgr.console_warning(
+            "Pipeline interrupted by Ctrl+C; shutting down...",
+            logger_obj=logger,
+        )
         _request_shutdown("Ctrl+C")
         tracker.record_error(exc, {"stage": "cli"})
         response = None
