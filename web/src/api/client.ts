@@ -4,10 +4,40 @@ import {
   PipelineSubmissionResponse
 } from './dtos';
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
-const STORAGE_BASE_URL = (
-  import.meta.env.VITE_STORAGE_BASE_URL ?? import.meta.env.VITE_API_BASE_URL ?? ''
-).replace(/\/$/, '');
+const API_BASE_URL = resolveApiBaseUrl();
+const STORAGE_BASE_URL = resolveStorageBaseUrl();
+
+function resolveApiBaseUrl(): string {
+  const explicit = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
+  if (explicit) {
+    return explicit;
+  }
+
+  if (typeof window !== 'undefined') {
+    const url = new URL(window.location.href);
+    if (url.port === '5173') {
+      url.port = '8000';
+      return url.origin.replace(/\/$/, '');
+    }
+    return url.origin.replace(/\/$/, '');
+  }
+
+  return '';
+}
+
+function resolveStorageBaseUrl(): string {
+  const explicit = (import.meta.env.VITE_STORAGE_BASE_URL ?? '').trim().replace(/\/$/, '');
+  if (explicit) {
+    return explicit;
+  }
+
+  const inferred = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
+  if (inferred) {
+    return inferred;
+  }
+
+  return API_BASE_URL;
+}
 
 function withBase(path: string): string {
   if (!path.startsWith('/')) {
