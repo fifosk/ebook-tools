@@ -17,7 +17,10 @@ from modules import logging_manager as log_mgr
 logger = log_mgr.get_logger()
 
 _DEFAULT_MODEL = cfg.DEFAULT_MODEL
-_REMOTE_HOST = "https://api.ollama.com"
+_REMOTE_HOSTS = (
+    "https://ollama.com",
+    "https://api.ollama.com",
+)
 _LOCAL_HOST = "http://localhost:11434"
 _api_url_override: Optional[str] = None
 _model = _DEFAULT_MODEL
@@ -191,22 +194,31 @@ def _resolve_host_chain() -> Iterable[Tuple[str, Optional[str]]]:
         seen.add(host)
         hosts.append((host, key if key else None))
 
-    remote_host = _normalize_host(_REMOTE_HOST)
+    remote_hosts = [
+        host
+        for host in (
+            _normalize_host(candidate)
+            for candidate in _REMOTE_HOSTS
+        )
+        if host
+    ]
     configured_host = _normalize_host(cfg.OLLAMA_API_URL)
     override_host = _normalize_host(_api_url_override) if _api_url_override else None
     local_host = _normalize_host(_LOCAL_HOST)
 
+    remote_host_set = set(remote_hosts)
+
     if override_host:
-        if api_key and override_host != remote_host:
-            _append(remote_host, api_key)
-        key = api_key if api_key and override_host == remote_host else None
+        key = api_key if api_key and override_host in remote_host_set else None
         _append(override_host, key)
-    else:
-        if api_key:
-            _append(remote_host, api_key)
-        if configured_host:
-            key = api_key if api_key and configured_host == remote_host else None
-            _append(configured_host, key)
+
+    if api_key:
+        for candidate in remote_hosts:
+            _append(candidate, api_key)
+
+    if configured_host:
+        key = api_key if api_key and configured_host in remote_host_set else None
+        _append(configured_host, key)
 
     _append(local_host, None)
 
