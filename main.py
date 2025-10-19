@@ -14,6 +14,7 @@ from typing import Optional
 from modules import config_manager
 from modules import logging_manager as log_mgr
 from modules.ebook_tools import run_pipeline as _run_pipeline
+from modules.services.pipeline_service import PipelineResponse
 from modules.progress_tracker import ProgressTracker
 
 logger = log_mgr.get_logger()
@@ -32,7 +33,7 @@ def _format_duration(seconds: Optional[float]) -> str:
     return f"{hours:02d}:{minutes:02d}:{secs:02d}"
 
 
-def run_pipeline(report_interval: float = 5.0):
+def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
     """Execute the ebook processing pipeline with live progress reporting."""
 
     tracker = ProgressTracker(report_interval=report_interval)
@@ -138,11 +139,11 @@ def run_pipeline(report_interval: float = 5.0):
         input_thread.start()
 
     try:
-        result = _run_pipeline(progress_tracker=tracker, stop_event=pipeline_stop)
+        response = _run_pipeline(progress_tracker=tracker, stop_event=pipeline_stop)
     except KeyboardInterrupt:
         logger.warning("Pipeline interrupted by Ctrl+C; shutting down...")
         _request_shutdown("Ctrl+C")
-        result = None
+        response = None
     finally:
         tracker.mark_finished()
         monitor_stop.set()
@@ -167,7 +168,7 @@ def run_pipeline(report_interval: float = 5.0):
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.debug("Failed to clean up temporary workspace: %s", exc)
 
-    return result
+    return response
 
 
 if __name__ == "__main__":

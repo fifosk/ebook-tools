@@ -2,20 +2,12 @@
 from __future__ import annotations
 
 import os
-import subprocess
-import sys
 import threading
 from typing import Optional
-
-from pydub import AudioSegment
 
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import metadata_manager
-from .core.config import build_pipeline_config
-from .core import ingestion
-from .core.rendering import process_epub
-from .core.translation import transliterate_sentence, translate_sentence_simple
 from .epub_parser import DEFAULT_MAX_WORDS
 from .menu_interface import (
     MenuExit,
@@ -24,7 +16,11 @@ from .menu_interface import (
     update_book_cover_file_in_config,
 )
 from .progress_tracker import ProgressTracker
-from . import output_formatter
+from .services.pipeline_service import (
+    PipelineInput,
+    PipelineRequest,
+    run_pipeline as run_pipeline_service,
+)
 
 logger = log_mgr.logger
 configure_logging_level = log_mgr.configure_logging_level
@@ -41,11 +37,10 @@ def run_pipeline(
     stop_event: Optional[threading.Event] = None,
 ):
     """Entry point for executing the ebook processing pipeline."""
-    global OLLAMA_MODEL, DEBUG, SELECTED_VOICE, MAX_WORDS, EXTEND_SPLIT_WITH_COMMA_SEMICOLON
-    global MACOS_READING_SPEED, SYNC_RATIO, WORD_HIGHLIGHTING, TEMPO
 
     args = parse_arguments()
     config: dict = {}
+    pipeline_input: Optional[PipelineInput] = None
 
     environment_overrides = {
         "ebooks_dir": args.ebooks_dir or os.environ.get("EBOOKS_DIR"),
@@ -61,7 +56,7 @@ def run_pipeline(
 
     if args.interactive:
         try:
-            config, interactive_results = run_interactive_menu(
+            config, pipeline_input = run_interactive_menu(
                 environment_overrides,
                 args.config,
                 entry_script_name=ENTRY_SCRIPT_NAME,
@@ -70,56 +65,28 @@ def run_pipeline(
             logger.info("Interactive configuration cancelled by user.")
             return None
         context = cfg.get_runtime_context(None)
-        (
-            input_file,
-            base_output_file,
-            input_language,
-            target_languages,
-            sentences_per_output_file,
-            start_sentence,
-            end_sentence,
-            stitch_full,
-            generate_audio,
-            audio_mode,
-            written_mode,
-            selected_voice,
-            output_html,
-            output_pdf,
-            generate_video,
-            include_transliteration,
-            tempo,
-            book_metadata,
-        ) = interactive_results
-
-        selected_voice = config.get("selected_voice", selected_voice)
-        config["selected_voice"] = selected_voice
-        tempo = config.get("tempo", tempo)
-        config["tempo"] = tempo
-        generate_audio = config.get("generate_audio", generate_audio)
-        config["generate_audio"] = generate_audio
-        audio_mode = config.get("audio_mode", audio_mode)
-        config["audio_mode"] = audio_mode
-        written_mode = config.get("written_mode", written_mode)
-        config["written_mode"] = written_mode
-        output_html = config.get("output_html", output_html)
-        config["output_html"] = output_html
-        output_pdf = config.get("output_pdf", output_pdf)
-        config["output_pdf"] = output_pdf
-        generate_video = config.get("generate_video", generate_video)
-        config["generate_video"] = generate_video
-        include_transliteration = config.get(
-            "include_transliteration", include_transliteration
+        config.setdefault("selected_voice", pipeline_input.selected_voice)
+        config.setdefault("tempo", pipeline_input.tempo)
+        config.setdefault("generate_audio", pipeline_input.generate_audio)
+        config.setdefault("audio_mode", pipeline_input.audio_mode)
+        config.setdefault("written_mode", pipeline_input.written_mode)
+        config.setdefault("output_html", pipeline_input.output_html)
+        config.setdefault("output_pdf", pipeline_input.output_pdf)
+        config.setdefault("generate_video", pipeline_input.generate_video)
+        config.setdefault(
+            "include_transliteration", pipeline_input.include_transliteration
         )
-        config["include_transliteration"] = include_transliteration
         config.setdefault("macos_reading_speed", 100)
         config.setdefault("sync_ratio", 0.9)
         config.setdefault("word_highlighting", True)
         config.setdefault("max_words", DEFAULT_MAX_WORDS)
         config.setdefault("ollama_model", DEFAULT_MODEL)
 
-        if config.get("auto_metadata", True) and input_file:
-            metadata_manager.populate_config_metadata(config, input_file)
-            book_metadata = {
+        if config.get("auto_metadata", True) and pipeline_input.input_file:
+            metadata_manager.populate_config_metadata(
+                config, pipeline_input.input_file
+            )
+            pipeline_input.book_metadata = {
                 "book_title": config.get("book_title"),
                 "book_author": config.get("book_author"),
                 "book_year": config.get("book_year"),
@@ -127,7 +94,7 @@ def run_pipeline(
                 "book_cover_file": config.get("book_cover_file"),
             }
         else:
-            book_metadata = book_metadata or {}
+            pipeline_input.book_metadata = pipeline_input.book_metadata or {}
     else:
         config = load_configuration(args.config, verbose=False)
         context = build_runtime_context(config, environment_overrides)
@@ -242,6 +209,27 @@ def run_pipeline(
             "book_cover_file": config.get("book_cover_file"),
         }
 
+        pipeline_input = PipelineInput(
+            input_file=input_file,
+            base_output_file=base_output_file,
+            input_language=input_language,
+            target_languages=target_languages,
+            sentences_per_output_file=sentences_per_output_file,
+            start_sentence=start_sentence,
+            end_sentence=end_sentence,
+            stitch_full=stitch_full,
+            generate_audio=generate_audio,
+            audio_mode=audio_mode,
+            written_mode=written_mode,
+            selected_voice=selected_voice,
+            output_html=output_html,
+            output_pdf=output_pdf,
+            generate_video=generate_video,
+            include_transliteration=include_transliteration,
+            tempo=tempo,
+            book_metadata=book_metadata,
+        )
+
     if args.debug:
         config["debug"] = True
 
@@ -266,152 +254,27 @@ def run_pipeline(
         "pipeline_mode": config.get("pipeline_mode"),
     }
 
+    if pipeline_input is None:
+        logger.error("Pipeline input could not be constructed.")
+        return None
+
     if context is None:
         context = build_runtime_context(config, environment_overrides)
-    cfg.set_runtime_context(context)
 
-    pipeline_config = build_pipeline_config(
-        context, config, overrides={**environment_overrides, **pipeline_overrides}
+    request = PipelineRequest(
+        config=config,
+        context=context,
+        environment_overrides=environment_overrides,
+        pipeline_overrides=pipeline_overrides,
+        inputs=pipeline_input,
+        progress_tracker=progress_tracker,
+        stop_event=stop_event,
     )
-    pipeline_config.apply_runtime_settings()
-    configure_logging_level(pipeline_config.debug)
 
-    generate_audio = pipeline_config.generate_audio
-    audio_mode = pipeline_config.audio_mode
-
-    try:
-        logger.info("Starting EPUB processing...")
-        logger.info("Input file: %s", input_file)
-        logger.info("Base output file: %s", base_output_file)
-        logger.info("Input language: %s", input_language)
-        logger.info("Target languages: %s", ", ".join(target_languages))
-        logger.info("Sentences per output file: %s", sentences_per_output_file)
-        logger.info("Starting from sentence: %s", start_sentence)
-        if end_sentence is not None:
-            logger.info("Ending at sentence: %s", end_sentence)
-        else:
-            logger.info("Processing until end of file")
-
-        refined_list, refined_updated = ingestion.get_refined_sentences(
-            input_file,
-            pipeline_config,
-            force_refresh=True,
-            metadata={
-                "mode": "cli",
-                "target_languages": target_languages,
-                "max_words": pipeline_config.max_words,
-            },
-        )
-        total_fully = len(refined_list)
-        if refined_updated:
-            refined_output_path = ingestion.refined_list_output_path(
-                input_file, pipeline_config
-            )
-            logger.info("Refined sentence list written to: %s", refined_output_path)
-        (
-            written_blocks,
-            all_audio_segments,
-            batch_video_files,
-            base_dir,
-            base_no_ext,
-        ) = process_epub(
-            input_file,
-            base_output_file,
-            input_language,
-            target_languages,
-            sentences_per_output_file,
-            start_sentence,
-            end_sentence,
-            generate_audio,
-            audio_mode,
-            written_mode,
-            output_html,
-            output_pdf,
-            refined_list=refined_list,
-            generate_video=generate_video,
-            include_transliteration=include_transliteration,
-            book_metadata=book_metadata,
-            pipeline_config=pipeline_config,
-            progress_tracker=progress_tracker,
-            stop_event=stop_event,
-        )
-        if stop_event and stop_event.is_set():
-            logger.info("Shutdown request acknowledged; skipping remaining post-processing steps.")
-        if stitch_full and not (stop_event and stop_event.is_set()):
-            final_sentence = (
-                start_sentence + len(written_blocks) - 1 if written_blocks else start_sentence
-            )
-            stitched_basename = output_formatter.compute_stitched_basename(
-                input_file, target_languages
-            )
-            range_fragment = output_formatter.format_sentence_range(
-                start_sentence, final_sentence, total_fully
-            )
-            output_formatter.stitch_full_output(
-                base_dir,
-                start_sentence,
-                final_sentence,
-                stitched_basename,
-                written_blocks,
-                target_languages[0],
-                total_fully,
-                output_html=output_html,
-                output_pdf=output_pdf,
-                epub_title=f"Stitched Translation: {range_fragment} {stitched_basename}",
-            )
-            if pipeline_config.generate_audio and all_audio_segments:
-                stitched_audio = AudioSegment.empty()
-                for seg in all_audio_segments:
-                    stitched_audio += seg
-                stitched_audio_filename = os.path.join(
-                    base_dir,
-                    f"{range_fragment}_{stitched_basename}.mp3",
-                )
-                stitched_audio.export(stitched_audio_filename, format="mp3", bitrate="320k")
-            if generate_video and batch_video_files:
-                logger.info(
-                    "Generating stitched video slide output by concatenating batch video files..."
-                )
-                concat_list_path = os.path.join(
-                    base_dir, f"concat_full_{stitched_basename}.txt"
-                )
-                with open(concat_list_path, "w", encoding="utf-8") as file_obj:
-                    for video_file in batch_video_files:
-                        file_obj.write(f"file '{video_file}'\n")
-                final_video_path = os.path.join(
-                    base_dir,
-                    f"{range_fragment}_{stitched_basename}_stitched.mp4",
-                )
-                cmd_concat = [
-                    "ffmpeg",
-                    "-loglevel",
-                    "quiet",
-                    "-y",
-                    "-f",
-                    "concat",
-                    "-safe",
-                    "0",
-                    "-i",
-                    concat_list_path,
-                    "-c",
-                    "copy",
-                    final_video_path,
-                ]
-                subprocess.run(cmd_concat, check=True)
-                os.remove(concat_list_path)
-                logger.info("Stitched video slide output saved to: %s", final_video_path)
-        elif stitch_full and stop_event and stop_event.is_set():
-            logger.info("Skipping stitched outputs due to shutdown request.")
-        logger.info("Processing complete.")
-    except Exception as exc:
-        logger.error("An error occurred: %s", exc)
-    finally:
-        if context is not None:
-            try:
-                cfg.cleanup_environment(context)
-            except Exception as cleanup_exc:  # pragma: no cover - defensive logging
-                logger.debug("Failed to clean up temporary workspace: %s", cleanup_exc)
-        cfg.clear_runtime_context()
+    response = run_pipeline_service(request)
+    if not response.success and not args.interactive:
+        return None
+    return response
 
 
 if __name__ == "__main__":

@@ -14,7 +14,7 @@ from .. import output_formatter
 from ..config_manager import resolve_file_path
 from ..epub_parser import remove_quotes
 from ..logging_manager import logger
-from ..menu_interface import fetch_book_cover
+from ..book_cover import fetch_book_cover
 from ..progress_tracker import ProgressTracker
 from .config import PipelineConfig
 from .translation import (
