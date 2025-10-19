@@ -62,6 +62,22 @@ def resolve_directory(path_value, default_relative: Path) -> Path:
     base_path = Path(os.path.expanduser(str(base_value)))
     if not base_path.is_absolute():
         base_path = (SCRIPT_DIR / base_path).resolve()
+
+    if base_path.is_symlink() and not base_path.exists():
+        try:
+            base_path.unlink()
+        except OSError:
+            logger.debug("Unable to remove stale symlink at %s", base_path)
+
+    if base_path.exists() and not base_path.is_dir():
+        try:
+            if base_path.is_file() or base_path.is_symlink():
+                base_path.unlink()
+            else:
+                shutil.rmtree(base_path)
+        except OSError:
+            logger.debug("Unable to replace non-directory path at %s", base_path)
+
     base_path.mkdir(parents=True, exist_ok=True)
     return base_path
 
