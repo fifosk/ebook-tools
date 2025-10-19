@@ -83,8 +83,15 @@ async def submit_pipeline(
 ):
     """Submit a pipeline execution request and return an identifier."""
 
-    context = context_provider.create(payload.config, payload.environment_overrides)
-    request = payload.to_pipeline_request(context=context)
+    resolved_config = context_provider.resolve_config(payload.config)
+    context = context_provider.build_context(
+        resolved_config,
+        payload.environment_overrides,
+    )
+    request = payload.to_pipeline_request(
+        context=context,
+        resolved_config=resolved_config,
+    )
     job = pipeline_service.enqueue(request)
     return PipelineSubmissionResponse(
         job_id=job.job_id,
