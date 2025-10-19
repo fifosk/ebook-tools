@@ -1,5 +1,9 @@
 # ebook-tools
 
+## Documentation
+
+- [Architecture overview](docs/architecture.md)
+
 ## Backend setup
 
 ### Install dependencies
