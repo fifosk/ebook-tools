@@ -40,6 +40,15 @@ _VOICE_QUALITIES = ("Premium", "Enhanced")
 _AUTO_VOICE_CACHE: Dict[Tuple[str, str], Optional[Tuple[str, str, str, Optional[str]]]] = {}
 
 
+def _active_tmp_dir() -> str:
+    """Return the effective temporary directory for media generation."""
+
+    context = cfg.get_runtime_context(None)
+    if context is not None:
+        return str(context.tmp_dir)
+    return tempfile.gettempdir()
+
+
 @dataclass(frozen=True)
 class AudioHighlightPart:
     """Represents a contiguous audio fragment used for word highlighting."""
@@ -422,7 +431,7 @@ def _build_legacy_highlight_events(
 def _silence_audio_path() -> str:
     """Return the shared silence audio file, creating it if necessary."""
 
-    tmp_dir = cfg.TMP_DIR or tempfile.gettempdir()
+    tmp_dir = _active_tmp_dir()
     os.makedirs(tmp_dir, exist_ok=True)
     silence_path = os.path.join(tmp_dir, _SILENCE_FILENAME)
 
@@ -458,7 +467,7 @@ def _synthesize_with_gtts(text: str, lang_code: str) -> AudioSegment:
 
 def generate_macos_tts_audio(text: str, voice: str, lang_code: str, macos_reading_speed: int) -> AudioSegment:
     """Generate audio using the macOS ``say`` command, falling back to gTTS on failure."""
-    with tempfile.NamedTemporaryFile(suffix=".aiff", dir=cfg.TMP_DIR, delete=False) as tmp:
+    with tempfile.NamedTemporaryFile(suffix=".aiff", dir=_active_tmp_dir(), delete=False) as tmp:
         tmp_filename = tmp.name
     try:
         cmd = ["say", "-v", voice, "-r", str(macos_reading_speed), "-o", tmp_filename, text]
@@ -713,11 +722,21 @@ def start_media_pipeline(
     result_queue: Queue[Optional[MediaPipelineResult]] = Queue(maxsize=queue_size or 0)
     stop_event = stop_event or threading.Event()
     workers: List[threading.Thread] = []
+    active_context = cfg.get_runtime_context(None)
+
+    def _thread_target(*args, **kwargs) -> None:
+        if active_context is not None:
+            cfg.set_runtime_context(active_context)
+        try:
+            _media_worker(*args, **kwargs)
+        finally:
+            if active_context is not None:
+                cfg.clear_runtime_context()
 
     for idx in range(worker_total):
         thread_name = f"Consumer-{idx + 1}"
         thread = threading.Thread(
-            target=_media_worker,
+            target=_thread_target,
             name=thread_name,
             args=(
                 thread_name,
@@ -1179,6 +1198,7 @@ def generate_word_synced_sentence_video(
     pad_duration = max(0.0, audio_duration - video_duration)
 
     word_video_files: List[str] = []
+    tmp_dir = _active_tmp_dir()
 
     for idx, event in enumerate(highlight_events):
         duration = event.duration
@@ -1209,10 +1229,10 @@ def generate_word_synced_sentence_video(
             header_info=header_info,
         )
 
-        img_path = os.path.join(cfg.TMP_DIR, f"word_slide_{sentence_index}_{idx}.png")
+        img_path = os.path.join(tmp_dir, f"word_slide_{sentence_index}_{idx}.png")
         img.save(img_path)
 
-        video_path = os.path.join(cfg.TMP_DIR, f"word_slide_{sentence_index}_{idx}.mp4")
+        video_path = os.path.join(tmp_dir, f"word_slide_{sentence_index}_{idx}.mp4")
         cmd = [
             "ffmpeg",
             "-loglevel",
@@ -1244,12 +1264,12 @@ def generate_word_synced_sentence_video(
                 os.remove(img_path)
         word_video_files.append(video_path)
 
-    concat_list_path = os.path.join(cfg.TMP_DIR, f"concat_word_{sentence_index}.txt")
+    concat_list_path = os.path.join(tmp_dir, f"concat_word_{sentence_index}.txt")
     with open(concat_list_path, "w", encoding="utf-8") as f:
         for video_file in word_video_files:
             f.write(f"file '{video_file}'\n")
 
-    sentence_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}.mp4")
+    sentence_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}.mp4")
     cmd_concat = [
         "ffmpeg",
         "-loglevel",
@@ -1280,9 +1300,9 @@ def generate_word_synced_sentence_video(
         if os.path.exists(vf):
             os.remove(vf)
 
-    audio_temp_path = os.path.join(cfg.TMP_DIR, f"sentence_audio_{sentence_index}.wav")
+    audio_temp_path = os.path.join(tmp_dir, f"sentence_audio_{sentence_index}.wav")
     audio_seg.export(audio_temp_path, format="wav")
-    merged_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}_merged.mp4")
+    merged_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}_merged.mp4")
 
     cmd_merge = [
         "ffmpeg",
@@ -1309,7 +1329,7 @@ def generate_word_synced_sentence_video(
         if os.path.exists(sentence_video_path):
             os.remove(sentence_video_path)
 
-    final_video_path = os.path.join(cfg.TMP_DIR, f"sentence_slide_{sentence_index}_final.mp4")
+    final_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}_final.mp4")
     if pad_duration > 0:
         cmd_tpad = [
             "ffmpeg",

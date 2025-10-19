@@ -161,7 +161,9 @@ def run_pipeline(report_interval: float = 5.0):
                 final_snapshot.speed,
             )
         try:
-            config_manager.cleanup_environment()
+            context = config_manager.get_runtime_context(None)
+            if context is not None:
+                config_manager.cleanup_environment(context)
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.debug("Failed to clean up temporary workspace: %s", exc)
 

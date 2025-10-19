@@ -31,7 +31,9 @@ def remove_quotes(text: str) -> str:
 
 def extract_text_from_epub(epub_file: str, books_dir: Optional[str] = None) -> str:
     """Read an EPUB file and return its textual content."""
-    epub_path = cfg.resolve_file_path(epub_file, books_dir or cfg.BOOKS_DIR)
+    context = cfg.get_runtime_context(None)
+    base_dir = books_dir or (context.books_dir if context is not None else None)
+    epub_path = cfg.resolve_file_path(epub_file, base_dir)
     if not epub_path or not epub_path.exists():
         raise FileNotFoundError(f"EPUB file '{epub_file}' could not be found.")
 
