@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import textwrap
 import urllib.parse
 from pathlib import Path
@@ -271,13 +272,52 @@ def _create_placeholder_cover(title: str, destination: Path) -> bool:
         return False
 
 
-def _ensure_cover_image(metadata: Dict[str, Optional[str]]) -> Optional[str]:
+def _get_runtime_output_dir() -> Path:
+    base_candidate = cfg.WORKING_DIR or cfg.DEFAULT_WORKING_RELATIVE
+    base_path = cfg.resolve_directory(base_candidate, cfg.DEFAULT_WORKING_RELATIVE)
+    runtime_dir = Path(base_path) / cfg.DERIVED_RUNTIME_DIRNAME
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    return runtime_dir
+
+
+def _runtime_cover_destination(epub_path: Path) -> Path:
+    runtime_dir = _get_runtime_output_dir()
+    safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", epub_path.stem) or "book"
+    return runtime_dir / f"{safe_base}_cover.jpg"
+
+
+def _resolve_cover_path(candidate: Optional[str]) -> Optional[Path]:
+    if not candidate:
+        return None
+    path = Path(candidate)
+    if path.is_absolute():
+        return path if path.exists() else None
+    resolved = cfg.resolve_file_path(candidate, cfg.BOOKS_DIR)
+    if resolved and resolved.exists():
+        return resolved
+    return None
+
+
+def _ensure_cover_image(metadata: Dict[str, Optional[str]], epub_path: Path) -> Optional[str]:
     title = metadata.get("book_title") or "Unknown Title"
     author = metadata.get("book_author") or ""
-    destination = cfg.CONF_DIR / "book_cover.jpg"
-    current_path = metadata.get("book_cover_file")
-    if current_path and Path(current_path).exists():
-        return current_path
+    destination = _runtime_cover_destination(epub_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    current_path = _resolve_cover_path(metadata.get("book_cover_file"))
+    if current_path and current_path.exists():
+        if current_path.resolve() != destination.resolve():
+            try:
+                shutil.copy(current_path, destination)
+            except Exception as exc:  # pragma: no cover - filesystem errors
+                logger.debug("Unable to mirror existing cover to runtime directory: %s", exc)
+            else:
+                return str(destination)
+        else:
+            return str(destination)
+
+    if destination.exists():
+        return str(destination)
 
     logger.info("Attempting to retrieve a cover image for '%s' by %s", title, author or "Unknown Author")
     if _download_cover_image(title, author, destination):
@@ -351,7 +391,7 @@ def infer_metadata(
             elif key == "book_summary" and value:
                 metadata[key] = value
 
-    cover_path = _ensure_cover_image(metadata)
+    cover_path = _ensure_cover_image(metadata, epub_path)
     if cover_path:
         metadata["book_cover_file"] = cover_path
 
