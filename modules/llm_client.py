@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, is_dataclass
 from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from ollama import Client
@@ -132,14 +133,14 @@ def _summarize_text(text: str, *, limit: int = 200) -> str:
     return condensed
 
 
-def _coerce_text(value: Union[str, Dict[str, Any], Iterable[Any], None]) -> str:
+def _coerce_text(value: Union[str, Mapping[str, Any], Iterable[Any], None]) -> str:
     """Normalise Ollama SDK response fragments into a plain string."""
 
     if value is None:
         return ""
     if isinstance(value, str):
         return value
-    if isinstance(value, dict):
+    if isinstance(value, Mapping):
         # Prefer explicit ``text`` payloads, then nested ``content``-style fields.
         for key in (
             "text",
@@ -161,12 +162,44 @@ def _coerce_text(value: Union[str, Dict[str, Any], Iterable[Any], None]) -> str:
         aggregate = "".join(
             _coerce_text(item)
             for item in value.values()
-            if isinstance(item, (str, dict, list, tuple, set)) or item is None
+            if isinstance(item, (str, Mapping, list, tuple, set)) or item is None
         )
         return aggregate
     if isinstance(value, (list, tuple, set)):
         return "".join(_coerce_text(item) for item in value)
     return ""
+
+
+def _coerce_mapping(value: Any) -> Optional[Dict[str, Any]]:
+    """Attempt to convert ``value`` into a plain ``dict``."""
+
+    if value is None:
+        return None
+    if isinstance(value, Mapping):
+        return dict(value)
+    if is_dataclass(value):
+        return asdict(value)
+
+    for attr in ("model_dump", "to_dict", "dict"):
+        method = getattr(value, attr, None)
+        if callable(method):
+            try:
+                candidate = method()
+            except TypeError:
+                try:
+                    candidate = method(exclude_none=True)  # type: ignore[call-arg]
+                except TypeError:
+                    continue
+            if isinstance(candidate, Mapping):
+                return dict(candidate)
+
+    namespace = getattr(value, "__dict__", None)
+    if isinstance(namespace, dict):
+        filtered = {k: v for k, v in namespace.items() if not k.startswith("_")}
+        if filtered:
+            return filtered
+
+    return None
 
 
 def _normalize_host(url: Optional[str]) -> Optional[str]:
@@ -280,23 +313,24 @@ def _chat_with_client(
                 full_text += text
 
         for chunk in response:
-            if not isinstance(chunk, dict):
+            mapping = chunk if isinstance(chunk, dict) else _coerce_mapping(chunk)
+            if mapping is None:
                 continue
-            raw_chunks.append(chunk)
+            raw_chunks.append(mapping)
 
-            message = chunk.get("message")
+            message = mapping.get("message")
             _append_text(message)
 
-            delta = chunk.get("delta")
+            delta = mapping.get("delta")
             _append_text(delta)
 
-            response_text = chunk.get("response")
+            response_text = mapping.get("response")
             _append_text(response_text)
 
-            content = chunk.get("content")
+            content = mapping.get("content")
             _append_text(content)
 
-            _merge_token_usage(token_usage, chunk)
+            _merge_token_usage(token_usage, mapping)
         reply = LLMResponse(
             text=full_text,
             status_code=200,
@@ -305,9 +339,9 @@ def _chat_with_client(
         )
     else:
         if not isinstance(response, dict):
-            data: Dict[str, Any] = {}
+            data = _coerce_mapping(response) or {}
         else:
-            data = response
+            data = dict(response)
         _merge_token_usage(token_usage, data)
         message = _coerce_text(data.get("message"))
         if not message:
