@@ -152,7 +152,27 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
         output_path.mkdir(parents=True, exist_ok=True)
 
     tmp_path = resolve_directory(tmp_override or config.get("tmp_dir"), DEFAULT_TMP_RELATIVE)
-    ramdisk_manager.ensure_ramdisk(tmp_path)
+
+    use_ramdisk_override = overrides.get("use_ramdisk") if overrides else None
+    use_ramdisk_value = (
+        use_ramdisk_override
+        if use_ramdisk_override is not None
+        else config.get("use_ramdisk", True)
+    )
+    use_ramdisk = _coerce_bool(use_ramdisk_value)
+
+    if use_ramdisk:
+        ramdisk_ready = ramdisk_manager.ensure_ramdisk(tmp_path)
+        if not ramdisk_ready:
+            logger.info(
+                "RAM disk unavailable; continuing with on-disk temporary directory at %s.",
+                tmp_path,
+            )
+            tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
+    else:
+        tmp_path = ramdisk_manager.ensure_standard_directory(tmp_path)
+
+    tmp_path = Path(tmp_path)
     books_path = resolve_directory(books_override or config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
 
     global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL

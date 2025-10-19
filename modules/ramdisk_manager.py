@@ -16,9 +16,14 @@ logger = log_mgr.get_logger()
 
 _RAM_FS_TYPES = {"tmpfs", "ramfs"}
 _DEFAULT_RAMDISK_SIZE_BYTES = 1024 ** 3  # 1 GiB
+_MACOS_DEFAULT_MOUNT_POINT = Path("/Volumes/tmp")
 
 
-def ensure_ramdisk(path: os.PathLike[str] | str, *, size_bytes: int = _DEFAULT_RAMDISK_SIZE_BYTES) -> bool:
+def ensure_ramdisk(
+    path: os.PathLike[str] | str,
+    *,
+    size_bytes: int = _DEFAULT_RAMDISK_SIZE_BYTES,
+) -> bool:
     """Ensure ``path`` is backed by a RAM disk of at least ``size_bytes``.
 
     Returns ``True`` when the directory is already on a RAM-backed filesystem or
@@ -26,8 +31,29 @@ def ensure_ramdisk(path: os.PathLike[str] | str, *, size_bytes: int = _DEFAULT_R
     support automatic RAM disk management or if mounting fails.
     """
 
-    target = Path(path).expanduser().resolve()
-    target.mkdir(parents=True, exist_ok=True)
+    target = Path(path).expanduser()
+    if not target.is_absolute():
+        target = target.resolve()
+
+    if target.is_symlink():
+        if not target.exists():
+            try:
+                target.unlink()
+            except OSError as exc:  # pragma: no cover - defensive logging
+                logger.warning("Failed to remove broken symlink %s: %s", target, exc)
+                return False
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.mkdir(parents=True, exist_ok=True)
+    elif target.exists():
+        if not target.is_dir():
+            if target.is_file():
+                target.unlink()
+            else:
+                shutil.rmtree(target)
+            target.mkdir(parents=True, exist_ok=True)
+    else:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.mkdir(parents=True, exist_ok=True)
 
     if _is_ramdisk(target):
         logger.debug("Temporary directory %s already resides on a RAM-backed filesystem.", target)
@@ -46,7 +72,19 @@ def ensure_ramdisk(path: os.PathLike[str] | str, *, size_bytes: int = _DEFAULT_R
         return _mount_ramdisk_linux(target, size_bytes)
 
     if system == "Darwin":  # pragma: no cover - macOS-specific branch
-        return _mount_ramdisk_macos(target, size_bytes)
+        mount_point = _MACOS_DEFAULT_MOUNT_POINT
+        mount_point.parent.mkdir(parents=True, exist_ok=True)
+        if not mount_point.exists():
+            mount_point.mkdir(parents=True, exist_ok=True)
+
+        if not _mount_ramdisk_macos(mount_point, size_bytes):
+            return False
+
+        if target.resolve() != mount_point.resolve():
+            if not _replace_with_symlink(target, mount_point):
+                return False
+
+        return _is_ramdisk(target)
 
     logger.info(
         "RAM disk automation is not supported on platform %s. Using directory %s on existing storage.",
@@ -54,6 +92,30 @@ def ensure_ramdisk(path: os.PathLike[str] | str, *, size_bytes: int = _DEFAULT_R
         target,
     )
     return False
+
+
+def ensure_standard_directory(path: os.PathLike[str] | str) -> Path:
+    """Ensure ``path`` refers to a regular directory on persistent storage."""
+
+    target = Path(path).expanduser()
+    if not target.is_absolute():
+        target = target.resolve()
+
+    if target.is_symlink():
+        try:
+            target.unlink()
+        except OSError as exc:  # pragma: no cover - defensive logging
+            logger.warning("Failed to remove symlink %s: %s", target, exc)
+            return target
+
+    if target.exists() and not target.is_dir():
+        if target.is_file():
+            target.unlink()
+        else:
+            shutil.rmtree(target)
+
+    target.mkdir(parents=True, exist_ok=True)
+    return target
 
 
 def _is_ramdisk(path: Path) -> bool:
@@ -425,4 +487,4 @@ def _format_size(size_bytes: int) -> str:
     return f"{size_bytes:.0f} TiB"
 
 
-__all__ = ["ensure_ramdisk"]
+__all__ = ["ensure_ramdisk", "ensure_standard_directory"]
