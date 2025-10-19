@@ -144,6 +144,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                         "start_sentence": inputs.start_sentence,
                         "end_sentence": inputs.end_sentence,
                     },
+                    "console_suppress": True,
                 },
             )
 
@@ -186,6 +187,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                                 "path": str(refined_output_path),
                                 "total_sentences": total_fully,
                             },
+                            "console_suppress": True,
                         },
                     )
 
@@ -235,7 +237,10 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                 with observability.pipeline_stage("shutdown", post_process_attrs):
                     logger.info(
                         "Shutdown request acknowledged; skipping remaining post-processing steps.",
-                        extra={"event": "pipeline.shutdown.requested"},
+                        extra={
+                            "event": "pipeline.shutdown.requested",
+                            "console_suppress": True,
+                        },
                     )
                     if tracker is not None:
                         tracker.publish_progress(
@@ -283,7 +288,10 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                     if inputs.generate_video and batch_video_files:
                         logger.info(
                             "Generating stitched video slide output by concatenating batch video files...",
-                            extra={"event": "pipeline.stitching.video.start"},
+                            extra={
+                                "event": "pipeline.stitching.video.start",
+                                "console_suppress": True,
+                            },
                         )
                         concat_list_path = os.path.join(
                             base_dir, f"concat_full_{stitched_basename}.txt"
@@ -317,6 +325,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                             extra={
                                 "event": "pipeline.stitching.video.complete",
                                 "attributes": {"path": stitched_video_path},
+                                "console_suppress": True,
                             },
                         )
             else:
@@ -325,7 +334,11 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
         with log_mgr.log_context(correlation_id=correlation_id, job_id=job_id):
             logger.info(
                 "Pipeline execution completed",
-                extra={"event": "pipeline.run.complete", "status": "success"},
+                extra={
+                    "event": "pipeline.run.complete",
+                    "status": "success",
+                    "console_suppress": True,
+                },
             )
 
         return PipelineResponse(

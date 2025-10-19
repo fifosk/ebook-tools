@@ -52,6 +52,7 @@ def record_metric(
                     "event": "observability.metric_export_error",
                     "metric": name,
                     "error": str(exc),
+                    "console_suppress": True,
                 },
             )
 
@@ -62,6 +63,7 @@ def record_metric(
             "metric": name,
             "value": value,
             "attributes": attributes,
+            "console_suppress": True,
         },
     )
 
@@ -92,7 +94,12 @@ def pipeline_operation(
         start = time.perf_counter()
         logger.info(
             "Operation started",
-            extra={"event": "pipeline.operation.start", "stage": name, "attributes": attrs},
+            extra={
+                "event": "pipeline.operation.start",
+                "stage": name,
+                "attributes": attrs,
+                "console_suppress": True,
+            },
         )
         with _maybe_span(f"pipeline.operation.{name}", attrs):
             yield
@@ -107,6 +114,7 @@ def pipeline_operation(
                 "stage": name,
                 "duration_ms": round(duration_ms, 2),
                 "attributes": attrs,
+                "console_suppress": True,
             },
         )
 
@@ -124,7 +132,12 @@ def pipeline_stage(stage: str, attributes: Optional[Mapping[str, object]] = None
         start = time.perf_counter()
         logger.info(
             "Stage started",
-            extra={"event": "pipeline.stage.start", "stage": stage, "attributes": attrs},
+            extra={
+                "event": "pipeline.stage.start",
+                "stage": stage,
+                "attributes": attrs,
+                "console_suppress": True,
+            },
         )
         with _maybe_span(f"pipeline.stage.{stage}", attrs):
             yield
@@ -139,6 +152,7 @@ def pipeline_stage(stage: str, attributes: Optional[Mapping[str, object]] = None
                 "stage": stage,
                 "duration_ms": round(duration_ms, 2),
                 "attributes": attrs,
+                "console_suppress": True,
             },
         )
 
@@ -161,6 +175,7 @@ def worker_pool_event(
             "event": "worker_pool.%s" % action,
             "stage": "worker_pool",
             "attributes": attrs,
+            "console_suppress": True,
         },
     )
     record_metric(

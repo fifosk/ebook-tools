@@ -319,6 +319,7 @@ class PipelineJobManager:
                         "input_file": request.inputs.input_file,
                         "target_languages": request.inputs.target_languages,
                     },
+                    "console_suppress": True,
                 },
             )
 
@@ -349,6 +350,7 @@ class PipelineJobManager:
                         "total": event.snapshot.total,
                         "metadata": metadata,
                     },
+                    "console_suppress": True,
                 },
             )
 
@@ -381,6 +383,7 @@ class PipelineJobManager:
                     extra={
                         "event": "pipeline.job.started",
                         "status": PipelineJobStatus.RUNNING.value,
+                        "console_suppress": True,
                     },
                 )
             with observability.pipeline_operation(
@@ -435,6 +438,7 @@ class PipelineJobManager:
                     extra={
                         "event": "pipeline.job.finished",
                         "status": job.status.value,
+                        "console_suppress": True,
                     },
                 )
                 duration_ms = 0.0

@@ -103,6 +103,13 @@ class LogContextFilter(logging.Filter):
         return True
 
 
+class ConsoleSuppressionFilter(logging.Filter):
+    """Prevent selected log records from being emitted to the console."""
+
+    def filter(self, record: logging.LogRecord) -> bool:  # noqa: D401
+        return not getattr(record, "console_suppress", False)
+
+
 def _configure_handlers(logger: logging.Logger) -> None:
     formatter = JSONLogFormatter()
 
@@ -111,6 +118,7 @@ def _configure_handlers(logger: logging.Logger) -> None:
 
     stream_handler = logging.StreamHandler()
     stream_handler.setFormatter(formatter)
+    stream_handler.addFilter(ConsoleSuppressionFilter())
 
     logger.addHandler(file_handler)
     logger.addHandler(stream_handler)
