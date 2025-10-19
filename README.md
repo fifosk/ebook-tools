@@ -48,6 +48,14 @@ If you prefer to verify via a browser, open <http://127.0.0.1:8000/>.
 
 ### Web API environment variables
 
+Copy `.env.example` to `.env` at the project root and tweak the values before
+starting uvicorn. The loader reads multiple files in order, so you can keep
+shared defaults in `.env`, overrides in `.env.<name>` (by setting
+`EBOOK_ENV=<name>`), and machine-specific tweaks in `.env.local`. Use
+`EBOOK_ENV_FILE` to point at any additional file if you need to pull secrets
+from a different location. All files are optional; values exported in the shell
+still take precedence.
+
 The FastAPI application inspects a few environment variables at startup to
 control cross-origin requests and optional static hosting of the bundled
 single-page application:
@@ -64,6 +72,8 @@ single-page application:
   static hosting is enabled (default: `index.html`).
 - **`EBOOK_API_STATIC_MOUNT`** – URL prefix where the static files are exposed
   (default: `/`).
+- **`JOB_STORE_URL`** – Redis (or compatible) URL used to persist job metadata.
+  When unset the service stores job state in memory only.
 
 When static hosting is disabled the JSON healthcheck remains available at `/`.
 If the frontend bundle is served, the healthcheck can always be reached at
@@ -89,17 +99,25 @@ npm install
   FastAPI.
 - `npm run preview` serves the production build for smoke testing.
 
-### Configure the API base URL
+### Configure the API base URL and storage endpoints
 
-The frontend reads `import.meta.env.VITE_API_BASE_URL` to determine where to
-send requests. Create `web/.env.local` (git-ignored by default) and add:
+Duplicate `web/.env.example` to `web/.env` or `web/.env.local` and update the
+values:
 
 ```bash
 VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_STORAGE_BASE_URL=http://127.0.0.1:8000/storage
 ```
 
-Adjust the value if the backend listens on another host or port. Vite reloads
-the configuration automatically when the file changes.
+`VITE_API_BASE_URL` controls where fetch requests are sent, while
+`VITE_STORAGE_BASE_URL` is used for constructing download links to generated
+artifacts. As with the backend, you can create environment-specific files such
+as `web/.env.production` and pick them up by running Vite with the corresponding
+mode (`npm run build -- --mode production`).
+
+> **Tip:** The FastAPI loader merges `.env`, `.env.<env>`, and `.env.local` in
+> that order. Vite follows a similar pattern based on the active mode, letting
+> you keep per-environment tweaks checked in while secrets stay local.
 
 ## Run the stack end-to-end
 

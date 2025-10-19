@@ -7,13 +7,18 @@ import logging
 import os
 import re
 from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from starlette.types import Scope
 
+from modules import load_environment
+
 from .routes import router
+
+load_environment()
 
 LOGGER = logging.getLogger(__name__)
 
