@@ -11,5 +11,12 @@ def create_app() -> FastAPI:
     """Instantiate and configure the FastAPI application."""
 
     app = FastAPI(title="ebook-tools API", version="0.1.0")
+
+    @app.get("/", tags=["health"])
+    def healthcheck() -> dict[str, str]:
+        """Simple healthcheck endpoint for smoke-testing the server."""
+
+        return {"status": "ok"}
+
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
     return app

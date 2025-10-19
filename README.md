@@ -47,3 +47,23 @@ Both values accept overrides through CLI flags (`--ffmpeg-path`,
 - In non-interactive mode, CLI flags or environment variables take precedence
   over the JSON values. The script resolves relative paths against the working
   copy and creates directories as needed.
+
+## Running the web API
+
+The FastAPI backend can be launched with uvicorn using either the module entry
+point or the helper script:
+
+```bash
+python -m modules.webapi --reload
+# or
+./scripts/run-webapi.sh --port 9000
+```
+
+Both commands call into the same application factory (`modules.webapi.application.create_app`) and accept the standard uvicorn host/port options. Use the `--reload` flag for local development to enable automatic code reloading.
+
+Once the server is running, open <http://127.0.0.1:8000/> in a browser or use `curl` to hit the built-in healthcheck and confirm the API is reachable:
+
+```bash
+curl http://127.0.0.1:8000/
+# {"status":"ok"}
+```
