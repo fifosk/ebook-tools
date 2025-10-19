@@ -8,8 +8,8 @@ from pydub import AudioSegment
 
 from .. import config_manager as cfg
 from ..config_manager import RuntimeContext
-from .. import llm_client
 from .. import translation_engine
+from ..llm_client import LLMClient, create_client
 from ..epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
@@ -78,6 +78,7 @@ class PipelineConfig:
     macos_reading_speed: int = 100
     sync_ratio: float = 0.9
     word_highlighting: bool = True
+    translation_client: LLMClient = field(init=False, repr=False)
 
     def resolved_working_dir(self) -> Path:
         """Return the working directory, falling back to defaults when unset."""
@@ -109,9 +110,12 @@ class PipelineConfig:
     def apply_runtime_settings(self) -> None:
         """Propagate configuration to dependent subsystems."""
 
-        translation_engine.set_model(self.ollama_model)
-        translation_engine.set_debug(self.debug)
-        llm_client.set_api_url(self.ollama_url)
+        translation_engine.configure_default_client(
+            model=self.ollama_model, api_url=self.ollama_url, debug=self.debug
+        )
+        self.translation_client = create_client(
+            model=self.ollama_model, api_url=self.ollama_url, debug=self.debug
+        )
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
             AudioSegment.converter = ffmpeg_path

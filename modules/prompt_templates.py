@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
-from modules import llm_client
+from modules import config_manager as cfg
 
 
 def make_translation_prompt(
@@ -55,7 +55,7 @@ def make_sentence_payload(
     """Build a chat payload using the configured defaults."""
 
     if model is None:
-        model = llm_client.get_model()
+        model = cfg.DEFAULT_MODEL
 
     messages: List[Dict[str, str]] = []
     if system_prompt:
