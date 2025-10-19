@@ -7,6 +7,7 @@ from functools import lru_cache
 from typing import Dict, Iterator, Optional
 
 from .. import config_manager as cfg
+from ..services.pipeline_service import PipelineService
 from .jobs import PipelineJobManager
 
 
@@ -52,3 +53,10 @@ def get_pipeline_job_manager() -> PipelineJobManager:
     """Return the process-wide :class:`PipelineJobManager` instance."""
 
     return PipelineJobManager()
+
+
+@lru_cache
+def get_pipeline_service() -> PipelineService:
+    """Return a lazily constructed :class:`PipelineService`."""
+
+    return PipelineService(get_pipeline_job_manager())

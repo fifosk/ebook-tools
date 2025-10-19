@@ -9,10 +9,11 @@ from fastapi.responses import StreamingResponse
 
 from .dependencies import (
     RuntimeContextProvider,
-    get_pipeline_job_manager,
+    get_pipeline_service,
     get_runtime_context_provider,
 )
-from .jobs import PipelineJob, PipelineJobManager
+from .jobs import PipelineJob
+from ..services.pipeline_service import PipelineService
 from .schemas import (
     PipelineRequestPayload,
     PipelineStatusResponse,
@@ -26,14 +27,14 @@ router = APIRouter()
 @router.post("/", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
 async def submit_pipeline(
     payload: PipelineRequestPayload,
-    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
 ):
     """Submit a pipeline execution request and return an identifier."""
 
     context = context_provider.create(payload.config, payload.environment_overrides)
     request = payload.to_pipeline_request(context=context)
-    job = job_manager.submit(request)
+    job = pipeline_service.enqueue(request)
     return PipelineSubmissionResponse(
         job_id=job.job_id,
         status=job.status,
@@ -44,12 +45,12 @@ async def submit_pipeline(
 @router.get("/{job_id}", response_model=PipelineStatusResponse)
 async def get_pipeline_status(
     job_id: str,
-    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
 ):
     """Return the latest status for the requested job."""
 
     try:
-        job = job_manager.get(job_id)
+        job = pipeline_service.get_job(job_id)
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
 
@@ -60,6 +61,12 @@ async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
     if job.completed_at and job.last_event is not None:
         payload = ProgressEventPayload.from_event(job.last_event)
         yield f"data: {payload.model_dump_json()}\n\n".encode("utf-8")
+        return
+
+    if job.tracker is None:
+        if job.last_event is not None:
+            payload = ProgressEventPayload.from_event(job.last_event)
+            yield f"data: {payload.model_dump_json()}\n\n".encode("utf-8")
         return
 
     stream = job.tracker.events()
@@ -76,12 +83,12 @@ async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
 @router.get("/{job_id}/events")
 async def stream_pipeline_events(
     job_id: str,
-    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
 ):
     """Stream progress events for ``job_id`` as Server-Sent Events."""
 
     try:
-        job = job_manager.get(job_id)
+        job = pipeline_service.get_job(job_id)
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
 
