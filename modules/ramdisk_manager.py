@@ -595,4 +595,72 @@ def _wait_for_ramdisk(path: Path, attempts: int = 5, delay: float = 0.2) -> bool
     return False
 
 
-__all__ = ["ensure_ramdisk", "ensure_standard_directory"]
+def is_ramdisk(path: os.PathLike[str] | str) -> bool:
+    """Return ``True`` when ``path`` resides on a RAM-backed filesystem."""
+
+    target = Path(path).expanduser()
+    try:
+        resolved = target.resolve(strict=True)
+    except FileNotFoundError:
+        if target.is_symlink():
+            try:
+                resolved = target.resolve(strict=False)
+            except (RuntimeError, OSError):
+                resolved = None
+        else:
+            resolved = None
+
+    candidate = resolved if resolved is not None else target
+    return _is_ramdisk(candidate)
+
+
+def teardown_ramdisk(path: os.PathLike[str] | str) -> None:
+    """Unmount the RAM disk backing ``path`` and restore a regular directory."""
+
+    target = Path(path).expanduser()
+    candidates = []
+
+    try:
+        resolved = target.resolve(strict=True)
+    except FileNotFoundError:
+        try:
+            resolved = target.resolve(strict=False)
+        except (RuntimeError, OSError):
+            resolved = None
+
+    if resolved is not None:
+        candidates.append(resolved)
+    candidates.append(target)
+
+    seen: set[str] = set()
+    for candidate in candidates:
+        candidate_path = Path(candidate)
+        try:
+            key = str(candidate_path.resolve())
+        except FileNotFoundError:
+            key = str(candidate_path)
+        if key in seen:
+            continue
+        seen.add(key)
+        if _is_ramdisk(candidate_path):
+            _teardown_ramdisk_mount(candidate_path)
+
+    if target.is_symlink():
+        try:
+            target.unlink()
+        except OSError as exc:  # pragma: no cover - best effort cleanup
+            logger.debug("Failed to remove tmp symlink %s: %s", target, exc)
+
+    if not target.exists():
+        try:
+            target.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:  # pragma: no cover - best effort cleanup
+            logger.debug("Failed to recreate tmp directory %s: %s", target, exc)
+
+
+__all__ = [
+    "ensure_ramdisk",
+    "ensure_standard_directory",
+    "is_ramdisk",
+    "teardown_ramdisk",
+]

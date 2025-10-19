@@ -1,6 +1,7 @@
 import os
 import json
 import shutil
+import atexit
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -46,6 +47,9 @@ OLLAMA_API_URL = DEFAULT_OLLAMA_URL
 THREAD_COUNT = DEFAULT_THREADS
 QUEUE_SIZE = DEFAULT_QUEUE_SIZE
 PIPELINE_MODE = False
+
+_RAMDISK_ACTIVE = False
+_CLEANUP_REGISTERED = False
 
 
 def resolve_directory(path_value, default_relative: Path) -> Path:
@@ -132,6 +136,27 @@ def set_pipeline_mode(value: Optional[Any]) -> bool:
     return PIPELINE_MODE
 
 
+def cleanup_environment() -> None:
+    """Tear down any temporary RAM disk resources."""
+
+    global _RAMDISK_ACTIVE
+
+    if not TMP_DIR or not _RAMDISK_ACTIVE:
+        return
+
+    try:
+        ramdisk_manager.teardown_ramdisk(TMP_DIR)
+    finally:
+        _RAMDISK_ACTIVE = False
+
+
+def _cleanup_tmp_ramdisk() -> None:
+    try:
+        cleanup_environment()
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.debug("Failed to clean up RAM disk during interpreter shutdown: %s", exc)
+
+
 def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None) -> None:
     """Configure directories and external tool locations based on config and overrides."""
     overrides = overrides or {}
@@ -175,10 +200,15 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
     tmp_path = Path(tmp_path)
     books_path = resolve_directory(books_override or config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
 
-    global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL
+    global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL, _RAMDISK_ACTIVE, _CLEANUP_REGISTERED
     WORKING_DIR = str(working_path)
     EBOOK_DIR = str(output_path)
     TMP_DIR = str(tmp_path)
+    is_tmp_ramdisk = ramdisk_manager.is_ramdisk(tmp_path)
+    if is_tmp_ramdisk and not _CLEANUP_REGISTERED:
+        atexit.register(_cleanup_tmp_ramdisk)
+        _CLEANUP_REGISTERED = True
+    _RAMDISK_ACTIVE = is_tmp_ramdisk
     BOOKS_DIR = str(books_path)
 
     ffmpeg_path = os.path.expanduser(str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH))

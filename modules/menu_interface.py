@@ -59,6 +59,10 @@ WRITTEN_MODE_DESC = {
     "4": "Original sentence + fluent translation",
 }
 
+class MenuExit(Exception):
+    """Raised when the user exits the interactive menu without running the pipeline."""
+
+
 TOP_LANGUAGES = [
     "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali", "Bosnian", "Burmese",
     "Catalan", "Chinese (Simplified)", "Chinese (Traditional)", "Czech", "Croatian", "Danish",
@@ -366,6 +370,9 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     logger.info("35. Temporary directory: %s", config.get("tmp_dir"))
     logger.info("36. FFmpeg path: %s", config.get("ffmpeg_path"))
     logger.info("37. Ollama API URL: %s", config.get("ollama_url"))
+    logger.info(
+        "\nPress Enter to confirm settings, choose a number to edit, or type 'q' to quit the menu."
+    )
 
 
 def _select_from_epub_directory(config: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
@@ -978,9 +985,13 @@ def run_interactive_menu(
 
             display_menu(config, refined, resolved_input_path)
 
-            inp_choice = _prompt_user(
+            inp_choice_raw = _prompt_user(
                 "\nEnter a parameter number to change (or press Enter to confirm): "
             )
+            inp_choice = inp_choice_raw.strip()
+            if inp_choice.lower() == "q":
+                logger.info("Interactive session exited by user request.")
+                raise MenuExit()
             if inp_choice == "":
                 break
             if not inp_choice.isdigit():

@@ -12,6 +12,7 @@ from . import logging_manager as log_mgr
 from . import audio_video_generator as av_gen
 from . import translation_engine
 from .menu_interface import (
+    MenuExit,
     parse_arguments,
     run_interactive_menu,
     update_book_cover_file_in_config,
@@ -891,11 +892,15 @@ def run_pipeline(
     }
 
     if args.interactive:
-        config, interactive_results = run_interactive_menu(
-            overrides,
-            args.config,
-            entry_script_name=ENTRY_SCRIPT_NAME,
-        )
+        try:
+            config, interactive_results = run_interactive_menu(
+                overrides,
+                args.config,
+                entry_script_name=ENTRY_SCRIPT_NAME,
+            )
+        except MenuExit:
+            logger.info("Interactive configuration cancelled by user.")
+            return None
         (
             input_file,
             base_output_file,
