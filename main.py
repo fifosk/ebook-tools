@@ -226,6 +226,10 @@ def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
         )
         input_thread.start()
 
+    log_mgr.console_info(
+        "Pipeline starting (CLI mode).",
+        logger_obj=logger,
+    )
     tracker.publish_start({"message": "Pipeline starting (CLI mode).", "source": "cli"})
 
     try:
