@@ -40,6 +40,7 @@ def translate_batch(
     target_languages: Sequence[str],
     *,
     include_transliteration: bool = False,
+    max_workers: Optional[int] = None,
     client=None,
     worker_pool=None,
 ) -> List[str]:
@@ -50,6 +51,7 @@ def translate_batch(
         input_language,
         target_languages,
         include_transliteration=include_transliteration,
+        max_workers=max_workers,
         client=client,
         worker_pool=worker_pool,
     )
