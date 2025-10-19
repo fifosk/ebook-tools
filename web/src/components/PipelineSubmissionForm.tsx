@@ -1,5 +1,12 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 import { PipelineRequestPayload } from '../api/dtos';
+import LanguageSelector from './LanguageSelector';
+import {
+  AUDIO_MODE_OPTIONS,
+  MenuOption,
+  VOICE_OPTIONS,
+  WRITTEN_MODE_OPTIONS
+} from '../constants/menuOptions';
 
 type Props = {
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
@@ -16,7 +23,8 @@ type FormState = {
   input_file: string;
   base_output_file: string;
   input_language: string;
-  target_languages: string;
+  target_languages: string[];
+  custom_target_languages: string;
   sentences_per_output_file: number;
   start_sentence: number;
   end_sentence: string;
@@ -39,8 +47,9 @@ type FormState = {
 const DEFAULT_FORM_STATE: FormState = {
   input_file: '',
   base_output_file: '',
-  input_language: 'en',
-  target_languages: 'es',
+  input_language: 'English',
+  target_languages: [],
+  custom_target_languages: '',
   sentences_per_output_file: 10,
   start_sentence: 1,
   end_sentence: '',
@@ -88,6 +97,10 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
     }));
   };
 
+  const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
+  const availableWrittenModes = useMemo<MenuOption[]>(() => WRITTEN_MODE_OPTIONS, []);
+  const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -103,10 +116,16 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
         book_metadata: parseJsonField('book_metadata', formState.book_metadata)
       };
 
-      const targetLanguages = formState.target_languages
+      const manualTargets = formState.custom_target_languages
         .split(',')
         .map((language) => language.trim())
         .filter(Boolean);
+
+      const targetLanguages = Array.from(new Set([...formState.target_languages, ...manualTargets]));
+
+      if (targetLanguages.length === 0) {
+        throw new Error('Please choose at least one target language.');
+      }
 
       const payload: PipelineRequestPayload = {
         config: json.config,
@@ -152,223 +171,281 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
         job.
       </p>
       {error ? <div className="alert" role="alert">{error}</div> : null}
-      <form onSubmit={handleSubmit}>
-        <label htmlFor="input_file">Input file path</label>
-        <input
-          id="input_file"
-          name="input_file"
-          type="text"
-          value={formState.input_file}
-          onChange={(event) => handleChange('input_file', event.target.value)}
-          placeholder="/path/to/input.txt"
-          required
-        />
+      <form onSubmit={handleSubmit} className="pipeline-form">
+        <fieldset>
+          <legend>Source material</legend>
+          <label htmlFor="input_file">Input file path</label>
+          <input
+            id="input_file"
+            name="input_file"
+            type="text"
+            value={formState.input_file}
+            onChange={(event) => handleChange('input_file', event.target.value)}
+            placeholder="/books/source.epub"
+            required
+          />
 
-        <label htmlFor="base_output_file">Base output file</label>
-        <input
-          id="base_output_file"
-          name="base_output_file"
-          type="text"
-          value={formState.base_output_file}
-          onChange={(event) => handleChange('base_output_file', event.target.value)}
-          placeholder="ebook_output"
-          required
-        />
+          <label htmlFor="base_output_file">Base output file</label>
+          <input
+            id="base_output_file"
+            name="base_output_file"
+            type="text"
+            value={formState.base_output_file}
+            onChange={(event) => handleChange('base_output_file', event.target.value)}
+            placeholder="ebooks/output"
+            required
+          />
 
-        <label htmlFor="input_language">Input language</label>
-        <input
-          id="input_language"
-          name="input_language"
-          type="text"
-          value={formState.input_language}
-          onChange={(event) => handleChange('input_language', event.target.value)}
-          required
-        />
+          <label htmlFor="input_language">Input language</label>
+          <input
+            id="input_language"
+            name="input_language"
+            type="text"
+            value={formState.input_language}
+            onChange={(event) => handleChange('input_language', event.target.value)}
+            required
+            placeholder="English"
+          />
+        </fieldset>
 
-        <label htmlFor="target_languages">Target languages (comma separated)</label>
-        <input
-          id="target_languages"
-          name="target_languages"
-          type="text"
-          value={formState.target_languages}
-          onChange={(event) => handleChange('target_languages', event.target.value)}
-          placeholder="es, fr"
-        />
+        <fieldset>
+          <legend>Target languages</legend>
+          <LanguageSelector
+            value={formState.target_languages}
+            onChange={(next) => handleChange('target_languages', next)}
+          />
+          <label htmlFor="custom_target_languages">Other target languages (comma separated)</label>
+          <input
+            id="custom_target_languages"
+            name="custom_target_languages"
+            type="text"
+            value={formState.custom_target_languages}
+            onChange={(event) => handleChange('custom_target_languages', event.target.value)}
+            placeholder="e.g. Klingon, Sindarin"
+          />
+        </fieldset>
 
-        <label htmlFor="sentences_per_output_file">Sentences per output file</label>
-        <input
-          id="sentences_per_output_file"
-          name="sentences_per_output_file"
-          type="number"
-          min={1}
-          value={formState.sentences_per_output_file}
-          onChange={(event) => handleChange('sentences_per_output_file', Number(event.target.value))}
-        />
-
-        <label htmlFor="start_sentence">Start sentence</label>
-        <input
-          id="start_sentence"
-          name="start_sentence"
-          type="number"
-          min={1}
-          value={formState.start_sentence}
-          onChange={(event) => handleChange('start_sentence', Number(event.target.value))}
-        />
-
-        <label htmlFor="end_sentence">End sentence (optional)</label>
-        <input
-          id="end_sentence"
-          name="end_sentence"
-          type="number"
-          min={formState.start_sentence}
-          value={formState.end_sentence}
-          onChange={(event) => handleChange('end_sentence', event.target.value)}
-          placeholder="Leave blank to process the entire document"
-        />
-
-        <div>
-          <label>
+        <fieldset>
+          <legend>Sentence window</legend>
+          <div className="field-grid">
+            <label htmlFor="sentences_per_output_file">
+              Sentences per output file
+              <input
+                id="sentences_per_output_file"
+                name="sentences_per_output_file"
+                type="number"
+                min={1}
+                value={formState.sentences_per_output_file}
+                onChange={(event) =>
+                  handleChange('sentences_per_output_file', Number(event.target.value))
+                }
+              />
+            </label>
+            <label htmlFor="start_sentence">
+              Start sentence
+              <input
+                id="start_sentence"
+                name="start_sentence"
+                type="number"
+                min={1}
+                value={formState.start_sentence}
+                onChange={(event) => handleChange('start_sentence', Number(event.target.value))}
+              />
+            </label>
+            <label htmlFor="end_sentence">
+              End sentence (optional)
+              <input
+                id="end_sentence"
+                name="end_sentence"
+                type="number"
+                min={formState.start_sentence}
+                value={formState.end_sentence}
+                onChange={(event) => handleChange('end_sentence', event.target.value)}
+                placeholder="Leave blank for entire document"
+              />
+            </label>
+          </div>
+          <label className="checkbox">
             <input
               type="checkbox"
               name="stitch_full"
               checked={formState.stitch_full}
               onChange={(event) => handleChange('stitch_full', event.target.checked)}
-            />{' '}
-            Stitch full document
+            />
+            Stitch full document once complete
           </label>
-        </div>
+        </fieldset>
 
-        <div>
-          <label>
+        <fieldset>
+          <legend>Audio narration</legend>
+          <label className="checkbox">
             <input
               type="checkbox"
               name="generate_audio"
               checked={formState.generate_audio}
               onChange={(event) => handleChange('generate_audio', event.target.checked)}
-            />{' '}
-            Generate audio
+            />
+            Generate narration tracks
           </label>
-        </div>
 
-        <label htmlFor="audio_mode">Audio mode</label>
-        <input
-          id="audio_mode"
-          name="audio_mode"
-          type="text"
-          value={formState.audio_mode}
-          onChange={(event) => handleChange('audio_mode', event.target.value)}
-        />
+          <div className="option-grid">
+            {availableAudioModes.map((option) => (
+              <label key={option.value} className="option-card">
+                <input
+                  type="radio"
+                  name="audio_mode"
+                  value={option.value}
+                  checked={formState.audio_mode === option.value}
+                  onChange={(event) => handleChange('audio_mode', event.target.value)}
+                />
+                <div>
+                  <strong>{option.label}</strong>
+                  <p>{option.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
 
-        <label htmlFor="written_mode">Written mode</label>
-        <input
-          id="written_mode"
-          name="written_mode"
-          type="text"
-          value={formState.written_mode}
-          onChange={(event) => handleChange('written_mode', event.target.value)}
-        />
+          <div className="option-grid">
+            {availableVoices.map((option) => (
+              <label key={option.value} className="option-card">
+                <input
+                  type="radio"
+                  name="selected_voice"
+                  value={option.value}
+                  checked={formState.selected_voice === option.value}
+                  onChange={(event) => handleChange('selected_voice', event.target.value)}
+                />
+                <div>
+                  <strong>{option.label}</strong>
+                  <p>{option.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
-        <label htmlFor="selected_voice">Selected voice</label>
-        <input
-          id="selected_voice"
-          name="selected_voice"
-          type="text"
-          value={formState.selected_voice}
-          onChange={(event) => handleChange('selected_voice', event.target.value)}
-        />
+        <fieldset>
+          <legend>Written output</legend>
+          <div className="option-grid">
+            {availableWrittenModes.map((option) => (
+              <label key={option.value} className="option-card">
+                <input
+                  type="radio"
+                  name="written_mode"
+                  value={option.value}
+                  checked={formState.written_mode === option.value}
+                  onChange={(event) => handleChange('written_mode', event.target.value)}
+                />
+                <div>
+                  <strong>{option.label}</strong>
+                  <p>{option.description}</p>
+                </div>
+              </label>
+            ))}
+          </div>
 
-        <div>
-          <label>
+          <label className="checkbox">
             <input
               type="checkbox"
               name="output_html"
               checked={formState.output_html}
               onChange={(event) => handleChange('output_html', event.target.checked)}
-            />{' '}
+            />
             Generate HTML output
           </label>
-        </div>
-
-        <div>
-          <label>
+          <label className="checkbox">
             <input
               type="checkbox"
               name="output_pdf"
               checked={formState.output_pdf}
               onChange={(event) => handleChange('output_pdf', event.target.checked)}
-            />{' '}
+            />
             Generate PDF output
           </label>
-        </div>
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              name="include_transliteration"
+              checked={formState.include_transliteration}
+              onChange={(event) => handleChange('include_transliteration', event.target.checked)}
+            />
+            Include transliteration in written output
+          </label>
+        </fieldset>
 
-        <div>
-          <label>
+        <fieldset>
+          <legend>Advanced options</legend>
+          <label htmlFor="tempo">
+            Tempo
+            <input
+              id="tempo"
+              name="tempo"
+              type="number"
+              step="0.1"
+              min={0.5}
+              value={formState.tempo}
+              onChange={(event) => handleChange('tempo', Number(event.target.value))}
+            />
+          </label>
+          <label className="checkbox">
             <input
               type="checkbox"
               name="generate_video"
               checked={formState.generate_video}
               onChange={(event) => handleChange('generate_video', event.target.checked)}
-            />{' '}
-            Generate video assets
+            />
+            Generate stitched video assets
           </label>
-        </div>
-
-        <div>
-          <label>
-            <input
-              type="checkbox"
-              name="include_transliteration"
-              checked={formState.include_transliteration}
-              onChange={(event) =>
-                handleChange('include_transliteration', event.target.checked)
-              }
-            />{' '}
-            Include transliteration
-          </label>
-        </div>
-
-        <label htmlFor="tempo">Tempo</label>
-        <input
-          id="tempo"
-          name="tempo"
-          type="number"
-          step="0.1"
-          min={0.5}
-          value={formState.tempo}
-          onChange={(event) => handleChange('tempo', Number(event.target.value))}
-        />
-
-        <label htmlFor="config">Config overrides (JSON)</label>
-        <textarea
-          id="config"
-          name="config"
-          value={formState.config}
-          onChange={(event) => handleChange('config', event.target.value)}
-        />
-
-        <label htmlFor="environment_overrides">Environment overrides (JSON)</label>
-        <textarea
-          id="environment_overrides"
-          name="environment_overrides"
-          value={formState.environment_overrides}
-          onChange={(event) => handleChange('environment_overrides', event.target.value)}
-        />
-
-        <label htmlFor="pipeline_overrides">Pipeline overrides (JSON)</label>
-        <textarea
-          id="pipeline_overrides"
-          name="pipeline_overrides"
-          value={formState.pipeline_overrides}
-          onChange={(event) => handleChange('pipeline_overrides', event.target.value)}
-        />
-
-        <label htmlFor="book_metadata">Book metadata (JSON)</label>
-        <textarea
-          id="book_metadata"
-          name="book_metadata"
-          value={formState.book_metadata}
-          onChange={(event) => handleChange('book_metadata', event.target.value)}
-        />
+          <details>
+            <summary>Config overrides (JSON)</summary>
+            <label className="visually-hidden" htmlFor="config">
+              Config overrides JSON
+            </label>
+            <textarea
+              id="config"
+              name="config"
+              value={formState.config}
+              onChange={(event) => handleChange('config', event.target.value)}
+            />
+          </details>
+          <details>
+            <summary>Environment overrides (JSON)</summary>
+            <label className="visually-hidden" htmlFor="environment_overrides">
+              Environment overrides JSON
+            </label>
+            <textarea
+              id="environment_overrides"
+              name="environment_overrides"
+              value={formState.environment_overrides}
+              onChange={(event) => handleChange('environment_overrides', event.target.value)}
+            />
+          </details>
+          <details>
+            <summary>Pipeline overrides (JSON)</summary>
+            <label className="visually-hidden" htmlFor="pipeline_overrides">
+              Pipeline overrides JSON
+            </label>
+            <textarea
+              id="pipeline_overrides"
+              name="pipeline_overrides"
+              value={formState.pipeline_overrides}
+              onChange={(event) => handleChange('pipeline_overrides', event.target.value)}
+            />
+          </details>
+          <details>
+            <summary>Book metadata (JSON)</summary>
+            <label className="visually-hidden" htmlFor="book_metadata">
+              Book metadata JSON
+            </label>
+            <textarea
+              id="book_metadata"
+              name="book_metadata"
+              value={formState.book_metadata}
+              onChange={(event) => handleChange('book_metadata', event.target.value)}
+            />
+          </details>
+        </fieldset>
 
         <button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Submitting…' : 'Submit job'}
