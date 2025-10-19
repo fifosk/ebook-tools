@@ -6,7 +6,7 @@ import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 describe('PipelineSubmissionForm', () => {
   it('submits normalized payloads when valid', async () => {
     const user = userEvent.setup();
-    const handleSubmit = vi.fn<[], Promise<void>>().mockResolvedValue();
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
 
     render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
 
@@ -26,7 +26,12 @@ describe('PipelineSubmissionForm', () => {
 
     await waitFor(() => expect(handleSubmit).toHaveBeenCalled());
 
-    const payload = handleSubmit.mock.calls[0][0] as PipelineRequestPayload;
+    const firstCall = handleSubmit.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    if (!firstCall) {
+      throw new Error('Expected the form submission handler to receive a payload');
+    }
+    const [payload] = firstCall;
     expect(payload.inputs.target_languages).toEqual(['French', 'German']);
     expect(payload.config).toEqual({ debug: true });
     expect(payload.inputs.generate_audio).toBe(true);
