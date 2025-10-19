@@ -67,3 +67,26 @@ Once the server is running, open <http://127.0.0.1:8000/> in a browser or use `c
 curl http://127.0.0.1:8000/
 # {"status":"ok"}
 ```
+
+### Web API environment variables
+
+The FastAPI application inspects a few environment variables at startup to control
+cross-origin requests and optional static hosting of the bundled single-page
+application:
+
+- **`EBOOK_API_CORS_ORIGINS`** – Comma or whitespace separated list of
+  allowed origins for CORS. Defaults to the local Vite dev server URLs
+  (`http://localhost:5173` and `http://127.0.0.1:5173`). Set to `*` to allow
+  every origin or to an empty string to disable the middleware entirely.
+- **`EBOOK_API_STATIC_ROOT`** – Filesystem path to the built web assets. When
+  unset, the server looks for `web/dist/` relative to the repository root. Set
+  this value to an empty string to run in API-only mode even if the directory
+  exists.
+- **`EBOOK_API_STATIC_INDEX`** – Filename served for client-side routes when
+  static hosting is enabled (default: `index.html`).
+- **`EBOOK_API_STATIC_MOUNT`** – URL prefix where the static files are exposed
+  (default: `/`).
+
+When static hosting is disabled the JSON healthcheck remains available at `/`.
+If the frontend bundle is served, the healthcheck can always be reached at
+`/_health`.
