@@ -19,6 +19,8 @@ from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import translation_engine
 from . import metadata_manager
+from .core import ingestion
+from .core.config import build_pipeline_config
 from .audio_video_generator import (
     AUTO_MACOS_VOICE,
     AUTO_MACOS_VOICE_FEMALE,
@@ -1000,8 +1002,6 @@ def run_interactive_menu(
         refined_cache_stale = True
         refined: List[str] = []
 
-        from . import ebook_tools as pipeline  # Local import to avoid circular dependency
-
         while True:
             resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
 
@@ -1016,8 +1016,8 @@ def run_interactive_menu(
                 )
 
             if config.get("input_file"):
-                pipeline_config = pipeline.build_pipeline_config(config)
-                refined, refreshed = pipeline.ingestion.get_refined_sentences(
+                pipeline_config = build_pipeline_config(config)
+                refined, refreshed = ingestion.get_refined_sentences(
                     config["input_file"],
                     pipeline_config,
                     force_refresh=refined_cache_stale,
@@ -1026,7 +1026,7 @@ def run_interactive_menu(
                 if refreshed:
                     logger.info(
                         "Refined sentence list written to: %s",
-                        pipeline.ingestion.refined_list_output_path(
+                        ingestion.refined_list_output_path(
                             config["input_file"], pipeline_config
                         ),
                     )
@@ -1071,9 +1071,9 @@ def run_interactive_menu(
         resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
         config, pipeline_args = confirm_settings(config, resolved_input_path, entry_script_name)
 
-        translation_engine.set_model(config.get("ollama_model", DEFAULT_MODEL))
-        translation_engine.set_debug(config.get("debug", False))
-        configure_logging_level(config.get("debug", False))
+        pipeline_config = build_pipeline_config(config)
+        pipeline_config.apply_runtime_settings()
+        configure_logging_level(pipeline_config.debug)
 
         return config, pipeline_args
     finally:

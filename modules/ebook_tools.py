@@ -12,15 +12,11 @@ from pydub import AudioSegment
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
 from . import metadata_manager
-from . import translation_engine
-from .core.config import PipelineConfig
+from .core.config import build_pipeline_config
 from .core import ingestion
 from .core.rendering import process_epub
 from .core.translation import transliterate_sentence, translate_sentence_simple
-from .epub_parser import (
-    DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
-    DEFAULT_MAX_WORDS,
-)
+from .epub_parser import DEFAULT_MAX_WORDS
 from .menu_interface import (
     MenuExit,
     parse_arguments,
@@ -39,88 +35,6 @@ DEFAULT_MODEL = cfg.DEFAULT_MODEL
 
 ENTRY_SCRIPT_NAME = "main.py"
 
-# Explicitly set ffmpeg converter for pydub using configurable path
-AudioSegment.converter = cfg.DEFAULT_FFMPEG_PATH
-
-OLLAMA_MODEL = DEFAULT_MODEL
-translation_engine.set_model(OLLAMA_MODEL)
-
-SELECTED_VOICE = "gTTS"
-DEBUG = True
-translation_engine.set_debug(DEBUG)
-MAX_WORDS = DEFAULT_MAX_WORDS
-EXTEND_SPLIT_WITH_COMMA_SEMICOLON = DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON
-MACOS_READING_SPEED = 100
-SYNC_RATIO = 0.9
-TEMPO = 1.0
-WORD_HIGHLIGHTING = True
-
-
-def build_pipeline_config(config: Optional[dict] = None) -> PipelineConfig:
-    """Assemble a :class:`PipelineConfig` from configuration values."""
-
-    max_words_value = (
-        config.get("max_words", MAX_WORDS) if config is not None else MAX_WORDS
-    )
-    extend_split_value = (
-        config.get("split_on_comma_semicolon", EXTEND_SPLIT_WITH_COMMA_SEMICOLON)
-        if config is not None
-        else EXTEND_SPLIT_WITH_COMMA_SEMICOLON
-    )
-    selected_voice_value = (
-        config.get("selected_voice", SELECTED_VOICE)
-        if config is not None
-        else SELECTED_VOICE
-    )
-    tempo_value = config.get("tempo", TEMPO) if config is not None else TEMPO
-    macos_speed_value = (
-        config.get("macos_reading_speed", MACOS_READING_SPEED)
-        if config is not None
-        else MACOS_READING_SPEED
-    )
-    sync_ratio_value = (
-        config.get("sync_ratio", SYNC_RATIO) if config is not None else SYNC_RATIO
-    )
-    word_highlighting_value = (
-        config.get("word_highlighting", WORD_HIGHLIGHTING)
-        if config is not None
-        else WORD_HIGHLIGHTING
-    )
-    pipeline_enabled_value = (
-        config.get("pipeline_mode", cfg.is_pipeline_mode())
-        if config is not None
-        else cfg.is_pipeline_mode()
-    )
-    queue_size_value = (
-        config.get("queue_size", cfg.get_queue_size())
-        if config is not None
-        else cfg.get_queue_size()
-    )
-    thread_count_value = (
-        config.get("thread_count", cfg.get_thread_count())
-        if config is not None
-        else cfg.get_thread_count()
-    )
-
-    return PipelineConfig(
-        working_dir=cfg.WORKING_DIR,
-        books_dir=cfg.BOOKS_DIR,
-        default_working_relative=cfg.DEFAULT_WORKING_RELATIVE,
-        derived_runtime_dirname=cfg.DERIVED_RUNTIME_DIRNAME,
-        derived_refined_filename_template=cfg.DERIVED_REFINED_FILENAME_TEMPLATE,
-        max_words=max_words_value,
-        extend_split_with_comma_semicolon=extend_split_value,
-        selected_voice=selected_voice_value,
-        tempo=tempo_value,
-        macos_reading_speed=macos_speed_value,
-        sync_ratio=sync_ratio_value,
-        word_highlighting=word_highlighting_value,
-        pipeline_enabled=pipeline_enabled_value,
-        queue_size=queue_size_value,
-        thread_count=thread_count_value,
-    )
-
-
 def run_pipeline(
     *,
     progress_tracker: Optional[ProgressTracker] = None,
@@ -133,7 +47,7 @@ def run_pipeline(
     args = parse_arguments()
     config: dict = {}
 
-    overrides = {
+    environment_overrides = {
         "ebooks_dir": args.ebooks_dir or os.environ.get("EBOOKS_DIR"),
         "working_dir": args.working_dir or os.environ.get("EBOOK_WORKING_DIR"),
         "output_dir": args.output_dir or os.environ.get("EBOOK_OUTPUT_DIR"),
@@ -146,7 +60,7 @@ def run_pipeline(
     if args.interactive:
         try:
             config, interactive_results = run_interactive_menu(
-                overrides,
+                environment_overrides,
                 args.config,
                 entry_script_name=ENTRY_SCRIPT_NAME,
             )
@@ -173,8 +87,32 @@ def run_pipeline(
             tempo,
             book_metadata,
         ) = interactive_results
-        SELECTED_VOICE = config.get("selected_voice", selected_voice)
-        TEMPO = config.get("tempo", tempo)
+
+        selected_voice = config.get("selected_voice", selected_voice)
+        config["selected_voice"] = selected_voice
+        tempo = config.get("tempo", tempo)
+        config["tempo"] = tempo
+        generate_audio = config.get("generate_audio", generate_audio)
+        config["generate_audio"] = generate_audio
+        audio_mode = config.get("audio_mode", audio_mode)
+        config["audio_mode"] = audio_mode
+        written_mode = config.get("written_mode", written_mode)
+        config["written_mode"] = written_mode
+        output_html = config.get("output_html", output_html)
+        config["output_html"] = output_html
+        output_pdf = config.get("output_pdf", output_pdf)
+        config["output_pdf"] = output_pdf
+        generate_video = config.get("generate_video", generate_video)
+        config["generate_video"] = generate_video
+        include_transliteration = config.get(
+            "include_transliteration", include_transliteration
+        )
+        config["include_transliteration"] = include_transliteration
+        config.setdefault("macos_reading_speed", 100)
+        config.setdefault("sync_ratio", 0.9)
+        config.setdefault("word_highlighting", True)
+        config.setdefault("max_words", DEFAULT_MAX_WORDS)
+        config.setdefault("ollama_model", DEFAULT_MODEL)
 
         if config.get("auto_metadata", True) and input_file:
             metadata_manager.populate_config_metadata(config, input_file)
@@ -185,24 +123,11 @@ def run_pipeline(
                 "book_summary": config.get("book_summary"),
                 "book_cover_file": config.get("book_cover_file"),
             }
-
-        OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
-        DEBUG = config.get("debug", False)
-        MAX_WORDS = config.get("max_words", DEFAULT_MAX_WORDS)
-        EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get(
-            "split_on_comma_semicolon",
-            DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
-        )
-        MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
-        SYNC_RATIO = config.get("sync_ratio", 0.9)
-        WORD_HIGHLIGHTING = config.get("word_highlighting", True)
-        cfg.set_thread_count(config.get("thread_count"))
-        translation_engine.set_model(OLLAMA_MODEL)
-        translation_engine.set_debug(DEBUG)
-        configure_logging_level(DEBUG)
+        else:
+            book_metadata = book_metadata or {}
     else:
         config = load_configuration(args.config, verbose=False)
-        initialize_environment(config, overrides)
+        initialize_environment(config, environment_overrides)
         config = update_book_cover_file_in_config(
             config,
             config.get("ebooks_dir"),
@@ -211,7 +136,9 @@ def run_pipeline(
 
         input_file = args.input_file or config.get("input_file")
         if not input_file:
-            logger.error("Error: An input EPUB file must be specified either via CLI or configuration.")
+            logger.error(
+                "Error: An input EPUB file must be specified either via CLI or configuration."
+            )
             sys.exit(1)
 
         resolved_input_path = resolve_file_path(input_file, cfg.BOOKS_DIR)
@@ -228,11 +155,16 @@ def run_pipeline(
         input_language = args.input_language or config.get("input_language", "English")
         target_languages = config.get("target_languages", ["Arabic"])
         if args.target_languages:
-            target_languages = [x.strip() for x in args.target_languages.split(",") if x.strip()]
+            target_languages = [
+                x.strip() for x in args.target_languages.split(",") if x.strip()
+            ]
         if not target_languages:
             target_languages = ["Arabic"]
 
-        sentences_per_output_file = args.sentences_per_output_file or config.get("sentences_per_output_file", 10)
+        sentences_per_output_file = (
+            args.sentences_per_output_file
+            or config.get("sentences_per_output_file", 10)
+        )
 
         base_output_file = args.base_output_file or config.get("base_output_file")
         base_name = os.path.splitext(os.path.basename(input_file))[0]
@@ -242,18 +174,30 @@ def run_pipeline(
             os.makedirs(resolved_base.parent, exist_ok=True)
             base_output_file = str(resolved_base)
         else:
-            output_folder = os.path.join(cfg.EBOOK_DIR, f"{target_lang_str}_{base_name}")
+            output_folder = os.path.join(
+                cfg.EBOOK_DIR, f"{target_lang_str}_{base_name}"
+            )
             os.makedirs(output_folder, exist_ok=True)
-            base_output_file = os.path.join(output_folder, f"{target_lang_str}_{base_name}.html")
+            base_output_file = os.path.join(
+                output_folder, f"{target_lang_str}_{base_name}.html"
+            )
 
-        start_sentence = args.start_sentence if args.start_sentence is not None else config.get("start_sentence", 1)
+        start_sentence = (
+            args.start_sentence
+            if args.start_sentence is not None
+            else config.get("start_sentence", 1)
+        )
         try:
             start_sentence = int(start_sentence)
         except (TypeError, ValueError):
             start_sentence = 1
 
         end_sentence = None
-        end_arg = args.end_sentence if args.end_sentence is not None else config.get("end_sentence")
+        end_arg = (
+            args.end_sentence
+            if args.end_sentence is not None
+            else config.get("end_sentence")
+        )
         if isinstance(end_arg, str):
             end_arg = end_arg.strip()
             if end_arg.startswith("+") or end_arg.startswith("-"):
@@ -270,12 +214,18 @@ def run_pipeline(
         generate_audio = config.get("generate_audio", True)
         audio_mode = config.get("audio_mode", "1")
         written_mode = config.get("written_mode", "4")
-        SELECTED_VOICE = config.get("selected_voice", "gTTS")
+        selected_voice = config.get("selected_voice", "gTTS")
+        config.setdefault("selected_voice", selected_voice)
         output_html = config.get("output_html", True)
         output_pdf = config.get("output_pdf", False)
         generate_video = config.get("generate_video", False)
         include_transliteration = config.get("include_transliteration", False)
-        TEMPO = config.get("tempo", 1.0)
+        tempo = config.get("tempo", 1.0)
+        config["tempo"] = tempo
+        config.setdefault("macos_reading_speed", 100)
+        config.setdefault("sync_ratio", 0.9)
+        config.setdefault("word_highlighting", True)
+        config.setdefault("max_words", config.get("max_words", DEFAULT_MAX_WORDS))
 
         if config.get("auto_metadata", True):
             metadata_manager.populate_config_metadata(config, input_file)
@@ -288,21 +238,42 @@ def run_pipeline(
             "book_cover_file": config.get("book_cover_file"),
         }
 
-        if args.debug:
-            config["debug"] = True
+    if args.debug:
+        config["debug"] = True
 
-        OLLAMA_MODEL = config.get("ollama_model", DEFAULT_MODEL)
-        translation_engine.set_model(OLLAMA_MODEL)
-        DEBUG = config.get("debug", False)
-        translation_engine.set_debug(DEBUG)
-        configure_logging_level(DEBUG)
-        MAX_WORDS = config.get("max_words", 18)
-        EXTEND_SPLIT_WITH_COMMA_SEMICOLON = config.get("split_on_comma_semicolon", False)
-        MACOS_READING_SPEED = config.get("macos_reading_speed", 100)
-        SYNC_RATIO = config.get("sync_ratio", 0.9)
-        WORD_HIGHLIGHTING = config.get("word_highlighting", True)
+    cfg.set_thread_count(config.get("thread_count"))
+    cfg.set_queue_size(config.get("queue_size"))
+    cfg.set_pipeline_mode(config.get("pipeline_mode"))
 
-    pipeline_config = build_pipeline_config(config or None)
+    pipeline_overrides = {
+        "generate_audio": config.get("generate_audio"),
+        "audio_mode": config.get("audio_mode"),
+        "selected_voice": config.get("selected_voice"),
+        "tempo": config.get("tempo"),
+        "macos_reading_speed": config.get("macos_reading_speed"),
+        "sync_ratio": config.get("sync_ratio"),
+        "word_highlighting": config.get("word_highlighting"),
+        "max_words": config.get("max_words"),
+        "split_on_comma_semicolon": config.get("split_on_comma_semicolon"),
+        "debug": config.get("debug"),
+        "ollama_model": config.get("ollama_model"),
+        "ollama_url": config.get("ollama_url"),
+        "ffmpeg_path": environment_overrides.get("ffmpeg_path")
+        or config.get("ffmpeg_path"),
+        "thread_count": config.get("thread_count")
+        or environment_overrides.get("thread_count"),
+        "queue_size": config.get("queue_size"),
+        "pipeline_mode": config.get("pipeline_mode"),
+    }
+
+    pipeline_config = build_pipeline_config(
+        config, overrides={**environment_overrides, **pipeline_overrides}
+    )
+    pipeline_config.apply_runtime_settings()
+    configure_logging_level(pipeline_config.debug)
+
+    generate_audio = pipeline_config.generate_audio
+    audio_mode = pipeline_config.audio_mode
 
     try:
         logger.info("Starting EPUB processing...")
@@ -324,7 +295,7 @@ def run_pipeline(
             metadata={
                 "mode": "cli",
                 "target_languages": target_languages,
-                "max_words": MAX_WORDS,
+                "max_words": pipeline_config.max_words,
             },
         )
         total_fully = len(refined_list)
@@ -384,7 +355,7 @@ def run_pipeline(
                 output_pdf=output_pdf,
                 epub_title=f"Stitched Translation: {range_fragment} {stitched_basename}",
             )
-            if generate_audio and all_audio_segments:
+            if pipeline_config.generate_audio and all_audio_segments:
                 stitched_audio = AudioSegment.empty()
                 for seg in all_audio_segments:
                     stitched_audio += seg

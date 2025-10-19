@@ -1,26 +1,236 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Any, Mapping, Optional
+
+from pydub import AudioSegment
+
+from .. import config_manager as cfg
+from .. import llm_client
+from .. import translation_engine
+from ..epub_parser import (
+    DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    DEFAULT_MAX_WORDS,
+)
 
 
-@dataclass
+def _coerce_bool(value: Any, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+    return bool(value)
+
+
+def _coerce_int(value: Any, default: int) -> int:
+    if value is None:
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_float(value: Any, default: float) -> float:
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+@dataclass(slots=True)
 class PipelineConfig:
-    """Configuration values required by the core processing helpers."""
+    """Container describing all runtime options for the ebook pipeline."""
 
     working_dir: Optional[str]
+    output_dir: Optional[str]
+    tmp_dir: Optional[str]
     books_dir: Optional[str]
-    default_working_relative: Path
-    derived_runtime_dirname: str
-    derived_refined_filename_template: str
-    max_words: int
-    extend_split_with_comma_semicolon: bool
-    selected_voice: str
-    tempo: float
-    macos_reading_speed: int
-    sync_ratio: float
-    word_highlighting: bool
-    pipeline_enabled: bool
-    queue_size: int
-    thread_count: int
+    default_working_relative: Path = field(default_factory=lambda: cfg.DEFAULT_WORKING_RELATIVE)
+    derived_runtime_dirname: str = field(default_factory=lambda: cfg.DERIVED_RUNTIME_DIRNAME)
+    derived_refined_filename_template: str = field(
+        default_factory=lambda: cfg.DERIVED_REFINED_FILENAME_TEMPLATE
+    )
+    ollama_model: str = field(default_factory=lambda: cfg.DEFAULT_MODEL)
+    ollama_url: str = field(default_factory=lambda: cfg.OLLAMA_API_URL)
+    ffmpeg_path: Optional[str] = None
+    thread_count: int = field(default_factory=cfg.get_thread_count)
+    queue_size: int = field(default_factory=cfg.get_queue_size)
+    pipeline_enabled: bool = field(default_factory=cfg.is_pipeline_mode)
+    max_words: int = field(default=DEFAULT_MAX_WORDS)
+    split_on_comma_semicolon: bool = field(
+        default=DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON
+    )
+    debug: bool = False
+    generate_audio: bool = True
+    audio_mode: str = "1"
+    selected_voice: str = "gTTS"
+    tempo: float = 1.0
+    macos_reading_speed: int = 100
+    sync_ratio: float = 0.9
+    word_highlighting: bool = True
+
+    def resolved_working_dir(self) -> Path:
+        """Return the working directory, falling back to defaults when unset."""
+
+        if self.working_dir:
+            return Path(self.working_dir)
+        return cfg.resolve_directory(None, self.default_working_relative)
+
+    def resolved_output_dir(self) -> Optional[Path]:
+        """Return the configured ebook output directory as a :class:`Path`."""
+
+        return Path(self.output_dir) if self.output_dir else None
+
+    def resolved_tmp_dir(self) -> Optional[Path]:
+        """Return the configured temporary directory as a :class:`Path`."""
+
+        return Path(self.tmp_dir) if self.tmp_dir else None
+
+    def resolved_books_dir(self) -> Optional[Path]:
+        """Return the configured books directory as a :class:`Path`."""
+
+        return Path(self.books_dir) if self.books_dir else None
+
+    def ensure_runtime_dir(self) -> Path:
+        """Ensure the runtime artifact directory exists and return it."""
+
+        runtime_dir = self.resolved_working_dir() / self.derived_runtime_dirname
+        runtime_dir.mkdir(parents=True, exist_ok=True)
+        return runtime_dir
+
+    def apply_runtime_settings(self) -> None:
+        """Propagate configuration to dependent subsystems."""
+
+        translation_engine.set_model(self.ollama_model)
+        translation_engine.set_debug(self.debug)
+        llm_client.set_api_url(self.ollama_url)
+        if self.ffmpeg_path:
+            AudioSegment.converter = self.ffmpeg_path
+
+
+def _select_value(
+    name: str,
+    config: Mapping[str, Any],
+    overrides: Mapping[str, Any],
+    default: Any,
+) -> Any:
+    if name in overrides and overrides[name] is not None:
+        return overrides[name]
+    value = config.get(name)
+    if value is None:
+        return default
+    return value
+
+
+def build_pipeline_config(
+    config: Optional[Mapping[str, Any]] = None,
+    overrides: Optional[Mapping[str, Any]] = None,
+) -> PipelineConfig:
+    """Construct a :class:`PipelineConfig` from configuration sources."""
+
+    config = config or {}
+    overrides = overrides or {}
+
+    working_dir = cfg.WORKING_DIR
+    output_dir = cfg.EBOOK_DIR
+    tmp_dir = cfg.TMP_DIR
+    books_dir = cfg.BOOKS_DIR
+
+    max_words = _coerce_int(
+        _select_value("max_words", config, overrides, DEFAULT_MAX_WORDS),
+        DEFAULT_MAX_WORDS,
+    )
+    split_on_comma_semicolon = _coerce_bool(
+        _select_value(
+            "split_on_comma_semicolon",
+            config,
+            overrides,
+            DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+        ),
+        DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
+    )
+    debug = _coerce_bool(_select_value("debug", config, overrides, False), False)
+    generate_audio = _coerce_bool(
+        _select_value("generate_audio", config, overrides, True),
+        True,
+    )
+    audio_mode = str(_select_value("audio_mode", config, overrides, "1") or "1")
+    selected_voice = (
+        str(_select_value("selected_voice", config, overrides, "gTTS") or "gTTS")
+    )
+    tempo = _coerce_float(_select_value("tempo", config, overrides, 1.0), 1.0)
+    macos_reading_speed = _coerce_int(
+        _select_value("macos_reading_speed", config, overrides, 100),
+        100,
+    )
+    sync_ratio = _coerce_float(
+        _select_value("sync_ratio", config, overrides, 0.9),
+        0.9,
+    )
+    word_highlighting = _coerce_bool(
+        _select_value("word_highlighting", config, overrides, True),
+        True,
+    )
+
+    ollama_model = str(
+        _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
+        or cfg.DEFAULT_MODEL
+    )
+    ollama_url = str(
+        _select_value("ollama_url", config, overrides, cfg.OLLAMA_API_URL)
+        or cfg.OLLAMA_API_URL
+    )
+    ffmpeg_path = _select_value("ffmpeg_path", config, overrides, cfg.DEFAULT_FFMPEG_PATH)
+    if ffmpeg_path:
+        ffmpeg_path = str(ffmpeg_path)
+
+    thread_override = overrides.get("thread_count")
+    if thread_override is not None:
+        thread_count = max(1, _coerce_int(thread_override, cfg.DEFAULT_THREADS))
+    else:
+        thread_count = cfg.get_thread_count()
+
+    queue_override = overrides.get("queue_size")
+    if queue_override is not None:
+        queue_size = max(1, _coerce_int(queue_override, cfg.DEFAULT_QUEUE_SIZE))
+    else:
+        queue_size = cfg.get_queue_size()
+
+    pipeline_override = overrides.get("pipeline_mode")
+    if pipeline_override is not None:
+        pipeline_enabled = _coerce_bool(pipeline_override, cfg.is_pipeline_mode())
+    else:
+        pipeline_enabled = cfg.is_pipeline_mode()
+
+    return PipelineConfig(
+        working_dir=working_dir,
+        output_dir=output_dir,
+        tmp_dir=tmp_dir,
+        books_dir=books_dir,
+        max_words=max_words,
+        split_on_comma_semicolon=split_on_comma_semicolon,
+        debug=debug,
+        generate_audio=generate_audio,
+        audio_mode=audio_mode,
+        selected_voice=selected_voice,
+        tempo=tempo,
+        macos_reading_speed=macos_reading_speed,
+        sync_ratio=sync_ratio,
+        word_highlighting=word_highlighting,
+        ollama_model=ollama_model,
+        ollama_url=ollama_url,
+        ffmpeg_path=ffmpeg_path,
+        thread_count=thread_count,
+        queue_size=queue_size,
+        pipeline_enabled=pipeline_enabled,
+    )
