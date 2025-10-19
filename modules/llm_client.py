@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional
-from urllib.parse import urljoin
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
-import requests
+from ollama import Client
+from ollama import RequestError, ResponseError
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
@@ -16,9 +17,12 @@ from modules import logging_manager as log_mgr
 logger = log_mgr.get_logger()
 
 _DEFAULT_MODEL = cfg.DEFAULT_MODEL
+_REMOTE_HOST = "https://ollama.com"
+_LOCAL_HOST = "http://localhost:11434"
 _api_url_override: Optional[str] = None
 _model = _DEFAULT_MODEL
 _debug_enabled = False
+_client_cache: Dict[Tuple[str, Optional[str]], Client] = {}
 
 TokenUsage = Dict[str, int]
 Validator = Callable[[str], bool]
@@ -105,93 +109,163 @@ def _merge_token_usage(existing: TokenUsage, new_data: Dict[str, Any]) -> None:
         existing[key] = value
 
 
-def _parse_stream(response: requests.Response) -> LLMResponse:
-    full_text = ""
-    token_usage: TokenUsage = {}
-    raw_chunks: List[Dict[str, Any]] = []
+def _normalize_host(url: Optional[str]) -> Optional[str]:
+    if not url:
+        return None
+    trimmed = url.strip()
+    if not trimmed:
+        return None
+    trimmed = trimmed.rstrip("/")
+    for suffix in ("/api/chat", "/api/generate", "/api"):
+        if trimmed.endswith(suffix):
+            trimmed = trimmed[: -len(suffix)]
+            break
+    return trimmed or None
 
-    for line in response.iter_lines(decode_unicode=True):
-        if not line:
-            continue
+
+def _resolve_host_chain() -> Iterable[Tuple[str, Optional[str]]]:
+    api_key = os.getenv("OLLAMA_API_KEY") or None
+    hosts: List[Tuple[str, Optional[str]]] = []
+    seen: set[str] = set()
+
+    def _append(host: Optional[str], key: Optional[str]) -> None:
+        if not host or host in seen:
+            return
+        seen.add(host)
+        hosts.append((host, key))
+
+    if _api_url_override:
+        host = _normalize_host(_api_url_override)
+        if host:
+            _append(host, api_key)
+        return hosts
+
+    if api_key:
+        _append(_REMOTE_HOST, api_key)
+
+    configured_host = _normalize_host(cfg.OLLAMA_API_URL)
+    if configured_host:
+        key = api_key if api_key and configured_host == _REMOTE_HOST else None
+        _append(configured_host, key)
+
+    _append(_normalize_host(_LOCAL_HOST), None)
+
+    return hosts
+
+
+def _get_client(host: str, api_key: Optional[str]) -> Client:
+    cache_key = (host, api_key)
+    if cache_key in _client_cache:
+        return _client_cache[cache_key]
+
+    if api_key:
         try:
-            payload = json.loads(line)
-        except json.JSONDecodeError:
-            _log_debug("Skipping non-JSON line from stream: %s", line)
-            continue
-        raw_chunks.append(payload)
-        message = payload.get("message", {}).get("content")
-        if message:
-            full_text += message
-        elif "response" in payload and isinstance(payload["response"], str):
-            full_text += payload["response"]
-        _merge_token_usage(token_usage, payload)
+            client = Client(host=host, api_key=api_key)
+        except TypeError:
+            headers = {"Authorization": f"Bearer {api_key}"}
+            try:
+                client = Client(host=host, headers=headers)
+            except TypeError:
+                client = Client(host=host)
+                transport = getattr(client, "_client", None)
+                if transport and hasattr(transport, "headers"):
+                    transport.headers.update(headers)
+    else:
+        client = Client(host=host)
 
-    response_payload = LLMResponse(
-        text=full_text,
-        status_code=response.status_code,
-        token_usage=token_usage,
-        raw=raw_chunks,
-    )
-    _log_token_usage(token_usage)
-    return response_payload
+    _client_cache[cache_key] = client
+    return client
 
 
-def _parse_json_response(response: requests.Response) -> LLMResponse:
+def _chat_with_client(
+    client: Client,
+    host: str,
+    payload: Dict[str, Any],
+    *,
+    stream: bool,
+    timeout: Optional[int],
+) -> LLMResponse:
+    request_payload = dict(payload)
+    request_payload.pop("stream", None)
+    _log_debug("Dispatching LLM request to %s with stream=%s", host, stream)
+    _log_debug("Payload: %s", json.dumps(request_payload, indent=2, ensure_ascii=False))
+
     try:
-        data = response.json()
-    except json.JSONDecodeError as exc:
-        return LLMResponse(
-            text="",
-            status_code=response.status_code,
-            token_usage={},
-            raw=response.text,
-            error=f"Invalid JSON response: {exc}",
+        response = client.chat(stream=stream, timeout=timeout, **request_payload)
+    except TypeError:
+        response = client.chat(stream=stream, **request_payload)
+
+    token_usage: TokenUsage = {}
+
+    if stream:
+        full_text = ""
+        raw_chunks: List[Dict[str, Any]] = []
+        for chunk in response:
+            if not isinstance(chunk, dict):
+                continue
+            raw_chunks.append(chunk)
+            message = chunk.get("message", {}).get("content")
+            if message:
+                full_text += message
+            elif isinstance(chunk.get("response"), str):
+                full_text += chunk["response"]
+            _merge_token_usage(token_usage, chunk)
+        reply = LLMResponse(
+            text=full_text,
+            status_code=200,
+            token_usage=token_usage,
+            raw=raw_chunks,
+        )
+    else:
+        if not isinstance(response, dict):
+            data: Dict[str, Any] = {}
+        else:
+            data = response
+        _merge_token_usage(token_usage, data)
+        message = data.get("message", {}).get("content")
+        if not message and isinstance(data.get("response"), str):
+            message = data["response"]
+        reply = LLMResponse(
+            text=message or "",
+            status_code=200,
+            token_usage=token_usage,
+            raw=data,
         )
 
-    token_usage: TokenUsage = {}
-    _merge_token_usage(token_usage, data)
-
-    message = data.get("message", {}).get("content")
-    if not message and isinstance(data.get("response"), str):
-        message = data["response"]
-
-    if isinstance(message, str):
-        text = message
-    else:
-        text = ""
-
-    response_payload = LLMResponse(
-        text=text,
-        status_code=response.status_code,
-        token_usage=token_usage,
-        raw=data,
-    )
     _log_token_usage(token_usage)
-    return response_payload
+    return reply
 
 
 def _execute_request(payload: Dict[str, Any], timeout: Optional[int] = None) -> LLMResponse:
     timeout = timeout or 90
     stream = bool(payload.get("stream", False))
-    api_url = get_api_url()
-    _log_debug("Dispatching LLM request to %s with stream=%s", api_url, stream)
-    _log_debug("Payload: %s", json.dumps(payload, indent=2, ensure_ascii=False))
 
-    response = requests.post(api_url, json=payload, stream=stream, timeout=timeout)
+    for host, api_key in _resolve_host_chain():
+        try:
+            client = _get_client(host, api_key)
+        except Exception as exc:  # pragma: no cover - defensive
+            _log_debug("Failed to initialise Ollama client for %s: %s", host, exc)
+            last_error = str(exc)
+            continue
 
-    if response.status_code != 200:
-        _log_debug("Received non-200 response: %s - %s", response.status_code, response.text[:300])
-        return LLMResponse(
-            text="",
-            status_code=response.status_code,
-            token_usage={},
-            raw=response.text,
-            error=f"HTTP {response.status_code}",
-        )
+        try:
+            return _chat_with_client(client, host, payload, stream=stream, timeout=timeout)
+        except (RequestError, ResponseError, OSError) as exc:
+            last_error = str(exc)
+            _log_debug("LLM request failed for %s: %s", host, exc)
+            continue
+        except Exception as exc:  # pragma: no cover - unexpected failure
+            last_error = str(exc)
+            _log_debug("Unexpected error during LLM request for %s: %s", host, exc)
+            continue
 
-    parsed = _parse_stream(response) if stream else _parse_json_response(response)
-    parsed.raw = parsed.raw or response.text
-    return parsed
+    return LLMResponse(
+        text="",
+        status_code=0,
+        token_usage={},
+        raw=None,
+        error=last_error if 'last_error' in locals() else "Unable to reach Ollama service",
+    )
 
 
 def send_chat_request(
@@ -209,13 +283,7 @@ def send_chat_request(
     last_error: Optional[str] = None
 
     for attempt in range(1, max_attempts + 1):
-        try:
-            result = _execute_request(payload, timeout=timeout)
-        except requests.exceptions.RequestException as exc:
-            last_error = str(exc)
-            _log_debug("Request error on attempt %s/%s: %s", attempt, max_attempts, exc)
-            time.sleep(backoff_seconds * attempt)
-            continue
+        result = _execute_request(payload, timeout=timeout)
 
         if result.error:
             last_error = result.error
@@ -247,15 +315,16 @@ def send_chat_request(
 def list_available_tags() -> Optional[Dict[str, Any]]:
     """Fetch available model tags from the Ollama server."""
 
-    api_url = get_api_url()
-    tags_url = urljoin(api_url.rstrip("/") + "/", "../tags")
-    try:
-        response = requests.get(tags_url, timeout=10)
-        if response.status_code == 200:
-            return response.json()
-        _log_debug("Tags endpoint returned %s: %s", response.status_code, response.text[:200])
-    except requests.exceptions.RequestException as exc:  # pragma: no cover - network
-        _log_debug("Failed to reach tags endpoint: %s", exc)
+    for host, api_key in _resolve_host_chain():
+        try:
+            client = _get_client(host, api_key)
+            return client.list()
+        except (RequestError, ResponseError, OSError) as exc:
+            _log_debug("Unable to list models from %s: %s", host, exc)
+            continue
+        except Exception as exc:  # pragma: no cover - unexpected failure
+            _log_debug("Unexpected error listing models from %s: %s", host, exc)
+            continue
     return None
 
 
