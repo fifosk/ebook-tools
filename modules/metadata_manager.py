@@ -6,15 +6,14 @@ import json
 import re
 import shutil
 import textwrap
-import urllib.parse
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
 from bs4 import BeautifulSoup
 from ebooklib import epub
-from datetime import datetime
 
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
@@ -30,6 +29,10 @@ _DEFAULT_PLACEHOLDERS = {
     "book_summary": {"", None, "No summary provided.", "Summary unavailable."},
     "book_cover_file": {"", None},
 }
+
+_SENTENCE_LIMIT = 10
+_OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
+_OPENLIBRARY_COVER_TEMPLATE = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
 
 def _is_placeholder(key: str, value: Optional[str]) -> bool:
@@ -50,7 +53,7 @@ def _parse_filename_metadata(epub_path: Path) -> Dict[str, Optional[str]]:
     base = re.sub(r"\s+", " ", base).strip()
     result: Dict[str, Optional[str]] = {}
 
-    year_match = re.search(r"(19|20|21)\d{2}", base)
+    year_match = re.search(r"(18|19|20|21)\d{2}", base)
     if year_match:
         result["book_year"] = year_match.group(0)
         base = base.replace(year_match.group(0), " ")
@@ -72,46 +75,51 @@ def _parse_filename_metadata(epub_path: Path) -> Dict[str, Optional[str]]:
     return result
 
 
-def _first_metadata_value(entries: Iterable) -> Optional[str]:
-    for entry in entries:
-        if isinstance(entry, tuple) and entry:
-            value = entry[0]
-        else:
-            value = entry
-        if isinstance(value, str):
-            stripped = value.strip()
-            if stripped:
-                return stripped
-    return None
+def _split_sentences(text: str) -> List[str]:
+    if not text:
+        return []
+    segments = re.split(r"(?<=[.!?])\s+", text)
+    sentences: List[str] = []
+    for segment in segments:
+        cleaned = segment.strip()
+        if cleaned:
+            sentences.append(cleaned)
+        if len(sentences) >= _SENTENCE_LIMIT:
+            break
+    return sentences
 
 
-def _extract_epub_metadata(epub_path: Path) -> Dict[str, Optional[str]]:
+def _extract_epub_context(epub_path: Path) -> Tuple[Dict[str, Optional[str]], List[str]]:
     metadata: Dict[str, Optional[str]] = {}
+    sentences: List[str] = []
     try:
         book = epub.read_epub(str(epub_path))
     except Exception as exc:  # pragma: no cover - delegate to heuristics
         logger.debug("Unable to load EPUB metadata from %s: %s", epub_path, exc)
-        return metadata
+        return metadata, sentences
 
-    title = _first_metadata_value(book.get_metadata("DC", "title"))
-    author = _first_metadata_value(book.get_metadata("DC", "creator"))
-    date = _first_metadata_value(book.get_metadata("DC", "date"))
-    description = _first_metadata_value(book.get_metadata("DC", "description"))
+    def _first_value(entries: Iterable) -> Optional[str]:
+        for entry in entries:
+            value = entry[0] if isinstance(entry, tuple) and entry else entry
+            if isinstance(value, str):
+                stripped = value.strip()
+                if stripped:
+                    return stripped
+        return None
+
+    title = _first_value(book.get_metadata("DC", "title"))
+    author = _first_value(book.get_metadata("DC", "creator"))
+    date = _first_value(book.get_metadata("DC", "date"))
 
     if title:
         metadata["book_title"] = title
     if author:
         metadata["book_author"] = author
     if date:
-        year_match = re.search(r"(19|20|21)\d{2}", date)
+        year_match = re.search(r"(18|19|20|21)\d{2}", date)
         if year_match:
             metadata["book_year"] = year_match.group(0)
-    if description:
-        metadata["book_summary"] = description
 
-    text_fragments = []
-    accumulated = 0
-    max_chars = 6000
     for item in book.get_items():
         if not isinstance(item, epub.EpubHtml):
             continue
@@ -122,59 +130,53 @@ def _extract_epub_metadata(epub_path: Path) -> Dict[str, Optional[str]]:
         text = soup.get_text(separator=" ", strip=True)
         if not text:
             continue
-        text_fragments.append(text)
-        accumulated += len(text)
-        if accumulated >= max_chars:
-            break
-    if text_fragments:
-        metadata["_preview_text"] = "\n\n".join(text_fragments)[:max_chars]
-
-    return metadata
+        new_sentences = _split_sentences(text)
+        for sentence in new_sentences:
+            sentences.append(sentence)
+            if len(sentences) >= _SENTENCE_LIMIT:
+                return metadata, sentences
+    return metadata, sentences
 
 
-def _invoke_llm_enrichment(
+def _build_llm_messages(
     filename: str,
-    preview: str,
-    base_metadata: Dict[str, Optional[str]],
-    *,
-    summary_hint: Optional[str] = None,
-    missing_fields: Iterable[str] = (),
+    sentences: List[str],
+    seed_metadata: Dict[str, Optional[str]],
+) -> List[Dict[str, str]]:
+    system_message = {
+        "role": "system",
+        "content": (
+            "You are an expert bibliographic researcher. "
+            "Using the provided EPUB filename context and the opening sentences from the book, "
+            "determine the published book title, the main author, and the original publication year. "
+            "Prefer evidence that appears directly in the supplied sentences, such as title pages or forewords. "
+            "Respond with a single JSON object that contains exactly the keys book_title, book_author, and book_year. "
+            "If uncertain, provide your best historically plausible estimate. "
+            "Always return four-digit years and avoid additional commentary."
+        ),
+    }
+    user_payload = {
+        "filename": filename,
+        "first_sentences": sentences,
+        "embedded_metadata": {k: v for k, v in seed_metadata.items() if v},
+    }
+    user_message = {
+        "role": "user",
+        "content": "```json\n" + json.dumps(user_payload, ensure_ascii=False, indent=2) + "\n```",
+    }
+    return [system_message, user_message]
+
+
+def _invoke_llm_metadata(
+    filename: str,
+    sentences: List[str],
+    seed_metadata: Dict[str, Optional[str]],
     timeout: int = 90,
 ) -> Dict[str, Optional[str]]:
-    if not preview or not llm_client.get_model():
+    if not sentences or not llm_client.get_model():
         return {}
 
-    paragraphs = [part.strip() for part in re.split(r"\n{2,}", preview) if part.strip()]
-    first_block = paragraphs[0] if paragraphs else preview[:600]
-    first_sentences = re.split(r"(?<=[.!?])\s+", first_block)
-    leading_excerpt = " ".join(first_sentences[:4]).strip() or first_block[:600]
-
-    prompt_context = {
-        "filename": filename,
-        "known_metadata": {k: v for k, v in base_metadata.items() if v},
-        "preview_excerpt": preview[:4000],
-        "first_block_excerpt": leading_excerpt,
-        "summary_hint": summary_hint,
-        "requested_fields": list(missing_fields),
-    }
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "You are an expert bibliographic researcher. "
-                "Infer the true published title, author, original publication year, and a 2-3 sentence summary for an EPUB. "
-                "Prioritize evidence from the supplied summary and opening paragraphs. "
-                "Return valid JSON with keys book_title, book_author, book_year, book_summary. "
-                "Use historically plausible four-digit years; never invent future years. "
-                "Avoid generic placeholders such as 'Book' or 'Unknown'."
-            ),
-        },
-        {
-            "role": "user",
-            "content": "```json\n" + json.dumps(prompt_context, ensure_ascii=False, indent=2) + "\n```",
-        },
-    ]
-
+    messages = _build_llm_messages(filename, sentences, seed_metadata)
     try:
         response = llm_client.send_chat_request(
             {"messages": messages, "stream": False},
@@ -190,77 +192,151 @@ def _invoke_llm_enrichment(
             logger.debug("LLM enrichment error: %s", response.error)
         return {}
 
-    text = response.text.strip()
-    json_candidate = text
-    if not text.startswith("{"):
-        match = re.search(r"\{.*\}", text, re.DOTALL)
+    candidate = response.text.strip()
+    if not candidate.startswith("{"):
+        match = re.search(r"\{.*\}", candidate, re.DOTALL)
         if match:
-            json_candidate = match.group(0)
+            candidate = match.group(0)
     try:
-        parsed = json.loads(json_candidate)
+        parsed = json.loads(candidate)
     except json.JSONDecodeError:
-        logger.debug("LLM response was not valid JSON: %s", text[:200])
+        logger.debug("LLM response was not valid JSON: %s", candidate[:200])
         return {}
 
-    enriched: Dict[str, Optional[str]] = {}
+    results: Dict[str, Optional[str]] = {}
     current_year = datetime.utcnow().year
-    for key in ["book_title", "book_author", "book_year", "book_summary"]:
+    for key in ("book_title", "book_author", "book_year"):
         value = parsed.get(key)
         if not isinstance(value, str):
             continue
         cleaned = value.strip()
         if not cleaned:
             continue
-        if key == "book_title" and cleaned.lower() in {"book", "unknown", "novel", "story"}:
-            logger.debug("Discarding non-specific LLM title suggestion: %s", cleaned)
-            continue
         if key == "book_year":
             match = re.search(r"(\d{4})", cleaned)
             if not match:
-                logger.debug("Ignoring LLM year without four digits: %s", cleaned)
                 continue
             year_int = int(match.group(1))
             if year_int > current_year:
-                logger.debug("Ignoring implausible future year suggested by LLM: %s", cleaned)
                 continue
             cleaned = match.group(1)
-        enriched[key] = cleaned
-    return enriched
+        results[key] = cleaned
+    return results
 
 
-def _download_cover_image(title: str, author: str, destination: Path) -> bool:
-    query = " ".join(part for part in [title, author] if part)
-    if not query.strip():
-        return False
-    encoded = urllib.parse.quote(query.strip())
-    search_url = f"https://openlibrary.org/search.json?title={encoded}"
+def _normalize(text: Optional[str]) -> Optional[str]:
+    if not text:
+        return None
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _select_openlibrary_doc(
+    docs: List[Dict[str, Any]],
+    title: str,
+    author: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    if not docs:
+        return None
+    normalized_title = _normalize(title)
+    normalized_author = _normalize(author)
+
+    best_doc = None
+    best_score = -1
+    for doc in docs:
+        doc_title = _normalize(doc.get("title"))
+        if not doc_title:
+            continue
+        score = 0
+        if doc_title == normalized_title:
+            score += 3
+        elif normalized_title and normalized_title in doc_title:
+            score += 1
+
+        author_names = [_normalize(name) for name in doc.get("author_name", []) if name]
+        if normalized_author and author_names:
+            if normalized_author in author_names:
+                score += 3
+            else:
+                for candidate in author_names:
+                    if normalized_author.split()[0] in candidate:
+                        score += 1
+                        break
+
+        if not best_doc or score > best_score:
+            best_doc = doc
+            best_score = score
+    return best_doc
+
+
+def _fetch_openlibrary_details(title: str, author: Optional[str]) -> Dict[str, Optional[str]]:
+    if not title:
+        return {}
+
+    params = {"title": title}
+    if author:
+        params["author"] = author
+
     try:
-        response = requests.get(search_url, timeout=10)
+        response = requests.get(_OPENLIBRARY_SEARCH_URL, params=params, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:  # pragma: no cover - network issues
+        logger.debug("OpenLibrary search failed: %s", exc)
+        return {}
+
+    docs = payload.get("docs", []) if isinstance(payload, dict) else []
+    best_doc = _select_openlibrary_doc(docs, title, author)
+    if not best_doc:
+        return {}
+
+    enrichment: Dict[str, Optional[str]] = {}
+
+    first_publish_year = best_doc.get("first_publish_year") or best_doc.get("publish_year", [None])[0]
+    if first_publish_year:
+        enrichment["book_year"] = str(first_publish_year)
+
+    cover_id = best_doc.get("cover_i")
+    if cover_id:
+        enrichment["cover_url"] = _OPENLIBRARY_COVER_TEMPLATE.format(cover_id=cover_id)
+
+    summary = None
+    if isinstance(best_doc.get("first_sentence"), dict):
+        summary = best_doc["first_sentence"].get("value")
+    elif isinstance(best_doc.get("first_sentence"), str):
+        summary = best_doc.get("first_sentence")
+
+    work_key = best_doc.get("key")
+    if work_key:
+        try:
+            work_resp = requests.get(f"https://openlibrary.org{work_key}.json", timeout=10)
+            if work_resp.status_code == 200:
+                work_data = work_resp.json()
+                description = work_data.get("description")
+                if isinstance(description, dict):
+                    description = description.get("value")
+                if isinstance(description, str):
+                    summary = description.strip() or summary
+        except Exception as exc:  # pragma: no cover
+            logger.debug("Failed to fetch OpenLibrary work details for %s: %s", work_key, exc)
+
+    if summary:
+        enrichment["book_summary"] = summary.strip()
+
+    return enrichment
+
+
+def _download_cover_from_url(url: str, destination: Path) -> bool:
+    try:
+        response = requests.get(url, timeout=10)
         if response.status_code != 200:
             return False
-        data = response.json()
-    except Exception as exc:  # pragma: no cover - network/JSON errors
-        logger.debug("Failed to query OpenLibrary for cover: %s", exc)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with open(destination, "wb") as handle:
+            handle.write(response.content)
+        return True
+    except Exception as exc:  # pragma: no cover - network errors
+        logger.debug("Failed to download cover image from %s: %s", url, exc)
         return False
-
-    docs = data.get("docs", []) if isinstance(data, dict) else []
-    for doc in docs:
-        cover_id = doc.get("cover_i")
-        if not cover_id:
-            continue
-        cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
-        try:
-            cover_resp = requests.get(cover_url, timeout=10)
-            if cover_resp.status_code != 200:
-                continue
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            with open(destination, "wb") as handle:
-                handle.write(cover_resp.content)
-            return True
-        except Exception as exc:  # pragma: no cover
-            logger.debug("Failed to download cover image %s: %s", cover_url, exc)
-            continue
-    return False
 
 
 def _create_placeholder_cover(title: str, destination: Path) -> bool:
@@ -320,9 +396,13 @@ def _resolve_cover_path(candidate: Optional[str]) -> Optional[Path]:
     return None
 
 
-def _ensure_cover_image(metadata: Dict[str, Optional[str]], epub_path: Path) -> Optional[str]:
+def _ensure_cover_image(
+    metadata: Dict[str, Optional[str]],
+    epub_path: Path,
+    *,
+    preferred_url: Optional[str] = None,
+) -> Optional[str]:
     title = metadata.get("book_title") or "Unknown Title"
-    author = metadata.get("book_author") or ""
     destination = _runtime_cover_destination(epub_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
 
@@ -341,8 +421,7 @@ def _ensure_cover_image(metadata: Dict[str, Optional[str]], epub_path: Path) -> 
     if destination.exists():
         return str(destination)
 
-    logger.info("Attempting to retrieve a cover image for '%s' by %s", title, author or "Unknown Author")
-    if _download_cover_image(title, author, destination):
+    if preferred_url and _download_cover_from_url(preferred_url, destination):
         logger.info("Downloaded cover image to %s", destination)
         return str(destination)
 
@@ -374,56 +453,48 @@ def infer_metadata(
     metadata: Dict[str, Optional[str]] = dict(existing_metadata or {})
 
     filename_guesses = _parse_filename_metadata(epub_path)
-    for key, value in filename_guesses.items():
+    metadata_seed = metadata.copy()
+    metadata_seed.update({k: v for k, v in filename_guesses.items() if v})
+
+    embedded_metadata, sentences = _extract_epub_context(epub_path)
+    metadata_seed.update({k: v for k, v in embedded_metadata.items() if v})
+
+    for key, value in metadata_seed.items():
         if value and _is_placeholder(key, metadata.get(key)):
             metadata[key] = value
-            logger.debug("Filename heuristic provided %s: %s", key, value)
 
-    epub_metadata = _extract_epub_metadata(epub_path)
-    preview_text = epub_metadata.pop("_preview_text", None)
-    for key, value in epub_metadata.items():
+    need_llm = any(
+        _is_placeholder(field, metadata.get(field)) for field in ("book_title", "book_author", "book_year")
+    )
+
+    if need_llm:
+        llm_results = _invoke_llm_metadata(epub_path.name, sentences, metadata_seed)
+        for key, value in llm_results.items():
+            if value and (_is_placeholder(key, metadata.get(key)) or metadata.get(key) != value):
+                metadata[key] = value
+                logger.info("LLM inferred %s: %s", key, value)
+
+    title = metadata.get("book_title")
+    author = metadata.get("book_author")
+    openlibrary_data = _fetch_openlibrary_details(title or "", author)
+
+    for key in ("book_year", "book_summary"):
+        value = openlibrary_data.get(key)
         if value and _is_placeholder(key, metadata.get(key)):
             metadata[key] = value
-            logger.debug("EPUB embedded metadata provided %s: %s", key, value)
+            logger.info("OpenLibrary provided %s", key)
 
-    summary_hint = metadata.get("book_summary")
-    if _is_placeholder("book_summary", summary_hint):
-        summary_hint = None
-
-    if preview_text and not summary_hint:
-        logger.debug("Using preview text fallback to craft summary")
-        sentences = re.split(r"(?<=[.!?])\s+", preview_text.strip())
-        summary = " ".join(sentences[:3]).strip()
-        if summary:
-            metadata["book_summary"] = summary
-            summary_hint = summary
-
-    missing_fields = [
-        key
-        for key in ["book_title", "book_author", "book_year", "book_summary"]
-        if _is_placeholder(key, metadata.get(key))
-    ]
-
-    if preview_text and missing_fields:
-        enriched = _invoke_llm_enrichment(
-            epub_path.name,
-            preview_text,
-            metadata,
-            summary_hint=summary_hint,
-            missing_fields=missing_fields,
-        )
-        for key, value in enriched.items():
-            if value and _is_placeholder(key, metadata.get(key)):
-                metadata[key] = value
-                logger.info("LLM enriched %s", key)
-            elif key == "book_summary" and value:
-                metadata[key] = value
-
-    cover_path = _ensure_cover_image(metadata, epub_path)
+    cover_url = openlibrary_data.get("cover_url")
+    cover_path = _ensure_cover_image(metadata, epub_path, preferred_url=cover_url)
     if cover_path:
         metadata["book_cover_file"] = cover_path
 
     _METADATA_CACHE[cache_key] = metadata.copy()
+
+    logger.info(
+        "Metadata inference result: title='%(book_title)s', author='%(book_author)s', year='%(book_year)s'",
+        metadata,
+    )
     return metadata
 
 
