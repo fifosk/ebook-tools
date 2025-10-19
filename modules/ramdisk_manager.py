@@ -7,6 +7,7 @@ import platform
 import plistlib
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
 
@@ -83,7 +84,13 @@ def ensure_ramdisk(
             if not _replace_with_symlink(target, actual_mount):
                 return False
 
-        return _is_ramdisk(target)
+        if _wait_for_ramdisk(actual_mount):
+            return True
+
+        if _wait_for_ramdisk(target):
+            return True
+
+        return False
 
     logger.info(
         "RAM disk automation is not supported on platform %s. Using directory %s on existing storage.",
@@ -578,6 +585,14 @@ def _format_size(size_bytes: int) -> str:
             return f"{size_bytes:.0f} {unit}"
         size_bytes /= 1024
     return f"{size_bytes:.0f} TiB"
+
+
+def _wait_for_ramdisk(path: Path, attempts: int = 5, delay: float = 0.2) -> bool:
+    for _ in range(max(1, attempts)):
+        if _is_ramdisk(path):
+            return True
+        time.sleep(max(0.0, delay))
+    return False
 
 
 __all__ = ["ensure_ramdisk", "ensure_standard_directory"]
