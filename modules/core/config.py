@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from __future__ import annotations
-
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional
@@ -9,6 +7,7 @@ from typing import Any, Mapping, Optional
 from pydub import AudioSegment
 
 from .. import config_manager as cfg
+from ..config_manager import RuntimeContext
 from .. import llm_client
 from .. import translation_engine
 from ..epub_parser import (
@@ -51,10 +50,11 @@ def _coerce_float(value: Any, default: float) -> float:
 class PipelineConfig:
     """Container describing all runtime options for the ebook pipeline."""
 
-    working_dir: Optional[str]
-    output_dir: Optional[str]
-    tmp_dir: Optional[str]
-    books_dir: Optional[str]
+    context: RuntimeContext
+    working_dir: Path
+    output_dir: Optional[Path]
+    tmp_dir: Path
+    books_dir: Path
     default_working_relative: Path = field(default_factory=lambda: cfg.DEFAULT_WORKING_RELATIVE)
     derived_runtime_dirname: str = field(default_factory=lambda: cfg.DERIVED_RUNTIME_DIRNAME)
     derived_refined_filename_template: str = field(
@@ -82,24 +82,22 @@ class PipelineConfig:
     def resolved_working_dir(self) -> Path:
         """Return the working directory, falling back to defaults when unset."""
 
-        if self.working_dir:
-            return Path(self.working_dir)
-        return cfg.resolve_directory(None, self.default_working_relative)
+        return self.working_dir
 
     def resolved_output_dir(self) -> Optional[Path]:
         """Return the configured ebook output directory as a :class:`Path`."""
 
-        return Path(self.output_dir) if self.output_dir else None
+        return self.output_dir
 
     def resolved_tmp_dir(self) -> Optional[Path]:
         """Return the configured temporary directory as a :class:`Path`."""
 
-        return Path(self.tmp_dir) if self.tmp_dir else None
+        return self.tmp_dir
 
     def resolved_books_dir(self) -> Optional[Path]:
         """Return the configured books directory as a :class:`Path`."""
 
-        return Path(self.books_dir) if self.books_dir else None
+        return self.books_dir
 
     def ensure_runtime_dir(self) -> Path:
         """Ensure the runtime artifact directory exists and return it."""
@@ -114,8 +112,9 @@ class PipelineConfig:
         translation_engine.set_model(self.ollama_model)
         translation_engine.set_debug(self.debug)
         llm_client.set_api_url(self.ollama_url)
-        if self.ffmpeg_path:
-            AudioSegment.converter = self.ffmpeg_path
+        ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
+        if ffmpeg_path:
+            AudioSegment.converter = ffmpeg_path
 
 
 def _select_value(
@@ -133,6 +132,7 @@ def _select_value(
 
 
 def build_pipeline_config(
+    context: RuntimeContext,
     config: Optional[Mapping[str, Any]] = None,
     overrides: Optional[Mapping[str, Any]] = None,
 ) -> PipelineConfig:
@@ -141,10 +141,10 @@ def build_pipeline_config(
     config = config or {}
     overrides = overrides or {}
 
-    working_dir = cfg.WORKING_DIR
-    output_dir = cfg.EBOOK_DIR
-    tmp_dir = cfg.TMP_DIR
-    books_dir = cfg.BOOKS_DIR
+    working_dir = context.working_dir
+    output_dir: Optional[Path] = context.output_dir
+    tmp_dir = context.tmp_dir
+    books_dir = context.books_dir
 
     max_words = _coerce_int(
         _select_value("max_words", config, overrides, DEFAULT_MAX_WORDS),
@@ -190,33 +190,35 @@ def build_pipeline_config(
         _select_value("ollama_url", config, overrides, cfg.OLLAMA_API_URL)
         or cfg.OLLAMA_API_URL
     )
-    ffmpeg_path = _select_value("ffmpeg_path", config, overrides, cfg.DEFAULT_FFMPEG_PATH)
-    if ffmpeg_path:
-        ffmpeg_path = str(ffmpeg_path)
+    raw_ffmpeg = _select_value(
+        "ffmpeg_path", config, overrides, context.ffmpeg_path or cfg.DEFAULT_FFMPEG_PATH
+    )
+    ffmpeg_path = str(raw_ffmpeg) if raw_ffmpeg else None
 
     thread_override = overrides.get("thread_count")
     if thread_override is not None:
-        thread_count = max(1, _coerce_int(thread_override, cfg.DEFAULT_THREADS))
+        thread_count = max(1, _coerce_int(thread_override, context.thread_count))
     else:
-        thread_count = cfg.get_thread_count()
+        thread_count = context.thread_count
 
     queue_override = overrides.get("queue_size")
     if queue_override is not None:
-        queue_size = max(1, _coerce_int(queue_override, cfg.DEFAULT_QUEUE_SIZE))
+        queue_size = max(1, _coerce_int(queue_override, context.queue_size))
     else:
-        queue_size = cfg.get_queue_size()
+        queue_size = context.queue_size
 
     pipeline_override = overrides.get("pipeline_mode")
     if pipeline_override is not None:
-        pipeline_enabled = _coerce_bool(pipeline_override, cfg.is_pipeline_mode())
+        pipeline_enabled = _coerce_bool(pipeline_override, context.pipeline_enabled)
     else:
-        pipeline_enabled = cfg.is_pipeline_mode()
+        pipeline_enabled = context.pipeline_enabled
 
     return PipelineConfig(
-        working_dir=working_dir,
-        output_dir=output_dir,
-        tmp_dir=tmp_dir,
-        books_dir=books_dir,
+        context=context,
+        working_dir=Path(working_dir),
+        output_dir=Path(output_dir) if output_dir is not None else None,
+        tmp_dir=Path(tmp_dir),
+        books_dir=Path(books_dir),
         max_words=max_words,
         split_on_comma_semicolon=split_on_comma_semicolon,
         debug=debug,

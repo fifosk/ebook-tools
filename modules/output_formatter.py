@@ -27,6 +27,8 @@ def prepare_output_directory(
     book_title: str | None,
     source_language_code: str,
     target_language_code: str,
+    *,
+    context: cfg.RuntimeContext | None = None,
 ) -> tuple[str, str, str]:
     """Create and return the directory and base filenames for batch exports."""
     author = (book_author or "Unknown_Author").strip() or "Unknown_Author"
@@ -38,8 +40,9 @@ def prepare_output_directory(
     folder_name = f"{safe_author}_{safe_title}_{source_language_code}_{target_language_code}"
     folder_name = re.sub(r"_+", "_", folder_name).strip("_")
 
-    if cfg.EBOOK_DIR:
-        ebooks_root = Path(cfg.EBOOK_DIR)
+    context = context or cfg.get_runtime_context(None)
+    if context is not None:
+        ebooks_root = context.output_dir
     else:
         ebooks_root = cfg.resolve_directory(None, cfg.DEFAULT_OUTPUT_RELATIVE)
 

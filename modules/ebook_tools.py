@@ -29,7 +29,7 @@ from . import output_formatter
 logger = log_mgr.logger
 configure_logging_level = log_mgr.configure_logging_level
 resolve_file_path = cfg.resolve_file_path
-initialize_environment = cfg.initialize_environment
+build_runtime_context = cfg.build_runtime_context
 load_configuration = cfg.load_configuration
 DEFAULT_MODEL = cfg.DEFAULT_MODEL
 
@@ -57,6 +57,8 @@ def run_pipeline(
         "thread_count": args.thread_count or os.environ.get("EBOOK_THREAD_COUNT"),
     }
 
+    context: Optional[cfg.RuntimeContext] = None
+
     if args.interactive:
         try:
             config, interactive_results = run_interactive_menu(
@@ -67,6 +69,7 @@ def run_pipeline(
         except MenuExit:
             logger.info("Interactive configuration cancelled by user.")
             return None
+        context = cfg.get_runtime_context(None)
         (
             input_file,
             base_output_file,
@@ -127,7 +130,8 @@ def run_pipeline(
             book_metadata = book_metadata or {}
     else:
         config = load_configuration(args.config, verbose=False)
-        initialize_environment(config, environment_overrides)
+        context = build_runtime_context(config, environment_overrides)
+        cfg.set_runtime_context(context)
         config = update_book_cover_file_in_config(
             config,
             config.get("ebooks_dir"),
@@ -141,9 +145,9 @@ def run_pipeline(
             )
             sys.exit(1)
 
-        resolved_input_path = resolve_file_path(input_file, cfg.BOOKS_DIR)
+        resolved_input_path = resolve_file_path(input_file, context.books_dir)
         if not resolved_input_path or not resolved_input_path.exists():
-            search_hint = cfg.BOOKS_DIR or config.get("ebooks_dir")
+            search_hint = str(context.books_dir)
             logger.error(
                 "Error: EPUB file '%s' was not found. Check the ebooks directory (%s).",
                 input_file,
@@ -170,12 +174,12 @@ def run_pipeline(
         base_name = os.path.splitext(os.path.basename(input_file))[0]
         target_lang_str = "_".join(target_languages)
         if base_output_file:
-            resolved_base = resolve_file_path(base_output_file, cfg.EBOOK_DIR)
+            resolved_base = resolve_file_path(base_output_file, context.output_dir)
             os.makedirs(resolved_base.parent, exist_ok=True)
             base_output_file = str(resolved_base)
         else:
             output_folder = os.path.join(
-                cfg.EBOOK_DIR, f"{target_lang_str}_{base_name}"
+                context.output_dir, f"{target_lang_str}_{base_name}"
             )
             os.makedirs(output_folder, exist_ok=True)
             base_output_file = os.path.join(
@@ -241,10 +245,6 @@ def run_pipeline(
     if args.debug:
         config["debug"] = True
 
-    cfg.set_thread_count(config.get("thread_count"))
-    cfg.set_queue_size(config.get("queue_size"))
-    cfg.set_pipeline_mode(config.get("pipeline_mode"))
-
     pipeline_overrides = {
         "generate_audio": config.get("generate_audio"),
         "audio_mode": config.get("audio_mode"),
@@ -266,8 +266,12 @@ def run_pipeline(
         "pipeline_mode": config.get("pipeline_mode"),
     }
 
+    if context is None:
+        context = build_runtime_context(config, environment_overrides)
+    cfg.set_runtime_context(context)
+
     pipeline_config = build_pipeline_config(
-        config, overrides={**environment_overrides, **pipeline_overrides}
+        context, config, overrides={**environment_overrides, **pipeline_overrides}
     )
     pipeline_config.apply_runtime_settings()
     configure_logging_level(pipeline_config.debug)
@@ -401,6 +405,13 @@ def run_pipeline(
         logger.info("Processing complete.")
     except Exception as exc:
         logger.error("An error occurred: %s", exc)
+    finally:
+        if context is not None:
+            try:
+                cfg.cleanup_environment(context)
+            except Exception as cleanup_exc:  # pragma: no cover - defensive logging
+                logger.debug("Failed to clean up temporary workspace: %s", cleanup_exc)
+        cfg.clear_runtime_context()
 
 
 if __name__ == "__main__":

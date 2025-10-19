@@ -388,6 +388,7 @@ def process_epub(
         book_metadata.get("book_title"),
         src_code,
         tgt_code,
+        context=pipeline_config.context,
     )
 
     book_title = book_metadata.get("book_title", "Unknown Title")

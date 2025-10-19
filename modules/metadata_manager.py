@@ -410,8 +410,12 @@ def _create_placeholder_cover(title: str, destination: Path) -> bool:
 
 
 def _get_runtime_output_dir() -> Path:
-    base_candidate = cfg.WORKING_DIR or cfg.DEFAULT_WORKING_RELATIVE
-    base_path = cfg.resolve_directory(base_candidate, cfg.DEFAULT_WORKING_RELATIVE)
+    context = cfg.get_runtime_context(None)
+    if context is not None:
+        base_path = context.working_dir
+    else:
+        base_candidate = cfg.DEFAULT_WORKING_RELATIVE
+        base_path = cfg.resolve_directory(base_candidate, cfg.DEFAULT_WORKING_RELATIVE)
     runtime_dir = Path(base_path) / cfg.DERIVED_RUNTIME_DIRNAME
     runtime_dir.mkdir(parents=True, exist_ok=True)
     return runtime_dir
@@ -429,7 +433,9 @@ def _resolve_cover_path(candidate: Optional[str]) -> Optional[Path]:
     path = Path(candidate)
     if path.is_absolute():
         return path if path.exists() else None
-    resolved = cfg.resolve_file_path(candidate, cfg.BOOKS_DIR)
+    context = cfg.get_runtime_context(None)
+    base_dir = context.books_dir if context is not None else None
+    resolved = cfg.resolve_file_path(candidate, base_dir)
     if resolved and resolved.exists():
         return resolved
     return None
@@ -477,7 +483,9 @@ def infer_metadata(
     existing_metadata: Optional[Dict[str, Optional[str]]] = None,
     force_refresh: bool = False,
 ) -> Dict[str, Optional[str]]:
-    epub_path = cfg.resolve_file_path(input_file, cfg.BOOKS_DIR)
+    context = cfg.get_runtime_context(None)
+    base_dir = context.books_dir if context is not None else None
+    epub_path = cfg.resolve_file_path(input_file, base_dir)
     if not epub_path:
         logger.debug("Cannot infer metadata: input file %s could not be resolved", input_file)
         return existing_metadata or {}

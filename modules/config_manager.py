@@ -3,10 +3,13 @@ import json
 import shutil
 import atexit
 import errno
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from pydub import AudioSegment
+
+from contextvars import ContextVar
 
 from modules import logging_manager
 from modules import ramdisk_manager
@@ -25,11 +28,6 @@ CONF_DIR = SCRIPT_DIR / "conf"
 DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
 DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
 
-WORKING_DIR: Optional[str] = None
-EBOOK_DIR: Optional[str] = None
-TMP_DIR: Optional[str] = None
-BOOKS_DIR: Optional[str] = None
-
 DERIVED_RUNTIME_DIRNAME = "runtime"
 DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
 DERIVED_CONFIG_KEYS = {"refined_list"}
@@ -47,14 +45,67 @@ logger = logging_manager.get_logger()
 # Explicitly set ffmpeg converter for pydub using configurable path
 AudioSegment.converter = DEFAULT_FFMPEG_PATH
 
-# Will be updated once configuration is loaded
-OLLAMA_API_URL = DEFAULT_OLLAMA_URL
-THREAD_COUNT = DEFAULT_THREADS
-QUEUE_SIZE = DEFAULT_QUEUE_SIZE
-PIPELINE_MODE = False
+_REGISTERED_CONTEXT_IDS: set[int] = set()
+_ACTIVE_CONTEXT: ContextVar[Optional[RuntimeContext]] = ContextVar(
+    "ebook_tools_runtime_context", default=None
+)
 
-_RAMDISK_ACTIVE = False
-_CLEANUP_REGISTERED = False
+
+@dataclass(frozen=True)
+class RuntimeContext:
+    """Immutable container describing resolved runtime environment settings."""
+
+    working_dir: Path
+    output_dir: Path
+    tmp_dir: Path
+    books_dir: Path
+    ffmpeg_path: str
+    ollama_url: str
+    thread_count: int
+    queue_size: int
+    pipeline_enabled: bool
+    is_tmp_ramdisk: bool = False
+
+    def as_dict(self) -> Dict[str, Any]:
+        """Return a mapping representation of the context for serialization/debugging."""
+
+        return {
+            "working_dir": str(self.working_dir),
+            "output_dir": str(self.output_dir),
+            "tmp_dir": str(self.tmp_dir),
+            "books_dir": str(self.books_dir),
+            "ffmpeg_path": self.ffmpeg_path,
+            "ollama_url": self.ollama_url,
+            "thread_count": self.thread_count,
+            "queue_size": self.queue_size,
+            "pipeline_enabled": self.pipeline_enabled,
+            "is_tmp_ramdisk": self.is_tmp_ramdisk,
+        }
+
+
+def set_runtime_context(context: RuntimeContext) -> None:
+    """Make ``context`` the active runtime context for the current execution scope."""
+
+    _ACTIVE_CONTEXT.set(context)
+
+
+def get_runtime_context(default: Optional[RuntimeContext] = None) -> RuntimeContext:
+    """Return the active :class:`RuntimeContext` for the caller."""
+
+    context = _ACTIVE_CONTEXT.get()
+    if context is None:
+        if default is not None:
+            return default
+        raise RuntimeError(
+            "Runtime context has not been initialized. Call set_runtime_context() first."
+        )
+    return context
+
+
+def clear_runtime_context() -> None:
+    """Clear the active runtime context for the current execution scope."""
+
+    _ACTIVE_CONTEXT.set(None)
 def _cleanup_directory_path(path: Path) -> None:
     """Remove broken symlinks or non-directories along ``path`` and its parents."""
 
@@ -162,14 +213,6 @@ def _coerce_thread_count(value: Optional[Any]) -> int:
     return max(1, parsed)
 
 
-def set_thread_count(value: Optional[Any]) -> int:
-    """Update the global thread count used by worker pools."""
-
-    global THREAD_COUNT
-    THREAD_COUNT = _coerce_thread_count(value)
-    return THREAD_COUNT
-
-
 def _coerce_queue_size(value: Optional[Any]) -> int:
     if value is None:
         return DEFAULT_QUEUE_SIZE
@@ -178,14 +221,6 @@ def _coerce_queue_size(value: Optional[Any]) -> int:
     except (TypeError, ValueError):
         return DEFAULT_QUEUE_SIZE
     return max(1, parsed)
-
-
-def set_queue_size(value: Optional[Any]) -> int:
-    """Update the bounded pipeline queue size."""
-
-    global QUEUE_SIZE
-    QUEUE_SIZE = _coerce_queue_size(value)
-    return QUEUE_SIZE
 
 
 def _coerce_bool(value: Optional[Any]) -> bool:
@@ -198,37 +233,32 @@ def _coerce_bool(value: Optional[Any]) -> bool:
     return bool(value)
 
 
-def set_pipeline_mode(value: Optional[Any]) -> bool:
-    """Toggle whether the concurrent translation/media pipeline is enabled."""
+def cleanup_environment(context: RuntimeContext) -> None:
+    """Tear down any temporary RAM disk resources for ``context``."""
 
-    global PIPELINE_MODE
-    PIPELINE_MODE = _coerce_bool(value)
-    return PIPELINE_MODE
-
-
-def cleanup_environment() -> None:
-    """Tear down any temporary RAM disk resources."""
-
-    global _RAMDISK_ACTIVE
-
-    if not TMP_DIR or not _RAMDISK_ACTIVE:
+    if not context.is_tmp_ramdisk:
         return
 
     try:
-        ramdisk_manager.teardown_ramdisk(TMP_DIR)
-    finally:
-        _RAMDISK_ACTIVE = False
-
-
-def _cleanup_tmp_ramdisk() -> None:
-    try:
-        cleanup_environment()
+        ramdisk_manager.teardown_ramdisk(str(context.tmp_dir))
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.debug("Failed to clean up RAM disk during interpreter shutdown: %s", exc)
+        logger.debug("Failed to clean up temporary workspace %s: %s", context.tmp_dir, exc)
 
 
-def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None) -> None:
+def _cleanup_tmp_ramdisk(context: RuntimeContext) -> None:
+    try:
+        cleanup_environment(context)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.debug(
+            "Failed to clean up RAM disk during interpreter shutdown: %s", exc
+        )
+
+
+def build_runtime_context(
+    config: Dict[str, Any], overrides: Optional[Dict[str, Any]] = None
+) -> RuntimeContext:
     """Configure directories and external tool locations based on config and overrides."""
+
     overrides = overrides or {}
 
     working_override = overrides.get("working_dir")
@@ -333,30 +363,46 @@ def initialize_environment(config: Dict[str, Any], overrides: Optional[Dict[str,
             books_path,
         )
 
-    global WORKING_DIR, EBOOK_DIR, TMP_DIR, BOOKS_DIR, OLLAMA_API_URL, _RAMDISK_ACTIVE, _CLEANUP_REGISTERED
-    WORKING_DIR = str(working_path)
-    EBOOK_DIR = str(output_path)
-    TMP_DIR = str(tmp_path)
     is_tmp_ramdisk = ramdisk_manager.is_ramdisk(tmp_path)
-    if is_tmp_ramdisk and not _CLEANUP_REGISTERED:
-        atexit.register(_cleanup_tmp_ramdisk)
-        _CLEANUP_REGISTERED = True
-    _RAMDISK_ACTIVE = is_tmp_ramdisk
-    BOOKS_DIR = str(books_path)
 
-    ffmpeg_path = os.path.expanduser(str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH))
-    AudioSegment.converter = ffmpeg_path
+    ffmpeg_path = os.path.expanduser(
+        str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH)
+    )
 
-    OLLAMA_API_URL = ollama_override or config.get("ollama_url") or DEFAULT_OLLAMA_URL
+    ollama_url = (
+        ollama_override or config.get("ollama_url") or DEFAULT_OLLAMA_URL
+    )
 
     thread_override = overrides.get("thread_count") if overrides else None
-    set_thread_count(thread_override or config.get("thread_count"))
+    thread_count = _coerce_thread_count(thread_override or config.get("thread_count"))
 
     queue_override = overrides.get("queue_size") if overrides else None
-    set_queue_size(queue_override or config.get("queue_size"))
+    queue_size = _coerce_queue_size(queue_override or config.get("queue_size"))
 
     pipeline_override = overrides.get("pipeline_mode") if overrides else None
-    set_pipeline_mode(pipeline_override if pipeline_override is not None else config.get("pipeline_mode"))
+    pipeline_enabled = _coerce_bool(
+        pipeline_override if pipeline_override is not None else config.get("pipeline_mode")
+    )
+
+    context = RuntimeContext(
+        working_dir=working_path,
+        output_dir=Path(output_path),
+        tmp_dir=tmp_path,
+        books_dir=Path(books_path),
+        ffmpeg_path=ffmpeg_path,
+        ollama_url=ollama_url,
+        thread_count=thread_count,
+        queue_size=queue_size,
+        pipeline_enabled=pipeline_enabled,
+        is_tmp_ramdisk=is_tmp_ramdisk,
+    )
+
+    context_id = id(context)
+    if context.is_tmp_ramdisk and context_id not in _REGISTERED_CONTEXT_IDS:
+        atexit.register(_cleanup_tmp_ramdisk, context)
+        _REGISTERED_CONTEXT_IDS.add(context_id)
+
+    return context
 
 
 def _read_config_json(path, verbose: bool = False, label: str = "configuration") -> Dict[str, Any]:
@@ -466,16 +512,19 @@ def strip_derived_config(config: Dict[str, Any]) -> Dict[str, Any]:
 def get_thread_count() -> int:
     """Return the currently configured worker thread count."""
 
-    return THREAD_COUNT
+    context = _ACTIVE_CONTEXT.get()
+    return context.thread_count if context else DEFAULT_THREADS
 
 
 def get_queue_size() -> int:
     """Return the configured bounded queue size for the pipeline."""
 
-    return QUEUE_SIZE
+    context = _ACTIVE_CONTEXT.get()
+    return context.queue_size if context else DEFAULT_QUEUE_SIZE
 
 
 def is_pipeline_mode() -> bool:
     """Return whether the concurrent translation/media pipeline is enabled."""
 
-    return PIPELINE_MODE
+    context = _ACTIVE_CONTEXT.get()
+    return context.pipeline_enabled if context else False

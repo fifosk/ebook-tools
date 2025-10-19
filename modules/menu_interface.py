@@ -38,9 +38,11 @@ logger = log_mgr.logger
 configure_logging_level = log_mgr.configure_logging_level
 resolve_directory = cfg.resolve_directory
 resolve_file_path = cfg.resolve_file_path
-initialize_environment = cfg.initialize_environment
+build_runtime_context = cfg.build_runtime_context
 load_configuration = cfg.load_configuration
 strip_derived_config = cfg.strip_derived_config
+set_runtime_context = cfg.set_runtime_context
+get_runtime_context = cfg.get_runtime_context
 
 DEFAULT_MODEL = cfg.DEFAULT_MODEL
 DEFAULT_BOOKS_RELATIVE = cfg.DEFAULT_BOOKS_RELATIVE
@@ -96,6 +98,32 @@ def _prompt_user(prompt: str) -> str:
     cleaned = response.replace("\r", "")
     cleaned = cleaned.rstrip("\n")
     return cleaned.strip()
+
+
+def _refresh_context(config: Dict[str, Any], overrides: Dict[str, Any]) -> cfg.RuntimeContext:
+    """Build and activate a fresh runtime context for menu operations."""
+
+    context = build_runtime_context(config, overrides)
+    set_runtime_context(context)
+    return context
+
+
+def _active_books_dir(config: Dict[str, Any]) -> Path:
+    """Return the effective books directory based on the current context."""
+
+    context = get_runtime_context(None)
+    if context is not None:
+        return context.books_dir
+    return resolve_directory(config.get("ebooks_dir"), cfg.DEFAULT_BOOKS_RELATIVE)
+
+
+def _active_output_dir(config: Dict[str, Any]) -> Path:
+    """Return the effective output directory based on the current context."""
+
+    context = get_runtime_context(None)
+    if context is not None:
+        return context.output_dir
+    return resolve_directory(config.get("output_dir"), cfg.DEFAULT_OUTPUT_RELATIVE)
 
 
 def parse_arguments(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
@@ -190,21 +218,24 @@ def update_book_cover_file_in_config(
     config: Dict[str, Any],
     ebooks_dir_value: Optional[str],
     debug_enabled: bool = False,
+    context: Optional[cfg.RuntimeContext] = None,
 ) -> Dict[str, Any]:
     """Ensure the configuration references an available book cover file."""
     title = config.get("book_title", "Unknown Title")
     author = config.get("book_author", "Unknown Author")
     ebooks_dir_value = ebooks_dir_value or str(DEFAULT_BOOKS_RELATIVE)
+    context = context or get_runtime_context(None)
     ebooks_dir_path = (
-        Path(cfg.BOOKS_DIR)
-        if cfg.BOOKS_DIR
+        context.books_dir
+        if context is not None
         else resolve_directory(ebooks_dir_value, DEFAULT_BOOKS_RELATIVE)
     )
     default_cover_relative = "book_cover.jpg"
     default_cover_path = ebooks_dir_path / default_cover_relative
 
     cover_file = config.get("book_cover_file")
-    cover_path = resolve_file_path(cover_file, cfg.BOOKS_DIR)
+    cover_base = context.books_dir if context is not None else None
+    cover_path = resolve_file_path(cover_file, cover_base)
     if cover_path and cover_path.exists():
         return config
 
@@ -379,11 +410,7 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
 
 
 def _select_from_epub_directory(config: Dict[str, Any]) -> Tuple[Dict[str, Any], bool]:
-    books_dir_path = (
-        Path(cfg.BOOKS_DIR)
-        if cfg.BOOKS_DIR
-        else resolve_directory(config.get("ebooks_dir"), DEFAULT_BOOKS_RELATIVE)
-    )
+    books_dir_path = _active_books_dir(config)
     epub_files = sorted([p.name for p in books_dir_path.glob("*.epub")])
     if epub_files:
         for idx, file_name in enumerate(epub_files, start=1):
@@ -391,8 +418,11 @@ def _select_from_epub_directory(config: Dict[str, Any]) -> Tuple[Dict[str, Any],
     else:
         logger.info("No EPUB files found in %s. You can type a custom path.", books_dir_path)
     default_input = config.get("input_file", epub_files[0] if epub_files else "")
+    context = get_runtime_context(None)
     default_display = (
-        str(resolve_file_path(default_input, cfg.BOOKS_DIR)) if default_input else ""
+        str(resolve_file_path(default_input, context.books_dir))
+        if default_input and context is not None
+        else (str(resolve_file_path(default_input, None)) if default_input else "")
     )
     prompt_default = default_display or default_input
     inp_val = _prompt_user(
@@ -411,13 +441,15 @@ def _default_base_output_file(config: Dict[str, Any]) -> str:
     if config.get("input_file"):
         base = os.path.splitext(os.path.basename(config["input_file"]))[0]
         target_lang = ", ".join(config.get("target_languages", ["Arabic"]))
+        output_dir = _active_output_dir(config)
         default_file = os.path.join(
-            cfg.EBOOK_DIR,
+            str(output_dir),
             base,
             f"{target_lang}_{base}.html",
         )
     else:
-        default_file = os.path.join(cfg.EBOOK_DIR, "output.html")
+        output_dir = _active_output_dir(config)
+        default_file = os.path.join(str(output_dir), "output.html")
     return default_file
 
 
@@ -430,6 +462,7 @@ def edit_parameter(
 ) -> Tuple[Dict[str, Any], bool]:
     """Handle a parameter edit request from the interactive menu."""
     refined_cache_stale = False
+    context = get_runtime_context(None)
 
     if selection == 1:
         previous_input = config.get("input_file")
@@ -441,7 +474,8 @@ def edit_parameter(
         previous_base_output = config.get("base_output_file")
 
         config, refined_cache_stale = _select_from_epub_directory(config)
-        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+        books_base = context.books_dir if context is not None else None
+        resolved_input_path = resolve_file_path(config.get("input_file"), books_base)
 
         if config.get("input_file") != previous_input:
             for field in (
@@ -638,7 +672,6 @@ def edit_parameter(
                         "Thread count must be between 1 and 10. Keeping previous value."
                     )
         config["thread_count"] = default_threads
-        cfg.set_thread_count(default_threads)
     elif selection == 13:
         default_sent = config.get("sentences_per_output_file", 10)
         inp_val = _prompt_user(
@@ -821,6 +854,7 @@ def edit_parameter(
             config,
             config.get("ebooks_dir"),
             debug_enabled=debug_enabled,
+            context=get_runtime_context(None),
         )
     elif selection == 32:
         current = config.get("working_dir")
@@ -829,11 +863,12 @@ def edit_parameter(
         )
         if inp_val:
             config["working_dir"] = inp_val
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
         config = update_book_cover_file_in_config(
             config,
             config.get("ebooks_dir"),
             debug_enabled=debug_enabled,
+            context=context,
         )
         refined_cache_stale = True
     elif selection == 33:
@@ -843,7 +878,7 @@ def edit_parameter(
         )
         if inp_val:
             config["output_dir"] = inp_val
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
         refined_cache_stale = True
     elif selection == 34:
         current = config.get("ebooks_dir")
@@ -852,11 +887,12 @@ def edit_parameter(
         )
         if inp_val:
             config["ebooks_dir"] = inp_val
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
         config = update_book_cover_file_in_config(
             config,
             config.get("ebooks_dir"),
             debug_enabled=debug_enabled,
+            context=context,
         )
         refined_cache_stale = True
     elif selection == 35:
@@ -866,7 +902,7 @@ def edit_parameter(
         )
         if inp_val:
             config["tmp_dir"] = inp_val
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
     elif selection == 36:
         current = config.get("ffmpeg_path")
         inp_val = _prompt_user(
@@ -874,7 +910,7 @@ def edit_parameter(
         )
         if inp_val:
             config["ffmpeg_path"] = inp_val
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
     elif selection == 37:
         current = config.get("ollama_url")
         inp_val = _prompt_user(
@@ -882,7 +918,7 @@ def edit_parameter(
         )
         if inp_val:
             config["ollama_url"] = inp_val
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
     else:
         logger.warning("Invalid parameter number. Please try again.")
 
@@ -992,18 +1028,23 @@ def run_interactive_menu(
         if "start_sentence" in config and not str(config["start_sentence"]).isdigit():
             config["start_sentence_lookup"] = config["start_sentence"]
 
-        initialize_environment(config, overrides)
+        context = _refresh_context(config, overrides)
         config = update_book_cover_file_in_config(
             config,
             config.get("ebooks_dir"),
             debug_enabled=config.get("debug", False),
+            context=context,
         )
 
         refined_cache_stale = True
         refined: List[str] = []
 
         while True:
-            resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+            active_context = get_runtime_context(None)
+            resolved_input_path = resolve_file_path(
+                config.get("input_file"),
+                active_context.books_dir if active_context is not None else None,
+            )
 
             if (
                 resolved_input_path
@@ -1016,7 +1057,10 @@ def run_interactive_menu(
                 )
 
             if config.get("input_file"):
-                pipeline_config = build_pipeline_config(config)
+                active_context = get_runtime_context(None)
+                if active_context is None:
+                    active_context = _refresh_context(config, overrides)
+                pipeline_config = build_pipeline_config(active_context, config)
                 refined, refreshed = ingestion.get_refined_sentences(
                     config["input_file"],
                     pipeline_config,
@@ -1058,6 +1102,7 @@ def run_interactive_menu(
                 overrides,
                 config.get("debug", False),
             )
+            context = get_runtime_context(None)
             refined_cache_stale = refined_cache_stale or made_stale
 
             try:
@@ -1068,10 +1113,19 @@ def run_interactive_menu(
             except Exception as exc:
                 logger.error("Error saving configuration: %s", exc)
 
-        resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
-        config, pipeline_args = confirm_settings(config, resolved_input_path, entry_script_name)
+        active_context = get_runtime_context(None)
+        resolved_input_path = resolve_file_path(
+            config.get("input_file"),
+            active_context.books_dir if active_context is not None else None,
+        )
+        config, pipeline_args = confirm_settings(
+            config, resolved_input_path, entry_script_name
+        )
 
-        pipeline_config = build_pipeline_config(config)
+        if active_context is None:
+            active_context = _refresh_context(config, overrides)
+
+        pipeline_config = build_pipeline_config(active_context, config)
         pipeline_config.apply_runtime_settings()
         configure_logging_level(pipeline_config.debug)
 
