@@ -223,15 +223,37 @@ def _chat_with_client(
     if stream:
         full_text = ""
         raw_chunks: List[Dict[str, Any]] = []
+
+        def _append_text(part: Optional[str]) -> None:
+            nonlocal full_text
+            if part:
+                full_text += part
+
         for chunk in response:
             if not isinstance(chunk, dict):
                 continue
             raw_chunks.append(chunk)
-            message = chunk.get("message", {}).get("content")
-            if message:
-                full_text += message
-            elif isinstance(chunk.get("response"), str):
-                full_text += chunk["response"]
+
+            message = chunk.get("message")
+            if isinstance(message, dict):
+                _append_text(message.get("content"))
+            elif isinstance(message, str):
+                _append_text(message)
+
+            delta = chunk.get("delta")
+            if isinstance(delta, dict):
+                _append_text(delta.get("content"))
+            elif isinstance(delta, str):
+                _append_text(delta)
+
+            response_text = chunk.get("response")
+            if isinstance(response_text, str):
+                _append_text(response_text)
+
+            content = chunk.get("content")
+            if isinstance(content, str):
+                _append_text(content)
+
             _merge_token_usage(token_usage, chunk)
         reply = LLMResponse(
             text=full_text,
