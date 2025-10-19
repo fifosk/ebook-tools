@@ -6,7 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional, Sequence, Tuple
 
-from ..config_manager import resolve_directory, resolve_file_path
+from ..config_manager import resolve_file_path
 from ..epub_parser import extract_text_from_epub, split_text_into_sentences
 from .config import PipelineConfig
 
@@ -14,16 +14,7 @@ from .config import PipelineConfig
 def get_runtime_output_dir(pipeline_config: PipelineConfig) -> Path:
     """Return the directory used for storing derived runtime artifacts."""
 
-    if pipeline_config.working_dir:
-        base_path = Path(pipeline_config.working_dir)
-    else:
-        base_path = Path(
-            resolve_directory(None, pipeline_config.default_working_relative)
-        )
-
-    runtime_dir = base_path / pipeline_config.derived_runtime_dirname
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    return runtime_dir
+    return pipeline_config.ensure_runtime_dir()
 
 
 def refined_list_output_path(
@@ -52,7 +43,7 @@ def save_refined_list(
         "generated_at": time.time(),
         "input_file": input_file,
         "max_words": pipeline_config.max_words,
-        "split_on_comma_semicolon": pipeline_config.extend_split_with_comma_semicolon,
+        "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
         "metadata": metadata or {},
         "refined_list": list(refined_list),
     }
@@ -88,14 +79,16 @@ def get_refined_sentences(
     if not input_file:
         return [], False
 
-    resolved_input = resolve_file_path(input_file, pipeline_config.books_dir)
+    resolved_input = resolve_file_path(
+        input_file, pipeline_config.resolved_books_dir()
+    )
     if not resolved_input:
         return [], False
 
     input_file = str(resolved_input)
     expected_settings = {
         "max_words": pipeline_config.max_words,
-        "split_on_comma_semicolon": pipeline_config.extend_split_with_comma_semicolon,
+        "split_on_comma_semicolon": pipeline_config.split_on_comma_semicolon,
     }
 
     cached = None if force_refresh else load_refined_list(input_file, pipeline_config)
@@ -111,7 +104,7 @@ def get_refined_sentences(
     refined = split_text_into_sentences(
         text,
         max_words=pipeline_config.max_words,
-        extend_split_with_comma_semicolon=pipeline_config.extend_split_with_comma_semicolon,
+        extend_split_with_comma_semicolon=pipeline_config.split_on_comma_semicolon,
     )
     save_refined_list(refined, input_file, pipeline_config, metadata=metadata)
     return refined, True
