@@ -89,6 +89,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
     stitched_documents: Dict[str, str] = {}
+    tracker = request.progress_tracker
 
     try:
         overrides = {**request.environment_overrides, **request.pipeline_overrides}
@@ -99,6 +100,15 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
         inputs = request.inputs
         generate_audio = pipeline_config.generate_audio
         audio_mode = pipeline_config.audio_mode
+
+        if tracker is not None:
+            tracker.publish_start(
+                {
+                    "stage": "initialization",
+                    "input_file": inputs.input_file,
+                    "target_languages": tuple(inputs.target_languages),
+                }
+            )
 
         logger.info("Starting EPUB processing...")
         logger.info("Input file: %s", inputs.input_file)
@@ -125,6 +135,14 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             },
         )
         total_fully = len(refined_list)
+        if tracker is not None:
+            tracker.publish_progress(
+                {
+                    "stage": "ingestion",
+                    "message": "Sentence ingestion complete.",
+                    "total_sentences": total_fully,
+                }
+            )
         if refined_updated:
             refined_output_path = ingestion.refined_list_output_path(
                 inputs.input_file, pipeline_config
@@ -159,10 +177,25 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             stop_event=request.stop_event,
         )
 
+        if tracker is not None:
+            tracker.publish_progress(
+                {
+                    "stage": "rendering",
+                    "message": "Rendering phase completed.",
+                }
+            )
+
         if request.stop_event and request.stop_event.is_set():
             logger.info(
                 "Shutdown request acknowledged; skipping remaining post-processing steps."
             )
+            if tracker is not None:
+                tracker.publish_progress(
+                    {
+                        "stage": "shutdown",
+                        "message": "Stop event acknowledged in pipeline.",
+                    }
+                )
         elif inputs.stitch_full:
             final_sentence = (
                 inputs.start_sentence + len(written_blocks) - 1
@@ -249,6 +282,9 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.error("An error occurred: %s", exc)
+        if tracker is not None:
+            tracker.record_error(exc, {"stage": "pipeline"})
+            tracker.mark_finished(reason="pipeline error", forced=True)
         return PipelineResponse(success=False, pipeline_config=pipeline_config)
     finally:
         if context is not None:
