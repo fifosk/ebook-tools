@@ -430,8 +430,27 @@ def edit_parameter(
     refined_cache_stale = False
 
     if selection == 1:
+        previous_input = config.get("input_file")
+        previous_default_output = (
+            _default_base_output_file(config)
+            if previous_input
+            else None
+        )
+        previous_base_output = config.get("base_output_file")
+
         config, refined_cache_stale = _select_from_epub_directory(config)
         resolved_input_path = resolve_file_path(config.get("input_file"), cfg.BOOKS_DIR)
+
+        if config.get("input_file") != previous_input:
+            for field in (
+                "book_title",
+                "book_author",
+                "book_year",
+                "book_summary",
+                "book_cover_file",
+            ):
+                config.pop(field, None)
+
         if (
             resolved_input_path
             and config.get("auto_metadata", True)
@@ -442,6 +461,14 @@ def edit_parameter(
                 str(resolved_input_path),
                 force=True,
             )
+
+        if config.get("input_file") != previous_input:
+            new_default_output = _default_base_output_file(config)
+            if (
+                not previous_base_output
+                or previous_base_output == previous_default_output
+            ):
+                config["base_output_file"] = new_default_output
     elif selection == 2:
         default_file = _default_base_output_file(config)
         inp_val = _prompt_user(

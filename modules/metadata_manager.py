@@ -456,7 +456,7 @@ def infer_metadata(
         return existing_metadata or {}
 
     cache_key = str(epub_path)
-    metadata: Dict[str, Optional[str]] = dict(existing_metadata or {})
+    metadata: Dict[str, Optional[str]] = {} if force_refresh else dict(existing_metadata or {})
 
     if cache_key in _METADATA_CACHE:
         cached = _METADATA_CACHE[cache_key].copy()
@@ -479,7 +479,9 @@ def infer_metadata(
     metadata_seed.update({k: v for k, v in embedded_metadata.items() if v})
 
     for key, value in metadata_seed.items():
-        if value and _is_placeholder(key, metadata.get(key)):
+        if not value:
+            continue
+        if force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value:
             metadata[key] = value
 
     need_llm = any(
@@ -489,7 +491,9 @@ def infer_metadata(
     if need_llm:
         llm_results = _invoke_llm_metadata(epub_path.name, sentences, metadata_seed)
         for key, value in llm_results.items():
-            if value and (_is_placeholder(key, metadata.get(key)) or metadata.get(key) != value):
+            if not value:
+                continue
+            if force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value:
                 metadata[key] = value
                 logger.info("LLM inferred %s: %s", key, value)
 
@@ -499,14 +503,15 @@ def infer_metadata(
 
     for key in ("book_year", "book_summary"):
         value = openlibrary_data.get(key)
-        if value and _is_placeholder(key, metadata.get(key)):
+        if value and (force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value):
             metadata[key] = value
             logger.info("OpenLibrary provided %s", key)
 
     cover_url = openlibrary_data.get("cover_url")
     cover_path = _ensure_cover_image(metadata, epub_path, preferred_url=cover_url)
     if cover_path:
-        metadata["book_cover_file"] = cover_path
+        if force_refresh or metadata.get("book_cover_file") != cover_path:
+            metadata["book_cover_file"] = cover_path
 
     _METADATA_CACHE[cache_key] = metadata.copy()
 
