@@ -8,6 +8,8 @@ venv/
 .idea/
 .vscode/
 !.vscode/settings.json
+node_modules/
+web/node_modules/
 output/
 tmp/
 log/
