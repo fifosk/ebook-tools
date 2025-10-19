@@ -6,7 +6,7 @@ import os
 import subprocess
 import threading
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 from pydub import AudioSegment
 
@@ -17,6 +17,10 @@ from ..core import ingestion
 from ..core.config import PipelineConfig, build_pipeline_config
 from ..core.rendering import process_epub
 from ..progress_tracker import ProgressTracker
+from ..translation_engine import TranslationWorkerPool
+
+if TYPE_CHECKING:
+    from .job_manager import PipelineJob, PipelineJobManager
 
 logger = log_mgr.logger
 configure_logging_level = log_mgr.configure_logging_level
@@ -57,6 +61,7 @@ class PipelineRequest:
     inputs: PipelineInput
     progress_tracker: Optional[ProgressTracker] = None
     stop_event: Optional[threading.Event] = None
+    translation_pool: Optional[TranslationWorkerPool] = None
 
 
 @dataclass(slots=True)
@@ -175,6 +180,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             pipeline_config=pipeline_config,
             progress_tracker=request.progress_tracker,
             stop_event=request.stop_event,
+            translation_pool=request.translation_pool,
         )
 
         if tracker is not None:
@@ -295,3 +301,82 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                     "Failed to clean up temporary workspace: %s", cleanup_exc
                 )
         cfg.clear_runtime_context()
+
+
+def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
+    return {
+        "working_dir": str(config.working_dir),
+        "output_dir": str(config.output_dir) if config.output_dir else None,
+        "tmp_dir": str(config.tmp_dir),
+        "books_dir": str(config.books_dir),
+        "ollama_model": config.ollama_model,
+        "ollama_url": config.ollama_url,
+        "ffmpeg_path": config.ffmpeg_path,
+        "thread_count": config.thread_count,
+        "queue_size": config.queue_size,
+        "pipeline_enabled": config.pipeline_enabled,
+        "max_words": config.max_words,
+        "split_on_comma_semicolon": config.split_on_comma_semicolon,
+        "debug": config.debug,
+        "generate_audio": config.generate_audio,
+        "audio_mode": config.audio_mode,
+        "selected_voice": config.selected_voice,
+        "tempo": config.tempo,
+        "macos_reading_speed": config.macos_reading_speed,
+        "sync_ratio": config.sync_ratio,
+        "word_highlighting": config.word_highlighting,
+    }
+
+
+def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
+    """Convert ``response`` into a JSON-serializable mapping."""
+
+    audio_segments: Optional[List[float]] = None
+    if response.audio_segments:
+        audio_segments = [segment.duration_seconds for segment in response.audio_segments]
+
+    payload: Dict[str, Any] = {
+        "success": response.success,
+        "refined_sentences": response.refined_sentences,
+        "refined_updated": response.refined_updated,
+        "written_blocks": response.written_blocks,
+        "audio_segments": audio_segments,
+        "batch_video_files": response.batch_video_files,
+        "base_dir": str(response.base_dir) if response.base_dir else None,
+        "base_output_stem": response.base_output_stem,
+        "stitched_documents": dict(response.stitched_documents),
+        "stitched_audio_path": response.stitched_audio_path,
+        "stitched_video_path": response.stitched_video_path,
+    }
+
+    if response.pipeline_config is not None:
+        payload["pipeline_config"] = _serialize_pipeline_config(response.pipeline_config)
+
+    return payload
+
+
+class PipelineService:
+    """High-level orchestration API for the ebook processing pipeline."""
+
+    def __init__(self, job_manager: "PipelineJobManager") -> None:
+        self._job_manager = job_manager
+
+    def enqueue(self, request: PipelineRequest) -> "PipelineJob":
+        """Submit ``request`` for background execution and return the job handle."""
+
+        return self._job_manager.submit(request)
+
+    def get_job(self, job_id: str) -> "PipelineJob":
+        """Return the job associated with ``job_id``."""
+
+        return self._job_manager.get(job_id)
+
+    def list_jobs(self) -> Dict[str, "PipelineJob"]:
+        """Return a mapping of all known job handles."""
+
+        return self._job_manager.list()
+
+    def run_sync(self, request: PipelineRequest) -> PipelineResponse:
+        """Execute ``request`` synchronously and return the pipeline response."""
+
+        return run_pipeline(request)

@@ -199,6 +199,8 @@ class PipelineStatusResponse(BaseModel):
         result_payload: Optional[PipelineResponsePayload] = None
         if job.result is not None:
             result_payload = PipelineResponsePayload.from_response(job.result)
+        elif job.result_payload is not None:
+            result_payload = PipelineResponsePayload(**job.result_payload)
 
         latest_event = None
         if job.last_event is not None:

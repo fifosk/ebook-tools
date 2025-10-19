@@ -360,6 +360,7 @@ def process_epub(
     pipeline_config: PipelineConfig,
     progress_tracker: Optional[ProgressTracker] = None,
     stop_event: Optional[threading.Event] = None,
+    translation_pool: Optional[TranslationWorkerPool] = None,
 ):
     """Process an EPUB file and generate the requested outputs."""
 
@@ -452,9 +453,11 @@ def process_epub(
     finalize_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
     export_futures: List[concurrent.futures.Future] = []
 
-    translation_pool: Optional[TranslationWorkerPool] = None
+    active_translation_pool: Optional[TranslationWorkerPool] = translation_pool
+    own_translation_pool = active_translation_pool is None
     try:
-        translation_pool = TranslationWorkerPool(max_workers=worker_count)
+        if active_translation_pool is None:
+            active_translation_pool = TranslationWorkerPool(max_workers=worker_count)
 
         if not pipeline_enabled:
             batch_size = worker_count
@@ -476,7 +479,7 @@ def process_epub(
                     batch_targets,
                     include_transliteration=include_transliteration,
                     client=translation_client,
-                    worker_pool=translation_pool,
+                    worker_pool=active_translation_pool,
                     max_workers=worker_count,
                 )
 
@@ -615,7 +618,7 @@ def process_epub(
                 worker_count=worker_count,
                 progress_tracker=progress_tracker,
                 client=translation_client,
-                worker_pool=translation_pool,
+                worker_pool=active_translation_pool,
             )
             buffered_results = {}
             next_index = 0
@@ -732,8 +735,8 @@ def process_epub(
                             if video_path:
                                 batch_video_files.append(video_path)
     finally:
-        if translation_pool is not None:
-            translation_pool.shutdown()
+        if active_translation_pool is not None and own_translation_pool:
+            active_translation_pool.shutdown()
     if written_blocks and not (stop_event and stop_event.is_set()):
         batch_start = current_batch_start
         batch_end = current_batch_start + len(written_blocks) - 1

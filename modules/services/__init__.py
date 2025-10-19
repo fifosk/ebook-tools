@@ -1,10 +1,33 @@
 """Service layer modules for ebook-tools."""
 
-from .pipeline_service import PipelineInput, PipelineRequest, PipelineResponse, run_pipeline
+from .job_manager import (
+    InMemoryJobStore,
+    PipelineJob,
+    PipelineJobManager,
+    PipelineJobMetadata,
+    PipelineJobStatus,
+    RedisJobStore,
+)
+from .pipeline_service import (
+    PipelineInput,
+    PipelineRequest,
+    PipelineResponse,
+    PipelineService,
+    run_pipeline,
+    serialize_pipeline_response,
+)
 
 __all__ = [
+    "InMemoryJobStore",
     "PipelineInput",
+    "PipelineJob",
+    "PipelineJobManager",
+    "PipelineJobMetadata",
+    "PipelineJobStatus",
     "PipelineRequest",
     "PipelineResponse",
+    "PipelineService",
+    "RedisJobStore",
     "run_pipeline",
+    "serialize_pipeline_response",
 ]
