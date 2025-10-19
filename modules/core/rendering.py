@@ -446,6 +446,7 @@ def process_epub(
             model=pipeline_config.ollama_model,
             api_url=pipeline_config.ollama_url,
             debug=pipeline_config.debug,
+            api_key=pipeline_config.ollama_api_key,
         )
     translation_thread = None
     media_threads: List[threading.Thread] = []

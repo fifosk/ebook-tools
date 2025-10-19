@@ -7,6 +7,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, cast, overload
 
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SecretStr,
+    ValidationError,
+)
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 from pydub import AudioSegment
 
 from contextvars import ContextVar
@@ -31,12 +41,15 @@ DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
 DERIVED_RUNTIME_DIRNAME = "runtime"
 DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
 DERIVED_CONFIG_KEYS = {"refined_list"}
+SENSITIVE_CONFIG_KEYS = {"ollama_api_key", "database_url", "job_store_url"}
 
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
 DEFAULT_MODEL = "gemma2:27b"
 DEFAULT_THREADS = 5
 DEFAULT_QUEUE_SIZE = 20
+
+VAULT_FILE_ENV = "EBOOK_VAULT_FILE"
 
 
 logger = logging_manager.get_logger()
@@ -46,6 +59,169 @@ console_warning = logging_manager.console_warning
 
 # Explicitly set ffmpeg converter for pydub using configurable path
 AudioSegment.converter = DEFAULT_FFMPEG_PATH
+
+
+class EbookToolsSettings(BaseModel):
+    """Typed representation of the application configuration."""
+
+    model_config = ConfigDict(extra="allow")
+
+    input_file: str = ""
+    ebooks_dir: str = str(DEFAULT_BOOKS_RELATIVE)
+    base_output_file: str = ""
+    input_language: str = "English"
+    target_languages: list[str] = Field(default_factory=lambda: ["Arabic"])
+    ollama_model: str = DEFAULT_MODEL
+    generate_audio: bool = True
+    generate_video: bool = True
+    sentences_per_output_file: int = 10
+    start_sentence: int = 1
+    end_sentence: Optional[int] = None
+    max_words: int = 18
+    percentile: int = 96
+    split_on_comma_semicolon: bool = False
+    audio_mode: str = "1"
+    written_mode: str = "4"
+    include_transliteration: bool = False
+    debug: bool = False
+    output_html: bool = True
+    output_pdf: bool = False
+    stitch_full: bool = False
+    selected_voice: str = "gTTS"
+    book_title: str = "Unknown Title"
+    book_author: str = "Unknown Author"
+    book_year: str = "Unknown Year"
+    book_summary: str = "No summary provided."
+    book_cover_file: Optional[str] = None
+    auto_metadata: bool = True
+    macos_reading_speed: int = 100
+    tempo: float = 1.0
+    sync_ratio: float = 0.9
+    word_highlighting: bool = True
+    working_dir: str = str(DEFAULT_WORKING_RELATIVE)
+    output_dir: str = str(DEFAULT_OUTPUT_RELATIVE)
+    tmp_dir: str = str(DEFAULT_TMP_RELATIVE)
+    ollama_url: str = DEFAULT_OLLAMA_URL
+    ffmpeg_path: Optional[str] = DEFAULT_FFMPEG_PATH
+    thread_count: int = DEFAULT_THREADS
+    queue_size: int = DEFAULT_QUEUE_SIZE
+    pipeline_mode: bool = False
+    use_ramdisk: bool = True
+    ollama_api_key: Optional[SecretStr] = None
+    database_url: Optional[SecretStr] = None
+    job_store_url: Optional[SecretStr] = None
+    job_max_workers: int = 2
+
+
+class EnvironmentOverrides(BaseSettings):
+    """Configuration overrides sourced from environment variables."""
+
+    model_config = SettingsConfigDict(env_prefix="", env_nested_delimiter="__", extra="ignore")
+
+    working_dir: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_WORKING_DIR")
+    )
+    output_dir: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_OUTPUT_DIR")
+    )
+    tmp_dir: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_TMP_DIR")
+    )
+    ebooks_dir: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOKS_DIR", "EBOOK_EBOOKS_DIR")
+    )
+    ffmpeg_path: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("FFMPEG_PATH", "EBOOK_FFMPEG_PATH")
+    )
+    ollama_url: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("OLLAMA_URL", "EBOOK_OLLAMA_URL")
+    )
+    ollama_model: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_OLLAMA_MODEL")
+    )
+    thread_count: Optional[int] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_THREAD_COUNT")
+    )
+    queue_size: Optional[int] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_QUEUE_SIZE")
+    )
+    pipeline_mode: Optional[bool] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_PIPELINE_MODE")
+    )
+    use_ramdisk: Optional[bool] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_USE_RAMDISK")
+    )
+    ollama_api_key: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("OLLAMA_API_KEY", "EBOOK_OLLAMA_API_KEY")
+    )
+    database_url: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("DATABASE_URL", "EBOOK_DATABASE_URL")
+    )
+    job_store_url: Optional[SecretStr] = Field(
+        default=None, validation_alias=AliasChoices("JOB_STORE_URL", "EBOOK_JOB_STORE_URL")
+    )
+    job_max_workers: Optional[int] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_JOB_MAX_WORKERS")
+    )
+
+
+_ACTIVE_SETTINGS: Optional[EbookToolsSettings] = None
+
+
+def _load_environment_overrides() -> Dict[str, Any]:
+    """Return configuration overrides sourced from environment variables."""
+
+    try:
+        overrides = EnvironmentOverrides()
+    except ValidationError as exc:
+        logger.warning(
+            "Invalid environment configuration detected; using defaults.",
+            extra={
+                "event": "config.env.validation_error",
+                "error": str(exc),
+                "console_suppress": True,
+            },
+        )
+        return {}
+    return overrides.model_dump(exclude_none=True)
+
+
+def _load_vault_secrets(path: Path) -> Dict[str, SecretStr]:
+    """Attempt to read secret values from a vault-style JSON document."""
+
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            payload = json.load(handle)
+    except FileNotFoundError:
+        logger.debug(
+            "Vault secret file not found at %s; skipping.",
+            path,
+            extra={"event": "config.vault.missing", "console_suppress": True},
+        )
+        return {}
+    except json.JSONDecodeError as exc:
+        logger.warning(
+            "Failed to parse vault secret file at %s: %s",
+            path,
+            exc,
+            extra={"event": "config.vault.invalid", "console_suppress": True},
+        )
+        return {}
+
+    secrets: Dict[str, SecretStr] = {}
+    for key in ("ollama_api_key", "database_url", "job_store_url"):
+        value = payload.get(key)
+        if value:
+            secrets[key] = SecretStr(str(value))
+    return secrets
+
+
+def _apply_updates(
+    settings: EbookToolsSettings, updates: Dict[str, Any]
+) -> EbookToolsSettings:
+    if not updates:
+        return settings
+    return settings.model_copy(update=updates)
 
 
 @dataclass(frozen=True)
@@ -459,11 +635,20 @@ def _deep_merge_dict(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str
     return result
 
 
-def load_configuration(config_file: Optional[str] = None, verbose: bool = False, default_model: Optional[str] = None) -> Dict[str, Any]:
-    config: Dict[str, Any] = {}
+def load_configuration(
+    config_file: Optional[str] = None,
+    verbose: bool = False,
+    default_model: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Load the layered configuration and return a dictionary view."""
 
-    default_config = _read_config_json(DEFAULT_CONFIG_PATH, verbose=verbose, label="default configuration")
-    config = _deep_merge_dict(config, default_config)
+    global _ACTIVE_SETTINGS
+
+    base_payload: Dict[str, Any] = {}
+    default_config = _read_config_json(
+        DEFAULT_CONFIG_PATH, verbose=verbose, label="default configuration"
+    )
+    base_payload = _deep_merge_dict(base_payload, default_config)
 
     override_path = None
     if config_file:
@@ -473,8 +658,12 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
     else:
         override_path = DEFAULT_LOCAL_CONFIG_PATH
 
-    override_config = _read_config_json(override_path, verbose=verbose, label="local configuration") if override_path else {}
-    config = _deep_merge_dict(config, override_config)
+    override_config = (
+        _read_config_json(override_path, verbose=verbose, label="local configuration")
+        if override_path
+        else {}
+    )
+    base_payload = _deep_merge_dict(base_payload, override_config)
 
     if verbose and override_path and not override_config:
         if override_path == DEFAULT_LOCAL_CONFIG_PATH:
@@ -490,56 +679,61 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
                 logger_obj=logger,
             )
 
+    try:
+        settings = EbookToolsSettings.model_validate(base_payload)
+    except ValidationError as exc:
+        raise RuntimeError("Invalid configuration detected") from exc
+
+    vault_path = os.environ.get(VAULT_FILE_ENV)
+    vault_updates: Dict[str, Any] = {}
+    if vault_path:
+        vault_updates = _load_vault_secrets(Path(vault_path).expanduser())
+        if vault_updates:
+            logger.info(
+                "Loaded secret overrides from vault file at %s",
+                vault_path,
+                extra={"event": "config.vault.loaded", "console_suppress": True},
+            )
+    env_overrides = _load_environment_overrides()
+
+    settings = _apply_updates(settings, dict(vault_updates))
+    settings = _apply_updates(settings, env_overrides)
+
     if default_model is None:
         default_model = DEFAULT_MODEL
+    if not settings.ollama_model:
+        settings = _apply_updates(settings, {"ollama_model": default_model})
 
-    config.setdefault("input_file", "")
-    config.setdefault("ebooks_dir", str(DEFAULT_BOOKS_RELATIVE))
-    config.setdefault("base_output_file", "")
-    config.setdefault("input_language", "English")
-    config.setdefault("target_languages", ["Arabic"])
-    config.setdefault("ollama_model", default_model)
-    config.setdefault("generate_audio", True)
-    config.setdefault("generate_video", True)
-    config.setdefault("sentences_per_output_file", 10)
-    config.setdefault("start_sentence", 1)
-    config.setdefault("end_sentence", None)
-    config.setdefault("max_words", 18)
-    config.setdefault("percentile", 96)
-    config.setdefault("split_on_comma_semicolon", False)
-    config.setdefault("audio_mode", "1")
-    config.setdefault("written_mode", "4")
-    config.setdefault("include_transliteration", False)
-    config.setdefault("debug", False)
-    config.setdefault("output_html", True)
-    config.setdefault("output_pdf", False)
-    config.setdefault("stitch_full", False)
-    config.setdefault("selected_voice", "gTTS")
-    config.setdefault("book_title", "Unknown Title")
-    config.setdefault("book_author", "Unknown Author")
-    config.setdefault("book_year", "Unknown Year")
-    config.setdefault("book_summary", "No summary provided.")
-    config.setdefault("book_cover_file", None)
-    config.setdefault("auto_metadata", True)
-    config.setdefault("macos_reading_speed", 100)
-    config.setdefault("tempo", 1.0)
-    config.setdefault("sync_ratio", 0.9)
-    config.setdefault("word_highlighting", True)
-    config.setdefault("working_dir", str(DEFAULT_WORKING_RELATIVE))
-    config.setdefault("output_dir", str(DEFAULT_OUTPUT_RELATIVE))
-    config.setdefault("tmp_dir", str(DEFAULT_TMP_RELATIVE))
-    config.setdefault("ollama_url", DEFAULT_OLLAMA_URL)
-    config.setdefault("ffmpeg_path", DEFAULT_FFMPEG_PATH)
-    config.setdefault("thread_count", DEFAULT_THREADS)
-    config.setdefault("queue_size", DEFAULT_QUEUE_SIZE)
-    config.setdefault("pipeline_mode", False)
+    _ACTIVE_SETTINGS = settings
 
-    return config
+    exported = settings.model_dump(
+        mode="python",
+        exclude={"ollama_api_key", "database_url", "job_store_url"},
+    )
+    return exported
 
 
 def strip_derived_config(config: Dict[str, Any]) -> Dict[str, Any]:
     """Return a copy of the configuration without derived runtime keys."""
-    return {k: v for k, v in config.items() if k not in DERIVED_CONFIG_KEYS}
+    excluded = DERIVED_CONFIG_KEYS | SENSITIVE_CONFIG_KEYS
+    return {k: v for k, v in config.items() if k not in excluded}
+
+
+def get_settings() -> EbookToolsSettings:
+    """Return the currently loaded :class:`EbookToolsSettings` instance."""
+
+    global _ACTIVE_SETTINGS
+    if _ACTIVE_SETTINGS is None:
+        settings = EbookToolsSettings()
+        vault_path = os.environ.get(VAULT_FILE_ENV)
+        vault_updates: Dict[str, Any] = {}
+        if vault_path:
+            vault_updates = _load_vault_secrets(Path(vault_path).expanduser())
+        env_overrides = _load_environment_overrides()
+        settings = _apply_updates(settings, dict(vault_updates))
+        settings = _apply_updates(settings, env_overrides)
+        _ACTIVE_SETTINGS = settings
+    return _ACTIVE_SETTINGS
 
 
 def get_thread_count() -> int:

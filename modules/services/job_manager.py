@@ -17,6 +17,7 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - defensive import guard
     redis = None
 
+from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import observability
 from ..progress_tracker import ProgressEvent, ProgressSnapshot, ProgressTracker
@@ -246,18 +247,25 @@ class PipelineJobManager:
     def __init__(
         self,
         *,
-        max_workers: int = 2,
+        max_workers: Optional[int] = None,
         store: Optional[JobStore] = None,
         worker_pool_factory: Optional[Callable[[PipelineRequest], TranslationWorkerPool]] = None,
     ) -> None:
         self._lock = threading.RLock()
         self._jobs: Dict[str, PipelineJob] = {}
-        self._executor = ThreadPoolExecutor(max_workers=max_workers)
+        settings = cfg.get_settings()
+        configured_workers = max_workers if max_workers is not None else settings.job_max_workers
+        resolved_workers = max(1, int(configured_workers))
+        self._executor = ThreadPoolExecutor(max_workers=resolved_workers)
         self._store = store or self._default_store()
         self._worker_pool_factory = worker_pool_factory or (lambda request: TranslationWorkerPool())
 
     def _default_store(self) -> JobStore:
-        url = os.environ.get("JOB_STORE_URL")
+        settings = cfg.get_settings()
+        secret = settings.job_store_url
+        url = secret.get_secret_value() if secret is not None else None
+        if not url:
+            url = os.environ.get("JOB_STORE_URL")
         if url:
             try:
                 logger.debug("Using RedisJobStore for pipeline job metadata at %s", url)

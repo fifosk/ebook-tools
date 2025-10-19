@@ -192,7 +192,17 @@ def _invoke_llm_metadata(
     if not sentences:
         return {}
 
-    managed_client = client or create_client()
+    if client is not None:
+        managed_client = client
+    else:
+        settings = cfg.get_settings()
+        secret = settings.ollama_api_key
+        api_key = secret.get_secret_value() if secret is not None else None
+        managed_client = create_client(
+            model=settings.ollama_model,
+            api_url=cfg.get_ollama_url(),
+            api_key=api_key,
+        )
     try:
         if not managed_client.model:
             return {}
