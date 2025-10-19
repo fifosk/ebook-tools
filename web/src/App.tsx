@@ -108,6 +108,17 @@ export function App() {
     });
   }, []);
 
+  const handleRemoveJob = useCallback((jobId: string) => {
+    setJobs((previous) => {
+      if (!previous[jobId]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[jobId];
+      return next;
+    });
+  }, []);
+
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => ({
       jobId,
@@ -128,7 +139,7 @@ export function App() {
       </header>
       {submitError ? <div className="alert">{submitError}</div> : null}
       <PipelineSubmissionForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
-      <JobList jobs={jobList} onProgressEvent={handleProgressEvent} />
+      <JobList jobs={jobList} onProgressEvent={handleProgressEvent} onRemoveJob={handleRemoveJob} />
     </main>
   );
 }

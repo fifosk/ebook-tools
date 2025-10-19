@@ -10,6 +10,10 @@ venv/
 !.vscode/settings.json
 node_modules/
 web/node_modules/
+web/dist/
+web/**/*.js
+web/**/*.js.map
+web/*.tsbuildinfo
 output/
 tmp/
 log/

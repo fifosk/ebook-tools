@@ -13,6 +13,7 @@ type Props = {
   status: PipelineStatusResponse | undefined;
   latestEvent: ProgressEventPayload | undefined;
   onEvent: (event: ProgressEventPayload) => void;
+  onRemove: () => void;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -26,7 +27,7 @@ function formatDate(value: string | null | undefined): string {
   return date.toLocaleString();
 }
 
-export function JobProgress({ jobId, status, latestEvent, onEvent }: Props) {
+export function JobProgress({ jobId, status, latestEvent, onEvent, onRemove }: Props) {
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -40,11 +41,18 @@ export function JobProgress({ jobId, status, latestEvent, onEvent }: Props) {
 
   return (
     <div className="job-card" aria-live="polite">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <h3 style={{ marginTop: 0 }}>Job {jobId}</h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem' }}>
+        <div style={{ flexGrow: 1 }}>
+          <h3 style={{ marginTop: 0 }}>Job {jobId}</h3>
+        </div>
         <span className="job-status" data-state={status?.status ?? 'pending'}>
           {status?.status ?? 'pending'}
         </span>
+        {isTerminal ? (
+          <button type="button" className="link-button" onClick={onRemove} aria-label={`Remove job ${jobId}`}>
+            Remove
+          </button>
+        ) : null}
       </div>
       <p>
         <strong>Created:</strong> {formatDate(status?.created_at ?? null)}

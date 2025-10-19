@@ -12,9 +12,10 @@ export interface JobState {
 type Props = {
   jobs: JobState[];
   onProgressEvent: (jobId: string, event: ProgressEventPayload) => void;
+  onRemoveJob: (jobId: string) => void;
 };
 
-export function JobList({ jobs, onProgressEvent }: Props) {
+export function JobList({ jobs, onProgressEvent, onRemoveJob }: Props) {
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => {
       const left = new Date(a.submission.created_at).getTime();
@@ -43,6 +44,7 @@ export function JobList({ jobs, onProgressEvent }: Props) {
             status={job.status}
             latestEvent={job.latestEvent}
             onEvent={(event) => onProgressEvent(job.jobId, event)}
+            onRemove={() => onRemoveJob(job.jobId)}
           />
         ))}
       </div>
