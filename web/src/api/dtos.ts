@@ -31,6 +31,7 @@ export interface PipelineRequestPayload {
   environment_overrides: Record<string, unknown>;
   pipeline_overrides: Record<string, unknown>;
   inputs: PipelineInputPayload;
+  correlation_id?: string;
 }
 
 export interface PipelineSubmissionResponse {

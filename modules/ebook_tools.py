@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 import threading
 from typing import Optional
+from uuid import uuid4
 
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
@@ -269,6 +270,7 @@ def run_pipeline(
         inputs=pipeline_input,
         progress_tracker=progress_tracker,
         stop_event=stop_event,
+        correlation_id=str(uuid4()),
     )
 
     response = run_pipeline_service(request)

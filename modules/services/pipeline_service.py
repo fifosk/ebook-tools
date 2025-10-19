@@ -7,12 +7,14 @@ import subprocess
 import threading
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from uuid import uuid4
 
 from pydub import AudioSegment
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import output_formatter
+from .. import observability
 from ..core import ingestion
 from ..core.config import PipelineConfig, build_pipeline_config
 from ..core.rendering import process_epub
@@ -62,6 +64,8 @@ class PipelineRequest:
     progress_tracker: Optional[ProgressTracker] = None
     stop_event: Optional[threading.Event] = None
     translation_pool: Optional[TranslationWorkerPool] = None
+    correlation_id: Optional[str] = None
+    job_id: Optional[str] = None
 
 
 @dataclass(slots=True)
@@ -94,7 +98,19 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
     stitched_documents: Dict[str, str] = {}
+    refined_list: List[str] = []
+    total_fully = 0
     tracker = request.progress_tracker
+
+    correlation_id = request.correlation_id or str(uuid4())
+    request.correlation_id = correlation_id
+    job_id = request.job_id
+
+    pipeline_attrs = {
+        "correlation_id": correlation_id,
+        "job_id": job_id,
+        "input_file": request.inputs.input_file,
+    }
 
     try:
         overrides = {**request.environment_overrides, **request.pipeline_overrides}
@@ -115,163 +131,203 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                 }
             )
 
-        logger.info("Starting EPUB processing...")
-        logger.info("Input file: %s", inputs.input_file)
-        logger.info("Base output file: %s", inputs.base_output_file)
-        logger.info("Input language: %s", inputs.input_language)
-        logger.info("Target languages: %s", ", ".join(inputs.target_languages))
-        logger.info(
-            "Sentences per output file: %s", inputs.sentences_per_output_file
-        )
-        logger.info("Starting from sentence: %s", inputs.start_sentence)
-        if inputs.end_sentence is not None:
-            logger.info("Ending at sentence: %s", inputs.end_sentence)
-        else:
-            logger.info("Processing until end of file")
-
-        refined_list, refined_updated = ingestion.get_refined_sentences(
-            inputs.input_file,
-            pipeline_config,
-            force_refresh=True,
-            metadata={
-                "mode": "cli",
-                "target_languages": inputs.target_languages,
-                "max_words": pipeline_config.max_words,
-            },
-        )
-        total_fully = len(refined_list)
-        if tracker is not None:
-            tracker.publish_progress(
-                {
-                    "stage": "ingestion",
-                    "message": "Sentence ingestion complete.",
-                    "total_sentences": total_fully,
-                }
-            )
-        if refined_updated:
-            refined_output_path = ingestion.refined_list_output_path(
-                inputs.input_file, pipeline_config
-            )
-            logger.info("Refined sentence list written to: %s", refined_output_path)
-
-        (
-            written_blocks,
-            all_audio_segments,
-            batch_video_files,
-            base_dir,
-            base_no_ext,
-        ) = process_epub(
-            inputs.input_file,
-            inputs.base_output_file,
-            inputs.input_language,
-            inputs.target_languages,
-            inputs.sentences_per_output_file,
-            inputs.start_sentence,
-            inputs.end_sentence,
-            generate_audio,
-            audio_mode,
-            inputs.written_mode,
-            inputs.output_html,
-            inputs.output_pdf,
-            refined_list=refined_list,
-            generate_video=inputs.generate_video,
-            include_transliteration=inputs.include_transliteration,
-            book_metadata=inputs.book_metadata,
-            pipeline_config=pipeline_config,
-            progress_tracker=request.progress_tracker,
-            stop_event=request.stop_event,
-            translation_pool=request.translation_pool,
-        )
-
-        if tracker is not None:
-            tracker.publish_progress(
-                {
-                    "stage": "rendering",
-                    "message": "Rendering phase completed.",
-                }
-            )
-
-        if request.stop_event and request.stop_event.is_set():
+        with log_mgr.log_context(correlation_id=correlation_id, job_id=job_id):
             logger.info(
-                "Shutdown request acknowledged; skipping remaining post-processing steps."
+                "Pipeline execution started",
+                extra={
+                    "event": "pipeline.run.start",
+                    "attributes": {
+                        "input_file": inputs.input_file,
+                        "base_output_file": inputs.base_output_file,
+                        "target_languages": inputs.target_languages,
+                        "sentences_per_output_file": inputs.sentences_per_output_file,
+                        "start_sentence": inputs.start_sentence,
+                        "end_sentence": inputs.end_sentence,
+                    },
+                },
             )
-            if tracker is not None:
-                tracker.publish_progress(
-                    {
-                        "stage": "shutdown",
-                        "message": "Stop event acknowledged in pipeline.",
-                    }
+
+        with observability.pipeline_operation("pipeline", attributes=pipeline_attrs):
+            with observability.pipeline_stage(
+                "ingestion",
+                {
+                    **pipeline_attrs,
+                    "target_languages": tuple(inputs.target_languages),
+                },
+            ):
+                refined_list, refined_updated = ingestion.get_refined_sentences(
+                    inputs.input_file,
+                    pipeline_config,
+                    force_refresh=True,
+                    metadata={
+                        "mode": "cli",
+                        "target_languages": inputs.target_languages,
+                        "max_words": pipeline_config.max_words,
+                    },
                 )
-        elif inputs.stitch_full:
-            final_sentence = (
-                inputs.start_sentence + len(written_blocks) - 1
-                if written_blocks
-                else inputs.start_sentence
-            )
-            stitched_basename = output_formatter.compute_stitched_basename(
-                inputs.input_file, inputs.target_languages
-            )
-            range_fragment = output_formatter.format_sentence_range(
-                inputs.start_sentence, final_sentence, total_fully
-            )
-            stitched_documents = output_formatter.stitch_full_output(
-                base_dir,
-                inputs.start_sentence,
-                final_sentence,
-                stitched_basename,
-                written_blocks,
-                inputs.target_languages[0],
-                total_fully,
-                output_html=inputs.output_html,
-                output_pdf=inputs.output_pdf,
-                epub_title=f"Stitched Translation: {range_fragment} {stitched_basename}",
-            )
-            if pipeline_config.generate_audio and all_audio_segments:
-                stitched_audio = AudioSegment.empty()
-                for seg in all_audio_segments:
-                    stitched_audio += seg
-                stitched_audio_path = os.path.join(
+                total_fully = len(refined_list)
+                if tracker is not None:
+                    tracker.publish_progress(
+                        {
+                            "stage": "ingestion",
+                            "message": "Sentence ingestion complete.",
+                            "total_sentences": total_fully,
+                        }
+                    )
+                if refined_updated:
+                    refined_output_path = ingestion.refined_list_output_path(
+                        inputs.input_file, pipeline_config
+                    )
+                    logger.info(
+                        "Refined sentence list written",
+                        extra={
+                            "event": "pipeline.ingestion.refined_output",
+                            "attributes": {
+                                "path": str(refined_output_path),
+                                "total_sentences": total_fully,
+                            },
+                        },
+                    )
+
+            with observability.pipeline_stage(
+                "rendering",
+                {**pipeline_attrs, "total_sentences": total_fully},
+            ):
+                (
+                    written_blocks,
+                    all_audio_segments,
+                    batch_video_files,
                     base_dir,
-                    f"{range_fragment}_{stitched_basename}.mp3",
+                    base_no_ext,
+                ) = process_epub(
+                    inputs.input_file,
+                    inputs.base_output_file,
+                    inputs.input_language,
+                    inputs.target_languages,
+                    inputs.sentences_per_output_file,
+                    inputs.start_sentence,
+                    inputs.end_sentence,
+                    generate_audio,
+                    audio_mode,
+                    inputs.written_mode,
+                    inputs.output_html,
+                    inputs.output_pdf,
+                    refined_list=refined_list,
+                    generate_video=inputs.generate_video,
+                    include_transliteration=inputs.include_transliteration,
+                    book_metadata=inputs.book_metadata,
+                    pipeline_config=pipeline_config,
+                    progress_tracker=request.progress_tracker,
+                    stop_event=request.stop_event,
+                    translation_pool=request.translation_pool,
                 )
-                stitched_audio.export(
-                    stitched_audio_path, format="mp3", bitrate="320k"
-                )
-            if inputs.generate_video and batch_video_files:
-                logger.info(
-                    "Generating stitched video slide output by concatenating batch video files..."
-                )
-                concat_list_path = os.path.join(
-                    base_dir, f"concat_full_{stitched_basename}.txt"
-                )
-                with open(concat_list_path, "w", encoding="utf-8") as file_obj:
-                    for video_file in batch_video_files:
-                        file_obj.write(f"file '{video_file}'\n")
-                stitched_video_path = os.path.join(
-                    base_dir,
-                    f"{range_fragment}_{stitched_basename}_stitched.mp4",
-                )
-                cmd_concat = [
-                    "ffmpeg",
-                    "-loglevel",
-                    "quiet",
-                    "-y",
-                    "-f",
-                    "concat",
-                    "-safe",
-                    "0",
-                    "-i",
-                    concat_list_path,
-                    "-c",
-                    "copy",
-                    stitched_video_path,
-                ]
-                subprocess.run(cmd_concat, check=True)
-                os.remove(concat_list_path)
-                logger.info(
-                    "Stitched video slide output saved to: %s", stitched_video_path
-                )
-        logger.info("Processing complete.")
+
+                if tracker is not None:
+                    tracker.publish_progress(
+                        {
+                            "stage": "rendering",
+                            "message": "Rendering phase completed.",
+                        }
+                    )
+
+            post_process_attrs = {**pipeline_attrs, "base_dir": base_dir or ""}
+            if request.stop_event and request.stop_event.is_set():
+                with observability.pipeline_stage("shutdown", post_process_attrs):
+                    logger.info(
+                        "Shutdown request acknowledged; skipping remaining post-processing steps.",
+                        extra={"event": "pipeline.shutdown.requested"},
+                    )
+                    if tracker is not None:
+                        tracker.publish_progress(
+                            {
+                                "stage": "shutdown",
+                                "message": "Stop event acknowledged in pipeline.",
+                            }
+                        )
+            elif inputs.stitch_full:
+                with observability.pipeline_stage("stitching", post_process_attrs):
+                    final_sentence = (
+                        inputs.start_sentence + len(written_blocks) - 1
+                        if written_blocks
+                        else inputs.start_sentence
+                    )
+                    stitched_basename = output_formatter.compute_stitched_basename(
+                        inputs.input_file, inputs.target_languages
+                    )
+                    range_fragment = output_formatter.format_sentence_range(
+                        inputs.start_sentence, final_sentence, total_fully
+                    )
+                    stitched_documents = output_formatter.stitch_full_output(
+                        base_dir,
+                        inputs.start_sentence,
+                        final_sentence,
+                        stitched_basename,
+                        written_blocks,
+                        inputs.target_languages[0],
+                        total_fully,
+                        output_html=inputs.output_html,
+                        output_pdf=inputs.output_pdf,
+                        epub_title=f"Stitched Translation: {range_fragment} {stitched_basename}",
+                    )
+                    if pipeline_config.generate_audio and all_audio_segments:
+                        stitched_audio = AudioSegment.empty()
+                        for seg in all_audio_segments:
+                            stitched_audio += seg
+                        stitched_audio_path = os.path.join(
+                            base_dir,
+                            f"{range_fragment}_{stitched_basename}.mp3",
+                        )
+                        stitched_audio.export(
+                            stitched_audio_path, format="mp3", bitrate="320k"
+                        )
+                    if inputs.generate_video and batch_video_files:
+                        logger.info(
+                            "Generating stitched video slide output by concatenating batch video files...",
+                            extra={"event": "pipeline.stitching.video.start"},
+                        )
+                        concat_list_path = os.path.join(
+                            base_dir, f"concat_full_{stitched_basename}.txt"
+                        )
+                        with open(concat_list_path, "w", encoding="utf-8") as file_obj:
+                            for video_file in batch_video_files:
+                                file_obj.write(f"file '{video_file}'\n")
+                        stitched_video_path = os.path.join(
+                            base_dir,
+                            f"{range_fragment}_{stitched_basename}_stitched.mp4",
+                        )
+                        cmd_concat = [
+                            "ffmpeg",
+                            "-loglevel",
+                            "quiet",
+                            "-y",
+                            "-f",
+                            "concat",
+                            "-safe",
+                            "0",
+                            "-i",
+                            concat_list_path,
+                            "-c",
+                            "copy",
+                            stitched_video_path,
+                        ]
+                        subprocess.run(cmd_concat, check=True)
+                        os.remove(concat_list_path)
+                        logger.info(
+                            "Stitched video slide output saved",
+                            extra={
+                                "event": "pipeline.stitching.video.complete",
+                                "attributes": {"path": stitched_video_path},
+                            },
+                        )
+            else:
+                stitched_documents = {}
+
+        with log_mgr.log_context(correlation_id=correlation_id, job_id=job_id):
+            logger.info(
+                "Pipeline execution completed",
+                extra={"event": "pipeline.run.complete", "status": "success"},
+            )
+
         return PipelineResponse(
             success=True,
             pipeline_config=pipeline_config,
@@ -287,7 +343,15 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             stitched_video_path=stitched_video_path,
         )
     except Exception as exc:  # pragma: no cover - defensive logging
-        logger.error("An error occurred: %s", exc)
+        with log_mgr.log_context(correlation_id=correlation_id, job_id=job_id):
+            logger.error(
+                "Pipeline execution failed",
+                extra={
+                    "event": "pipeline.run.error",
+                    "status": "failed",
+                    "attributes": {"error": str(exc)},
+                },
+            )
         if tracker is not None:
             tracker.record_error(exc, {"stage": "pipeline"})
             tracker.mark_finished(reason="pipeline error", forced=True)
