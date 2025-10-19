@@ -12,6 +12,7 @@ from . import logging_manager as log_mgr
 from . import audio_video_generator as av_gen
 from . import translation_engine
 from .menu_interface import (
+    MenuExit,
     parse_arguments,
     run_interactive_menu,
     update_book_cover_file_in_config,
@@ -419,6 +420,10 @@ def _export_pipeline_batch(
     """Write batch outputs for a contiguous block of sentences."""
 
     try:
+        range_fragment = output_formatter.format_sentence_range(
+            batch_start, batch_end, total_sentences
+        )
+
         output_formatter.export_batch_documents(
             base_dir,
             base_no_ext,
@@ -426,6 +431,7 @@ def _export_pipeline_batch(
             batch_end,
             list(written_blocks),
             target_language,
+            total_sentences,
             output_html=output_html,
             output_pdf=output_pdf,
         )
@@ -438,9 +444,7 @@ def _export_pipeline_batch(
             combined = AudioSegment.empty()
             for segment in audio_segments:
                 combined += segment
-            audio_filename = os.path.join(
-                base_dir, f"{batch_start}-{batch_end}_{base_no_ext}.mp3"
-            )
+            audio_filename = os.path.join(base_dir, f"{range_fragment}_{base_no_ext}.mp3")
             combined.export(audio_filename, format="mp3", bitrate="320k")
 
         if generate_video and audio_segments:
@@ -888,11 +892,15 @@ def run_pipeline(
     }
 
     if args.interactive:
-        config, interactive_results = run_interactive_menu(
-            overrides,
-            args.config,
-            entry_script_name=ENTRY_SCRIPT_NAME,
-        )
+        try:
+            config, interactive_results = run_interactive_menu(
+                overrides,
+                args.config,
+                entry_script_name=ENTRY_SCRIPT_NAME,
+            )
+        except MenuExit:
+            logger.info("Interactive configuration cancelled by user.")
+            return None
         (
             input_file,
             base_output_file,
@@ -1081,8 +1089,15 @@ def run_pipeline(
         if stop_event and stop_event.is_set():
             logger.info("Shutdown request acknowledged; skipping remaining post-processing steps.")
         if stitch_full and not (stop_event and stop_event.is_set()):
-            final_sentence = start_sentence + len(written_blocks) - 1 if written_blocks else start_sentence
-            stitched_basename = output_formatter.compute_stitched_basename(input_file, target_languages)
+            final_sentence = (
+                start_sentence + len(written_blocks) - 1 if written_blocks else start_sentence
+            )
+            stitched_basename = output_formatter.compute_stitched_basename(
+                input_file, target_languages
+            )
+            range_fragment = output_formatter.format_sentence_range(
+                start_sentence, final_sentence, total_fully
+            )
             output_formatter.stitch_full_output(
                 base_dir,
                 start_sentence,
@@ -1090,9 +1105,10 @@ def run_pipeline(
                 stitched_basename,
                 written_blocks,
                 target_languages[0],
+                total_fully,
                 output_html=output_html,
                 output_pdf=output_pdf,
-                epub_title=f"Stitched Translation: {start_sentence}-{final_sentence} {stitched_basename}",
+                epub_title=f"Stitched Translation: {range_fragment} {stitched_basename}",
             )
             if generate_audio and all_audio_segments:
                 stitched_audio = AudioSegment.empty()
@@ -1100,7 +1116,7 @@ def run_pipeline(
                     stitched_audio += seg
                 stitched_audio_filename = os.path.join(
                     base_dir,
-                    f"{start_sentence}-{final_sentence}_{stitched_basename}.mp3",
+                    f"{range_fragment}_{stitched_basename}.mp3",
                 )
                 stitched_audio.export(stitched_audio_filename, format="mp3", bitrate="320k")
             if generate_video and batch_video_files:
@@ -1115,7 +1131,7 @@ def run_pipeline(
                         f.write(f"file '{video_file}'\n")
                 final_video_path = os.path.join(
                     base_dir,
-                    f"{start_sentence}-{final_sentence}_{stitched_basename}_stitched.mp4",
+                    f"{range_fragment}_{stitched_basename}_stitched.mp4",
                 )
                 cmd_concat = [
                     "ffmpeg",

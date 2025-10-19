@@ -11,6 +11,7 @@ import threading
 import time
 from typing import Optional
 
+from modules import config_manager
 from modules import logging_manager as log_mgr
 from modules.ebook_tools import run_pipeline as _run_pipeline
 from modules.progress_tracker import ProgressTracker
@@ -159,6 +160,10 @@ def run_pipeline(report_interval: float = 5.0):
                 _format_duration(final_snapshot.elapsed),
                 final_snapshot.speed,
             )
+        try:
+            config_manager.cleanup_environment()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.debug("Failed to clean up temporary workspace: %s", exc)
 
     return result
 

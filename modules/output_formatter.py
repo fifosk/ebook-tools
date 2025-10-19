@@ -135,6 +135,14 @@ def write_epub_file(
         logger.debug("Error writing EPUB file '%s': %s", filename, exc)
 
 
+def format_sentence_range(start: int, end: int, total_sentences: int) -> str:
+    """Return a zero-padded range string based on the total sentence count."""
+
+    max_value = max(total_sentences, start, end, 1)
+    width = len(str(max_value))
+    return f"{start:0{width}d}-{end:0{width}d}"
+
+
 def export_batch_documents(
     base_dir: str,
     base_name: str,
@@ -142,6 +150,7 @@ def export_batch_documents(
     batch_end: int,
     written_blocks: Sequence[str],
     target_language: str,
+    total_sentences: int,
     *,
     output_html: bool = True,
     output_pdf: bool = False,
@@ -152,12 +161,14 @@ def export_batch_documents(
         return created
 
     base_path = Path(base_dir)
+    range_fragment = format_sentence_range(batch_start, batch_end, total_sentences)
+
     if output_html:
-        html_path = base_path / f"{batch_start}-{batch_end}_{base_name}.html"
+        html_path = base_path / f"{range_fragment}_{base_name}.html"
         write_html_file(html_path, written_blocks)
         created["html"] = str(html_path)
     if output_pdf:
-        pdf_path = base_path / f"{batch_start}-{batch_end}_{base_name}.pdf"
+        pdf_path = base_path / f"{range_fragment}_{base_name}.pdf"
         write_pdf_file(pdf_path, written_blocks, target_language)
         created["pdf"] = str(pdf_path)
     return created
@@ -177,6 +188,7 @@ def stitch_full_output(
     stitched_basename: str,
     written_blocks: Sequence[str],
     target_language: str,
+    total_sentences: int,
     *,
     output_html: bool = True,
     output_pdf: bool = False,
@@ -189,18 +201,19 @@ def stitch_full_output(
         return created
 
     base_path = Path(base_dir)
-    epub_title = epub_title or f"Stitched Translation: {start_sentence}-{final_sentence} {stitched_basename}"
+    range_fragment = format_sentence_range(start_sentence, final_sentence, total_sentences)
+    epub_title = epub_title or f"Stitched Translation: {range_fragment} {stitched_basename}"
 
     if output_html:
-        html_path = base_path / f"{start_sentence}-{final_sentence}_{stitched_basename}.html"
+        html_path = base_path / f"{range_fragment}_{stitched_basename}.html"
         write_html_file(html_path, written_blocks)
         created["html"] = str(html_path)
     if output_pdf:
-        pdf_path = base_path / f"{start_sentence}-{final_sentence}_{stitched_basename}.pdf"
+        pdf_path = base_path / f"{range_fragment}_{stitched_basename}.pdf"
         write_pdf_file(pdf_path, written_blocks, target_language)
         created["pdf"] = str(pdf_path)
 
-    epub_path = base_path / f"{start_sentence}-{final_sentence}_{stitched_basename}.epub"
+    epub_path = base_path / f"{range_fragment}_{stitched_basename}.epub"
     write_epub_file(epub_path, written_blocks, epub_title)
     created["epub"] = str(epub_path)
     return created
