@@ -72,16 +72,15 @@ def ensure_ramdisk(
         return _mount_ramdisk_linux(target, size_bytes)
 
     if system == "Darwin":  # pragma: no cover - macOS-specific branch
-        mount_point = _MACOS_DEFAULT_MOUNT_POINT
-        mount_point.parent.mkdir(parents=True, exist_ok=True)
-        if not mount_point.exists():
-            mount_point.mkdir(parents=True, exist_ok=True)
+        desired_mount_point = _MACOS_DEFAULT_MOUNT_POINT
+        mount_target = desired_mount_point if _prepare_macos_mount_point(desired_mount_point) else None
 
-        if not _mount_ramdisk_macos(mount_point, size_bytes):
+        actual_mount = _mount_ramdisk_macos(mount_target, size_bytes)
+        if actual_mount is None:
             return False
 
-        if target.resolve() != mount_point.resolve():
-            if not _replace_with_symlink(target, mount_point):
+        if target.resolve() != actual_mount.resolve():
+            if not _replace_with_symlink(target, actual_mount):
                 return False
 
         return _is_ramdisk(target)
@@ -101,18 +100,31 @@ def ensure_standard_directory(path: os.PathLike[str] | str) -> Path:
     if not target.is_absolute():
         target = target.resolve()
 
+    resolved_symlink_target: Optional[Path] = None
     if target.is_symlink():
+        try:
+            resolved_symlink_target = target.resolve(strict=True)
+        except FileNotFoundError:
+            resolved_symlink_target = None
         try:
             target.unlink()
         except OSError as exc:  # pragma: no cover - defensive logging
             logger.warning("Failed to remove symlink %s: %s", target, exc)
             return target
+        if resolved_symlink_target is not None:
+            _teardown_ramdisk_mount(resolved_symlink_target)
+
+    if target.exists() and target.is_dir() and _is_ramdisk(target):
+        _teardown_ramdisk_mount(target)
+        if target.exists() and target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
 
     if target.exists() and not target.is_dir():
         if target.is_file():
             target.unlink()
         else:
             shutil.rmtree(target)
+        _teardown_ramdisk_mount(target)
 
     target.mkdir(parents=True, exist_ok=True)
     return target
@@ -268,16 +280,20 @@ def _mount_ramdisk_linux(target: Path, size_bytes: int) -> bool:
     return False
 
 
-def _mount_ramdisk_macos(target: Path, size_bytes: int) -> bool:  # pragma: no cover - macOS specific
+def _mount_ramdisk_macos(target: Optional[Path], size_bytes: int) -> Optional[Path]:  # pragma: no cover - macOS specific
     existing_device = _find_existing_macos_ramdisk_identifier(size_bytes)
-    if existing_device and _ensure_macos_mount(existing_device, target):
-        logger.info(
-            "Mounted existing macOS RAM disk %s at %s (%s).",
-            existing_device,
-            target,
-            _format_size(size_bytes),
-        )
-        return True
+    mount_path: Optional[Path] = None
+
+    if existing_device:
+        mount_path = _ensure_macos_mount(existing_device, target)
+        if mount_path is not None:
+            logger.info(
+                "Mounted existing macOS RAM disk %s at %s (%s).",
+                existing_device,
+                mount_path,
+                _format_size(size_bytes),
+            )
+            return mount_path
 
     block_count = max(1, size_bytes // 512)
     try:
@@ -287,54 +303,65 @@ def _mount_ramdisk_macos(target: Path, size_bytes: int) -> bool:  # pragma: no c
         ).strip()
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         logger.warning("Failed to allocate macOS RAM disk device: %s", exc)
-        return False
+        return None
 
     device_identifier = Path(device_path).name
     device_node = Path("/dev") / device_identifier
     if not device_node.exists():
         logger.warning("Allocated RAM disk device %s not found at %s.", device_identifier, device_node)
-        return False
+        return None
 
+    volume_name = (target.name if target else "RAMDisk") or "RAMDisk"
     try:
         subprocess.run(
-            ["diskutil", "eraseVolume", "HFS+", target.name or "RAMDisk", device_identifier],
+            ["diskutil", "eraseVolume", "HFS+", volume_name, device_identifier],
             check=True,
             text=True,
         )
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
         logger.warning("Failed to format RAM disk %s: %s", device_identifier, exc)
-        return False
+        return None
 
-    if _ensure_macos_mount(device_identifier, target):
+    mount_path = _ensure_macos_mount(device_identifier, target)
+    if mount_path is not None:
         logger.info(
             "Mounted macOS RAM disk at %s (%s).",
-            target,
+            mount_path,
             _format_size(size_bytes),
         )
-        return True
+        return mount_path
 
-    logger.warning("macOS RAM disk at %s not detected after mount attempts.", target)
-    return False
+    fallback_mount = target or _MACOS_DEFAULT_MOUNT_POINT
+    logger.warning("macOS RAM disk at %s not detected after mount attempts.", fallback_mount)
+    return None
 
 
-def _ensure_macos_mount(device_identifier: str, target: Path) -> bool:
+def _ensure_macos_mount(device_identifier: str, target: Optional[Path]) -> Optional[Path]:
     mount_candidate = _find_mountable_identifier(device_identifier)
     if not mount_candidate:
-        return False
+        return None
 
-    if _attempt_diskutil_mount(mount_candidate, target):
-        if _is_ramdisk(target):
-            return True
+    attempted_mount_path: Optional[Path] = None
+    if target is not None and _prepare_macos_mount_point(target):
+        if _attempt_diskutil_mount(mount_candidate, target):
+            attempted_mount_path = target
+            if _is_ramdisk(target):
+                return target
 
     mount_point = _get_diskutil_mount_point(mount_candidate)
     if mount_point:
         mount_path = Path(mount_point)
-        if mount_path.exists() and _replace_with_symlink(target, mount_path):
-            logger.info("Linked %s to existing RAM disk mount %s.", target, mount_path)
-            if _is_ramdisk(target):
-                return True
+        if target is not None and target != mount_path:
+            if _replace_with_symlink(target, mount_path):
+                logger.info("Linked %s to existing RAM disk mount %s.", target, mount_path)
+                if _is_ramdisk(target):
+                    return target
+        return mount_path
 
-    return False
+    if attempted_mount_path is not None:
+        return attempted_mount_path if _is_ramdisk(attempted_mount_path) else None
+
+    return None
 
 
 def _attempt_diskutil_mount(device_identifier: str, target: Path) -> bool:
@@ -429,6 +456,60 @@ def _replace_with_symlink(target: Path, source: Path) -> bool:
     except OSError as exc:
         logger.warning("Failed to link %s to %s: %s", target, source, exc)
         return False
+
+
+def _prepare_macos_mount_point(path: Path) -> bool:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.mkdir(parents=True, exist_ok=True)
+    except PermissionError:
+        logger.debug("Insufficient permissions to create mount point %s; using default diskutil mount location.", path)
+        return False
+    except OSError as exc:
+        logger.debug("Failed to prepare mount point %s: %s", path, exc)
+        return False
+    return True
+
+
+def _teardown_ramdisk_mount(mount_path: Path) -> None:
+    if not mount_path.exists():
+        return
+
+    if platform.system() == "Darwin":  # pragma: no cover - macOS specific cleanup
+        info = _get_diskutil_info(str(mount_path))
+        if not info:
+            return
+        device_identifier = info.get("DeviceIdentifier")
+        if not device_identifier:
+            return
+        _diskutil_unmount(str(mount_path))
+        _diskutil_eject(device_identifier)
+        return
+
+    if platform.system() == "Linux" and _is_ramdisk(mount_path):
+        _umount_path(mount_path)
+
+
+def _diskutil_unmount(mount_point: str) -> None:
+    try:
+        subprocess.run(["diskutil", "unmount", mount_point], check=True, text=True)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:  # pragma: no cover - best effort cleanup
+        logger.debug("Failed to unmount %s: %s", mount_point, exc)
+
+
+def _diskutil_eject(device_identifier: str) -> None:
+    try:
+        subprocess.run(["diskutil", "eject", device_identifier], check=True, text=True)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:  # pragma: no cover - best effort cleanup
+        logger.debug("Failed to eject %s: %s", device_identifier, exc)
+
+
+def _umount_path(path: Path) -> None:
+    try:
+        subprocess.run(["umount", str(path)], check=True, text=True)
+    except (subprocess.CalledProcessError, FileNotFoundError) as exc:  # pragma: no cover - best effort cleanup
+        logger.debug("Failed to unmount %s: %s", path, exc)
 
 
 def _find_existing_macos_ramdisk_identifier(size_bytes: int) -> Optional[str]:
