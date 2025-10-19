@@ -19,8 +19,7 @@ logger = log_mgr.get_logger()
 
 _DEFAULT_MODEL = cfg.DEFAULT_MODEL
 _REMOTE_HOSTS = (
-    "https://ollama.com",
-    "https://api.ollama.com",
+    "https://ollama.com/api/chat",
 )
 _LOCAL_HOST = "http://localhost:11434"
 _api_url_override: Optional[str] = None
@@ -209,11 +208,18 @@ def _normalize_host(url: Optional[str]) -> Optional[str]:
     if not trimmed:
         return None
     trimmed = trimmed.rstrip("/")
-    for suffix in ("/api/chat", "/api/generate", "/api"):
-        if trimmed.endswith(suffix):
-            trimmed = trimmed[: -len(suffix)]
-            break
     return trimmed or None
+
+
+def _host_signatures(host: str) -> List[str]:
+    variants = [host]
+    for suffix in ("/api/chat", "/api/generate", "/api"):
+        if host.endswith(suffix):
+            base = host[: -len(suffix)].rstrip("/")
+            if base:
+                variants.append(base)
+            break
+    return variants
 
 
 def _resolve_host_chain() -> Iterable[Tuple[str, Optional[str]]]:
@@ -235,14 +241,21 @@ def _resolve_host_chain() -> Iterable[Tuple[str, Optional[str]]]:
         )
         if host
     ]
+    remote_signatures: set[str] = set()
+    for host in remote_hosts:
+        remote_signatures.update(_host_signatures(host))
     configured_host = _normalize_host(cfg.OLLAMA_API_URL)
     override_host = _normalize_host(_api_url_override) if _api_url_override else None
     local_host = _normalize_host(_LOCAL_HOST)
 
-    remote_host_set = set(remote_hosts)
-
     if override_host:
-        key = api_key if api_key and override_host in remote_host_set else None
+        key = (
+            api_key
+            if api_key and any(
+                variant in remote_signatures for variant in _host_signatures(override_host)
+            )
+            else None
+        )
         _append(override_host, key)
 
     if api_key:
@@ -250,7 +263,13 @@ def _resolve_host_chain() -> Iterable[Tuple[str, Optional[str]]]:
             _append(candidate, api_key)
 
     if configured_host:
-        key = api_key if api_key and configured_host in remote_host_set else None
+        key = (
+            api_key
+            if api_key and any(
+                variant in remote_signatures for variant in _host_signatures(configured_host)
+            )
+            else None
+        )
         _append(configured_host, key)
 
     _append(local_host, None)
