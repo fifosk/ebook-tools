@@ -140,23 +140,26 @@ def _resolve_host_chain() -> Iterable[Tuple[str, Optional[str]]]:
         if not host or host in seen:
             return
         seen.add(host)
-        hosts.append((host, key))
+        hosts.append((host, key if key else None))
 
-    if _api_url_override:
-        host = _normalize_host(_api_url_override)
-        if host:
-            _append(host, api_key)
-        return hosts
-
-    if api_key:
-        _append(_REMOTE_HOST, api_key)
-
+    remote_host = _normalize_host(_REMOTE_HOST)
     configured_host = _normalize_host(cfg.OLLAMA_API_URL)
-    if configured_host:
-        key = api_key if api_key and configured_host == _REMOTE_HOST else None
-        _append(configured_host, key)
+    override_host = _normalize_host(_api_url_override) if _api_url_override else None
+    local_host = _normalize_host(_LOCAL_HOST)
 
-    _append(_normalize_host(_LOCAL_HOST), None)
+    if override_host:
+        if api_key and override_host != remote_host:
+            _append(remote_host, api_key)
+        key = api_key if api_key and override_host == remote_host else None
+        _append(override_host, key)
+    else:
+        if api_key:
+            _append(remote_host, api_key)
+        if configured_host:
+            key = api_key if api_key and configured_host == remote_host else None
+            _append(configured_host, key)
+
+    _append(local_host, None)
 
     return hosts
 
