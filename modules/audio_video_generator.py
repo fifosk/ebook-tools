@@ -474,9 +474,10 @@ def generate_macos_tts_audio(text: str, voice: str, lang_code: str, macos_readin
         subprocess.run(cmd, check=True)
         audio = AudioSegment.from_file(tmp_filename, format="aiff")
     except subprocess.CalledProcessError:
-        logger.warning(
+        log_mgr.console_warning(
             "MacOS TTS command failed for voice '%s'. Falling back to default gTTS voice.",
             voice,
+            logger_obj=logger,
         )
         audio = _synthesize_with_gtts(text, lang_code)
     finally:

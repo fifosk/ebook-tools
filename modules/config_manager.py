@@ -40,6 +40,8 @@ DEFAULT_QUEUE_SIZE = 20
 
 
 logger = logging_manager.get_logger()
+console_info = logging_manager.console_info
+console_warning = logging_manager.console_warning
 
 
 # Explicitly set ffmpeg converter for pydub using configurable path
@@ -429,15 +431,21 @@ def _read_config_json(path, verbose: bool = False, label: str = "configuration")
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         if verbose:
-            logger.info("Loaded %s from %s", label, path)
+            console_info("Loaded %s from %s", label, path, logger_obj=logger)
         return data
     except FileNotFoundError:
         if verbose:
-            logger.info("No %s found at %s.", label, path)
+            console_info("No %s found at %s.", label, path, logger_obj=logger)
         return {}
     except Exception as e:  # pragma: no cover - log and continue
         if verbose:
-            logger.warning("Error loading %s from %s: %s. Proceeding without it.", label, path, e)
+            console_warning(
+                "Error loading %s from %s: %s. Proceeding without it.",
+                label,
+                path,
+                e,
+                logger_obj=logger,
+            )
         return {}
 
 
@@ -470,9 +478,17 @@ def load_configuration(config_file: Optional[str] = None, verbose: bool = False,
 
     if verbose and override_path and not override_config:
         if override_path == DEFAULT_LOCAL_CONFIG_PATH:
-            logger.info("Proceeding with defaults from %s", DEFAULT_CONFIG_PATH)
+            console_info(
+                "Proceeding with defaults from %s",
+                DEFAULT_CONFIG_PATH,
+                logger_obj=logger,
+            )
         else:
-            logger.info("Proceeding with defaults because %s could not be loaded", override_path)
+            console_info(
+                "Proceeding with defaults because %s could not be loaded",
+                override_path,
+                logger_obj=logger,
+            )
 
     if default_model is None:
         default_model = DEFAULT_MODEL

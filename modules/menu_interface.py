@@ -32,7 +32,9 @@ from .epub_parser import (
     split_text_into_sentences,
 )
 
-logger = log_mgr.logger
+console_info = log_mgr.console_info
+console_warning = log_mgr.console_warning
+console_error = log_mgr.console_error
 configure_logging_level = log_mgr.configure_logging_level
 resolve_directory = cfg.resolve_directory
 resolve_file_path = cfg.resolve_file_path
@@ -183,7 +185,7 @@ def print_languages_in_four_columns() -> None:
             if idx < n_languages:
                 row_items.append(f"{idx + 1:2d}. {languages[idx]:<{col_width}}")
         if row_items:
-            logger.info("%s", "".join(row_items))
+            console_info("%s", "".join(row_items))
 
 
 def update_book_cover_file_in_config(
@@ -223,7 +225,7 @@ def update_book_cover_file_in_config(
             cover_image.save(default_cover_path, format="JPEG")
         except Exception as exc:  # pragma: no cover - file system errors
             if debug_enabled:
-                logger.warning("Unable to save downloaded cover image: %s", exc)
+                console_warning("Unable to save downloaded cover image: %s", exc)
         else:
             config["book_cover_file"] = default_cover_relative
             config["book_cover_title"] = title
@@ -245,14 +247,14 @@ def update_sentence_config(config: Dict[str, Any], refined_list: Sequence[str]) 
                 break
         if found_index is not None:
             config["start_sentence"] = found_index + 1
-            logger.info(
+            console_info(
                 "(Lookup) Starting sentence updated to %s based on query '%s'.",
                 config["start_sentence"],
                 query,
             )
         else:
             config["start_sentence"] = 1
-            logger.info("(Lookup) Query '%s' not found. Starting sentence set to 1.", query)
+            console_info("(Lookup) Query '%s' not found. Starting sentence set to 1.", query)
         config["start_sentence_lookup"] = ""
     else:
         try:
@@ -287,96 +289,96 @@ def _format_selected_voice(selected: str) -> str:
 def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input: Optional[Path]) -> None:
     """Emit the interactive configuration summary for the user."""
     input_display = str(resolved_input) if resolved_input else config.get("input_file", "")
-    logger.info("\n--- File / Language Settings ---")
-    logger.info("1. Input EPUB file: %s", input_display)
-    logger.info("2. Base output file: %s", config.get("base_output_file", ""))
-    logger.info("3. Input language: %s", config.get("input_language", "English"))
-    logger.info(
+    console_info("\n--- File / Language Settings ---")
+    console_info("1. Input EPUB file: %s", input_display)
+    console_info("2. Base output file: %s", config.get("base_output_file", ""))
+    console_info("3. Input language: %s", config.get("input_language", "English"))
+    console_info(
         "4. Target languages: %s",
         ", ".join(config.get("target_languages", ["Arabic"])),
     )
 
-    logger.info("\n--- LLM, Audio, Video Settings ---")
-    logger.info("5. Ollama model: %s", config.get("ollama_model", DEFAULT_MODEL))
-    logger.info("6. Generate audio output: %s", config.get("generate_audio", True))
-    logger.info("7. Generate video slides: %s", config.get("generate_video", False))
-    logger.info(
+    console_info("\n--- LLM, Audio, Video Settings ---")
+    console_info("5. Ollama model: %s", config.get("ollama_model", DEFAULT_MODEL))
+    console_info("6. Generate audio output: %s", config.get("generate_audio", True))
+    console_info("7. Generate video slides: %s", config.get("generate_video", False))
+    console_info(
         "8. Selected voice for audio generation: %s",
         _format_selected_voice(config.get("selected_voice", "gTTS")),
     )
-    logger.info(
+    console_info(
         "9. macOS TTS reading speed (words per minute): %s",
         config.get("macos_reading_speed", 100),
     )
-    logger.info("10. Audio tempo (default: %s)", config.get("tempo", 1.0))
-    logger.info("11. Sync ratio for word slides: %s", config.get("sync_ratio", 0.9))
-    logger.info(
+    console_info("10. Audio tempo (default: %s)", config.get("tempo", 1.0))
+    console_info("11. Sync ratio for word slides: %s", config.get("sync_ratio", 0.9))
+    console_info(
         "12. Worker thread count (1-10): %s",
         config.get("thread_count", cfg.DEFAULT_THREADS),
     )
 
-    logger.info("\n--- Sentence Parsing Settings ---")
-    logger.info(
+    console_info("\n--- Sentence Parsing Settings ---")
+    console_info(
         "13. Sentences per output file: %s",
         config.get("sentences_per_output_file", 10),
     )
-    logger.info(
+    console_info(
         "14. Starting sentence (number or lookup word): %s",
         config.get("start_sentence", 1),
     )
-    logger.info(
+    console_info(
         "15. Ending sentence (absolute or offset): %s",
         config.get("end_sentence", f"Last sentence [{len(refined)}]"),
     )
-    logger.info("16. Max words per sentence chunk: %s", config.get("max_words", 18))
-    logger.info(
+    console_info("16. Max words per sentence chunk: %s", config.get("max_words", 18))
+    console_info(
         "17. Percentile for computing suggested max words: %s",
         config.get("percentile", 96),
     )
 
-    logger.info("\n--- Format Options ---")
-    logger.info(
+    console_info("\n--- Format Options ---")
+    console_info(
         "18. Audio output mode: %s (%s)",
         config.get("audio_mode", "1"),
         AUDIO_MODE_DESC.get(config.get("audio_mode", "1"), ""),
     )
-    logger.info(
+    console_info(
         "19. Written output mode: %s (%s)",
         config.get("written_mode", "4"),
         WRITTEN_MODE_DESC.get(config.get("written_mode", "4"), ""),
     )
-    logger.info(
+    console_info(
         "20. Extend split logic with comma and semicolon: %s",
         "Yes" if config.get("split_on_comma_semicolon", False) else "No",
     )
-    logger.info(
+    console_info(
         "21. Include transliteration for non-Latin alphabets: %s",
         config.get("include_transliteration", False),
     )
-    logger.info(
+    console_info(
         "22. Word highlighting for video slides: %s",
         "Yes" if config.get("word_highlighting", True) else "No",
     )
-    logger.info("23. Debug mode: %s", config.get("debug", False))
-    logger.info("24. HTML output: %s", config.get("output_html", True))
-    logger.info("25. PDF output: %s", config.get("output_pdf", False))
-    logger.info("26. Generate stitched full output file: %s", config.get("stitch_full", False))
+    console_info("23. Debug mode: %s", config.get("debug", False))
+    console_info("24. HTML output: %s", config.get("output_html", True))
+    console_info("25. PDF output: %s", config.get("output_pdf", False))
+    console_info("26. Generate stitched full output file: %s", config.get("stitch_full", False))
 
-    logger.info("\n--- Book Metadata ---")
-    logger.info("27. Book Title: %s", config.get("book_title"))
-    logger.info("28. Author: %s", config.get("book_author"))
-    logger.info("29. Year: %s", config.get("book_year"))
-    logger.info("30. Summary: %s", config.get("book_summary"))
-    logger.info("31. Book Cover File: %s", config.get("book_cover_file", "None"))
+    console_info("\n--- Book Metadata ---")
+    console_info("27. Book Title: %s", config.get("book_title"))
+    console_info("28. Author: %s", config.get("book_author"))
+    console_info("29. Year: %s", config.get("book_year"))
+    console_info("30. Summary: %s", config.get("book_summary"))
+    console_info("31. Book Cover File: %s", config.get("book_cover_file", "None"))
 
-    logger.info("\n--- Paths and Services ---")
-    logger.info("32. Working directory: %s", config.get("working_dir"))
-    logger.info("33. Output directory: %s", config.get("output_dir"))
-    logger.info("34. Ebooks directory: %s", config.get("ebooks_dir"))
-    logger.info("35. Temporary directory: %s", config.get("tmp_dir"))
-    logger.info("36. FFmpeg path: %s", config.get("ffmpeg_path"))
-    logger.info("37. Ollama API URL: %s", config.get("ollama_url"))
-    logger.info(
+    console_info("\n--- Paths and Services ---")
+    console_info("32. Working directory: %s", config.get("working_dir"))
+    console_info("33. Output directory: %s", config.get("output_dir"))
+    console_info("34. Ebooks directory: %s", config.get("ebooks_dir"))
+    console_info("35. Temporary directory: %s", config.get("tmp_dir"))
+    console_info("36. FFmpeg path: %s", config.get("ffmpeg_path"))
+    console_info("37. Ollama API URL: %s", config.get("ollama_url"))
+    console_info(
         "\nPress Enter to confirm settings, choose a number to edit, or type 'q' to quit the menu."
     )
 
@@ -386,9 +388,9 @@ def _select_from_epub_directory(config: Dict[str, Any]) -> Tuple[Dict[str, Any],
     epub_files = sorted([p.name for p in books_dir_path.glob("*.epub")])
     if epub_files:
         for idx, file_name in enumerate(epub_files, start=1):
-            logger.info("%s. %s", idx, file_name)
+            console_info("%s. %s", idx, file_name)
     else:
-        logger.info("No EPUB files found in %s. You can type a custom path.", books_dir_path)
+        console_info("No EPUB files found in %s. You can type a custom path.", books_dir_path)
     default_input = config.get("input_file", epub_files[0] if epub_files else "")
     context = get_runtime_context(None)
     default_display = (
@@ -484,7 +486,7 @@ def edit_parameter(
         )
         config["base_output_file"] = inp_val if inp_val else default_file
     elif selection == 3:
-        logger.info("\nSelect input language:")
+        console_info("\nSelect input language:")
         print_languages_in_four_columns()
         default_in = config.get("input_language", "English")
         inp_val = _prompt_user(
@@ -495,7 +497,7 @@ def edit_parameter(
         else:
             config["input_language"] = default_in
     elif selection == 4:
-        logger.info(
+        console_info(
             "\nSelect target languages (separate choices by comma, e.g. 1,4,7):"
         )
         print_languages_in_four_columns()
@@ -523,7 +525,7 @@ def edit_parameter(
             )
             models = [line.strip() for line in result.stdout.splitlines()[1:] if line.strip()]
             for idx, model in enumerate(models, start=1):
-                logger.info("%s. %s", idx, model)
+                console_info("%s. %s", idx, model)
             default_model = config.get("ollama_model", models[0].split()[0] if models else DEFAULT_MODEL)
             inp_val = _prompt_user(
                 f"Select a model by number (default: {default_model}): "
@@ -534,7 +536,7 @@ def edit_parameter(
             else:
                 config["ollama_model"] = default_model
         except Exception as exc:
-            logger.error("Error listing models: %s", exc)
+            console_error("Error listing models: %s", exc)
     elif selection == 6:
         default_audio = config.get("generate_audio", True)
         inp_val = _prompt_user(
@@ -562,11 +564,11 @@ def edit_parameter(
         else:
             default_option = "2"
 
-        logger.info("\nSelect voice for audio generation:")
-        logger.info("1. Use gTTS (online text-to-speech)")
-        logger.info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
-        logger.info("3. Auto-select best macOS voice per language (Premium female preferred)")
-        logger.info("4. Auto-select best macOS voice per language (Premium male preferred)")
+        console_info("\nSelect voice for audio generation:")
+        console_info("1. Use gTTS (online text-to-speech)")
+        console_info("2. Use macOS TTS voice (only Enhanced/Premium voices shown)")
+        console_info("3. Auto-select best macOS voice per language (Premium female preferred)")
+        console_info("4. Auto-select best macOS voice per language (Premium male preferred)")
         prompt = (
             "Enter 1 for gTTS, 2 to choose a macOS voice, 3 for female auto, or 4 for male auto "
             f"(default: {default_option}): "
@@ -580,9 +582,9 @@ def edit_parameter(
             if raw_choice == "2" or default_option != "2":
                 voices = get_macos_voices(debug_enabled=debug_enabled)
                 if voices:
-                    logger.info("Available macOS voices (Enhanced/Premium):")
+                    console_info("Available macOS voices (Enhanced/Premium):")
                     for idx, voice in enumerate(voices, start=1):
-                        logger.info("%s. %s", idx, voice)
+                        console_info("%s. %s", idx, voice)
                     inp = _prompt_user(
                         f"Select a macOS voice by number (default: {voices[0]}): "
                     )
@@ -591,7 +593,7 @@ def edit_parameter(
                     else:
                         voice_selected = voices[0]
                 else:
-                    logger.warning("No macOS voices found, defaulting to gTTS")
+                    console_warning("No macOS voices found, defaulting to gTTS")
                     voice_selected = "gTTS"
             else:
                 voice_selected = default_voice
@@ -635,12 +637,12 @@ def edit_parameter(
             try:
                 parsed_threads = int(inp_val)
             except ValueError:
-                logger.warning("Invalid number entered. Keeping previous thread count.")
+                console_warning("Invalid number entered. Keeping previous thread count.")
             else:
                 if 1 <= parsed_threads <= 10:
                     default_threads = parsed_threads
                 else:
-                    logger.warning(
+                    console_warning(
                         "Thread count must be between 1 and 10. Keeping previous value."
                     )
         config["thread_count"] = default_threads
@@ -677,7 +679,7 @@ def edit_parameter(
                 offset = int(inp_val)
                 start_val = int(config.get("start_sentence", 1))
                 config["end_sentence"] = start_val + offset
-                logger.info("Ending sentence updated to %s", config["end_sentence"])
+                console_info("Ending sentence updated to %s", config["end_sentence"])
             except Exception:
                 config["end_sentence"] = default_end
         elif inp_val.isdigit():
@@ -721,23 +723,23 @@ def edit_parameter(
             if 1 <= perc <= 100:
                 config["percentile"] = perc
             else:
-                logger.warning("Invalid percentile, must be between 1 and 100. Keeping previous value.")
+                console_warning("Invalid percentile, must be between 1 and 100. Keeping previous value.")
         else:
             config["percentile"] = default_perc
     elif selection == 18:
         default_am = config.get("audio_mode", "1")
-        logger.info("\nChoose audio output mode:")
+        console_info("\nChoose audio output mode:")
         for key, description in AUDIO_MODE_DESC.items():
-            logger.info("%s: %s", key, description)
+            console_info("%s: %s", key, description)
         inp_val = _prompt_user(
             f"Select audio output mode (default {default_am}): "
         )
         config["audio_mode"] = inp_val if inp_val in AUDIO_MODE_DESC else default_am
     elif selection == 19:
         default_wm = config.get("written_mode", "4")
-        logger.info("\nChoose written output mode:")
+        console_info("\nChoose written output mode:")
         for key, description in WRITTEN_MODE_DESC.items():
-            logger.info("%s: %s", key, description)
+            console_info("%s: %s", key, description)
         inp_val = _prompt_user(
             f"Select written output mode (default {default_wm}): "
         )
@@ -892,7 +894,7 @@ def edit_parameter(
             config["ollama_url"] = inp_val
         context = _refresh_context(config, overrides)
     else:
-        logger.warning("Invalid parameter number. Please try again.")
+        console_warning("Invalid parameter number. Please try again.")
 
     return config, refined_cache_stale
 
@@ -921,8 +923,8 @@ def confirm_settings(
         cmd_parts.append(str(config.get("end_sentence")))
     if config.get("debug"):
         cmd_parts.append("--debug")
-    logger.info("\nTo run non-interactively with these settings, use the following command:")
-    logger.info("%s", " ".join(cmd_parts))
+    console_info("\nTo run non-interactively with these settings, use the following command:")
+    console_info("%s", " ".join(cmd_parts))
 
     book_metadata = {
         "book_title": config.get("book_title"),
@@ -1018,7 +1020,7 @@ def run_interactive_menu(
                     metadata={"mode": "interactive"},
                 )
                 if refreshed:
-                    logger.info(
+                    console_info(
                         "Refined sentence list written to: %s",
                         ingestion.refined_list_output_path(
                             config["input_file"], pipeline_config
@@ -1037,12 +1039,12 @@ def run_interactive_menu(
             )
             inp_choice = inp_choice_raw.strip()
             if inp_choice.lower() == "q":
-                logger.info("Interactive session exited by user request.")
+                console_info("Interactive session exited by user request.")
                 raise MenuExit()
             if inp_choice == "":
                 break
             if not inp_choice.isdigit():
-                logger.warning("Invalid input. Please enter a number or press Enter.")
+                console_warning("Invalid input. Please enter a number or press Enter.")
                 continue
             selection = int(inp_choice)
             config, made_stale = edit_parameter(
@@ -1059,9 +1061,9 @@ def run_interactive_menu(
                 config_file_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(config_file_path, "w", encoding="utf-8") as cfg_file:
                     json.dump(strip_derived_config(config), cfg_file, indent=4)
-                logger.info("Configuration saved to %s", config_file_path)
+                console_info("Configuration saved to %s", config_file_path)
             except Exception as exc:
-                logger.error("Error saving configuration: %s", exc)
+                console_error("Error saving configuration: %s", exc)
 
         active_context = get_runtime_context(None)
         resolved_input_path = resolve_file_path(

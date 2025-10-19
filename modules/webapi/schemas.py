@@ -47,6 +47,7 @@ class PipelineRequestPayload(BaseModel):
     environment_overrides: Dict[str, Any] = Field(default_factory=dict)
     pipeline_overrides: Dict[str, Any] = Field(default_factory=dict)
     inputs: PipelineInputPayload
+    correlation_id: Optional[str] = None
 
     def to_pipeline_request(
         self,
@@ -59,6 +60,7 @@ class PipelineRequestPayload(BaseModel):
             environment_overrides=dict(self.environment_overrides),
             pipeline_overrides=dict(self.pipeline_overrides),
             inputs=self.inputs.to_dataclass(),
+            correlation_id=self.correlation_id,
         )
 
 

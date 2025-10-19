@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
-from modules import prompt_templates
+from modules import observability, prompt_templates
 from modules.llm_client import ClientSettings, LLMClient, create_client
 
 logger = log_mgr.logger
@@ -39,6 +39,9 @@ class TranslationWorkerPool:
         self._loop = loop
         self._executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
         self._shutdown = False
+        observability.worker_pool_event(
+            "created", mode=self.mode, max_workers=self.max_workers
+        )
 
     # ------------------------------------------------------------------
     # Execution helpers
@@ -54,16 +57,34 @@ class TranslationWorkerPool:
             self._executor = concurrent.futures.ThreadPoolExecutor(
                 max_workers=self.max_workers
             )
+            observability.worker_pool_event(
+                "executor_initialized", mode=self.mode, max_workers=self.max_workers
+            )
         return self._executor
 
     def submit(self, func, *args, **kwargs):
         if self.mode == "thread":
+            observability.record_metric(
+                "worker_pool.tasks_submitted",
+                1.0,
+                {"mode": self.mode, "max_workers": self.max_workers},
+            )
             return self._ensure_executor().submit(func, *args, **kwargs)
 
         loop = self._loop or asyncio.get_event_loop()
         result = func(*args, **kwargs)
         if asyncio.iscoroutine(result) or isinstance(result, asyncio.Future):
+            observability.record_metric(
+                "worker_pool.tasks_submitted",
+                1.0,
+                {"mode": self.mode, "max_workers": self.max_workers},
+            )
             return asyncio.ensure_future(result, loop=loop)
+        observability.record_metric(
+            "worker_pool.tasks_submitted",
+            1.0,
+            {"mode": self.mode, "max_workers": self.max_workers},
+        )
         return loop.run_in_executor(None, lambda: result)
 
     def iter_completed(self, futures: Iterable) -> Iterator:
@@ -86,6 +107,9 @@ class TranslationWorkerPool:
         if self.mode == "thread" and self._executor is not None:
             self._executor.shutdown(wait=wait)
         self._shutdown = True
+        observability.worker_pool_event(
+            "shutdown", mode=self.mode, max_workers=self.max_workers
+        )
 
     def __enter__(self) -> "TranslationWorkerPool":  # pragma: no cover - trivial
         return self

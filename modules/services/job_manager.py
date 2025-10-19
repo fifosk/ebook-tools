@@ -18,6 +18,7 @@ except Exception:  # pragma: no cover - defensive import guard
     redis = None
 
 from .. import logging_manager as log_mgr
+from .. import observability
 from ..progress_tracker import ProgressEvent, ProgressSnapshot, ProgressTracker
 from ..translation_engine import TranslationWorkerPool
 from .pipeline_service import (
@@ -290,6 +291,9 @@ class PipelineJobManager:
         stop_event = request.stop_event or threading.Event()
         request.stop_event = stop_event
 
+        request.correlation_id = request.correlation_id or job_id
+        request.job_id = job_id
+
         job = PipelineJob(
             job_id=job_id,
             status=PipelineJobStatus.PENDING,
@@ -305,6 +309,20 @@ class PipelineJobManager:
             self._jobs[job_id] = job
             self._store.save(self._snapshot(job))
 
+        with log_mgr.log_context(job_id=job_id, correlation_id=request.correlation_id):
+            logger.info(
+                "Pipeline job submitted",
+                extra={
+                    "event": "pipeline.job.submitted",
+                    "status": PipelineJobStatus.PENDING.value,
+                    "attributes": {
+                        "input_file": request.inputs.input_file,
+                        "target_languages": request.inputs.target_languages,
+                    },
+                    "console_suppress": True,
+                },
+            )
+
         self._executor.submit(self._execute, job_id)
         return job
 
@@ -315,6 +333,26 @@ class PipelineJobManager:
                 return
             job.last_event = event
             self._store.update(self._snapshot(job))
+        metadata = dict(event.metadata)
+        stage = metadata.get("stage")
+        correlation_id = None
+        if job and job.request is not None:
+            correlation_id = job.request.correlation_id
+        with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+            logger.info(
+                "Pipeline progress event",
+                extra={
+                    "event": "pipeline.job.progress",
+                    "stage": stage,
+                    "attributes": {
+                        "event_type": event.event_type,
+                        "completed": event.snapshot.completed,
+                        "total": event.snapshot.total,
+                        "metadata": metadata,
+                    },
+                    "console_suppress": True,
+                },
+            )
 
     def _acquire_worker_pool(self, request: PipelineRequest) -> tuple[Optional[TranslationWorkerPool], bool]:
         if request.translation_pool is not None:
@@ -336,11 +374,25 @@ class PipelineJobManager:
 
         pool: Optional[TranslationWorkerPool]
         owns_pool: bool
+        correlation_id = job.request.correlation_id if job.request else None
         try:
             assert job.request is not None  # noqa: S101
-            pool, owns_pool = self._acquire_worker_pool(job.request)
-            job.owns_translation_pool = owns_pool
-            response = run_pipeline(job.request)
+            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                logger.info(
+                    "Pipeline job started",
+                    extra={
+                        "event": "pipeline.job.started",
+                        "status": PipelineJobStatus.RUNNING.value,
+                        "console_suppress": True,
+                    },
+                )
+            with observability.pipeline_operation(
+                "job",
+                attributes={"job_id": job_id, "correlation_id": correlation_id},
+            ):
+                pool, owns_pool = self._acquire_worker_pool(job.request)
+                job.owns_translation_pool = owns_pool
+                response = run_pipeline(job.request)
             with self._lock:
                 job.result = response
                 job.result_payload = serialize_pipeline_response(response)
@@ -350,7 +402,15 @@ class PipelineJobManager:
                 job.error_message = None if response.success else "Pipeline execution reported failure."
                 self._store.update(self._snapshot(job))
         except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error("Pipeline execution failed for job %s: %s", job_id, exc)
+            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                logger.error(
+                    "Pipeline job encountered an error",
+                    extra={
+                        "event": "pipeline.job.error",
+                        "status": PipelineJobStatus.FAILED.value,
+                        "attributes": {"error": str(exc)},
+                    },
+                )
             with self._lock:
                 job.result = None
                 job.result_payload = None
@@ -372,6 +432,25 @@ class PipelineJobManager:
                 pool = job.request.translation_pool
                 if pool is not None:
                     pool.shutdown()
+            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                logger.info(
+                    "Pipeline job finished",
+                    extra={
+                        "event": "pipeline.job.finished",
+                        "status": job.status.value,
+                        "console_suppress": True,
+                    },
+                )
+                duration_ms = 0.0
+                if job.started_at and job.completed_at:
+                    duration_ms = (
+                        job.completed_at - job.started_at
+                    ).total_seconds() * 1000.0
+                observability.record_metric(
+                    "pipeline.job.duration",
+                    duration_ms,
+                    {"job_id": job_id, "status": job.status.value},
+                )
 
     def get(self, job_id: str) -> PipelineJob:
         """Return the job associated with ``job_id``."""

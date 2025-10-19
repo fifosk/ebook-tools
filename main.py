@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import functools
 import io
 import os
 import select
@@ -38,7 +39,12 @@ class _CLIProgressLogger:
 
     def __init__(self, tracker: ProgressTracker, *, logger_obj) -> None:
         self._tracker = tracker
-        self._logger = logger_obj
+        self._console_info = functools.partial(
+            log_mgr.console_info, logger_obj=logger_obj
+        )
+        self._console_error = functools.partial(
+            log_mgr.console_error, logger_obj=logger_obj
+        )
         self._unsubscribe: Optional[Callable[[], None]] = tracker.register_observer(
             self._handle_event
         )
@@ -59,18 +65,18 @@ class _CLIProgressLogger:
         if event.event_type == "start":
             message = metadata.get("message")
             if message:
-                self._logger.info(str(message))
+                self._console_info(str(message))
             elif total:
-                self._logger.info("Tracking %s blocks...", total)
+                self._console_info("Tracking %s blocks...", total)
             else:
-                self._logger.info("Pipeline started.")
+                self._console_info("Pipeline started.")
             return
 
         if event.event_type == "progress":
             if metadata.get("stage") == "translation":
                 return
             if metadata.get("total_updated") and total:
-                self._logger.info("Updated total blocks to %s.", total)
+                self._console_info("Updated total blocks to %s.", total)
                 return
             if total is None or total == 0:
                 return
@@ -86,7 +92,7 @@ class _CLIProgressLogger:
             self._last_log = now
             eta_str = _format_duration(snapshot.eta)
             elapsed_str = _format_duration(snapshot.elapsed)
-            self._logger.info(
+            self._console_info(
                 "Progress: %s/%s blocks processed (%.2f blocks/s, ETA %s, Elapsed %s)",
                 snapshot.completed,
                 total,
@@ -103,13 +109,13 @@ class _CLIProgressLogger:
             forced = bool(metadata.get("forced"))
             reason = metadata.get("reason")
             if forced and reason:
-                self._logger.info("Pipeline finished early (%s).", reason)
+                self._console_info("Pipeline finished early (%s).", reason)
             elif forced:
-                self._logger.info("Pipeline finished early.")
+                self._console_info("Pipeline finished early.")
             else:
-                self._logger.info("Processing complete.")
+                self._console_info("Processing complete.")
             if total and total > 0:
-                self._logger.info(
+                self._console_info(
                     "Final progress: %s/%s blocks processed in %s (avg %.2f blocks/s)",
                     snapshot.completed,
                     total,
@@ -121,9 +127,9 @@ class _CLIProgressLogger:
         if event.event_type == "error":
             error_obj = event.error or metadata.get("message")
             if error_obj:
-                self._logger.error("Pipeline error reported: %s", error_obj)
+                self._console_error("Pipeline error reported: %s", error_obj)
             else:
-                self._logger.error("Pipeline error reported.")
+                self._console_error("Pipeline error reported.")
 
 
 def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
@@ -137,7 +143,11 @@ def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
         """Signal that the pipeline should stop and log the triggering reason."""
 
         if not pipeline_stop.is_set():
-            logger.info("Shutdown requested via %s; stopping pipeline...", reason)
+            log_mgr.console_info(
+                "Shutdown requested via %s; stopping pipeline...",
+                reason,
+                logger_obj=logger,
+            )
             tracker.publish_progress(
                 {
                     "stage": "shutdown",
@@ -203,7 +213,10 @@ def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
     if hasattr(sys.stdin, "readline"):
         try:
             if sys.stdin.isatty():
-                logger.info("Press 'q' then Enter at any time to stop the pipeline gracefully.")
+                log_mgr.console_info(
+                    "Press 'q' then Enter at any time to stop the pipeline gracefully.",
+                    logger_obj=logger,
+                )
         except Exception:
             pass
         input_thread = threading.Thread(
@@ -213,12 +226,19 @@ def run_pipeline(report_interval: float = 5.0) -> Optional[PipelineResponse]:
         )
         input_thread.start()
 
+    log_mgr.console_info(
+        "Pipeline starting (CLI mode).",
+        logger_obj=logger,
+    )
     tracker.publish_start({"message": "Pipeline starting (CLI mode).", "source": "cli"})
 
     try:
         response = _run_pipeline(progress_tracker=tracker, stop_event=pipeline_stop)
     except KeyboardInterrupt as exc:
-        logger.warning("Pipeline interrupted by Ctrl+C; shutting down...")
+        log_mgr.console_warning(
+            "Pipeline interrupted by Ctrl+C; shutting down...",
+            logger_obj=logger,
+        )
         _request_shutdown("Ctrl+C")
         tracker.record_error(exc, {"stage": "cli"})
         response = None
