@@ -135,23 +135,33 @@ def _invoke_llm_enrichment(
     preview: str,
     base_metadata: Dict[str, Optional[str]],
     *,
+    missing_fields: Iterable[str] = (),
     timeout: int = 90,
 ) -> Dict[str, Optional[str]]:
     if not preview or not llm_client.get_model():
         return {}
 
+    paragraphs = [part.strip() for part in re.split(r"\n{2,}", preview) if part.strip()]
+    first_block = paragraphs[0] if paragraphs else preview[:600]
+    first_sentences = re.split(r"(?<=[.!?])\s+", first_block)
+    leading_excerpt = " ".join(first_sentences[:4]).strip() or first_block[:600]
+
     prompt_context = {
         "filename": filename,
         "known_metadata": {k: v for k, v in base_metadata.items() if v},
         "preview_excerpt": preview[:4000],
+        "first_block_excerpt": leading_excerpt,
+        "requested_fields": list(missing_fields),
     }
     messages = [
         {
             "role": "system",
             "content": (
                 "You extract bibliographic metadata for EPUB ebooks. "
+                "Infer missing values using filename hints and especially the opening paragraphs when metadata is absent. "
                 "Return a compact JSON object with keys book_title, book_author, book_year, book_summary. "
-                "Summaries should be 2-3 sentences. Use four digit years when possible."
+                "Summaries should be 2-3 sentences. Use four digit years when possible. "
+                "If unsure about year, provide your best estimate rather than leaving it blank."
             ),
         },
         {
@@ -321,8 +331,19 @@ def infer_metadata(
         if summary:
             metadata["book_summary"] = summary
 
-    if preview_text:
-        enriched = _invoke_llm_enrichment(epub_path.name, preview_text, metadata)
+    missing_fields = [
+        key
+        for key in ["book_title", "book_author", "book_year", "book_summary"]
+        if _is_placeholder(key, metadata.get(key))
+    ]
+
+    if preview_text and missing_fields:
+        enriched = _invoke_llm_enrichment(
+            epub_path.name,
+            preview_text,
+            metadata,
+            missing_fields=missing_fields,
+        )
         for key, value in enriched.items():
             if value and _is_placeholder(key, metadata.get(key)):
                 metadata[key] = value
