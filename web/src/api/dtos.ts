@@ -5,6 +5,19 @@ export type PipelineJobStatus =
   | 'failed'
   | 'cancelled';
 
+export type PipelineFileEntryType = 'file' | 'directory';
+
+export interface PipelineFileEntry {
+  name: string;
+  path: string;
+  type: PipelineFileEntryType;
+}
+
+export interface PipelineFileBrowserResponse {
+  ebooks: PipelineFileEntry[];
+  outputs: PipelineFileEntry[];
+}
+
 export interface PipelineInputPayload {
   input_file: string;
   base_output_file: string;

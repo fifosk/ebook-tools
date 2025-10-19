@@ -1,4 +1,5 @@
 import {
+  PipelineFileBrowserResponse,
   PipelineRequestPayload,
   PipelineStatusResponse,
   PipelineSubmissionResponse
@@ -72,6 +73,13 @@ export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatus
   return handleResponse<PipelineStatusResponse>(response);
 }
 
+export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {
+  const response = await fetch(withBase(`/pipelines/${jobId}/metadata/refresh`), {
+    method: 'POST'
+  });
+  return handleResponse<PipelineStatusResponse>(response);
+}
+
 export function buildEventStreamUrl(jobId: string): string {
   return withBase(`/pipelines/${jobId}/events`);
 }
@@ -87,4 +95,9 @@ export function buildStorageUrl(path: string): string {
     return `${STORAGE_BASE_URL}/${path}`;
   }
   return `${STORAGE_BASE_URL}${path}`;
+}
+
+export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
+  const response = await fetch(withBase('/pipelines/files'));
+  return handleResponse<PipelineFileBrowserResponse>(response);
 }

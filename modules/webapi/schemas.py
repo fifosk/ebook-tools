@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -220,3 +220,18 @@ class PipelineStatusResponse(BaseModel):
             error=job.error_message,
             latest_event=latest_event,
         )
+
+
+class PipelineFileEntry(BaseModel):
+    """Describes a selectable file within the dashboard."""
+
+    name: str
+    path: str
+    type: Literal["file", "directory"]
+
+
+class PipelineFileBrowserResponse(BaseModel):
+    """Response payload listing available ebook and output files."""
+
+    ebooks: List[PipelineFileEntry] = Field(default_factory=list)
+    outputs: List[PipelineFileEntry] = Field(default_factory=list)

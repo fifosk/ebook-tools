@@ -7,7 +7,7 @@ import {
   PipelineSubmissionResponse,
   ProgressEventPayload
 } from './api/dtos';
-import { fetchPipelineStatus, submitPipeline } from './api/client';
+import { fetchPipelineStatus, refreshPipelineMetadata, submitPipeline } from './api/client';
 
 interface JobRegistryEntry {
   submission: PipelineSubmissionResponse;
@@ -131,7 +131,13 @@ export function App() {
   const handleReloadJob = useCallback(async (jobId: string) => {
     setReloadingJobs((previous) => ({ ...previous, [jobId]: true }));
     try {
-      const status = await fetchPipelineStatus(jobId);
+      let status: PipelineStatusResponse;
+      try {
+        status = await refreshPipelineMetadata(jobId);
+      } catch (refreshError) {
+        console.warn('Unable to force metadata refresh for job', jobId, refreshError);
+        status = await fetchPipelineStatus(jobId);
+      }
       setJobs((previous) => {
         const current = previous[jobId];
         if (!current) {

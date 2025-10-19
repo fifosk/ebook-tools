@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import threading
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -464,6 +464,22 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
     return payload
 
 
+def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
+    """Convert ``request`` into a JSON-serializable mapping."""
+
+    payload: Dict[str, Any] = {
+        "config": dict(request.config),
+        "environment_overrides": dict(request.environment_overrides),
+        "pipeline_overrides": dict(request.pipeline_overrides),
+        "inputs": asdict(request.inputs),
+    }
+
+    if request.correlation_id is not None:
+        payload["correlation_id"] = request.correlation_id
+
+    return payload
+
+
 class PipelineService:
     """High-level orchestration API for the ebook processing pipeline."""
 
@@ -489,3 +505,8 @@ class PipelineService:
         """Execute ``request`` synchronously and return the pipeline response."""
 
         return run_pipeline(request)
+
+    def refresh_metadata(self, job_id: str) -> "PipelineJob":
+        """Force-refresh metadata for the specified job and return the updated handle."""
+
+        return self._job_manager.refresh_metadata(job_id)
