@@ -117,6 +117,18 @@ def _merge_token_usage(existing: TokenUsage, new_data: Dict[str, Any]) -> None:
         existing[key] = value
 
 
+def _summarize_text(text: str, *, limit: int = 200) -> str:
+    """Return a condensed single-line preview of ``text`` for logging."""
+
+    if not text:
+        return ""
+
+    condensed = " ".join(text.split())
+    if len(condensed) > limit:
+        return condensed[:limit].rstrip() + "…"
+    return condensed
+
+
 def _normalize_host(url: Optional[str]) -> Optional[str]:
     if not url:
         return None
@@ -314,8 +326,18 @@ def send_chat_request(
         else:
             text = result.text.strip()
             if validator and not validator(text):
-                last_error = "Validation failed"
-                _log_debug("Validator rejected response on attempt %s/%s", attempt, max_attempts)
+                preview = _summarize_text(text)
+                last_error = (
+                    f"Validation failed (response excerpt: {preview})"
+                    if preview
+                    else "Validation failed"
+                )
+                _log_warning(
+                    "Validator rejected response on attempt %s/%s: %s",
+                    attempt,
+                    max_attempts,
+                    preview or "<empty response>",
+                )
             elif not text:
                 last_error = "Empty response"
                 _log_debug("Empty response on attempt %s/%s", attempt, max_attempts)
