@@ -47,7 +47,7 @@ def run_pipeline(
     args = parse_arguments()
     config: dict = {}
 
-    overrides = {
+    environment_overrides = {
         "ebooks_dir": args.ebooks_dir or os.environ.get("EBOOKS_DIR"),
         "working_dir": args.working_dir or os.environ.get("EBOOK_WORKING_DIR"),
         "output_dir": args.output_dir or os.environ.get("EBOOK_OUTPUT_DIR"),
@@ -266,7 +266,9 @@ def run_pipeline(
         "pipeline_mode": config.get("pipeline_mode"),
     }
 
-    pipeline_config = build_pipeline_config(config, overrides=pipeline_overrides)
+    pipeline_config = build_pipeline_config(
+        config, overrides={**environment_overrides, **pipeline_overrides}
+    )
     pipeline_config.apply_runtime_settings()
     configure_logging_level(pipeline_config.debug)
 
