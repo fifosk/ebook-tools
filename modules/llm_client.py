@@ -83,6 +83,14 @@ def _log_debug(message: str, *args: Any) -> None:
         logger.debug(message, *args)
 
 
+def _log_info(message: str, *args: Any) -> None:
+    logger.info(message, *args)
+
+
+def _log_warning(message: str, *args: Any) -> None:
+    logger.warning(message, *args)
+
+
 def _log_token_usage(usage: TokenUsage) -> None:
     """Emit token usage diagnostics when debug logging is enabled."""
 
@@ -241,6 +249,12 @@ def _execute_request(payload: Dict[str, Any], timeout: Optional[int] = None) -> 
     stream = bool(payload.get("stream", False))
 
     for host, api_key in _resolve_host_chain():
+        credential_state = "present" if api_key else "absent"
+        _log_info(
+            "Attempting Ollama request via %s (API key %s)",
+            host,
+            credential_state,
+        )
         try:
             client = _get_client(host, api_key)
         except Exception as exc:  # pragma: no cover - defensive
@@ -249,22 +263,26 @@ def _execute_request(payload: Dict[str, Any], timeout: Optional[int] = None) -> 
             continue
 
         try:
-            return _chat_with_client(client, host, payload, stream=stream, timeout=timeout)
+            result = _chat_with_client(client, host, payload, stream=stream, timeout=timeout)
+            _log_info("Ollama request succeeded via %s", host)
+            return result
         except (RequestError, ResponseError, OSError) as exc:
             last_error = str(exc)
-            _log_debug("LLM request failed for %s: %s", host, exc)
+            _log_warning("LLM request failed for %s: %s", host, exc)
             continue
         except Exception as exc:  # pragma: no cover - unexpected failure
             last_error = str(exc)
-            _log_debug("Unexpected error during LLM request for %s: %s", host, exc)
+            _log_warning("Unexpected error during LLM request for %s: %s", host, exc)
             continue
 
+    failure_reason = last_error if 'last_error' in locals() else "Unable to reach Ollama service"
+    _log_warning("Exhausted host chain for Ollama request: %s", failure_reason)
     return LLMResponse(
         text="",
         status_code=0,
         token_usage={},
         raw=None,
-        error=last_error if 'last_error' in locals() else "Unable to reach Ollama service",
+        error=failure_reason,
     )
 
 
@@ -303,6 +321,11 @@ def send_chat_request(
 
         time.sleep(backoff_seconds * attempt)
 
+    _log_warning(
+        "LLM request failed after %s attempts (last error: %s)",
+        max_attempts,
+        last_error or "unknown",
+    )
     return LLMResponse(
         text="",
         status_code=0,
@@ -318,12 +341,17 @@ def list_available_tags() -> Optional[Dict[str, Any]]:
     for host, api_key in _resolve_host_chain():
         try:
             client = _get_client(host, api_key)
+            _log_info(
+                "Fetching Ollama model list via %s (API key %s)",
+                host,
+                "present" if api_key else "absent",
+            )
             return client.list()
         except (RequestError, ResponseError, OSError) as exc:
-            _log_debug("Unable to list models from %s: %s", host, exc)
+            _log_warning("Unable to list models from %s: %s", host, exc)
             continue
         except Exception as exc:  # pragma: no cover - unexpected failure
-            _log_debug("Unexpected error listing models from %s: %s", host, exc)
+            _log_warning("Unexpected error listing models from %s: %s", host, exc)
             continue
     return None
 
