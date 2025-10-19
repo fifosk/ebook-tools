@@ -8,12 +8,8 @@ import json
 import os
 import subprocess
 import sys
-import urllib.parse
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
-
-import requests
-from PIL import Image
 
 from . import config_manager as cfg
 from . import logging_manager as log_mgr
@@ -22,6 +18,7 @@ from . import metadata_manager
 from .core import ingestion
 from .core.config import build_pipeline_config
 from .services.pipeline_service import PipelineInput
+from .book_cover import fetch_book_cover
 from .audio_video_generator import (
     AUTO_MACOS_VOICE,
     AUTO_MACOS_VOICE_FEMALE,
@@ -187,32 +184,6 @@ def print_languages_in_four_columns() -> None:
                 row_items.append(f"{idx + 1:2d}. {languages[idx]:<{col_width}}")
         if row_items:
             logger.info("%s", "".join(row_items))
-
-
-def fetch_book_cover(query: str, debug_enabled: bool = False) -> Optional[Image.Image]:
-    """Retrieve a book cover image from OpenLibrary when available."""
-    encoded = urllib.parse.quote(query)
-    url = f"http://openlibrary.org/search.json?title={encoded}"
-    try:
-        response = requests.get(url, timeout=10)
-        if response.status_code != 200:
-            return None
-        data = response.json()
-        for doc in data.get("docs", []):
-            if "cover_i" not in doc:
-                continue
-            cover_id = doc["cover_i"]
-            cover_url = f"https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
-            cover_response = requests.get(cover_url, stream=True, timeout=10)
-            if cover_response.status_code == 200:
-                image = Image.open(io.BytesIO(cover_response.content))
-                image.load()
-                return image
-        return None
-    except Exception as exc:  # pragma: no cover - network errors
-        if debug_enabled:
-            logger.error("Error fetching book cover: %s", exc)
-        return None
 
 
 def update_book_cover_file_in_config(
