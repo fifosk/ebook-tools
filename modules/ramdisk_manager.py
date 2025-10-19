@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import os
 import platform
+import plistlib
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Iterable, Optional, Tuple
@@ -205,9 +207,19 @@ def _mount_ramdisk_linux(target: Path, size_bytes: int) -> bool:
 
 
 def _mount_ramdisk_macos(target: Path, size_bytes: int) -> bool:  # pragma: no cover - macOS specific
+    existing_device = _find_existing_macos_ramdisk_identifier(size_bytes)
+    if existing_device and _ensure_macos_mount(existing_device, target):
+        logger.info(
+            "Mounted existing macOS RAM disk %s at %s (%s).",
+            existing_device,
+            target,
+            _format_size(size_bytes),
+        )
+        return True
+
     block_count = max(1, size_bytes // 512)
     try:
-        device = subprocess.check_output(
+        device_path = subprocess.check_output(
             ["hdiutil", "attach", "-nomount", f"ram://{block_count}"],
             text=True,
         ).strip()
@@ -215,22 +227,23 @@ def _mount_ramdisk_macos(target: Path, size_bytes: int) -> bool:  # pragma: no c
         logger.warning("Failed to allocate macOS RAM disk device: %s", exc)
         return False
 
+    device_identifier = Path(device_path).name
+    device_node = Path("/dev") / device_identifier
+    if not device_node.exists():
+        logger.warning("Allocated RAM disk device %s not found at %s.", device_identifier, device_node)
+        return False
+
     try:
         subprocess.run(
-            ["diskutil", "eraseVolume", "HFS+", target.name or "RAMDisk", device],
-            check=True,
-            text=True,
-        )
-        subprocess.run(
-            ["diskutil", "mount", "-mountPoint", str(target), device],
+            ["diskutil", "eraseVolume", "HFS+", target.name or "RAMDisk", device_identifier],
             check=True,
             text=True,
         )
     except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-        logger.warning("Failed to mount RAM disk %s at %s: %s", device, target, exc)
+        logger.warning("Failed to format RAM disk %s: %s", device_identifier, exc)
         return False
 
-    if _is_ramdisk(target):
+    if _ensure_macos_mount(device_identifier, target):
         logger.info(
             "Mounted macOS RAM disk at %s (%s).",
             target,
@@ -238,7 +251,169 @@ def _mount_ramdisk_macos(target: Path, size_bytes: int) -> bool:  # pragma: no c
         )
         return True
 
-    logger.warning("macOS RAM disk at %s not detected after mount command.", target)
+    logger.warning("macOS RAM disk at %s not detected after mount attempts.", target)
+    return False
+
+
+def _ensure_macos_mount(device_identifier: str, target: Path) -> bool:
+    mount_candidate = _find_mountable_identifier(device_identifier)
+    if not mount_candidate:
+        return False
+
+    if _attempt_diskutil_mount(mount_candidate, target):
+        if _is_ramdisk(target):
+            return True
+
+    mount_point = _get_diskutil_mount_point(mount_candidate)
+    if mount_point:
+        mount_path = Path(mount_point)
+        if mount_path.exists() and _replace_with_symlink(target, mount_path):
+            logger.info("Linked %s to existing RAM disk mount %s.", target, mount_path)
+            if _is_ramdisk(target):
+                return True
+
+    return False
+
+
+def _attempt_diskutil_mount(device_identifier: str, target: Path) -> bool:
+    try:
+        subprocess.run(
+            ["diskutil", "mount", "-mountPoint", str(target), device_identifier],
+            check=True,
+            text=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
+def _find_mountable_identifier(device_identifier: str) -> Optional[str]:
+    info = _get_diskutil_info(device_identifier)
+    if _info_represents_mountable(info):
+        return info.get("DeviceIdentifier", device_identifier)
+
+    listing = _get_diskutil_listing(device_identifier)
+    if not listing:
+        return None if not info else device_identifier
+
+    for partition in listing.get("Partitions", []):
+        part_identifier = partition.get("DeviceIdentifier")
+        if not part_identifier:
+            continue
+        part_info = _get_diskutil_info(part_identifier)
+        if _info_represents_mountable(part_info):
+            return part_identifier
+
+    return device_identifier if info else None
+
+
+def _info_represents_mountable(info: Optional[dict]) -> bool:
+    if not info:
+        return False
+
+    if info.get("MountPoint") or info.get("FilesystemName"):
+        return True
+
+    content = info.get("Content")
+    if content in {"Apple_HFS", "APFS", "Case-sensitive APFS", "ExFAT", "MS-DOS FAT32"}:
+        return True
+
+    return False
+
+
+def _get_diskutil_info(identifier: str) -> Optional[dict]:
+    try:
+        output = subprocess.check_output(["diskutil", "info", "-plist", identifier], text=False)
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+
+    try:
+        return plistlib.loads(output)
+    except Exception:
+        return None
+
+
+def _get_diskutil_listing(identifier: str) -> Optional[dict]:
+    try:
+        output = subprocess.check_output(["diskutil", "list", "-plist", identifier], text=False)
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+
+    try:
+        return plistlib.loads(output)
+    except Exception:
+        return None
+
+
+def _get_diskutil_mount_point(identifier: str) -> Optional[str]:
+    info = _get_diskutil_info(identifier)
+    if not info:
+        return None
+    mount_point = info.get("MountPoint")
+    return mount_point if mount_point else None
+
+
+def _replace_with_symlink(target: Path, source: Path) -> bool:
+    try:
+        if target == source:
+            return True
+        if target.is_symlink() or target.is_file():
+            target.unlink()
+        elif target.exists():
+            shutil.rmtree(target)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.symlink_to(source)
+        return target.is_symlink()
+    except OSError as exc:
+        logger.warning("Failed to link %s to %s: %s", target, source, exc)
+        return False
+
+
+def _find_existing_macos_ramdisk_identifier(size_bytes: int) -> Optional[str]:
+    try:
+        output = subprocess.check_output(["diskutil", "list", "-plist"], text=False)
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        return None
+
+    try:
+        listing = plistlib.loads(output)
+    except Exception:
+        return None
+
+    tolerance = max(4096, size_bytes // 50)
+    for entry in listing.get("AllDisksAndPartitions", []):
+        for identifier, size in _iter_disk_entries(entry):
+            if not identifier or size is None:
+                continue
+            if abs(int(size) - size_bytes) > tolerance:
+                continue
+            info = _get_diskutil_info(identifier)
+            if _info_indicates_ramdisk(info):
+                return identifier
+    return None
+
+
+def _iter_disk_entries(entry: dict) -> Iterable[Tuple[Optional[str], Optional[int]]]:
+    yield entry.get("DeviceIdentifier"), entry.get("Size")
+    for partition in entry.get("Partitions", []) or []:
+        yield partition.get("DeviceIdentifier"), partition.get("Size")
+
+
+def _info_indicates_ramdisk(info: Optional[dict]) -> bool:
+    if not info:
+        return False
+
+    if info.get("VirtualOrPhysical") == "Virtual":
+        return True
+
+    media_name = (info.get("MediaName") or "").lower()
+    if "ram" in media_name:
+        return True
+
+    device_location = (info.get("DeviceLocation") or "").lower()
+    if "virtual" in device_location:
+        return True
+
     return False
 
 
