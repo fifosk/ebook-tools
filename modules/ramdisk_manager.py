@@ -134,8 +134,20 @@ def _is_ramdisk(path: Path) -> bool:
     mount = _find_mount_for_path(path)
     if not mount:
         return False
-    _device, _mount_point, fs_type = mount
-    return fs_type.lower() in _RAM_FS_TYPES
+    device, mount_point, fs_type = mount
+    if fs_type.lower() in _RAM_FS_TYPES:
+        return True
+
+    if platform.system() == "Darwin":  # pragma: no cover - macOS specific detection
+        info_by_device = _get_diskutil_info(device)
+        if _info_indicates_ramdisk(info_by_device):
+            return True
+
+        info_by_mount = _get_diskutil_info(mount_point)
+        if _info_indicates_ramdisk(info_by_mount):
+            return True
+
+    return False
 
 
 def _find_mount_for_path(path: Path) -> Optional[Tuple[str, str, str]]:
