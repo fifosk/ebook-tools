@@ -13,7 +13,7 @@ from typing import Optional
 
 from modules import config_manager
 from modules import logging_manager as log_mgr
-from modules.ebook_tools import run_pipeline as _run_pipeline
+from modules.adapters.cli.menu import run_pipeline as _run_pipeline
 from modules.progress_tracker import ProgressTracker
 
 logger = log_mgr.get_logger()
