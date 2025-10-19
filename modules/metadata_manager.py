@@ -40,6 +40,8 @@ _PLACEHOLDER_LOOKUP = {
 }
 
 _SENTENCE_LIMIT = 10
+_SUMMARY_MAX_SENTENCES = 4
+_SUMMARY_MAX_CHARACTERS = 600
 _OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 _OPENLIBRARY_COVER_TEMPLATE = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
@@ -332,9 +334,34 @@ def _fetch_openlibrary_details(title: str, author: Optional[str]) -> Dict[str, O
             logger.debug("Failed to fetch OpenLibrary work details for %s: %s", work_key, exc)
 
     if summary:
-        enrichment["book_summary"] = summary.strip()
+        enrichment["book_summary"] = _limit_summary_length(summary)
 
     return enrichment
+
+
+def _limit_summary_length(summary: str) -> str:
+    cleaned = summary.strip()
+    if not cleaned:
+        return cleaned
+
+    primary_paragraph = cleaned.split("\n\n", 1)[0].strip()
+    sentences = re.split(r"(?<=[.!?])\s+", primary_paragraph)
+
+    limited_sentences: List[str] = []
+    for sentence in sentences:
+        stripped = sentence.strip()
+        if not stripped:
+            continue
+        limited_sentences.append(stripped)
+        if len(limited_sentences) >= _SUMMARY_MAX_SENTENCES:
+            break
+
+    short_summary = " ".join(limited_sentences) if limited_sentences else primary_paragraph
+    if len(short_summary) <= _SUMMARY_MAX_CHARACTERS:
+        return short_summary
+
+    truncated = short_summary[: _SUMMARY_MAX_CHARACTERS - 1].rsplit(" ", 1)[0]
+    return truncated + "…"
 
 
 def _download_cover_from_url(url: str, destination: Path) -> bool:
@@ -512,6 +539,9 @@ def infer_metadata(
     if cover_path:
         if force_refresh or metadata.get("book_cover_file") != cover_path:
             metadata["book_cover_file"] = cover_path
+
+    if metadata.get("book_summary"):
+        metadata["book_summary"] = _limit_summary_length(metadata["book_summary"] or "")
 
     _METADATA_CACHE[cache_key] = metadata.copy()
 
