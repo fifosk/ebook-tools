@@ -21,6 +21,7 @@ from . import translation_engine
 from . import metadata_manager
 from .core import ingestion
 from .core.config import build_pipeline_config
+from .services.pipeline_service import PipelineInput
 from .audio_video_generator import (
     AUTO_MACOS_VOICE,
     AUTO_MACOS_VOICE_FEMALE,
@@ -929,29 +930,7 @@ def confirm_settings(
     config: Dict[str, Any],
     resolved_input: Optional[Path],
     entry_script_name: str,
-) -> Tuple[
-    Dict[str, Any],
-    Tuple[
-        str,
-        str,
-        str,
-        List[str],
-        int,
-        int,
-        Optional[int],
-        bool,
-        bool,
-        str,
-        str,
-        str,
-        bool,
-        bool,
-        bool,
-        bool,
-        float,
-        Dict[str, Any],
-    ],
-]:
+) -> Tuple[Dict[str, Any], PipelineInput]:
     """Finalize the interactive session and prepare pipeline arguments."""
     resolved_input_str = str(resolved_input) if resolved_input else config.get("input_file", "")
     input_arg = f'"{resolved_input_str}"'
@@ -982,34 +961,34 @@ def confirm_settings(
         "book_cover_file": config.get("book_cover_file"),
     }
 
-    pipeline_args = (
-        resolved_input_str,
-        config.get("base_output_file", ""),
-        config.get("input_language", "English"),
-        target_languages,
-        config.get("sentences_per_output_file", 10),
-        config.get("start_sentence", 1),
-        config.get("end_sentence"),
-        config.get("stitch_full", False),
-        config.get("generate_audio", True),
-        config.get("audio_mode", "1"),
-        config.get("written_mode", "4"),
-        config.get("selected_voice", "gTTS"),
-        config.get("output_html", True),
-        config.get("output_pdf", False),
-        config.get("generate_video", False),
-        config.get("include_transliteration", False),
-        config.get("tempo", 1.0),
-        book_metadata,
+    pipeline_input = PipelineInput(
+        input_file=resolved_input_str,
+        base_output_file=config.get("base_output_file", ""),
+        input_language=config.get("input_language", "English"),
+        target_languages=target_languages,
+        sentences_per_output_file=config.get("sentences_per_output_file", 10),
+        start_sentence=config.get("start_sentence", 1),
+        end_sentence=config.get("end_sentence"),
+        stitch_full=config.get("stitch_full", False),
+        generate_audio=config.get("generate_audio", True),
+        audio_mode=config.get("audio_mode", "1"),
+        written_mode=config.get("written_mode", "4"),
+        selected_voice=config.get("selected_voice", "gTTS"),
+        output_html=config.get("output_html", True),
+        output_pdf=config.get("output_pdf", False),
+        generate_video=config.get("generate_video", False),
+        include_transliteration=config.get("include_transliteration", False),
+        tempo=config.get("tempo", 1.0),
+        book_metadata=book_metadata,
     )
-    return config, pipeline_args
+    return config, pipeline_input
 
 
 def run_interactive_menu(
     overrides: Optional[Dict[str, Any]] = None,
     config_path: Optional[str] = None,
     entry_script_name: str = "main.py",
-) -> Tuple[Dict[str, Any], Tuple[Any, ...]]:
+) -> Tuple[Dict[str, Any], PipelineInput]:
     """Run the interactive configuration menu and return the final configuration."""
     overrides = overrides or {}
     previous_menu_flag = os.environ.get("EBOOK_MENU_ACTIVE")
@@ -1118,7 +1097,7 @@ def run_interactive_menu(
             config.get("input_file"),
             active_context.books_dir if active_context is not None else None,
         )
-        config, pipeline_args = confirm_settings(
+        config, pipeline_input = confirm_settings(
             config, resolved_input_path, entry_script_name
         )
 
@@ -1129,7 +1108,7 @@ def run_interactive_menu(
         pipeline_config.apply_runtime_settings()
         configure_logging_level(pipeline_config.debug)
 
-        return config, pipeline_args
+        return config, pipeline_input
     finally:
         if previous_menu_flag is None:
             os.environ.pop("EBOOK_MENU_ACTIVE", None)
