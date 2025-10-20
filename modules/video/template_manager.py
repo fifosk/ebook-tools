@@ -96,6 +96,18 @@ class TemplateManager:
         self._cache: Dict[str, TemplateDefinition] = {}
         self._lock = threading.Lock()
 
+    def __getstate__(self) -> Dict[str, Any]:
+        """Support pickling by omitting the non-serializable lock."""
+
+        state = self.__dict__.copy()
+        # ``threading.Lock`` objects cannot be pickled; remove and recreate later.
+        state.pop("_lock", None)
+        return state
+
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._lock = threading.Lock()
+
     @property
     def theme_dir(self) -> str:
         return self._theme_dir

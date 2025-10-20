@@ -29,6 +29,17 @@ class GlyphMetricsCache:
         self._length_cache: Dict[Tuple[Tuple[object, ...], str], float] = {}
         self._lock = threading.Lock()
 
+    def __getstate__(self) -> Dict[str, Any]:
+        """Return picklable state by excluding the synchronization lock."""
+
+        state = self.__dict__.copy()
+        state.pop("_lock", None)
+        return state
+
+    def __setstate__(self, state: Mapping[str, Any]) -> None:
+        self.__dict__.update(state)
+        self._lock = threading.Lock()
+
     def _font_key(self, font: ImageFont.ImageFont) -> Tuple[object, ...]:
         path = getattr(font, "path", None)
         size = getattr(font, "size", None)
