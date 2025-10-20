@@ -1,6 +1,7 @@
 """Utilities for generating audio and video artifacts."""
 
 import os
+import shutil
 import subprocess
 import sys
 import threading
@@ -698,25 +699,79 @@ def generate_word_synced_sentence_video(
         "aac",
         merged_video_path,
     ]
+
+    def _run_ffmpeg(cmd: Sequence[str], description: str) -> subprocess.CompletedProcess:
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if result.returncode != 0:
+            raise subprocess.CalledProcessError(
+                result.returncode,
+                cmd,
+                output=result.stdout,
+                stderr=result.stderr,
+            )
+        return result
+
+    merge_source_path = sentence_video_path
+    merge_succeeded = False
     try:
-        subprocess.run(cmd_merge, check=True)
+        _run_ffmpeg(cmd_merge, "sentence merge")
+        merge_source_path = merged_video_path
+        merge_succeeded = True
     except subprocess.CalledProcessError as exc:
-        logger.error("FFmpeg error merging audio for sentence %s: %s", sentence_index, exc)
+        stderr_text = exc.stderr.decode("utf-8", errors="ignore") if exc.stderr else str(exc)
+        logger.error(
+            "FFmpeg error merging audio for sentence %s: %s",
+            sentence_index,
+            stderr_text,
+        )
+        fallback_cmd_merge = [
+            "ffmpeg",
+            "-loglevel",
+            "quiet",
+            "-y",
+            "-i",
+            sentence_video_path,
+            "-i",
+            audio_temp_path,
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "18",
+            "-c:a",
+            "aac",
+            merged_video_path,
+        ]
+        try:
+            _run_ffmpeg(fallback_cmd_merge, "sentence merge fallback")
+            merge_source_path = merged_video_path
+            merge_succeeded = True
+        except subprocess.CalledProcessError as fallback_exc:
+            fallback_stderr = (
+                fallback_exc.stderr.decode("utf-8", errors="ignore")
+                if fallback_exc.stderr
+                else str(fallback_exc)
+            )
+            logger.error(
+                "FFmpeg fallback merge failed for sentence %s: %s",
+                sentence_index,
+                fallback_stderr,
+            )
     finally:
         if os.path.exists(audio_temp_path):
             os.remove(audio_temp_path)
-        if os.path.exists(sentence_video_path):
-            os.remove(sentence_video_path)
 
     final_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}_final.mp4")
-    if pad_duration > 0:
+    source_for_pad = merge_source_path if os.path.exists(merge_source_path) else None
+    if pad_duration > 0 and source_for_pad:
         cmd_tpad = [
             "ffmpeg",
             "-loglevel",
             "quiet",
             "-y",
             "-i",
-            merged_video_path,
+            source_for_pad,
             "-vf",
             f"tpad=stop_mode=clone:stop_duration={pad_duration:.2f}",
             "-af",
@@ -724,14 +779,22 @@ def generate_word_synced_sentence_video(
             final_video_path,
         ]
         try:
-            subprocess.run(cmd_tpad, check=True)
+            _run_ffmpeg(cmd_tpad, "sentence pad")
+            source_for_pad = final_video_path
         except subprocess.CalledProcessError as exc:
-            logger.error("FFmpeg error adding pad for sentence %s: %s", sentence_index, exc)
-        finally:
-            if os.path.exists(merged_video_path):
-                os.remove(merged_video_path)
-    else:
-        os.rename(merged_video_path, final_video_path)
+            stderr_text = exc.stderr.decode("utf-8", errors="ignore") if exc.stderr else str(exc)
+            logger.error(
+                "FFmpeg error adding pad for sentence %s: %s",
+                sentence_index,
+                stderr_text,
+            )
+    if not os.path.exists(final_video_path) and source_for_pad and os.path.exists(source_for_pad):
+        shutil.copy(source_for_pad, final_video_path)
+
+    if os.path.exists(merged_video_path) and merge_succeeded:
+        os.remove(merged_video_path)
+    if os.path.exists(sentence_video_path):
+        os.remove(sentence_video_path)
 
     return final_video_path
 
