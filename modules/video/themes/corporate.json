@@ -1,0 +1,33 @@
+{
+  "name": "Corporate Blue",
+  "base_template": "default",
+  "font": {
+    "family": "Roboto",
+    "size_title": 32,
+    "size_body": 48,
+    "color_title": "#0F1C2E"
+  },
+  "colors": {
+    "background": "#F4F7FB",
+    "accent": "#0050B3"
+  },
+  "segment_colors": {
+    "original": "#0F1C2E",
+    "translation": "#1E3A5F",
+    "transliteration": "#0050B3"
+  },
+  "layout": {
+    "blocks": {
+      "header": {
+        "height": 180,
+        "left_width": 180
+      },
+      "body": {
+        "line_spacing": 16,
+        "segment_spacing": 32,
+        "separator_color": "#BAC8D9",
+        "separator_thickness": 3
+      }
+    }
+  }
+}

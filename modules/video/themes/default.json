@@ -1,0 +1,39 @@
+{
+  "name": "Default Classic",
+  "font": {
+    "family": "Arial",
+    "size_title": 24,
+    "size_body": 50,
+    "color_title": "#FFFFFF"
+  },
+  "colors": {
+    "background": "#000000",
+    "accent": "#FFA500"
+  },
+  "layout": {
+    "blocks": {
+      "header": {
+        "height": 150,
+        "left_width": 150,
+        "line_spacing": 4
+      },
+      "body": {
+        "line_spacing": 10,
+        "segment_spacing": 20,
+        "separator_margin_pre": 10,
+        "separator_margin": 40,
+        "separator_thickness": 2,
+        "separator_color": "#969696",
+        "highlight_scale": 1.05,
+        "max_width_ratio": 0.9,
+        "max_height_ratio": 0.9,
+        "scale": 0.85
+      }
+    }
+  },
+  "segment_colors": {
+    "original": "#FFFF00",
+    "translation": "#99FF99",
+    "transliteration": "#FFFF00"
+  }
+}

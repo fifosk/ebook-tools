@@ -1,0 +1,26 @@
+{
+  "name": "Nocturne",
+  "base_template": "default",
+  "colors": {
+    "background": "#101820",
+    "accent": "#FF6F61"
+  },
+  "font": {
+    "color_title": "#F2F2F2",
+    "size_title": 28,
+    "size_body": 48
+  },
+  "segment_colors": {
+    "original": "#FFB347",
+    "translation": "#66FFB2",
+    "transliteration": "#FF6F61"
+  },
+  "layout": {
+    "blocks": {
+      "body": {
+        "separator_color": "#334756",
+        "line_spacing": 12
+      }
+    }
+  }
+}

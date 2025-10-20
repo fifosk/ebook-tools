@@ -469,6 +469,7 @@ def prepare_non_interactive_run(
     config.setdefault("slide_parallel_workers", None)
     config.setdefault("prefer_pillow_simd", False)
     config.setdefault("slide_render_benchmark", False)
+    config.setdefault("slide_template", "default")
 
     if getattr(args, "slide_parallelism", None):
         config["slide_parallelism"] = args.slide_parallelism
@@ -478,6 +479,8 @@ def prepare_non_interactive_run(
         config["prefer_pillow_simd"] = True
     if getattr(args, "benchmark_slide_rendering", False):
         config["slide_render_benchmark"] = True
+    if getattr(args, "template", None):
+        config["slide_template"] = args.template
 
     pipeline_input = _build_pipeline_input(
         config,
@@ -518,6 +521,7 @@ def prepare_non_interactive_run(
         "thread_count": config.get("thread_count") or overrides.get("thread_count"),
         "queue_size": config.get("queue_size"),
         "pipeline_mode": config.get("pipeline_mode"),
+        "slide_template": config.get("slide_template"),
         "slide_parallelism": config.get("slide_parallelism"),
         "slide_parallel_workers": config.get("slide_parallel_workers"),
         "prefer_pillow_simd": config.get("prefer_pillow_simd"),
@@ -579,6 +583,7 @@ def run_pipeline_from_args(
         config.setdefault("slide_parallel_workers", None)
         config.setdefault("prefer_pillow_simd", False)
         config.setdefault("slide_render_benchmark", False)
+        config.setdefault("slide_template", "default")
 
         if config.get("auto_metadata", True) and pipeline_input.input_file:
             metadata_manager.populate_config_metadata(
@@ -624,6 +629,7 @@ def run_pipeline_from_args(
             "slide_parallel_workers": config.get("slide_parallel_workers"),
             "prefer_pillow_simd": config.get("prefer_pillow_simd"),
             "slide_render_benchmark": config.get("slide_render_benchmark"),
+            "slide_template": config.get("slide_template"),
         }
 
         request = PipelineRequest(

@@ -73,6 +73,10 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         action="store_true",
         help="Emit timing information for slide rendering operations.",
     )
+    parser.add_argument(
+        "--template",
+        help="Slide template to use for generated videos (e.g. minimal, dark).",
+    )
     return _add_shared_arguments(parser)
 
 

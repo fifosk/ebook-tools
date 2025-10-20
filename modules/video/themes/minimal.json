@@ -1,0 +1,31 @@
+{
+  "name": "Minimal Light",
+  "base_template": "default",
+  "font": {
+    "family": "Inter",
+    "size_title": 30,
+    "size_body": 46,
+    "color_title": "#111111"
+  },
+  "colors": {
+    "background": "#FFFFFF",
+    "accent": "#007ACC"
+  },
+  "segment_colors": {
+    "original": "#222222",
+    "translation": "#444444",
+    "transliteration": "#007ACC"
+  },
+  "layout": {
+    "blocks": {
+      "header": {
+        "line_spacing": 6
+      },
+      "body": {
+        "line_spacing": 14,
+        "segment_spacing": 28,
+        "separator_color": "#DDDDDD"
+      }
+    }
+  }
+}

@@ -60,6 +60,7 @@
     "written_mode": "4",
     "include_transliteration": true,
     "word_highlighting": true,
+    "slide_template": "default",
     "forced_alignment_enabled": false,
     "forced_alignment_smoothing": "monotonic_cubic",
     "output_html": true,
