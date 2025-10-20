@@ -15,8 +15,25 @@ class AudioSegment:
     raw_data: bytes = b""
 
     @classmethod
+    def empty(cls) -> "AudioSegment":
+        """Return an empty audio segment."""
+
+        return cls(duration=0)
+
+    @classmethod
     def silent(cls, duration: int = 0) -> "AudioSegment":
         return cls(duration=duration)
+
+    @classmethod
+    def from_file(cls, file: Any, format: Optional[str] = None) -> "AudioSegment":
+        """Create an ``AudioSegment`` from a file-like object or filesystem path."""
+
+        if hasattr(file, "read"):
+            data = file.read()
+        else:
+            with open(file, "rb") as fh:
+                data = fh.read()
+        return cls(duration=len(data), raw_data=data)
 
     def _spawn(
         self, raw_data: bytes, overrides: Optional[Dict[str, Any]] = None
