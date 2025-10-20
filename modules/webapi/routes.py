@@ -117,6 +117,40 @@ async def refresh_pipeline_metadata(
     return PipelineStatusResponse.from_job(job)
 
 
+@router.post("/{job_id}/pause", response_model=PipelineStatusResponse)
+async def pause_pipeline_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Request that the running job pause and return the updated status."""
+
+    try:
+        job = pipeline_service.pause_job(job_id)
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return PipelineStatusResponse.from_job(job)
+
+
+@router.post("/{job_id}/cancel", response_model=PipelineStatusResponse)
+async def cancel_pipeline_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Request that the running job cancel and return the updated status."""
+
+    try:
+        job = pipeline_service.cancel_job(job_id)
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    return PipelineStatusResponse.from_job(job)
+
+
 @router.get("/{job_id}", response_model=PipelineStatusResponse)
 async def get_pipeline_status(
     job_id: str,

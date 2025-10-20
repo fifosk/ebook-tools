@@ -6,7 +6,7 @@ import {
   ProgressEventPayload
 } from '../api/dtos';
 
-const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
+const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled', 'paused'];
 
 type Props = {
   jobId: string;
@@ -16,6 +16,10 @@ type Props = {
   onRemove: () => void;
   onReload: () => void;
   isReloading?: boolean;
+  onPause?: () => void;
+  onCancel?: () => void;
+  isPausing?: boolean;
+  isCancelling?: boolean;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -58,7 +62,11 @@ export function JobProgress({
   onEvent,
   onRemove,
   onReload,
-  isReloading = false
+  isReloading = false,
+  onPause,
+  onCancel,
+  isPausing = false,
+  isCancelling = false
 }: Props) {
   const isTerminal = useMemo(() => {
     if (!status) {
@@ -88,18 +96,53 @@ export function JobProgress({
 
   return (
     <div className="job-card" aria-live="polite">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem' }}>
-        <div style={{ flexGrow: 1 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '0.75rem',
+          flexWrap: 'wrap'
+        }}
+      >
+        <div style={{ flexGrow: 1, minWidth: 0 }}>
           <h3 style={{ marginTop: 0 }}>Job {jobId}</h3>
         </div>
         <span className="job-status" data-state={status?.status ?? 'pending'}>
           {status?.status ?? 'pending'}
         </span>
-        {isTerminal ? (
-          <button type="button" className="link-button" onClick={onRemove} aria-label={`Remove job ${jobId}`}>
-            Remove
-          </button>
-        ) : null}
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {isTerminal ? (
+            <button type="button" className="link-button" onClick={onRemove} aria-label={`Remove job ${jobId}`}>
+              Remove
+            </button>
+          ) : (
+            <>
+              {onPause ? (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={onPause}
+                  disabled={isPausing || isCancelling}
+                  aria-label={`Pause job ${jobId}`}
+                >
+                  {isPausing ? 'Pausing…' : 'Pause'}
+                </button>
+              ) : null}
+              {onCancel ? (
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={onCancel}
+                  disabled={isCancelling}
+                  aria-label={`Cancel job ${jobId}`}
+                >
+                  {isCancelling ? 'Cancelling…' : 'Cancel'}
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
       </div>
       <p>
         <strong>Created:</strong> {formatDate(status?.created_at ?? null)}

@@ -42,6 +42,7 @@ class PipelineJobStatus(str, Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    PAUSED = "paused"
 
 
 @dataclass
@@ -206,6 +207,8 @@ class PipelineJob:
     result_payload: Optional[Dict[str, Any]] = None
     owns_translation_pool: bool = False
     request_payload: Optional[Dict[str, Any]] = None
+    pause_requested: bool = False
+    cancel_requested: bool = False
 
 
 def _serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
@@ -382,6 +385,87 @@ class PipelineJobManager:
         request.translation_pool = pool
         return pool, True
 
+    def _get_active_job(self, job_id: str) -> PipelineJob:
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                raise KeyError(job_id)
+            return job
+
+    def request_pause(self, job_id: str) -> PipelineJob:
+        """Signal that ``job_id`` should pause execution as soon as possible."""
+
+        job = self._get_active_job(job_id)
+        with self._lock:
+            if job.status in {
+                PipelineJobStatus.COMPLETED,
+                PipelineJobStatus.FAILED,
+                PipelineJobStatus.CANCELLED,
+                PipelineJobStatus.PAUSED,
+            }:
+                raise ValueError(f"Job {job_id} is not running and cannot be paused")
+            job.pause_requested = True
+            job.cancel_requested = False
+            job.status = PipelineJobStatus.PAUSED
+            job.error_message = "Pipeline execution paused by user request."
+            if job.stop_event is not None:
+                job.stop_event.set()
+            self._store.update(self._snapshot(job))
+
+        if job.tracker is not None:
+            job.tracker.publish_progress(
+                {"stage": "control", "action": "pause_requested"}
+            )
+
+        with log_mgr.log_context(job_id=job_id):
+            logger.info(
+                "Pause requested for pipeline job",
+                extra={
+                    "event": "pipeline.job.pause_requested",
+                    "status": PipelineJobStatus.PAUSED.value,
+                    "console_suppress": True,
+                },
+            )
+
+        return job
+
+    def request_cancel(self, job_id: str) -> PipelineJob:
+        """Signal that ``job_id`` should cancel execution as soon as possible."""
+
+        job = self._get_active_job(job_id)
+        with self._lock:
+            if job.status in {
+                PipelineJobStatus.COMPLETED,
+                PipelineJobStatus.FAILED,
+                PipelineJobStatus.CANCELLED,
+                PipelineJobStatus.PAUSED,
+            }:
+                raise ValueError(f"Job {job_id} is not running and cannot be cancelled")
+            job.cancel_requested = True
+            job.pause_requested = False
+            job.status = PipelineJobStatus.CANCELLED
+            job.error_message = "Pipeline execution cancelled by user request."
+            if job.stop_event is not None:
+                job.stop_event.set()
+            self._store.update(self._snapshot(job))
+
+        if job.tracker is not None:
+            job.tracker.publish_progress(
+                {"stage": "control", "action": "cancel_requested"}
+            )
+
+        with log_mgr.log_context(job_id=job_id):
+            logger.info(
+                "Cancellation requested for pipeline job",
+                extra={
+                    "event": "pipeline.job.cancel_requested",
+                    "status": PipelineJobStatus.CANCELLED.value,
+                    "console_suppress": True,
+                },
+            )
+
+        return job
+
     def _execute(self, job_id: str) -> None:
         try:
             job = self.get(job_id)
@@ -389,6 +473,16 @@ class PipelineJobManager:
             return
 
         with self._lock:
+            if job.cancel_requested:
+                job.started_at = job.started_at or datetime.now(timezone.utc)
+                job.completed_at = datetime.now(timezone.utc)
+                self._store.update(self._snapshot(job))
+                return
+            if job.pause_requested:
+                job.started_at = job.started_at or datetime.now(timezone.utc)
+                job.completed_at = datetime.now(timezone.utc)
+                self._store.update(self._snapshot(job))
+                return
             job.status = PipelineJobStatus.RUNNING
             job.started_at = datetime.now(timezone.utc)
             self._store.update(self._snapshot(job))
@@ -417,28 +511,61 @@ class PipelineJobManager:
             with self._lock:
                 job.result = response
                 job.result_payload = serialize_pipeline_response(response)
-                job.status = (
-                    PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
-                )
-                job.error_message = None if response.success else "Pipeline execution reported failure."
+                if job.cancel_requested:
+                    job.status = PipelineJobStatus.CANCELLED
+                elif job.pause_requested:
+                    job.status = PipelineJobStatus.PAUSED
+                else:
+                    job.status = (
+                        PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
+                    )
+                    job.error_message = None if response.success else "Pipeline execution reported failure."
                 self._store.update(self._snapshot(job))
         except Exception as exc:  # pragma: no cover - defensive logging
             with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.error(
-                    "Pipeline job encountered an error",
-                    extra={
-                        "event": "pipeline.job.error",
-                        "status": PipelineJobStatus.FAILED.value,
-                        "attributes": {"error": str(exc)},
-                    },
-                )
+                if job.cancel_requested:
+                    logger.info(
+                        "Pipeline job cancelled during execution",
+                        extra={
+                            "event": "pipeline.job.cancelled",
+                            "status": PipelineJobStatus.CANCELLED.value,
+                            "console_suppress": True,
+                        },
+                    )
+                elif job.pause_requested:
+                    logger.info(
+                        "Pipeline job paused during execution",
+                        extra={
+                            "event": "pipeline.job.paused",
+                            "status": PipelineJobStatus.PAUSED.value,
+                            "console_suppress": True,
+                        },
+                    )
+                else:
+                    logger.error(
+                        "Pipeline job encountered an error",
+                        extra={
+                            "event": "pipeline.job.error",
+                            "status": PipelineJobStatus.FAILED.value,
+                            "attributes": {"error": str(exc)},
+                        },
+                    )
             with self._lock:
                 job.result = None
                 job.result_payload = None
-                job.status = PipelineJobStatus.FAILED
-                job.error_message = str(exc)
+                if job.cancel_requested:
+                    job.status = PipelineJobStatus.CANCELLED
+                    if not job.error_message:
+                        job.error_message = "Pipeline execution cancelled by user request."
+                elif job.pause_requested:
+                    job.status = PipelineJobStatus.PAUSED
+                    if not job.error_message:
+                        job.error_message = "Pipeline execution paused by user request."
+                else:
+                    job.status = PipelineJobStatus.FAILED
+                    job.error_message = str(exc)
                 self._store.update(self._snapshot(job))
-            if job.tracker is not None:
+            if job.tracker is not None and not (job.cancel_requested or job.pause_requested):
                 job.tracker.record_error(exc, {"stage": "pipeline"})
         finally:
             with self._lock:
@@ -446,9 +573,14 @@ class PipelineJobManager:
                 self._store.update(self._snapshot(job))
             if job.tracker is not None:
                 result = job.result
-                forced = not (result.success if isinstance(result, PipelineResponse) else False)
-                reason = "completed" if not forced else "failed"
-                job.tracker.mark_finished(reason=reason, forced=forced)
+                if job.cancel_requested:
+                    job.tracker.mark_finished(reason="cancelled", forced=True)
+                elif job.pause_requested:
+                    job.tracker.mark_finished(reason="paused", forced=True)
+                else:
+                    forced = not (result.success if isinstance(result, PipelineResponse) else False)
+                    reason = "completed" if not forced else "failed"
+                    job.tracker.mark_finished(reason=reason, forced=forced)
             if job.request is not None and job.owns_translation_pool:
                 pool = job.request.translation_pool
                 if pool is not None:

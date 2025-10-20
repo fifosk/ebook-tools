@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
 import { JobProgress } from '../JobProgress';
 import { PipelineStatusResponse, ProgressEventPayload } from '../../api/dtos';
@@ -79,5 +79,79 @@ describe('JobProgress', () => {
 
     expect(screen.getByText('Example Title')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
+  });
+
+  it('renders pause and cancel controls for active jobs', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-3',
+      status: 'running',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      result: null,
+      error: null,
+      latest_event: null
+    };
+
+    const handlePause = vi.fn();
+    const handleCancel = vi.fn();
+
+    render(
+      <JobProgress
+        jobId="job-3"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onRemove={vi.fn()}
+        onReload={vi.fn()}
+        onPause={handlePause}
+        onCancel={handleCancel}
+      />
+    );
+
+    const pauseButton = screen.getByRole('button', { name: /pause job job-3/i });
+    const cancelButton = screen.getByRole('button', { name: /cancel job job-3/i });
+    expect(pauseButton).toBeEnabled();
+    expect(cancelButton).toBeEnabled();
+
+    fireEvent.click(pauseButton);
+    fireEvent.click(cancelButton);
+    expect(handlePause).toHaveBeenCalled();
+    expect(handleCancel).toHaveBeenCalled();
+  });
+
+  it('disables controls while pause or cancel is pending', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-4',
+      status: 'running',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      result: null,
+      error: null,
+      latest_event: null
+    };
+
+    render(
+      <JobProgress
+        jobId="job-4"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onRemove={vi.fn()}
+        onReload={vi.fn()}
+        onPause={vi.fn()}
+        onCancel={vi.fn()}
+        isPausing
+        isCancelling
+      />
+    );
+
+    const pauseButton = screen.getByRole('button', { name: /pause job job-4/i });
+    const cancelButton = screen.getByRole('button', { name: /cancel job job-4/i });
+    expect(pauseButton).toBeDisabled();
+    expect(cancelButton).toBeDisabled();
+    expect(pauseButton).toHaveTextContent('Pausing…');
+    expect(cancelButton).toHaveTextContent('Cancelling…');
   });
 });

@@ -510,3 +510,13 @@ class PipelineService:
         """Force-refresh metadata for the specified job and return the updated handle."""
 
         return self._job_manager.refresh_metadata(job_id)
+
+    def pause_job(self, job_id: str) -> "PipelineJob":
+        """Request that the specified job pause execution."""
+
+        return self._job_manager.request_pause(job_id)
+
+    def cancel_job(self, job_id: str) -> "PipelineJob":
+        """Request that the specified job cancel execution."""
+
+        return self._job_manager.request_cancel(job_id)

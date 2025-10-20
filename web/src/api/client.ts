@@ -80,6 +80,20 @@ export async function refreshPipelineMetadata(jobId: string): Promise<PipelineSt
   return handleResponse<PipelineStatusResponse>(response);
 }
 
+export async function pausePipelineJob(jobId: string): Promise<PipelineStatusResponse> {
+  const response = await fetch(withBase(`/pipelines/${jobId}/pause`), {
+    method: 'POST'
+  });
+  return handleResponse<PipelineStatusResponse>(response);
+}
+
+export async function cancelPipelineJob(jobId: string): Promise<PipelineStatusResponse> {
+  const response = await fetch(withBase(`/pipelines/${jobId}/cancel`), {
+    method: 'POST'
+  });
+  return handleResponse<PipelineStatusResponse>(response);
+}
+
 export function buildEventStreamUrl(jobId: string): string {
   return withBase(`/pipelines/${jobId}/events`);
 }

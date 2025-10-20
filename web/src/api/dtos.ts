@@ -3,7 +3,8 @@ export type PipelineJobStatus =
   | 'running'
   | 'completed'
   | 'failed'
-  | 'cancelled';
+  | 'cancelled'
+  | 'paused';
 
 export type PipelineFileEntryType = 'file' | 'directory';
 

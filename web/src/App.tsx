@@ -7,7 +7,13 @@ import {
   PipelineSubmissionResponse,
   ProgressEventPayload
 } from './api/dtos';
-import { fetchPipelineStatus, refreshPipelineMetadata, submitPipeline } from './api/client';
+import {
+  fetchPipelineStatus,
+  refreshPipelineMetadata,
+  submitPipeline,
+  pausePipelineJob,
+  cancelPipelineJob
+} from './api/client';
 
 interface JobRegistryEntry {
   submission: PipelineSubmissionResponse;
@@ -20,6 +26,8 @@ export function App() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
+  const [pausingJobs, setPausingJobs] = useState<Record<string, boolean>>({});
+  const [cancellingJobs, setCancellingJobs] = useState<Record<string, boolean>>({});
 
   const jobIds = useMemo(() => Object.keys(jobs), [jobs]);
   const jobKey = useMemo(() => jobIds.join('|'), [jobIds]);
@@ -126,6 +134,22 @@ export function App() {
       delete next[jobId];
       return next;
     });
+    setPausingJobs((previous) => {
+      if (!previous[jobId]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[jobId];
+      return next;
+    });
+    setCancellingJobs((previous) => {
+      if (!previous[jobId]) {
+        return previous;
+      }
+      const next = { ...previous };
+      delete next[jobId];
+      return next;
+    });
   }, []);
 
   const handleReloadJob = useCallback(async (jobId: string) => {
@@ -166,15 +190,81 @@ export function App() {
     }
   }, []);
 
+  const handlePauseJob = useCallback(async (jobId: string) => {
+    setPausingJobs((previous) => ({ ...previous, [jobId]: true }));
+    try {
+      const status = await pausePipelineJob(jobId);
+      setJobs((previous) => {
+        const current = previous[jobId];
+        if (!current) {
+          return previous;
+        }
+        return {
+          ...previous,
+          [jobId]: {
+            ...current,
+            status,
+            latestEvent: status.latest_event ?? current.latestEvent
+          }
+        };
+      });
+    } catch (error) {
+      console.warn('Unable to pause job', jobId, error);
+    } finally {
+      setPausingJobs((previous) => {
+        if (!previous[jobId]) {
+          return previous;
+        }
+        const next = { ...previous };
+        delete next[jobId];
+        return next;
+      });
+    }
+  }, []);
+
+  const handleCancelJob = useCallback(async (jobId: string) => {
+    setCancellingJobs((previous) => ({ ...previous, [jobId]: true }));
+    try {
+      const status = await cancelPipelineJob(jobId);
+      setJobs((previous) => {
+        const current = previous[jobId];
+        if (!current) {
+          return previous;
+        }
+        return {
+          ...previous,
+          [jobId]: {
+            ...current,
+            status,
+            latestEvent: status.latest_event ?? current.latestEvent
+          }
+        };
+      });
+    } catch (error) {
+      console.warn('Unable to cancel job', jobId, error);
+    } finally {
+      setCancellingJobs((previous) => {
+        if (!previous[jobId]) {
+          return previous;
+        }
+        const next = { ...previous };
+        delete next[jobId];
+        return next;
+      });
+    }
+  }, []);
+
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => ({
       jobId,
       submission: entry.submission,
       status: entry.status,
       latestEvent: entry.latestEvent,
-      isReloading: Boolean(reloadingJobs[jobId])
+      isReloading: Boolean(reloadingJobs[jobId]),
+      isPausing: Boolean(pausingJobs[jobId]),
+      isCancelling: Boolean(cancellingJobs[jobId])
     }));
-  }, [jobs, reloadingJobs]);
+  }, [jobs, reloadingJobs, pausingJobs, cancellingJobs]);
 
   return (
     <main>
@@ -192,6 +282,8 @@ export function App() {
         onProgressEvent={handleProgressEvent}
         onRemoveJob={handleRemoveJob}
         onReloadJob={handleReloadJob}
+        onPauseJob={handlePauseJob}
+        onCancelJob={handleCancelJob}
       />
     </main>
   );

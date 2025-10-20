@@ -8,6 +8,8 @@ export interface JobState {
   status?: PipelineStatusResponse;
   latestEvent?: ProgressEventPayload;
   isReloading: boolean;
+  isPausing?: boolean;
+  isCancelling?: boolean;
 }
 
 type Props = {
@@ -15,9 +17,11 @@ type Props = {
   onProgressEvent: (jobId: string, event: ProgressEventPayload) => void;
   onRemoveJob: (jobId: string) => void;
   onReloadJob: (jobId: string) => void;
+  onPauseJob: (jobId: string) => void;
+  onCancelJob: (jobId: string) => void;
 };
 
-export function JobList({ jobs, onProgressEvent, onRemoveJob, onReloadJob }: Props) {
+export function JobList({ jobs, onProgressEvent, onRemoveJob, onReloadJob, onPauseJob, onCancelJob }: Props) {
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => {
       const left = new Date(a.submission.created_at).getTime();
@@ -49,6 +53,10 @@ export function JobList({ jobs, onProgressEvent, onRemoveJob, onReloadJob }: Pro
             onRemove={() => onRemoveJob(job.jobId)}
             onReload={() => onReloadJob(job.jobId)}
             isReloading={job.isReloading}
+            onPause={() => onPauseJob(job.jobId)}
+            onCancel={() => onCancelJob(job.jobId)}
+            isPausing={job.isPausing}
+            isCancelling={job.isCancelling}
           />
         ))}
       </div>
