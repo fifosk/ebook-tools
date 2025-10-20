@@ -21,4 +21,5 @@ dependencies = [
 ]
 
 [project.scripts]
+ebook-tools = "modules.cli.main:main"
 ebook-tools-api = "modules.webapi.__main__:main"
