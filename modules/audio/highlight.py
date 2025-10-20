@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Literal
+import unicodedata
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Literal
+
+import regex
 
 from pydub import AudioSegment
 
@@ -16,6 +19,9 @@ class AudioHighlightPart:
 
     kind: Literal["original", "translation", "other", "silence"]
     duration: float
+    text: str = ""
+    start_offset: float = 0.0
+    steps: Tuple["HighlightStep", ...] = field(default_factory=tuple)
 
 
 @dataclass
@@ -27,6 +33,18 @@ class SentenceAudioMetadata:
 
 
 @dataclass(frozen=True)
+class HighlightStep:
+    """Represents a timing step for a single grapheme cluster."""
+
+    kind: Literal["original", "translation", "other", "silence"]
+    word_index: Optional[int]
+    char_index_start: Optional[int]
+    char_index_end: Optional[int]
+    start_ms: float
+    duration_ms: float
+
+
+@dataclass(frozen=True)
 class HighlightEvent:
     """Represents a single highlight step and its corresponding duration."""
 
@@ -34,6 +52,7 @@ class HighlightEvent:
     original_index: int
     translation_index: int
     transliteration_index: int
+    step: Optional[HighlightStep] = None
 
 
 _AUDIO_METADATA_REGISTRY: Dict[int, SentenceAudioMetadata] = {}
@@ -75,6 +94,7 @@ def _compute_audio_highlight_metadata(
     sequence: Sequence[str],
     segments: Mapping[str, AudioSegment],
     tempo: float,
+    texts: Optional[Mapping[str, str]] = None,
 ) -> SentenceAudioMetadata:
     """Compute highlight metadata using the generated sentence audio."""
 
@@ -86,19 +106,42 @@ def _compute_audio_highlight_metadata(
     parts: List[AudioHighlightPart] = []
     silence_duration_sec = (SILENCE_DURATION_MS / 1000.0) * tempo_scale if sequence else 0.0
 
+    current_offset_ms = 0.0
     for key in sequence:
         segment = segments.get(key)
         base_ms = len(segment) if segment is not None else 0
         duration_sec = (base_ms / 1000.0) * tempo_scale
+        text = texts.get(key, "") if texts else ""
         if key == "input":
             kind: Literal["original", "translation", "other", "silence"] = "original"
         elif key == "translation":
             kind = "translation"
         else:
             kind = "other"
-        parts.append(AudioHighlightPart(kind=kind, duration=duration_sec))
+        steps = _segment_highlight_steps(text, segment, tempo_scale, current_offset_ms, kind)
+        parts.append(
+            AudioHighlightPart(
+                kind=kind,
+                duration=duration_sec,
+                text=text,
+                start_offset=current_offset_ms / 1000.0,
+                steps=tuple(steps),
+            )
+        )
+        current_offset_ms += duration_sec * 1000.0
         if silence_duration_sec > 0:
-            parts.append(AudioHighlightPart(kind="silence", duration=silence_duration_sec))
+            parts.append(
+                AudioHighlightPart(
+                    kind="silence",
+                    duration=silence_duration_sec,
+                    text="",
+                    start_offset=current_offset_ms / 1000.0,
+                    steps=tuple(
+                        _silence_highlight_steps(silence_duration_sec, current_offset_ms)
+                    ),
+                )
+            )
+            current_offset_ms += silence_duration_sec * 1000.0
 
     total_duration = len(audio) / 1000.0 if audio else 0.0
     return SentenceAudioMetadata(parts=parts, total_duration=total_duration)
@@ -117,11 +160,49 @@ def _build_events_from_metadata(
     original_index = 0
     translation_index = 0
     transliteration_index = 0
+    fallback_offset_ms = 0.0
 
     for part in metadata.parts:
         base_duration = max(part.duration, 0.0)
         if base_duration == 0:
             continue
+        if part.steps:
+            for step in part.steps:
+                duration = (step.duration_ms / 1000.0) * sync_ratio
+                if duration <= 0:
+                    continue
+                if part.kind == "original" and num_original_words > 0:
+                    if step.word_index is not None:
+                        target = min(num_original_words, step.word_index + 1)
+                        original_index = max(original_index, target)
+                elif part.kind == "translation" and num_translation_words > 0:
+                    if step.word_index is not None:
+                        target = min(num_translation_words, step.word_index + 1)
+                        translation_index = max(translation_index, target)
+                        if num_translation_words:
+                            progress = translation_index / num_translation_words
+                        else:
+                            progress = 1.0
+                        if num_translit_words:
+                            target_translit = int(round(progress * num_translit_words))
+                            transliteration_index = max(
+                                transliteration_index,
+                                min(num_translit_words, target_translit),
+                            )
+                events.append(
+                    HighlightEvent(
+                        duration=duration,
+                        original_index=original_index,
+                        translation_index=translation_index,
+                        transliteration_index=transliteration_index,
+                        step=step,
+                    )
+                )
+            fallback_offset_ms = max(
+                fallback_offset_ms, part.start_offset * 1000.0 + base_duration * 1000.0
+            )
+            continue
+
         duration = base_duration * sync_ratio
         if duration <= 0:
             continue
@@ -135,11 +216,14 @@ def _build_events_from_metadata(
                         original_index=original_index,
                         translation_index=translation_index,
                         transliteration_index=transliteration_index,
+                        step=_fallback_step(part, fallback_offset_ms, base_duration, part.kind),
                     )
                 )
             else:
                 per_word = duration / remaining if remaining else duration
-                for _ in range(remaining):
+                per_word_ms = (base_duration * 1000.0) / remaining if remaining else base_duration * 1000.0
+                for index in range(remaining):
+                    start_ms = fallback_offset_ms + per_word_ms * index
                     original_index = min(original_index + 1, num_original_words)
                     events.append(
                         HighlightEvent(
@@ -147,8 +231,17 @@ def _build_events_from_metadata(
                             original_index=original_index,
                             translation_index=translation_index,
                             transliteration_index=transliteration_index,
+                            step=HighlightStep(
+                                kind=part.kind,
+                                word_index=original_index - 1,
+                                char_index_start=None,
+                                char_index_end=None,
+                                start_ms=start_ms,
+                                duration_ms=per_word_ms,
+                            ),
                         )
                     )
+            fallback_offset_ms += base_duration * 1000.0
         elif part.kind == "translation" and num_translation_words > 0:
             remaining = max(0, num_translation_words - translation_index)
             if remaining <= 0:
@@ -158,11 +251,14 @@ def _build_events_from_metadata(
                         original_index=original_index,
                         translation_index=translation_index,
                         transliteration_index=transliteration_index,
+                        step=_fallback_step(part, fallback_offset_ms, base_duration, part.kind),
                     )
                 )
             else:
                 per_unit = duration / remaining if remaining else duration
-                for _ in range(remaining):
+                per_unit_ms = (base_duration * 1000.0) / remaining if remaining else base_duration * 1000.0
+                for index in range(remaining):
+                    start_ms = fallback_offset_ms + per_unit_ms * index
                     translation_index = min(translation_index + 1, num_translation_words)
                     if num_translation_words:
                         progress = translation_index / num_translation_words
@@ -180,8 +276,17 @@ def _build_events_from_metadata(
                             original_index=original_index,
                             translation_index=translation_index,
                             transliteration_index=transliteration_index,
+                            step=HighlightStep(
+                                kind=part.kind,
+                                word_index=translation_index - 1,
+                                char_index_start=None,
+                                char_index_end=None,
+                                start_ms=start_ms,
+                                duration_ms=per_unit_ms,
+                            ),
                         )
                     )
+            fallback_offset_ms += base_duration * 1000.0
         else:
             events.append(
                 HighlightEvent(
@@ -189,9 +294,171 @@ def _build_events_from_metadata(
                     original_index=original_index,
                     translation_index=translation_index,
                     transliteration_index=transliteration_index,
+                    step=_fallback_step(part, fallback_offset_ms, base_duration, part.kind),
                 )
             )
+            fallback_offset_ms += base_duration * 1000.0
     return events
+
+
+def _fallback_step(
+    part: AudioHighlightPart,
+    base_offset_ms: float,
+    base_duration: float,
+    kind: Literal["original", "translation", "other", "silence"],
+) -> HighlightStep:
+    return HighlightStep(
+        kind=kind,
+        word_index=None,
+        char_index_start=None,
+        char_index_end=None,
+        start_ms=base_offset_ms,
+        duration_ms=base_duration * 1000.0,
+    )
+
+
+def _silence_highlight_steps(duration_sec: float, base_offset_ms: float) -> Iterable[HighlightStep]:
+    duration_ms = duration_sec * 1000.0
+    yield HighlightStep(
+        kind="silence",
+        word_index=None,
+        char_index_start=None,
+        char_index_end=None,
+        start_ms=base_offset_ms,
+        duration_ms=duration_ms,
+    )
+
+
+def _segment_highlight_steps(
+    text: str,
+    segment: Optional[AudioSegment],
+    tempo_scale: float,
+    base_offset_ms: float,
+    kind: Literal["original", "translation", "other", "silence"],
+) -> List[HighlightStep]:
+    if not text or segment is None:
+        return []
+    raw = _extract_character_timings(segment)
+    if not raw:
+        return []
+    return list(
+        _collapse_char_timings_to_graphemes(text, raw, tempo_scale, base_offset_ms, kind)
+    )
+
+
+def _extract_character_timings(segment: AudioSegment) -> Optional[Sequence[Mapping[str, object]]]:
+    for attr in (
+        "highlight_character_timing",
+        "character_timing",
+        "char_timings",
+        "alignment",
+    ):
+        timings = getattr(segment, attr, None)
+        if timings:
+            return timings  # type: ignore[return-value]
+    provider = getattr(segment, "get_alignment_metadata", None)
+    if callable(provider):
+        try:
+            result = provider()
+        except TypeError:
+            result = provider(segment)  # type: ignore[misc]
+        if result:
+            return result  # type: ignore[return-value]
+    return None
+
+
+def _collapse_char_timings_to_graphemes(
+    text: str,
+    char_timings: Sequence[Mapping[str, object]],
+    tempo_scale: float,
+    base_offset_ms: float,
+    kind: Literal["original", "translation", "other", "silence"],
+) -> Iterable[HighlightStep]:
+    if not text:
+        return []
+
+    normalized_timings: List[Optional[Tuple[float, float]]] = [None] * len(text)
+    for idx in range(min(len(char_timings), len(text))):
+        entry = char_timings[idx]
+        if isinstance(entry, Mapping):
+            start_val = entry.get("start_ms", entry.get("start", entry.get("offset", 0)))
+            duration_val = entry.get(
+                "duration_ms", entry.get("duration", entry.get("length", 0))
+            )
+        else:
+            continue
+        try:
+            start = float(start_val) * tempo_scale
+            duration = float(duration_val) * tempo_scale
+        except (TypeError, ValueError):
+            continue
+        normalized_timings[idx] = (start, duration)
+
+    if not any(normalized_timings):
+        return []
+
+    has_whitespace = any(ch.isspace() for ch in text)
+    char_to_word_index: Dict[int, int] = {}
+    if has_whitespace:
+        word_index = 0
+        idx = 0
+        length = len(text)
+        while idx < length:
+            ch = text[idx]
+            if ch.isspace():
+                idx += 1
+                continue
+            start_idx = idx
+            while idx < length and not text[idx].isspace():
+                char_to_word_index[idx] = word_index
+                idx += 1
+            word_index += 1
+    else:
+        # Without explicit whitespace boundaries treat every grapheme as its own word.
+        pass
+
+    grapheme_iter = list(regex.finditer(r"\X", text))
+    word_counter = 0
+    for cluster_index, match in enumerate(grapheme_iter):
+        start_idx = match.start()
+        end_idx = match.end()
+        grapheme = match.group()
+        if _is_separator(grapheme):
+            continue
+        relevant_timings = [
+            normalized_timings[i]
+            for i in range(start_idx, end_idx)
+            if i < len(normalized_timings) and normalized_timings[i] is not None
+        ]
+        if not relevant_timings:
+            continue
+        start = min(val[0] for val in relevant_timings) + base_offset_ms
+        end = max(val[0] + val[1] for val in relevant_timings) + base_offset_ms
+        duration = max(end - start, 0.0)
+        if has_whitespace:
+            word_index = char_to_word_index.get(start_idx)
+            if word_index is None:
+                word_index = word_counter
+        else:
+            word_index = word_counter
+        yield HighlightStep(
+            kind=kind,
+            word_index=word_index,
+            char_index_start=start_idx,
+            char_index_end=end_idx,
+            start_ms=start,
+            duration_ms=duration,
+        )
+        word_counter += 1
+
+
+def _is_separator(grapheme: str) -> bool:
+    if not grapheme:
+        return True
+    if grapheme.isspace():
+        return True
+    category = unicodedata.category(grapheme[0])
+    return category.startswith("Z")
 
 
 def _build_legacy_highlight_events(
@@ -247,6 +514,7 @@ def _build_legacy_highlight_events(
 __all__ = [
     "AudioHighlightPart",
     "SentenceAudioMetadata",
+    "HighlightStep",
     "HighlightEvent",
     "_store_audio_metadata",
     "_get_audio_metadata",

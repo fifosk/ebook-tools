@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+import regex
 
 
 try:  # pragma: no cover - exercised when dependency is available
@@ -165,8 +166,16 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
 
     def fake_synthesize(text: str, lang_code: str, selected_voice: str, macos_reading_speed: int) -> AudioSegment:
         duration = durations[text]
-        # Create simple silent audio matching the configured duration.
-        return AudioSegment.silent(duration=duration)
+        segment = AudioSegment.silent(duration=duration)
+        timings = []
+        if text:
+            per_char = duration / max(len(text), 1)
+            cursor = 0.0
+            for ch in text:
+                timings.append({"char": ch, "start_ms": cursor, "duration_ms": per_char})
+                cursor += per_char
+        setattr(segment, "character_timing", timings)
+        return segment
 
     monkeypatch.setattr("modules.audio_video_generator.synthesize_segment", fake_synthesize)
 
@@ -211,6 +220,21 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     ]
     for part, expected in zip(metadata.parts, expected_durations):
         assert math.isclose(part.duration, expected, rel_tol=1e-6)
+        if part.kind != "silence":
+            non_space_graphemes = [
+                m
+                for m in regex.finditer(r"\X", part.text)
+                if not m.group().isspace()
+            ]
+            assert len(part.steps) == len(non_space_graphemes)
+            if part.steps:
+                assert part.steps[0].start_ms == pytest.approx(part.start_offset * 1000.0)
+                total_step_duration = sum(step.duration_ms for step in part.steps)
+                assert total_step_duration == pytest.approx(part.duration * 1000.0)
+        else:
+            assert part.steps
+            for step in part.steps:
+                assert step.duration_ms == pytest.approx(SILENCE_DURATION_MS)
 
     events = highlight._build_events_from_metadata(
         metadata,
@@ -220,13 +244,28 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         num_translit_words=0,
     )
 
-    assert len(events) == 9
-    assert events[0].duration == pytest.approx(expected_durations[0])
-    assert events[0].original_index == 0
-    assert events[2].original_index == 1
-    assert events[3].original_index == 2
-    assert events[5].translation_index == 1
-    assert events[7].translation_index == 3
+    assert events
+    assert sum(event.duration for event in events) == pytest.approx(total_seconds)
+
+    original_events = [event for event in events if event.step and event.step.kind == "original"]
+    translation_events = [
+        event for event in events if event.step and event.step.kind == "translation"
+    ]
+    silence_events = [event for event in events if event.step and event.step.kind == "silence"]
+
+    assert original_events
+    assert translation_events
+    assert silence_events
+
+    assert original_events[0].original_index == 1
+    assert original_events[-1].original_index == len(input_text.split())
+    assert translation_events[-1].translation_index == len(translation_text.split())
+
+    first_translation_step = translation_events[0].step
+    assert first_translation_step is not None
+    assert first_translation_step.char_index_start == 0
+    assert translation_events[-1].step is not None
+    assert translation_events[-1].step.char_index_end == len(translation_text)
 
     legacy_events = highlight._build_legacy_highlight_events(
         audio_duration=total_seconds,
@@ -239,3 +278,56 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     assert legacy_events
     assert sum(event.duration for event in legacy_events) == pytest.approx(total_seconds)
     assert legacy_events[-1].translation_index == len(translation_text.split())
+
+
+def test_highlight_round_trip_mixed_language_timings():
+    sequence = ["translation"]
+    mixed_text = "你好 a\u0301"
+    per_char_duration = 80
+    timings = []
+    cursor = 0.0
+    for ch in mixed_text:
+        timings.append({"char": ch, "start_ms": cursor, "duration_ms": per_char_duration})
+        cursor += per_char_duration
+
+    segment = AudioSegment.silent(duration=int(cursor))
+    setattr(segment, "character_timing", timings)
+
+    segments = {"translation": segment}
+    audio = segment
+
+    metadata = highlight._compute_audio_highlight_metadata(
+        audio,
+        sequence,
+        segments,
+        tempo=1.0,
+        texts={"translation": mixed_text},
+    )
+
+    assert metadata.parts
+    translation_part = next(part for part in metadata.parts if part.kind == "translation")
+    assert translation_part.steps
+
+    events = highlight._build_events_from_metadata(
+        metadata,
+        sync_ratio=1.0,
+        num_original_words=0,
+        num_translation_words=len(mixed_text.split()),
+        num_translit_words=0,
+    )
+
+    translation_events = [
+        event for event in events if event.step and event.step.kind == "translation"
+    ]
+    assert translation_events
+    assert translation_events[-1].step is not None
+    assert translation_events[-1].step.char_index_end <= len(mixed_text)
+
+    accent_event = next(
+        event
+        for event in translation_events
+        if event.step and event.step.char_index_start == mixed_text.index("a")
+    )
+    assert accent_event.step is not None
+    assert accent_event.step.char_index_end - accent_event.step.char_index_start == 2
+    assert accent_event.step.duration_ms == pytest.approx(per_char_duration * 2)
