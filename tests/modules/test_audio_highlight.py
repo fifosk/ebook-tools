@@ -281,6 +281,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         audio_duration=total_seconds,
         sync_ratio=1.0,
         original_words=input_text.split(),
+        translation_text=translation_text,
         translation_units=translation_text.split(),
         transliteration_words=[],
     )
@@ -420,6 +421,53 @@ def test_cjk_highlight_events_ignore_sync_ratio(monkeypatch):
     assert translation_events
     total_duration = sum(event.duration for event in translation_events)
     assert total_duration == pytest.approx(len(segment) / 1000.0)
+
+
+def test_cjk_metadata_fallback_ignores_sync_ratio():
+    text = "你好世界"
+    duration = 2.4
+    metadata = highlight.SentenceAudioMetadata(
+        parts=[
+            highlight.AudioHighlightPart(
+                kind="translation",
+                duration=duration,
+                text=text,
+                steps=tuple(),
+            )
+        ],
+        total_duration=duration,
+    )
+
+    units = highlight.translation_highlight_units(text)
+    events = highlight._build_events_from_metadata(
+        metadata,
+        sync_ratio=0.1,
+        num_original_words=0,
+        num_translation_words=len(units),
+        num_translit_words=0,
+    )
+
+    assert len(events) == len(units)
+    assert sum(event.duration for event in events) == pytest.approx(duration)
+
+
+def test_cjk_legacy_highlight_events_ignore_sync_ratio():
+    text = "汉字测试"
+    units = highlight.translation_highlight_units(text)
+    audio_duration = 3.2
+
+    events = highlight._build_legacy_highlight_events(
+        audio_duration=audio_duration,
+        sync_ratio=0.1,
+        original_words=[],
+        translation_text=text,
+        translation_units=units,
+        transliteration_words=[],
+    )
+
+    assert len(events) == len(units)
+    assert sum(event.duration for event in events) == pytest.approx(audio_duration)
+    assert events[-1].translation_index == len(units)
 
 
 def test_forced_alignment_generates_timings(monkeypatch):

@@ -120,6 +120,7 @@ def _assemble_highlight_timeline(
                 audio_duration,
                 sync_ratio,
                 original_words,
+                translation_seg,
                 translation_units,
                 transliteration_words,
             )

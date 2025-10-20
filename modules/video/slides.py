@@ -961,6 +961,7 @@ def build_sentence_video(
                     audio_duration,
                     sync_ratio,
                     original_words,
+                    translation_seg,
                     translation_units,
                     transliteration_words,
                 )

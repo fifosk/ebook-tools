@@ -261,7 +261,10 @@ def _build_events_from_metadata(
             )
             continue
 
-        duration = base_duration * sync_ratio
+        effective_ratio = sync_ratio
+        if part.kind == "translation" and _is_cjk_text(part.text):
+            effective_ratio = 1.0
+        duration = base_duration * effective_ratio
         if duration <= 0:
             continue
 
@@ -589,6 +592,7 @@ def _build_legacy_highlight_events(
     audio_duration: float,
     sync_ratio: float,
     original_words: Sequence[str],
+    translation_text: str,
     translation_units: Sequence[str],
     transliteration_words: Sequence[str],
 ) -> List[HighlightEvent]:
@@ -597,17 +601,21 @@ def _build_legacy_highlight_events(
     total_letters = sum(len(unit) for unit in translation_units)
     num_units = len(translation_units)
     adjusted_duration = max(audio_duration, 0.0)
+    translation_is_cjk = _is_cjk_text(translation_text)
 
     word_durations: List[float] = []
     if num_units > 0 and adjusted_duration > 0:
         for unit in translation_units:
             if total_letters > 0:
-                dur = (len(unit) / total_letters) * adjusted_duration * sync_ratio
+                base = (len(unit) / total_letters) * adjusted_duration
             else:
-                dur = (adjusted_duration / num_units) * sync_ratio
+                base = adjusted_duration / num_units
+            ratio = 1.0 if translation_is_cjk else sync_ratio
+            dur = base * ratio if adjusted_duration > 0 else 0.0
             word_durations.append(dur)
     else:
-        word_durations.append(adjusted_duration * sync_ratio if adjusted_duration > 0 else 0.0)
+        ratio = 1.0 if translation_is_cjk else sync_ratio
+        word_durations.append(adjusted_duration * ratio if adjusted_duration > 0 else 0.0)
 
     events: List[HighlightEvent] = []
     accumulated_time = 0.0
