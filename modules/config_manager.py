@@ -99,6 +99,8 @@ class EbookToolsSettings(BaseModel):
     sync_ratio: float = 0.9
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    forced_alignment_enabled: bool = False
+    forced_alignment_smoothing: str = "monotonic_cubic"
     slide_parallelism: str = "off"
     slide_parallel_workers: Optional[int] = None
     prefer_pillow_simd: bool = False

@@ -10,6 +10,8 @@ import regex
 
 from pydub import AudioSegment
 
+from modules import config_manager as cfg
+from modules.audio import aligner
 from modules.audio.tts import SILENCE_DURATION_MS
 
 
@@ -87,6 +89,21 @@ def _get_audio_metadata(audio: AudioSegment) -> Optional[SentenceAudioMetadata]:
     if key is not None:
         return _AUDIO_METADATA_REGISTRY.get(key)
     return _AUDIO_METADATA_REGISTRY.get(id(audio))
+
+
+def _resolve_forced_alignment_preferences() -> Tuple[bool, str]:
+    """Return the forced-alignment enable flag and smoothing preference."""
+
+    try:
+        settings = cfg.get_settings()
+    except Exception:  # pragma: no cover - defensive for partially initialized config
+        return False, "monotonic_cubic"
+
+    enabled = bool(getattr(settings, "forced_alignment_enabled", False))
+    smoothing = getattr(settings, "forced_alignment_smoothing", "monotonic_cubic")
+    if not isinstance(smoothing, str):
+        smoothing = "monotonic_cubic"
+    return enabled, smoothing
 
 
 def _compute_audio_highlight_metadata(
@@ -339,6 +356,19 @@ def _segment_highlight_steps(
     if not text or segment is None:
         return []
     raw = _extract_character_timings(segment)
+    needs_alignment = True
+    if raw:
+        for entry in raw:
+            if isinstance(entry, Mapping):
+                needs_alignment = False
+                break
+    if needs_alignment:
+        enabled, smoothing = _resolve_forced_alignment_preferences()
+        if enabled:
+            try:
+                raw = aligner.align_characters(segment, text, smoothing=smoothing)
+            except Exception:  # pragma: no cover - forced alignment is best-effort
+                raw = []
     if not raw:
         return []
     return list(

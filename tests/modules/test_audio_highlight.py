@@ -85,6 +85,16 @@ config_stub.get_thread_count = lambda: 1
 config_stub.get_runtime_context = lambda default=None: None
 config_stub.set_runtime_context = lambda context: None
 config_stub.clear_runtime_context = lambda: None
+@dataclass
+class _StubSettings:
+    forced_alignment_enabled: bool = False
+    forced_alignment_smoothing: str = "monotonic_cubic"
+    word_highlighting: bool = True
+
+
+config_stub._StubSettings = _StubSettings
+config_stub._settings = _StubSettings()
+config_stub.get_settings = lambda: config_stub._settings
 sys.modules.setdefault("modules.config_manager", config_stub)
 
 
@@ -331,3 +341,64 @@ def test_highlight_round_trip_mixed_language_timings():
     assert accent_event.step is not None
     assert accent_event.step.char_index_end - accent_event.step.char_index_start == 2
     assert accent_event.step.duration_ms == pytest.approx(per_char_duration * 2)
+
+
+def test_segment_highlight_steps_without_forced_alignment(monkeypatch):
+    config_module = sys.modules["modules.config_manager"]
+    monkeypatch.setattr(
+        config_module,
+        "_settings",
+        config_module._StubSettings(forced_alignment_enabled=False),
+        raising=False,
+    )
+    segment = AudioSegment.silent(duration=400)
+    steps = highlight._segment_highlight_steps(
+        "Hello world", segment, tempo_scale=1.0, base_offset_ms=0.0, kind="original"
+    )
+    assert steps == []
+
+
+def test_forced_alignment_generates_timings(monkeypatch):
+    config_module = sys.modules["modules.config_manager"]
+    monkeypatch.setattr(
+        config_module,
+        "_settings",
+        config_module._StubSettings(
+            forced_alignment_enabled=True, forced_alignment_smoothing="monotonic_cubic"
+        ),
+        raising=False,
+    )
+    text = "Timing check"
+    segment = AudioSegment.silent(duration=550)
+    metadata = highlight._compute_audio_highlight_metadata(
+        segment,
+        ["translation"],
+        {"translation": segment},
+        tempo=1.0,
+        texts={"translation": text},
+    )
+    translation_part = next(part for part in metadata.parts if part.kind == "translation")
+    assert translation_part.steps
+    total_duration = sum(step.duration_ms for step in translation_part.steps)
+    assert total_duration == pytest.approx(len(segment))
+    starts = [step.start_ms for step in translation_part.steps]
+    assert all(b >= a for a, b in zip(starts, starts[1:]))
+    last_step = translation_part.steps[-1]
+    assert last_step.start_ms + last_step.duration_ms == pytest.approx(len(segment))
+
+    space_index = text.index(" ")
+    first_word_steps = [
+        step
+        for step in translation_part.steps
+        if step.char_index_end is not None and step.char_index_end <= space_index
+    ]
+    second_word_steps = [
+        step
+        for step in translation_part.steps
+        if step.char_index_start is not None and step.char_index_start > space_index
+    ]
+    assert first_word_steps and second_word_steps
+    first_duration = sum(step.duration_ms for step in first_word_steps)
+    second_duration = sum(step.duration_ms for step in second_word_steps)
+    expected_ratio = len("Timing") / len("check")
+    assert (first_duration / second_duration) == pytest.approx(expected_ratio, rel=0.25)

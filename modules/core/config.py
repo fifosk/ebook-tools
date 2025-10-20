@@ -80,6 +80,8 @@ class PipelineConfig:
     sync_ratio: float = 0.9
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    forced_alignment_enabled: bool = False
+    forced_alignment_smoothing: str = "monotonic_cubic"
     slide_parallelism: str = "off"
     slide_parallel_workers: Optional[int] = None
     prefer_pillow_simd: bool = False
@@ -237,6 +239,19 @@ def build_pipeline_config(
         _select_value("slide_render_benchmark", config, overrides, False), False
     )
 
+    forced_alignment_enabled = _coerce_bool(
+        _select_value("forced_alignment_enabled", config, overrides, False), False
+    )
+    raw_forced_alignment_smoothing = _select_value(
+        "forced_alignment_smoothing", config, overrides, "monotonic_cubic"
+    )
+    if isinstance(raw_forced_alignment_smoothing, str):
+        forced_alignment_smoothing = (
+            raw_forced_alignment_smoothing.strip().lower() or "monotonic_cubic"
+        )
+    else:
+        forced_alignment_smoothing = "monotonic_cubic"
+
     ollama_model = str(
         _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
         or cfg.DEFAULT_MODEL
@@ -294,6 +309,8 @@ def build_pipeline_config(
         sync_ratio=sync_ratio,
         word_highlighting=word_highlighting,
         highlight_granularity=highlight_granularity,
+        forced_alignment_enabled=forced_alignment_enabled,
+        forced_alignment_smoothing=forced_alignment_smoothing,
         slide_parallelism=slide_parallelism,
         slide_parallel_workers=slide_parallel_workers,
         prefer_pillow_simd=prefer_pillow_simd,
