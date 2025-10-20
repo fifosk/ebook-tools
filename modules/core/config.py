@@ -86,6 +86,7 @@ class PipelineConfig:
     slide_parallel_workers: Optional[int] = None
     prefer_pillow_simd: bool = False
     slide_render_benchmark: bool = False
+    slide_template: Optional[str] = "default"
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -238,6 +239,14 @@ def build_pipeline_config(
     slide_render_benchmark = _coerce_bool(
         _select_value("slide_render_benchmark", config, overrides, False), False
     )
+    raw_template = _select_value("slide_template", config, overrides, "default")
+    if isinstance(raw_template, str):
+        normalized_template = raw_template.strip()
+        slide_template = normalized_template or "default"
+    elif raw_template is None:
+        slide_template = None
+    else:
+        slide_template = "default"
 
     forced_alignment_enabled = _coerce_bool(
         _select_value("forced_alignment_enabled", config, overrides, False), False
@@ -315,6 +324,7 @@ def build_pipeline_config(
         slide_parallel_workers=slide_parallel_workers,
         prefer_pillow_simd=prefer_pillow_simd,
         slide_render_benchmark=slide_render_benchmark,
+        slide_template=slide_template,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         ffmpeg_path=ffmpeg_path,

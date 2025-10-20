@@ -424,7 +424,8 @@ def generate_video_slides_ffmpeg(
     cleanup: bool = True,
     slide_size: Sequence[int] = (1280, 720),
     initial_font_size: int = 60,
-    bg_color: Sequence[int] = (0, 0, 0),
+    bg_color: Optional[Sequence[int]] = None,
+    template_name: Optional[str] = None,
 ) -> str:
     """Stitch sentence-level videos together for a batch of slides."""
 
@@ -479,6 +480,7 @@ def generate_video_slides_ffmpeg(
             cover_img=local_cover,
             header_info=header_info,
             render_options=slide_render_options,
+            template_name=template_name,
         )
 
     if worker_count == 1:
