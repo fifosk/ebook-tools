@@ -88,9 +88,11 @@ async def submit_pipeline(
         resolved_config,
         payload.environment_overrides,
     )
+    cleanup_context = context_provider.should_cleanup(context)
     request = payload.to_pipeline_request(
         context=context,
         resolved_config=resolved_config,
+        cleanup_context=cleanup_context,
     )
     job = pipeline_service.enqueue(request)
     return PipelineSubmissionResponse(

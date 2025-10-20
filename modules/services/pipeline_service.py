@@ -67,6 +67,7 @@ class PipelineRequest:
     translation_pool: Optional[TranslationWorkerPool] = None
     correlation_id: Optional[str] = None
     job_id: Optional[str] = None
+    cleanup_context: bool = True
 
 
 @dataclass(slots=True)
@@ -401,7 +402,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             book_metadata=inputs.book_metadata,
         )
     finally:
-        if context is not None:
+        if context is not None and request.cleanup_context:
             try:
                 cfg.cleanup_environment(context)
             except Exception as cleanup_exc:  # pragma: no cover - defensive logging

@@ -54,6 +54,7 @@ class PipelineRequestPayload(BaseModel):
         *,
         context=None,
         resolved_config: Optional[Dict[str, Any]] = None,
+        cleanup_context: bool = True,
     ) -> PipelineRequest:
         return PipelineRequest(
             config=dict(resolved_config) if resolved_config is not None else dict(self.config),
@@ -62,6 +63,7 @@ class PipelineRequestPayload(BaseModel):
             pipeline_overrides=dict(self.pipeline_overrides),
             inputs=self.inputs.to_dataclass(),
             correlation_id=self.correlation_id,
+            cleanup_context=cleanup_context,
         )
 
 

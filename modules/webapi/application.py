@@ -16,6 +16,7 @@ from starlette.types import Scope
 
 from modules import load_environment
 
+from .dependencies import get_runtime_context_provider
 from .routes import router
 
 load_environment()
@@ -137,6 +138,16 @@ def create_app() -> FastAPI:
     """Instantiate and configure the FastAPI application."""
 
     app = FastAPI(title="ebook-tools API", version="0.1.0")
+
+    context_provider = get_runtime_context_provider()
+
+    @app.on_event("startup")
+    async def _startup() -> None:  # pragma: no cover - integration hook
+        context_provider.startup()
+
+    @app.on_event("shutdown")
+    async def _shutdown() -> None:  # pragma: no cover - integration hook
+        context_provider.shutdown()
 
     _configure_cors(app)
 
