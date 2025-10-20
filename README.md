@@ -31,16 +31,16 @@ following commands:
 
 ```bash
 # Standard uvicorn invocation
-uvicorn modules.webapi.application:create_app --factory --reload
+uvicorn modules.webapi.application:create_app --factory --reload --host 0.0.0.0
 
 # Python module entry point (resolves to the same uvicorn call)
-python -m modules.webapi --reload --port 8000
+python -m modules.webapi --reload --port 8000  # binds to 0.0.0.0 by default
 
 # Installed console script shortcut
-ebook-tools-api --reload --log-level debug
+ebook-tools-api --reload --log-level debug  # binds to 0.0.0.0 by default
 
 # Shell helper (wraps the module runner and adds a --port flag)
-./scripts/run-webapi.sh --port 9000
+./scripts/run-webapi.sh --port 9000  # defaults to --host 0.0.0.0
 ```
 
 Use `--reload` while iterating locally to enable hot-reloading. Once the server
