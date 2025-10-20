@@ -238,6 +238,7 @@ def build_environment_overrides(args: argparse.Namespace) -> Dict[str, Any]:
         "tmp_dir": args.tmp_dir or os.environ.get("EBOOK_TMP_DIR"),
         "ffmpeg_path": args.ffmpeg_path or os.environ.get("FFMPEG_PATH"),
         "ollama_url": args.ollama_url or os.environ.get("OLLAMA_URL"),
+        "llm_source": args.llm_source or os.environ.get("LLM_SOURCE"),
         "thread_count": args.thread_count or os.environ.get("EBOOK_THREAD_COUNT"),
     }
 

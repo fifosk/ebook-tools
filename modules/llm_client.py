@@ -5,13 +5,14 @@ from __future__ import annotations
 import json
 import time
 from dataclasses import dataclass, replace
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Sequence
 from urllib.parse import urljoin
 
 import requests
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules.llm_endpoints import LLMSource, ResolvedEndpoint, resolve_endpoints
 
 logger = log_mgr.get_logger()
 
@@ -27,11 +28,28 @@ class ClientSettings:
     api_url: Optional[str] = None
     debug: bool = False
     api_key: Optional[str] = None
+    llm_source: str = cfg.DEFAULT_LLM_SOURCE
+    local_api_url: Optional[str] = None
+    cloud_api_url: Optional[str] = None
+    fallback_sources: Sequence[str] = ()
+    allow_fallback: bool = True
+    cloud_api_key: Optional[str] = None
 
     def resolve_api_url(self) -> str:
         """Return the concrete API URL, honoring the runtime context defaults."""
 
-        return self.api_url or cfg.get_ollama_url()
+        primary_source = LLMSource.from_value(self.llm_source)
+        if primary_source == LLMSource.CLOUD:
+            if self.api_url:
+                return self.api_url
+            if self.cloud_api_url:
+                return self.cloud_api_url
+            return cfg.get_cloud_ollama_url()
+        if self.api_url:
+            return self.api_url
+        if self.local_api_url:
+            return self.local_api_url
+        return cfg.get_local_ollama_url()
 
     def with_updates(self, **updates: Any) -> "ClientSettings":
         """Return a copy of the settings with provided keyword overrides applied."""
@@ -48,6 +66,7 @@ class LLMResponse:
     token_usage: TokenUsage
     raw: Optional[Any] = None
     error: Optional[str] = None
+    source: Optional[str] = None
 
 
 class LLMClient:
@@ -76,6 +95,12 @@ class LLMClient:
         """Return the configured model name."""
 
         return self._settings.model
+
+    @property
+    def llm_source(self) -> str:
+        """Return the logical LLM source backing this client."""
+
+        return self._settings.llm_source
 
     @property
     def api_url(self) -> str:
@@ -189,48 +214,114 @@ class LLMClient:
     # ------------------------------------------------------------------
     # Request execution
     # ------------------------------------------------------------------
+    def _retry_after_seconds(self, response: requests.Response) -> Optional[float]:
+        header_value = response.headers.get("Retry-After")
+        if not header_value:
+            return None
+        try:
+            return float(header_value)
+        except (TypeError, ValueError):
+            return None
+
     def _execute_request(
         self, payload: Dict[str, Any], *, timeout: Optional[int] = None
     ) -> LLMResponse:
         timeout = timeout or 90
-        stream = bool(payload.get("stream", False))
-        api_url = self.api_url
-        self._log_debug("Dispatching LLM request to %s with stream=%s", api_url, stream)
-        self._log_debug("Payload: %s", json.dumps(payload, indent=2, ensure_ascii=False))
+        base_payload = dict(payload)
+        stream_requested = bool(base_payload.get("stream", False))
+        endpoints = resolve_endpoints(self._settings)
 
-        headers: Dict[str, str] = {}
-        if self._settings.api_key:
-            headers["Authorization"] = f"Bearer {self._settings.api_key}"
-
-        response = self._session.post(
-            api_url,
-            json=payload,
-            headers=headers or None,
-            stream=stream,
-            timeout=timeout,
-        )
-
-        if response.status_code != 200:
-            body_preview = response.text[:300]
-            self._log_debug(
-                "Received non-200 response: %s - %s",
-                response.status_code,
-                body_preview,
-            )
-            error_message = f"HTTP {response.status_code}"
-            if body_preview:
-                error_message = f"{error_message}: {body_preview}"
+        if not endpoints:
             return LLMResponse(
                 text="",
-                status_code=response.status_code,
+                status_code=0,
                 token_usage={},
-                raw=response.text,
-                error=error_message,
+                raw=None,
+                error="No LLM endpoints available",
             )
 
-        parsed = self._parse_stream(response) if stream else self._parse_json_response(response)
-        parsed.raw = parsed.raw or response.text
-        return parsed
+        endpoint_errors: List[str] = []
+        for endpoint in endpoints:
+            attempt_payload = dict(base_payload)
+            attempt_stream = stream_requested and endpoint.supports_stream
+            if stream_requested and not attempt_stream:
+                attempt_payload["stream"] = False
+
+            headers = dict(endpoint.headers)
+
+            self._log_debug(
+                "Dispatching LLM request to %s (%s) with stream=%s",
+                endpoint.url,
+                endpoint.source.value,
+                attempt_stream,
+            )
+            self._log_debug(
+                "Payload: %s",
+                json.dumps(attempt_payload, indent=2, ensure_ascii=False),
+            )
+
+            try:
+                response = self._session.post(
+                    endpoint.url,
+                    json=attempt_payload,
+                    headers=headers or None,
+                    stream=attempt_stream,
+                    timeout=timeout,
+                )
+            except requests.exceptions.RequestException as exc:
+                endpoint_errors.append(f"{endpoint.source.value}: {exc}")
+                self._log_debug(
+                    "Request error when contacting %s endpoint: %s",
+                    endpoint.source.value,
+                    exc,
+                )
+                continue
+
+            if response.status_code == 429:
+                retry_after = self._retry_after_seconds(response)
+                if retry_after:
+                    self._log_debug(
+                        "Rate limited by %s endpoint; sleeping for %s seconds",
+                        endpoint.source.value,
+                        retry_after,
+                    )
+                    time.sleep(retry_after)
+                endpoint_errors.append(
+                    f"{endpoint.source.value}: rate limited ({response.status_code})"
+                )
+                continue
+
+            if response.status_code != 200:
+                body_preview = response.text[:300]
+                self._log_debug(
+                    "Received non-200 response from %s endpoint: %s - %s",
+                    endpoint.source.value,
+                    response.status_code,
+                    body_preview,
+                )
+                error_message = f"HTTP {response.status_code}"
+                if body_preview:
+                    error_message = f"{error_message}: {body_preview}"
+                endpoint_errors.append(f"{endpoint.source.value}: {error_message}")
+                continue
+
+            parsed = (
+                self._parse_stream(response)
+                if attempt_stream
+                else self._parse_json_response(response)
+            )
+            parsed.raw = parsed.raw or response.text
+            parsed.source = endpoint.source.value
+            return parsed
+
+        error_message = "; ".join(endpoint_errors) if endpoint_errors else "Unknown error"
+        return LLMResponse(
+            text="",
+            status_code=0,
+            token_usage={},
+            raw=None,
+            error=error_message,
+        )
 
     # ------------------------------------------------------------------
     # Public API
@@ -339,6 +430,12 @@ def create_client(
     api_url: Optional[str] = None,
     debug: bool = False,
     api_key: Optional[str] = None,
+    llm_source: Optional[str] = None,
+    local_api_url: Optional[str] = None,
+    cloud_api_url: Optional[str] = None,
+    fallback_sources: Optional[Sequence[str]] = None,
+    allow_fallback: bool = True,
+    cloud_api_key: Optional[str] = None,
     session: Optional[requests.Session] = None,
 ) -> LLMClient:
     """Return a new :class:`LLMClient` with the provided configuration."""
@@ -348,5 +445,11 @@ def create_client(
         api_url=api_url,
         debug=debug,
         api_key=api_key,
+        llm_source=llm_source or cfg.get_llm_source(),
+        local_api_url=local_api_url,
+        cloud_api_url=cloud_api_url,
+        fallback_sources=fallback_sources or (),
+        allow_fallback=allow_fallback,
+        cloud_api_key=cloud_api_key,
     )
     return LLMClient(settings=settings, session=session)

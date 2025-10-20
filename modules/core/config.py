@@ -63,6 +63,9 @@ class PipelineConfig:
     )
     ollama_model: str = field(default_factory=lambda: cfg.DEFAULT_MODEL)
     ollama_url: str = field(default_factory=lambda: cfg.DEFAULT_OLLAMA_URL)
+    llm_source: str = field(default_factory=cfg.get_llm_source)
+    local_ollama_url: str = field(default_factory=cfg.get_local_ollama_url)
+    cloud_ollama_url: str = field(default_factory=cfg.get_cloud_ollama_url)
     ffmpeg_path: Optional[str] = None
     thread_count: int = field(default_factory=cfg.get_thread_count)
     queue_size: int = field(default_factory=cfg.get_queue_size)
@@ -125,12 +128,20 @@ class PipelineConfig:
             api_url=self.ollama_url,
             debug=self.debug,
             api_key=self.ollama_api_key,
+            llm_source=self.llm_source,
+            local_api_url=self.local_ollama_url,
+            cloud_api_url=self.cloud_ollama_url,
+            cloud_api_key=self.ollama_api_key,
         )
         self.translation_client = create_client(
             model=self.ollama_model,
             api_url=self.ollama_url,
             debug=self.debug,
             api_key=self.ollama_api_key,
+            llm_source=self.llm_source,
+            local_api_url=self.local_ollama_url,
+            cloud_api_url=self.cloud_ollama_url,
+            cloud_api_key=self.ollama_api_key,
         )
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
@@ -261,11 +272,38 @@ def build_pipeline_config(
     else:
         forced_alignment_smoothing = "monotonic_cubic"
 
+    raw_llm_source = _select_value("llm_source", config, overrides, context.llm_source)
+    if isinstance(raw_llm_source, str):
+        normalized_source = raw_llm_source.strip().lower()
+        if normalized_source not in cfg.VALID_LLM_SOURCES:
+            normalized_source = cfg.DEFAULT_LLM_SOURCE
+    else:
+        normalized_source = context.llm_source
+
+    llm_source = normalized_source
+
+    local_ollama_url_default = context.local_ollama_url
+    cloud_ollama_url_default = context.cloud_ollama_url
+
+    local_ollama_url = str(
+        _select_value("ollama_local_url", config, overrides, local_ollama_url_default)
+        or local_ollama_url_default
+    )
+    cloud_ollama_url = str(
+        _select_value("ollama_cloud_url", config, overrides, cloud_ollama_url_default)
+        or cloud_ollama_url_default
+    )
+
     ollama_model = str(
         _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
         or cfg.DEFAULT_MODEL
     )
-    ollama_url_default = context.ollama_url
+
+    if llm_source == "cloud":
+        ollama_url_default = cloud_ollama_url or context.ollama_url
+    else:
+        ollama_url_default = local_ollama_url or context.ollama_url
+
     ollama_url = str(
         _select_value("ollama_url", config, overrides, ollama_url_default)
         or ollama_url_default
@@ -327,6 +365,9 @@ def build_pipeline_config(
         slide_template=slide_template,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
+        llm_source=llm_source,
+        local_ollama_url=local_ollama_url,
+        cloud_ollama_url=cloud_ollama_url,
         ffmpeg_path=ffmpeg_path,
         thread_count=thread_count,
         queue_size=queue_size,

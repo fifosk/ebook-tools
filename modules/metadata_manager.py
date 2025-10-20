@@ -202,6 +202,10 @@ def _invoke_llm_metadata(
             model=settings.ollama_model,
             api_url=cfg.get_ollama_url(),
             api_key=api_key,
+            llm_source=cfg.get_llm_source(),
+            local_api_url=cfg.get_local_ollama_url(),
+            cloud_api_url=cfg.get_cloud_ollama_url(),
+            cloud_api_key=api_key,
         )
     try:
         if not managed_client.model:

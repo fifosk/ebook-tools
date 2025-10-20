@@ -138,6 +138,12 @@ def configure_default_client(
     api_url: Optional[str] = None,
     debug: Optional[bool] = None,
     api_key: Optional[str] = None,
+    llm_source: Optional[str] = None,
+    local_api_url: Optional[str] = None,
+    cloud_api_url: Optional[str] = None,
+    fallback_sources: Optional[Sequence[str]] = None,
+    allow_fallback: Optional[bool] = None,
+    cloud_api_key: Optional[str] = None,
 ) -> None:
     """Adjust the fallback client settings used when no explicit client is provided."""
 
@@ -151,6 +157,18 @@ def configure_default_client(
         updates["debug"] = debug
     if api_key is not None:
         updates["api_key"] = api_key
+    if llm_source is not None:
+        updates["llm_source"] = llm_source
+    if local_api_url is not None:
+        updates["local_api_url"] = local_api_url
+    if cloud_api_url is not None:
+        updates["cloud_api_url"] = cloud_api_url
+    if fallback_sources is not None:
+        updates["fallback_sources"] = tuple(fallback_sources)
+    if allow_fallback is not None:
+        updates["allow_fallback"] = bool(allow_fallback)
+    if cloud_api_key is not None:
+        updates["cloud_api_key"] = cloud_api_key
     if updates:
         _DEFAULT_CLIENT_SETTINGS = _DEFAULT_CLIENT_SETTINGS.with_updates(**updates)
 
@@ -164,6 +182,12 @@ def _borrow_client(client: Optional[LLMClient]) -> tuple[LLMClient, bool]:
             api_url=_DEFAULT_CLIENT_SETTINGS.api_url,
             debug=_DEFAULT_CLIENT_SETTINGS.debug,
             api_key=_DEFAULT_CLIENT_SETTINGS.api_key,
+            llm_source=_DEFAULT_CLIENT_SETTINGS.llm_source,
+            local_api_url=_DEFAULT_CLIENT_SETTINGS.local_api_url,
+            cloud_api_url=_DEFAULT_CLIENT_SETTINGS.cloud_api_url,
+            fallback_sources=_DEFAULT_CLIENT_SETTINGS.fallback_sources,
+            allow_fallback=_DEFAULT_CLIENT_SETTINGS.allow_fallback,
+            cloud_api_key=_DEFAULT_CLIENT_SETTINGS.cloud_api_key,
         ),
         True,
     )

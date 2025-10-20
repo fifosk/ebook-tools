@@ -22,6 +22,11 @@ def _add_shared_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentP
     parser.add_argument("--ffmpeg-path", help="Override the path to the FFmpeg executable.")
     parser.add_argument("--ollama-url", help="Override the Ollama API URL.")
     parser.add_argument(
+        "--llm-source",
+        choices=["local", "cloud"],
+        help="Select the LLM endpoint source (local or cloud).",
+    )
+    parser.add_argument(
         "--thread-count",
         type=int,
         help="Number of worker threads to use for translation and media generation.",
