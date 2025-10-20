@@ -849,18 +849,72 @@ def generate_video_slides_ffmpeg(
         "copy",
         final_video_path,
     ]
-    try:
-        result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def _run_ffmpeg_command(command: Sequence[str], description: str) -> subprocess.CompletedProcess:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode != 0:
-            logger.error("FFmpeg final concat error: %s", result.stderr.decode())
-            raise subprocess.CalledProcessError(result.returncode, cmd_concat)
+            raise subprocess.CalledProcessError(
+                result.returncode,
+                command,
+                output=result.stdout,
+                stderr=result.stderr,
+            )
+        return result
+
+    try:
+        _run_ffmpeg_command(cmd_concat, "stream copy concat")
     except subprocess.CalledProcessError as exc:
-        logger.error("Error concatenating sentence slides: %s", exc)
+        stderr_text = exc.stderr.decode("utf-8", errors="ignore") if exc.stderr else str(exc)
+        logger.warning(
+            "FFmpeg stream-copy concat failed with code %s: %s",
+            exc.returncode,
+            stderr_text,
+        )
+        should_retry = not (os.path.exists(final_video_path) and os.path.getsize(final_video_path) > 0)
+        if should_retry:
+            fallback_cmd = [
+                "ffmpeg",
+                "-loglevel",
+                "quiet",
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                concat_list_path,
+                "-c:v",
+                "libx264",
+                "-preset",
+                "veryfast",
+                "-crf",
+                "18",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+faststart",
+                final_video_path,
+            ]
+            try:
+                _run_ffmpeg_command(fallback_cmd, "transcode concat")
+            except subprocess.CalledProcessError as fallback_exc:
+                fallback_stderr = (
+                    fallback_exc.stderr.decode("utf-8", errors="ignore")
+                    if fallback_exc.stderr
+                    else str(fallback_exc)
+                )
+                logger.error("Error concatenating sentence slides: %s", fallback_stderr)
     finally:
         if os.path.exists(concat_list_path):
             os.remove(concat_list_path)
 
-    logger.info("Final stitched video slide output saved to: %s", final_video_path)
+    if os.path.exists(final_video_path):
+        logger.info("Final stitched video slide output saved to: %s", final_video_path)
+    else:
+        logger.warning(
+            "Final stitched video slide output was not created at expected path: %s",
+            final_video_path,
+        )
 
     if cleanup:
         for video_file in sentence_video_files:
