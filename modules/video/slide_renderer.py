@@ -299,7 +299,13 @@ class SlideRenderer:
         )
 
         colors_cfg = resolved.get("colors") if isinstance(resolved.get("colors"), Mapping) else {}
-        background_color = tuple(int(v) for v in (bg_color or colors_cfg.get("background", (0, 0, 0))))
+        if bg_color is not None:
+            background_color = _parse_color(bg_color, default=(0, 0, 0))
+        else:
+            background_color = _parse_color(
+                colors_cfg.get("background") if isinstance(colors_cfg, Mapping) else None,
+                default=(0, 0, 0),
+            )
         accent_color = _parse_color(colors_cfg.get("accent") if isinstance(colors_cfg, Mapping) else None, default=(255, 165, 0))
         segment_colors = resolved.get("segment_colors") if isinstance(resolved.get("segment_colors"), Mapping) else {}
         original_color = _parse_color(segment_colors.get("original") if isinstance(segment_colors, Mapping) else None, default=(255, 255, 0))
@@ -822,10 +828,8 @@ class SlideRenderer:
         if bg_color is None:
             bg_color_tuple: Tuple[int, ...] = ()
         else:
-            bg_values = [int(value) for value in bg_color]
-            if len(bg_values) < 3:
-                bg_values.extend([0] * (3 - len(bg_values)))
-            bg_color_tuple = tuple(bg_values[:3])
+            parsed_bg = _parse_color(bg_color, default=(0, 0, 0))
+            bg_color_tuple = tuple(parsed_bg)
         cover_bytes = _serialize_cover_image(cover_img)
 
         frame_tasks: List[SlideFrameTask] = []

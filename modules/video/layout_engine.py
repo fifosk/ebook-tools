@@ -156,7 +156,7 @@ class LayoutEngine:
         draw_ctx: ImageDraw.ImageDraw,
         char_map: Mapping[int, Tuple[float, float, float, float]],
         char_range: Optional[Tuple[int, int]],
-        color: Sequence[int],
+        color: Any,
     ) -> None:
         if not char_range:
             return
@@ -165,11 +165,12 @@ class LayoutEngine:
             return
         start_idx = max(int(start), 0)
         end_idx = max(int(end), start_idx)
+        fill_color = _parse_color(color, default=(0, 0, 0))
         for idx in range(start_idx, end_idx):
             bbox = char_map.get(idx)
             if bbox is None:
                 continue
-            draw_ctx.rectangle(bbox, fill=tuple(int(v) for v in color[:3]))
+            draw_ctx.rectangle(bbox, fill=fill_color)
 
     @staticmethod
     def color_from_template(value: Any, *, default: tuple[int, int, int]) -> tuple[int, int, int]:
