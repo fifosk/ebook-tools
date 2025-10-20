@@ -7,6 +7,20 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+NEEDS_HOST=true
+for arg in "$@"; do
+  case "$arg" in
+    --host|--host=*)
+      NEEDS_HOST=false
+      break
+      ;;
+  esac
+done
+
+if [ "$NEEDS_HOST" = true ]; then
+  set -- --host 0.0.0.0 "$@"
+fi
+
 if command -v poetry >/dev/null 2>&1; then
   exec poetry run python -m modules.webapi "$@"
 elif command -v pipenv >/dev/null 2>&1; then
