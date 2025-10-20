@@ -19,7 +19,7 @@ from .core import ingestion
 from .core.config import build_pipeline_config
 from .services.pipeline_service import PipelineInput
 from .book_cover import fetch_book_cover
-from .audio_video_generator import (
+from .audio.tts import (
     AUTO_MACOS_VOICE,
     AUTO_MACOS_VOICE_FEMALE,
     AUTO_MACOS_VOICE_MALE,
