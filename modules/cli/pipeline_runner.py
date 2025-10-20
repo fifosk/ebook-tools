@@ -585,6 +585,9 @@ def run_pipeline_from_args(
         config.setdefault("slide_render_benchmark", False)
         config.setdefault("slide_template", "default")
 
+        if getattr(args, "template", None):
+            config["slide_template"] = args.template
+
         if config.get("auto_metadata", True) and pipeline_input.input_file:
             metadata_manager.populate_config_metadata(
                 config, pipeline_input.input_file
