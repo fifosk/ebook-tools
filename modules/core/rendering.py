@@ -280,6 +280,7 @@ def _export_pipeline_batch(
     tempo,
     sync_ratio,
     word_highlighting,
+    highlight_granularity,
 ):
     """Write batch outputs for a contiguous block of sentences."""
 
@@ -332,6 +333,7 @@ def _export_pipeline_batch(
                 tempo,
                 sync_ratio,
                 word_highlighting,
+                highlight_granularity,
             )
         return video_path
     except Exception as exc:  # pragma: no cover - defensive logging
@@ -569,6 +571,7 @@ def process_epub(
                             tempo=pipeline_config.tempo,
                             sync_ratio=pipeline_config.sync_ratio,
                             word_highlighting=pipeline_config.word_highlighting,
+                            highlight_granularity=pipeline_config.highlight_granularity,
                         )
                         if video_path:
                             batch_video_files.append(video_path)
@@ -708,6 +711,7 @@ def process_epub(
                                 tempo=pipeline_config.tempo,
                                 sync_ratio=pipeline_config.sync_ratio,
                                 word_highlighting=pipeline_config.word_highlighting,
+                                highlight_granularity=pipeline_config.highlight_granularity,
                             )
                             export_futures.append(future)
                             written_blocks = []
@@ -776,6 +780,7 @@ def process_epub(
             tempo=pipeline_config.tempo,
             sync_ratio=pipeline_config.sync_ratio,
             word_highlighting=pipeline_config.word_highlighting,
+            highlight_granularity=pipeline_config.highlight_granularity,
         )
         if video_path:
             batch_video_files.append(video_path)
