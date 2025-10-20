@@ -69,8 +69,10 @@ single-page application:
 
 - **`EBOOK_API_CORS_ORIGINS`** – Comma or whitespace separated list of allowed
   origins for CORS. Defaults to the local Vite dev server URLs
-  (`http://localhost:5173` and `http://127.0.0.1:5173`). Set to `*` to allow
-  every origin or to an empty string to disable the middleware entirely.
+  (`http://localhost:5173` and `http://127.0.0.1:5173`) and any IPv4 address on
+  the same network (for example `http://192.168.1.10:5173`) so the dev server can
+  be accessed from other devices. Set to `*` to allow every origin or to an
+  empty string to disable the middleware entirely.
 - **`EBOOK_API_STATIC_ROOT`** – Filesystem path to the built web assets. When
   unset, the server looks for `web/dist/` relative to the repository root. Set
   this value to an empty string to run in API-only mode even if the directory

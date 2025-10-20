@@ -63,18 +63,33 @@ def _normalise_mount_path(value: str | None) -> str:
     return value
 
 
-def _parse_cors_origins(raw_value: str | None) -> tuple[list[str], bool]:
-    """Return the allowed origins and whether credentials are supported."""
+def _parse_cors_origins(raw_value: str | None) -> tuple[list[str], bool, str | None]:
+    """Return the allowed origins, credential support, and optional regex."""
 
     if raw_value is None:
-        return list(DEFAULT_DEVSERVER_ORIGINS), True
+        # Allow the default Vite dev server hosts and fall back to permitting
+        # any IPv4 loopback or private network address so developers can bind
+        # the frontend to ``0.0.0.0`` and access it from another device.
+        return (
+            list(DEFAULT_DEVSERVER_ORIGINS),
+            True,
+            r"https?://(?:"
+            r"localhost|"
+            r"127\.0\.0\.1|"
+            r"0\.0\.0\.0|"
+            r"10(?:\.\d{1,3}){3}|"
+            r"172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}|"
+            r"192\.168(?:\.\d{1,3}){2}|"
+            r"169\.254(?:\.\d{1,3}){2}"
+            r")(?:\:\d+)?$",
+        )
 
     tokens = [token.strip() for token in re.split(r"[\s,]+", raw_value) if token.strip()]
     if not tokens:
-        return [], False
+        return [], False, None
     if "*" in tokens:
-        return ["*"], False
-    return tokens, True
+        return ["*"], False, None
+    return tokens, True, None
 
 
 def _resolve_static_assets_config() -> StaticAssetsConfig | None:
@@ -106,14 +121,17 @@ def _resolve_static_assets_config() -> StaticAssetsConfig | None:
 
 
 def _configure_cors(app: FastAPI) -> None:
-    allowed_origins, allow_credentials = _parse_cors_origins(os.environ.get("EBOOK_API_CORS_ORIGINS"))
-    if not allowed_origins:
+    allowed_origins, allow_credentials, origin_regex = _parse_cors_origins(
+        os.environ.get("EBOOK_API_CORS_ORIGINS")
+    )
+    if not allowed_origins and origin_regex is None:
         LOGGER.info("CORS middleware disabled; no allowed origins configured.")
         return
 
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
+        allow_origin_regex=origin_regex,
         allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],
