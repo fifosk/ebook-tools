@@ -99,6 +99,10 @@ class EbookToolsSettings(BaseModel):
     sync_ratio: float = 0.9
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    slide_parallelism: str = "off"
+    slide_parallel_workers: Optional[int] = None
+    prefer_pillow_simd: bool = False
+    slide_render_benchmark: bool = False
     working_dir: str = str(DEFAULT_WORKING_RELATIVE)
     output_dir: str = str(DEFAULT_OUTPUT_RELATIVE)
     tmp_dir: str = str(DEFAULT_TMP_RELATIVE)

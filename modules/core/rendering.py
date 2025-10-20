@@ -334,6 +334,7 @@ def _export_pipeline_batch(
                 sync_ratio,
                 word_highlighting,
                 highlight_granularity,
+                slide_render_options=pipeline_config.get_slide_render_options(),
             )
         return video_path
     except Exception as exc:  # pragma: no cover - defensive logging

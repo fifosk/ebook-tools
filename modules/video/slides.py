@@ -10,11 +10,17 @@ invoked.
 
 from __future__ import annotations
 
+import io
 import os
 import subprocess
 import sys
+import threading
+import time
+from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from contextlib import contextmanager, nullcontext
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 from pydub import AudioSegment
@@ -22,9 +28,11 @@ from pydub import AudioSegment
 from modules import logging_manager as log_mgr
 from modules.audio.highlight import (
     HighlightEvent,
+    HighlightSegment,
     _build_events_from_metadata,
     _build_legacy_highlight_events,
     _get_audio_metadata,
+    coalesce_highlight_events,
 )
 from modules.audio.tts import active_tmp_dir, silence_audio_path
 
@@ -35,6 +43,8 @@ __all__ = [
     "build_sentence_video",
     "generate_sentence_slide_image",
     "get_default_font_path",
+    "SlideRenderOptions",
+    "SlideRenderProfiler",
 ]
 
 
@@ -48,15 +58,284 @@ class LineLayout:
     char_boxes: List[Tuple[int, Tuple[float, float, float, float]]]
 
 
+@dataclass(slots=True)
+class SlideRenderOptions:
+    """Options controlling how slide frames are rendered."""
+
+    parallelism: str = "off"
+    workers: Optional[int] = None
+    prefer_pillow_simd: bool = False
+    benchmark_rendering: bool = False
+
+
+class SlideRenderProfiler:
+    """Collects timing/counter statistics for slide rendering operations."""
+
+    def __init__(self) -> None:
+        self._timers: Dict[str, Tuple[int, float]] = defaultdict(lambda: (0, 0.0))
+        self._counters: Dict[str, int] = defaultdict(int)
+
+    @contextmanager
+    def time_block(self, name: str) -> Iterator[None]:
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            elapsed = time.perf_counter() - start
+            count, total = self._timers[name]
+            self._timers[name] = (count + 1, total + elapsed)
+
+    def increment(self, name: str, value: int = 1) -> None:
+        self._counters[name] += value
+
+    def merge(self, other: "SlideRenderProfiler") -> None:
+        for key, (count, total) in other._timers.items():
+            cur_count, cur_total = self._timers[key]
+            self._timers[key] = (cur_count + count, cur_total + total)
+        for key, value in other._counters.items():
+            self._counters[key] += value
+
+    def log_summary(self, sentence_index: int) -> None:
+        if not self._timers and not self._counters:
+            return
+        logger.debug(
+            "Slide rendering benchmark for sentence %s:",
+            sentence_index,
+            extra={"event": "video.slide.benchmark", "console_suppress": True},
+        )
+        for name, (count, total) in sorted(
+            self._timers.items(), key=lambda item: item[1][1], reverse=True
+        ):
+            avg = total / count if count else 0.0
+            logger.debug(
+                "  %s -> total %.4fs across %s calls (avg %.6fs)",
+                name,
+                total,
+                count,
+                avg,
+                extra={"event": f"video.slide.benchmark.{name}", "console_suppress": True},
+            )
+        for name, value in self._counters.items():
+            logger.debug(
+                "  %s -> %s",
+                name,
+                value,
+                extra={
+                    "event": f"video.slide.benchmark.counter.{name}",
+                    "console_suppress": True,
+                },
+            )
+
+
+class GlyphMetricsCache:
+    """Caches glyph measurement metadata keyed by font and text."""
+
+    def __init__(self) -> None:
+        self._bbox_cache: Dict[Tuple[Tuple[object, ...], str], Tuple[float, float, float, float]] = {}
+        self._length_cache: Dict[Tuple[Tuple[object, ...], str], float] = {}
+        self._lock = threading.Lock()
+
+    def _font_key(self, font: ImageFont.ImageFont) -> Tuple[object, ...]:
+        path = getattr(font, "path", None)
+        size = getattr(font, "size", None)
+        layout = getattr(font, "layout_engine", None)
+        index = getattr(font, "index", None)
+        if path:
+            return (path, size, layout, index)
+        name = getattr(font, "getname", None)
+        if callable(name):
+            family = tuple(name())
+        else:
+            family = ()
+        return (id(font), family, size, layout, index)
+
+    def textbbox(
+        self,
+        draw_ctx: ImageDraw.ImageDraw,
+        font: ImageFont.FreeTypeFont,
+        text: str,
+        profiler: Optional[SlideRenderProfiler] = None,
+    ) -> Tuple[float, float, float, float]:
+        key = (self._font_key(font), text)
+        with self._lock:
+            cached = self._bbox_cache.get(key)
+        if cached is not None:
+            if profiler:
+                profiler.increment("glyph_bbox_cache_hits")
+            return cached
+        if profiler:
+            profiler.increment("glyph_bbox_cache_misses")
+        with (profiler.time_block("textbbox") if profiler else nullcontext()):
+            bbox = draw_ctx.textbbox((0, 0), text, font=font)
+        with self._lock:
+            self._bbox_cache[key] = bbox
+        return bbox
+
+    def textlength(
+        self,
+        draw_ctx: ImageDraw.ImageDraw,
+        font: ImageFont.FreeTypeFont,
+        text: str,
+        profiler: Optional[SlideRenderProfiler] = None,
+    ) -> float:
+        key = (self._font_key(font), text)
+        with self._lock:
+            cached = self._length_cache.get(key)
+        if cached is not None:
+            if profiler:
+                profiler.increment("glyph_length_cache_hits")
+            return cached
+        if profiler:
+            profiler.increment("glyph_length_cache_misses")
+        with (profiler.time_block("textlength") if profiler else nullcontext()):
+            length = draw_ctx.textlength(text, font=font)
+        with self._lock:
+            self._length_cache[key] = length
+        return length
+
+
+@dataclass(slots=True)
+class SlideFrameTask:
+    """Describes a single frame that needs to be rendered for a sentence."""
+
+    index: int
+    block: str
+    duration: float
+    original_highlight_index: int
+    translation_highlight_index: int
+    transliteration_highlight_index: int
+    original_char_range: Optional[Tuple[int, int]]
+    translation_char_range: Optional[Tuple[int, int]]
+    transliteration_char_range: Optional[Tuple[int, int]]
+    slide_size: Sequence[int]
+    initial_font_size: int
+    default_font_path: str
+    bg_color: Sequence[int]
+    cover_image_bytes: Optional[bytes]
+    header_info: str
+    highlight_granularity: str
+    output_path: str
+
+
+_GLYPH_CACHE = GlyphMetricsCache()
+
+
+def _render_slide_frame_local(
+    task: SlideFrameTask, profiler: Optional[SlideRenderProfiler]
+) -> str:
+    cover_image = _deserialize_cover_image(task.cover_image_bytes)
+    try:
+        image = generate_sentence_slide_image(
+            task.block,
+            original_highlight_word_index=task.original_highlight_index,
+            translation_highlight_word_index=task.translation_highlight_index,
+            transliteration_highlight_word_index=task.transliteration_highlight_index,
+            original_highlight_char_range=task.original_char_range,
+            translation_highlight_char_range=task.translation_char_range,
+            transliteration_highlight_char_range=task.transliteration_char_range,
+            highlight_granularity=task.highlight_granularity,
+            slide_size=task.slide_size,
+            initial_font_size=task.initial_font_size,
+            default_font_path=task.default_font_path,
+            bg_color=task.bg_color,
+            cover_img=cover_image,
+            header_info=task.header_info,
+            profiler=profiler,
+        )
+        image.save(task.output_path)
+        image.close()
+    finally:
+        if cover_image is not None:
+            cover_image.close()
+    return task.output_path
+
+
+def _render_slide_frame(task: SlideFrameTask) -> str:
+    return _render_slide_frame_local(task, None)
+
+
+def _text_bbox(
+    draw_ctx: ImageDraw.ImageDraw,
+    font: ImageFont.ImageFont,
+    text: str,
+    profiler: Optional[SlideRenderProfiler] = None,
+) -> Tuple[float, float, float, float]:
+    return _GLYPH_CACHE.textbbox(draw_ctx, font, text, profiler)
+
+
+def _text_length(
+    draw_ctx: ImageDraw.ImageDraw,
+    font: ImageFont.ImageFont,
+    text: str,
+    profiler: Optional[SlideRenderProfiler] = None,
+) -> float:
+    return _GLYPH_CACHE.textlength(draw_ctx, font, text, profiler)
+
+
+def _text_size(
+    draw_ctx: ImageDraw.ImageDraw,
+    font: ImageFont.ImageFont,
+    text: str,
+    profiler: Optional[SlideRenderProfiler] = None,
+) -> Tuple[float, float]:
+    bbox = _text_bbox(draw_ctx, font, text, profiler)
+    return bbox[2] - bbox[0], bbox[3] - bbox[1]
+
+
+def _serialize_cover_image(image: Optional[Image.Image]) -> Optional[bytes]:
+    if image is None:
+        return None
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+def _deserialize_cover_image(payload: Optional[bytes]) -> Optional[Image.Image]:
+    if payload is None:
+        return None
+    stream = io.BytesIO(payload)
+    img = Image.open(stream)
+    converted = img.convert("RGB")
+    converted.load()
+    img.close()
+    return converted
+
+
+def _has_simd_support() -> bool:
+    core = getattr(Image, "core", None)
+    return bool(getattr(core, "have_simd", False))
+
+
+_SIMD_STATUS_LOGGED = False
+
+
+def _log_simd_preference(prefer_simd: bool) -> None:
+    global _SIMD_STATUS_LOGGED
+    if not prefer_simd or _SIMD_STATUS_LOGGED:
+        return
+    _SIMD_STATUS_LOGGED = True
+    if _has_simd_support():
+        logger.debug(
+            "Pillow SIMD acceleration detected for slide rendering.",
+            extra={"event": "video.slide.simd", "console_suppress": True},
+        )
+    else:
+        logger.warning(
+            "Pillow-SIMD acceleration requested but not available on this installation.",
+            extra={"event": "video.slide.simd.missing"},
+        )
+
+
 def _prepare_line_layout(
     *,
     text: str,
     lines: Sequence[str],
-    font: ImageFont.FreeTypeFont,
+    font: ImageFont.ImageFont,
     draw_ctx: ImageDraw.ImageDraw,
     slide_width: int,
     start_y: float,
     line_spacing: float,
+    profiler: Optional[SlideRenderProfiler] = None,
 ) -> Tuple[List[LineLayout], Dict[int, Tuple[float, float, float, float]], float]:
     """Compute positioning metadata for rendering ``lines`` of ``text``."""
 
@@ -66,7 +345,7 @@ def _prepare_line_layout(
     y_cursor = start_y
 
     for line in lines:
-        bbox = draw_ctx.textbbox((0, 0), line, font=font)
+        bbox = _text_bbox(draw_ctx, font, line, profiler)
         line_width = bbox[2] - bbox[0]
         line_height = bbox[3] - bbox[1]
         x_line = (slide_width - line_width) // 2
@@ -81,8 +360,8 @@ def _prepare_line_layout(
                 break
             prefix = line[:pos]
             next_prefix = line[: pos + 1]
-            prev_width = draw_ctx.textlength(prefix, font=font) if prefix else 0.0
-            curr_width = draw_ctx.textlength(next_prefix, font=font)
+            prev_width = _text_length(draw_ctx, font, prefix, profiler) if prefix else 0.0
+            curr_width = _text_length(draw_ctx, font, next_prefix, profiler)
             bbox_char = (
                 x_line + prev_width,
                 y_cursor,
@@ -170,6 +449,7 @@ def generate_sentence_slide_image(
     bg_color: Sequence[int] = (0, 0, 0),
     cover_img: Optional[Image.Image] = None,
     header_info: str = "",
+    profiler: Optional[SlideRenderProfiler] = None,
 ) -> Image.Image:
     """Draw a slide image for a sentence block with optional highlighting."""
 
@@ -183,7 +463,8 @@ def generate_sentence_slide_image(
     header_line = raw_lines[0] if raw_lines else ""
     header_text = header_info if header_info else header_line
 
-    draw.rectangle([0, 0, slide_size[0], header_height], fill=bg_color)
+    with profiler.time_block("draw.rectangle") if profiler else nullcontext():
+        draw.rectangle([0, 0, slide_size[0], header_height], fill=bg_color)
 
     if cover_img:
         cover_thumb = cover_img.copy()
@@ -202,9 +483,7 @@ def generate_sentence_slide_image(
     max_header_width = 0
     total_header_height = 0
     for line in header_lines:
-        bbox = draw.textbbox((0, 0), line, font=header_font)
-        line_width = bbox[2] - bbox[0]
-        line_height = bbox[3] - bbox[1]
+        line_width, line_height = _text_size(draw, header_font, line, profiler)
         max_header_width = max(max_header_width, line_width)
         total_header_height += line_height
     total_header_height += header_line_spacing * (len(header_lines) - 1)
@@ -215,14 +494,15 @@ def generate_sentence_slide_image(
         header_x = (slide_size[0] - max_header_width) // 2
     header_y = (header_height - total_header_height) // 2
 
-    draw.multiline_text(
-        (header_x, header_y),
-        header_text,
-        font=header_font,
-        fill=(255, 255, 255),
-        spacing=header_line_spacing,
-        align="center",
-    )
+    with (profiler.time_block("draw.multiline_text") if profiler else nullcontext()):
+        draw.multiline_text(
+            (header_x, header_y),
+            header_text,
+            font=header_font,
+            fill=(255, 255, 255),
+            spacing=header_line_spacing,
+            align="center",
+        )
 
     extra_line_spacing = 10
     segment_spacing = 20
@@ -247,15 +527,19 @@ def generate_sentence_slide_image(
         transliteration_seg = ""
 
     def wrap_text_local(
-        text: str, draw_ctx: ImageDraw.ImageDraw, font: ImageFont.FreeTypeFont, max_width: int
+        text: str,
+        draw_ctx: ImageDraw.ImageDraw,
+        font: ImageFont.ImageFont,
+        max_width: int,
+        metrics_profiler: Optional[SlideRenderProfiler],
     ) -> str:
         if " " not in text:
             lines_: List[str] = []
             current_line = ""
             for ch in text:
                 test_line = current_line + ch
-                bbox = draw_ctx.textbbox((0, 0), test_line, font=font)
-                if bbox[2] - bbox[0] <= max_width:
+                width, _ = _text_size(draw_ctx, font, test_line, metrics_profiler)
+                if width <= max_width:
                     current_line = test_line
                 else:
                     if current_line:
@@ -271,8 +555,8 @@ def generate_sentence_slide_image(
         current_line = words[0]
         for word in words[1:]:
             test_line = current_line + " " + word
-            bbox = draw_ctx.textbbox((0, 0), test_line, font=font)
-            if bbox[2] - bbox[0] <= max_width:
+            width, _ = _text_size(draw_ctx, font, test_line, metrics_profiler)
+            if width <= max_width:
                 current_line = test_line
             else:
                 lines_.append(current_line)
@@ -280,23 +564,25 @@ def generate_sentence_slide_image(
         lines_.append(current_line)
         return "\n".join(lines_)
 
-    def get_wrapped_text_and_font(text: str) -> tuple[str, ImageFont.FreeTypeFont]:
+    def get_wrapped_text_and_font(text: str) -> tuple[str, ImageFont.ImageFont]:
         max_width = slide_size[0] * 0.9
         max_height = slide_size[1] * 0.9
         font_size = int(initial_font_size * 0.85)
-        chosen_font: Optional[ImageFont.FreeTypeFont] = None
+        chosen_font: Optional[ImageFont.ImageFont] = None
         wrapped_text = text
         while font_size > 10:
             try:
                 test_font = ImageFont.truetype(default_font_path, font_size)
             except IOError:
                 test_font = ImageFont.load_default()
-            candidate_wrapped = wrap_text_local(text, draw, test_font, int(max_width))
+            candidate_wrapped = wrap_text_local(
+                text, draw, test_font, int(max_width), profiler
+            )
             total_height = 0
             lines = candidate_wrapped.split("\n")
             for i, line in enumerate(lines):
-                bbox = draw.textbbox((0, 0), line, font=test_font)
-                total_height += bbox[3] - bbox[1]
+                _, height = _text_size(draw, test_font, line, profiler)
+                total_height += height
                 if i < len(lines) - 1:
                     total_height += extra_line_spacing
             if total_height <= max_height:
@@ -308,15 +594,23 @@ def generate_sentence_slide_image(
             chosen_font = ImageFont.load_default()
         return wrapped_text, chosen_font
 
-    def compute_height(lines: Iterable[str], font: ImageFont.FreeTypeFont) -> int:
+    def compute_height(lines: Iterable[str], font: ImageFont.ImageFont) -> int:
         total = 0
         lines_list = list(lines)
         for i, line in enumerate(lines_list):
-            bbox = draw.textbbox((0, 0), line, font=font)
-            total += bbox[3] - bbox[1]
+            _, height = _text_size(draw, font, line, profiler)
+            total += height
             if i < len(lines_list) - 1:
                 total += extra_line_spacing
         return total
+
+    def get_highlight_font(base_font: ImageFont.ImageFont) -> ImageFont.ImageFont:
+        base_size = getattr(base_font, "size", initial_font_size)
+        target_size = max(int(base_size * scale_factor), 1)
+        try:
+            return ImageFont.truetype(default_font_path, target_size)
+        except IOError:
+            return base_font
 
     wrapped_orig, font_orig = get_wrapped_text_and_font(original_seg)
     orig_lines = wrapped_orig.split("\n")
@@ -390,57 +684,54 @@ def generate_sentence_slide_image(
             slide_width=slide_size[0],
             start_y=y_text,
             line_spacing=extra_line_spacing,
+            profiler=profiler,
         )
         _fill_char_range(draw, char_map, orig_char_range, highlight_color)
         for layout in layouts:
-            draw.text(
-                (layout.x, layout.y),
-                layout.text,
-                font=font_orig,
-                fill=original_sentence_color,
-            )
+            with profiler.time_block("draw.text") if profiler else nullcontext():
+                draw.text(
+                    (layout.x, layout.y),
+                    layout.text,
+                    font=font_orig,
+                    fill=original_sentence_color,
+                )
     else:
         word_counter = 0
         for line in orig_lines:
             words_line = line.split()
-            space_bbox = draw.textbbox((0, 0), " ", font=font_orig)
-            space_width = space_bbox[2] - space_bbox[0]
-            total_width = sum(
-                (
-                    draw.textbbox((0, 0), w, font=font_orig)[2]
-                    - draw.textbbox((0, 0), w, font=font_orig)[0]
-                )
-                for w in words_line
-            ) + space_width * (len(words_line) - 1)
+            space_width, _ = _text_size(draw, font_orig, " ", profiler)
+            word_widths = [_text_size(draw, font_orig, w, profiler)[0] for w in words_line]
+            total_width = sum(word_widths) + space_width * (len(words_line) - 1 if words_line else 0)
             x_line = (slide_size[0] - total_width) // 2
             for w in words_line:
                 if word_counter < orig_index_limit:
-                    try:
-                        highlight_font = ImageFont.truetype(
-                            default_font_path, int(font_orig.size * scale_factor)
-                        )
-                    except IOError:
-                        highlight_font = font_orig
-                    draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
+                    highlight_font = get_highlight_font(font_orig)
+                    with (
+                        profiler.time_block("draw.text.highlight") if profiler else nullcontext()
+                    ):
+                        draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
                 else:
-                    draw.text((x_line, y_text), w, font=font_orig, fill=original_sentence_color)
-                w_bbox = draw.textbbox((0, 0), w, font=font_orig)
-                w_width = w_bbox[2] - w_bbox[0]
+                    with profiler.time_block("draw.text") if profiler else nullcontext():
+                        draw.text(
+                            (x_line, y_text),
+                            w,
+                            font=font_orig,
+                            fill=original_sentence_color,
+                        )
+                w_width, _ = _text_size(draw, font_orig, w, profiler)
                 x_line += w_width + space_width
                 word_counter += 1
-            line_height = (
-                draw.textbbox((0, 0), line, font=font_orig)[3]
-                - draw.textbbox((0, 0), line, font=font_orig)[1]
-            )
+            _, line_height = _text_size(draw, font_orig, line, profiler)
             y_text += line_height + extra_line_spacing
 
     if translation_seg:
         y_text += separator_pre_margin
-        draw.line(
-            [(separator_margin, y_text), (slide_size[0] - separator_margin, y_text)],
-            fill=separator_color,
-            width=separator_thickness,
-        )
+        with profiler.time_block("draw.line") if profiler else nullcontext():
+            draw.line(
+                [(separator_margin, y_text), (slide_size[0] - separator_margin, y_text)],
+                fill=separator_color,
+                width=separator_thickness,
+            )
         y_text += separator_thickness + segment_spacing
 
     rtl_languages = {"Arabic", "Hebrew", "Urdu", "Persian"}
@@ -456,81 +747,59 @@ def generate_sentence_slide_image(
             slide_width=slide_size[0],
             start_y=y_text,
             line_spacing=extra_line_spacing,
+            profiler=profiler,
         )
         _fill_char_range(draw, char_map, trans_char_range, highlight_color)
         for layout in layouts:
-            draw.text(
-                (layout.x, layout.y),
-                layout.text,
-                font=font_trans,
-                fill=translation_color,
-            )
+            with profiler.time_block("draw.text") if profiler else nullcontext():
+                draw.text(
+                    (layout.x, layout.y),
+                    layout.text,
+                    font=font_trans,
+                    fill=translation_color,
+                )
     elif header_language in rtl_languages:
         char_counter = 0
         for line in trans_lines:
-            line_width = sum(
-                draw.textbbox((0, 0), ch, font=font_trans)[2]
-                - draw.textbbox((0, 0), ch, font=font_trans)[0]
-                for ch in line
-            )
+            line_width = sum(_text_size(draw, font_trans, ch, profiler)[0] for ch in line)
             x_line = (slide_size[0] - line_width) // 2
             for ch in line:
-                ch_width = (
-                    draw.textbbox((0, 0), ch, font=font_trans)[2]
-                    - draw.textbbox((0, 0), ch, font=font_trans)[0]
-                )
+                ch_width, _ = _text_size(draw, font_trans, ch, profiler)
                 if char_counter < trans_index_limit:
-                    try:
-                        highlight_font = ImageFont.truetype(
-                            default_font_path, int(font_trans.size * scale_factor)
-                        )
-                    except IOError:
-                        highlight_font = font_trans
-                    draw.text((x_line, y_text), ch, font=highlight_font, fill=highlight_color)
+                    highlight_font = get_highlight_font(font_trans)
+                    with (
+                        profiler.time_block("draw.text.highlight") if profiler else nullcontext()
+                    ):
+                        draw.text((x_line, y_text), ch, font=highlight_font, fill=highlight_color)
                 else:
-                    draw.text((x_line, y_text), ch, font=font_trans, fill=translation_color)
+                    with profiler.time_block("draw.text") if profiler else nullcontext():
+                        draw.text((x_line, y_text), ch, font=font_trans, fill=translation_color)
                 x_line += ch_width
                 char_counter += 1
-            line_height = (
-                draw.textbbox((0, 0), line, font=font_trans)[3]
-                - draw.textbbox((0, 0), line, font=font_trans)[1]
-            )
+            _, line_height = _text_size(draw, font_trans, line, profiler)
             y_text += line_height + extra_line_spacing
     else:
         word_counter = 0
         for line in trans_lines:
             words_line = line.split()
-            space_bbox = draw.textbbox((0, 0), " ", font=font_trans)
-            space_width = space_bbox[2] - space_bbox[0]
-            total_width = sum(
-                (
-                    draw.textbbox((0, 0), w, font=font_trans)[2]
-                    - draw.textbbox((0, 0), w, font=font_trans)[0]
-                )
-                for w in words_line
-            ) + space_width * (len(words_line) - 1)
+            space_width, _ = _text_size(draw, font_trans, " ", profiler)
+            word_widths = [_text_size(draw, font_trans, w, profiler)[0] for w in words_line]
+            total_width = sum(word_widths) + space_width * (len(words_line) - 1 if words_line else 0)
             x_line = (slide_size[0] - total_width) // 2
             for w in words_line:
                 if word_counter < trans_index_limit:
-                    try:
-                        highlight_font = ImageFont.truetype(
-                            default_font_path, int(font_trans.size * scale_factor)
-                        )
-                    except IOError:
-                        highlight_font = font_trans
-                    draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
+                    highlight_font = get_highlight_font(font_trans)
+                    with (
+                        profiler.time_block("draw.text.highlight") if profiler else nullcontext()
+                    ):
+                        draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
                 else:
-                    draw.text((x_line, y_text), w, font=font_trans, fill=translation_color)
-                w_width = (
-                    draw.textbbox((0, 0), w, font=font_trans)[2]
-                    - draw.textbbox((0, 0), w, font=font_trans)[0]
-                )
+                    with profiler.time_block("draw.text") if profiler else nullcontext():
+                        draw.text((x_line, y_text), w, font=font_trans, fill=translation_color)
+                w_width, _ = _text_size(draw, font_trans, w, profiler)
                 x_line += w_width + space_width
                 word_counter += 1
-            line_height = (
-                draw.textbbox((0, 0), line, font=font_trans)[3]
-                - draw.textbbox((0, 0), line, font=font_trans)[1]
-            )
+            _, line_height = _text_size(draw, font_trans, line, profiler)
             y_text += line_height + extra_line_spacing
 
     if transliteration_seg:
@@ -552,48 +821,46 @@ def generate_sentence_slide_image(
             slide_width=slide_size[0],
             start_y=y_text,
             line_spacing=extra_line_spacing,
+            profiler=profiler,
         )
         _fill_char_range(draw, char_map, translit_char_range, highlight_color)
         for layout in layouts:
-            draw.text(
-                (layout.x, layout.y),
-                layout.text,
-                font=font_translit,
-                fill=transliteration_color,
-            )
+            with profiler.time_block("draw.text") if profiler else nullcontext():
+                draw.text(
+                    (layout.x, layout.y),
+                    layout.text,
+                    font=font_translit,
+                    fill=transliteration_color,
+                )
     else:
         word_counter = 0
         for line in translit_lines:
             words_line = line.split()
-            space_bbox = draw.textbbox((0, 0), " ", font=font_translit)
-            space_width = space_bbox[2] - space_bbox[0]
-            total_width = sum(
-                (
-                    draw.textbbox((0, 0), w, font=font_translit)[2]
-                    - draw.textbbox((0, 0), w, font=font_translit)[0]
-                )
-                for w in words_line
-            ) + space_width * (len(words_line) - 1)
+            space_width, _ = _text_size(draw, font_translit, " ", profiler)
+            word_widths = [
+                _text_size(draw, font_translit, w, profiler)[0] for w in words_line
+            ]
+            total_width = sum(word_widths) + space_width * (len(words_line) - 1 if words_line else 0)
             x_line = (slide_size[0] - total_width) // 2
             for w in words_line:
                 if word_counter < translit_index_limit:
-                    try:
-                        highlight_font = ImageFont.truetype(
-                            default_font_path, int(font_translit.size * scale_factor)
-                        )
-                    except IOError:
-                        highlight_font = font_translit
-                    draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
+                    highlight_font = get_highlight_font(font_translit)
+                    with (
+                        profiler.time_block("draw.text.highlight") if profiler else nullcontext()
+                    ):
+                        draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
                 else:
-                    draw.text((x_line, y_text), w, font=font_translit, fill=transliteration_color)
-                w_bbox = draw.textbbox((0, 0), w, font=font_translit)
-                w_width = w_bbox[2] - w_bbox[0]
+                    with profiler.time_block("draw.text") if profiler else nullcontext():
+                        draw.text(
+                            (x_line, y_text),
+                            w,
+                            font=font_translit,
+                            fill=transliteration_color,
+                        )
+                w_width, _ = _text_size(draw, font_translit, w, profiler)
                 x_line += w_width + space_width
                 word_counter += 1
-            line_height = (
-                draw.textbbox((0, 0), line, font=font_translit)[3]
-                - draw.textbbox((0, 0), line, font=font_translit)[1]
-            )
+            _, line_height = _text_size(draw, font_translit, line, profiler)
             y_text += line_height + extra_line_spacing
 
     return img
@@ -614,11 +881,31 @@ def build_sentence_video(
     bg_color: Sequence[int] = (0, 0, 0),
     cover_img: Optional[Image.Image] = None,
     header_info: str = "",
+    render_options: Optional[SlideRenderOptions] = None,
 ) -> str:
     """Generate a word-synchronised video for a single sentence."""
 
     if default_font_path is None:
         default_font_path = get_default_font_path()
+
+    options = render_options or SlideRenderOptions()
+    parallelism = (options.parallelism or "off").lower()
+    if parallelism not in {"off", "auto", "thread", "process", "none"}:
+        parallelism = "off"
+    if parallelism == "none":
+        parallelism = "off"
+    _log_simd_preference(options.prefer_pillow_simd)
+
+    profiler: Optional[SlideRenderProfiler] = None
+    if options.benchmark_rendering:
+        if parallelism == "off":
+            profiler = SlideRenderProfiler()
+        else:
+            logger.warning(
+                "Slide rendering benchmark requested but parallel backend '%s' is active; timing data will not be collected.",
+                parallelism,
+                extra={"event": "video.slide.benchmark.skipped"},
+            )
 
     raw_lines = block.split("\n")
     content = "\n".join(raw_lines[1:]).strip()
@@ -707,81 +994,99 @@ def build_sentence_video(
         else "word"
     )
 
-    video_duration = sum(event.duration for event in timeline_events)
+    segments = coalesce_highlight_events(timeline_events)
+    video_duration = sum(segment.duration for segment in segments)
     pad_duration = max(0.0, audio_duration - video_duration)
 
     word_video_files: List[str] = []
     tmp_dir = active_tmp_dir()
 
-    for idx, event in enumerate(timeline_events):
-        duration = event.duration
+    slide_size_tuple = tuple(int(value) for value in slide_size)
+    bg_color_tuple = tuple(int(value) for value in bg_color)
+    cover_bytes = _serialize_cover_image(cover_img)
+
+    frame_tasks: List[SlideFrameTask] = []
+    for idx, segment in enumerate(segments):
         original_highlight_index = (
-            min(event.original_index, num_original_words) if word_highlighting else num_original_words
+            min(segment.original_index, num_original_words)
+            if word_highlighting
+            else num_original_words
         )
         translation_highlight_index = (
-            min(event.translation_index, num_translation_words)
+            min(segment.translation_index, num_translation_words)
             if word_highlighting
             else num_translation_words
         )
         transliteration_highlight_index = (
-            min(event.transliteration_index, num_translit_words)
+            min(segment.transliteration_index, num_translit_words)
             if word_highlighting
             else num_translit_words
         )
-
-        def _event_char_range(
-            evt: HighlightEvent, target_kind: str
-        ) -> Optional[Tuple[int, int]]:
-            step = evt.step
-            if step is None or step.kind != target_kind:
-                return None
-            start = step.char_index_start
-            end = step.char_index_end
-            if start is None or end is None:
-                return None
-            start_idx = int(start)
-            end_idx = int(end)
-            if end_idx <= start_idx:
-                return None
-            return (start_idx, end_idx)
-
         original_char_range = (
-            _event_char_range(event, "original")
-            if effective_granularity == "char"
-            else None
+            segment.original_char_range if effective_granularity == "char" else None
         )
         translation_char_range = (
-            _event_char_range(event, "translation")
-            if effective_granularity == "char"
-            else None
+            segment.translation_char_range if effective_granularity == "char" else None
         )
         transliteration_char_range = (
-            _event_char_range(event, "other")
-            if effective_granularity == "char"
-            else None
+            segment.transliteration_char_range if effective_granularity == "char" else None
         )
-
-        img = generate_sentence_slide_image(
-            block,
-            original_highlight_word_index=original_highlight_index,
-            translation_highlight_word_index=translation_highlight_index,
-            transliteration_highlight_word_index=transliteration_highlight_index,
-            original_highlight_char_range=original_char_range,
-            translation_highlight_char_range=translation_char_range,
-            transliteration_highlight_char_range=transliteration_char_range,
-            highlight_granularity=effective_granularity,
-            slide_size=slide_size,
-            initial_font_size=initial_font_size,
-            default_font_path=default_font_path,
-            bg_color=bg_color,
-            cover_img=cover_img,
-            header_info=header_info,
-        )
-
         img_path = os.path.join(tmp_dir, f"word_slide_{sentence_index}_{idx}.png")
-        img.save(img_path)
+        frame_tasks.append(
+            SlideFrameTask(
+                index=idx,
+                block=block,
+                duration=segment.duration,
+                original_highlight_index=original_highlight_index,
+                translation_highlight_index=translation_highlight_index,
+                transliteration_highlight_index=transliteration_highlight_index,
+                original_char_range=original_char_range,
+                translation_char_range=translation_char_range,
+                transliteration_char_range=transliteration_char_range,
+                slide_size=slide_size_tuple,
+                initial_font_size=initial_font_size,
+                default_font_path=default_font_path,
+                bg_color=bg_color_tuple,
+                cover_image_bytes=cover_bytes,
+                header_info=header_info,
+                highlight_granularity=effective_granularity,
+                output_path=img_path,
+            )
+        )
 
-        video_path = os.path.join(tmp_dir, f"word_slide_{sentence_index}_{idx}.mp4")
+    render_backend = parallelism
+    if len(frame_tasks) <= 1:
+        render_backend = "off"
+    elif render_backend == "auto":
+        worker_hint = options.workers or (os.cpu_count() or 1)
+        render_backend = "process" if worker_hint and worker_hint > 1 else "thread"
+
+    if render_backend == "off":
+        for task in frame_tasks:
+            _render_slide_frame_local(task, profiler)
+        if profiler is not None:
+            profiler.log_summary(sentence_index)
+    else:
+        if options.workers is None:
+            worker_total = max(1, os.cpu_count() or 1)
+        else:
+            worker_total = max(1, options.workers)
+        executor_cls = ProcessPoolExecutor if render_backend == "process" else ThreadPoolExecutor
+        with executor_cls(max_workers=worker_total) as executor:
+            futures = {executor.submit(_render_slide_frame, task): task.index for task in frame_tasks}
+            for future in as_completed(futures):
+                try:
+                    future.result()
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logger.error(
+                        "Slide rendering worker failed for sentence %s frame %s: %s",
+                        sentence_index,
+                        futures[future],
+                        exc,
+                    )
+
+    for task in frame_tasks:
+        video_path = os.path.join(tmp_dir, f"word_slide_{sentence_index}_{task.index}.mp4")
         cmd = [
             "ffmpeg",
             "-loglevel",
@@ -790,13 +1095,13 @@ def build_sentence_video(
             "-loop",
             "1",
             "-i",
-            img_path,
+            task.output_path,
             "-i",
             silence_audio_path(),
             "-c:v",
             "libx264",
             "-t",
-            f"{duration:.2f}",
+            f"{task.duration:.2f}",
             "-pix_fmt",
             "yuv420p",
             "-vf",
@@ -807,10 +1112,10 @@ def build_sentence_video(
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as exc:
-            logger.error("FFmpeg error on word slide %s_%s: %s", sentence_index, idx, exc)
+            logger.error("FFmpeg error on word slide %s_%s: %s", sentence_index, task.index, exc)
         finally:
-            if os.path.exists(img_path):
-                os.remove(img_path)
+            if os.path.exists(task.output_path):
+                os.remove(task.output_path)
         word_video_files.append(video_path)
 
     concat_list_path = os.path.join(tmp_dir, f"concat_word_{sentence_index}.txt")
