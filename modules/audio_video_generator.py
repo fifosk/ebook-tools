@@ -25,7 +25,7 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import output_formatter
 from modules.translation_engine import TranslationTask
-from modules.video.slides import build_sentence_video
+from modules.video.slides import SlideRenderOptions, build_sentence_video
 
 if TYPE_CHECKING:
     from modules.progress_tracker import ProgressTracker
@@ -420,6 +420,7 @@ def generate_video_slides_ffmpeg(
     sync_ratio: float,
     word_highlighting: bool,
     highlight_granularity: str,
+    slide_render_options: Optional[SlideRenderOptions] = None,
     cleanup: bool = True,
     slide_size: Sequence[int] = (1280, 720),
     initial_font_size: int = 60,
@@ -477,6 +478,7 @@ def generate_video_slides_ffmpeg(
             bg_color=bg_color,
             cover_img=local_cover,
             header_info=header_info,
+            render_options=slide_render_options,
         )
 
     if worker_count == 1:

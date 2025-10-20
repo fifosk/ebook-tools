@@ -511,11 +511,95 @@ def _build_legacy_highlight_events(
     return events
 
 
+@dataclass
+class HighlightSegment:
+    """Represents a coalesced rendering instruction for a highlight frame."""
+
+    duration: float
+    original_index: int
+    translation_index: int
+    transliteration_index: int
+    original_char_range: Optional[Tuple[int, int]] = None
+    translation_char_range: Optional[Tuple[int, int]] = None
+    transliteration_char_range: Optional[Tuple[int, int]] = None
+    step_kind: Optional[Literal["original", "translation", "other", "silence"]] = None
+
+    def style_signature(self) -> Tuple[
+        int,
+        int,
+        int,
+        Optional[Tuple[int, int]],
+        Optional[Tuple[int, int]],
+        Optional[Tuple[int, int]],
+        Optional[Literal["original", "translation", "other", "silence"]],
+    ]:
+        """Return an immutable signature describing the rendered highlight style."""
+
+        return (
+            self.original_index,
+            self.translation_index,
+            self.transliteration_index,
+            self.original_char_range,
+            self.translation_char_range,
+            self.transliteration_char_range,
+            self.step_kind,
+        )
+
+
+def _event_char_range(
+    event: HighlightEvent, target_kind: Literal["original", "translation", "other"]
+) -> Optional[Tuple[int, int]]:
+    """Return the character span for ``event`` if it applies to ``target_kind``."""
+
+    step = event.step
+    if step is None or step.kind != target_kind:
+        return None
+    start = step.char_index_start
+    end = step.char_index_end
+    if start is None or end is None:
+        return None
+    start_idx = int(start)
+    end_idx = int(end)
+    if end_idx <= start_idx:
+        return None
+    return (start_idx, end_idx)
+
+
+def coalesce_highlight_events(
+    events: Sequence[HighlightEvent],
+) -> List[HighlightSegment]:
+    """Merge contiguous events with identical styling metadata."""
+
+    segments: List[HighlightSegment] = []
+    previous: Optional[HighlightSegment] = None
+
+    for event in events:
+        segment = HighlightSegment(
+            duration=event.duration,
+            original_index=event.original_index,
+            translation_index=event.translation_index,
+            transliteration_index=event.transliteration_index,
+            original_char_range=_event_char_range(event, "original"),
+            translation_char_range=_event_char_range(event, "translation"),
+            transliteration_char_range=_event_char_range(event, "other"),
+            step_kind=event.step.kind if event.step else None,
+        )
+        if previous is not None and previous.style_signature() == segment.style_signature():
+            previous.duration += segment.duration
+        else:
+            segments.append(segment)
+            previous = segment
+
+    return segments
+
+
 __all__ = [
     "AudioHighlightPart",
     "SentenceAudioMetadata",
     "HighlightStep",
     "HighlightEvent",
+    "HighlightSegment",
+    "coalesce_highlight_events",
     "_store_audio_metadata",
     "_get_audio_metadata",
     "_compute_audio_highlight_metadata",
