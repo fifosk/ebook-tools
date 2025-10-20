@@ -14,6 +14,12 @@ class AudioSegment:
     frame_rate: int = 44100
     raw_data: bytes = b""
 
+    @property
+    def duration_seconds(self) -> float:
+        """Return the segment duration expressed in seconds."""
+
+        return self.duration / 1000 if self.duration else 0.0
+
     @classmethod
     def empty(cls) -> "AudioSegment":
         """Return an empty audio segment."""
