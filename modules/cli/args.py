@@ -53,6 +53,26 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         action="store_true",
         help="Open the interactive configuration menu.",
     )
+    parser.add_argument(
+        "--slide-parallelism",
+        choices=["off", "auto", "thread", "process"],
+        help="Select the backend used for per-frame slide rendering.",
+    )
+    parser.add_argument(
+        "--slide-parallel-workers",
+        type=int,
+        help="Explicit number of workers to use when slide parallelism is enabled.",
+    )
+    parser.add_argument(
+        "--prefer-pillow-simd",
+        action="store_true",
+        help="Prefer SIMD-accelerated Pillow builds when rendering slides.",
+    )
+    parser.add_argument(
+        "--benchmark-slide-rendering",
+        action="store_true",
+        help="Emit timing information for slide rendering operations.",
+    )
     return _add_shared_arguments(parser)
 
 

@@ -14,6 +14,7 @@ from ..epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
     DEFAULT_MAX_WORDS,
 )
+from ..video.slides import SlideRenderOptions
 
 
 def _coerce_bool(value: Any, default: bool) -> bool:
@@ -79,6 +80,10 @@ class PipelineConfig:
     sync_ratio: float = 0.9
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    slide_parallelism: str = "off"
+    slide_parallel_workers: Optional[int] = None
+    prefer_pillow_simd: bool = False
+    slide_render_benchmark: bool = False
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -127,6 +132,16 @@ class PipelineConfig:
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
             AudioSegment.converter = ffmpeg_path
+
+    def get_slide_render_options(self) -> SlideRenderOptions:
+        """Return rendering options used for sentence slide generation."""
+
+        return SlideRenderOptions(
+            parallelism=self.slide_parallelism,
+            workers=self.slide_parallel_workers,
+            prefer_pillow_simd=self.prefer_pillow_simd,
+            benchmark_rendering=self.slide_render_benchmark,
+        )
 
 
 def _select_value(
@@ -203,6 +218,25 @@ def build_pipeline_config(
     if highlight_granularity not in {"word", "char"}:
         highlight_granularity = "word"
 
+    raw_parallelism = _select_value("slide_parallelism", config, overrides, "off")
+    if isinstance(raw_parallelism, str):
+        slide_parallelism = raw_parallelism.strip().lower()
+    else:
+        slide_parallelism = "off"
+
+    raw_parallel_workers = _select_value("slide_parallel_workers", config, overrides, None)
+    if raw_parallel_workers is None:
+        slide_parallel_workers: Optional[int] = None
+    else:
+        slide_parallel_workers = max(1, _coerce_int(raw_parallel_workers, 1))
+
+    prefer_pillow_simd = _coerce_bool(
+        _select_value("prefer_pillow_simd", config, overrides, False), False
+    )
+    slide_render_benchmark = _coerce_bool(
+        _select_value("slide_render_benchmark", config, overrides, False), False
+    )
+
     ollama_model = str(
         _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
         or cfg.DEFAULT_MODEL
@@ -260,6 +294,10 @@ def build_pipeline_config(
         sync_ratio=sync_ratio,
         word_highlighting=word_highlighting,
         highlight_granularity=highlight_granularity,
+        slide_parallelism=slide_parallelism,
+        slide_parallel_workers=slide_parallel_workers,
+        prefer_pillow_simd=prefer_pillow_simd,
+        slide_render_benchmark=slide_render_benchmark,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         ffmpeg_path=ffmpeg_path,
