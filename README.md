@@ -163,10 +163,87 @@ mode (`npm run build -- --mode production`).
    ```ts
    const events = new EventSource(`${API_BASE_URL}/pipelines/${jobId}/events`);
    events.onmessage = (message) => {
-     const payload = JSON.parse(message.data);
-     console.log(payload.event_type, payload.snapshot);
-   };
-   ```
+   const payload = JSON.parse(message.data);
+   console.log(payload.event_type, payload.snapshot);
+ };
+  ```
+
+## Performance tuning and parallel rendering
+
+Slide generation and translation can be CPU intensive. The project exposes a
+few knobs through the interactive menu, CLI arguments, and configuration files
+so you can tune throughput for your hardware.
+
+### Interactive menu quick edits
+
+When you launch the interactive configuration workflow (`python -m
+modules.cli.main interactive`), option **12** controls the global worker thread
+count used by the pipeline. Enter a value between 1 and 10 to balance overall
+CPU usage against throughput.
+
+### CLI flags
+
+For non-interactive runs you can adjust the same settings with command line
+options:
+
+- `--thread-count` – overrides the number of worker threads used during
+  ingestion and media generation.
+- `--slide-parallelism {off,auto,thread,process}` – selects the backend used
+  for per-frame slide rendering. Start with `auto` to let the renderer choose
+  between thread and process pools based on the available worker count.
+- `--slide-parallel-workers N` – caps the pool size used when slide
+  parallelism is enabled. If omitted, the renderer falls back to the machine’s
+  CPU count.
+- `--prefer-pillow-simd` – hints that you have installed a SIMD-enabled Pillow
+  build (e.g. Pillow-SIMD) and should use it for faster glyph rendering.
+- `--benchmark-slide-rendering` – emits detailed timing metrics for slide
+  generation when a parallel backend is not active.
+
+Combine these flags with the `run` command:
+
+```bash
+python -m modules.cli.main run \
+  --thread-count 8 \
+  --slide-parallelism auto \
+  --slide-parallel-workers 8 \
+  --prefer-pillow-simd \
+  path/to/book.epub
+```
+
+### Configuration files and environment overrides
+
+All of the options above map to configuration keys if you prefer persistent
+settings. Add them to `conf/config.local.json` (or another override file) and
+the loader will pick them up on the next run.
+
+```json
+{
+  "thread_count": 8,
+  "slide_parallelism": "auto",
+  "slide_parallel_workers": 8,
+  "prefer_pillow_simd": true,
+  "slide_render_benchmark": false
+}
+```
+
+Environment variables offer a lightweight override layer:
+
+- `EBOOK_THREAD_COUNT` adjusts the global thread pool size.
+- `EBOOK_PIPELINE_MODE`, `EBOOK_QUEUE_SIZE`, and related keys continue to work
+  alongside the new slide-specific settings.
+
+### Choosing a backend
+
+Slide rendering falls back to sequential execution when only one frame needs to
+be produced or when parallelism is set to `off`. In `auto` mode the renderer
+promotes to the process pool if more than one worker is available, otherwise it
+sticks with threads. You can force a specific strategy with `thread` or
+`process` if you know the workload benefits from shared memory or completely
+isolated workers.
+
+Benchmarking data is only gathered when parallelism is disabled, so disable it
+temporarily (`--slide-parallelism off --benchmark-slide-rendering`) to capture
+detailed timing metrics before re-enabling your preferred backend.
 
 ## Configuration overview
 
