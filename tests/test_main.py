@@ -53,3 +53,13 @@ def test_progress_logger_includes_system_metrics(monkeypatch):
     assert any("Memory 512.0 MiB (42.0%)" in message for message in messages)
     assert any("IO 4.0 KiB/s read, 2.0 KiB/s write" in message for message in messages)
     assert sampler.closed
+
+
+def test_sampler_provides_initial_snapshot():
+    sampler = main._SystemMetricsSampler(interval=60.0)
+    try:
+        snapshot = sampler.snapshot()
+        assert snapshot is not None
+        assert snapshot.memory_rss >= 0
+    finally:
+        sampler.close()

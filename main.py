@@ -60,11 +60,16 @@ class _SystemMetricsSampler:
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
         self._metrics: Optional[SystemMetricsSnapshot] = None
+        self._last_read: Optional[int] = None
+        self._last_write: Optional[int] = None
+        self._last_timestamp: float = time.time()
         self._thread = threading.Thread(
             target=self._run,
             name="SystemMetricsSampler",
             daemon=True,
         )
+        # Capture an initial snapshot so early progress updates include metrics.
+        self._capture_snapshot()
         self._thread.start()
 
     def close(self) -> None:
@@ -72,38 +77,42 @@ class _SystemMetricsSampler:
         self._thread.join(timeout=self._interval)
 
     def snapshot(self) -> Optional[SystemMetricsSnapshot]:
-        with self._lock:
-            return self._metrics
+        snapshot = self._metrics
+        if snapshot is not None:
+            return snapshot
+        return self._capture_snapshot()
 
     def _run(self) -> None:
-        last_read: Optional[int] = None
-        last_write: Optional[int] = None
-        last_timestamp = time.time()
         while not self._stop_event.wait(self._interval):
-            timestamp = time.time()
-            try:
-                cpu_percent = self._process.cpu_percent(None)
-                memory_info = self._process.memory_info()
-                memory_percent = self._process.memory_percent()
-                io_counters = self._process.io_counters()
-            except (psutil.Error, OSError, AttributeError):
-                continue
+            self._capture_snapshot()
 
-            read_rate: Optional[float] = None
-            write_rate: Optional[float] = None
+    def _capture_snapshot(self) -> Optional[SystemMetricsSnapshot]:
+        timestamp = time.time()
+        try:
+            cpu_percent = self._process.cpu_percent(None)
+            memory_info = self._process.memory_info()
+            memory_percent = self._process.memory_percent()
+            io_counters = self._process.io_counters()
+        except (psutil.Error, OSError, AttributeError):
+            return None
+
+        read_rate: Optional[float] = None
+        write_rate: Optional[float] = None
+
+        with self._lock:
             if io_counters is not None:
-                elapsed = max(timestamp - last_timestamp, 1e-3)
-                if last_read is not None:
+                elapsed = max(timestamp - self._last_timestamp, 1e-3)
+                if self._last_read is not None:
                     read_rate = max(
-                        0.0, (io_counters.read_bytes - last_read) / elapsed
+                        0.0, (io_counters.read_bytes - self._last_read) / elapsed
                     )
-                if last_write is not None:
+                if self._last_write is not None:
                     write_rate = max(
-                        0.0, (io_counters.write_bytes - last_write) / elapsed
+                        0.0, (io_counters.write_bytes - self._last_write) / elapsed
                     )
-                last_read = io_counters.read_bytes
-                last_write = io_counters.write_bytes
-                last_timestamp = timestamp
+                self._last_read = io_counters.read_bytes
+                self._last_write = io_counters.write_bytes
+            self._last_timestamp = timestamp
 
             metrics = SystemMetricsSnapshot(
                 cpu_percent=cpu_percent,
@@ -113,8 +122,9 @@ class _SystemMetricsSampler:
                 write_rate=write_rate,
                 timestamp=timestamp,
             )
-            with self._lock:
-                self._metrics = metrics
+            self._metrics = metrics
+
+        return metrics
 
 
 class _CLIProgressLogger:
