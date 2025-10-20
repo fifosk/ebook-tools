@@ -36,7 +36,10 @@
         "output_dir": "Directory for generated ebook assets relative to working_dir.",
         "tmp_dir": "Directory for temporary scratch files.",
         "use_ramdisk": "Set to false to disable the RAM-backed tmp directory and use on-disk storage.",
-        "ollama_url": "Endpoint for the Ollama API.",
+        "llm_source": "Preferred LLM endpoint source (local or cloud).",
+        "ollama_url": "Primary Ollama endpoint for the selected source.",
+        "ollama_local_url": "Fallback URL for the local Ollama instance.",
+        "ollama_cloud_url": "Fallback URL for the Ollama Cloud endpoint.",
         "ollama_model": "Model identifier used for translation requests.",
         "ffmpeg_path": "Path to the ffmpeg executable.",
         "api_keys": "Holds API keys for external services (store overrides in config.local.json)."
@@ -83,7 +86,10 @@
     "output_dir": "output/ebook",
     "tmp_dir": "tmp",
     "use_ramdisk": true,
+    "llm_source": "local",
     "ollama_url": "http://localhost:11434/api/chat",
+    "ollama_local_url": "http://localhost:11434/api/chat",
+    "ollama_cloud_url": "https://api.ollama.com/v1/chat/completions",
     "ollama_model": "gpt-oss:120b-cloud",
     "ffmpeg_path": "ffmpeg",
     "api_keys": {

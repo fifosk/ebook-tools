@@ -312,11 +312,19 @@ already exist.
 ### External tool settings
 - **`ffmpeg_path`**: Path to the FFmpeg binary used by `pydub` and the video
   stitching helpers. Defaults to whatever `ffmpeg` is on your `PATH`.
-- **`ollama_url`**: Base URL for the Ollama chat endpoint. Defaults to
-  `http://localhost:11434/api/chat`.
+- **`llm_source`**: Selects which Ollama adapter to use (`local` or `cloud`).
+- **`ollama_url`**: Primary base URL for the active LLM source.
+- **`ollama_local_url`**: Explicit URL for the local Ollama instance used when
+  the source is `local` or as a fallback from cloud requests.
+- **`ollama_cloud_url`**: Cloud endpoint leveraged when the source is `cloud`
+  or when falling back from a failed local request.
 
-Both values accept overrides through CLI flags (`--ffmpeg-path`,
-`--ollama-url`) or the environment variables `FFMPEG_PATH` and `OLLAMA_URL`.
+These values accept overrides through CLI flags (`--ffmpeg-path`,
+`--ollama-url`, `--llm-source`) or the environment variables `FFMPEG_PATH`,
+`OLLAMA_URL`, and `LLM_SOURCE`. You can also provide `OLLAMA_LOCAL_URL` and
+`OLLAMA_CLOUD_URL` to override the per-source endpoints. When both sources are
+configured, the runtime automatically retries the alternate adapter if the
+preferred endpoint is unavailable or rate limited.
 
 ### Using the settings
 - Interactive mode (`ebook-tools interactive` or `python main.py -i`) exposes each knob in the
@@ -336,7 +344,7 @@ positional arguments:
 ebook-tools run --config conf/config.local.json
 
 # Launch the interactive configuration menu with optional overrides
-ebook-tools interactive --config conf/config.local.json --ebooks-dir ~/Books
+ebook-tools interactive --config conf/config.local.json --ebooks-dir ~/Books --llm-source cloud
 
 # Legacy style invocation is still supported for scripts and automation
 python modules/ebook_tools.py <input.epub> "English" "Arabic" 10

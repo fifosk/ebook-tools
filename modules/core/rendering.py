@@ -454,6 +454,10 @@ def process_epub(
             api_url=pipeline_config.ollama_url,
             debug=pipeline_config.debug,
             api_key=pipeline_config.ollama_api_key,
+            llm_source=pipeline_config.llm_source,
+            local_api_url=pipeline_config.local_ollama_url,
+            cloud_api_url=pipeline_config.cloud_ollama_url,
+            cloud_api_key=pipeline_config.ollama_api_key,
         )
     translation_thread = None
     media_threads: List[threading.Thread] = []

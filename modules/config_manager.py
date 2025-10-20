@@ -44,6 +44,12 @@ DERIVED_CONFIG_KEYS = {"refined_list"}
 SENSITIVE_CONFIG_KEYS = {"ollama_api_key", "database_url", "job_store_url"}
 
 DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
+DEFAULT_OLLAMA_CLOUD_URL = os.environ.get(
+    "OLLAMA_CLOUD_URL", "https://api.ollama.com/v1/chat/completions"
+)
+VALID_LLM_SOURCES = {"local", "cloud"}
+_env_llm_source = os.environ.get("LLM_SOURCE", "local").strip().lower()
+DEFAULT_LLM_SOURCE = _env_llm_source if _env_llm_source in VALID_LLM_SOURCES else "local"
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
 DEFAULT_MODEL = "gemma2:27b"
 DEFAULT_THREADS = 5
@@ -109,6 +115,9 @@ class EbookToolsSettings(BaseModel):
     output_dir: str = str(DEFAULT_OUTPUT_RELATIVE)
     tmp_dir: str = str(DEFAULT_TMP_RELATIVE)
     ollama_url: str = DEFAULT_OLLAMA_URL
+    llm_source: str = DEFAULT_LLM_SOURCE
+    ollama_local_url: str = DEFAULT_OLLAMA_URL
+    ollama_cloud_url: str = DEFAULT_OLLAMA_CLOUD_URL
     ffmpeg_path: Optional[str] = DEFAULT_FFMPEG_PATH
     thread_count: int = DEFAULT_THREADS
     queue_size: int = DEFAULT_QUEUE_SIZE
@@ -142,6 +151,17 @@ class EnvironmentOverrides(BaseSettings):
     )
     ollama_url: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("OLLAMA_URL", "EBOOK_OLLAMA_URL")
+    )
+    llm_source: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("LLM_SOURCE", "EBOOK_LLM_SOURCE")
+    )
+    ollama_local_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("OLLAMA_LOCAL_URL", "EBOOK_OLLAMA_LOCAL_URL"),
+    )
+    ollama_cloud_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("OLLAMA_CLOUD_URL", "EBOOK_OLLAMA_CLOUD_URL"),
     )
     ollama_model: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_OLLAMA_MODEL")
@@ -231,6 +251,27 @@ def _apply_updates(
     return settings.model_copy(update=updates)
 
 
+def _normalize_llm_source(candidate: Any, *, default: str = DEFAULT_LLM_SOURCE) -> str:
+    """Return a normalised LLM source identifier."""
+
+    if isinstance(candidate, str):
+        normalized = candidate.strip().lower()
+        if normalized in VALID_LLM_SOURCES:
+            return normalized
+    if default in VALID_LLM_SOURCES:
+        return default
+    return "local"
+
+
+def default_ollama_url_for_source(source: str) -> str:
+    """Return the default Ollama endpoint URL for ``source``."""
+
+    normalized = _normalize_llm_source(source)
+    if normalized == "cloud":
+        return DEFAULT_OLLAMA_CLOUD_URL
+    return DEFAULT_OLLAMA_URL
+
+
 @dataclass(frozen=True)
 class RuntimeContext:
     """Immutable container describing resolved runtime environment settings."""
@@ -241,6 +282,9 @@ class RuntimeContext:
     books_dir: Path
     ffmpeg_path: str
     ollama_url: str
+    llm_source: str
+    local_ollama_url: str
+    cloud_ollama_url: str
     thread_count: int
     queue_size: int
     pipeline_enabled: bool
@@ -256,6 +300,9 @@ class RuntimeContext:
             "books_dir": str(self.books_dir),
             "ffmpeg_path": self.ffmpeg_path,
             "ollama_url": self.ollama_url,
+            "llm_source": self.llm_source,
+            "local_ollama_url": self.local_ollama_url,
+            "cloud_ollama_url": self.cloud_ollama_url,
             "thread_count": self.thread_count,
             "queue_size": self.queue_size,
             "pipeline_enabled": self.pipeline_enabled,
@@ -470,6 +517,32 @@ def build_runtime_context(
     ffmpeg_override = overrides.get("ffmpeg_path")
     ollama_override = overrides.get("ollama_url")
 
+    raw_llm_source = overrides.get("llm_source") if overrides else None
+    if raw_llm_source is None:
+        raw_llm_source = config.get("llm_source")
+    llm_source = _normalize_llm_source(raw_llm_source)
+
+    def _resolve_url(candidate: Any, fallback: str) -> str:
+        if isinstance(candidate, str):
+            stripped = candidate.strip()
+            if stripped:
+                return stripped
+        return fallback
+
+    local_override = overrides.get("ollama_local_url") if overrides else None
+    cloud_override = overrides.get("ollama_cloud_url") if overrides else None
+    config_local_url = config.get("ollama_local_url")
+    config_cloud_url = config.get("ollama_cloud_url")
+
+    local_ollama_url = _resolve_url(
+        local_override or config_local_url,
+        DEFAULT_OLLAMA_URL,
+    )
+    cloud_ollama_url = _resolve_url(
+        cloud_override or config_cloud_url,
+        DEFAULT_OLLAMA_CLOUD_URL,
+    )
+
     working_path = resolve_directory(working_override or config.get("working_dir"), DEFAULT_WORKING_RELATIVE)
 
     def _should_use_default(value: Optional[str], default_relative: Path) -> bool:
@@ -571,8 +644,14 @@ def build_runtime_context(
         str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH)
     )
 
-    ollama_url = (
-        ollama_override or config.get("ollama_url") or DEFAULT_OLLAMA_URL
+    config_primary_url = config.get("ollama_url")
+    if llm_source == "cloud":
+        default_primary_url = cloud_ollama_url
+    else:
+        default_primary_url = local_ollama_url
+    ollama_url = _resolve_url(
+        ollama_override or config_primary_url,
+        default_primary_url,
     )
 
     thread_override = overrides.get("thread_count") if overrides else None
@@ -593,6 +672,9 @@ def build_runtime_context(
         books_dir=Path(books_path),
         ffmpeg_path=ffmpeg_path,
         ollama_url=ollama_url,
+        llm_source=llm_source,
+        local_ollama_url=local_ollama_url,
+        cloud_ollama_url=cloud_ollama_url,
         thread_count=thread_count,
         queue_size=queue_size,
         pipeline_enabled=pipeline_enabled,
@@ -764,8 +846,55 @@ def is_pipeline_mode() -> bool:
     return context.pipeline_enabled if context else False
 
 
+def get_llm_source() -> str:
+    """Return the active LLM source identifier."""
+
+    context = _ACTIVE_CONTEXT.get()
+    if context:
+        return context.llm_source
+    settings = get_settings()
+    return _normalize_llm_source(getattr(settings, "llm_source", DEFAULT_LLM_SOURCE))
+
+
+def get_local_ollama_url() -> str:
+    """Return the configured local Ollama endpoint URL."""
+
+    context = _ACTIVE_CONTEXT.get()
+    if context:
+        return context.local_ollama_url
+    settings = get_settings()
+    candidate = getattr(settings, "ollama_local_url", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return DEFAULT_OLLAMA_URL
+
+
+def get_cloud_ollama_url() -> str:
+    """Return the configured Ollama Cloud endpoint URL."""
+
+    context = _ACTIVE_CONTEXT.get()
+    if context:
+        return context.cloud_ollama_url
+    settings = get_settings()
+    candidate = getattr(settings, "ollama_cloud_url", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return DEFAULT_OLLAMA_CLOUD_URL
+
+
 def get_ollama_url() -> str:
     """Return the Ollama endpoint URL for the active runtime context."""
 
     context = _ACTIVE_CONTEXT.get()
-    return context.ollama_url if context else DEFAULT_OLLAMA_URL
+    if context:
+        return context.ollama_url
+
+    settings = get_settings()
+    candidate = getattr(settings, "ollama_url", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+
+    source = get_llm_source()
+    if source == "cloud":
+        return get_cloud_ollama_url()
+    return get_local_ollama_url()

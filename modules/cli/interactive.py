@@ -218,7 +218,19 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     console_info("34. Ebooks directory: %s", config.get("ebooks_dir"))
     console_info("35. Temporary directory: %s", config.get("tmp_dir"))
     console_info("36. FFmpeg path: %s", config.get("ffmpeg_path"))
-    console_info("37. Ollama API URL: %s", config.get("ollama_url"))
+    console_info(
+        "37. LLM source: %s",
+        config.get("llm_source", cfg.DEFAULT_LLM_SOURCE),
+    )
+    console_info("38. Ollama API URL: %s", config.get("ollama_url"))
+    console_info(
+        "39. Local Ollama URL: %s",
+        config.get("ollama_local_url", cfg.DEFAULT_OLLAMA_URL),
+    )
+    console_info(
+        "40. Ollama Cloud URL: %s",
+        config.get("ollama_cloud_url", cfg.DEFAULT_OLLAMA_CLOUD_URL),
+    )
     console_info(
         "\nPress Enter to confirm settings, choose a number to edit, or type 'q' to quit the menu."
     )
@@ -623,12 +635,39 @@ def edit_parameter(
             config["ffmpeg_path"] = inp_val
         context.refresh_runtime_context(config, overrides)
     elif selection == 37:
+        current = config.get("llm_source", cfg.DEFAULT_LLM_SOURCE)
+        inp_val = _prompt_user(
+            f"Select LLM source (local/cloud) (current: {current}): "
+        ).strip().lower()
+        if inp_val:
+            if inp_val in cfg.VALID_LLM_SOURCES:
+                config["llm_source"] = inp_val
+                context.refresh_runtime_context(config, overrides)
+            else:
+                console_warning("Invalid LLM source. Please enter 'local' or 'cloud'.")
+    elif selection == 38:
         current = config.get("ollama_url")
         inp_val = _prompt_user(
             f"Enter Ollama API URL (default: {current}): "
         )
         if inp_val:
             config["ollama_url"] = inp_val
+        context.refresh_runtime_context(config, overrides)
+    elif selection == 39:
+        current = config.get("ollama_local_url", cfg.DEFAULT_OLLAMA_URL)
+        inp_val = _prompt_user(
+            f"Enter local Ollama URL (default: {current}): "
+        )
+        if inp_val:
+            config["ollama_local_url"] = inp_val
+        context.refresh_runtime_context(config, overrides)
+    elif selection == 40:
+        current = config.get("ollama_cloud_url", cfg.DEFAULT_OLLAMA_CLOUD_URL)
+        inp_val = _prompt_user(
+            f"Enter Ollama Cloud URL (default: {current}): "
+        )
+        if inp_val:
+            config["ollama_cloud_url"] = inp_val
         context.refresh_runtime_context(config, overrides)
     else:
         console_warning("Invalid parameter number. Please try again.")

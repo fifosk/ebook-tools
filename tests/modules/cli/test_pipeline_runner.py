@@ -1,4 +1,4 @@
-from argparse import Namespace
+from types import SimpleNamespace as Namespace
 
 import pytest
 
@@ -23,6 +23,7 @@ def test_build_environment_overrides_reads_namespace(monkeypatch):
         tmp_dir=None,
         ffmpeg_path="/usr/bin/ffmpeg",
         ollama_url=None,
+        llm_source=None,
         thread_count=4,
     )
     overrides = pipeline_runner.build_environment_overrides(args)
