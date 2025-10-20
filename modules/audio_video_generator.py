@@ -19,6 +19,8 @@ from modules.audio.highlight import (
     _compute_audio_highlight_metadata,
     _get_audio_metadata,
     _store_audio_metadata,
+    contains_cjk_pictographs,
+    split_pictographic_words,
 )
 from modules.audio.tts import synthesize_segment
 from modules import config_manager as cfg
@@ -74,14 +76,21 @@ def _assemble_highlight_timeline(
 ) -> Tuple[List[HighlightEvent], str]:
     """Generate slide highlight events and determine effective granularity."""
 
-    header_line, original_seg, translation_seg, transliteration_seg = _parse_sentence_block(
+    _header_line, original_seg, translation_seg, transliteration_seg = _parse_sentence_block(
         block
     )
-    original_words = original_seg.split()
-    if "Chinese" in header_line or "Japanese" in header_line:
-        translation_units: Sequence[str] = list(translation_seg)
+    original_words = (
+        split_pictographic_words(original_seg)
+        if contains_cjk_pictographs(original_seg)
+        else original_seg.split()
+    )
+    translation_units: Sequence[str]
+    if contains_cjk_pictographs(translation_seg):
+        translation_units = split_pictographic_words(translation_seg)
     else:
-        translation_units = translation_seg.split() or [translation_seg]
+        translation_units = translation_seg.split()
+    if not translation_units:
+        translation_units = [translation_seg]
     transliteration_words = transliteration_seg.split()
 
     num_original_words = len(original_words)

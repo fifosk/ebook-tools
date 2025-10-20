@@ -358,6 +358,38 @@ def test_segment_highlight_steps_without_forced_alignment(monkeypatch):
     assert steps == []
 
 
+def test_split_pictographic_words_returns_individual_characters():
+    text = "你好 世界"
+    units = highlight.split_pictographic_words(text)
+    assert units == ["你", "好", "世", "界"]
+
+
+def test_cjk_timings_treated_as_individual_words_with_whitespace():
+    text = "你们 世界"
+    cursor = 0.0
+    per_char = 75.0
+    char_timings = []
+    for ch in text:
+        if ch.isspace():
+            char_timings.append({"start_ms": cursor, "duration_ms": 0.0})
+            continue
+        char_timings.append({"start_ms": cursor, "duration_ms": per_char})
+        cursor += per_char
+
+    steps = list(
+        highlight._collapse_char_timings_to_graphemes(
+            text,
+            char_timings,
+            tempo_scale=1.0,
+            base_offset_ms=0.0,
+            kind="translation",
+        )
+    )
+
+    assert [step.word_index for step in steps] == list(range(4))
+    assert [step.char_index_end - step.char_index_start for step in steps] == [1, 1, 1, 1]
+
+
 def test_forced_alignment_generates_timings(monkeypatch):
     config_module = sys.modules["modules.config_manager"]
     monkeypatch.setattr(

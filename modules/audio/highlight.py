@@ -15,6 +15,19 @@ from modules.audio import aligner
 from modules.audio.tts import SILENCE_DURATION_MS
 
 
+_CJK_PICTOGRAPH_PATTERN = regex.compile(
+    r"[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]"
+)
+
+
+def contains_cjk_pictographs(text: str) -> bool:
+    """Return ``True`` when *text* contains CJK pictographic characters."""
+
+    if not text:
+        return False
+    return bool(_CJK_PICTOGRAPH_PATTERN.search(text))
+
+
 @dataclass(frozen=True)
 class AudioHighlightPart:
     """Represents a contiguous audio fragment used for word highlighting."""
@@ -428,8 +441,11 @@ def _collapse_char_timings_to_graphemes(
         return []
 
     has_whitespace = any(ch.isspace() for ch in text)
+    contains_cjk = contains_cjk_pictographs(text)
+    use_whitespace_words = has_whitespace and not contains_cjk
+
     char_to_word_index: Dict[int, int] = {}
-    if has_whitespace:
+    if use_whitespace_words:
         word_index = 0
         idx = 0
         length = len(text)
@@ -444,8 +460,16 @@ def _collapse_char_timings_to_graphemes(
                 idx += 1
             word_index += 1
     else:
-        # Without explicit whitespace boundaries treat every grapheme as its own word.
-        pass
+        word_index = 0
+        for match in regex.finditer(r"\X", text):
+            grapheme = match.group()
+            if _is_separator(grapheme):
+                continue
+            start_idx = match.start()
+            end_idx = match.end()
+            for idx in range(start_idx, end_idx):
+                char_to_word_index[idx] = word_index
+            word_index += 1
 
     grapheme_iter = list(regex.finditer(r"\X", text))
     word_counter = 0
@@ -465,7 +489,7 @@ def _collapse_char_timings_to_graphemes(
         start = min(val[0] for val in relevant_timings) + base_offset_ms
         end = max(val[0] + val[1] for val in relevant_timings) + base_offset_ms
         duration = max(end - start, 0.0)
-        if has_whitespace:
+        if use_whitespace_words:
             word_index = char_to_word_index.get(start_idx)
             if word_index is None:
                 word_index = word_counter
@@ -489,6 +513,18 @@ def _is_separator(grapheme: str) -> bool:
         return True
     category = unicodedata.category(grapheme[0])
     return category.startswith("Z")
+
+
+def split_pictographic_words(text: str) -> List[str]:
+    """Split *text* into pictographic "words" using grapheme clusters."""
+
+    if not text:
+        return []
+    return [
+        match.group()
+        for match in regex.finditer(r"\X", text)
+        if not _is_separator(match.group())
+    ]
 
 
 def _build_legacy_highlight_events(
@@ -630,6 +666,8 @@ __all__ = [
     "HighlightEvent",
     "HighlightSegment",
     "coalesce_highlight_events",
+    "contains_cjk_pictographs",
+    "split_pictographic_words",
     "_store_audio_metadata",
     "_get_audio_metadata",
     "_compute_audio_highlight_metadata",
