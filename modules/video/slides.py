@@ -33,6 +33,7 @@ from modules.audio.highlight import (
     _build_legacy_highlight_events,
     _get_audio_metadata,
     coalesce_highlight_events,
+    translation_highlight_units,
 )
 from modules.audio.tts import active_tmp_dir, silence_audio_path
 
@@ -926,11 +927,7 @@ def build_sentence_video(
     original_words = original_seg.split()
     num_original_words = len(original_words)
 
-    header_line = raw_lines[0] if raw_lines else ""
-    if "Chinese" in header_line or "Japanese" in header_line:
-        translation_units: Sequence[str] = list(translation_seg)
-    else:
-        translation_units = translation_seg.split() or [translation_seg]
+    translation_units: Sequence[str] = translation_highlight_units(translation_seg)
     num_translation_words = len(translation_units)
 
     transliteration_words = transliteration_seg.split()

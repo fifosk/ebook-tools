@@ -80,6 +80,27 @@ def _is_cjk_text(text: str) -> bool:
     return has_cjk
 
 
+def translation_highlight_units(text: str) -> List[str]:
+    """Return logical highlight units for a translated segment."""
+
+    if not text:
+        return []
+    if _is_cjk_text(text):
+        units: List[str] = []
+        for match in regex.finditer(r"\X", text):
+            grapheme = match.group()
+            if _is_separator(grapheme):
+                continue
+            units.append(grapheme)
+        if units:
+            return units
+        return [text]
+    words = text.split()
+    if words:
+        return words
+    return [text]
+
+
 def _store_audio_metadata(audio: AudioSegment, metadata: SentenceAudioMetadata) -> None:
     """Attach sentence-level metadata to an ``AudioSegment`` instance."""
 
@@ -205,7 +226,7 @@ def _build_events_from_metadata(
             continue
         if part.steps:
             for step in part.steps:
-                duration = (step.duration_ms / 1000.0) * sync_ratio
+                duration = step.duration_ms / 1000.0
                 if duration <= 0:
                     continue
                 if part.kind == "original" and num_original_words > 0:
@@ -708,4 +729,5 @@ __all__ = [
     "_compute_audio_highlight_metadata",
     "_build_events_from_metadata",
     "_build_legacy_highlight_events",
+    "translation_highlight_units",
 ]

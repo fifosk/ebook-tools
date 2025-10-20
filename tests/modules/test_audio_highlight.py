@@ -250,7 +250,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         metadata,
         sync_ratio=1.0,
         num_original_words=len(input_text.split()),
-        num_translation_words=len(translation_text.split()),
+        num_translation_words=len(highlight.translation_highlight_units(translation_text)),
         num_translit_words=0,
     )
 
@@ -322,7 +322,7 @@ def test_highlight_round_trip_mixed_language_timings():
         metadata,
         sync_ratio=1.0,
         num_original_words=0,
-        num_translation_words=len(mixed_text.split()),
+        num_translation_words=len(highlight.translation_highlight_units(mixed_text)),
         num_translit_words=0,
     )
 
@@ -386,6 +386,40 @@ def test_segment_highlight_steps_cjk_even_without_alignment(monkeypatch):
     assert last_step.start_ms + last_step.duration_ms == pytest.approx(
         base_offset_ms + len(segment)
     )
+
+
+def test_cjk_highlight_events_ignore_sync_ratio(monkeypatch):
+    config_module = sys.modules["modules.config_manager"]
+    monkeypatch.setattr(
+        config_module,
+        "_settings",
+        config_module._StubSettings(forced_alignment_enabled=False),
+        raising=False,
+    )
+    text = "汉字测试"
+    segment = AudioSegment.silent(duration=600)
+    metadata = highlight._compute_audio_highlight_metadata(
+        segment,
+        ["translation"],
+        {"translation": segment},
+        tempo=1.0,
+        texts={"translation": text},
+    )
+
+    events = highlight._build_events_from_metadata(
+        metadata,
+        sync_ratio=0.5,
+        num_original_words=0,
+        num_translation_words=len(highlight.translation_highlight_units(text)),
+        num_translit_words=0,
+    )
+
+    translation_events = [
+        event for event in events if event.step and event.step.kind == "translation"
+    ]
+    assert translation_events
+    total_duration = sum(event.duration for event in translation_events)
+    assert total_duration == pytest.approx(len(segment) / 1000.0)
 
 
 def test_forced_alignment_generates_timings(monkeypatch):
