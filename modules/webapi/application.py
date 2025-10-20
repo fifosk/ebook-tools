@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import dataclass
 import logging
 import os
 import re
 from pathlib import Path
+import socket
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -62,11 +64,30 @@ def _normalise_mount_path(value: str | None) -> str:
     return value
 
 
+def _default_devserver_origins() -> list[str]:
+    """Return the default dev server origins, including the local IP if available."""
+
+    origins = set(DEFAULT_DEVSERVER_ORIGINS)
+    try:
+        with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as sock:
+            # The socket never sends data; the connection is only used to discover
+            # the local interface address that would be used for outbound traffic.
+            sock.connect(("8.8.8.8", 80))
+            local_ip = sock.getsockname()[0]
+    except OSError:
+        local_ip = None
+
+    if local_ip and local_ip not in {"127.0.0.1", "0.0.0.0"}:
+        origins.add(f"http://{local_ip}:5173")
+
+    return sorted(origins)
+
+
 def _parse_cors_origins(raw_value: str | None) -> tuple[list[str], bool]:
     """Return the allowed origins and whether credentials are supported."""
 
     if raw_value is None:
-        return list(DEFAULT_DEVSERVER_ORIGINS), True
+        return _default_devserver_origins(), True
 
     tokens = [token.strip() for token in re.split(r"[\s,]+", raw_value) if token.strip()]
     if not tokens:
