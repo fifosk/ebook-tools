@@ -17,6 +17,7 @@ from ..epub_parser import remove_quotes
 from ..logging_manager import console_info, console_warning, logger
 from ..book_cover import fetch_book_cover
 from ..progress_tracker import ProgressTracker
+from ..video.slides import SlideRenderOptions
 from .config import PipelineConfig
 from .translation import (
     build_target_sequence,
@@ -281,6 +282,7 @@ def _export_pipeline_batch(
     sync_ratio,
     word_highlighting,
     highlight_granularity,
+    slide_render_options: Optional[SlideRenderOptions] = None,
 ):
     """Write batch outputs for a contiguous block of sentences."""
 
@@ -334,7 +336,7 @@ def _export_pipeline_batch(
                 sync_ratio,
                 word_highlighting,
                 highlight_granularity,
-                slide_render_options=pipeline_config.get_slide_render_options(),
+                slide_render_options=slide_render_options,
             )
         return video_path
     except Exception as exc:  # pragma: no cover - defensive logging
@@ -453,6 +455,7 @@ def process_epub(
         )
     translation_thread = None
     media_threads: List[threading.Thread] = []
+    slide_render_options = pipeline_config.get_slide_render_options()
     translation_queue = None
     media_queue = None
     finalize_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
@@ -573,6 +576,7 @@ def process_epub(
                             sync_ratio=pipeline_config.sync_ratio,
                             word_highlighting=pipeline_config.word_highlighting,
                             highlight_granularity=pipeline_config.highlight_granularity,
+                            slide_render_options=slide_render_options,
                         )
                         if video_path:
                             batch_video_files.append(video_path)
@@ -713,6 +717,7 @@ def process_epub(
                                 sync_ratio=pipeline_config.sync_ratio,
                                 word_highlighting=pipeline_config.word_highlighting,
                                 highlight_granularity=pipeline_config.highlight_granularity,
+                                slide_render_options=slide_render_options,
                             )
                             export_futures.append(future)
                             written_blocks = []
@@ -782,6 +787,7 @@ def process_epub(
             sync_ratio=pipeline_config.sync_ratio,
             word_highlighting=pipeline_config.word_highlighting,
             highlight_granularity=pipeline_config.highlight_granularity,
+            slide_render_options=slide_render_options,
         )
         if video_path:
             batch_video_files.append(video_path)
