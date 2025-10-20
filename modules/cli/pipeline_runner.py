@@ -14,6 +14,7 @@ from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import metadata_manager
 from ..core import ingestion
+from ..core.config import build_pipeline_config
 from ..epub_parser import DEFAULT_MAX_WORDS
 from ..progress_tracker import ProgressTracker
 from ..services.pipeline_service import (
@@ -58,7 +59,7 @@ def build_pipeline_configuration(
     active_context = context.get_active_context(None)
     if active_context is None:
         active_context = context.refresh_runtime_context(config, overrides)
-    pipeline_config = cfg.build_pipeline_config(active_context, config)
+    pipeline_config = build_pipeline_config(active_context, config)
     return pipeline_config, active_context
 
 
@@ -385,7 +386,7 @@ def run_pipeline_from_args(
             active_context = build_runtime_context(config, overrides)
             cfg.set_runtime_context(active_context)
 
-        pipeline_config = cfg.build_pipeline_config(active_context, config)
+        pipeline_config = build_pipeline_config(active_context, config)
         pipeline_config.apply_runtime_settings()
         configure_logging_level(pipeline_config.debug)
 
