@@ -358,6 +358,36 @@ def test_segment_highlight_steps_without_forced_alignment(monkeypatch):
     assert steps == []
 
 
+def test_segment_highlight_steps_cjk_even_without_alignment(monkeypatch):
+    config_module = sys.modules["modules.config_manager"]
+    monkeypatch.setattr(
+        config_module,
+        "_settings",
+        config_module._StubSettings(forced_alignment_enabled=False),
+        raising=False,
+    )
+    text = "你好世界"
+    segment = AudioSegment.silent(duration=400)
+    base_offset_ms = 50.0
+    steps = highlight._segment_highlight_steps(
+        text,
+        segment,
+        tempo_scale=1.0,
+        base_offset_ms=base_offset_ms,
+        kind="translation",
+    )
+
+    assert len(steps) == len(text)
+    assert steps[0].start_ms == pytest.approx(base_offset_ms)
+    assert [step.word_index for step in steps] == list(range(len(text)))
+    total_duration = sum(step.duration_ms for step in steps)
+    assert total_duration == pytest.approx(len(segment))
+    last_step = steps[-1]
+    assert last_step.start_ms + last_step.duration_ms == pytest.approx(
+        base_offset_ms + len(segment)
+    )
+
+
 def test_forced_alignment_generates_timings(monkeypatch):
     config_module = sys.modules["modules.config_manager"]
     monkeypatch.setattr(

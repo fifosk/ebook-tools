@@ -59,6 +59,26 @@ class HighlightEvent:
 
 _AUDIO_METADATA_REGISTRY: Dict[int, SentenceAudioMetadata] = {}
 
+_CJK_SCRIPT_PATTERN = regex.compile(
+    r"\p{Script=Han}|\p{Script=Hiragana}|\p{Script=Katakana}|\p{Script=Hangul}"
+)
+
+
+def _contains_cjk(text: str) -> bool:
+    return bool(_CJK_SCRIPT_PATTERN.search(text))
+
+
+def _is_cjk_text(text: str) -> bool:
+    has_cjk = False
+    for char in text:
+        if _is_separator(char):
+            continue
+        if _contains_cjk(char):
+            has_cjk = True
+        elif char.isalpha():
+            return False
+    return has_cjk
+
 
 def _store_audio_metadata(audio: AudioSegment, metadata: SentenceAudioMetadata) -> None:
     """Attach sentence-level metadata to an ``AudioSegment`` instance."""
@@ -355,6 +375,7 @@ def _segment_highlight_steps(
 ) -> List[HighlightStep]:
     if not text or segment is None:
         return []
+    treat_as_cjk = _is_cjk_text(text)
     raw = _extract_character_timings(segment)
     needs_alignment = True
     if raw:
@@ -370,10 +391,60 @@ def _segment_highlight_steps(
             except Exception:  # pragma: no cover - forced alignment is best-effort
                 raw = []
     if not raw:
-        return []
+        if not treat_as_cjk:
+            return []
+        return list(
+            _distribute_cjk_steps(text, segment, tempo_scale, base_offset_ms, kind)
+        )
     return list(
-        _collapse_char_timings_to_graphemes(text, raw, tempo_scale, base_offset_ms, kind)
+        _collapse_char_timings_to_graphemes(
+            text, raw, tempo_scale, base_offset_ms, kind, treat_as_cjk=treat_as_cjk
+        )
     )
+
+
+def _distribute_cjk_steps(
+    text: str,
+    segment: AudioSegment,
+    tempo_scale: float,
+    base_offset_ms: float,
+    kind: Literal["original", "translation", "other", "silence"],
+) -> Iterable[HighlightStep]:
+    grapheme_matches = [
+        match
+        for match in regex.finditer(r"\X", text)
+        if not _is_separator(match.group())
+    ]
+    if not grapheme_matches:
+        return []
+
+    total_duration_ms = float(len(segment)) * tempo_scale
+    if total_duration_ms <= 0:
+        return []
+
+    count = len(grapheme_matches)
+    per_unit_ms = total_duration_ms / count if count else total_duration_ms
+
+    steps: List[HighlightStep] = []
+    current_start = base_offset_ms
+    for index, match in enumerate(grapheme_matches):
+        if index == count - 1:
+            consumed = current_start - base_offset_ms
+            duration_ms = max(total_duration_ms - consumed, 0.0)
+        else:
+            duration_ms = per_unit_ms
+        steps.append(
+            HighlightStep(
+                kind=kind,
+                word_index=index,
+                char_index_start=match.start(),
+                char_index_end=match.end(),
+                start_ms=current_start,
+                duration_ms=duration_ms,
+            )
+        )
+        current_start += per_unit_ms
+    return steps
 
 
 def _extract_character_timings(segment: AudioSegment) -> Optional[Sequence[Mapping[str, object]]]:
@@ -403,6 +474,8 @@ def _collapse_char_timings_to_graphemes(
     tempo_scale: float,
     base_offset_ms: float,
     kind: Literal["original", "translation", "other", "silence"],
+    *,
+    treat_as_cjk: bool = False,
 ) -> Iterable[HighlightStep]:
     if not text:
         return []
@@ -429,7 +502,7 @@ def _collapse_char_timings_to_graphemes(
 
     has_whitespace = any(ch.isspace() for ch in text)
     char_to_word_index: Dict[int, int] = {}
-    if has_whitespace:
+    if has_whitespace and not treat_as_cjk:
         word_index = 0
         idx = 0
         length = len(text)
