@@ -5,11 +5,11 @@ from __future__ import annotations
 import subprocess
 from typing import Any, Callable, Dict, Sequence, Tuple
 
-from .. import config_manager as cfg
-from .. import metadata_manager
-from .. import translation_engine
-from ..shared import assets
-from . import context
+from ... import config_manager as cfg
+from ... import metadata_manager
+from ... import translation_engine
+from ...shared import assets
+from .. import context
 from .common import (
     AUDIO_MODE_DESC,
     DEFAULT_MODEL,

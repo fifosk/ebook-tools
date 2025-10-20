@@ -5,9 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
-from .. import config_manager as cfg
-from ..shared import assets
-from . import context
+from ... import config_manager as cfg
+from ...shared import assets
+from .. import context
 from .common import (
     AUDIO_MODE_DESC,
     DEFAULT_MODEL,
