@@ -433,6 +433,7 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "macos_reading_speed": config.macos_reading_speed,
         "sync_ratio": config.sync_ratio,
         "word_highlighting": config.word_highlighting,
+        "highlight_granularity": config.highlight_granularity,
     }
 
 

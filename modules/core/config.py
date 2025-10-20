@@ -78,6 +78,7 @@ class PipelineConfig:
     macos_reading_speed: int = 100
     sync_ratio: float = 0.9
     word_highlighting: bool = True
+    highlight_granularity: str = "word"
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -192,6 +193,15 @@ def build_pipeline_config(
         _select_value("word_highlighting", config, overrides, True),
         True,
     )
+    raw_highlight_granularity = _select_value(
+        "highlight_granularity", config, overrides, "word"
+    )
+    if isinstance(raw_highlight_granularity, str):
+        highlight_granularity = raw_highlight_granularity.strip().lower()
+    else:
+        highlight_granularity = "word"
+    if highlight_granularity not in {"word", "char"}:
+        highlight_granularity = "word"
 
     ollama_model = str(
         _select_value("ollama_model", config, overrides, cfg.DEFAULT_MODEL)
@@ -249,6 +259,7 @@ def build_pipeline_config(
         macos_reading_speed=macos_reading_speed,
         sync_ratio=sync_ratio,
         word_highlighting=word_highlighting,
+        highlight_granularity=highlight_granularity,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         ffmpeg_path=ffmpeg_path,

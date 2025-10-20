@@ -13,7 +13,8 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from typing import Iterable, List, Optional, Sequence
+from dataclasses import dataclass
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from PIL import Image, ImageDraw, ImageFont
 from pydub import AudioSegment
@@ -35,6 +36,98 @@ __all__ = [
     "generate_sentence_slide_image",
     "get_default_font_path",
 ]
+
+
+@dataclass(slots=True)
+class LineLayout:
+    text: str
+    x: float
+    y: float
+    height: float
+    width: float
+    char_boxes: List[Tuple[int, Tuple[float, float, float, float]]]
+
+
+def _prepare_line_layout(
+    *,
+    text: str,
+    lines: Sequence[str],
+    font: ImageFont.FreeTypeFont,
+    draw_ctx: ImageDraw.ImageDraw,
+    slide_width: int,
+    start_y: float,
+    line_spacing: float,
+) -> Tuple[List[LineLayout], Dict[int, Tuple[float, float, float, float]], float]:
+    """Compute positioning metadata for rendering ``lines`` of ``text``."""
+
+    layouts: List[LineLayout] = []
+    char_map: Dict[int, Tuple[float, float, float, float]] = {}
+    source_index = 0
+    y_cursor = start_y
+
+    for line in lines:
+        bbox = draw_ctx.textbbox((0, 0), line, font=font)
+        line_width = bbox[2] - bbox[0]
+        line_height = bbox[3] - bbox[1]
+        x_line = (slide_width - line_width) // 2
+        char_boxes: List[Tuple[int, Tuple[float, float, float, float]]] = []
+
+        for pos, ch in enumerate(line):
+            if source_index >= len(text):
+                break
+            while source_index < len(text) and text[source_index] != ch:
+                source_index += 1
+            if source_index >= len(text):
+                break
+            prefix = line[:pos]
+            next_prefix = line[: pos + 1]
+            prev_width = draw_ctx.textlength(prefix, font=font) if prefix else 0.0
+            curr_width = draw_ctx.textlength(next_prefix, font=font)
+            bbox_char = (
+                x_line + prev_width,
+                y_cursor,
+                x_line + curr_width,
+                y_cursor + line_height,
+            )
+            char_boxes.append((source_index, bbox_char))
+            char_map[source_index] = bbox_char
+            source_index += 1
+
+        layouts.append(
+            LineLayout(
+                text=line,
+                x=x_line,
+                y=y_cursor,
+                height=line_height,
+                width=line_width,
+                char_boxes=char_boxes,
+            )
+        )
+        y_cursor += line_height + line_spacing
+
+    return layouts, char_map, y_cursor
+
+
+def _fill_char_range(
+    draw_ctx: ImageDraw.ImageDraw,
+    char_map: Mapping[int, Tuple[float, float, float, float]],
+    char_range: Optional[Tuple[int, int]],
+    color: Sequence[int],
+) -> None:
+    """Render a filled rectangle for each character within ``char_range``."""
+
+    if not char_range:
+        return
+    start, end = char_range
+    if start is None or end is None:
+        return
+    start_idx = max(int(start), 0)
+    end_idx = max(int(end), start_idx)
+    for idx in range(start_idx, end_idx):
+        bbox = char_map.get(idx)
+        if bbox is None:
+            continue
+        draw_ctx.rectangle(bbox, fill=color)
 
 
 def get_default_font_path() -> str:
@@ -66,6 +159,11 @@ def generate_sentence_slide_image(
     original_highlight_word_index: Optional[int] = None,
     translation_highlight_word_index: Optional[int] = None,
     transliteration_highlight_word_index: Optional[int] = None,
+    *,
+    original_highlight_char_range: Optional[Tuple[int, int]] = None,
+    translation_highlight_char_range: Optional[Tuple[int, int]] = None,
+    transliteration_highlight_char_range: Optional[Tuple[int, int]] = None,
+    highlight_granularity: str = "word",
     slide_size: Sequence[int] = (1280, 720),
     initial_font_size: int = 50,
     default_font_path: str = "Arial.ttf",
@@ -257,34 +355,84 @@ def generate_sentence_slide_image(
     highlight_color = (255, 165, 0)
     scale_factor = 1.05
 
+    def _normalize_char_range(value: Optional[Tuple[int, int]]) -> Optional[Tuple[int, int]]:
+        if not value:
+            return None
+        start, end = value
+        if start is None or end is None:
+            return None
+        start_idx = int(start)
+        end_idx = int(end)
+        if end_idx <= start_idx:
+            return None
+        return (start_idx, end_idx)
+
+    use_char_highlight = highlight_granularity == "char"
+    orig_char_range = _normalize_char_range(original_highlight_char_range) if use_char_highlight else None
+    trans_char_range = (
+        _normalize_char_range(translation_highlight_char_range)
+        if use_char_highlight
+        else None
+    )
+    translit_char_range = (
+        _normalize_char_range(transliteration_highlight_char_range)
+        if use_char_highlight
+        else None
+    )
+
     orig_index_limit = original_highlight_word_index or 0
-    word_counter = 0
-    for line in orig_lines:
-        words_line = line.split()
-        space_bbox = draw.textbbox((0, 0), " ", font=font_orig)
-        space_width = space_bbox[2] - space_bbox[0]
-        total_width = sum(
-            (draw.textbbox((0, 0), w, font=font_orig)[2] - draw.textbbox((0, 0), w, font=font_orig)[0])
-            for w in words_line
-        ) + space_width * (len(words_line) - 1)
-        x_line = (slide_size[0] - total_width) // 2
-        for w in words_line:
-            if word_counter < orig_index_limit:
-                try:
-                    highlight_font = ImageFont.truetype(
-                        default_font_path, int(font_orig.size * scale_factor)
-                    )
-                except IOError:
-                    highlight_font = font_orig
-                draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
-            else:
-                draw.text((x_line, y_text), w, font=font_orig, fill=original_sentence_color)
-            w_bbox = draw.textbbox((0, 0), w, font=font_orig)
-            w_width = w_bbox[2] - w_bbox[0]
-            x_line += w_width + space_width
-            word_counter += 1
-        line_height = draw.textbbox((0, 0), line, font=font_orig)[3] - draw.textbbox((0, 0), line, font=font_orig)[1]
-        y_text += line_height + extra_line_spacing
+    if orig_char_range is not None:
+        layouts, char_map, y_text = _prepare_line_layout(
+            text=original_seg,
+            lines=orig_lines,
+            font=font_orig,
+            draw_ctx=draw,
+            slide_width=slide_size[0],
+            start_y=y_text,
+            line_spacing=extra_line_spacing,
+        )
+        _fill_char_range(draw, char_map, orig_char_range, highlight_color)
+        for layout in layouts:
+            draw.text(
+                (layout.x, layout.y),
+                layout.text,
+                font=font_orig,
+                fill=original_sentence_color,
+            )
+    else:
+        word_counter = 0
+        for line in orig_lines:
+            words_line = line.split()
+            space_bbox = draw.textbbox((0, 0), " ", font=font_orig)
+            space_width = space_bbox[2] - space_bbox[0]
+            total_width = sum(
+                (
+                    draw.textbbox((0, 0), w, font=font_orig)[2]
+                    - draw.textbbox((0, 0), w, font=font_orig)[0]
+                )
+                for w in words_line
+            ) + space_width * (len(words_line) - 1)
+            x_line = (slide_size[0] - total_width) // 2
+            for w in words_line:
+                if word_counter < orig_index_limit:
+                    try:
+                        highlight_font = ImageFont.truetype(
+                            default_font_path, int(font_orig.size * scale_factor)
+                        )
+                    except IOError:
+                        highlight_font = font_orig
+                    draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
+                else:
+                    draw.text((x_line, y_text), w, font=font_orig, fill=original_sentence_color)
+                w_bbox = draw.textbbox((0, 0), w, font=font_orig)
+                w_width = w_bbox[2] - w_bbox[0]
+                x_line += w_width + space_width
+                word_counter += 1
+            line_height = (
+                draw.textbbox((0, 0), line, font=font_orig)[3]
+                - draw.textbbox((0, 0), line, font=font_orig)[1]
+            )
+            y_text += line_height + extra_line_spacing
 
     if translation_seg:
         y_text += separator_pre_margin
@@ -299,16 +447,38 @@ def generate_sentence_slide_image(
     header_language = header_text.split(" - ")[0] if header_text else ""
 
     trans_index_limit = translation_highlight_word_index or 0
-    if header_language in rtl_languages:
+    if trans_char_range is not None:
+        layouts, char_map, y_text = _prepare_line_layout(
+            text=translation_seg,
+            lines=trans_lines,
+            font=font_trans,
+            draw_ctx=draw,
+            slide_width=slide_size[0],
+            start_y=y_text,
+            line_spacing=extra_line_spacing,
+        )
+        _fill_char_range(draw, char_map, trans_char_range, highlight_color)
+        for layout in layouts:
+            draw.text(
+                (layout.x, layout.y),
+                layout.text,
+                font=font_trans,
+                fill=translation_color,
+            )
+    elif header_language in rtl_languages:
         char_counter = 0
         for line in trans_lines:
             line_width = sum(
-                draw.textbbox((0, 0), ch, font=font_trans)[2] - draw.textbbox((0, 0), ch, font=font_trans)[0]
+                draw.textbbox((0, 0), ch, font=font_trans)[2]
+                - draw.textbbox((0, 0), ch, font=font_trans)[0]
                 for ch in line
             )
             x_line = (slide_size[0] - line_width) // 2
             for ch in line:
-                ch_width = draw.textbbox((0, 0), ch, font=font_trans)[2] - draw.textbbox((0, 0), ch, font=font_trans)[0]
+                ch_width = (
+                    draw.textbbox((0, 0), ch, font=font_trans)[2]
+                    - draw.textbbox((0, 0), ch, font=font_trans)[0]
+                )
                 if char_counter < trans_index_limit:
                     try:
                         highlight_font = ImageFont.truetype(
@@ -321,7 +491,10 @@ def generate_sentence_slide_image(
                     draw.text((x_line, y_text), ch, font=font_trans, fill=translation_color)
                 x_line += ch_width
                 char_counter += 1
-            line_height = draw.textbbox((0, 0), line, font=font_trans)[3] - draw.textbbox((0, 0), line, font=font_trans)[1]
+            line_height = (
+                draw.textbbox((0, 0), line, font=font_trans)[3]
+                - draw.textbbox((0, 0), line, font=font_trans)[1]
+            )
             y_text += line_height + extra_line_spacing
     else:
         word_counter = 0
@@ -330,7 +503,10 @@ def generate_sentence_slide_image(
             space_bbox = draw.textbbox((0, 0), " ", font=font_trans)
             space_width = space_bbox[2] - space_bbox[0]
             total_width = sum(
-                (draw.textbbox((0, 0), w, font=font_trans)[2] - draw.textbbox((0, 0), w, font=font_trans)[0])
+                (
+                    draw.textbbox((0, 0), w, font=font_trans)[2]
+                    - draw.textbbox((0, 0), w, font=font_trans)[0]
+                )
                 for w in words_line
             ) + space_width * (len(words_line) - 1)
             x_line = (slide_size[0] - total_width) // 2
@@ -345,10 +521,16 @@ def generate_sentence_slide_image(
                     draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
                 else:
                     draw.text((x_line, y_text), w, font=font_trans, fill=translation_color)
-                w_width = draw.textbbox((0, 0), w, font=font_trans)[2] - draw.textbbox((0, 0), w, font=font_trans)[0]
+                w_width = (
+                    draw.textbbox((0, 0), w, font=font_trans)[2]
+                    - draw.textbbox((0, 0), w, font=font_trans)[0]
+                )
                 x_line += w_width + space_width
                 word_counter += 1
-            line_height = draw.textbbox((0, 0), line, font=font_trans)[3] - draw.textbbox((0, 0), line, font=font_trans)[1]
+            line_height = (
+                draw.textbbox((0, 0), line, font=font_trans)[3]
+                - draw.textbbox((0, 0), line, font=font_trans)[1]
+            )
             y_text += line_height + extra_line_spacing
 
     if transliteration_seg:
@@ -361,33 +543,58 @@ def generate_sentence_slide_image(
         y_text += separator_thickness + segment_spacing
 
     translit_index_limit = transliteration_highlight_word_index or 0
-    word_counter = 0
-    for line in translit_lines:
-        words_line = line.split()
-        space_bbox = draw.textbbox((0, 0), " ", font=font_translit)
-        space_width = space_bbox[2] - space_bbox[0]
-        total_width = sum(
-            (draw.textbbox((0, 0), w, font=font_translit)[2] - draw.textbbox((0, 0), w, font=font_translit)[0])
-            for w in words_line
-        ) + space_width * (len(words_line) - 1)
-        x_line = (slide_size[0] - total_width) // 2
-        for w in words_line:
-            if word_counter < translit_index_limit:
-                try:
-                    highlight_font = ImageFont.truetype(
-                        default_font_path, int(font_translit.size * scale_factor)
-                    )
-                except IOError:
-                    highlight_font = font_translit
-                draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
-            else:
-                draw.text((x_line, y_text), w, font=font_translit, fill=transliteration_color)
-            w_bbox = draw.textbbox((0, 0), w, font=font_translit)
-            w_width = w_bbox[2] - w_bbox[0]
-            x_line += w_width + space_width
-            word_counter += 1
-        line_height = draw.textbbox((0, 0), line, font=font_translit)[3] - draw.textbbox((0, 0), line, font=font_translit)[1]
-        y_text += line_height + extra_line_spacing
+    if translit_char_range is not None:
+        layouts, char_map, y_text = _prepare_line_layout(
+            text=transliteration_seg,
+            lines=translit_lines,
+            font=font_translit,
+            draw_ctx=draw,
+            slide_width=slide_size[0],
+            start_y=y_text,
+            line_spacing=extra_line_spacing,
+        )
+        _fill_char_range(draw, char_map, translit_char_range, highlight_color)
+        for layout in layouts:
+            draw.text(
+                (layout.x, layout.y),
+                layout.text,
+                font=font_translit,
+                fill=transliteration_color,
+            )
+    else:
+        word_counter = 0
+        for line in translit_lines:
+            words_line = line.split()
+            space_bbox = draw.textbbox((0, 0), " ", font=font_translit)
+            space_width = space_bbox[2] - space_bbox[0]
+            total_width = sum(
+                (
+                    draw.textbbox((0, 0), w, font=font_translit)[2]
+                    - draw.textbbox((0, 0), w, font=font_translit)[0]
+                )
+                for w in words_line
+            ) + space_width * (len(words_line) - 1)
+            x_line = (slide_size[0] - total_width) // 2
+            for w in words_line:
+                if word_counter < translit_index_limit:
+                    try:
+                        highlight_font = ImageFont.truetype(
+                            default_font_path, int(font_translit.size * scale_factor)
+                        )
+                    except IOError:
+                        highlight_font = font_translit
+                    draw.text((x_line, y_text), w, font=highlight_font, fill=highlight_color)
+                else:
+                    draw.text((x_line, y_text), w, font=font_translit, fill=transliteration_color)
+                w_bbox = draw.textbbox((0, 0), w, font=font_translit)
+                w_width = w_bbox[2] - w_bbox[0]
+                x_line += w_width + space_width
+                word_counter += 1
+            line_height = (
+                draw.textbbox((0, 0), line, font=font_translit)[3]
+                - draw.textbbox((0, 0), line, font=font_translit)[1]
+            )
+            y_text += line_height + extra_line_spacing
 
     return img
 
@@ -399,6 +606,8 @@ def build_sentence_video(
     *,
     sync_ratio: float,
     word_highlighting: bool,
+    highlight_events: Optional[Sequence[HighlightEvent]] = None,
+    highlight_granularity: str = "word",
     slide_size: Sequence[int] = (1280, 720),
     initial_font_size: int = 50,
     default_font_path: Optional[str] = None,
@@ -443,37 +652,41 @@ def build_sentence_video(
     audio_duration = audio_seg.duration_seconds
     metadata = _get_audio_metadata(audio_seg)
 
-    if not word_highlighting:
-        highlight_events = [
-            HighlightEvent(
-                duration=max(audio_duration * sync_ratio, 0.0),
-                original_index=num_original_words,
-                translation_index=num_translation_words,
-                transliteration_index=num_translit_words,
-            )
-        ]
+    if highlight_events is None:
+        if not word_highlighting:
+            events: Sequence[HighlightEvent] = [
+                HighlightEvent(
+                    duration=max(audio_duration * sync_ratio, 0.0),
+                    original_index=num_original_words,
+                    translation_index=num_translation_words,
+                    transliteration_index=num_translit_words,
+                )
+            ]
+        else:
+            generated: List[HighlightEvent] = []
+            if metadata and metadata.parts:
+                generated = _build_events_from_metadata(
+                    metadata,
+                    sync_ratio,
+                    num_original_words,
+                    num_translation_words,
+                    num_translit_words,
+                )
+            if not generated:
+                generated = _build_legacy_highlight_events(
+                    audio_duration,
+                    sync_ratio,
+                    original_words,
+                    translation_units,
+                    transliteration_words,
+                )
+            events = generated
     else:
-        highlight_events = []
-        if metadata and metadata.parts:
-            highlight_events = _build_events_from_metadata(
-                metadata,
-                sync_ratio,
-                num_original_words,
-                num_translation_words,
-                num_translit_words,
-            )
-        if not highlight_events:
-            highlight_events = _build_legacy_highlight_events(
-                audio_duration,
-                sync_ratio,
-                original_words,
-                translation_units,
-                transliteration_words,
-            )
+        events = list(highlight_events)
 
-    highlight_events = [event for event in highlight_events if event.duration > 0]
-    if not highlight_events:
-        highlight_events = [
+    timeline_events = [event for event in events if event.duration > 0]
+    if not timeline_events:
+        timeline_events = [
             HighlightEvent(
                 duration=max(audio_duration * sync_ratio, 0.0),
                 original_index=num_original_words,
@@ -482,13 +695,25 @@ def build_sentence_video(
             )
         ]
 
-    video_duration = sum(event.duration for event in highlight_events)
+    has_char_steps = any(
+        event.step is not None
+        and event.step.char_index_start is not None
+        and event.step.char_index_end is not None
+        for event in timeline_events
+    )
+    effective_granularity = (
+        "char"
+        if word_highlighting and highlight_granularity == "char" and has_char_steps
+        else "word"
+    )
+
+    video_duration = sum(event.duration for event in timeline_events)
     pad_duration = max(0.0, audio_duration - video_duration)
 
     word_video_files: List[str] = []
     tmp_dir = active_tmp_dir()
 
-    for idx, event in enumerate(highlight_events):
+    for idx, event in enumerate(timeline_events):
         duration = event.duration
         original_highlight_index = (
             min(event.original_index, num_original_words) if word_highlighting else num_original_words
@@ -504,11 +729,47 @@ def build_sentence_video(
             else num_translit_words
         )
 
+        def _event_char_range(
+            evt: HighlightEvent, target_kind: str
+        ) -> Optional[Tuple[int, int]]:
+            step = evt.step
+            if step is None or step.kind != target_kind:
+                return None
+            start = step.char_index_start
+            end = step.char_index_end
+            if start is None or end is None:
+                return None
+            start_idx = int(start)
+            end_idx = int(end)
+            if end_idx <= start_idx:
+                return None
+            return (start_idx, end_idx)
+
+        original_char_range = (
+            _event_char_range(event, "original")
+            if effective_granularity == "char"
+            else None
+        )
+        translation_char_range = (
+            _event_char_range(event, "translation")
+            if effective_granularity == "char"
+            else None
+        )
+        transliteration_char_range = (
+            _event_char_range(event, "other")
+            if effective_granularity == "char"
+            else None
+        )
+
         img = generate_sentence_slide_image(
             block,
             original_highlight_word_index=original_highlight_index,
             translation_highlight_word_index=translation_highlight_index,
             transliteration_highlight_word_index=transliteration_highlight_index,
+            original_highlight_char_range=original_char_range,
+            translation_highlight_char_range=translation_char_range,
+            transliteration_highlight_char_range=transliteration_char_range,
+            highlight_granularity=effective_granularity,
             slide_size=slide_size,
             initial_font_size=initial_font_size,
             default_font_path=default_font_path,

@@ -98,6 +98,7 @@ class EbookToolsSettings(BaseModel):
     tempo: float = 1.0
     sync_ratio: float = 0.9
     word_highlighting: bool = True
+    highlight_granularity: str = "word"
     working_dir: str = str(DEFAULT_WORKING_RELATIVE)
     output_dir: str = str(DEFAULT_OUTPUT_RELATIVE)
     tmp_dir: str = str(DEFAULT_TMP_RELATIVE)

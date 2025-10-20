@@ -332,6 +332,7 @@ def _export_pipeline_batch(
                 tempo,
                 sync_ratio,
                 word_highlighting,
+                pipeline_config.highlight_granularity,
             )
         return video_path
     except Exception as exc:  # pragma: no cover - defensive logging
