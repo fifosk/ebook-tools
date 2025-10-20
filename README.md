@@ -210,8 +210,29 @@ Both values accept overrides through CLI flags (`--ffmpeg-path`,
 `--ollama-url`) or the environment variables `FFMPEG_PATH` and `OLLAMA_URL`.
 
 ### Using the settings
-- Interactive mode (`python main.py -i` or `python ebook-tools.py -i`) exposes each knob in the
+- Interactive mode (`ebook-tools interactive` or `python main.py -i`) exposes each knob in the
   menu, so you can persist new defaults back into `conf/config.local.json`.
 - In non-interactive mode, CLI flags or environment variables take precedence
   over the JSON values. The script resolves relative paths against the working
   copy and creates directories as needed.
+
+### CLI entry point
+
+The refactored CLI lives under the `ebook-tools` console script. The command
+supports explicit sub-commands while remaining compatible with the historical
+positional arguments:
+
+```bash
+# Run the pipeline non-interactively using arguments or config.local.json
+ebook-tools run --config conf/config.local.json
+
+# Launch the interactive configuration menu with optional overrides
+ebook-tools interactive --config conf/config.local.json --ebooks-dir ~/Books
+
+# Legacy style invocation is still supported for scripts and automation
+python modules/ebook_tools.py <input.epub> "English" "Arabic" 10
+```
+
+Both sub-commands honour the same overrides as before (`--ebooks-dir`,
+`--output-dir`, etc.) and interactive updates continue to save back into the
+`conf/config.local.json` file when possible.
