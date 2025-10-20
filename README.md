@@ -226,6 +226,29 @@ the loader will pick them up on the next run.
 }
 ```
 
+For machines with plenty of CPU cores and fast storage you can flip on every
+performance-related toggle (including the aligner fallback) in your
+`conf/config.local.json` with a block like the following:
+
+```json
+{
+  "thread_count": 16,
+  "queue_size": 64,
+  "pipeline_mode": true,
+  "slide_parallelism": "auto",
+  "slide_parallel_workers": 16,
+  "prefer_pillow_simd": true,
+  "use_ramdisk": true,
+  "forced_alignment_enabled": true,
+  "forced_alignment_smoothing": "monotonic_cubic",
+  "slide_render_benchmark": false
+}
+```
+
+Feel free to raise the thread and worker counts if your host CPU and memory can
+handle the additional concurrency; the queue size should scale with the number
+of workers so translation and media rendering threads stay saturated.
+
 Environment variables offer a lightweight override layer:
 
 - `EBOOK_THREAD_COUNT` adjusts the global thread pool size.
