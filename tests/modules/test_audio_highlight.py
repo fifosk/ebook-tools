@@ -343,6 +343,52 @@ def test_highlight_round_trip_mixed_language_timings():
     assert accent_event.step.duration_ms == pytest.approx(per_char_duration * 2)
 
 
+def test_highlight_cjk_segments_respect_spaces():
+    sequence = ["translation"]
+    text = "你好 世界"
+    per_char_duration = 100
+    timings = []
+    cursor = 0.0
+    for ch in text:
+        timings.append({"char": ch, "start_ms": cursor, "duration_ms": per_char_duration})
+        cursor += per_char_duration
+
+    segment = AudioSegment.silent(duration=int(cursor))
+    setattr(segment, "character_timing", timings)
+
+    metadata = highlight._compute_audio_highlight_metadata(
+        segment,
+        sequence,
+        {"translation": segment},
+        tempo=1.0,
+        texts={"translation": text},
+    )
+
+    translation_part = next(part for part in metadata.parts if part.kind == "translation")
+    translation_steps = list(translation_part.steps)
+
+    assert [step.word_index for step in translation_steps] == [0, 1, 2, 3]
+    assert [
+        (step.char_index_start, step.char_index_end)
+        for step in translation_steps
+    ] == [(0, 1), (1, 2), (3, 4), (4, 5)]
+
+    events = highlight._build_events_from_metadata(
+        metadata,
+        sync_ratio=1.0,
+        num_original_words=0,
+        num_translation_words=4,
+        num_translit_words=4,
+    )
+
+    translation_events = [
+        event for event in events if event.step and event.step.kind == "translation"
+    ]
+    assert translation_events
+    assert translation_events[-1].translation_index == 4
+    assert translation_events[-1].transliteration_index == 4
+
+
 def test_segment_highlight_steps_without_forced_alignment(monkeypatch):
     config_module = sys.modules["modules.config_manager"]
     monkeypatch.setattr(

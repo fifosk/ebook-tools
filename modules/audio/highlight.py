@@ -59,6 +59,10 @@ class HighlightEvent:
 
 _AUDIO_METADATA_REGISTRY: Dict[int, SentenceAudioMetadata] = {}
 
+_EAST_ASIAN_PICTO_PATTERN = regex.compile(
+    r"[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]"
+)
+
 
 def _store_audio_metadata(audio: AudioSegment, metadata: SentenceAudioMetadata) -> None:
     """Attach sentence-level metadata to an ``AudioSegment`` instance."""
@@ -440,9 +444,28 @@ def _collapse_char_timings_to_graphemes(
                 continue
             start_idx = idx
             while idx < length and not text[idx].isspace():
-                char_to_word_index[idx] = word_index
                 idx += 1
-            word_index += 1
+            segment = text[start_idx:idx]
+            if _EAST_ASIAN_PICTO_PATTERN.search(segment):
+                assigned = False
+                for cluster in regex.finditer(r"\X", segment):
+                    grapheme = cluster.group()
+                    if _is_separator(grapheme):
+                        continue
+                    cluster_start = start_idx + cluster.start()
+                    cluster_end = start_idx + cluster.end()
+                    for pos in range(cluster_start, cluster_end):
+                        char_to_word_index[pos] = word_index
+                    word_index += 1
+                    assigned = True
+                if not assigned:
+                    for pos in range(start_idx, idx):
+                        char_to_word_index[pos] = word_index
+                    word_index += 1
+            else:
+                for pos in range(start_idx, idx):
+                    char_to_word_index[pos] = word_index
+                word_index += 1
     else:
         # Without explicit whitespace boundaries treat every grapheme as its own word.
         pass

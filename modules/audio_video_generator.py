@@ -4,11 +4,13 @@ import os
 import subprocess
 import threading
 import time
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from queue import Empty, Full, Queue
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
+import regex
 from pydub import AudioSegment
 from PIL import Image
 
@@ -64,6 +66,24 @@ def _parse_sentence_block(block: str) -> Tuple[str, str, str, str]:
     return header_line, original_seg, translation_seg, transliteration_seg
 
 
+_EAST_ASIAN_LANGUAGE_HINTS = ("Chinese", "Japanese", "Korean")
+_EAST_ASIAN_PICTO_PATTERN = regex.compile(
+    r"[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]"
+)
+
+
+def _contains_east_asian_script(text: str) -> bool:
+    return bool(_EAST_ASIAN_PICTO_PATTERN.search(text))
+
+
+def _is_grapheme_separator(grapheme: str) -> bool:
+    if not grapheme:
+        return True
+    if grapheme.isspace():
+        return True
+    return unicodedata.category(grapheme[0]).startswith("Z")
+
+
 def _assemble_highlight_timeline(
     block: str,
     audio_seg: AudioSegment,
@@ -78,8 +98,17 @@ def _assemble_highlight_timeline(
         block
     )
     original_words = original_seg.split()
-    if "Chinese" in header_line or "Japanese" in header_line:
-        translation_units: Sequence[str] = list(translation_seg)
+    treat_as_pictogram_language = any(
+        hint in header_line for hint in _EAST_ASIAN_LANGUAGE_HINTS
+    ) or _contains_east_asian_script(translation_seg)
+    if treat_as_pictogram_language:
+        translation_units = [
+            match.group()
+            for match in regex.finditer(r"\X", translation_seg)
+            if not _is_grapheme_separator(match.group())
+        ]
+        if not translation_units and translation_seg:
+            translation_units = [translation_seg]
     else:
         translation_units = translation_seg.split() or [translation_seg]
     transliteration_words = transliteration_seg.split()
