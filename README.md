@@ -168,6 +168,15 @@ mode (`npm run build -- --mode production`).
  };
   ```
 
+### CLI progress monitoring
+
+When running the legacy CLI (`python main.py` or the `ebook-tools` console
+script) the progress log now includes live system statistics sampled roughly
+every ten seconds. Each progress update prints the current CPU utilisation,
+resident memory usage (with percentage), and per-second read/write I/O rates of
+the process. The metrics are collected with `psutil`, which is now part of the
+core dependency set declared in `pyproject.toml`.
+
 ## Performance tuning and parallel rendering
 
 Slide generation and translation can be CPU intensive. The project exposes a

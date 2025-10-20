@@ -19,6 +19,7 @@ dependencies = [
     "gTTS>=2.5,<3",
     "python-dotenv>=1.0,<2",
     "regex>=2023.0",
+    "psutil>=5.9,<6",
 ]
 
 [project.scripts]
