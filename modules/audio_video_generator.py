@@ -7,7 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from queue import Empty, Full, Queue
-from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from pydub import AudioSegment
 from PIL import Image
@@ -72,9 +72,11 @@ def generate_audio_for_sentence(
     silence = AudioSegment.silent(duration=100)
 
     tasks = []
+    segment_texts: Dict[str, str] = {}
 
     def enqueue(key: str, text: str, lang_code: str) -> None:
         tasks.append((key, text, lang_code))
+        segment_texts[key] = text
 
     target_lang_code = _lang_code(target_language)
     source_lang_code = _lang_code(input_language)
@@ -134,7 +136,9 @@ def generate_audio_for_sentence(
 
     tempo_adjusted = change_audio_tempo(audio, tempo)
     try:
-        metadata = _compute_audio_highlight_metadata(tempo_adjusted, sequence, segments, tempo)
+        metadata = _compute_audio_highlight_metadata(
+            tempo_adjusted, sequence, segments, tempo, segment_texts
+        )
         _store_audio_metadata(tempo_adjusted, metadata)
     except Exception:  # pragma: no cover - metadata attachment best effort
         logger.debug("Failed to compute audio metadata for sentence %s", sentence_number)
