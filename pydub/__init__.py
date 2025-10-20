@@ -51,3 +51,25 @@ class AudioSegment:
     def __iadd__(self, other: "AudioSegment") -> "AudioSegment":
         return AudioSegment(duration=self.duration + other.duration)
 
+    def export(
+        self,
+        out_f: Any,
+        format: Optional[str] = None,  # noqa: ARG002 - kept for API compatibility
+        bitrate: Optional[str] = None,  # noqa: ARG002 - kept for API compatibility
+        **kwargs: Any,  # noqa: ANN401 - match pydub signature flexibility
+    ) -> Any:
+        """Write the segment's raw data to ``out_f``.
+
+        The real :mod:`pydub` returns the ``out_f`` handle/path, so we mirror that
+        behaviour to keep callers working even if they inspect the return value.
+        Unknown keyword arguments are accepted for compatibility but ignored.
+        """
+
+        if hasattr(out_f, "write"):
+            out_f.write(self.raw_data)
+            return out_f
+
+        with open(out_f, "wb") as fh:
+            fh.write(self.raw_data)
+        return out_f
+
