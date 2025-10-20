@@ -9,9 +9,9 @@ from typing import Optional, Sequence
 from PIL import Image
 from pydub import AudioSegment
 
-from .. import audio_video_generator as av_gen
-from .. import output_formatter
-from ..video.slides import SlideRenderOptions
+from modules import audio_video_generator as av_gen
+from modules import output_formatter
+from modules.video.slides import SlideRenderOptions
 
 
 @dataclass(frozen=True)

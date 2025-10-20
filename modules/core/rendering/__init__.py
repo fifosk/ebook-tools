@@ -7,11 +7,12 @@ from typing import List, Optional, Sequence, Tuple
 
 from pydub import AudioSegment
 
-from ..progress_tracker import ProgressTracker
+from modules.core.config import PipelineConfig
+from modules.core.translation import TranslationWorkerPool
+from modules.progress_tracker import ProgressTracker
+
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .pipeline import RenderPipeline
-from .config import PipelineConfig
-from .translation import TranslationWorkerPool
 
 
 def process_epub(

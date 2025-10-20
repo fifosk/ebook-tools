@@ -11,19 +11,16 @@ from typing import List, Optional, Sequence, Tuple
 from PIL import Image
 from pydub import AudioSegment
 
-from .. import audio_video_generator as av_gen
-from .. import output_formatter
-from ..book_cover import fetch_book_cover
-from ..config_manager import resolve_file_path
-from ..epub_parser import remove_quotes
-from ..llm_client import create_client
-from ..logging_manager import console_info, console_warning, logger
-from ..progress_tracker import ProgressTracker
-from .blocks import build_written_and_video_blocks
-from .config import PipelineConfig
-from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
-from .exporters import BatchExportRequest, BatchExporter, build_exporter
-from .translation import (
+from modules import audio_video_generator as av_gen
+from modules import output_formatter
+from modules.book_cover import fetch_book_cover
+from modules.config_manager import resolve_file_path
+from modules.epub_parser import remove_quotes
+from modules.llm_client import create_client
+from modules.logging_manager import console_info, console_warning, logger
+from modules.progress_tracker import ProgressTracker
+from modules.core.config import PipelineConfig
+from modules.core.translation import (
     TranslationWorkerPool,
     build_target_sequence,
     create_translation_queue,
@@ -31,6 +28,10 @@ from .translation import (
     translate_batch,
     transliterate_sentence,
 )
+
+from .blocks import build_written_and_video_blocks
+from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
+from .exporters import BatchExportRequest, BatchExporter, build_exporter
 
 
 @dataclass
