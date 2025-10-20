@@ -2,19 +2,24 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import sys
 import threading
+from contextlib import suppress
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-import argparse
+try:  # pragma: no cover - platform specific
+    import resource
+except ImportError:  # pragma: no cover - Windows fallback
+    resource = None  # type: ignore[assignment]
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import metadata_manager
 from ..core import ingestion
-from ..core.config import build_pipeline_config
+from ..core.config import PipelineConfig, build_pipeline_config
 from ..epub_parser import DEFAULT_MAX_WORDS
 from ..progress_tracker import ProgressTracker
 from ..services.pipeline_service import (
@@ -33,7 +38,194 @@ resolve_file_path = cfg.resolve_file_path
 build_runtime_context = cfg.build_runtime_context
 load_configuration = cfg.load_configuration
 
+logger = log_mgr.logger
+
 DEFAULT_MODEL = cfg.DEFAULT_MODEL
+
+
+def _format_limit_value(value: int) -> str:
+    """Return a human readable representation of ``value`` for RLIMIT values."""
+
+    if value < 0:
+        return "unlimited"
+    if resource is not None:
+        infinite = getattr(resource, "RLIM_INFINITY", None)
+        if infinite is not None and value == infinite:
+            return "unlimited"
+    return str(value)
+
+
+def _resolve_slide_worker_count(
+    parallelism: Optional[str], configured_workers: Optional[int], thread_count: int
+) -> int:
+    """Return the effective slide worker total for the supplied configuration."""
+
+    if not parallelism:
+        return 0
+
+    normalized = str(parallelism).strip().lower()
+    if normalized in {"off", "none", "disabled"}:
+        return 0
+
+    if configured_workers is None:
+        return max(0, thread_count)
+
+    with suppress(TypeError, ValueError):
+        workers = int(configured_workers)
+        return max(0, workers)
+
+    return max(0, thread_count)
+
+
+def _estimate_required_file_descriptors(
+    *,
+    thread_count: int,
+    slide_workers: int,
+    job_workers: int,
+    queue_size: int,
+) -> int:
+    """Estimate the file descriptor requirement for the configured pipeline."""
+
+    workers = max(1, thread_count) + max(0, slide_workers) + max(1, job_workers)
+    queue_allowance = max(0, queue_size)
+    base_allowance = 128
+    per_worker_budget = workers * 16
+    queue_budget = queue_allowance * 4
+    safety_margin = max(64, workers * 8)
+    return max(1024, base_allowance + per_worker_budget + queue_budget + safety_margin)
+
+
+def _ensure_fd_limit(required: int, *, attributes: Optional[Dict[str, Any]] = None) -> None:
+    """Ensure the process soft limit for open files meets ``required`` descriptors."""
+
+    if required <= 0:
+        return
+
+    attrs: Dict[str, Any] = {"required": required}
+    if attributes:
+        attrs.update(attributes)
+
+    if resource is None:
+        logger.debug(
+            "resource module is unavailable; skipping file descriptor limit enforcement.",
+            extra={"event": "system.fd_limits", "attributes": attrs},
+        )
+        return
+
+    try:
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    except Exception as exc:  # pragma: no cover - defensive guard
+        logger.debug(
+            "Unable to inspect file descriptor limit: %s", exc, extra={"event": "system.fd_limits", "attributes": attrs}
+        )
+        return
+
+    attrs.update({"soft": soft, "hard": hard})
+    logger.info(
+        "Checking file descriptor limits",
+        extra={"event": "system.fd_limits", "attributes": attrs},
+    )
+    console_info(
+        "Checking file descriptor limits (required=%s, soft=%s, hard=%s)",
+        required,
+        _format_limit_value(soft),
+        _format_limit_value(hard),
+    )
+
+    infinite = getattr(resource, "RLIM_INFINITY", None)
+    if soft == infinite or soft >= required:
+        console_info(
+            "File descriptor limits already satisfy requirements (soft=%s, hard=%s).",
+            _format_limit_value(soft),
+            _format_limit_value(hard),
+        )
+        return
+
+    new_soft = required
+    new_hard = hard
+    attempt_raise_hard = False
+    if hard != infinite and hard < required:
+        new_hard = required
+        attempt_raise_hard = True
+
+    try:
+        resource.setrlimit(resource.RLIMIT_NOFILE, (new_soft, new_hard))
+    except (OSError, ValueError, resource.error) as exc:  # pragma: no cover - platform specific
+        logger.warning(
+            "Unable to raise file descriptor limit to %s: %s",
+            required,
+            exc,
+            extra={"event": "system.fd_limits", "attributes": attrs},
+        )
+        if attempt_raise_hard:
+            fallback_soft = min(required, hard)
+            try:
+                resource.setrlimit(resource.RLIMIT_NOFILE, (fallback_soft, hard))
+            except Exception as fallback_exc:  # pragma: no cover - defensive guard
+                logger.debug(
+                    "Fallback attempt to raise soft file descriptor limit failed: %s",
+                    fallback_exc,
+                    extra={"event": "system.fd_limits", "attributes": attrs},
+                )
+
+    try:
+        final_soft, final_hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    except Exception:  # pragma: no cover - defensive guard
+        final_soft, final_hard = soft, hard
+
+    attrs.update({"soft": final_soft, "hard": final_hard})
+    logger.info(
+        "Resolved file descriptor limits",
+        extra={"event": "system.fd_limits", "attributes": attrs},
+    )
+    console_info(
+        "Final file descriptor limits (soft=%s, hard=%s)",
+        _format_limit_value(final_soft),
+        _format_limit_value(final_hard),
+    )
+
+
+def _ensure_fd_capacity(
+    request: PipelineRequest,
+    pipeline_config: Optional[PipelineConfig] = None,
+) -> None:
+    """Ensure the active process can sustain the file descriptors required by the job."""
+
+    runtime_context = request.context
+    if runtime_context is None:
+        runtime_context = cfg.build_runtime_context(
+            request.config, request.environment_overrides
+        )
+
+    overrides: Dict[str, Any] = {**request.environment_overrides}
+    overrides.update({k: v for k, v in request.pipeline_overrides.items() if v is not None})
+
+    if pipeline_config is None:
+        pipeline_config = build_pipeline_config(runtime_context, request.config, overrides=overrides)
+
+    slide_workers = _resolve_slide_worker_count(
+        pipeline_config.slide_parallelism,
+        pipeline_config.slide_parallel_workers,
+        pipeline_config.thread_count,
+    )
+    settings = cfg.get_settings()
+    job_workers = max(1, int(getattr(settings, "job_max_workers", 1) or 1))
+    required = _estimate_required_file_descriptors(
+        thread_count=pipeline_config.thread_count,
+        slide_workers=slide_workers,
+        job_workers=job_workers,
+        queue_size=pipeline_config.queue_size,
+    )
+
+    attributes = {
+        "thread_count": pipeline_config.thread_count,
+        "queue_size": pipeline_config.queue_size,
+        "slide_parallelism": pipeline_config.slide_parallelism,
+        "slide_parallel_workers": pipeline_config.slide_parallel_workers,
+        "job_max_workers": job_workers,
+    }
+
+    _ensure_fd_limit(required, attributes=attributes)
 
 
 def build_environment_overrides(args: argparse.Namespace) -> Dict[str, Any]:
@@ -443,6 +635,7 @@ def run_pipeline_from_args(
             progress_tracker=progress_tracker,
             stop_event=stop_event,
         )
+        _ensure_fd_capacity(request, pipeline_config)
         response = run_pipeline_service(request)
         if not response.success:
             return None
@@ -453,6 +646,7 @@ def run_pipeline_from_args(
         progress_tracker=progress_tracker,
         stop_event=stop_event,
     )
+    _ensure_fd_capacity(request)
     response = run_pipeline_service(request)
     if not response.success and not getattr(args, "interactive", False):
         return None
