@@ -28,9 +28,6 @@ from modules import config_manager as cfg
 from modules.cli import context as cli_context
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client import create_client
-from modules.services.job_manager import PipelineJobStatus
-from modules.webapi.application import create_app
-from modules.webapi import dependencies as webapi_dependencies
 
 DEFAULT_OUTPUT_DIR = Path("output/ebook")
 
@@ -271,6 +268,10 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
 @pytest.mark.integration
 def test_epub_job_artifacts(tmp_path):
     """Start the real web API, submit a job, and validate generated artifacts."""
+
+    from modules.services.job_manager import PipelineJobStatus
+    from modules.webapi.application import create_app
+    from modules.webapi import dependencies as webapi_dependencies
 
     output_dir = DEFAULT_OUTPUT_DIR.resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
