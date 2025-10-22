@@ -7,6 +7,7 @@ from typing import Any, Dict
 import pytest
 
 CONFIG_PATH = Path("conf/config.local.json")
+FALLBACK_CONFIG_PATH = Path("conf/config.json")
 
 try:
     from modules.api_client import EbookToolsClient  # type: ignore[attr-defined]
@@ -20,12 +21,13 @@ except ModuleNotFoundError:  # pragma: no cover - optional dependency
 
 
 def _load_config() -> Dict[str, Any]:
-    if not CONFIG_PATH.exists():
+    config_path = CONFIG_PATH if CONFIG_PATH.exists() else FALLBACK_CONFIG_PATH
+    if not config_path.exists():
         pytest.skip(
-            "conf/config.local.json not available; skipping end-to-end EPUB job test",
+            "No configuration file available; skipping end-to-end EPUB job test",
             allow_module_level=False,
         )
-    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+    with config_path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
 
 
@@ -74,7 +76,7 @@ def test_epub_job_artifacts(tmp_path):
     else:  # pragma: no cover - indicates timeout behaviour
         raise TimeoutError("Job did not complete in expected time")
 
-    output_dir = config.get("output_dir", "dist")
+    output_dir = config.get("output_dir") or config.get("api", {}).get("output_dir", "output/ebook")
     expected_files = ["output.html", "output.mp3", "output.mp4"]
     for fname in expected_files:
         fpath = os.path.join(output_dir, job_id, fname)
