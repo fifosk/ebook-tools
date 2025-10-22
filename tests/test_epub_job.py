@@ -1,10 +1,15 @@
 import json
 import os
+import sys
 import time
 from pathlib import Path
 from typing import Any, Dict
 
 import pytest
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from modules.api_client import EbookToolsClient
 from modules.epub_utils import create_epub_from_sentences
