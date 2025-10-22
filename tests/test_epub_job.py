@@ -27,14 +27,132 @@ uvicorn = pytest.importorskip("uvicorn")
 
 from modules import config_manager as cfg
 from modules.cli import context as cli_context
+from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client import create_client
 
 DEFAULT_OUTPUT_DIR = Path("output/ebook")
 
+_LANGUAGE_CANONICAL_MAP = {name.lower(): name for name in LANGUAGE_CODES}
+for _alias_name, _alias_code in LANGUAGE_CODES.items():
+    _LANGUAGE_CANONICAL_MAP.setdefault(_alias_code.lower(), _alias_name)
+    _LANGUAGE_CANONICAL_MAP.setdefault(_alias_code.replace("-", "_").lower(), _alias_name)
+
+_LANGUAGE_ALIAS_OVERRIDES = {
+    "chinese": "Chinese (Simplified)",
+    "simplified chinese": "Chinese (Simplified)",
+    "chinese simplified": "Chinese (Simplified)",
+    "traditional chinese": "Chinese (Traditional)",
+    "chinese traditional": "Chinese (Traditional)",
+    "mandarin": "Chinese (Simplified)",
+    "zh": "Chinese (Simplified)",
+}
+for _alias_key, _canonical_value in _LANGUAGE_ALIAS_OVERRIDES.items():
+    if _canonical_value in LANGUAGE_CODES:
+        _LANGUAGE_CANONICAL_MAP.setdefault(_alias_key, _canonical_value)
+
+
+def _canonical_language_name(value: Any) -> str:
+    """Return the canonical language label recognised by the pipeline."""
+
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    lowered = text.lower()
+    if lowered in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[lowered]
+    truncated = lowered.split("(", 1)[0].strip()
+    if truncated in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[truncated]
+    simplified = truncated.replace("-", " ").replace("_", " ").strip()
+    if simplified in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[simplified]
+    first_token = simplified.split()[0] if simplified else ""
+    if first_token in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[first_token]
+    return text
+
+
+def _coerce_positive_int(value: Any, default: int) -> int:
+    """Return ``value`` coerced to a positive integer or ``default``."""
+
+    try:
+        candidate = int(value)
+    except (TypeError, ValueError):
+        return default
+    return candidate if candidate > 0 else default
+
+
+def _coerce_bool(value: Any, default: bool = False) -> bool:
+    """Return ``value`` coerced to ``bool`` using common textual forms."""
+
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return default
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"1", "true", "yes", "y", "on"}:
+            return True
+        if lowered in {"0", "false", "no", "n", "off"}:
+            return False
+    return bool(value)
+
+
+def _normalize_language_values(candidate: Any) -> list[str]:
+    """Normalise a user-provided language configuration value into a list."""
+
+    if candidate is None:
+        return []
+    if isinstance(candidate, (list, tuple, set)):
+        values: list[str] = []
+        for item in candidate:
+            values.extend(_normalize_language_values(item))
+        return values
+    if isinstance(candidate, str):
+        parts = re.split(r"[,;]", candidate)
+        return [
+            normalized
+            for normalized in (
+                _canonical_language_name(part)
+                for part in parts
+                if part and part.strip()
+            )
+            if normalized
+        ]
+    text = _canonical_language_name(candidate)
+    return [text] if text else []
+
+
+def _resolve_ffmpeg_executable(config: Dict[str, Any]) -> str | None:
+    """Return the executable path for ffmpeg using configuration hints."""
+
+    candidates: list[str] = []
+    configured = config.get("ffmpeg_path")
+    if configured:
+        configured_text = str(configured).strip()
+        if configured_text:
+            candidates.append(configured_text)
+    candidates.append("ffmpeg")
+
+    for candidate in candidates:
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+        candidate_path = Path(candidate)
+        if candidate_path.exists() and candidate_path.is_file():
+            return str(candidate_path)
+    return None
+
 
 @contextlib.contextmanager
-def _cli_configuration(epub_path: Path, output_dir: Path):
+def _cli_configuration(
+    epub_path: Path,
+    output_dir: Path,
+    cli_overrides: Dict[str, Any] | None = None,
+):
     """Load CLI configuration and activate a runtime context for the test."""
 
     previous_context = cfg.get_runtime_context(None)
@@ -56,6 +174,10 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     runtime_context = cli_context.refresh_runtime_context(config, overrides)
 
     config = dict(config)
+    if cli_overrides:
+        for key, value in cli_overrides.items():
+            if value is not None:
+                config[key] = value
     config["input_file"] = str(epub_path)
     config["ebooks_dir"] = str(resolved_books)
     config["book_title"] = config.get("book_title") or "Sample EPUB"
@@ -64,9 +186,54 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     config.setdefault(
         "book_summary", "Synthetic EPUB generated for integration verification."
     )
-    config["target_languages"] = ["Arabic"]
-    config["input_language"] = "English"
-    config["sentences_per_output_file"] = 10
+    configured_targets = (
+        config.get("test_target_languages") or config.get("test_target_language")
+    )
+    default_targets = config.get("target_languages")
+    target_languages = _normalize_language_values(
+        configured_targets if configured_targets is not None else default_targets
+    )
+    if not target_languages:
+        target_languages = ["Arabic"]
+    else:
+        unique_targets: list[str] = []
+        seen_targets: set[str] = set()
+        for language in target_languages:
+            lowered = language.lower()
+            if lowered in seen_targets:
+                continue
+            seen_targets.add(lowered)
+            unique_targets.append(language)
+        target_languages = unique_targets
+
+    config["target_languages"] = target_languages
+    config["input_language"] = _canonical_language_name(
+        config.get("input_language") or "English"
+    ) or "English"
+
+    default_sentences = _coerce_positive_int(
+        config.get("sentences_per_output_file"), 3
+    )
+    config["sentences_per_output_file"] = default_sentences
+
+    configured_sentence_count = config.get("test_sentence_count")
+    if configured_sentence_count is None:
+        configured_sentence_count = config.get("test_sample_sentence_count")
+    sample_sentence_count = _coerce_positive_int(
+        configured_sentence_count, default_sentences
+    )
+    config["test_sentence_count"] = sample_sentence_count
+
+    topic_value = (
+        config.get("test_sentence_topic")
+        or config.get("test_sample_sentence_topic")
+        or ""
+    )
+    topic = str(topic_value).strip() if topic_value is not None else ""
+    if not topic:
+        topic = "modern technology"
+    config["test_sentence_topic"] = topic
+
     config["start_sentence"] = 1
     config["end_sentence"] = None
     config["stitch_full"] = True
@@ -74,7 +241,9 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     config["generate_video"] = True
     config["output_html"] = True
     config["output_pdf"] = False
-    config["include_transliteration"] = False
+    config["include_transliteration"] = _coerce_bool(
+        config.get("include_transliteration"), False
+    )
     config["use_ramdisk"] = False
 
     config = cli_context.update_book_cover_file_in_config(
@@ -101,6 +270,19 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
     primary_url = config.get("ollama_url")
     local_url = config.get("ollama_local_url")
     cloud_url = config.get("ollama_cloud_url")
+    input_language = config.get("input_language") or "English"
+    topic = config.get("test_sentence_topic") or "modern technology"
+    target_languages = _normalize_language_values(config.get("target_languages"))
+    if target_languages:
+        deduped_targets: list[str] = []
+        seen: set[str] = set()
+        for language in target_languages:
+            lowered = language.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            deduped_targets.append(language)
+        target_languages = deduped_targets
 
     placeholder_phrases = {
         "this is a sample sentence",
@@ -123,11 +305,19 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
             "You generate evaluation data for an e-book processing pipeline. "
             "Respond with JSON only."
         )
+        target_clause = ""
+        if target_languages:
+            formatted_targets = ", ".join(target_languages)
+            target_clause = (
+                " Craft sentences that translate cleanly into "
+                f"{formatted_targets}."
+            )
         user_prompt = (
             "Create a JSON array named sentences containing exactly "
-            f"{count} distinctive English sentences about modern technology. "
-            "Ensure every sentence is unique, avoids filler text, and stays under 12 words. "
-            "Return only the array with no commentary."
+            f"{count} distinctive {input_language} sentences about {topic}. "
+            "Ensure every sentence is unique, avoids filler text, and stays under 12 words."
+            + target_clause
+            + " Return only the array with no commentary."
         )
 
         last_error: str | None = None
@@ -367,7 +557,7 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
 
 
 @pytest.mark.integration
-def test_epub_job_artifacts(tmp_path):
+def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
     """Start the real web API, submit a job, and validate generated artifacts."""
 
     from modules.services.job_manager import PipelineJobStatus
@@ -379,17 +569,35 @@ def test_epub_job_artifacts(tmp_path):
 
     epub_path = tmp_path / "sample.epub"
 
-    with _cli_configuration(epub_path, output_dir) as (config, overrides):
+    with _cli_configuration(epub_path, output_dir, epub_job_cli_overrides) as (
+        config,
+        overrides,
+    ):
         _purge_previous_artifacts(epub_path, config, overrides)
-        sentences = _generate_sentences_via_ollama(10, config)
+        default_sentence_batch = _coerce_positive_int(
+            config.get("sentences_per_output_file"), 3
+        )
+        sample_sentence_count = _coerce_positive_int(
+            config.get("test_sentence_count"), default_sentence_batch
+        )
+        print(
+            "[ollama] Requesting "
+            f"{sample_sentence_count} {config.get('input_language', 'English')} sentences "
+            f"about {config.get('test_sentence_topic')}"
+        )
+        sentences = _generate_sentences_via_ollama(sample_sentence_count, config)
         for index, sentence in enumerate(sentences, start=1):
             print(f"[ollama] Sentence {index}: {sentence}")
         create_epub_from_sentences(sentences, epub_path)
         print(f"[test] Created synthetic EPUB at {epub_path}")
 
-        ffmpeg_path = shutil.which("ffmpeg")
+        ffmpeg_path = _resolve_ffmpeg_executable(config)
         if not ffmpeg_path:
-            pytest.skip("ffmpeg executable is required for media artifact validation")
+            configured_path = config.get("ffmpeg_path")
+            hint = f" (configured path: {configured_path})" if configured_path else ""
+            pytest.skip(
+                "ffmpeg executable is required for media artifact validation" + hint
+            )
         print(f"[deps] ffmpeg resolved to: {ffmpeg_path}")
         config["ffmpeg_path"] = ffmpeg_path
 
@@ -413,7 +621,7 @@ def test_epub_job_artifacts(tmp_path):
             "base_output_file": config.get("base_output_file", ""),
             "input_language": config.get("input_language"),
             "target_languages": config.get("target_languages", ["Arabic"]),
-            "sentences_per_output_file": config.get("sentences_per_output_file", 10),
+            "sentences_per_output_file": config.get("sentences_per_output_file", 3),
             "start_sentence": config.get("start_sentence", 1),
             "end_sentence": config.get("end_sentence"),
             "stitch_full": config.get("stitch_full", True),
@@ -435,10 +643,8 @@ def test_epub_job_artifacts(tmp_path):
             },
         }
 
-        if inputs["target_languages"] != ["Arabic"]:
-            pytest.fail(
-                "Integration test must submit Arabic as the target language for verification"
-            )
+        if not inputs["target_languages"]:
+            pytest.fail("Integration test requires at least one target language")
 
         payload = {
             "config": config,
