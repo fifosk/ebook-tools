@@ -3,10 +3,43 @@
 from __future__ import annotations
 
 import os
+import importlib
+import importlib.util
 from pathlib import Path
 from typing import Iterable, Tuple
 
-from dotenv import load_dotenv
+_DOTENV_SPEC = importlib.util.find_spec("dotenv")
+if _DOTENV_SPEC is not None:
+    load_dotenv = importlib.import_module("dotenv").load_dotenv
+else:
+    def load_dotenv(path: Path, override: bool = False) -> bool:
+        """Minimal .env loader used when python-dotenv is unavailable."""
+
+        if not Path(path).is_file():
+            return False
+
+        loaded = False
+        with Path(path).open("r", encoding="utf-8") as handle:
+            for raw_line in handle:
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    continue
+                key, value = line.split("=", 1)
+                key = key.strip()
+                value = value.strip()
+                if (value.startswith('"') and value.endswith('"')) or (
+                    value.startswith("'") and value.endswith("'")
+                ):
+                    value = value[1:-1]
+                if not key:
+                    continue
+                if not override and key in os.environ:
+                    continue
+                os.environ[key] = value
+                loaded = True
+        return loaded
 
 # Cache of files that have already been processed. Prevents re-loading when the
 # module is imported multiple times (for example, by both the CLI and uvicorn).

@@ -25,3 +25,8 @@ dependencies = [
 [project.scripts]
 ebook-tools = "modules.cli.main:main"
 ebook-tools-api = "modules.webapi.__main__:main"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests that exercise end-to-end workflows.",
+]
