@@ -12,6 +12,13 @@ from uuid import uuid4
 
 import pytest
 
+# Ensure the local ``modules`` package is imported even if another dependency
+# injected a top-level ``modules`` module into ``sys.modules`` earlier in the
+# session (which can confuse Python into thinking the package is not
+# importable). Removing any pre-existing entry guarantees the repository's
+# package is the one that gets imported below.
+sys.modules.pop("modules", None)
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
