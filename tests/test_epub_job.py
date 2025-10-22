@@ -33,6 +33,33 @@ from modules.llm_client import create_client
 DEFAULT_OUTPUT_DIR = Path("output/ebook")
 
 
+def _coerce_positive_int(value: Any, default: int) -> int:
+    """Return ``value`` coerced to a positive integer or ``default``."""
+
+    try:
+        candidate = int(value)
+    except (TypeError, ValueError):
+        return default
+    return candidate if candidate > 0 else default
+
+
+def _normalize_language_values(candidate: Any) -> list[str]:
+    """Normalise a user-provided language configuration value into a list."""
+
+    if candidate is None:
+        return []
+    if isinstance(candidate, (list, tuple, set)):
+        values: list[str] = []
+        for item in candidate:
+            values.extend(_normalize_language_values(item))
+        return values
+    if isinstance(candidate, str):
+        parts = re.split(r"[,;]", candidate)
+        return [part.strip() for part in parts if part.strip()]
+    text = str(candidate).strip()
+    return [text] if text else []
+
+
 @contextlib.contextmanager
 def _cli_configuration(epub_path: Path, output_dir: Path):
     """Load CLI configuration and activate a runtime context for the test."""
@@ -64,9 +91,52 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     config.setdefault(
         "book_summary", "Synthetic EPUB generated for integration verification."
     )
-    config["target_languages"] = ["Arabic"]
-    config["input_language"] = "English"
-    config["sentences_per_output_file"] = 10
+    configured_targets = (
+        config.get("test_target_languages") or config.get("test_target_language")
+    )
+    default_targets = config.get("target_languages")
+    target_languages = _normalize_language_values(
+        configured_targets if configured_targets is not None else default_targets
+    )
+    if not target_languages:
+        target_languages = ["Arabic"]
+    else:
+        unique_targets: list[str] = []
+        seen_targets: set[str] = set()
+        for language in target_languages:
+            lowered = language.lower()
+            if lowered in seen_targets:
+                continue
+            seen_targets.add(lowered)
+            unique_targets.append(language)
+        target_languages = unique_targets
+
+    config["target_languages"] = target_languages
+    config["input_language"] = config.get("input_language") or "English"
+
+    default_sentences = _coerce_positive_int(
+        config.get("sentences_per_output_file"), 10
+    )
+    config["sentences_per_output_file"] = default_sentences
+
+    configured_sentence_count = config.get("test_sentence_count")
+    if configured_sentence_count is None:
+        configured_sentence_count = config.get("test_sample_sentence_count")
+    sample_sentence_count = _coerce_positive_int(
+        configured_sentence_count, default_sentences
+    )
+    config["test_sentence_count"] = sample_sentence_count
+
+    topic_value = (
+        config.get("test_sentence_topic")
+        or config.get("test_sample_sentence_topic")
+        or ""
+    )
+    topic = str(topic_value).strip() if topic_value is not None else ""
+    if not topic:
+        topic = "modern technology"
+    config["test_sentence_topic"] = topic
+
     config["start_sentence"] = 1
     config["end_sentence"] = None
     config["stitch_full"] = True
@@ -101,6 +171,19 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
     primary_url = config.get("ollama_url")
     local_url = config.get("ollama_local_url")
     cloud_url = config.get("ollama_cloud_url")
+    input_language = config.get("input_language") or "English"
+    topic = config.get("test_sentence_topic") or "modern technology"
+    target_languages = _normalize_language_values(config.get("target_languages"))
+    if target_languages:
+        deduped_targets: list[str] = []
+        seen: set[str] = set()
+        for language in target_languages:
+            lowered = language.lower()
+            if lowered in seen:
+                continue
+            seen.add(lowered)
+            deduped_targets.append(language)
+        target_languages = deduped_targets
 
     placeholder_phrases = {
         "this is a sample sentence",
@@ -123,11 +206,19 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
             "You generate evaluation data for an e-book processing pipeline. "
             "Respond with JSON only."
         )
+        target_clause = ""
+        if target_languages:
+            formatted_targets = ", ".join(target_languages)
+            target_clause = (
+                " Craft sentences that translate cleanly into "
+                f"{formatted_targets}."
+            )
         user_prompt = (
             "Create a JSON array named sentences containing exactly "
-            f"{count} distinctive English sentences about modern technology. "
-            "Ensure every sentence is unique, avoids filler text, and stays under 12 words. "
-            "Return only the array with no commentary."
+            f"{count} distinctive {input_language} sentences about {topic}. "
+            "Ensure every sentence is unique, avoids filler text, and stays under 12 words."
+            + target_clause
+            + " Return only the array with no commentary."
         )
 
         last_error: str | None = None
@@ -381,7 +472,18 @@ def test_epub_job_artifacts(tmp_path):
 
     with _cli_configuration(epub_path, output_dir) as (config, overrides):
         _purge_previous_artifacts(epub_path, config, overrides)
-        sentences = _generate_sentences_via_ollama(10, config)
+        default_sentence_batch = _coerce_positive_int(
+            config.get("sentences_per_output_file"), 10
+        )
+        sample_sentence_count = _coerce_positive_int(
+            config.get("test_sentence_count"), default_sentence_batch
+        )
+        print(
+            "[ollama] Requesting "
+            f"{sample_sentence_count} {config.get('input_language', 'English')} sentences "
+            f"about {config.get('test_sentence_topic')}"
+        )
+        sentences = _generate_sentences_via_ollama(sample_sentence_count, config)
         for index, sentence in enumerate(sentences, start=1):
             print(f"[ollama] Sentence {index}: {sentence}")
         create_epub_from_sentences(sentences, epub_path)
@@ -435,10 +537,8 @@ def test_epub_job_artifacts(tmp_path):
             },
         }
 
-        if inputs["target_languages"] != ["Arabic"]:
-            pytest.fail(
-                "Integration test must submit Arabic as the target language for verification"
-            )
+        if not inputs["target_languages"]:
+            pytest.fail("Integration test requires at least one target language")
 
         payload = {
             "config": config,
