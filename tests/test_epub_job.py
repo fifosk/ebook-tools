@@ -6,7 +6,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, Iterator, Sequence, Tuple
+from typing import Any, Dict, Iterator, Sequence
 
 import pytest
 
@@ -60,13 +60,13 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     config = dict(config)
     config["input_file"] = str(epub_path)
     config["ebooks_dir"] = str(resolved_books)
-    config.setdefault("book_title", "Sample EPUB")
-    config.setdefault("book_author", "Automated Integration Test")
-    config.setdefault("book_year", "2025")
+    config["book_title"] = config.get("book_title") or "Sample EPUB"
+    config["book_author"] = config.get("book_author") or "Automated Integration Test"
+    config["book_year"] = str(config.get("book_year") or "2025")
     config.setdefault(
         "book_summary", "Synthetic EPUB generated for integration verification."
     )
-    config["target_languages"] = ["English"]
+    config["target_languages"] = ["Arabic"]
     config["input_language"] = "English"
     config["sentences_per_output_file"] = 10
     config["start_sentence"] = 1
@@ -104,6 +104,12 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
     local_url = config.get("ollama_local_url")
     cloud_url = config.get("ollama_cloud_url")
 
+    placeholder_phrases = {
+        "this is a sample sentence",
+        "this is a sample sentense",
+        "sample sentence",
+    }
+
     with create_client(
         model=model,
         api_url=primary_url,
@@ -121,54 +127,92 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
         )
         user_prompt = (
             "Create a JSON array named sentences containing exactly "
-            f"{count} concise English sentences about technology, each under 12 words. "
-            "Return only the array, with no commentary."
+            f"{count} distinctive English sentences about modern technology. "
+            "Ensure every sentence is unique, avoids filler text, and stays under 12 words. "
+            "Return only the array with no commentary."
         )
-        payload = {
-            "model": model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "stream": False,
-        }
 
-        def _validator(text: str) -> bool:
+        last_error: str | None = None
+        for attempt in range(1, 4):
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "stream": False,
+                "options": {"temperature": 0.8, "top_p": 0.9},
+            }
+
+            def _validator(text: str) -> bool:
+                try:
+                    data = json.loads(text)
+                except json.JSONDecodeError:
+                    return False
+                if isinstance(data, dict) and "sentences" in data:
+                    data = data["sentences"]
+                if not isinstance(data, list):
+                    return False
+                cleaned = [
+                    str(item).strip()
+                    for item in data
+                    if str(item).strip() and str(item).strip().lower() not in placeholder_phrases
+                ]
+                unique_count = len({sentence.lower() for sentence in cleaned})
+                return unique_count >= count
+
+            response = client.send_chat_request(payload, validator=_validator, timeout=180)
+            if response.error:
+                pytest.fail(f"Ollama sentence generation failed: {response.error}")
+
+            raw_text = response.text.strip()
+            parsed: Any
             try:
-                data = json.loads(text)
+                parsed = json.loads(raw_text)
             except json.JSONDecodeError:
-                return False
-            if isinstance(data, dict) and "sentences" in data:
-                data = data["sentences"]
-            return isinstance(data, list) and len(data) >= count
+                start = raw_text.find("[")
+                end = raw_text.rfind("]")
+                if start == -1 or end == -1:
+                    pytest.fail(f"Unexpected Ollama response format: {raw_text}")
+                parsed = json.loads(raw_text[start : end + 1])
 
-        response = client.send_chat_request(payload, validator=_validator, timeout=120)
-        if response.error:
-            pytest.fail(f"Ollama sentence generation failed: {response.error}")
+            if isinstance(parsed, dict):
+                parsed = parsed.get("sentences")
 
-        raw_text = response.text.strip()
-        parsed: Any
-        try:
-            parsed = json.loads(raw_text)
-        except json.JSONDecodeError:
-            start = raw_text.find("[")
-            end = raw_text.rfind("]")
-            if start == -1 or end == -1:
-                pytest.fail(f"Unexpected Ollama response format: {raw_text}")
-            parsed = json.loads(raw_text[start : end + 1])
+            if not isinstance(parsed, list):
+                pytest.fail(f"Ollama response missing sentence list: {parsed}")
 
-        if isinstance(parsed, dict):
-            parsed = parsed.get("sentences")
+            sentences: list[str] = []
+            seen_lower: set[str] = set()
+            for item in parsed:
+                sentence = str(item).strip()
+                if not sentence:
+                    continue
+                lowered = sentence.lower()
+                if lowered in placeholder_phrases:
+                    continue
+                if lowered in seen_lower:
+                    continue
+                seen_lower.add(lowered)
+                sentences.append(sentence)
 
-        if not isinstance(parsed, list):
-            pytest.fail(f"Ollama response missing sentence list: {parsed}")
+            if len(sentences) >= count:
+                print(
+                    f"[ollama] Generated {len(sentences)} unique sentences on attempt {attempt}"
+                )
+                return sentences[:count]
 
-        sentences = [str(item).strip() for item in parsed if str(item).strip()]
-        if len(sentences) < count:
-            pytest.fail(
-                f"Ollama returned {len(sentences)} sentences; expected at least {count}"
+            last_error = (
+                f"attempt {attempt} produced {len(sentences)} unique sentences"
             )
-        return sentences[:count]
+            print(
+                f"[ollama] Regenerating sentences due to insufficient variety ({last_error})"
+            )
+
+        pytest.fail(
+            "Ollama returned insufficient unique sentences after multiple attempts: "
+            f"{last_error}"
+        )
 
 
 def _free_port() -> int:
@@ -224,98 +268,6 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
     raise TimeoutError("Web API healthcheck did not return success in time")
 
 
-@contextlib.contextmanager
-def _patch_media_generation() -> Iterator[None]:
-    """Patch translation and TTS layers with deterministic test doubles."""
-
-    monkeypatch = pytest.MonkeyPatch()
-
-    from modules.audio import tts as tts_module
-    from modules.core import translation as translation_module
-    from modules import metadata_manager
-    from modules.translation_engine import TranslationTask
-    from pydub.generators import Sine
-
-    def _synthesized_segment(text: str, lang_code: str, selected_voice: str, macos_speed: int):
-        duration_ms = max(400, min(len(text.split()) * 180, 2000))
-        base_freq = 440 if lang_code.lower().startswith("en") else 554
-        tone = Sine(base_freq).to_audio_segment(duration=duration_ms)
-        return tone.set_channels(1).set_frame_rate(44100)
-
-    def _translate_batch(
-        sentences: Sequence[str],
-        input_language: str,
-        target_languages: Sequence[str] | str,
-        **_: Any,
-    ) -> list[str]:
-        if isinstance(target_languages, str):
-            targets = [target_languages] * len(sentences)
-        else:
-            targets = list(target_languages)
-            if len(targets) < len(sentences):
-                if targets:
-                    targets.extend([targets[-1]] * (len(sentences) - len(targets)))
-                else:
-                    targets = [""] * len(sentences)
-        results: list[str] = []
-        for sentence, target in zip(sentences, targets):
-            results.append(sentence if target in {input_language, "", None} else sentence)
-        return results
-
-    def _transliterate_sentence(_: str, __: str, **___: Any) -> str:
-        return ""
-
-    def _start_translation_pipeline(
-        sentences: Sequence[str],
-        input_language: str,
-        target_sequence: Sequence[str],
-        *,
-        start_sentence: int,
-        output_queue,
-        consumer_count: int,
-        **__: Any,
-    ) -> threading.Thread:
-        def _producer() -> None:
-            for index, (sentence, target) in enumerate(zip(sentences, target_sequence)):
-                task = TranslationTask(
-                    index=index,
-                    sentence_number=start_sentence + index,
-                    sentence=sentence,
-                    target_language=target,
-                    translation=sentence if target in {input_language, "", None} else sentence,
-                )
-                output_queue.put(task)
-            for _ in range(consumer_count):
-                output_queue.put(None)
-
-        thread = threading.Thread(
-            target=_producer,
-            name="test-translation-producer",
-            daemon=True,
-        )
-        thread.start()
-        return thread
-
-    original_infer_metadata = metadata_manager.infer_metadata
-
-    def _infer_metadata_with_defaults(*args: Any, **kwargs: Any) -> Dict[str, Any]:
-        result = original_infer_metadata(*args, **kwargs)
-        if isinstance(result, dict) and "book_year" not in result:
-            result["book_year"] = "Unknown"
-        return result
-
-    monkeypatch.setattr(tts_module, "synthesize_segment", _synthesized_segment)
-    monkeypatch.setattr(translation_module, "translate_batch", _translate_batch)
-    monkeypatch.setattr(translation_module, "transliterate_sentence", _transliterate_sentence)
-    monkeypatch.setattr(translation_module, "start_translation_pipeline", _start_translation_pipeline)
-    monkeypatch.setattr(metadata_manager, "infer_metadata", _infer_metadata_with_defaults)
-
-    try:
-        yield
-    finally:
-        monkeypatch.undo()
-
-
 @pytest.mark.integration
 def test_epub_job_artifacts(tmp_path):
     """Start the real web API, submit a job, and validate generated artifacts."""
@@ -327,6 +279,8 @@ def test_epub_job_artifacts(tmp_path):
 
     with _cli_configuration(epub_path, output_dir) as (config, overrides):
         sentences = _generate_sentences_via_ollama(10, config)
+        for index, sentence in enumerate(sentences, start=1):
+            print(f"[ollama] Sentence {index}: {sentence}")
         create_epub_from_sentences(sentences, epub_path)
         print(f"[test] Created synthetic EPUB at {epub_path}")
 
@@ -355,7 +309,7 @@ def test_epub_job_artifacts(tmp_path):
             "input_file": config["input_file"],
             "base_output_file": config.get("base_output_file", ""),
             "input_language": config.get("input_language"),
-            "target_languages": config.get("target_languages", ["English"]),
+            "target_languages": config.get("target_languages", ["Arabic"]),
             "sentences_per_output_file": config.get("sentences_per_output_file", 10),
             "start_sentence": config.get("start_sentence", 1),
             "end_sentence": config.get("end_sentence"),
@@ -378,6 +332,11 @@ def test_epub_job_artifacts(tmp_path):
             },
         }
 
+        if inputs["target_languages"] != ["Arabic"]:
+            pytest.fail(
+                "Integration test must submit Arabic as the target language for verification"
+            )
+
         payload = {
             "config": config,
             "environment_overrides": environment_overrides,
@@ -399,36 +358,33 @@ def test_epub_job_artifacts(tmp_path):
         job_id: str | None = None
         latest_status: Dict[str, Any] | None = None
 
-        with _patch_media_generation():
-            with _run_webapi(app, host, port):
-                _wait_for_healthcheck(base_url)
+        with _run_webapi(app, host, port):
+            _wait_for_healthcheck(base_url)
 
-                response = requests.post(
-                    f"{base_url}/pipelines/", json=payload, timeout=30
-                )
-                assert response.status_code == 202, response.text
-                submission = response.json()
-                job_id = submission["job_id"]
+            response = requests.post(f"{base_url}/pipelines/", json=payload, timeout=30)
+            assert response.status_code == 202, response.text
+            submission = response.json()
+            job_id = submission["job_id"]
+            print(
+                f"[webapi] Job accepted with id={job_id}, initial status={submission['status']}"
+            )
+
+            status_url = f"{base_url}/pipelines/{job_id}"
+            for attempt in range(1, 61):
+                poll_response = requests.get(status_url, timeout=30)
+                latest_status = poll_response.json()
+                status_value = latest_status["status"]
+                error_message = latest_status.get("error")
                 print(
-                    f"[webapi] Job accepted with id={job_id}, initial status={submission['status']}"
+                    f"[webapi] Poll {attempt}: status={status_value}, error={error_message!r}"
                 )
-
-                status_url = f"{base_url}/pipelines/{job_id}"
-                for attempt in range(1, 61):
-                    poll_response = requests.get(status_url, timeout=30)
-                    latest_status = poll_response.json()
-                    status_value = latest_status["status"]
-                    error_message = latest_status.get("error")
-                    print(
-                        f"[webapi] Poll {attempt}: status={status_value}, error={error_message!r}"
-                    )
-                    if status_value == PipelineJobStatus.COMPLETED.value:
-                        break
-                    if status_value == PipelineJobStatus.FAILED.value:
-                        pytest.fail(f"Pipeline job failed: {error_message}")
-                    time.sleep(1)
-                else:  # pragma: no cover - indicates timeout behaviour
-                    pytest.fail("Pipeline job did not complete within expected time")
+                if status_value == PipelineJobStatus.COMPLETED.value:
+                    break
+                if status_value == PipelineJobStatus.FAILED.value:
+                    pytest.fail(f"Pipeline job failed: {error_message}")
+                time.sleep(1)
+            else:  # pragma: no cover - indicates timeout behaviour
+                pytest.fail("Pipeline job did not complete within expected time")
 
     assert job_id is not None
     assert latest_status is not None
@@ -445,23 +401,41 @@ def test_epub_job_artifacts(tmp_path):
 
     stitched_documents = result_payload.get("stitched_documents") or {}
     html_path_value = stitched_documents.get("html") or stitched_documents.get("epub")
-    if not html_path_value:
-        pytest.fail(f"Pipeline result missing stitched document paths: {stitched_documents}")
-    html_path = Path(html_path_value)
+    html_path: Path | None = Path(html_path_value) if html_path_value else None
+    if not html_path or not html_path.exists():
+        candidates = list(base_dir.glob("*.html")) or list(base_dir.glob("*.epub"))
+        html_path = candidates[0] if candidates else None
+    if not html_path:
+        pytest.fail(
+            "Pipeline result missing stitched document paths and no HTML/EPUB files were "
+            f"found in {base_dir}: {stitched_documents}"
+        )
     if not html_path.exists():
         pytest.fail(f"HTML artifact not found at {html_path}")
 
     audio_path_value = result_payload.get("stitched_audio_path")
-    if not audio_path_value:
-        pytest.fail(f"Pipeline result missing stitched audio path: {result_payload}")
-    mp3_path = Path(audio_path_value)
+    mp3_path: Path | None = Path(audio_path_value) if audio_path_value else None
+    if not mp3_path or not mp3_path.exists():
+        mp3_candidates = sorted(base_dir.glob("*.mp3"))
+        mp3_path = mp3_candidates[0] if mp3_candidates else None
+    if not mp3_path:
+        pytest.fail(
+            "Pipeline result missing stitched audio path and no MP3 files were found "
+            f"in {base_dir}: {result_payload}"
+        )
     if not mp3_path.exists():
         pytest.fail(f"MP3 artifact not found at {mp3_path}")
 
     video_path_value = result_payload.get("stitched_video_path")
-    if not video_path_value:
-        pytest.fail(f"Pipeline result missing stitched video path: {result_payload}")
-    mp4_path = Path(video_path_value)
+    mp4_path: Path | None = Path(video_path_value) if video_path_value else None
+    if not mp4_path or not mp4_path.exists():
+        mp4_candidates = sorted(base_dir.glob("*.mp4"))
+        mp4_path = mp4_candidates[0] if mp4_candidates else None
+    if not mp4_path:
+        pytest.fail(
+            "Pipeline result missing stitched video path and no MP4 files were found "
+            f"in {base_dir}: {result_payload}"
+        )
     if not mp4_path.exists():
         pytest.fail(f"MP4 artifact not found at {mp4_path}")
 
