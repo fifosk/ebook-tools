@@ -1,14 +1,12 @@
 import contextlib
 import json
+import shutil
 import socket
 import sys
 import threading
 import time
-from datetime import datetime, timezone
 from pathlib import Path
-from types import MappingProxyType
-from typing import Any, Dict, Iterator, Tuple
-from uuid import uuid4
+from typing import Any, Dict, Iterator, Sequence, Tuple
 
 import pytest
 
@@ -26,11 +24,8 @@ if str(PROJECT_ROOT) not in sys.path:
 requests = pytest.importorskip("requests")
 uvicorn = pytest.importorskip("uvicorn")
 
-from modules.api_client import generate_pipeline_artifacts
 from modules.epub_utils import create_epub_from_sentences
-from modules.progress_tracker import ProgressEvent, ProgressSnapshot
 from modules.services.job_manager import PipelineJobStatus
-from modules.services.pipeline_service import PipelineRequest
 from modules.webapi.application import create_app
 from modules.webapi import dependencies as webapi_dependencies
 
@@ -102,108 +97,86 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
     raise TimeoutError("Web API healthcheck did not return success in time")
 
 
-class _StubPipelineJob:
-    def __init__(self, job_id: str, request: PipelineRequest) -> None:
-        self.job_id = job_id
-        self.request = request
-        self.status = PipelineJobStatus.PENDING
-        now = datetime.now(timezone.utc)
-        self.created_at = now
-        self.started_at = None
-        self.completed_at = None
-        self.error_message = None
-        self.last_event = None
-        self.result = None
-        self.result_payload = None
+@contextlib.contextmanager
+def _patch_media_generation() -> Iterator[None]:
+    """Patch translation and TTS layers with deterministic test doubles."""
 
+    monkeypatch = pytest.MonkeyPatch()
 
-class StubPipelineService:
-    """In-memory pipeline service used for exercising the real web API."""
+    from modules.audio import tts as tts_module
+    from modules.core import translation as translation_module
+    from modules.translation_engine import TranslationTask
+    from pydub.generators import Sine
 
-    def __init__(self, output_root: Path) -> None:
-        self._output_root = output_root
-        self._jobs: Dict[str, _StubPipelineJob] = {}
-        self._lock = threading.RLock()
+    def _synthesized_segment(text: str, lang_code: str, selected_voice: str, macos_speed: int):
+        duration_ms = max(400, min(len(text.split()) * 180, 2000))
+        base_freq = 440 if lang_code.lower().startswith("en") else 554
+        tone = Sine(base_freq).to_audio_segment(duration=duration_ms)
+        return tone.set_channels(1).set_frame_rate(44100)
 
-    def enqueue(self, request: PipelineRequest) -> _StubPipelineJob:  # pragma: no cover - exercised in tests
-        job_id = uuid4().hex
-        job = _StubPipelineJob(job_id, request)
-        with self._lock:
-            self._jobs[job_id] = job
+    def _translate_batch(
+        sentences: Sequence[str],
+        input_language: str,
+        target_languages: Sequence[str] | str,
+        **_: Any,
+    ) -> list[str]:
+        if isinstance(target_languages, str):
+            targets = [target_languages] * len(sentences)
+        else:
+            targets = list(target_languages)
+            if len(targets) < len(sentences):
+                if targets:
+                    targets.extend([targets[-1]] * (len(sentences) - len(targets)))
+                else:
+                    targets = [""] * len(sentences)
+        results: list[str] = []
+        for sentence, target in zip(sentences, targets):
+            results.append(sentence if target in {input_language, "", None} else sentence)
+        return results
 
-        worker = threading.Thread(
-            target=self._process_job,
-            args=(job,),
-            name=f"stub-pipeline-{job_id}",
+    def _transliterate_sentence(_: str, __: str, **___: Any) -> str:
+        return ""
+
+    def _start_translation_pipeline(
+        sentences: Sequence[str],
+        input_language: str,
+        target_sequence: Sequence[str],
+        *,
+        start_sentence: int,
+        output_queue,
+        consumer_count: int,
+        **__: Any,
+    ) -> threading.Thread:
+        def _producer() -> None:
+            for index, (sentence, target) in enumerate(zip(sentences, target_sequence)):
+                task = TranslationTask(
+                    index=index,
+                    sentence_number=start_sentence + index,
+                    sentence=sentence,
+                    target_language=target,
+                    translation=sentence if target in {input_language, "", None} else sentence,
+                )
+                output_queue.put(task)
+            for _ in range(consumer_count):
+                output_queue.put(None)
+
+        thread = threading.Thread(
+            target=_producer,
+            name="test-translation-producer",
             daemon=True,
         )
-        worker.start()
-        return job
+        thread.start()
+        return thread
 
-    def _process_job(self, job: _StubPipelineJob) -> None:
-        start_time = time.perf_counter()
-        with self._lock:
-            job.status = PipelineJobStatus.RUNNING
-            job.started_at = datetime.now(timezone.utc)
+    monkeypatch.setattr(tts_module, "synthesize_segment", _synthesized_segment)
+    monkeypatch.setattr(translation_module, "translate_batch", _translate_batch)
+    monkeypatch.setattr(translation_module, "transliterate_sentence", _transliterate_sentence)
+    monkeypatch.setattr(translation_module, "start_translation_pipeline", _start_translation_pipeline)
 
-        try:
-            job_dir = self._output_root / job.job_id
-            sentences, artifacts = generate_pipeline_artifacts(job.request.inputs.input_file, job_dir)
-            metadata = {"stage": "complete", "artifacts": {k: str(v) for k, v in artifacts.items()}}
-            elapsed = max(0.0, time.perf_counter() - start_time)
-            snapshot = ProgressSnapshot(completed=1, total=1, elapsed=elapsed, speed=1.0, eta=0.0)
-            job.last_event = ProgressEvent(
-                event_type="complete",
-                snapshot=snapshot,
-                timestamp=time.time(),
-                metadata=MappingProxyType(metadata),
-            )
-            job.result_payload = {
-                "success": True,
-                "pipeline_config": None,
-                "refined_sentences": sentences,
-                "refined_updated": False,
-                "written_blocks": None,
-                "audio_segments": None,
-                "batch_video_files": None,
-                "base_dir": str(job_dir),
-                "base_output_stem": job_dir.name,
-                "stitched_documents": {"html": str(artifacts["html"])},
-                "stitched_audio_path": str(artifacts["mp3"]),
-                "stitched_video_path": str(artifacts["mp4"]),
-                "book_metadata": {},
-            }
-            with self._lock:
-                job.status = PipelineJobStatus.COMPLETED
-                job.completed_at = datetime.now(timezone.utc)
-        except Exception as exc:  # pragma: no cover - defensive failure path
-            metadata = {"stage": "error", "error": str(exc)}
-            snapshot = ProgressSnapshot(completed=0, total=1, elapsed=0.0, speed=0.0, eta=None)
-            job.last_event = ProgressEvent(
-                event_type="error",
-                snapshot=snapshot,
-                timestamp=time.time(),
-                metadata=MappingProxyType(metadata),
-                error=exc,
-            )
-            with self._lock:
-                job.status = PipelineJobStatus.FAILED
-                job.completed_at = datetime.now(timezone.utc)
-                job.error_message = str(exc)
-
-    def get_job(self, job_id: str) -> _StubPipelineJob:
-        with self._lock:
-            try:
-                return self._jobs[job_id]
-            except KeyError as exc:
-                raise KeyError(job_id) from exc
-
-    def list_jobs(self) -> Dict[str, _StubPipelineJob]:  # pragma: no cover - unused helper
-        with self._lock:
-            return dict(self._jobs)
-
-    def refresh_metadata(self, job_id: str) -> _StubPipelineJob:  # pragma: no cover - unused helper
-        return self.get_job(job_id)
+    try:
+        yield
+    finally:
+        monkeypatch.undo()
 
 
 @pytest.mark.integration
@@ -219,76 +192,76 @@ def test_epub_job_artifacts(tmp_path):
     sentences = [f"Sample sentence {i + 1} for testing." for i in range(10)]
     epub_path = tmp_path / "sample.epub"
     create_epub_from_sentences(sentences, epub_path)
+    print(f"[test] Created synthetic EPUB at {epub_path}")
 
-    stub_service = StubPipelineService(output_dir)
+    ffmpeg_path = shutil.which("ffmpeg")
+    if not ffmpeg_path:
+        pytest.skip("ffmpeg executable is required for media artifact validation")
+    print(f"[deps] ffmpeg resolved to: {ffmpeg_path}")
+
     webapi_dependencies.get_pipeline_service.cache_clear()
     app = create_app()
-    original_override = app.dependency_overrides.get(
-        webapi_dependencies.get_pipeline_service
-    )
-    app.dependency_overrides[webapi_dependencies.get_pipeline_service] = lambda: stub_service
 
     host = "127.0.0.1"
     port = _free_port()
     base_url = f"http://{host}:{port}"
 
+    payload = {
+        "config": {"output_dir": str(output_dir)},
+        "environment_overrides": {},
+        "pipeline_overrides": {
+            "pipeline_enabled": False,
+            "ffmpeg_path": ffmpeg_path,
+        },
+        "inputs": {
+            "input_file": str(epub_path),
+            "base_output_file": "",
+            "input_language": "English",
+            "target_languages": ["English"],
+            "sentences_per_output_file": 10,
+            "start_sentence": 1,
+            "end_sentence": None,
+            "stitch_full": True,
+            "generate_audio": True,
+            "audio_mode": "1",
+            "written_mode": "4",
+            "selected_voice": "gTTS",
+            "output_html": True,
+            "output_pdf": False,
+            "generate_video": True,
+            "include_transliteration": False,
+            "tempo": 1.0,
+            "book_metadata": {},
+        },
+    }
+
     print(f"[webapi] Starting FastAPI server at {base_url}")
+    print("[webapi] Job payload:")
+    print(json.dumps(payload, indent=2))
 
     job_id: str | None = None
-    latest_status = None
+    latest_status: Dict[str, Any] | None = None
 
-    try:
+    with _patch_media_generation():
         with _run_webapi(app, host, port):
             _wait_for_healthcheck(base_url)
-
-            payload = {
-                "config": {"output_dir": str(output_dir)},
-                "environment_overrides": {},
-                "pipeline_overrides": {},
-                "inputs": {
-                    "input_file": str(epub_path),
-                    "base_output_file": "",
-                    "input_language": "English",
-                    "target_languages": ["English"],
-                    "sentences_per_output_file": 10,
-                    "start_sentence": 1,
-                    "end_sentence": None,
-                    "stitch_full": True,
-                    "generate_audio": True,
-                    "audio_mode": "1",
-                    "written_mode": "4",
-                    "selected_voice": "gTTS",
-                    "output_html": True,
-                    "output_pdf": False,
-                    "generate_video": True,
-                    "include_transliteration": False,
-                    "tempo": 1.0,
-                    "book_metadata": {},
-                },
-            }
-
-            print("[webapi] Submitting job payload:")
-            print(json.dumps(payload, indent=2))
 
             response = requests.post(f"{base_url}/pipelines", json=payload, timeout=30)
             assert response.status_code == 202, response.text
             submission = response.json()
             job_id = submission["job_id"]
-
             print(
                 f"[webapi] Job accepted with id={job_id}, initial status={submission['status']}"
             )
 
             status_url = f"{base_url}/pipelines/{job_id}"
-            max_attempts = 60
-            for attempt in range(1, max_attempts + 1):
-                poll_response = requests.get(status_url, timeout=15)
+            for attempt in range(1, 61):
+                poll_response = requests.get(status_url, timeout=30)
                 latest_status = poll_response.json()
                 status_value = latest_status["status"]
                 error_message = latest_status.get("error")
                 print(
-                    f"[webapi] Poll {attempt}: status={status_value}, "
-                    f"error={error_message!r}",
+                    f"[webapi] Poll {attempt}: status={status_value}, error={error_message!r}"
                 )
                 if status_value == PipelineJobStatus.COMPLETED.value:
                     break
@@ -297,25 +270,23 @@ def test_epub_job_artifacts(tmp_path):
                 time.sleep(1)
             else:  # pragma: no cover - indicates timeout behaviour
                 pytest.fail("Pipeline job did not complete within expected time")
-    finally:
-        if original_override is None:
-            app.dependency_overrides.pop(webapi_dependencies.get_pipeline_service, None)
-        else:
-            app.dependency_overrides[webapi_dependencies.get_pipeline_service] = (
-                original_override
-            )
 
     assert job_id is not None
     assert latest_status is not None
     job_dir = output_dir / job_id
     expected_files = ["output.html", "output.mp3", "output.mp4"]
     missing: Tuple[str, ...] = tuple(
-        fname for fname in expected_files if not (job_dir / fname).exists()
+        name for name in expected_files if not (job_dir / name).exists()
     )
     if missing:
         pytest.fail(f"Missing artifacts in {job_dir}: {missing}")
 
-    print(f"[webapi] Generated artifacts located at: {job_dir}")
+    html_path, mp3_path, mp4_path = (job_dir / "output.html", job_dir / "output.mp3", job_dir / "output.mp4")
+    print(f"[artifacts] HTML generated at {html_path} ({html_path.stat().st_size} bytes)")
+    print(f"[artifacts] MP3 generated at {mp3_path} ({mp3_path.stat().st_size} bytes)")
+    print(f"[artifacts] MP4 generated at {mp4_path} ({mp4_path.stat().st_size} bytes)")
+
+    print(f"[webapi] Artifact directory ready for inspection: {job_dir}")
     for path in sorted(job_dir.iterdir()):
         print(f"[webapi] - {path} ({path.stat().st_size} bytes)")
 
