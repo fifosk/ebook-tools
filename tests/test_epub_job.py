@@ -61,7 +61,11 @@ def _normalize_language_values(candidate: Any) -> list[str]:
 
 
 @contextlib.contextmanager
-def _cli_configuration(epub_path: Path, output_dir: Path):
+def _cli_configuration(
+    epub_path: Path,
+    output_dir: Path,
+    cli_overrides: Dict[str, Any] | None = None,
+):
     """Load CLI configuration and activate a runtime context for the test."""
 
     previous_context = cfg.get_runtime_context(None)
@@ -83,6 +87,10 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     runtime_context = cli_context.refresh_runtime_context(config, overrides)
 
     config = dict(config)
+    if cli_overrides:
+        for key, value in cli_overrides.items():
+            if value is not None:
+                config[key] = value
     config["input_file"] = str(epub_path)
     config["ebooks_dir"] = str(resolved_books)
     config["book_title"] = config.get("book_title") or "Sample EPUB"
@@ -115,7 +123,7 @@ def _cli_configuration(epub_path: Path, output_dir: Path):
     config["input_language"] = config.get("input_language") or "English"
 
     default_sentences = _coerce_positive_int(
-        config.get("sentences_per_output_file"), 10
+        config.get("sentences_per_output_file"), 3
     )
     config["sentences_per_output_file"] = default_sentences
 
@@ -458,7 +466,7 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
 
 
 @pytest.mark.integration
-def test_epub_job_artifacts(tmp_path):
+def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
     """Start the real web API, submit a job, and validate generated artifacts."""
 
     from modules.services.job_manager import PipelineJobStatus
@@ -470,10 +478,13 @@ def test_epub_job_artifacts(tmp_path):
 
     epub_path = tmp_path / "sample.epub"
 
-    with _cli_configuration(epub_path, output_dir) as (config, overrides):
+    with _cli_configuration(epub_path, output_dir, epub_job_cli_overrides) as (
+        config,
+        overrides,
+    ):
         _purge_previous_artifacts(epub_path, config, overrides)
         default_sentence_batch = _coerce_positive_int(
-            config.get("sentences_per_output_file"), 10
+            config.get("sentences_per_output_file"), 3
         )
         sample_sentence_count = _coerce_positive_int(
             config.get("test_sentence_count"), default_sentence_batch
@@ -515,7 +526,7 @@ def test_epub_job_artifacts(tmp_path):
             "base_output_file": config.get("base_output_file", ""),
             "input_language": config.get("input_language"),
             "target_languages": config.get("target_languages", ["Arabic"]),
-            "sentences_per_output_file": config.get("sentences_per_output_file", 10),
+            "sentences_per_output_file": config.get("sentences_per_output_file", 3),
             "start_sentence": config.get("start_sentence", 1),
             "end_sentence": config.get("end_sentence"),
             "stitch_full": config.get("stitch_full", True),
