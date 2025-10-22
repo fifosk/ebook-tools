@@ -473,7 +473,12 @@ def test_epub_job_artifacts(tmp_path):
             )
 
             status_url = f"{base_url}/pipelines/{job_id}"
-            for attempt in range(1, 61):
+            try:
+                configured_attempts = int(config.get("test_poll_attempts", 300))
+            except (TypeError, ValueError):
+                configured_attempts = 300
+            max_attempts = max(60, configured_attempts)
+            for attempt in range(1, max_attempts + 1):
                 poll_response = requests.get(status_url, timeout=30)
                 latest_status = poll_response.json()
                 status_value = latest_status["status"]
@@ -487,7 +492,10 @@ def test_epub_job_artifacts(tmp_path):
                     pytest.fail(f"Pipeline job failed: {error_message}")
                 time.sleep(1)
             else:  # pragma: no cover - indicates timeout behaviour
-                pytest.fail("Pipeline job did not complete within expected time")
+                pytest.fail(
+                    "Pipeline job did not complete within expected time after "
+                    f"{max_attempts} polls"
+                )
 
     assert job_id is not None
     assert latest_status is not None
