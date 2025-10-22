@@ -83,6 +83,8 @@ def _run_webapi(app, host: str, port: int) -> Iterator[uvicorn.Server]:
     finally:
         server.should_exit = True
         thread.join(timeout=10)
+        if thread.is_alive():  # pragma: no cover - indicates an unexpected shutdown hang
+            raise RuntimeError("Uvicorn server thread did not terminate cleanly")
 
 
 def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
@@ -221,6 +223,9 @@ def test_epub_job_artifacts(tmp_path):
     stub_service = StubPipelineService(output_dir)
     webapi_dependencies.get_pipeline_service.cache_clear()
     app = create_app()
+    original_override = app.dependency_overrides.get(
+        webapi_dependencies.get_pipeline_service
+    )
     app.dependency_overrides[webapi_dependencies.get_pipeline_service] = lambda: stub_service
 
     host = "127.0.0.1"
@@ -229,65 +234,78 @@ def test_epub_job_artifacts(tmp_path):
 
     print(f"[webapi] Starting FastAPI server at {base_url}")
 
-    with _run_webapi(app, host, port):
-        _wait_for_healthcheck(base_url)
+    job_id: str | None = None
+    latest_status = None
 
-        payload = {
-            "config": {"output_dir": str(output_dir)},
-            "environment_overrides": {},
-            "pipeline_overrides": {},
-            "inputs": {
-                "input_file": str(epub_path),
-                "base_output_file": "",
-                "input_language": "English",
-                "target_languages": ["English"],
-                "sentences_per_output_file": 10,
-                "start_sentence": 1,
-                "end_sentence": None,
-                "stitch_full": True,
-                "generate_audio": True,
-                "audio_mode": "1",
-                "written_mode": "4",
-                "selected_voice": "gTTS",
-                "output_html": True,
-                "output_pdf": False,
-                "generate_video": True,
-                "include_transliteration": False,
-                "tempo": 1.0,
-                "book_metadata": {},
-            },
-        }
+    try:
+        with _run_webapi(app, host, port):
+            _wait_for_healthcheck(base_url)
 
-        print("[webapi] Submitting job payload:")
-        print(json.dumps(payload, indent=2))
+            payload = {
+                "config": {"output_dir": str(output_dir)},
+                "environment_overrides": {},
+                "pipeline_overrides": {},
+                "inputs": {
+                    "input_file": str(epub_path),
+                    "base_output_file": "",
+                    "input_language": "English",
+                    "target_languages": ["English"],
+                    "sentences_per_output_file": 10,
+                    "start_sentence": 1,
+                    "end_sentence": None,
+                    "stitch_full": True,
+                    "generate_audio": True,
+                    "audio_mode": "1",
+                    "written_mode": "4",
+                    "selected_voice": "gTTS",
+                    "output_html": True,
+                    "output_pdf": False,
+                    "generate_video": True,
+                    "include_transliteration": False,
+                    "tempo": 1.0,
+                    "book_metadata": {},
+                },
+            }
 
-        response = requests.post(f"{base_url}/pipelines", json=payload, timeout=30)
-        assert response.status_code == 202, response.text
-        submission = response.json()
-        job_id = submission["job_id"]
+            print("[webapi] Submitting job payload:")
+            print(json.dumps(payload, indent=2))
 
-        print(f"[webapi] Job accepted with id={job_id}, initial status={submission['status']}")
+            response = requests.post(f"{base_url}/pipelines", json=payload, timeout=30)
+            assert response.status_code == 202, response.text
+            submission = response.json()
+            job_id = submission["job_id"]
 
-        status_url = f"{base_url}/pipelines/{job_id}"
-        max_attempts = 60
-        latest_status = None
-        for attempt in range(1, max_attempts + 1):
-            poll_response = requests.get(status_url, timeout=15)
-            latest_status = poll_response.json()
-            status_value = latest_status["status"]
-            error_message = latest_status.get("error")
             print(
-                f"[webapi] Poll {attempt}: status={status_value}, "
-                f"error={error_message!r}",
+                f"[webapi] Job accepted with id={job_id}, initial status={submission['status']}"
             )
-            if status_value == PipelineJobStatus.COMPLETED.value:
-                break
-            if status_value == PipelineJobStatus.FAILED.value:
-                pytest.fail(f"Pipeline job failed: {error_message}")
-            time.sleep(1)
-        else:  # pragma: no cover - indicates timeout behaviour
-            pytest.fail("Pipeline job did not complete within expected time")
 
+            status_url = f"{base_url}/pipelines/{job_id}"
+            max_attempts = 60
+            for attempt in range(1, max_attempts + 1):
+                poll_response = requests.get(status_url, timeout=15)
+                latest_status = poll_response.json()
+                status_value = latest_status["status"]
+                error_message = latest_status.get("error")
+                print(
+                    f"[webapi] Poll {attempt}: status={status_value}, "
+                    f"error={error_message!r}",
+                )
+                if status_value == PipelineJobStatus.COMPLETED.value:
+                    break
+                if status_value == PipelineJobStatus.FAILED.value:
+                    pytest.fail(f"Pipeline job failed: {error_message}")
+                time.sleep(1)
+            else:  # pragma: no cover - indicates timeout behaviour
+                pytest.fail("Pipeline job did not complete within expected time")
+    finally:
+        if original_override is None:
+            app.dependency_overrides.pop(webapi_dependencies.get_pipeline_service, None)
+        else:
+            app.dependency_overrides[webapi_dependencies.get_pipeline_service] = (
+                original_override
+            )
+
+    assert job_id is not None
     assert latest_status is not None
     job_dir = output_dir / job_id
     expected_files = ["output.html", "output.mp3", "output.mp4"]
