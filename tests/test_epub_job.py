@@ -44,8 +44,10 @@ def test_epub_job_artifacts(tmp_path):
     create_epub_from_sentences(sentences, epub_path)
 
     api_config = dict(config.get("api") or {})
-    api_config.setdefault("output_dir", str(tmp_path / "artifacts"))
+    api_config.setdefault("output_dir", DEFAULT_CONFIG["api"]["output_dir"])
     job_params = dict(config.get("job_params") or {})
+
+    job_params.setdefault("input_file", str(epub_path))
 
     client = EbookToolsClient(**api_config)
     job_id = client.create_job(str(epub_path), job_params)
@@ -66,6 +68,8 @@ def test_epub_job_artifacts(tmp_path):
     for fname in expected_files:
         fpath = output_dir / job_id / fname
         assert fpath.exists(), f"{fname} was not generated"
+
+    print(f"Generated artifacts available for review at: {output_dir / job_id}")
 
 
 if __name__ == "__main__":  # pragma: no cover - convenience for direct execution
