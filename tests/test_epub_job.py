@@ -38,6 +38,19 @@ for _alias_name, _alias_code in LANGUAGE_CODES.items():
     _LANGUAGE_CANONICAL_MAP.setdefault(_alias_code.lower(), _alias_name)
     _LANGUAGE_CANONICAL_MAP.setdefault(_alias_code.replace("-", "_").lower(), _alias_name)
 
+_LANGUAGE_ALIAS_OVERRIDES = {
+    "chinese": "Chinese (Simplified)",
+    "simplified chinese": "Chinese (Simplified)",
+    "chinese simplified": "Chinese (Simplified)",
+    "traditional chinese": "Chinese (Traditional)",
+    "chinese traditional": "Chinese (Traditional)",
+    "mandarin": "Chinese (Simplified)",
+    "zh": "Chinese (Simplified)",
+}
+for _alias_key, _canonical_value in _LANGUAGE_ALIAS_OVERRIDES.items():
+    if _canonical_value in LANGUAGE_CODES:
+        _LANGUAGE_CANONICAL_MAP.setdefault(_alias_key, _canonical_value)
+
 
 def _canonical_language_name(value: Any) -> str:
     """Return the canonical language label recognised by the pipeline."""
