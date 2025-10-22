@@ -69,6 +69,11 @@ def _run_webapi(app, host: str, port: int) -> Iterator[uvicorn.Server]:
         while time.time() < deadline:
             if started is not None and getattr(started, "is_set", lambda: False)():
                 break
+            try:
+                with socket.create_connection((host, port), timeout=0.5):
+                    break
+            except OSError:
+                pass
             if not thread.is_alive():
                 raise RuntimeError("Uvicorn server terminated during startup")
             time.sleep(0.1)
