@@ -6,6 +6,9 @@ from typing import Any, Dict
 
 import pytest
 
+from modules.api_client import EbookToolsClient
+from modules.epub_utils import create_epub_from_sentences
+
 CONFIG_PATH = Path("conf/config.local.json")
 FALLBACK_CONFIG_PATH = Path("conf/config.json")
 
@@ -15,16 +18,6 @@ DEFAULT_CONFIG = {
     },
     "job_params": {},
 }
-
-try:
-    from modules.api_client import EbookToolsClient  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover - optional dependency
-    EbookToolsClient = None  # type: ignore[assignment]
-
-try:
-    from modules.epub_utils import create_epub_from_sentences  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover - optional dependency
-    create_epub_from_sentences = None  # type: ignore[assignment]
 
 
 def _load_config() -> Dict[str, Any]:
@@ -39,28 +32,6 @@ def _load_config() -> Dict[str, Any]:
 @pytest.mark.integration
 def test_epub_job_artifacts(tmp_path):
     """End-to-end test that synthesises a small EPUB and verifies pipeline outputs."""
-    if EbookToolsClient is None:
-        pytest.skip(
-            "modules.api_client module not available; cannot run EPUB job integration test",
-        )
-
-    if create_epub_from_sentences is None:
-        pytest.skip(
-            "modules.epub_utils module not available; cannot synthesise EPUB",
-        )
-
-    if not hasattr(EbookToolsClient, "create_job") or not callable(
-        getattr(EbookToolsClient, "create_job")
-    ):
-        pytest.skip(
-            "EbookToolsClient not provided by modules.api_client; skipping end-to-end EPUB job test",
-        )
-
-    if not callable(create_epub_from_sentences):
-        pytest.skip(
-            "create_epub_from_sentences not provided by modules.epub_utils; skipping end-to-end EPUB job test",
-        )
-
     config = _load_config()
 
     sentences = [f"Sample sentence {i + 1} for testing." for i in range(10)]
