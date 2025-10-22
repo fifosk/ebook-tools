@@ -1,5 +1,6 @@
 import contextlib
 import json
+import re
 import shutil
 import socket
 import sys
@@ -212,6 +213,106 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
         )
 
 
+def _purge_previous_artifacts(
+    epub_path: Path, config: Dict[str, Any], overrides: Dict[str, Any]
+) -> None:
+    """Remove cached runtime/output artifacts from prior sample EPUB runs."""
+
+    base_stem = epub_path.stem
+    sanitized_stem = re.sub(r"[^A-Za-z0-9_.-]", "_", base_stem) or "book"
+
+    runtime_dirname = (
+        overrides.get("derived_runtime_dirname")
+        or config.get("derived_runtime_dirname")
+        or cfg.DERIVED_RUNTIME_DIRNAME
+    )
+    working_dir = Path(
+        overrides.get("working_dir")
+        or config.get("working_dir")
+        or DEFAULT_OUTPUT_DIR.parent
+    ).expanduser().resolve()
+    runtime_dir = working_dir / runtime_dirname
+
+    removed_runtime: list[Path] = []
+    if runtime_dir.exists():
+        refined_filename = cfg.DERIVED_REFINED_FILENAME_TEMPLATE.format(
+            base_name=base_stem
+        )
+        candidates = {
+            runtime_dir / refined_filename,
+            runtime_dir / f"{sanitized_stem}_cover.jpg",
+        }
+        for prefix in {base_stem, sanitized_stem}:
+            candidates.update(runtime_dir.glob(f"{prefix}*.json"))
+        cover_path_value = config.get("book_cover_file")
+        if cover_path_value:
+            cover_path = Path(cover_path_value)
+            potential_cover_paths = []
+            if cover_path.is_absolute():
+                potential_cover_paths.append(cover_path)
+            else:
+                potential_cover_paths.append(runtime_dir / cover_path)
+            for candidate_cover in potential_cover_paths:
+                if candidate_cover.exists() and candidate_cover.parent == runtime_dir:
+                    candidates.add(candidate_cover)
+
+        for candidate in candidates:
+            try:
+                candidate_path = Path(candidate)
+            except TypeError:
+                continue
+            if candidate_path.exists() and candidate_path.is_file():
+                candidate_path.unlink()
+                removed_runtime.append(candidate_path)
+
+    if removed_runtime:
+        print(
+            "[cleanup] Removed runtime artifacts: "
+            + ", ".join(str(path) for path in removed_runtime)
+        )
+
+    output_dir = Path(
+        overrides.get("output_dir")
+        or config.get("output_dir")
+        or DEFAULT_OUTPUT_DIR
+    ).expanduser().resolve()
+
+    tokens = {
+        base_stem.lower(),
+        sanitized_stem.lower(),
+        "sample_epub",
+    }
+    for key in ("book_title", "book_author"):
+        value = config.get(key)
+        if value:
+            tokens.add(value.lower())
+            tokens.add(re.sub(r"\s+", "_", value).lower())
+
+    removed_output: list[Path] = []
+    if output_dir.exists():
+        for child in output_dir.iterdir():
+            try:
+                name_lower = child.name.lower()
+            except FileNotFoundError:
+                continue
+            if not any(token and token in name_lower for token in tokens):
+                continue
+            try:
+                if child.is_dir():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+            except FileNotFoundError:
+                continue
+            removed_output.append(child)
+
+    if removed_output:
+        print(
+            "[cleanup] Removed prior output artifacts: "
+            + ", ".join(str(path) for path in removed_output)
+        )
+
+
 def _free_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.bind(("127.0.0.1", 0))
@@ -279,6 +380,7 @@ def test_epub_job_artifacts(tmp_path):
     epub_path = tmp_path / "sample.epub"
 
     with _cli_configuration(epub_path, output_dir) as (config, overrides):
+        _purge_previous_artifacts(epub_path, config, overrides)
         sentences = _generate_sentences_via_ollama(10, config)
         for index, sentence in enumerate(sentences, start=1):
             print(f"[ollama] Sentence {index}: {sentence}")
