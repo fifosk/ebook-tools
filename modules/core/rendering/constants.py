@@ -47,6 +47,7 @@ LANGUAGE_CODES = {
     "Norwegian": "no",
     "Polish": "pl",
     "Portuguese": "pt",
+    "Spanish": "es",
     "Romanian": "ro",
     "Russian": "ru",
     "Sinhala": "si",

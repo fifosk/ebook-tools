@@ -16,6 +16,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:  # type: ignore[attr-define
         ),
     )
     group.addoption(
+        "--sample-input-language",
+        action="store",
+        dest="sample_input_language",
+        help="Input language to assign to the generated EPUB sentences.",
+    )
+    group.addoption(
         "--sample-target-language",
         action="append",
         dest="sample_target_language",
@@ -55,5 +61,9 @@ def epub_job_cli_overrides(pytestconfig: pytest.Config) -> Dict[str, Any]:
     topic = pytestconfig.getoption("sample_topic")
     if topic:
         overrides["test_sentence_topic"] = str(topic).strip()
+
+    input_language = pytestconfig.getoption("sample_input_language")
+    if input_language:
+        overrides["input_language"] = str(input_language).strip()
 
     return overrides

@@ -27,10 +27,39 @@ uvicorn = pytest.importorskip("uvicorn")
 
 from modules import config_manager as cfg
 from modules.cli import context as cli_context
+from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client import create_client
 
 DEFAULT_OUTPUT_DIR = Path("output/ebook")
+
+_LANGUAGE_CANONICAL_MAP = {name.lower(): name for name in LANGUAGE_CODES}
+for _alias_name, _alias_code in LANGUAGE_CODES.items():
+    _LANGUAGE_CANONICAL_MAP.setdefault(_alias_code.lower(), _alias_name)
+    _LANGUAGE_CANONICAL_MAP.setdefault(_alias_code.replace("-", "_").lower(), _alias_name)
+
+
+def _canonical_language_name(value: Any) -> str:
+    """Return the canonical language label recognised by the pipeline."""
+
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    lowered = text.lower()
+    if lowered in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[lowered]
+    truncated = lowered.split("(", 1)[0].strip()
+    if truncated in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[truncated]
+    simplified = truncated.replace("-", " ").replace("_", " ").strip()
+    if simplified in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[simplified]
+    first_token = simplified.split()[0] if simplified else ""
+    if first_token in _LANGUAGE_CANONICAL_MAP:
+        return _LANGUAGE_CANONICAL_MAP[first_token]
+    return text
 
 
 def _coerce_positive_int(value: Any, default: int) -> int:
@@ -55,8 +84,16 @@ def _normalize_language_values(candidate: Any) -> list[str]:
         return values
     if isinstance(candidate, str):
         parts = re.split(r"[,;]", candidate)
-        return [part.strip() for part in parts if part.strip()]
-    text = str(candidate).strip()
+        return [
+            normalized
+            for normalized in (
+                _canonical_language_name(part)
+                for part in parts
+                if part and part.strip()
+            )
+            if normalized
+        ]
+    text = _canonical_language_name(candidate)
     return [text] if text else []
 
 
@@ -120,7 +157,9 @@ def _cli_configuration(
         target_languages = unique_targets
 
     config["target_languages"] = target_languages
-    config["input_language"] = config.get("input_language") or "English"
+    config["input_language"] = _canonical_language_name(
+        config.get("input_language") or "English"
+    ) or "English"
 
     default_sentences = _coerce_positive_int(
         config.get("sentences_per_output_file"), 3
