@@ -322,6 +322,8 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
         "sample sentence",
     }
 
+    model = client_kwargs.get("model") or cfg.DEFAULT_MODEL
+
     with create_client(**client_kwargs) as client:
         if not client.health_check():
             endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
