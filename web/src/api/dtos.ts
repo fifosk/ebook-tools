@@ -18,6 +18,10 @@ export interface PipelineFileBrowserResponse {
   outputs: PipelineFileEntry[];
 }
 
+export interface PipelineDefaultsResponse {
+  config: Record<string, unknown>;
+}
+
 export interface PipelineInputPayload {
   input_file: string;
   base_output_file: string;

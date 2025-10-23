@@ -1,11 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { PipelineRequestPayload } from '../../api/dtos';
-import { fetchPipelineFiles } from '../../api/client';
+import { fetchPipelineDefaults, fetchPipelineFiles } from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
 vi.mock('../../api/client', () => ({
-  fetchPipelineFiles: vi.fn()
+  fetchPipelineFiles: vi.fn(),
+  fetchPipelineDefaults: vi.fn()
 }));
 
 const mockFileListing = {
@@ -17,12 +18,46 @@ const mockFileListing = {
   ]
 };
 
+type DefaultsPayload = { config: Record<string, unknown> };
+
+let resolveDefaults: ((value: DefaultsPayload) => void) | null = null;
+let resolveFiles: ((value: typeof mockFileListing) => void) | null = null;
+
+async function resolveFetches({
+  defaults = { config: {} },
+  files = mockFileListing
+}: {
+  defaults?: DefaultsPayload;
+  files?: typeof mockFileListing;
+} = {}) {
+  await act(async () => {
+    resolveDefaults?.(defaults);
+    resolveDefaults = null;
+    resolveFiles?.(files);
+    resolveFiles = null;
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
-  vi.mocked(fetchPipelineFiles).mockResolvedValue(mockFileListing);
+  vi.mocked(fetchPipelineFiles).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveFiles = resolve;
+      })
+  );
+  vi.mocked(fetchPipelineDefaults).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        resolveDefaults = resolve;
+      })
+  );
 });
 
 afterEach(() => {
   vi.clearAllMocks();
+  resolveDefaults = null;
+  resolveFiles = null;
 });
 
 describe('PipelineSubmissionForm', () => {
@@ -30,11 +65,17 @@ describe('PipelineSubmissionForm', () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
 
-    render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+    });
 
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
     await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
 
+    await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
     await user.clear(screen.getByLabelText(/Input language/i));
     await user.type(screen.getByLabelText(/Input language/i), 'English');
@@ -65,12 +106,17 @@ describe('PipelineSubmissionForm', () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn();
 
-    render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+    });
 
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
     await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
 
-
+    await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
     await user.clear(screen.getByLabelText(/Input language/i));
     await user.type(screen.getByLabelText(/Input language/i), 'English');
@@ -85,12 +131,73 @@ describe('PipelineSubmissionForm', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/invalid json/i);
     expect(handleSubmit).not.toHaveBeenCalled();
   });
-});
+
+  it('prefills the form with defaults from the API response', async () => {
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches({
+      defaults: {
+        config: {
+          input_file: '/books/default.epub',
+          base_output_file: '/output/result',
+          input_language: 'Spanish',
+          target_languages: ['German', 'French'],
+          sentences_per_output_file: 8,
+          start_sentence: 2,
+          end_sentence: 42,
+          stitch_full: true,
+          generate_audio: false,
+          audio_mode: '2',
+          written_mode: '3',
+          selected_voice: 'macOS-auto-male',
+          output_html: false,
+          output_pdf: true,
+          generate_video: true,
+          include_transliteration: true,
+          tempo: 1.25,
+          book_title: 'Example Book',
+          book_author: 'Jane Doe'
+        }
+      }
+    });
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/default.epub')
+    );
+
+    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/result');
+    expect(screen.getByLabelText(/Input language/i)).toHaveValue('Spanish');
+    expect(screen.getByRole('checkbox', { name: 'German' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
+    expect(screen.getByLabelText(/Sentences per output file/i)).toHaveValue(8);
+    expect(screen.getByLabelText(/Start sentence/i)).toHaveValue(2);
+    expect(screen.getByLabelText(/End sentence/i)).toHaveValue(42);
+    expect(screen.getByLabelText(/Stitch full document once complete/i)).toBeChecked();
+    expect(screen.getByLabelText(/Generate narration tracks/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Generate HTML output/i)).not.toBeChecked();
+    expect(screen.getByLabelText(/Generate PDF output/i)).toBeChecked();
+    expect(screen.getByLabelText(/Generate stitched video assets/i)).toBeChecked();
+    expect(screen.getByLabelText(/Include transliteration in written output/i)).toBeChecked();
+    expect(screen.getByLabelText(/Tempo/i)).toHaveValue(1.25);
+
+    const metadataField = screen.getByLabelText(/Book metadata JSON/i) as HTMLTextAreaElement;
+    expect(metadataField.value).toContain('"book_title": "Example Book"');
+    expect(metadataField.value).toContain('"book_author": "Jane Doe"');
+  });
+
   it('allows selecting files from the dialog', async () => {
     const user = userEvent.setup();
-    render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+    });
 
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
     await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
 
     await user.click(screen.getByRole('button', { name: /browse ebooks/i }));
     await user.click(screen.getByRole('button', { name: /select example.epub/i }));
@@ -102,3 +209,4 @@ describe('PipelineSubmissionForm', () => {
 
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/output');
   });
+});
