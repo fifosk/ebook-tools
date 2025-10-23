@@ -199,12 +199,12 @@ def _cli_configuration(
 
     config["start_sentence"] = 1
     config["end_sentence"] = None
-    config["stitch_full"] = True
+    config["stitch_full"] = False
     config["generate_audio"] = True
     config["generate_video"] = True
     config["output_html"] = True
     config["output_pdf"] = False
-    config["include_transliteration"] = False
+    config["include_transliteration"] = True
     config["use_ramdisk"] = False
 
     config = cli_context.update_book_cover_file_in_config(
