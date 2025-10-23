@@ -57,15 +57,68 @@ section {
 }
 
 .pipeline-form fieldset {
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 12px;
-  padding: 1.25rem;
+  border: none;
+  padding: 0;
+  margin: 0;
 }
 
 .pipeline-form legend {
-  padding: 0 0.5rem;
+  padding: 0;
   font-weight: 700;
   color: #f1f5f9;
+}
+
+.collapsible-fieldset > details,
+.job-list-collapsible {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.65);
+}
+
+.collapsible-fieldset > details[open],
+.job-list-collapsible[open] {
+  background: rgba(15, 23, 42, 0.82);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.collapsible-fieldset > details summary,
+.job-list-collapsible > summary,
+.job-collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.collapsible-fieldset > details summary::-webkit-details-marker,
+.job-list-collapsible > summary::-webkit-details-marker,
+.job-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-fieldset > details summary::after,
+.job-list-collapsible > summary::after,
+.job-collapsible > summary::after {
+  content: '\25bc';
+  font-size: 0.75rem;
+  margin-left: auto;
+  transition: transform 0.2s ease;
+}
+
+.collapsible-fieldset > details[open] summary::after,
+.job-list-collapsible[open] > summary::after,
+.job-collapsible[open] > summary::after {
+  transform: rotate(-180deg);
+}
+
+.collapsible-fieldset > details summary + *,
+.job-list-collapsible > summary + *,
+.job-collapsible > summary + * {
+  margin-top: 1rem;
 }
 
 .field-grid {
@@ -147,6 +200,51 @@ button.link-button:focus {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.collapsible-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.collapsible-group details {
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  background: rgba(15, 23, 42, 0.6);
+}
+
+.collapsible-group details[open] {
+  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.collapsible-group summary {
+  cursor: pointer;
+  font-weight: 600;
+  list-style: none;
+  outline: none;
+}
+
+.collapsible-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapsible-group summary::after {
+  content: '\25bc';
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.collapsible-group details[open] summary::after {
+  transform: rotate(-180deg);
+}
+
+.collapsible-group summary + * {
+  margin-top: 0.75rem;
 }
 
 .option-card {
@@ -301,11 +399,43 @@ button.link-button:focus {
   gap: 1rem;
 }
 
-.job-card {
-  border-radius: 12px;
+.job-list-collapsible > summary {
+  font-size: 1.15rem;
+}
+
+.job-collapsible {
   border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
   padding: 1rem 1.25rem;
-  background: rgba(30, 41, 59, 0.7);
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.job-collapsible[open] {
+  background: rgba(15, 23, 42, 0.75);
+  border-color: rgba(148, 163, 184, 0.35);
+}
+
+.job-collapsible > summary {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.job-collapsible > summary::after {
+  margin-left: 0;
+  justify-self: end;
+}
+
+.job-collapsible > summary .job-status {
+  justify-self: end;
+}
+
+.job-card {
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
 }
 
 .metadata-grid {

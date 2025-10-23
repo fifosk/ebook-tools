@@ -40,33 +40,49 @@ export function JobList({
   if (sortedJobs.length === 0) {
     return (
       <section>
-        <h2>Tracked jobs</h2>
-        <p>No persisted jobs yet. Submit a pipeline request to get started.</p>
+        <h2 className="visually-hidden">Tracked jobs</h2>
+        <details className="job-list-collapsible" open>
+          <summary>Tracked jobs</summary>
+          <p>No persisted jobs yet. Submit a pipeline request to get started.</p>
+        </details>
       </section>
     );
   }
 
   return (
     <section>
-      <h2>Tracked jobs</h2>
-      <div className="job-grid">
-        {sortedJobs.map((job) => (
-          <JobProgress
-            key={job.jobId}
-            jobId={job.jobId}
-            status={job.status}
-            latestEvent={job.latestEvent}
-            onEvent={(event) => onProgressEvent(job.jobId, event)}
-            onPause={() => onPauseJob(job.jobId)}
-            onResume={() => onResumeJob(job.jobId)}
-            onCancel={() => onCancelJob(job.jobId)}
-            onDelete={() => onDeleteJob(job.jobId)}
-            onReload={() => onReloadJob(job.jobId)}
-            isReloading={job.isReloading}
-            isMutating={job.isMutating}
-          />
-        ))}
-      </div>
+      <h2 className="visually-hidden">Tracked jobs</h2>
+      <details className="job-list-collapsible" open>
+        <summary>Tracked jobs</summary>
+        <div className="job-grid">
+          {sortedJobs.map((job) => {
+            const statusValue = job.status?.status ?? 'pending';
+            return (
+              <details key={job.jobId} className="job-collapsible" open>
+                <summary>
+                  <span>Job {job.jobId}</span>
+                  <span className="job-status" data-state={statusValue}>
+                    {statusValue}
+                  </span>
+                </summary>
+                <JobProgress
+                  jobId={job.jobId}
+                  status={job.status}
+                  latestEvent={job.latestEvent}
+                  onEvent={(event) => onProgressEvent(job.jobId, event)}
+                  onPause={() => onPauseJob(job.jobId)}
+                  onResume={() => onResumeJob(job.jobId)}
+                  onCancel={() => onCancelJob(job.jobId)}
+                  onDelete={() => onDeleteJob(job.jobId)}
+                  onReload={() => onReloadJob(job.jobId)}
+                  isReloading={job.isReloading}
+                  isMutating={job.isMutating}
+                />
+              </details>
+            );
+          })}
+        </div>
+      </details>
     </section>
   );
 }
