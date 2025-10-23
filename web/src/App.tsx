@@ -1,97 +1,113 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import PipelineSubmissionForm from './components/PipelineSubmissionForm';
 import JobList, { JobState } from './components/JobList';
+import { PipelineRequestPayload, PipelineStatusResponse, ProgressEventPayload } from './api/dtos';
 import {
-  PipelineRequestPayload,
-  PipelineStatusResponse,
-  PipelineSubmissionResponse,
-  ProgressEventPayload
-} from './api/dtos';
-import { fetchPipelineStatus, refreshPipelineMetadata, submitPipeline } from './api/client';
+  cancelJob,
+  deleteJob,
+  fetchJobs,
+  fetchPipelineStatus,
+  pauseJob,
+  refreshPipelineMetadata,
+  resumeJob,
+  submitPipeline
+} from './api/client';
 
 interface JobRegistryEntry {
-  submission: PipelineSubmissionResponse;
-  status?: PipelineStatusResponse;
+  status: PipelineStatusResponse;
   latestEvent?: ProgressEventPayload;
 }
+
+type JobAction = 'pause' | 'resume' | 'cancel' | 'delete';
 
 export function App() {
   const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
+  const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
 
-  const jobIds = useMemo(() => Object.keys(jobs), [jobs]);
-  const jobKey = useMemo(() => jobIds.join('|'), [jobIds]);
+  const refreshJobs = useCallback(async () => {
+    try {
+      const statuses = await fetchJobs();
+      const knownJobIds = new Set(statuses.map((job) => job.job_id));
+
+      setJobs((previous) => {
+        const next: Record<string, JobRegistryEntry> = {};
+        for (const status of statuses) {
+          const current = previous[status.job_id];
+          next[status.job_id] = {
+            status,
+            latestEvent: status.latest_event ?? current?.latestEvent
+          };
+        }
+        return next;
+      });
+
+      setReloadingJobs((previous) => {
+        const next = { ...previous };
+        for (const jobId of Object.keys(next)) {
+          if (!knownJobIds.has(jobId)) {
+            delete next[jobId];
+          }
+        }
+        return next;
+      });
+
+      setMutatingJobs((previous) => {
+        const next = { ...previous };
+        for (const jobId of Object.keys(next)) {
+          if (!knownJobIds.has(jobId)) {
+            delete next[jobId];
+          }
+        }
+        return next;
+      });
+    } catch (error) {
+      console.warn('Unable to load persisted jobs', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshJobs();
+    const interval = window.setInterval(() => {
+      void refreshJobs();
+    }, 5000);
+    return () => {
+      window.clearInterval(interval);
+    };
+  }, [refreshJobs]);
 
   const handleSubmit = useCallback(async (payload: PipelineRequestPayload) => {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
       const submission = await submitPipeline(payload);
+      const placeholderStatus: PipelineStatusResponse = {
+        job_id: submission.job_id,
+        status: submission.status,
+        created_at: submission.created_at,
+        started_at: null,
+        completed_at: null,
+        result: null,
+        error: null,
+        latest_event: null
+      };
       setJobs((previous) => ({
         ...previous,
         [submission.job_id]: {
-          submission,
-          status: undefined,
+          status: placeholderStatus,
           latestEvent: undefined
         }
       }));
+      void refreshJobs();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to submit pipeline job';
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
     }
-  }, []);
-
-  useEffect(() => {
-    if (jobIds.length === 0) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const refresh = async () => {
-      const updates = await Promise.all(
-        jobIds.map(async (jobId) => {
-          try {
-            const status = await fetchPipelineStatus(jobId);
-            return { jobId, status } as const;
-          } catch (error) {
-            console.warn('Unable to refresh job', jobId, error);
-            return { jobId, status: null } as const;
-          }
-        })
-      );
-
-      if (cancelled) {
-        return;
-      }
-
-      setJobs((previous) => {
-        const next = { ...previous };
-        for (const { jobId, status } of updates) {
-          if (!next[jobId] || !status) {
-            continue;
-          }
-          next[jobId] = {
-            ...next[jobId],
-            status,
-            latestEvent: status.latest_event ?? next[jobId].latestEvent
-          };
-        }
-        return next;
-      });
-    };
-
-    refresh();
-    const interval = window.setInterval(refresh, 5000);
-    return () => {
-      cancelled = true;
-      window.clearInterval(interval);
-    };
-  }, [jobKey]);
+  }, [refreshJobs]);
 
   const handleProgressEvent = useCallback((jobId: string, event: ProgressEventPayload) => {
     setJobs((previous) => {
@@ -106,25 +122,6 @@ export function App() {
           latestEvent: event
         }
       };
-    });
-  }, []);
-
-  const handleRemoveJob = useCallback((jobId: string) => {
-    setJobs((previous) => {
-      if (!previous[jobId]) {
-        return previous;
-      }
-      const next = { ...previous };
-      delete next[jobId];
-      return next;
-    });
-    setReloadingJobs((previous) => {
-      if (!previous[jobId]) {
-        return previous;
-      }
-      const next = { ...previous };
-      delete next[jobId];
-      return next;
     });
   }, []);
 
@@ -163,18 +160,125 @@ export function App() {
         delete next[jobId];
         return next;
       });
+      void refreshJobs();
     }
-  }, []);
+  }, [refreshJobs]);
+
+  const performJobAction = useCallback(
+    async (jobId: string, action: JobAction) => {
+      setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
+      let response: PipelineStatusResponse | null = null;
+      let errorMessage: string | null = null;
+
+      try {
+        if (action === 'pause') {
+          const payload = await pauseJob(jobId);
+          response = payload.job;
+          errorMessage = payload.error ?? null;
+        } else if (action === 'resume') {
+          const payload = await resumeJob(jobId);
+          response = payload.job;
+          errorMessage = payload.error ?? null;
+        } else if (action === 'cancel') {
+          const payload = await cancelJob(jobId);
+          response = payload.job;
+          errorMessage = payload.error ?? null;
+        } else if (action === 'delete') {
+          const payload = await deleteJob(jobId);
+          response = payload.job;
+          errorMessage = payload.error ?? null;
+        }
+
+        if (errorMessage) {
+          window.alert(errorMessage);
+        }
+
+        if (response) {
+          if (action === 'delete') {
+            setJobs((previous) => {
+              if (!previous[jobId]) {
+                return previous;
+              }
+              const next = { ...previous };
+              delete next[jobId];
+              return next;
+            });
+          } else {
+            setJobs((previous) => {
+              const current = previous[jobId];
+              const nextLatestEvent = response?.latest_event ?? current?.latestEvent;
+              return {
+                ...previous,
+                [jobId]: {
+                  status: response!,
+                  latestEvent: nextLatestEvent
+                }
+              };
+            });
+          }
+        }
+      } catch (error) {
+        console.warn(`Unable to ${action} job`, jobId, error);
+      } finally {
+        setMutatingJobs((previous) => {
+          if (!previous[jobId]) {
+            return previous;
+          }
+          const next = { ...previous };
+          delete next[jobId];
+          return next;
+        });
+        await refreshJobs();
+      }
+    },
+    [refreshJobs]
+  );
+
+  const handlePauseJob = useCallback(
+    async (jobId: string) => {
+      await performJobAction(jobId, 'pause');
+    },
+    [performJobAction]
+  );
+
+  const handleResumeJob = useCallback(
+    async (jobId: string) => {
+      await performJobAction(jobId, 'resume');
+    },
+    [performJobAction]
+  );
+
+  const handleCancelJob = useCallback(
+    async (jobId: string) => {
+      const confirmed = window.confirm(`Cancel job ${jobId}? This will stop any in-progress work.`);
+      if (!confirmed) {
+        return;
+      }
+      await performJobAction(jobId, 'cancel');
+    },
+    [performJobAction]
+  );
+
+  const handleDeleteJob = useCallback(
+    async (jobId: string) => {
+      const confirmed = window.confirm(`Delete job ${jobId}? This will remove persisted metadata.`);
+      if (!confirmed) {
+        return;
+      }
+      await performJobAction(jobId, 'delete');
+    },
+    [performJobAction]
+  );
 
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => ({
       jobId,
-      submission: entry.submission,
       status: entry.status,
       latestEvent: entry.latestEvent,
-      isReloading: Boolean(reloadingJobs[jobId])
+      isReloading: Boolean(reloadingJobs[jobId]),
+      isMutating: Boolean(mutatingJobs[jobId])
     }));
-  }, [jobs, reloadingJobs]);
+  }, [jobs, mutatingJobs, reloadingJobs]);
 
   return (
     <main>
@@ -190,7 +294,10 @@ export function App() {
       <JobList
         jobs={jobList}
         onProgressEvent={handleProgressEvent}
-        onRemoveJob={handleRemoveJob}
+        onPauseJob={handlePauseJob}
+        onResumeJob={handleResumeJob}
+        onCancelJob={handleCancelJob}
+        onDeleteJob={handleDeleteJob}
         onReloadJob={handleReloadJob}
       />
     </main>

@@ -72,6 +72,7 @@ _REGISTERED_CONTEXT_IDS: set[int] = set()
 _ACTIVE_CONTEXT: ContextVar[Optional[RuntimeContext]] = ContextVar(
     "ebook_tools_runtime_context", default=None
 )
+_PRESERVED_TMP_DIRS: set[Path] = set()
 
 _DEFAULT_CONTEXT_SENTINEL = object()
 
@@ -111,6 +112,31 @@ def clear_runtime_context() -> None:
     _ACTIVE_CONTEXT.set(None)
 
 
+def _canonical_tmp_dir(path: Path) -> Path:
+    """Return a canonical representation for ``path`` suitable for set membership."""
+
+    try:
+        return path.resolve()
+    except OSError:
+        return path.expanduser().absolute()
+
+
+def register_tmp_dir_preservation(path: Path) -> None:
+    """Mark ``path`` as a RAM disk managed outside individual runtime contexts."""
+
+    _PRESERVED_TMP_DIRS.add(_canonical_tmp_dir(path))
+
+
+def release_tmp_dir_preservation(path: Path) -> None:
+    """Remove ``path`` from the set of preserved RAM disk directories."""
+
+    _PRESERVED_TMP_DIRS.discard(_canonical_tmp_dir(path))
+
+
+def _is_preserved_tmp_dir(path: Path) -> bool:
+    return _canonical_tmp_dir(path) in _PRESERVED_TMP_DIRS
+
+
 def _coerce_thread_count(value: Optional[Any]) -> int:
     """Return a safe worker count based on ``value``."""
 
@@ -147,6 +173,12 @@ def cleanup_environment(context: RuntimeContext) -> None:
     """Tear down any temporary RAM disk resources for ``context``."""
 
     if not context.is_tmp_ramdisk:
+        return
+
+    if _is_preserved_tmp_dir(context.tmp_dir):
+        logger.debug(
+            "Skipping cleanup for preserved RAM disk at %s", context.tmp_dir
+        )
         return
 
     try:
@@ -381,6 +413,8 @@ __all__ = [
     "build_runtime_context",
     "cleanup_environment",
     "clear_runtime_context",
+    "register_tmp_dir_preservation",
+    "release_tmp_dir_preservation",
     "get_queue_size",
     "get_runtime_context",
     "get_thread_count",

@@ -36,7 +36,10 @@ describe('JobProgress', () => {
         status={status}
         latestEvent={event}
         onEvent={vi.fn()}
-        onRemove={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
         onReload={vi.fn()}
       />
     );
@@ -72,7 +75,10 @@ describe('JobProgress', () => {
         status={status}
         latestEvent={undefined}
         onEvent={vi.fn()}
-        onRemove={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
         onReload={vi.fn()}
       />
     );
