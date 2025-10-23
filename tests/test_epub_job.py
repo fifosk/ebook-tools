@@ -768,4 +768,4 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
 
 
 if __name__ == "__main__":  # pragma: no cover - convenience for direct execution
-    raise SystemExit(pytest.main([__file__]))
+    raise SystemExit(pytest.main(["-rs", __file__]))
