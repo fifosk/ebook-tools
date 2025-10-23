@@ -25,6 +25,7 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import output_formatter
 from modules.translation_engine import TranslationTask
+from modules.core.translation import split_translation_and_transliteration
 from modules.video.slides import SlideRenderOptions, build_sentence_video
 
 if TYPE_CHECKING:
@@ -181,6 +182,9 @@ def generate_audio_for_sentence(
 
     silence = AudioSegment.silent(duration=100)
 
+    translation_audio_text, _ = split_translation_and_transliteration(fluent_translation)
+    translation_audio_text = (translation_audio_text or fluent_translation).strip()
+
     tasks = []
     segment_texts: Dict[str, str] = {}
 
@@ -194,27 +198,27 @@ def generate_audio_for_sentence(
     numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
 
     if audio_mode == "1":
-        enqueue("translation", fluent_translation, target_lang_code)
+        enqueue("translation", translation_audio_text, target_lang_code)
         sequence = ["translation"]
     elif audio_mode == "2":
         enqueue("number", numbering_str, "en")
-        enqueue("translation", fluent_translation, target_lang_code)
+        enqueue("translation", translation_audio_text, target_lang_code)
         sequence = ["number", "translation"]
     elif audio_mode == "3":
         enqueue("number", numbering_str, "en")
         enqueue("input", input_sentence, source_lang_code)
-        enqueue("translation", fluent_translation, target_lang_code)
+        enqueue("translation", translation_audio_text, target_lang_code)
         sequence = ["number", "input", "translation"]
     elif audio_mode == "4":
         enqueue("input", input_sentence, source_lang_code)
-        enqueue("translation", fluent_translation, target_lang_code)
+        enqueue("translation", translation_audio_text, target_lang_code)
         sequence = ["input", "translation"]
     elif audio_mode == "5":
         enqueue("input", input_sentence, source_lang_code)
         sequence = ["input"]
     else:
         enqueue("input", input_sentence, source_lang_code)
-        enqueue("translation", fluent_translation, target_lang_code)
+        enqueue("translation", translation_audio_text, target_lang_code)
         sequence = ["input", "translation"]
 
     if not tasks:

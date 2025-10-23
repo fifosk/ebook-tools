@@ -29,7 +29,7 @@ def make_translation_prompt(
 
     if include_transliteration:
         instructions.append(
-            "If a transliteration is appropriate, append it on a new line prefixed with 'Transliteration:'."
+            "If a transliteration is appropriate, append ONLY the transliteration on the next line without any prefixes, labels, or extra commentary."
         )
 
     return "\n".join(instructions)
