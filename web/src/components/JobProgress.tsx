@@ -41,6 +41,28 @@ const METADATA_LABELS: Record<string, string> = {
   book_cover_file: 'Cover file'
 };
 
+const TUNING_LABELS: Record<string, string> = {
+  thread_count: 'Translation threads',
+  translation_pool_workers: 'Translation pool workers',
+  translation_pool_mode: 'Worker pool mode',
+  queue_size: 'Translation queue size',
+  job_worker_slots: 'Job worker slots',
+  job_max_workers: 'Configured job workers',
+  slide_parallelism: 'Slide parallelism',
+  slide_parallel_workers: 'Slide workers'
+};
+
+const TUNING_ORDER: string[] = [
+  'thread_count',
+  'translation_pool_workers',
+  'translation_pool_mode',
+  'queue_size',
+  'job_worker_slots',
+  'job_max_workers',
+  'slide_parallelism',
+  'slide_parallel_workers'
+];
+
 function formatMetadataLabel(key: string): string {
   return METADATA_LABELS[key] ?? key.replace(/_/g, ' ');
 }
@@ -53,6 +75,37 @@ function normalizeMetadataValue(value: unknown): string {
     return value.trim();
   }
   return String(value);
+}
+
+function formatTuningLabel(key: string): string {
+  return TUNING_LABELS[key] ?? key.replace(/_/g, ' ');
+}
+
+function formatTuningValue(value: unknown): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+  if (typeof value === 'number') {
+    return value.toString();
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
+function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
+  const order = new Map<string, number>(TUNING_ORDER.map((key, index) => [key, index]));
+  return entries
+    .slice()
+    .sort((a, b) => {
+      const rankA = order.get(a[0]) ?? Number.MAX_SAFE_INTEGER;
+      const rankB = order.get(b[0]) ?? Number.MAX_SAFE_INTEGER;
+      if (rankA === rankB) {
+        return a[0].localeCompare(b[0]);
+      }
+      return rankA - rankB;
+    });
 }
 
 export function JobProgress({
@@ -84,6 +137,20 @@ export function JobProgress({
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
   });
+  const tuningEntries = useMemo(() => {
+    const tuning = status?.tuning ?? null;
+    if (!tuning) {
+      return [];
+    }
+    const filtered = Object.entries(tuning).filter(([, value]) => {
+      if (value === null || value === undefined) {
+        return false;
+      }
+      const formatted = formatTuningValue(value);
+      return formatted.length > 0;
+    });
+    return sortTuningEntries(filtered);
+  }, [status?.tuning]);
   const translations = status?.result?.written_blocks ?? [];
   const translationsUnavailable = Array.isArray(translations)
     ? translations.length > 0 && translations.every((block) => {
@@ -150,6 +217,19 @@ export function JobProgress({
         <strong>Completed:</strong> {formatDate(status?.completed_at)}
       </p>
       {status?.error ? <div className="alert">{status.error}</div> : null}
+      {tuningEntries.length > 0 ? (
+        <div>
+          <h4>Performance tuning</h4>
+          <div className="progress-grid">
+            {tuningEntries.map(([key, value]) => (
+              <div className="progress-metric" key={key}>
+                <strong>{formatTuningLabel(key)}</strong>
+                <span>{formatTuningValue(value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {translationsUnavailable ? (
         <div className="alert" role="status">
           Translated content was not returned by the LLM. Verify your model configuration and try reloading once the

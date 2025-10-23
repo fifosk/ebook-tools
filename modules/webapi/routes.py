@@ -125,9 +125,11 @@ async def submit_pipeline(
     """Submit a pipeline execution request and return an identifier."""
 
     resolved_config = context_provider.resolve_config(payload.config)
+    context_overrides = dict(payload.environment_overrides)
+    context_overrides.update(payload.pipeline_overrides)
     context = context_provider.build_context(
         resolved_config,
-        payload.environment_overrides,
+        context_overrides,
     )
     request = payload.to_pipeline_request(
         context=context,

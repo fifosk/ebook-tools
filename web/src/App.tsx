@@ -91,7 +91,8 @@ export function App() {
         completed_at: null,
         result: null,
         error: null,
-        latest_event: null
+        latest_event: null,
+        tuning: null
       };
       setJobs((previous) => ({
         ...previous,
