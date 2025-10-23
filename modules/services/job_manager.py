@@ -340,6 +340,18 @@ class PipelineJobManager:
         self._jobs: Dict[str, PipelineJob] = {}
         settings = cfg.get_settings()
         configured_workers = max_workers if max_workers is not None else settings.job_max_workers
+        if max_workers is None:
+            hardware_defaults = cfg.get_hardware_tuning_defaults()
+            recommended_workers = hardware_defaults.get("job_max_workers")
+            if (
+                isinstance(recommended_workers, int)
+                and recommended_workers > 0
+                and (
+                    settings.job_max_workers <= 0
+                    or settings.job_max_workers == cfg.DEFAULT_JOB_MAX_WORKERS
+                )
+            ):
+                configured_workers = recommended_workers
         resolved_workers = max(1, int(configured_workers))
         self._executor = ThreadPoolExecutor(max_workers=resolved_workers)
         self._store = store or self._default_store()
@@ -385,6 +397,10 @@ class PipelineJobManager:
             candidate = getattr(cfg.get_settings(), "job_max_workers", None)
         value = self._coerce_non_negative_int(candidate)
         if value is None or value <= 0:
+            defaults = cfg.get_hardware_tuning_defaults()
+            recommended = defaults.get("job_max_workers")
+            if isinstance(recommended, int) and recommended > 0:
+                return recommended
             return None
         return value
 
@@ -413,6 +429,24 @@ class PipelineJobManager:
         executor_slots = getattr(self._executor, "_max_workers", None)
         if isinstance(executor_slots, int) and executor_slots > 0:
             summary["job_worker_slots"] = executor_slots
+        pipeline_mode_override = request.pipeline_overrides.get("pipeline_mode")
+        pipeline_mode = pipeline_mode_override
+        if pipeline_mode is None and request.context is not None:
+            pipeline_mode = request.context.pipeline_enabled
+        if pipeline_mode is None:
+            pipeline_mode = request.config.get("pipeline_mode")
+        if pipeline_mode is not None:
+            summary["pipeline_mode"] = bool(pipeline_mode)
+        hardware_defaults = cfg.get_hardware_tuning_defaults()
+        hardware_profile = hardware_defaults.get("profile")
+        if isinstance(hardware_profile, str) and hardware_profile:
+            summary.setdefault("hardware_profile", hardware_profile)
+        detected_cpu = hardware_defaults.get("detected_cpu_count")
+        if isinstance(detected_cpu, int) and detected_cpu > 0:
+            summary.setdefault("detected_cpu_cores", detected_cpu)
+        detected_memory = hardware_defaults.get("detected_memory_gib")
+        if isinstance(detected_memory, (int, float)) and detected_memory > 0:
+            summary.setdefault("detected_memory_gib", detected_memory)
         return summary
 
     def _default_worker_pool_factory(self, request: PipelineRequest) -> TranslationWorkerPool:

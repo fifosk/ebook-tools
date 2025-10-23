@@ -42,6 +42,10 @@ const METADATA_LABELS: Record<string, string> = {
 };
 
 const TUNING_LABELS: Record<string, string> = {
+  hardware_profile: 'Hardware profile',
+  detected_cpu_cores: 'Detected CPU cores',
+  detected_memory_gib: 'Detected memory (GiB)',
+  pipeline_mode: 'Pipeline mode enabled',
   thread_count: 'Translation threads',
   translation_pool_workers: 'Translation pool workers',
   translation_pool_mode: 'Worker pool mode',
@@ -53,6 +57,10 @@ const TUNING_LABELS: Record<string, string> = {
 };
 
 const TUNING_ORDER: string[] = [
+  'hardware_profile',
+  'detected_cpu_cores',
+  'detected_memory_gib',
+  'pipeline_mode',
   'thread_count',
   'translation_pool_workers',
   'translation_pool_mode',
@@ -86,7 +94,10 @@ function formatTuningValue(value: unknown): string {
     return '';
   }
   if (typeof value === 'number') {
-    return value.toString();
+    if (!Number.isFinite(value)) {
+      return value.toString();
+    }
+    return Number.isInteger(value) ? value.toString() : value.toFixed(1);
   }
   if (typeof value === 'string') {
     return value;
