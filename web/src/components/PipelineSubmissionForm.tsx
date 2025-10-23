@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { PipelineFileBrowserResponse, PipelineRequestPayload } from '../api/dtos';
-import { fetchPipelineFiles } from '../api/client';
+import { fetchPipelineDefaults, fetchPipelineFiles } from '../api/client';
 import LanguageSelector from './LanguageSelector';
 import {
   AUDIO_MODE_OPTIONS,
@@ -71,6 +71,166 @@ const DEFAULT_FORM_STATE: FormState = {
   book_metadata: '{}'
 };
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function coerceNumber(value: unknown): number | undefined {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+function extractBookMetadata(config: Record<string, unknown>): Record<string, unknown> | null {
+  const metadata: Record<string, unknown> = {};
+  const nested = config['book_metadata'];
+  if (isRecord(nested)) {
+    for (const [key, value] of Object.entries(nested)) {
+      if (value !== undefined && value !== null) {
+        metadata[key] = value;
+      }
+    }
+  }
+
+  const preferredKeys = [
+    'book_cover_title',
+    'book_title',
+    'book_author',
+    'book_year',
+    'book_summary',
+    'book_cover_file'
+  ];
+
+  for (const key of preferredKeys) {
+    const value = config[key];
+    if (value !== undefined && value !== null) {
+      metadata[key] = value;
+    }
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+function applyConfigDefaults(previous: FormState, config: Record<string, unknown>): FormState {
+  const next: FormState = { ...previous };
+
+  const inputFile = config['input_file'];
+  if (typeof inputFile === 'string') {
+    next.input_file = inputFile;
+  }
+
+  const baseOutput = config['base_output_file'];
+  if (typeof baseOutput === 'string') {
+    next.base_output_file = baseOutput;
+  }
+
+  const inputLanguage = config['input_language'];
+  if (typeof inputLanguage === 'string') {
+    next.input_language = inputLanguage;
+  }
+
+  const targetLanguages = config['target_languages'];
+  if (Array.isArray(targetLanguages)) {
+    const normalized = Array.from(
+      new Set(
+        targetLanguages
+          .filter((language): language is string => typeof language === 'string')
+          .map((language) => language.trim())
+          .filter((language) => language.length > 0)
+      )
+    );
+    next.target_languages = normalized;
+  }
+
+  const sentencesPerOutput = coerceNumber(config['sentences_per_output_file']);
+  if (sentencesPerOutput !== undefined) {
+    next.sentences_per_output_file = sentencesPerOutput;
+  }
+
+  const startSentence = coerceNumber(config['start_sentence']);
+  if (startSentence !== undefined) {
+    next.start_sentence = startSentence;
+  }
+
+  const endSentence = config['end_sentence'];
+  if (endSentence === null || endSentence === undefined || endSentence === '') {
+    next.end_sentence = '';
+  } else {
+    const parsedEnd = coerceNumber(endSentence);
+    if (parsedEnd !== undefined) {
+      next.end_sentence = String(parsedEnd);
+    }
+  }
+
+  const stitchFull = config['stitch_full'];
+  if (typeof stitchFull === 'boolean') {
+    next.stitch_full = stitchFull;
+  }
+
+  const generateAudio = config['generate_audio'];
+  if (typeof generateAudio === 'boolean') {
+    next.generate_audio = generateAudio;
+  }
+
+  const audioMode = config['audio_mode'];
+  if (typeof audioMode === 'string') {
+    next.audio_mode = audioMode;
+  }
+
+  const writtenMode = config['written_mode'];
+  if (typeof writtenMode === 'string') {
+    next.written_mode = writtenMode;
+  }
+
+  const selectedVoice = config['selected_voice'];
+  if (typeof selectedVoice === 'string') {
+    next.selected_voice = selectedVoice;
+  }
+
+  const outputHtml = config['output_html'];
+  if (typeof outputHtml === 'boolean') {
+    next.output_html = outputHtml;
+  }
+
+  const outputPdf = config['output_pdf'];
+  if (typeof outputPdf === 'boolean') {
+    next.output_pdf = outputPdf;
+  }
+
+  const generateVideo = config['generate_video'];
+  if (typeof generateVideo === 'boolean') {
+    next.generate_video = generateVideo;
+  }
+
+  const includeTransliteration = config['include_transliteration'];
+  if (typeof includeTransliteration === 'boolean') {
+    next.include_transliteration = includeTransliteration;
+  }
+
+  const tempo = coerceNumber(config['tempo']);
+  if (tempo !== undefined) {
+    next.tempo = tempo;
+  }
+
+  const metadata = extractBookMetadata(config);
+  if (metadata) {
+    next.book_metadata = JSON.stringify(metadata, null, 2);
+  }
+
+  return next;
+}
+
 function parseJsonField(label: JsonFields, value: string): Record<string, unknown> {
   if (!value.trim()) {
     return {};
@@ -119,6 +279,25 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
   const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
   const availableWrittenModes = useMemo<MenuOption[]>(() => WRITTEN_MODE_OPTIONS, []);
   const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPipelineDefaults()
+      .then((response) => {
+        if (cancelled) {
+          return;
+        }
+        setFormState((previous) => applyConfigDefaults(previous, response.config));
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn('Unable to load pipeline defaults', error);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;

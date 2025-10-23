@@ -14,10 +14,12 @@ from .dependencies import (
     get_runtime_context_provider,
 )
 from .jobs import PipelineJob
+from .. import config_manager as cfg
 from ..services.pipeline_service import PipelineService
 from .schemas import (
     PipelineFileBrowserResponse,
     PipelineFileEntry,
+    PipelineDefaultsResponse,
     PipelineRequestPayload,
     PipelineStatusResponse,
     PipelineSubmissionResponse,
@@ -73,6 +75,17 @@ async def list_pipeline_files(
         outputs = _list_output_entries(context.output_dir)
 
     return PipelineFileBrowserResponse(ebooks=ebooks, outputs=outputs)
+
+
+@router.get("/defaults", response_model=PipelineDefaultsResponse)
+async def get_pipeline_defaults(
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Return the resolved baseline configuration for client defaults."""
+
+    resolved = context_provider.resolve_config()
+    stripped = cfg.strip_derived_config(resolved)
+    return PipelineDefaultsResponse(config=stripped)
 
 
 @router.post("/", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)

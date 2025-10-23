@@ -1,4 +1,5 @@
 import {
+  PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineRequestPayload,
   PipelineStatusResponse,
@@ -100,4 +101,9 @@ export function buildStorageUrl(path: string): string {
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
   const response = await fetch(withBase('/pipelines/files'));
   return handleResponse<PipelineFileBrowserResponse>(response);
+}
+
+export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
+  const response = await fetch(withBase('/pipelines/defaults'));
+  return handleResponse<PipelineDefaultsResponse>(response);
 }

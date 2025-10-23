@@ -40,6 +40,12 @@ class PipelineInputPayload(BaseModel):
         return PipelineInput(**payload)
 
 
+class PipelineDefaultsResponse(BaseModel):
+    """Response payload exposing the resolved baseline configuration."""
+
+    config: Dict[str, Any] = Field(default_factory=dict)
+
+
 class PipelineRequestPayload(BaseModel):
     """Schema mirroring :class:`PipelineRequest` for incoming submissions."""
 
