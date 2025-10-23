@@ -80,7 +80,40 @@ single-page application:
 - **`EBOOK_API_STATIC_MOUNT`** – URL prefix where the static files are exposed
   (default: `/`).
 - **`JOB_STORE_URL`** – Redis (or compatible) URL used to persist job metadata.
-  When unset the service stores job state in memory only.
+  When unset the service falls back to filesystem persistence.
+- **`JOB_STORAGE_DIR`** – Filesystem directory used by the fallback persistence
+  layer. Defaults to `storage/jobs` relative to the working directory. The
+  server creates the directory automatically when the first job is persisted.
+
+### Pipeline job persistence cheatsheet
+
+The API keeps a JSON snapshot of each job in `JOB_STORAGE_DIR` when Redis is
+not configured. Every file is named `<job_id>.json`, making it easy to inspect
+state or remove stale records manually:
+
+```bash
+ls storage/jobs
+rm storage/jobs/<job_id>.json  # delete a single job
+find storage/jobs -type f -name '*.json' -delete  # purge all persisted jobs
+```
+
+The REST API offers equivalent management operations if you prefer not to touch
+the filesystem directly:
+
+```bash
+# List all persisted jobs ordered by creation time
+curl http://127.0.0.1:8000/api/jobs
+
+# Pause, resume, cancel, or delete a specific job
+curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/pause
+curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/resume
+curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/cancel
+curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/delete
+```
+
+Restarting the application automatically reloads any JSON files from the
+directory, pausing in-flight work and allowing it to be resumed, cancelled, or
+cleaned up via the endpoints above.
 
 When static hosting is disabled the JSON healthcheck remains available at `/`.
 If the frontend bundle is served, the healthcheck can always be reached at
