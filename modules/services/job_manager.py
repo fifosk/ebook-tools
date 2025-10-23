@@ -53,6 +53,7 @@ class PipelineJobStatus(str, Enum):
 
     PENDING = "pending"
     RUNNING = "running"
+    PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -307,6 +308,47 @@ class PipelineJobManager:
         self._executor = ThreadPoolExecutor(max_workers=resolved_workers)
         self._store = store or self._default_store()
         self._worker_pool_factory = worker_pool_factory or (lambda request: TranslationWorkerPool())
+        self._restore_persisted_jobs()
+
+    def _restore_persisted_jobs(self) -> None:
+        """Load persisted jobs and reconcile their in-memory representation."""
+
+        try:
+            stored_jobs = self._store.list()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning(
+                "Failed to load persisted pipeline jobs",  # pragma: no cover - log only
+                exc_info=exc,
+                extra={"event": "pipeline.job.restore.failed", "console_suppress": True},
+            )
+            return
+
+        updates: list[PipelineJobMetadata] = []
+        with self._lock:
+            for job_id, metadata in stored_jobs.items():
+                job = self._build_job_from_metadata(metadata)
+                if job.status == PipelineJobStatus.RUNNING:
+                    job.status = PipelineJobStatus.PAUSED
+                    updates.append(self._snapshot(job))
+                if job.status in (
+                    PipelineJobStatus.PENDING,
+                    PipelineJobStatus.PAUSED,
+                ):
+                    self._jobs[job_id] = job
+
+        for payload in updates:
+            try:
+                self._store.update(payload)
+            except Exception as exc:  # pragma: no cover - defensive logging
+                logger.warning(
+                    "Failed to persist reconciled job state",  # pragma: no cover - log only
+                    exc_info=exc,
+                    extra={
+                        "event": "pipeline.job.restore.persist_failed",
+                        "job_id": payload.job_id,
+                        "console_suppress": True,
+                    },
+                )
 
     def _default_store(self) -> JobStore:
         settings = cfg.get_settings()
@@ -539,6 +581,87 @@ class PipelineJobManager:
                 return job
         metadata = self._store.get(job_id)
         return self._build_job_from_metadata(metadata)
+
+    def _mutate_job(self, job_id: str, mutator: Callable[[PipelineJob], None]) -> PipelineJob:
+        """Apply ``mutator`` to ``job_id`` and persist the resulting state."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                metadata = self._store.get(job_id)
+                job = self._build_job_from_metadata(metadata)
+            mutator(job)
+            if job.status in (
+                PipelineJobStatus.PENDING,
+                PipelineJobStatus.RUNNING,
+                PipelineJobStatus.PAUSED,
+            ):
+                self._jobs[job_id] = job
+            else:
+                self._jobs.pop(job_id, None)
+            snapshot = self._snapshot(job)
+
+        self._store.update(snapshot)
+        return job
+
+    def pause_job(self, job_id: str) -> PipelineJob:
+        """Mark ``job_id`` as paused and persist the updated status."""
+
+        def _pause(job: PipelineJob) -> None:
+            if job.status not in (
+                PipelineJobStatus.COMPLETED,
+                PipelineJobStatus.FAILED,
+                PipelineJobStatus.CANCELLED,
+            ):
+                job.status = PipelineJobStatus.PAUSED
+
+        return self._mutate_job(job_id, _pause)
+
+    def resume_job(self, job_id: str) -> PipelineJob:
+        """Resume ``job_id`` from a paused state and persist the change."""
+
+        def _resume(job: PipelineJob) -> None:
+            if job.status == PipelineJobStatus.PAUSED:
+                job.status = PipelineJobStatus.PENDING
+
+        return self._mutate_job(job_id, _resume)
+
+    def cancel_job(self, job_id: str) -> PipelineJob:
+        """Cancel ``job_id`` and persist the terminal state."""
+
+        def _cancel(job: PipelineJob) -> None:
+            if job.stop_event is not None:
+                job.stop_event.set()
+            job.status = PipelineJobStatus.CANCELLED
+            job.completed_at = job.completed_at or datetime.now(timezone.utc)
+
+        return self._mutate_job(job_id, _cancel)
+
+    def finish_job(
+        self,
+        job_id: str,
+        *,
+        status: PipelineJobStatus = PipelineJobStatus.COMPLETED,
+        error_message: Optional[str] = None,
+        result_payload: Optional[Mapping[str, Any]] = None,
+    ) -> PipelineJob:
+        """Persist a terminal state for ``job_id`` and return the updated job."""
+
+        if status not in (
+            PipelineJobStatus.COMPLETED,
+            PipelineJobStatus.FAILED,
+            PipelineJobStatus.CANCELLED,
+        ):
+            raise ValueError(f"Unsupported terminal status: {status}")
+
+        def _finish(job: PipelineJob) -> None:
+            job.status = status
+            job.error_message = error_message
+            if result_payload is not None:
+                job.result_payload = copy.deepcopy(dict(result_payload))
+            job.completed_at = job.completed_at or datetime.now(timezone.utc)
+
+        return self._mutate_job(job_id, _finish)
 
     def _build_job_from_metadata(self, metadata: PipelineJobMetadata) -> PipelineJob:
         request_payload = (

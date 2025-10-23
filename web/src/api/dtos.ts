@@ -1,6 +1,7 @@
 export type PipelineJobStatus =
   | 'pending'
   | 'running'
+  | 'paused'
   | 'completed'
   | 'failed'
   | 'cancelled';
