@@ -402,3 +402,44 @@ def test_forced_alignment_generates_timings(monkeypatch):
     second_duration = sum(step.duration_ms for step in second_word_steps)
     expected_ratio = len("Timing") / len("check")
     assert (first_duration / second_duration) == pytest.approx(expected_ratio, rel=0.25)
+
+
+def test_transliteration_progress_tracks_translation_characters():
+    translation_text = "one two"
+    per_char_duration = 80
+    timings = []
+    cursor = 0
+    for _ in translation_text:
+        timings.append({"start_ms": cursor, "duration_ms": per_char_duration})
+        cursor += per_char_duration
+
+    segment = AudioSegment.silent(duration=cursor)
+    setattr(segment, "character_timing", timings)
+
+    metadata = highlight._compute_audio_highlight_metadata(
+        segment,
+        ["translation"],
+        {"translation": segment},
+        tempo=1.0,
+        texts={"translation": translation_text},
+    )
+
+    events = highlight._build_events_from_metadata(
+        metadata,
+        sync_ratio=1.0,
+        num_original_words=0,
+        num_translation_words=len(translation_text.split()),
+        num_translit_words=6,
+    )
+
+    translation_events = [
+        event for event in events if event.step and event.step.kind == "translation"
+    ]
+    assert translation_events
+
+    first_event = translation_events[0]
+    assert first_event.transliteration_index == 1
+
+    indices = [event.transliteration_index for event in translation_events]
+    assert indices == sorted(indices)
+    assert indices[-1] == 6
