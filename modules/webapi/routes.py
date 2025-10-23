@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import AsyncIterator, List
+from datetime import datetime, timezone
+from typing import AsyncIterator, Callable, List
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -13,10 +14,12 @@ from .dependencies import (
     get_pipeline_service,
     get_runtime_context_provider,
 )
-from .jobs import PipelineJob
+from .jobs import PipelineJob, PipelineJobTransitionError
 from .. import config_manager as cfg
 from ..services.pipeline_service import PipelineService
 from .schemas import (
+    PipelineJobActionResponse,
+    PipelineJobListResponse,
     PipelineFileBrowserResponse,
     PipelineFileEntry,
     PipelineDefaultsResponse,
@@ -62,6 +65,31 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
             )
         )
     return entries
+
+
+def _build_action_response(
+    job: PipelineJob, *, error: str | None = None
+) -> PipelineJobActionResponse:
+    return PipelineJobActionResponse(
+        job=PipelineStatusResponse.from_job(job),
+        error=error,
+    )
+
+
+@router.get("/jobs", response_model=PipelineJobListResponse)
+async def list_jobs(
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Return all persisted jobs ordered by creation time."""
+
+    jobs = pipeline_service.list_jobs().values()
+    ordered = sorted(
+        jobs,
+        key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
+        reverse=True,
+    )
+    payload = [PipelineStatusResponse.from_job(job) for job in ordered]
+    return PipelineJobListResponse(jobs=payload)
 
 
 @router.get("/files", response_model=PipelineFileBrowserResponse)
@@ -143,6 +171,59 @@ async def get_pipeline_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
 
     return PipelineStatusResponse.from_job(job)
+
+
+def _handle_job_action(
+    job_id: str,
+    action: Callable[[str], PipelineJob],
+) -> PipelineJobActionResponse:
+    try:
+        job = action(job_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PipelineJobTransitionError as exc:
+        return _build_action_response(exc.job, error=str(exc))
+    return _build_action_response(job)
+
+
+@router.post("/jobs/{job_id}/pause", response_model=PipelineJobActionResponse)
+async def pause_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Pause the specified job if possible."""
+
+    return _handle_job_action(job_id, pipeline_service.pause_job)
+
+
+@router.post("/jobs/{job_id}/resume", response_model=PipelineJobActionResponse)
+async def resume_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Resume a paused job."""
+
+    return _handle_job_action(job_id, pipeline_service.resume_job)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=PipelineJobActionResponse)
+async def cancel_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Cancel a running or pending job."""
+
+    return _handle_job_action(job_id, pipeline_service.cancel_job)
+
+
+@router.post("/jobs/{job_id}/delete", response_model=PipelineJobActionResponse)
+async def delete_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+):
+    """Delete persisted metadata for a job."""
+
+    return _handle_job_action(job_id, pipeline_service.delete_job)
 
 
 async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:

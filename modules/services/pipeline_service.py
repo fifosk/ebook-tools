@@ -505,6 +505,26 @@ class PipelineService:
 
         return self._job_manager.list()
 
+    def pause_job(self, job_id: str) -> "PipelineJob":
+        """Pause the specified job and return the updated handle."""
+
+        return self._job_manager.pause_job(job_id)
+
+    def resume_job(self, job_id: str) -> "PipelineJob":
+        """Resume the specified job and return the updated handle."""
+
+        return self._job_manager.resume_job(job_id)
+
+    def cancel_job(self, job_id: str) -> "PipelineJob":
+        """Cancel the specified job and return the updated handle."""
+
+        return self._job_manager.cancel_job(job_id)
+
+    def delete_job(self, job_id: str) -> "PipelineJob":
+        """Delete the specified job from persistence and return its final snapshot."""
+
+        return self._job_manager.delete_job(job_id)
+
     def run_sync(self, request: PipelineRequest) -> PipelineResponse:
         """Execute ``request`` synchronously and return the pipeline response."""
 

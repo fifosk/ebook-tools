@@ -141,6 +141,9 @@ class JobStore(Protocol):
     def list(self) -> Dict[str, PipelineJobMetadata]:
         ...
 
+    def delete(self, job_id: str) -> None:
+        ...
+
 
 class InMemoryJobStore(JobStore):
     """Simple process-local store used as a default fallback."""
@@ -168,6 +171,13 @@ class InMemoryJobStore(JobStore):
         with self._lock:
             return dict(self._records)
 
+    def delete(self, job_id: str) -> None:
+        with self._lock:
+            try:
+                del self._records[job_id]
+            except KeyError as exc:
+                raise KeyError(job_id) from exc
+
 
 class FileJobStore(JobStore):
     """Filesystem-backed job store using :mod:`modules.jobs.persistence`."""
@@ -186,6 +196,12 @@ class FileJobStore(JobStore):
 
     def list(self) -> Dict[str, PipelineJobMetadata]:
         return job_persistence.load_all_jobs()
+
+    def delete(self, job_id: str) -> None:
+        try:
+            job_persistence.delete_job(job_id)
+        except FileNotFoundError as exc:  # pragma: no cover - passthrough
+            raise KeyError(job_id) from exc
 
 
 class RedisJobStore(JobStore):
@@ -227,6 +243,20 @@ class RedisJobStore(JobStore):
             if cursor == 0:
                 break
         return records
+
+    def delete(self, job_id: str) -> None:
+        removed = self._client.delete(self._key(job_id))
+        if not removed:
+            raise KeyError(job_id)
+
+
+class PipelineJobTransitionError(ValueError):
+    """Raised when an invalid state transition is requested for a job."""
+
+    def __init__(self, job_id: str, job: PipelineJob, message: str) -> None:
+        super().__init__(message)
+        self.job_id = job_id
+        self.job = job
 
 
 @dataclass
@@ -590,7 +620,10 @@ class PipelineJobManager:
             if job is None:
                 metadata = self._store.get(job_id)
                 job = self._build_job_from_metadata(metadata)
-            mutator(job)
+            try:
+                mutator(job)
+            except ValueError as exc:
+                raise PipelineJobTransitionError(job_id, job, str(exc)) from exc
             if job.status in (
                 PipelineJobStatus.PENDING,
                 PipelineJobStatus.RUNNING,
@@ -608,12 +641,17 @@ class PipelineJobManager:
         """Mark ``job_id`` as paused and persist the updated status."""
 
         def _pause(job: PipelineJob) -> None:
-            if job.status not in (
+            if job.status in (
                 PipelineJobStatus.COMPLETED,
                 PipelineJobStatus.FAILED,
                 PipelineJobStatus.CANCELLED,
             ):
-                job.status = PipelineJobStatus.PAUSED
+                raise ValueError(
+                    f"Cannot pause job {job.job_id} in terminal state {job.status.value}"
+                )
+            if job.status == PipelineJobStatus.PAUSED:
+                raise ValueError(f"Job {job.job_id} is already paused")
+            job.status = PipelineJobStatus.PAUSED
 
         return self._mutate_job(job_id, _pause)
 
@@ -621,8 +659,11 @@ class PipelineJobManager:
         """Resume ``job_id`` from a paused state and persist the change."""
 
         def _resume(job: PipelineJob) -> None:
-            if job.status == PipelineJobStatus.PAUSED:
-                job.status = PipelineJobStatus.PENDING
+            if job.status != PipelineJobStatus.PAUSED:
+                raise ValueError(
+                    f"Cannot resume job {job.job_id} from state {job.status.value}"
+                )
+            job.status = PipelineJobStatus.PENDING
 
         return self._mutate_job(job_id, _resume)
 
@@ -630,12 +671,41 @@ class PipelineJobManager:
         """Cancel ``job_id`` and persist the terminal state."""
 
         def _cancel(job: PipelineJob) -> None:
+            if job.status in (
+                PipelineJobStatus.COMPLETED,
+                PipelineJobStatus.FAILED,
+                PipelineJobStatus.CANCELLED,
+            ):
+                raise ValueError(
+                    f"Cannot cancel job {job.job_id} in terminal state {job.status.value}"
+                )
             if job.stop_event is not None:
                 job.stop_event.set()
             job.status = PipelineJobStatus.CANCELLED
             job.completed_at = job.completed_at or datetime.now(timezone.utc)
 
         return self._mutate_job(job_id, _cancel)
+
+    def delete_job(self, job_id: str) -> PipelineJob:
+        """Remove ``job_id`` from in-memory tracking and persistence."""
+
+        with self._lock:
+            job = self._jobs.pop(job_id, None)
+
+        if job is None:
+            metadata = self._store.get(job_id)
+            job = self._build_job_from_metadata(metadata)
+        else:
+            # ensure persistence has the latest snapshot before deletion
+            snapshot = self._snapshot(job)
+            try:
+                self._store.update(snapshot)
+            except Exception:
+                # if persistence update fails, continue with delete attempt
+                pass
+
+        self._store.delete(job_id)
+        return job
 
     def finish_job(
         self,

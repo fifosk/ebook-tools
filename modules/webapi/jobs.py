@@ -8,6 +8,7 @@ from ..services.job_manager import (
     PipelineJobManager,
     PipelineJobMetadata,
     PipelineJobStatus,
+    PipelineJobTransitionError,
     RedisJobStore,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "PipelineJobManager",
     "PipelineJobMetadata",
     "PipelineJobStatus",
+    "PipelineJobTransitionError",
     "RedisJobStore",
 ]

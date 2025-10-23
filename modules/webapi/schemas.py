@@ -233,6 +233,19 @@ class PipelineStatusResponse(BaseModel):
         )
 
 
+class PipelineJobListResponse(BaseModel):
+    """Response payload describing a collection of pipeline jobs."""
+
+    jobs: List[PipelineStatusResponse] = Field(default_factory=list)
+
+
+class PipelineJobActionResponse(BaseModel):
+    """Response payload for job lifecycle mutations."""
+
+    job: PipelineStatusResponse
+    error: Optional[str] = None
+
+
 class PipelineFileEntry(BaseModel):
     """Describes a selectable file within the dashboard."""
 
