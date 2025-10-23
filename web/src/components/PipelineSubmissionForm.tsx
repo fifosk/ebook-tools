@@ -40,6 +40,11 @@ type FormState = {
   generate_video: boolean;
   include_transliteration: boolean;
   tempo: number;
+  thread_count: string;
+  queue_size: string;
+  job_max_workers: string;
+  slide_parallelism: string;
+  slide_parallel_workers: string;
   config: string;
   environment_overrides: string;
   pipeline_overrides: string;
@@ -65,6 +70,11 @@ const DEFAULT_FORM_STATE: FormState = {
   generate_video: false,
   include_transliteration: false,
   tempo: 1,
+  thread_count: '',
+  queue_size: '',
+  job_max_workers: '',
+  slide_parallelism: '',
+  slide_parallel_workers: '',
   config: '{}',
   environment_overrides: '{}',
   pipeline_overrides: '{}',
@@ -223,6 +233,31 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
     next.tempo = tempo;
   }
 
+  const threadCount = coerceNumber(config['thread_count']);
+  if (threadCount !== undefined) {
+    next.thread_count = String(threadCount);
+  }
+
+  const queueSize = coerceNumber(config['queue_size']);
+  if (queueSize !== undefined) {
+    next.queue_size = String(queueSize);
+  }
+
+  const jobMaxWorkers = coerceNumber(config['job_max_workers']);
+  if (jobMaxWorkers !== undefined) {
+    next.job_max_workers = String(jobMaxWorkers);
+  }
+
+  const slideParallelism = config['slide_parallelism'];
+  if (typeof slideParallelism === 'string') {
+    next.slide_parallelism = slideParallelism;
+  }
+
+  const slideParallelWorkers = coerceNumber(config['slide_parallel_workers']);
+  if (slideParallelWorkers !== undefined) {
+    next.slide_parallel_workers = String(slideParallelWorkers);
+  }
+
   const metadata = extractBookMetadata(config);
   if (metadata) {
     next.book_metadata = JSON.stringify(metadata, null, 2);
@@ -246,6 +281,18 @@ function parseJsonField(label: JsonFields, value: string): Record<string, unknow
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Invalid JSON for ${label}: ${message}`);
   }
+}
+
+function parseOptionalNumberInput(value: string): number | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  const parsed = Number(trimmed);
+  if (Number.isNaN(parsed)) {
+    return undefined;
+  }
+  return parsed;
 }
 
 export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props) {
@@ -355,10 +402,37 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
         throw new Error('Please choose at least one target language.');
       }
 
+      const pipelineOverrides = { ...json.pipeline_overrides };
+
+      const threadCount = parseOptionalNumberInput(formState.thread_count);
+      if (threadCount !== undefined) {
+        pipelineOverrides.thread_count = threadCount;
+      }
+
+      const queueSize = parseOptionalNumberInput(formState.queue_size);
+      if (queueSize !== undefined) {
+        pipelineOverrides.queue_size = queueSize;
+      }
+
+      const jobMaxWorkers = parseOptionalNumberInput(formState.job_max_workers);
+      if (jobMaxWorkers !== undefined) {
+        pipelineOverrides.job_max_workers = jobMaxWorkers;
+      }
+
+      const slideParallelism = formState.slide_parallelism.trim();
+      if (slideParallelism) {
+        pipelineOverrides.slide_parallelism = slideParallelism;
+      }
+
+      const slideParallelWorkers = parseOptionalNumberInput(formState.slide_parallel_workers);
+      if (slideParallelWorkers !== undefined) {
+        pipelineOverrides.slide_parallel_workers = slideParallelWorkers;
+      }
+
       const payload: PipelineRequestPayload = {
         config: json.config,
         environment_overrides: json.environment_overrides,
-        pipeline_overrides: json.pipeline_overrides,
+        pipeline_overrides: pipelineOverrides,
         inputs: {
           input_file: formState.input_file,
           base_output_file: formState.base_output_file,
@@ -621,6 +695,103 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
             />
             Include transliteration in written output
           </label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Performance tuning</legend>
+          <p className="form-help-text">
+            Adjust concurrency and queue sizing to match your hardware capabilities.
+          </p>
+          <div className="collapsible-group">
+            <details>
+              <summary>Translation threads</summary>
+              <p className="form-help-text">
+                Control how many translation and media workers run simultaneously. Leave blank to
+                use the backend default.
+              </p>
+              <label htmlFor="thread_count">
+                Worker threads
+                <input
+                  id="thread_count"
+                  name="thread_count"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formState.thread_count}
+                  onChange={(event) => handleChange('thread_count', event.target.value)}
+                  placeholder="Default"
+                />
+              </label>
+            </details>
+            <details>
+              <summary>Job orchestration</summary>
+              <p className="form-help-text">
+                Tune job level parallelism and queue pressure for large or resource constrained
+                hosts.
+              </p>
+              <label htmlFor="job_max_workers">
+                Maximum concurrent jobs
+                <input
+                  id="job_max_workers"
+                  name="job_max_workers"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formState.job_max_workers}
+                  onChange={(event) => handleChange('job_max_workers', event.target.value)}
+                  placeholder="Default"
+                />
+              </label>
+              <label htmlFor="queue_size">
+                Translation queue size
+                <input
+                  id="queue_size"
+                  name="queue_size"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formState.queue_size}
+                  onChange={(event) => handleChange('queue_size', event.target.value)}
+                  placeholder="Default"
+                />
+              </label>
+            </details>
+            <details>
+              <summary>Slide rendering parallelism</summary>
+              <p className="form-help-text">
+                Select the rendering backend for slide generation and optionally cap worker count
+                when video output is enabled.
+              </p>
+              <label htmlFor="slide_parallelism">
+                Slide parallelism mode
+                <select
+                  id="slide_parallelism"
+                  name="slide_parallelism"
+                  value={formState.slide_parallelism}
+                  onChange={(event) => handleChange('slide_parallelism', event.target.value)}
+                >
+                  <option value="">Use configured default</option>
+                  <option value="off">Off</option>
+                  <option value="auto">Auto</option>
+                  <option value="thread">Thread</option>
+                  <option value="process">Process</option>
+                </select>
+              </label>
+              <label htmlFor="slide_parallel_workers">
+                Parallel slide workers
+                <input
+                  id="slide_parallel_workers"
+                  name="slide_parallel_workers"
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={formState.slide_parallel_workers}
+                  onChange={(event) => handleChange('slide_parallel_workers', event.target.value)}
+                  placeholder="Default"
+                />
+              </label>
+            </details>
+          </div>
         </fieldset>
 
         <fieldset>
