@@ -82,7 +82,7 @@ class PipelineSubmissionResponse(BaseModel):
 class PipelineResponsePayload(BaseModel):
     """Serializable representation of :class:`PipelineResponse`."""
 
-    success: bool
+    success: Optional[bool] = None
     pipeline_config: Optional[Dict[str, Any]] = None
     refined_sentences: Optional[List[str]] = None
     refined_updated: bool = False

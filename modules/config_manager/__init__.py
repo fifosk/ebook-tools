@@ -40,6 +40,8 @@ from .runtime import (
     get_runtime_context,
     get_thread_count,
     is_pipeline_mode,
+    register_tmp_dir_preservation,
+    release_tmp_dir_preservation,
     set_runtime_context,
 )
 from .settings import EbookToolsSettings, EnvironmentOverrides, normalize_llm_source
@@ -122,6 +124,8 @@ __all__ = [
     "get_settings",
     "get_thread_count",
     "is_pipeline_mode",
+    "register_tmp_dir_preservation",
+    "release_tmp_dir_preservation",
     "load_configuration",
     "resolve_directory",
     "resolve_file_path",

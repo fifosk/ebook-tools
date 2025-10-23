@@ -1,6 +1,8 @@
 import {
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
+  PipelineJobActionResponse,
+  PipelineJobListResponse,
   PipelineRequestPayload,
   PipelineStatusResponse,
   PipelineSubmissionResponse
@@ -72,6 +74,35 @@ export async function submitPipeline(
 export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatusResponse> {
   const response = await fetch(withBase(`/pipelines/${jobId}`));
   return handleResponse<PipelineStatusResponse>(response);
+}
+
+export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
+  const response = await fetch(withBase('/pipelines/jobs'));
+  const payload = await handleResponse<PipelineJobListResponse>(response);
+  return payload.jobs;
+}
+
+async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {
+  const response = await fetch(withBase(`/pipelines/jobs/${jobId}/${action}`), {
+    method: 'POST'
+  });
+  return handleResponse<PipelineJobActionResponse>(response);
+}
+
+export async function pauseJob(jobId: string): Promise<PipelineJobActionResponse> {
+  return postJobAction(jobId, 'pause');
+}
+
+export async function resumeJob(jobId: string): Promise<PipelineJobActionResponse> {
+  return postJobAction(jobId, 'resume');
+}
+
+export async function cancelJob(jobId: string): Promise<PipelineJobActionResponse> {
+  return postJobAction(jobId, 'cancel');
+}
+
+export async function deleteJob(jobId: string): Promise<PipelineJobActionResponse> {
+  return postJobAction(jobId, 'delete');
 }
 
 export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {

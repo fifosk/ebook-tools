@@ -16,8 +16,10 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import Response
 from starlette.types import Scope
 
+from modules import config_manager as cfg
 from modules import load_environment
 
+from .dependencies import get_runtime_context_provider
 from .routes import router
 
 load_environment()
@@ -29,6 +31,45 @@ DEFAULT_DEVSERVER_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 )
+
+_STARTUP_RUNTIME_CONTEXT: cfg.RuntimeContext | None = None
+
+
+def _initialise_tmp_workspace() -> None:
+    """Ensure the API tmp directory is prepared before serving requests."""
+
+    global _STARTUP_RUNTIME_CONTEXT
+    if _STARTUP_RUNTIME_CONTEXT is not None:
+        return
+
+    provider = get_runtime_context_provider()
+    resolved = provider.resolve_config()
+    context = provider.build_context(resolved, {})
+
+    if context.is_tmp_ramdisk:
+        cfg.register_tmp_dir_preservation(context.tmp_dir)
+        LOGGER.info("Mounted RAM disk for temporary workspace at %s", context.tmp_dir)
+
+    _STARTUP_RUNTIME_CONTEXT = context
+
+
+def _teardown_tmp_workspace() -> None:
+    """Release the tmp directory resources when the API stops."""
+
+    global _STARTUP_RUNTIME_CONTEXT
+    context = _STARTUP_RUNTIME_CONTEXT
+    if context is None:
+        return
+
+    try:
+        if context.is_tmp_ramdisk:
+            cfg.release_tmp_dir_preservation(context.tmp_dir)
+            cfg.cleanup_environment(context)
+            LOGGER.info(
+                "Unmounted RAM disk for temporary workspace at %s", context.tmp_dir
+            )
+    finally:
+        _STARTUP_RUNTIME_CONTEXT = None
 
 
 @dataclass(frozen=True)
@@ -158,6 +199,20 @@ def create_app() -> FastAPI:
     """Instantiate and configure the FastAPI application."""
 
     app = FastAPI(title="ebook-tools API", version="0.1.0")
+
+    @app.on_event("startup")
+    async def _prepare_runtime() -> None:
+        try:
+            _initialise_tmp_workspace()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to initialize temporary workspace")
+
+    @app.on_event("shutdown")
+    async def _cleanup_runtime() -> None:
+        try:
+            _teardown_tmp_workspace()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to clean up temporary workspace")
 
     _configure_cors(app)
 
