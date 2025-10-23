@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import os
 import threading
@@ -23,6 +24,7 @@ from .. import metadata_manager
 from .. import observability
 from ..progress_tracker import ProgressEvent, ProgressSnapshot, ProgressTracker
 from ..translation_engine import TranslationWorkerPool
+from ..jobs import persistence as job_persistence
 from .pipeline_service import (
     PipelineRequest,
     PipelineResponse,
@@ -32,6 +34,18 @@ from .pipeline_service import (
 )
 
 logger = log_mgr.logger
+
+
+def _stable_copy(value: Any) -> Any:
+    """Return a deterministically ordered, JSON-serializable copy of ``value``."""
+
+    if isinstance(value, Mapping):
+        return {key: _stable_copy(value[key]) for key in sorted(value)}
+    if isinstance(value, (list, tuple)):
+        return [_stable_copy(item) for item in value]
+    if isinstance(value, set):
+        return [_stable_copy(item) for item in sorted(value, key=lambda item: repr(item))]
+    return value
 
 
 class PipelineJobStatus(str, Enum):
@@ -57,6 +71,7 @@ class PipelineJobMetadata:
     last_event: Optional[Dict[str, Any]] = None
     result: Optional[Dict[str, Any]] = None
     request_payload: Optional[Dict[str, Any]] = None
+    resume_context: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -69,15 +84,20 @@ class PipelineJobMetadata:
             "started_at": _dt(self.started_at),
             "completed_at": _dt(self.completed_at),
             "error_message": self.error_message,
-            "last_event": self.last_event,
-            "result": self.result,
+            "last_event": _stable_copy(self.last_event) if self.last_event is not None else None,
+            "result": _stable_copy(self.result) if self.result is not None else None,
+            "resume_context": _stable_copy(self.resume_context)
+            if self.resume_context is not None
+            else None,
         }
         if self.request_payload is not None:
-            payload["request"] = self.request_payload
+            payload["request"] = _stable_copy(self.request_payload)
         return payload
 
     def to_json(self) -> str:
-        return json.dumps(self.to_dict(), ensure_ascii=False)
+        return json.dumps(
+            self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+        )
 
     @staticmethod
     def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
@@ -97,6 +117,7 @@ class PipelineJobMetadata:
             last_event=data.get("last_event"),
             result=data.get("result"),
             request_payload=data.get("request"),
+            resume_context=data.get("resume_context") or data.get("request"),
         )
 
     @classmethod
@@ -145,6 +166,25 @@ class InMemoryJobStore(JobStore):
     def list(self) -> Dict[str, PipelineJobMetadata]:
         with self._lock:
             return dict(self._records)
+
+
+class FileJobStore(JobStore):
+    """Filesystem-backed job store using :mod:`modules.jobs.persistence`."""
+
+    def save(self, metadata: PipelineJobMetadata) -> None:
+        job_persistence.save_job(metadata)
+
+    def update(self, metadata: PipelineJobMetadata) -> None:
+        job_persistence.save_job(metadata)
+
+    def get(self, job_id: str) -> PipelineJobMetadata:
+        try:
+            return job_persistence.load_job(job_id)
+        except FileNotFoundError as exc:  # pragma: no cover - passthrough
+            raise KeyError(job_id) from exc
+
+    def list(self) -> Dict[str, PipelineJobMetadata]:
+        return job_persistence.load_all_jobs()
 
 
 class RedisJobStore(JobStore):
@@ -206,6 +246,7 @@ class PipelineJob:
     result_payload: Optional[Dict[str, Any]] = None
     owns_translation_pool: bool = False
     request_payload: Optional[Dict[str, Any]] = None
+    resume_context: Optional[Dict[str, Any]] = None
 
 
 def _serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
@@ -279,17 +320,30 @@ class PipelineJobManager:
                 return RedisJobStore(url)
             except Exception as exc:  # pragma: no cover - defensive logging
                 logger.warning("Failed to initialize RedisJobStore: %s", exc)
+        try:
+            return FileJobStore()
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.warning("Failed to initialize FileJobStore: %s", exc)
         return InMemoryJobStore()
 
     def _snapshot(self, job: PipelineJob) -> PipelineJobMetadata:
         last_event = _serialize_progress_event(job.last_event) if job.last_event else None
-        result_payload = job.result_payload
+        result_payload = (
+            copy.deepcopy(job.result_payload) if job.result_payload is not None else None
+        )
         if result_payload is None and job.result is not None:
             result_payload = serialize_pipeline_response(job.result)
         if job.request is not None:
             request_payload = serialize_pipeline_request(job.request)
         else:
-            request_payload = dict(job.request_payload) if job.request_payload else None
+            request_payload = (
+                copy.deepcopy(job.request_payload) if job.request_payload else None
+            )
+        resume_context = (
+            copy.deepcopy(job.resume_context) if job.resume_context is not None else None
+        )
+        if resume_context is None and request_payload is not None:
+            resume_context = copy.deepcopy(request_payload)
         return PipelineJobMetadata(
             job_id=job.job_id,
             status=job.status,
@@ -300,6 +354,7 @@ class PipelineJobManager:
             last_event=last_event,
             result=result_payload,
             request_payload=request_payload,
+            resume_context=resume_context,
         )
 
     def submit(self, request: PipelineRequest) -> PipelineJob:
@@ -314,6 +369,7 @@ class PipelineJobManager:
         request.correlation_id = request.correlation_id or job_id
         request.job_id = job_id
 
+        request_payload = serialize_pipeline_request(request)
         job = PipelineJob(
             job_id=job_id,
             status=PipelineJobStatus.PENDING,
@@ -321,7 +377,8 @@ class PipelineJobManager:
             request=request,
             tracker=tracker,
             stop_event=stop_event,
-            request_payload=serialize_pipeline_request(request),
+            request_payload=request_payload,
+            resume_context=copy.deepcopy(request_payload),
         )
 
         tracker.register_observer(lambda event: self._store_event(job_id, event))
@@ -484,6 +541,19 @@ class PipelineJobManager:
         return self._build_job_from_metadata(metadata)
 
     def _build_job_from_metadata(self, metadata: PipelineJobMetadata) -> PipelineJob:
+        request_payload = (
+            copy.deepcopy(metadata.request_payload)
+            if metadata.request_payload is not None
+            else None
+        )
+        resume_context = (
+            copy.deepcopy(metadata.resume_context)
+            if metadata.resume_context is not None
+            else (copy.deepcopy(request_payload) if request_payload is not None else None)
+        )
+        result_payload = (
+            copy.deepcopy(metadata.result) if metadata.result is not None else None
+        )
         job = PipelineJob(
             job_id=metadata.job_id,
             status=metadata.status,
@@ -491,8 +561,9 @@ class PipelineJobManager:
             started_at=metadata.started_at,
             completed_at=metadata.completed_at,
             error_message=metadata.error_message,
-            result_payload=metadata.result,
-            request_payload=metadata.request_payload,
+            result_payload=result_payload,
+            request_payload=request_payload,
+            resume_context=resume_context,
         )
         if metadata.last_event is not None:
             job.last_event = _deserialize_progress_event(metadata.last_event)
@@ -561,6 +632,7 @@ class PipelineJobManager:
         if job.request is not None:
             job.request.inputs.book_metadata = dict(metadata)
         job.request_payload = request_payload
+        job.resume_context = copy.deepcopy(request_payload)
 
         if job.result is not None:
             job.result.book_metadata = dict(metadata)
