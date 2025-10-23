@@ -236,16 +236,66 @@ def _ollama_client_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def _ollama_endpoint_summary(config: Dict[str, Any]) -> tuple[str, str]:
+    """Return the resolved Ollama endpoint URL and its configuration source."""
+
+    client_kwargs = _ollama_client_kwargs(config)
+
+    def _clean(value: Any) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        return ""
+
+    def _runtime_context_value(attribute: str) -> str:
+        context = cfg.get_runtime_context(None)
+        if context is None:
+            return ""
+        return _clean(getattr(context, attribute, ""))
+
+    direct_url = _clean(client_kwargs.get("api_url"))
+    if direct_url:
+        return direct_url, "config['ollama_url']"
+
+    llm_source = _clean(client_kwargs.get("llm_source")) or cfg.DEFAULT_LLM_SOURCE
+    normalized_source = llm_source.lower()
+
+    if normalized_source == "cloud":
+        cloud_url = _clean(client_kwargs.get("cloud_api_url"))
+        if cloud_url:
+            return cloud_url, "config['ollama_cloud_url']"
+        context_url = _runtime_context_value("cloud_ollama_url")
+        if context_url:
+            return context_url, "runtime_context.cloud_ollama_url"
+        return _clean(cfg.get_cloud_ollama_url()), "cfg.get_cloud_ollama_url()"
+
+    local_url = _clean(client_kwargs.get("local_api_url"))
+    if local_url:
+        return local_url, "config['ollama_local_url']"
+    context_url = _runtime_context_value("local_ollama_url")
+    if context_url:
+        return context_url, "runtime_context.local_ollama_url"
+    return _clean(cfg.get_local_ollama_url()), "cfg.get_local_ollama_url()"
+
+
 def _ollama_health_status(config: Dict[str, Any]) -> tuple[bool, str]:
     """Check whether the Ollama endpoint is reachable and healthy."""
 
+    endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
     try:
         with create_client(**_ollama_client_kwargs(config)) as client:
             if client.health_check():
                 return True, ""
-            return False, "Ollama service unavailable; cannot generate sample sentences"
+            return (
+                False,
+                "Ollama service unavailable; cannot generate sample sentences "
+                f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source})",
+            )
     except Exception as exc:  # pragma: no cover - defensive guard for diagnostics
-        return False, f"Ollama client initialisation failed: {exc}"
+        return (
+            False,
+            "Ollama client initialisation failed "
+            f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source}): {exc}",
+        )
 
 
 def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequence[str]:
@@ -274,7 +324,11 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
 
     with create_client(**client_kwargs) as client:
         if not client.health_check():
-            pytest.skip("Ollama service unavailable; cannot generate sample sentences")
+            endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
+            pytest.skip(
+                "Ollama service unavailable; cannot generate sample sentences "
+                f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source})"
+            )
 
         system_prompt = (
             "You generate evaluation data for an e-book processing pipeline. "
@@ -563,11 +617,20 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
                 "ffmpeg executable is required for media artifact validation"
             )
 
+        endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
+        print(
+            "[deps] Ollama endpoint configured as "
+            f"{endpoint_url or 'unknown'} (source={endpoint_source})"
+        )
+
         ollama_ready, ollama_message = _ollama_health_status(config)
         if not ollama_ready:
             ollama_message = (
                 ollama_message
-                or "Ollama service unavailable; cannot generate sample sentences"
+                or (
+                    "Ollama service unavailable; cannot generate sample sentences "
+                    f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source})"
+                )
             )
             skip_reasons.append(ollama_message)
 
