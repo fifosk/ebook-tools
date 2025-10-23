@@ -223,14 +223,35 @@ def _cli_configuration(
             cfg.set_runtime_context(previous_context)
 
 
+def _ollama_client_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the keyword arguments used to create an Ollama client."""
+
+    return {
+        "model": config.get("ollama_model") or cfg.DEFAULT_MODEL,
+        "api_url": config.get("ollama_url"),
+        "llm_source": config.get("llm_source") or cfg.DEFAULT_LLM_SOURCE,
+        "local_api_url": config.get("ollama_local_url"),
+        "cloud_api_url": config.get("ollama_cloud_url"),
+        "allow_fallback": False,
+    }
+
+
+def _ollama_health_status(config: Dict[str, Any]) -> tuple[bool, str]:
+    """Check whether the Ollama endpoint is reachable and healthy."""
+
+    try:
+        with create_client(**_ollama_client_kwargs(config)) as client:
+            if client.health_check():
+                return True, ""
+            return False, "Ollama service unavailable; cannot generate sample sentences"
+    except Exception as exc:  # pragma: no cover - defensive guard for diagnostics
+        return False, f"Ollama client initialisation failed: {exc}"
+
+
 def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequence[str]:
     """Request sample sentences from the configured Ollama endpoint."""
 
-    model = config.get("ollama_model") or cfg.DEFAULT_MODEL
-    llm_source = config.get("llm_source") or cfg.DEFAULT_LLM_SOURCE
-    primary_url = config.get("ollama_url")
-    local_url = config.get("ollama_local_url")
-    cloud_url = config.get("ollama_cloud_url")
+    client_kwargs = _ollama_client_kwargs(config)
     input_language = config.get("input_language") or "English"
     topic = config.get("test_sentence_topic") or "modern technology"
     target_languages = _normalize_language_values(config.get("target_languages"))
@@ -251,14 +272,7 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
         "sample sentence",
     }
 
-    with create_client(
-        model=model,
-        api_url=primary_url,
-        llm_source=llm_source,
-        local_api_url=local_url,
-        cloud_api_url=cloud_url,
-        allow_fallback=False,
-    ) as client:
+    with create_client(**client_kwargs) as client:
         if not client.health_check():
             pytest.skip("Ollama service unavailable; cannot generate sample sentences")
 
@@ -535,6 +549,30 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
         overrides,
     ):
         _purge_previous_artifacts(epub_path, config, overrides)
+
+        skip_reasons: list[str] = []
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            skip_reasons.append(
+                "ffmpeg executable is required for media artifact validation"
+            )
+
+        ollama_ready, ollama_message = _ollama_health_status(config)
+        if not ollama_ready:
+            ollama_message = (
+                ollama_message
+                or "Ollama service unavailable; cannot generate sample sentences"
+            )
+            skip_reasons.append(ollama_message)
+
+        if skip_reasons:
+            combined = "; ".join(dict.fromkeys(skip_reasons))
+            pytest.skip(f"Integration prerequisites not met: {combined}")
+
+        assert ffmpeg_path is not None  # for type-checkers
+        print(f"[deps] ffmpeg resolved to: {ffmpeg_path}")
+        config["ffmpeg_path"] = ffmpeg_path
+
         default_sentence_batch = _coerce_positive_int(
             config.get("sentences_per_output_file"), 3
         )
@@ -551,12 +589,6 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
             print(f"[ollama] Sentence {index}: {sentence}")
         create_epub_from_sentences(sentences, epub_path)
         print(f"[test] Created synthetic EPUB at {epub_path}")
-
-        ffmpeg_path = shutil.which("ffmpeg")
-        if not ffmpeg_path:
-            pytest.skip("ffmpeg executable is required for media artifact validation")
-        print(f"[deps] ffmpeg resolved to: {ffmpeg_path}")
-        config["ffmpeg_path"] = ffmpeg_path
 
         environment_overrides = dict(overrides)
         environment_overrides["output_dir"] = str(output_dir)
