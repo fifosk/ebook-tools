@@ -533,7 +533,13 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
 
 @pytest.mark.integration
 def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
-    """Start the real web API, submit a job, and validate generated artifacts."""
+    """Start the real web API, submit a job, and validate generated artifacts.
+
+    The test exits early via :func:`pytest.skip` whenever the runtime prerequisites
+    are missing. Those checks live directly below so you can correlate skip
+    messages back to the specific dependency (``ffmpeg`` or the Ollama service).
+    Run ``pytest -rs`` to have the skip reason echoed in the test output when
+    diagnosing why it did not execute."""
 
     from modules.services.job_manager import PipelineJobStatus
     from modules.webapi.application import create_app
