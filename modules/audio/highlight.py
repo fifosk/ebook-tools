@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import unicodedata
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Literal
@@ -164,6 +165,32 @@ def _compute_audio_highlight_metadata(
     return SentenceAudioMetadata(parts=parts, total_duration=total_duration)
 
 
+def _map_transliteration_progress(
+    *,
+    translation_index: int,
+    num_translation_words: int,
+    num_translit_words: int,
+    char_progress: float | None = None,
+) -> int:
+    """Return the number of transliteration tokens that should be highlighted."""
+
+    if num_translit_words <= 0:
+        return 0
+
+    if char_progress is not None:
+        progress = max(0.0, min(char_progress, 1.0))
+    elif num_translation_words > 0:
+        progress = translation_index / num_translation_words
+    else:
+        progress = 1.0
+
+    if progress <= 0:
+        return 0
+
+    mapped = math.ceil(progress * num_translit_words)
+    return max(0, min(num_translit_words, mapped))
+
+
 def _build_events_from_metadata(
     metadata: SentenceAudioMetadata,
     sync_ratio: float,
@@ -196,15 +223,21 @@ def _build_events_from_metadata(
                     if step.word_index is not None:
                         target = min(num_translation_words, step.word_index + 1)
                         translation_index = max(translation_index, target)
-                        if num_translation_words:
-                            progress = translation_index / num_translation_words
-                        else:
-                            progress = 1.0
                         if num_translit_words:
-                            target_translit = int(round(progress * num_translit_words))
+                            char_progress: float | None = None
+                            if part.text and step.char_index_end is not None:
+                                total_chars = len(part.text)
+                                if total_chars > 0:
+                                    char_progress = step.char_index_end / total_chars
+                            target_translit = _map_transliteration_progress(
+                                translation_index=translation_index,
+                                num_translation_words=num_translation_words,
+                                num_translit_words=num_translit_words,
+                                char_progress=char_progress,
+                            )
                             transliteration_index = max(
                                 transliteration_index,
-                                min(num_translit_words, target_translit),
+                                target_translit,
                             )
                 events.append(
                     HighlightEvent(
@@ -277,15 +310,15 @@ def _build_events_from_metadata(
                 for index in range(remaining):
                     start_ms = fallback_offset_ms + per_unit_ms * index
                     translation_index = min(translation_index + 1, num_translation_words)
-                    if num_translation_words:
-                        progress = translation_index / num_translation_words
-                    else:
-                        progress = 1.0
                     if num_translit_words:
-                        target = int(round(progress * num_translit_words))
+                        target = _map_transliteration_progress(
+                            translation_index=translation_index,
+                            num_translation_words=num_translation_words,
+                            num_translit_words=num_translit_words,
+                        )
                         transliteration_index = max(
                             transliteration_index,
-                            min(num_translit_words, target),
+                            target,
                         )
                     events.append(
                         HighlightEvent(

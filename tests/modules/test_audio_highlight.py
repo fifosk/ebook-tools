@@ -161,6 +161,7 @@ if str(project_root) not in sys.path:
 from modules.audio import highlight
 from modules.audio.tts import SILENCE_DURATION_MS
 from modules.audio_video_generator import generate_audio_for_sentence
+from modules.core.translation import split_translation_and_transliteration
 
 
 def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
@@ -290,6 +291,51 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     assert legacy_events[-1].translation_index == len(translation_text.split())
 
 
+def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
+    input_text = "Hello world"
+    translation_with_translit = "Bonjour le monde\nTransliteration: bon-zhoor le mond"
+
+    recorded_texts: list[str] = []
+
+    def fake_synthesize(text: str, lang_code: str, selected_voice: str, macos_reading_speed: int) -> AudioSegment:
+        recorded_texts.append(text)
+        duration = max(len(text), 1) * 40
+        segment = AudioSegment.silent(duration=duration)
+        timings = []
+        if text:
+            per_char = duration / max(len(text), 1)
+            cursor = 0.0
+            for ch in text:
+                timings.append({"char": ch, "start_ms": cursor, "duration_ms": per_char})
+                cursor += per_char
+        setattr(segment, "character_timing", timings)
+        return segment
+
+    monkeypatch.setattr("modules.audio_video_generator.synthesize_segment", fake_synthesize)
+
+    audio = generate_audio_for_sentence(
+        sentence_number=1,
+        input_sentence=input_text,
+        fluent_translation=translation_with_translit,
+        input_language="English",
+        target_language="French",
+        audio_mode="4",
+        total_sentences=1,
+        language_codes={"English": "en", "French": "fr"},
+        selected_voice="gTTS",
+        tempo=1.0,
+        macos_reading_speed=180,
+    )
+
+    assert recorded_texts == [input_text, "Bonjour le monde"]
+    assert all("Transliteration" not in text for text in recorded_texts)
+
+    metadata = highlight._get_audio_metadata(audio)
+    assert metadata is not None
+    translation_part = next(part for part in metadata.parts if part.kind == "translation")
+    assert translation_part.text == "Bonjour le monde"
+
+
 def test_highlight_round_trip_mixed_language_timings():
     sequence = ["translation"]
     mixed_text = "你好 a\u0301"
@@ -402,3 +448,72 @@ def test_forced_alignment_generates_timings(monkeypatch):
     second_duration = sum(step.duration_ms for step in second_word_steps)
     expected_ratio = len("Timing") / len("check")
     assert (first_duration / second_duration) == pytest.approx(expected_ratio, rel=0.25)
+
+
+def test_transliteration_progress_tracks_translation_characters():
+    translation_text = "one two"
+    per_char_duration = 80
+    timings = []
+    cursor = 0
+    for _ in translation_text:
+        timings.append({"start_ms": cursor, "duration_ms": per_char_duration})
+        cursor += per_char_duration
+
+    segment = AudioSegment.silent(duration=cursor)
+    setattr(segment, "character_timing", timings)
+
+    metadata = highlight._compute_audio_highlight_metadata(
+        segment,
+        ["translation"],
+        {"translation": segment},
+        tempo=1.0,
+        texts={"translation": translation_text},
+    )
+
+    events = highlight._build_events_from_metadata(
+        metadata,
+        sync_ratio=1.0,
+        num_original_words=0,
+        num_translation_words=len(translation_text.split()),
+        num_translit_words=6,
+    )
+
+    translation_events = [
+        event for event in events if event.step and event.step.kind == "translation"
+    ]
+    assert translation_events
+
+    first_event = translation_events[0]
+    assert first_event.transliteration_index == 1
+
+    indices = [event.transliteration_index for event in translation_events]
+    assert indices == sorted(indices)
+    assert indices[-1] == 6
+
+
+def test_split_translation_and_transliteration_handles_prefixes():
+    text = "Translation: こんにちは世界\nTransliteration: Kon'nichiwa sekai"
+    translation, transliteration = split_translation_and_transliteration(text)
+
+    assert translation == "こんにちは世界"
+    assert transliteration == "Kon'nichiwa sekai"
+
+
+def test_split_translation_and_transliteration_handles_absent_transliteration():
+    text = "Hola mundo"
+    translation, transliteration = split_translation_and_transliteration(text)
+
+    assert translation == "Hola mundo"
+    assert transliteration == ""
+
+
+def test_split_translation_and_transliteration_collapses_additional_lines():
+    text = (
+        "Translation: 你好世界\n"
+        "Romanization: ni hao shi jie\n"
+        "Pinyin detail line"
+    )
+    translation, transliteration = split_translation_and_transliteration(text)
+
+    assert translation == "你好世界"
+    assert transliteration == "ni hao shi jie Pinyin detail line"

@@ -24,6 +24,7 @@ from modules.core.translation import (
     TranslationWorkerPool,
     build_target_sequence,
     create_translation_queue,
+    split_translation_and_transliteration,
     start_translation_pipeline,
     translate_batch,
     transliterate_sentence,
@@ -500,18 +501,28 @@ class RenderPipeline:
             ):
                 if self._should_stop():
                     break
-                fluent = remove_quotes(translation_result or "")
+                fluent_candidate = remove_quotes(translation_result or "")
+                fluent, inline_transliteration = split_translation_and_transliteration(
+                    fluent_candidate
+                )
+                fluent = fluent.strip()
+                inline_transliteration = remove_quotes(inline_transliteration or "").strip()
+
                 should_transliterate = (
                     include_transliteration and current_target in NON_LATIN_LANGUAGES
                 )
-                transliteration_result = ""
+                transliteration_result = inline_transliteration
                 if should_transliterate:
-                    transliteration_result = transliterate_sentence(
+                    transliteration_candidate = transliterate_sentence(
                         fluent,
                         current_target,
                         client=translation_client,
                     )
-                    transliteration_result = remove_quotes(transliteration_result)
+                    transliteration_candidate = remove_quotes(
+                        transliteration_candidate or ""
+                    ).strip()
+                    if transliteration_candidate:
+                        transliteration_result = transliteration_candidate
                 audio_segment = None
                 if generate_audio:
                     audio_segment = self._maybe_generate_audio(
@@ -534,7 +545,9 @@ class RenderPipeline:
                     sentences_per_file=sentences_per_file,
                     written_mode=written_mode,
                     total_sentences=total_fully,
-                    include_transliteration=should_transliterate,
+                    include_transliteration=(
+                        should_transliterate and bool(transliteration_result)
+                    ),
                     output_html=output_html,
                     output_pdf=output_pdf,
                     generate_audio=generate_audio,
@@ -621,19 +634,30 @@ class RenderPipeline:
                 buffered_results[media_item.index] = media_item
                 while next_index in buffered_results:
                     item = buffered_results.pop(next_index)
-                    fluent = remove_quotes(item.translation or "")
+                    fluent_candidate = remove_quotes(item.translation or "")
+                    fluent, inline_transliteration = split_translation_and_transliteration(
+                        fluent_candidate
+                    )
+                    fluent = fluent.strip()
+                    inline_transliteration = remove_quotes(
+                        inline_transliteration or ""
+                    ).strip()
                     should_transliterate = (
                         include_transliteration
                         and item.target_language in NON_LATIN_LANGUAGES
                     )
-                    transliteration_result = ""
+                    transliteration_result = inline_transliteration
                     if should_transliterate:
-                        transliteration_result = transliterate_sentence(
+                        transliteration_candidate = transliterate_sentence(
                             fluent,
                             item.target_language,
                             client=translation_client,
                         )
-                        transliteration_result = remove_quotes(transliteration_result)
+                        transliteration_candidate = remove_quotes(
+                            transliteration_candidate or ""
+                        ).strip()
+                        if transliteration_candidate:
+                            transliteration_result = transliteration_candidate
                     audio_segment = None
                     if generate_audio:
                         audio_segment = item.audio_segment or AudioSegment.silent(
@@ -651,7 +675,9 @@ class RenderPipeline:
                         current_target=item.target_language,
                         written_mode=written_mode,
                         total_sentences=total_fully,
-                        include_transliteration=should_transliterate,
+                        include_transliteration=(
+                            should_transliterate and bool(transliteration_result)
+                        ),
                     )
                     state.written_blocks.append(written_block)
                     if generate_video:
