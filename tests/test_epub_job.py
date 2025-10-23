@@ -199,12 +199,12 @@ def _cli_configuration(
 
     config["start_sentence"] = 1
     config["end_sentence"] = None
-    config["stitch_full"] = True
+    config["stitch_full"] = False
     config["generate_audio"] = True
     config["generate_video"] = True
     config["output_html"] = True
     config["output_pdf"] = False
-    config["include_transliteration"] = False
+    config["include_transliteration"] = True
     config["use_ramdisk"] = False
 
     config = cli_context.update_book_cover_file_in_config(
@@ -223,14 +223,85 @@ def _cli_configuration(
             cfg.set_runtime_context(previous_context)
 
 
+def _ollama_client_kwargs(config: Dict[str, Any]) -> Dict[str, Any]:
+    """Return the keyword arguments used to create an Ollama client."""
+
+    return {
+        "model": config.get("ollama_model") or cfg.DEFAULT_MODEL,
+        "api_url": config.get("ollama_url"),
+        "llm_source": config.get("llm_source") or cfg.DEFAULT_LLM_SOURCE,
+        "local_api_url": config.get("ollama_local_url"),
+        "cloud_api_url": config.get("ollama_cloud_url"),
+        "allow_fallback": False,
+    }
+
+
+def _ollama_endpoint_summary(config: Dict[str, Any]) -> tuple[str, str]:
+    """Return the resolved Ollama endpoint URL and its configuration source."""
+
+    client_kwargs = _ollama_client_kwargs(config)
+
+    def _clean(value: Any) -> str:
+        if isinstance(value, str):
+            return value.strip()
+        return ""
+
+    def _runtime_context_value(attribute: str) -> str:
+        context = cfg.get_runtime_context(None)
+        if context is None:
+            return ""
+        return _clean(getattr(context, attribute, ""))
+
+    direct_url = _clean(client_kwargs.get("api_url"))
+    if direct_url:
+        return direct_url, "config['ollama_url']"
+
+    llm_source = _clean(client_kwargs.get("llm_source")) or cfg.DEFAULT_LLM_SOURCE
+    normalized_source = llm_source.lower()
+
+    if normalized_source == "cloud":
+        cloud_url = _clean(client_kwargs.get("cloud_api_url"))
+        if cloud_url:
+            return cloud_url, "config['ollama_cloud_url']"
+        context_url = _runtime_context_value("cloud_ollama_url")
+        if context_url:
+            return context_url, "runtime_context.cloud_ollama_url"
+        return _clean(cfg.get_cloud_ollama_url()), "cfg.get_cloud_ollama_url()"
+
+    local_url = _clean(client_kwargs.get("local_api_url"))
+    if local_url:
+        return local_url, "config['ollama_local_url']"
+    context_url = _runtime_context_value("local_ollama_url")
+    if context_url:
+        return context_url, "runtime_context.local_ollama_url"
+    return _clean(cfg.get_local_ollama_url()), "cfg.get_local_ollama_url()"
+
+
+def _ollama_health_status(config: Dict[str, Any]) -> tuple[bool, str]:
+    """Check whether the Ollama endpoint is reachable and healthy."""
+
+    endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
+    try:
+        with create_client(**_ollama_client_kwargs(config)) as client:
+            if client.health_check():
+                return True, ""
+            return (
+                False,
+                "Ollama service unavailable; cannot generate sample sentences "
+                f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source})",
+            )
+    except Exception as exc:  # pragma: no cover - defensive guard for diagnostics
+        return (
+            False,
+            "Ollama client initialisation failed "
+            f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source}): {exc}",
+        )
+
+
 def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequence[str]:
     """Request sample sentences from the configured Ollama endpoint."""
 
-    model = config.get("ollama_model") or cfg.DEFAULT_MODEL
-    llm_source = config.get("llm_source") or cfg.DEFAULT_LLM_SOURCE
-    primary_url = config.get("ollama_url")
-    local_url = config.get("ollama_local_url")
-    cloud_url = config.get("ollama_cloud_url")
+    client_kwargs = _ollama_client_kwargs(config)
     input_language = config.get("input_language") or "English"
     topic = config.get("test_sentence_topic") or "modern technology"
     target_languages = _normalize_language_values(config.get("target_languages"))
@@ -251,16 +322,15 @@ def _generate_sentences_via_ollama(count: int, config: Dict[str, Any]) -> Sequen
         "sample sentence",
     }
 
-    with create_client(
-        model=model,
-        api_url=primary_url,
-        llm_source=llm_source,
-        local_api_url=local_url,
-        cloud_api_url=cloud_url,
-        allow_fallback=False,
-    ) as client:
+    model = client_kwargs.get("model") or cfg.DEFAULT_MODEL
+
+    with create_client(**client_kwargs) as client:
         if not client.health_check():
-            pytest.skip("Ollama service unavailable; cannot generate sample sentences")
+            endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
+            pytest.skip(
+                "Ollama service unavailable; cannot generate sample sentences "
+                f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source})"
+            )
 
         system_prompt = (
             "You generate evaluation data for an e-book processing pipeline. "
@@ -519,7 +589,13 @@ def _wait_for_healthcheck(base_url: str, timeout: float = 30.0) -> None:
 
 @pytest.mark.integration
 def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
-    """Start the real web API, submit a job, and validate generated artifacts."""
+    """Start the real web API, submit a job, and validate generated artifacts.
+
+    The test exits early via :func:`pytest.skip` whenever the runtime prerequisites
+    are missing. Those checks live directly below so you can correlate skip
+    messages back to the specific dependency (``ffmpeg`` or the Ollama service).
+    Run ``pytest -rs`` to have the skip reason echoed in the test output when
+    diagnosing why it did not execute."""
 
     from modules.services.job_manager import PipelineJobStatus
     from modules.webapi.application import create_app
@@ -535,6 +611,39 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
         overrides,
     ):
         _purge_previous_artifacts(epub_path, config, overrides)
+
+        skip_reasons: list[str] = []
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            skip_reasons.append(
+                "ffmpeg executable is required for media artifact validation"
+            )
+
+        endpoint_url, endpoint_source = _ollama_endpoint_summary(config)
+        print(
+            "[deps] Ollama endpoint configured as "
+            f"{endpoint_url or 'unknown'} (source={endpoint_source})"
+        )
+
+        ollama_ready, ollama_message = _ollama_health_status(config)
+        if not ollama_ready:
+            ollama_message = (
+                ollama_message
+                or (
+                    "Ollama service unavailable; cannot generate sample sentences "
+                    f"(endpoint={endpoint_url or 'unknown'}, source={endpoint_source})"
+                )
+            )
+            skip_reasons.append(ollama_message)
+
+        if skip_reasons:
+            combined = "; ".join(dict.fromkeys(skip_reasons))
+            pytest.skip(f"Integration prerequisites not met: {combined}")
+
+        assert ffmpeg_path is not None  # for type-checkers
+        print(f"[deps] ffmpeg resolved to: {ffmpeg_path}")
+        config["ffmpeg_path"] = ffmpeg_path
+
         default_sentence_batch = _coerce_positive_int(
             config.get("sentences_per_output_file"), 3
         )
@@ -551,12 +660,6 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
             print(f"[ollama] Sentence {index}: {sentence}")
         create_epub_from_sentences(sentences, epub_path)
         print(f"[test] Created synthetic EPUB at {epub_path}")
-
-        ffmpeg_path = shutil.which("ffmpeg")
-        if not ffmpeg_path:
-            pytest.skip("ffmpeg executable is required for media artifact validation")
-        print(f"[deps] ffmpeg resolved to: {ffmpeg_path}")
-        config["ffmpeg_path"] = ffmpeg_path
 
         environment_overrides = dict(overrides)
         environment_overrides["output_dir"] = str(output_dir)
@@ -581,15 +684,15 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
             "sentences_per_output_file": config.get("sentences_per_output_file", 3),
             "start_sentence": config.get("start_sentence", 1),
             "end_sentence": config.get("end_sentence"),
-            "stitch_full": config.get("stitch_full", True),
+            "stitch_full": config.get("stitch_full", False),
             "generate_audio": config.get("generate_audio", True),
-            "audio_mode": config.get("audio_mode", "1"),
+            "audio_mode": config.get("audio_mode", "4"),
             "written_mode": config.get("written_mode", "4"),
-            "selected_voice": config.get("selected_voice", "gTTS"),
+            "selected_voice": config.get("selected_voice", "macOS-auto-male"),
             "output_html": config.get("output_html", True),
             "output_pdf": config.get("output_pdf", False),
             "generate_video": config.get("generate_video", True),
-            "include_transliteration": config.get("include_transliteration", False),
+            "include_transliteration": config.get("include_transliteration", True),
             "tempo": config.get("tempo", 1.0),
             "book_metadata": {
                 "book_title": config.get("book_title"),
@@ -730,4 +833,4 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
 
 
 if __name__ == "__main__":  # pragma: no cover - convenience for direct execution
-    raise SystemExit(pytest.main([__file__]))
+    raise SystemExit(pytest.main(["-rs", __file__]))

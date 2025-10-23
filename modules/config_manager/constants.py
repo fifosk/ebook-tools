@@ -24,7 +24,9 @@ DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
 DERIVED_CONFIG_KEYS = {"refined_list"}
 SENSITIVE_CONFIG_KEYS = {"ollama_api_key", "database_url", "job_store_url"}
 
-DEFAULT_OLLAMA_URL = os.environ.get("OLLAMA_URL", "http://localhost:11434/api/chat")
+DEFAULT_OLLAMA_URL = os.environ.get(
+    "OLLAMA_URL", "http://192.168.1.9:11434/api/chat"
+)
 DEFAULT_OLLAMA_CLOUD_URL = os.environ.get(
     "OLLAMA_CLOUD_URL", "https://api.ollama.com/v1/chat/completions"
 )
