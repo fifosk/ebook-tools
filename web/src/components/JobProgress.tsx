@@ -13,9 +13,13 @@ type Props = {
   status: PipelineStatusResponse | undefined;
   latestEvent: ProgressEventPayload | undefined;
   onEvent: (event: ProgressEventPayload) => void;
-  onRemove: () => void;
+  onPause: () => void;
+  onResume: () => void;
+  onCancel: () => void;
+  onDelete: () => void;
   onReload: () => void;
   isReloading?: boolean;
+  isMutating?: boolean;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -56,10 +60,15 @@ export function JobProgress({
   status,
   latestEvent,
   onEvent,
-  onRemove,
+  onPause,
+  onResume,
+  onCancel,
+  onDelete,
   onReload,
-  isReloading = false
+  isReloading = false,
+  isMutating = false
 }: Props) {
+  const statusValue = status?.status ?? 'pending';
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -86,20 +95,52 @@ export function JobProgress({
       })
     : false;
 
+  const canPause = !isTerminal && statusValue !== 'paused';
+  const canResume = statusValue === 'paused';
+  const canCancel = !isTerminal;
+  const canDelete = isTerminal;
+
   return (
     <div className="job-card" aria-live="polite">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '0.75rem',
+          flexWrap: 'wrap'
+        }}
+      >
         <div style={{ flexGrow: 1 }}>
           <h3 style={{ marginTop: 0 }}>Job {jobId}</h3>
         </div>
-        <span className="job-status" data-state={status?.status ?? 'pending'}>
-          {status?.status ?? 'pending'}
-        </span>
-        {isTerminal ? (
-          <button type="button" className="link-button" onClick={onRemove} aria-label={`Remove job ${jobId}`}>
-            Remove
-          </button>
-        ) : null}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <span className="job-status" data-state={statusValue}>
+            {statusValue}
+          </span>
+          <div className="job-actions" aria-label={`Actions for job ${jobId}`} aria-busy={isMutating}>
+            {canPause ? (
+              <button type="button" className="link-button" onClick={onPause} disabled={isMutating}>
+                Pause
+              </button>
+            ) : null}
+            {canResume ? (
+              <button type="button" className="link-button" onClick={onResume} disabled={isMutating}>
+                Resume
+              </button>
+            ) : null}
+            {canCancel ? (
+              <button type="button" className="link-button" onClick={onCancel} disabled={isMutating}>
+                Cancel
+              </button>
+            ) : null}
+            {canDelete ? (
+              <button type="button" className="link-button" onClick={onDelete} disabled={isMutating}>
+                Delete
+              </button>
+            ) : null}
+          </div>
+        </div>
       </div>
       <p>
         <strong>Created:</strong> {formatDate(status?.created_at ?? null)}
@@ -174,8 +215,8 @@ export function JobProgress({
           type="button"
           className="link-button"
           onClick={onReload}
-          disabled={isReloading}
-          aria-busy={isReloading}
+          disabled={isReloading || isMutating}
+          aria-busy={isReloading || isMutating}
           style={{ marginTop: '0.5rem' }}
         >
           {isReloading ? 'Reloading…' : 'Reload metadata'}

@@ -339,6 +339,13 @@ button.link-button:focus {
   text-transform: capitalize;
 }
 
+.job-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .job-status[data-state='completed'] {
   background: rgba(16, 185, 129, 0.2);
   color: #34d399;

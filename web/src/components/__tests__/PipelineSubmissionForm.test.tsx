@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { PipelineRequestPayload } from '../../api/dtos';
+import {
+  PipelineDefaultsResponse,
+  PipelineFileBrowserResponse,
+  PipelineRequestPayload
+} from '../../api/dtos';
 import { fetchPipelineDefaults, fetchPipelineFiles } from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
@@ -9,7 +13,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineDefaults: vi.fn()
 }));
 
-const mockFileListing = {
+const mockFileListing: PipelineFileBrowserResponse = {
   ebooks: [
     { name: 'example.epub', path: '/books/example.epub', type: 'file' as const }
   ],
@@ -18,17 +22,15 @@ const mockFileListing = {
   ]
 };
 
-type DefaultsPayload = { config: Record<string, unknown> };
-
-let resolveDefaults: ((value: DefaultsPayload) => void) | null = null;
-let resolveFiles: ((value: typeof mockFileListing) => void) | null = null;
+let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
+let resolveFiles: ((value: PipelineFileBrowserResponse) => void) | null = null;
 
 async function resolveFetches({
   defaults = { config: {} },
   files = mockFileListing
 }: {
-  defaults?: DefaultsPayload;
-  files?: typeof mockFileListing;
+  defaults?: PipelineDefaultsResponse;
+  files?: PipelineFileBrowserResponse;
 } = {}) {
   await act(async () => {
     resolveDefaults?.(defaults);
@@ -42,13 +44,13 @@ async function resolveFetches({
 beforeEach(() => {
   vi.mocked(fetchPipelineFiles).mockImplementation(
     () =>
-      new Promise((resolve) => {
+      new Promise<PipelineFileBrowserResponse>((resolve) => {
         resolveFiles = resolve;
       })
   );
   vi.mocked(fetchPipelineDefaults).mockImplementation(
     () =>
-      new Promise((resolve) => {
+      new Promise<PipelineDefaultsResponse>((resolve) => {
         resolveDefaults = resolve;
       })
   );

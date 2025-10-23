@@ -1,27 +1,38 @@
 import { useMemo } from 'react';
-import { PipelineSubmissionResponse, PipelineStatusResponse, ProgressEventPayload } from '../api/dtos';
+import { PipelineStatusResponse, ProgressEventPayload } from '../api/dtos';
 import { JobProgress } from './JobProgress';
 
 export interface JobState {
   jobId: string;
-  submission: PipelineSubmissionResponse;
-  status?: PipelineStatusResponse;
+  status: PipelineStatusResponse;
   latestEvent?: ProgressEventPayload;
   isReloading: boolean;
+  isMutating: boolean;
 }
 
 type Props = {
   jobs: JobState[];
   onProgressEvent: (jobId: string, event: ProgressEventPayload) => void;
-  onRemoveJob: (jobId: string) => void;
+  onPauseJob: (jobId: string) => void;
+  onResumeJob: (jobId: string) => void;
+  onCancelJob: (jobId: string) => void;
+  onDeleteJob: (jobId: string) => void;
   onReloadJob: (jobId: string) => void;
 };
 
-export function JobList({ jobs, onProgressEvent, onRemoveJob, onReloadJob }: Props) {
+export function JobList({
+  jobs,
+  onProgressEvent,
+  onPauseJob,
+  onResumeJob,
+  onCancelJob,
+  onDeleteJob,
+  onReloadJob
+}: Props) {
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => {
-      const left = new Date(a.submission.created_at).getTime();
-      const right = new Date(b.submission.created_at).getTime();
+      const left = new Date(a.status.created_at).getTime();
+      const right = new Date(b.status.created_at).getTime();
       return right - left;
     });
   }, [jobs]);
@@ -30,7 +41,7 @@ export function JobList({ jobs, onProgressEvent, onRemoveJob, onReloadJob }: Pro
     return (
       <section>
         <h2>Tracked jobs</h2>
-        <p>No jobs yet. Submit a pipeline request to get started.</p>
+        <p>No persisted jobs yet. Submit a pipeline request to get started.</p>
       </section>
     );
   }
@@ -46,9 +57,13 @@ export function JobList({ jobs, onProgressEvent, onRemoveJob, onReloadJob }: Pro
             status={job.status}
             latestEvent={job.latestEvent}
             onEvent={(event) => onProgressEvent(job.jobId, event)}
-            onRemove={() => onRemoveJob(job.jobId)}
+            onPause={() => onPauseJob(job.jobId)}
+            onResume={() => onResumeJob(job.jobId)}
+            onCancel={() => onCancelJob(job.jobId)}
+            onDelete={() => onDeleteJob(job.jobId)}
             onReload={() => onReloadJob(job.jobId)}
             isReloading={job.isReloading}
+            isMutating={job.isMutating}
           />
         ))}
       </div>

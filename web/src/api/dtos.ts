@@ -100,3 +100,12 @@ export interface PipelineStatusResponse {
   error: string | null;
   latest_event: ProgressEventPayload | null;
 }
+
+export interface PipelineJobListResponse {
+  jobs: PipelineStatusResponse[];
+}
+
+export interface PipelineJobActionResponse {
+  job: PipelineStatusResponse;
+  error?: string | null;
+}
