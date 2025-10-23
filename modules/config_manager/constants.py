@@ -34,7 +34,7 @@ VALID_LLM_SOURCES = {"local", "cloud"}
 _env_llm_source = os.environ.get("LLM_SOURCE", "local").strip().lower()
 DEFAULT_LLM_SOURCE = _env_llm_source if _env_llm_source in VALID_LLM_SOURCES else "local"
 DEFAULT_FFMPEG_PATH = os.environ.get("FFMPEG_PATH") or shutil.which("ffmpeg") or "ffmpeg"
-DEFAULT_MODEL = "gemma2:27b"
+DEFAULT_MODEL = "gpt-oss:120b-cloud"
 DEFAULT_THREADS = 5
 DEFAULT_QUEUE_SIZE = 20
 
