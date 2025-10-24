@@ -310,6 +310,39 @@ Benchmarking data is only gathered when parallelism is disabled, so disable it
 temporarily (`--slide-parallelism off --benchmark-slide-rendering`) to capture
 detailed timing metrics before re-enabling your preferred backend.
 
+### Understanding runtime tuning metrics
+
+The web dashboard surfaces a "Performance tuning" section for each job. The
+values shown there come directly from the job manager and pipeline runtime and
+map to concrete thread and process pools:
+
+- **Hardware profile / detected CPU cores / detected memory** are heuristics
+  collected once during startup. They help explain why the defaults may change
+  between machines (for example when hardware detection suggests a higher job
+  worker count). 【F:modules/services/job_manager/manager.py†L117-L168】
+- **Pipeline mode enabled** reflects the `pipeline_mode` flag. When it is `true`
+  the renderer launches the concurrent translation/media pipeline, otherwise it
+  falls back to the sequential loop. 【F:modules/core/rendering/pipeline.py†L189-L236】
+- **Translation threads** is the configured `thread_count`. It sets the batch
+  size for sequential runs and the maximum concurrency for translation tasks in
+  pipeline mode. 【F:modules/core/rendering/pipeline.py†L180-L214】
+- **Translation pool workers** shows the actual `TranslationWorkerPool` size
+  after any runtime overrides. Paired with **Worker pool mode** (thread or async)
+  it tells you how many threads or asynchronous tasks are created for
+  translation requests. 【F:modules/services/job_manager/manager.py†L167-L179】【F:modules/translation_engine.py†L19-L58】
+- **Translation queue size** mirrors the bounded queue used by the concurrent
+  pipeline to hand work from translators to media consumers. Larger queues keep
+  the pipeline saturated when there are many translation workers. 【F:modules/core/rendering/pipeline.py†L582-L617】
+- **Job worker slots** is the capacity of the background executor that runs
+  entire jobs. **Configured job workers** is the value pulled from configuration
+  (or hardware defaults) before the executor is built; the two numbers differ if
+  the configuration requests unlimited or negative workers and the manager caps
+  it at a safe minimum. 【F:modules/services/job_manager/manager.py†L39-L112】【F:modules/services/job_manager/manager.py†L117-L168】
+- **Slide parallelism** and **Slide workers** are forwarded from the
+  `PipelineConfig`. The parallelism mode selects between sequential rendering,
+  a shared thread pool, or a separate process pool, and the worker count limits
+  how many threads or processes are spawned. 【F:modules/core/config.py†L70-L150】【F:modules/core/rendering/pipeline.py†L161-L236】
+
 ## Configuration overview
 
 `main.py` (and the backward-compatible `ebook-tools.py` wrapper) read their

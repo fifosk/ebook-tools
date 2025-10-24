@@ -71,11 +71,17 @@ def _resolve_block_size(job: PipelineJob, inputs: Mapping[str, Any]) -> int:
     return 1
 
 
-def _compute_block_start(sentence_number: int, block_size: int) -> int:
+def _compute_block_start(
+    sentence_number: int, block_size: int, start_offset: int
+) -> int:
     if sentence_number <= 0:
-        return 1
+        return max(1, start_offset)
     size = max(1, block_size)
-    return ((sentence_number - 1) // size) * size + 1
+    anchor = max(1, start_offset)
+    relative = sentence_number - anchor
+    if relative < 0:
+        return anchor
+    return (relative // size) * size + anchor
 
 
 def compute_resume_context(job: PipelineJob) -> Optional[Dict[str, Any]]:
@@ -92,9 +98,10 @@ def compute_resume_context(job: PipelineJob) -> Optional[Dict[str, Any]]:
     start_sentence = _coerce_positive_int(inputs.get("start_sentence"))
     if start_sentence is None:
         start_sentence = 1
+    start_offset = start_sentence
 
     if last_sentence is not None:
-        block_start = _compute_block_start(last_sentence, block_size)
+        block_start = _compute_block_start(last_sentence, block_size, start_offset)
         inputs["start_sentence"] = block_start
         inputs["resume_block_start"] = block_start
         inputs["resume_last_sentence"] = last_sentence

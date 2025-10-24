@@ -133,6 +133,34 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
     assert stored.completed_at is not None
 
 
+def test_pause_resume_with_offset_start(job_manager_factory):
+    metadata = _build_metadata("job-offset", PipelineJobStatus.PENDING)
+    metadata.request_payload["inputs"]["start_sentence"] = 5
+    metadata.resume_context["inputs"]["start_sentence"] = 5
+    store = _InMemoryJobStore({metadata.job_id: metadata})
+
+    manager = job_manager_factory(store)
+
+    job = manager.get(metadata.job_id)
+    job.status = PipelineJobStatus.RUNNING
+    job.last_event = ProgressEvent(
+        event_type="progress",
+        snapshot=ProgressSnapshot(completed=3, total=20, elapsed=1.0, speed=3.0, eta=None),
+        timestamp=1.0,
+        metadata={"stage": "media", "sentence_number": 14},
+    )
+    manager._jobs[metadata.job_id] = job
+
+    paused = manager.pause_job(metadata.job_id)
+    paused_inputs = paused.resume_context["inputs"]
+    assert paused_inputs["start_sentence"] == 5
+    assert paused_inputs["resume_block_start"] == 5
+    assert paused_inputs["resume_last_sentence"] == 14
+
+    resumed = manager.resume_job(metadata.job_id)
+    assert resumed.request.inputs.start_sentence == 5
+
+
 def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
     store = _InMemoryJobStore()
     manager = job_manager_factory(store)
