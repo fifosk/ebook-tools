@@ -140,8 +140,52 @@ function stripQueryAndFragment(path: string): string {
   return match ? match[0] : path;
 }
 
+function stripDriveLetter(path: string): string {
+  return path.replace(/^[A-Za-z]:/, '');
+}
+
 function normalisePath(path: string): string {
   return stripQueryAndFragment(path.replace(/\\+/g, '/'));
+}
+
+export function normaliseStorageRelativePath(rawPath: string): string {
+  const normalised = normalisePath(rawPath ?? '');
+  if (!normalised) {
+    return '';
+  }
+
+  const withoutDrive = stripDriveLetter(normalised);
+  const segments = withoutDrive
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  if (segments.length === 0) {
+    return '';
+  }
+
+  const lowered = segments.map((segment) => segment.toLowerCase());
+  const runtimeIndex = lowered.lastIndexOf('runtime');
+  if (runtimeIndex >= 0) {
+    return segments.slice(runtimeIndex).join('/');
+  }
+
+  const booksIndex = lowered.lastIndexOf('books');
+  if (booksIndex >= 0) {
+    return segments.slice(booksIndex).join('/');
+  }
+
+  const storageIndex = lowered.lastIndexOf('storage');
+  if (storageIndex >= 0 && storageIndex + 1 < segments.length) {
+    return segments.slice(storageIndex + 1).join('/');
+  }
+
+  const outputIndex = lowered.lastIndexOf('outputs');
+  if (outputIndex >= 0) {
+    return segments.slice(outputIndex).join('/');
+  }
+
+  return segments.join('/');
 }
 
 function padSlideIndex(index: number): string {
@@ -211,18 +255,43 @@ export function buildBatchSlidePreviewUrls(entry: string, options?: { slideIndex
   }
 
   const resolved: string[] = [];
+  const resolvedSet = new Set<string>();
+  const pushResolved = (value: string | null | undefined) => {
+    const trimmed = value ? value.trim() : '';
+    if (!trimmed || resolvedSet.has(trimmed)) {
+      return;
+    }
+    resolvedSet.add(trimmed);
+    resolved.push(trimmed);
+  };
+
   for (const candidate of candidates) {
     if (!candidate) {
       continue;
     }
     if (isAbsoluteUrl(candidate)) {
-      resolved.push(candidate);
+      pushResolved(candidate);
       continue;
     }
-    try {
-      resolved.push(buildStorageUrl(candidate));
-    } catch (error) {
-      console.warn('Unable to build storage URL for batch slide preview', error);
+    const storageRelative = normaliseStorageRelativePath(candidate);
+    const relativeWithoutLeading = storageRelative.replace(/^\/+/, '');
+    const candidateWithoutLeading = candidate.replace(/^\/+/, '');
+
+    if (storageRelative) {
+      try {
+        pushResolved(buildStorageUrl(storageRelative));
+      } catch (error) {
+        console.warn('Unable to build storage URL for batch slide preview', error);
+      }
+      pushResolved(`/storage/${relativeWithoutLeading}`);
+      pushResolved(`/${relativeWithoutLeading}`);
+    }
+
+    if (candidate.startsWith('/')) {
+      pushResolved(candidate);
+    } else {
+      pushResolved(`/${candidateWithoutLeading}`);
+      pushResolved(candidateWithoutLeading);
     }
   }
 

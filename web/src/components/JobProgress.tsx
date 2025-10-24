@@ -5,7 +5,11 @@ import {
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { buildBatchSlidePreviewUrls, buildStorageUrl } from '../api/client';
+import {
+  buildBatchSlidePreviewUrls,
+  buildStorageUrl,
+  normaliseStorageRelativePath
+} from '../api/client';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 
@@ -222,6 +226,10 @@ function normalisePreviewSource(entry: string | null): string {
   if (!entry) {
     return '';
   }
+  const storageRelative = normaliseStorageRelativePath(entry);
+  if (storageRelative) {
+    return storageRelative;
+  }
   return entry.replace(/\\+/g, '/').replace(/[?#].*$/u, '').trim();
 }
 
@@ -245,46 +253,6 @@ function isExternalAsset(path: string): boolean {
   return lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:');
 }
 
-function normaliseStoragePath(path: string): string {
-  const normalised = path.replace(/\\/g, '/').trim();
-  if (!normalised) {
-    return '';
-  }
-
-  const withoutDrive = normalised.replace(/^[A-Za-z]:/, '');
-  const segments = withoutDrive
-    .split('/')
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
-
-  if (segments.length === 0) {
-    return '';
-  }
-
-  const lowered = segments.map((segment) => segment.toLowerCase());
-  const runtimeIndex = lowered.lastIndexOf('runtime');
-  if (runtimeIndex >= 0) {
-    return segments.slice(runtimeIndex).join('/');
-  }
-
-  const booksIndex = lowered.lastIndexOf('books');
-  if (booksIndex >= 0) {
-    return segments.slice(booksIndex).join('/');
-  }
-
-  const storageIndex = lowered.indexOf('storage');
-  if (storageIndex >= 0 && storageIndex + 1 < segments.length) {
-    return segments.slice(storageIndex + 1).join('/');
-  }
-
-  const outputIndex = lowered.indexOf('output');
-  if (outputIndex >= 0 && outputIndex + 1 < segments.length) {
-    return segments.slice(outputIndex + 1).join('/');
-  }
-
-  return segments.join('/');
-}
-
 function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
   const rawValue = metadata['book_cover_file'];
   if (typeof rawValue !== 'string') {
@@ -297,7 +265,7 @@ function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
   if (isExternalAsset(trimmed)) {
     return { type: 'external', url: trimmed };
   }
-  const relative = normaliseStoragePath(trimmed);
+  const relative = normaliseStorageRelativePath(trimmed);
   if (!relative) {
     return { type: 'storage', path: '', raw: trimmed };
   }
@@ -390,7 +358,7 @@ export function JobProgress({
       sources.push(trimmed);
     };
 
-    const normalisedPath = coverAsset.path.trim();
+    const normalisedPath = normaliseStorageRelativePath(coverAsset.path).trim();
     if (normalisedPath) {
       try {
         push(buildStorageUrl(normalisedPath));
