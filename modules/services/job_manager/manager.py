@@ -10,10 +10,10 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Mapping, Optional
 from uuid import uuid4
 
-from .. import config_manager as cfg
-from .. import logging_manager as log_mgr
-from .. import metadata_manager
-from .. import observability
+from ... import config_manager as cfg
+from ... import logging_manager as log_mgr
+from ... import metadata_manager
+from ... import observability
 from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import TranslationWorkerPool
 from ..pipeline_service import (
