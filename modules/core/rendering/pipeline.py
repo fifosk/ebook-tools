@@ -631,8 +631,12 @@ class RenderPipeline:
                     continue
                 if media_item is None:
                     continue
+                if pipeline_stop_event.is_set():
+                    break
                 buffered_results[media_item.index] = media_item
                 while next_index in buffered_results:
+                    if pipeline_stop_event.is_set():
+                        break
                     item = buffered_results.pop(next_index)
                     fluent_candidate = remove_quotes(item.translation or "")
                     fluent, inline_transliteration = split_translation_and_transliteration(
@@ -709,12 +713,16 @@ class RenderPipeline:
                             state.current_audio_segments.clear()
                         state.current_batch_start = item.sentence_number + 1
                     state.last_target_language = item.target_language or state.last_target_language
+                    if pipeline_stop_event.is_set():
+                        break
                     state.processed += 1
-                    if self._progress is not None:
+                    if self._progress is not None and not pipeline_stop_event.is_set():
                         self._progress.record_media_completion(
                             state.processed - 1, item.sentence_number
                         )
                     next_index += 1
+                if pipeline_stop_event.is_set():
+                    break
                 if pipeline_stop_event.is_set() and not buffered_results:
                     break
         except KeyboardInterrupt:
