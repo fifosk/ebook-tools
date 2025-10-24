@@ -7,7 +7,7 @@ import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import Enum
 from typing import Any, Callable, Dict, Mapping, Optional, Protocol
@@ -47,6 +47,14 @@ def _stable_copy(value: Any) -> Any:
     if isinstance(value, set):
         return [_stable_copy(item) for item in sorted(value, key=lambda item: repr(item))]
     return value
+
+
+def _create_idle_event() -> threading.Event:
+    """Return a :class:`threading.Event` initialised to the signalled state."""
+
+    event = threading.Event()
+    event.set()
+    return event
 
 
 class PipelineJobStatus(str, Enum):
@@ -285,6 +293,9 @@ class PipelineJob:
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
     tuning_summary: Optional[Dict[str, Any]] = None
+    execution_complete: threading.Event = field(
+        default_factory=_create_idle_event, repr=False, compare=False
+    )
 
 
 def _serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
@@ -904,16 +915,17 @@ class PipelineJobManager:
         except KeyError:
             return
 
-        with self._lock:
-            job.status = PipelineJobStatus.RUNNING
-            job.started_at = datetime.now(timezone.utc)
-            self._store.update(self._snapshot(job))
-
-        pool: Optional[TranslationWorkerPool]
-        owns_pool: bool
-        correlation_id = job.request.correlation_id if job.request else None
+        job.execution_complete.clear()
         try:
-            assert job.request is not None  # noqa: S101
+            with self._lock:
+                job.status = PipelineJobStatus.RUNNING
+                job.started_at = datetime.now(timezone.utc)
+                self._store.update(self._snapshot(job))
+
+            request = job.request
+            correlation_id = request.correlation_id if request else None
+
+            assert request is not None  # noqa: S101
             with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
                 logger.info(
                     "Pipeline job started",
@@ -932,7 +944,7 @@ class PipelineJobManager:
                     with self._lock:
                         self._store.update(self._snapshot(job))
                 job.owns_translation_pool = owns_pool
-                response = run_pipeline(job.request)
+                response = run_pipeline(request)
             with self._lock:
                 current_status = job.status
                 if current_status == PipelineJobStatus.RUNNING:
@@ -1004,6 +1016,8 @@ class PipelineJobManager:
                     duration_ms,
                     {"job_id": job_id, "status": job.status.value},
                 )
+        finally:
+            job.execution_complete.set()
 
     def get(self, job_id: str) -> PipelineJob:
         """Return the job associated with ``job_id``."""
@@ -1065,6 +1079,11 @@ class PipelineJobManager:
 
     def resume_job(self, job_id: str) -> PipelineJob:
         """Resume ``job_id`` from a paused state and persist the change."""
+
+        with self._lock:
+            pending_job = self._jobs.get(job_id)
+        if pending_job is not None:
+            pending_job.execution_complete.wait()
 
         def _resume(job: PipelineJob) -> None:
             if job.status != PipelineJobStatus.PAUSED:

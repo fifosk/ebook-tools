@@ -213,3 +213,90 @@ def test_resume_rolls_back_to_last_completed_batch(monkeypatch):
         assert start_sentences == [1, 21]
     finally:
         manager._executor.shutdown(wait=True)
+
+
+@pytest.mark.timeout(5)
+def test_resume_waits_for_active_execution_to_finish(monkeypatch):
+    PipelineJobManager = job_manager_module.PipelineJobManager
+    PipelineJobStatus = job_manager_module.PipelineJobStatus
+    InMemoryJobStore = job_manager_module.InMemoryJobStore
+
+    first_run_started = threading.Event()
+    stop_observed = threading.Event()
+    allow_first_run_completion = threading.Event()
+    first_run_finished = threading.Event()
+    resume_thread_started = threading.Event()
+    resume_thread_completed = threading.Event()
+    resumed_run_started = threading.Event()
+
+    run_count = 0
+
+    def fake_run_pipeline(request: pipeline_service.PipelineRequest) -> pipeline_service.PipelineResponse:
+        nonlocal run_count
+        run_count += 1
+        if run_count == 1:
+            first_run_started.set()
+            while not request.stop_event.wait(0.01):
+                pass
+            stop_observed.set()
+            if not allow_first_run_completion.wait(timeout=1.0):
+                raise TimeoutError("First run did not receive completion signal")
+            first_run_finished.set()
+            return pipeline_service.PipelineResponse(success=True)
+
+        resumed_run_started.set()
+        return pipeline_service.PipelineResponse(success=True)
+
+    monkeypatch.setattr(job_manager_module, "run_pipeline", fake_run_pipeline)
+
+    manager = PipelineJobManager(max_workers=1, store=InMemoryJobStore())
+    try:
+        job = manager.submit(_build_request())
+
+        assert first_run_started.wait(timeout=1.0)
+
+        paused = manager.pause_job(job.job_id)
+        assert paused.status == PipelineJobStatus.PAUSED
+        assert stop_observed.wait(timeout=1.0)
+
+        resume_errors: list[BaseException] = []
+
+        def _trigger_resume() -> None:
+            resume_thread_started.set()
+            try:
+                manager.resume_job(job.job_id)
+            except BaseException as exc:  # pragma: no cover - diagnostic helper
+                resume_errors.append(exc)
+            finally:
+                resume_thread_completed.set()
+
+        thread = threading.Thread(target=_trigger_resume)
+        thread.start()
+
+        assert resume_thread_started.wait(timeout=1.0)
+        time.sleep(0.05)
+        assert not resume_thread_completed.is_set()
+
+        allow_first_run_completion.set()
+        assert first_run_finished.wait(timeout=1.0)
+
+        assert resume_thread_completed.wait(timeout=1.0)
+        assert not resume_errors
+        thread.join(timeout=1.0)
+
+        assert resumed_run_started.wait(timeout=1.0)
+
+        deadline = time.time() + 2.0
+        while time.time() < deadline:
+            state = manager.get(job.job_id)
+            if state.status == PipelineJobStatus.COMPLETED:
+                break
+            time.sleep(0.01)
+        else:
+            pytest.fail("Resumed job did not complete")
+
+        final_state = manager.get(job.job_id)
+        assert final_state.status == PipelineJobStatus.COMPLETED
+        assert run_count == 2
+    finally:
+        manager._executor.shutdown(wait=True)
