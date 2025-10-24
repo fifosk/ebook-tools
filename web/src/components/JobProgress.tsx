@@ -125,7 +125,7 @@ function normaliseStoragePath(path: string): string {
   const lower = normalised.toLowerCase();
   const markers: Array<{ token: string; dropToken: boolean }> = [
     { token: '/storage/', dropToken: true },
-    { token: '/output/', dropToken: false },
+    { token: '/output/', dropToken: true },
     { token: '/runtime/', dropToken: false },
     { token: '/books/', dropToken: false }
   ];
@@ -160,6 +160,24 @@ function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
     return { type: 'storage', path: '', raw: trimmed };
   }
   return { type: 'storage', path: relative, raw: trimmed };
+}
+
+function formatMetadataValue(key: string, value: unknown, coverAsset: CoverAsset): string {
+  const normalized = normalizeMetadataValue(value);
+  if (!normalized) {
+    return '';
+  }
+  if (key === 'book_cover_file' && coverAsset) {
+    if (coverAsset.type === 'external') {
+      return coverAsset.url;
+    }
+    const relative = coverAsset.path.trim();
+    if (relative) {
+      return `/storage/${relative.replace(/^\/+/, '')}`;
+    }
+    return coverAsset.raw || normalized;
+  }
+  return normalized;
 }
 
 function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
@@ -453,14 +471,14 @@ export function JobProgress({
         {metadataEntries.length > 0 ? (
           <dl className="metadata-grid">
             {metadataEntries.map(([key, value]) => {
-              const normalized = normalizeMetadataValue(value);
-              if (!normalized) {
+              const formatted = formatMetadataValue(key, value, coverAsset);
+              if (!formatted) {
                 return null;
               }
               return (
                 <div key={key} className="metadata-grid__row">
                   <dt>{formatMetadataLabel(key)}</dt>
-                  <dd>{normalized}</dd>
+                  <dd>{formatted}</dd>
                 </div>
               );
             })}

@@ -356,6 +356,48 @@ describe('JobProgress', () => {
     expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
   });
 
+  it('normalises cover metadata rooted in the output directory to storage paths', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-7',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Output Rooted Cover',
+          book_author: 'Author Name',
+          book_cover_file: '/Users/me/modules/output/runtime/output-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-7"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Output Rooted Cover by Author Name') as HTMLImageElement;
+    expect(image.src).toBe('https://storage.example/runtime/output-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/output-cover.jpg');
+    expect(screen.getByText('/storage/runtime/output-cover.jpg')).toBeInTheDocument();
+  });
+
   it('tries a relative storage path when building a storage URL fails', () => {
     buildStorageUrlMock.mockImplementation(() => {
       throw new Error('Missing storage base URL');
