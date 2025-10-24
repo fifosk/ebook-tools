@@ -200,7 +200,8 @@ export function JobProgress({
   usePipelineEvents(jobId, !isTerminal, onEvent);
 
   const event = latestEvent ?? status?.latest_event ?? undefined;
-  const metadata = status?.result?.book_metadata ?? {};
+  const bookMetadata = status?.result?.book_metadata ?? null;
+  const metadata = bookMetadata ?? {};
   const metadataEntries = Object.entries(metadata).filter(([, value]) => {
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
@@ -223,9 +224,12 @@ export function JobProgress({
   const [coverFailed, setCoverFailed] = useState(false);
   useEffect(() => {
     setCoverFailed(false);
-  }, [coverUrl]);
+  }, [coverUrl, bookMetadata]);
   const handleCoverError = useCallback(() => {
     setCoverFailed(true);
+  }, []);
+  const handleCoverRetry = useCallback(() => {
+    setCoverFailed(false);
   }, []);
   const coverAltText = useMemo(() => {
     const title = normalizeMetadataValue(metadata['book_title']);
@@ -390,7 +394,14 @@ export function JobProgress({
           {coverUrl && !coverFailed ? (
             <img src={coverUrl} alt={coverAltText} onError={handleCoverError} />
           ) : (
-            <span className="metadata-cover-preview__placeholder">{coverPlaceholderMessage}</span>
+            <div className="metadata-cover-preview__placeholder" role="status" aria-live="polite">
+              <span>{coverPlaceholderMessage}</span>
+              {coverFailed && coverUrl ? (
+                <button type="button" className="link-button" onClick={handleCoverRetry}>
+                  Retry preview
+                </button>
+              ) : null}
+            </div>
           )}
         </div>
         {metadataEntries.length > 0 ? (

@@ -1094,10 +1094,20 @@ button.link-button:focus {
 }
 
 .metadata-cover-preview__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   color: var(--color-text-muted);
   font-size: 0.875rem;
   line-height: 1.4;
   text-align: center;
+}
+
+.metadata-cover-preview__placeholder .link-button {
+  font-size: 0.875rem;
+  padding: 0;
 }
 
 .job-status {

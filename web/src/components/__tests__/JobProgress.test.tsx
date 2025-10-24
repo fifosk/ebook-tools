@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const buildStorageUrlMock = vi.hoisted(() =>
   vi.fn<[string], string>((path) => `https://storage.example/${path}`)
@@ -214,7 +214,124 @@ describe('JobProgress', () => {
     fireEvent.error(image);
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry preview/i })).toBeInTheDocument();
     expect(screen.queryByAltText('Cover of Broken Cover by Author Name')).not.toBeInTheDocument();
+  });
+
+  it('allows retrying the cover preview after a failure', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-4',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Broken Cover',
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/broken-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-4"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+
+    expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /retry preview/i }));
+
+    expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
+  });
+
+  it('retries the cover preview when metadata refreshes without changing the path', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-6',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Broken Cover',
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/broken-cover.jpg'
+        }
+      }
+    };
+
+    const { rerender } = render(
+      <JobProgress
+        jobId="job-6"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+
+    expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+
+    const refreshedStatus: PipelineStatusResponse = {
+      ...status,
+      result: {
+        ...status.result!,
+        book_metadata: {
+          ...status.result!.book_metadata,
+          book_summary: 'An updated summary after metadata refresh.'
+        }
+      }
+    };
+
+    rerender(
+      <JobProgress
+        jobId="job-6"
+        status={refreshedStatus}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText(/Cover preview could not be loaded/i)).not.toBeInTheDocument();
+    expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
   });
 
   it('shows a placeholder when no cover metadata is available', () => {
