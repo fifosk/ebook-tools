@@ -178,7 +178,7 @@ describe('JobProgress', () => {
     ) as HTMLImageElement;
     expect(image.src).toBe('https://storage.example/runtime/storage-rooted-cover.jpg');
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/storage-rooted-cover.jpg');
-    expect(screen.getByText('/storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
+    expect(screen.getByText('storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
   });
 
   it('renders tuning metrics when provided', () => {
@@ -439,7 +439,7 @@ describe('JobProgress', () => {
     const image = screen.getByAltText('Cover of Output Rooted Cover by Author Name') as HTMLImageElement;
     expect(image.src).toBe('https://storage.example/runtime/output-cover.jpg');
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/output-cover.jpg');
-    expect(screen.getByText('/storage/runtime/output-cover.jpg')).toBeInTheDocument();
+    expect(screen.getByText('storage/runtime/output-cover.jpg')).toBeInTheDocument();
   });
 
   it('tries a relative storage path when building a storage URL fails', () => {

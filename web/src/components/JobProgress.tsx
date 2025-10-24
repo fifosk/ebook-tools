@@ -186,7 +186,7 @@ function formatMetadataValue(key: string, value: unknown, coverAsset: CoverAsset
     }
     const relative = coverAsset.path.trim();
     if (relative) {
-      return `/storage/${relative.replace(/^\/+/, '')}`;
+      return `storage/${relative.replace(/^\/+/, '')}`;
     }
     return coverAsset.raw || normalized;
   }
