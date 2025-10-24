@@ -17,6 +17,7 @@ from ... import observability
 from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import TranslationWorkerPool
 from ..pipeline_service import (
+    PipelineInput,
     PipelineRequest,
     PipelineResponse,
     run_pipeline,
@@ -233,6 +234,116 @@ class PipelineJobManager:
             logger.warning("Failed to initialize FileJobStore: %s", exc)
         return InMemoryJobStore()
 
+    @staticmethod
+    def _coerce_bool(value: Any, default: bool = False) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return default
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "y", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "n", "off"}:
+                return False
+        return bool(value)
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int = 0) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _coerce_float(value: Any, default: float = 0.0) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _build_pipeline_input(self, payload: Mapping[str, Any]) -> PipelineInput:
+        data = dict(payload or {})
+        raw_targets = data.get("target_languages") or []
+        if isinstance(raw_targets, list):
+            target_languages = [str(item) for item in raw_targets]
+        elif isinstance(raw_targets, (tuple, set)):
+            target_languages = [str(item) for item in raw_targets]
+        elif raw_targets is None:
+            target_languages = []
+        else:
+            target_languages = [str(raw_targets)]
+
+        end_sentence_value = data.get("end_sentence")
+        end_sentence = None
+        if end_sentence_value is not None:
+            try:
+                end_sentence = int(end_sentence_value)
+            except (TypeError, ValueError):
+                end_sentence = None
+
+        book_metadata = data.get("book_metadata")
+        if not isinstance(book_metadata, Mapping):
+            book_metadata = {}
+
+        return PipelineInput(
+            input_file=str(data.get("input_file") or ""),
+            base_output_file=str(data.get("base_output_file") or ""),
+            input_language=str(data.get("input_language") or ""),
+            target_languages=target_languages,
+            sentences_per_output_file=self._coerce_int(data.get("sentences_per_output_file"), 1),
+            start_sentence=self._coerce_int(data.get("start_sentence"), 1),
+            end_sentence=end_sentence,
+            stitch_full=self._coerce_bool(data.get("stitch_full")),
+            generate_audio=self._coerce_bool(data.get("generate_audio")),
+            audio_mode=str(data.get("audio_mode") or ""),
+            written_mode=str(data.get("written_mode") or ""),
+            selected_voice=str(data.get("selected_voice") or ""),
+            output_html=self._coerce_bool(data.get("output_html")),
+            output_pdf=self._coerce_bool(data.get("output_pdf")),
+            generate_video=self._coerce_bool(data.get("generate_video")),
+            include_transliteration=self._coerce_bool(data.get("include_transliteration")),
+            tempo=self._coerce_float(data.get("tempo"), 1.0),
+            book_metadata=dict(book_metadata),
+        )
+
+    def _hydrate_request_from_payload(
+        self,
+        job: PipelineJob,
+        payload: Mapping[str, Any],
+        stop_event: threading.Event,
+    ) -> PipelineRequest:
+        config = dict(payload.get("config") or {})
+        environment_overrides = dict(payload.get("environment_overrides") or {})
+        pipeline_overrides = dict(payload.get("pipeline_overrides") or {})
+        inputs_payload = payload.get("inputs")
+        if not isinstance(inputs_payload, Mapping):
+            inputs_payload = {}
+
+        tracker = job.tracker or ProgressTracker()
+        if job.tracker is None:
+            tracker.register_observer(lambda event: self._store_event(job.job_id, event))
+            job.tracker = tracker
+
+        correlation_id = payload.get("correlation_id")
+        if correlation_id is None and job.request is not None:
+            correlation_id = job.request.correlation_id
+
+        request = PipelineRequest(
+            config=config,
+            context=job.request.context if job.request is not None else None,
+            environment_overrides=environment_overrides,
+            pipeline_overrides=pipeline_overrides,
+            inputs=self._build_pipeline_input(inputs_payload),
+            progress_tracker=tracker,
+            stop_event=stop_event,
+            translation_pool=None,
+            correlation_id=correlation_id,
+            job_id=job.job_id,
+        )
+
+        return request
+
     def _snapshot(self, job: PipelineJob) -> PipelineJobMetadata:
         last_event = serialize_progress_event(job.last_event) if job.last_event else None
         result_payload = (
@@ -402,63 +513,127 @@ class PipelineJobManager:
                 job.owns_translation_pool = owns_pool
                 response = run_pipeline(job.request)
             with self._lock:
-                job.result = response
-                job.result_payload = serialize_pipeline_response(response)
-                job.status = (
-                    PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
-                )
-                job.error_message = None if response.success else "Pipeline execution reported failure."
-                self._store.update(self._snapshot(job))
+                current_status = job.status
+                if current_status == PipelineJobStatus.PAUSED:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                elif current_status == PipelineJobStatus.CANCELLED:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                else:
+                    job.result = response
+                    job.result_payload = serialize_pipeline_response(response)
+                    job.status = (
+                        PipelineJobStatus.COMPLETED
+                        if response.success
+                        else PipelineJobStatus.FAILED
+                    )
+                    job.error_message = (
+                        None if response.success else "Pipeline execution reported failure."
+                    )
         except Exception as exc:  # pragma: no cover - defensive logging
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.error(
-                    "Pipeline job encountered an error",
-                    extra={
-                        "event": "pipeline.job.error",
-                        "status": PipelineJobStatus.FAILED.value,
-                        "attributes": {"error": str(exc)},
-                    },
-                )
             with self._lock:
-                job.result = None
-                job.result_payload = None
-                job.status = PipelineJobStatus.FAILED
-                job.error_message = str(exc)
-                self._store.update(self._snapshot(job))
-            if job.tracker is not None:
-                job.tracker.record_error(exc, {"stage": "pipeline"})
+                interruption = job.status in (
+                    PipelineJobStatus.PAUSED,
+                    PipelineJobStatus.CANCELLED,
+                ) and (job.stop_event is None or job.stop_event.is_set())
+                if interruption:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                    status_after_error = job.status
+                else:
+                    job.result = None
+                    job.result_payload = None
+                    job.status = PipelineJobStatus.FAILED
+                    job.error_message = str(exc)
+                    status_after_error = job.status
+            if status_after_error == PipelineJobStatus.FAILED:
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.error(
+                        "Pipeline job encountered an error",
+                        extra={
+                            "event": "pipeline.job.error",
+                            "status": PipelineJobStatus.FAILED.value,
+                            "attributes": {"error": str(exc)},
+                        },
+                    )
+                if job.tracker is not None:
+                    job.tracker.record_error(exc, {"stage": "pipeline"})
+            else:
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.info(
+                        "Pipeline job interrupted",
+                        extra={
+                            "event": "pipeline.job.interrupted",
+                            "status": status_after_error.value,
+                            "console_suppress": True,
+                        },
+                    )
         finally:
+            pool_to_shutdown: Optional[TranslationWorkerPool] = None
             with self._lock:
-                job.completed_at = datetime.now(timezone.utc)
-                self._store.update(self._snapshot(job))
+                status = job.status
+                if job.owns_translation_pool and job.request is not None:
+                    pool_to_shutdown = job.request.translation_pool
+                    job.request.translation_pool = None
+                job.owns_translation_pool = False
+                terminal_states = {
+                    PipelineJobStatus.COMPLETED,
+                    PipelineJobStatus.FAILED,
+                    PipelineJobStatus.CANCELLED,
+                }
+                if status in terminal_states:
+                    job.completed_at = job.completed_at or datetime.now(timezone.utc)
+                snapshot = self._snapshot(job)
+            self._store.update(snapshot)
+            if pool_to_shutdown is not None:
+                try:
+                    pool_to_shutdown.shutdown()
+                except Exception:  # pragma: no cover - defensive logging
+                    logger.debug(
+                        "Translation worker pool shutdown raised an exception",
+                        exc_info=True,
+                    )
             if job.tracker is not None:
-                result = job.result
-                forced = not (result.success if isinstance(result, PipelineResponse) else False)
-                reason = "completed" if not forced else "failed"
-                job.tracker.mark_finished(reason=reason, forced=forced)
-            if job.request is not None and job.owns_translation_pool:
-                pool = job.request.translation_pool
-                if pool is not None:
-                    pool.shutdown()
+                if status == PipelineJobStatus.COMPLETED:
+                    job.tracker.mark_finished(reason="completed", forced=False)
+                elif status == PipelineJobStatus.FAILED:
+                    job.tracker.mark_finished(reason="failed", forced=True)
+                elif status == PipelineJobStatus.CANCELLED:
+                    job.tracker.mark_finished(reason="cancelled", forced=True)
             with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.info(
-                    "Pipeline job finished",
-                    extra={
-                        "event": "pipeline.job.finished",
-                        "status": job.status.value,
-                        "console_suppress": True,
-                    },
-                )
-                duration_ms = 0.0
-                if job.started_at and job.completed_at:
-                    duration_ms = (
-                        job.completed_at - job.started_at
-                    ).total_seconds() * 1000.0
-                observability.record_metric(
-                    "pipeline.job.duration",
-                    duration_ms,
-                    {"job_id": job_id, "status": job.status.value},
-                )
+                if status == PipelineJobStatus.PAUSED:
+                    logger.info(
+                        "Pipeline job paused",
+                        extra={
+                            "event": "pipeline.job.paused",
+                            "status": status.value,
+                            "console_suppress": True,
+                        },
+                    )
+                else:
+                    logger.info(
+                        "Pipeline job finished",
+                        extra={
+                            "event": "pipeline.job.finished",
+                            "status": status.value,
+                            "console_suppress": True,
+                        },
+                    )
+                    if status in terminal_states:
+                        duration_ms = 0.0
+                        if job.started_at and job.completed_at:
+                            duration_ms = (
+                                job.completed_at - job.started_at
+                            ).total_seconds() * 1000.0
+                        observability.record_metric(
+                            "pipeline.job.duration",
+                            duration_ms,
+                            {"job_id": job_id, "status": status.value},
+                        )
 
     def get(self, job_id: str) -> PipelineJob:
         """Return the job associated with ``job_id``."""
@@ -500,6 +675,15 @@ class PipelineJobManager:
 
         def _pause(job: PipelineJob) -> None:
             apply_pause_transition(job)
+            event = job.stop_event
+            if event is None and job.request is not None:
+                event = job.request.stop_event
+            if event is None:
+                event = threading.Event()
+            event.set()
+            job.stop_event = event
+            if job.request is not None:
+                job.request.stop_event = event
 
         return self._mutate_job(job_id, _pause)
 
@@ -508,8 +692,28 @@ class PipelineJobManager:
 
         def _resume(job: PipelineJob) -> None:
             apply_resume_transition(job)
+            payload = job.resume_context or job.request_payload
+            if payload is None:
+                raise ValueError(
+                    f"Job {job.job_id} is missing resume context and cannot be resumed"
+                )
+            stop_event = threading.Event()
+            request = self._hydrate_request_from_payload(job, payload, stop_event)
+            job.request = request
+            job.stop_event = stop_event
+            job.request.stop_event = stop_event
+            job.result = None
+            job.result_payload = None
+            job.error_message = None
+            job.started_at = None
+            job.completed_at = None
+            job.owns_translation_pool = False
+            if job.request is not None:
+                job.request.translation_pool = None
 
-        return self._mutate_job(job_id, _resume)
+        job = self._mutate_job(job_id, _resume)
+        self._executor.submit(self._execute, job_id)
+        return job
 
     def cancel_job(self, job_id: str) -> PipelineJob:
         """Cancel ``job_id`` and persist the terminal state."""
@@ -523,8 +727,15 @@ class PipelineJobManager:
                 raise ValueError(
                     f"Cannot cancel job {job.job_id} in terminal state {job.status.value}"
                 )
-            if job.stop_event is not None:
-                job.stop_event.set()
+            event = job.stop_event
+            if event is None and job.request is not None:
+                event = job.request.stop_event
+            if event is None:
+                event = threading.Event()
+            event.set()
+            job.stop_event = event
+            if job.request is not None:
+                job.request.stop_event = event
             job.status = PipelineJobStatus.CANCELLED
             job.completed_at = job.completed_at or datetime.now(timezone.utc)
 
