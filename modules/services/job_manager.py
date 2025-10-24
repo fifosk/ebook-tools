@@ -709,6 +709,28 @@ class PipelineJobManager:
 
         return resume_start
 
+    @staticmethod
+    def _compute_resume_batch_start(
+        *,
+        base_start: int,
+        resume_start: int,
+        sentences_per_file: Optional[int],
+    ) -> int:
+        """Align the resume start to the beginning of the containing batch."""
+
+        if sentences_per_file is None or sentences_per_file <= 1:
+            return resume_start
+        if resume_start <= base_start:
+            return base_start
+
+        offset = resume_start - base_start
+        remainder = offset % sentences_per_file
+        if remainder == 0:
+            return resume_start
+
+        adjusted_start = resume_start - remainder
+        return adjusted_start if adjusted_start >= base_start else base_start
+
     def _update_resume_context(self, job: PipelineJob) -> None:
         """Capture resume metadata reflecting the latest processed sentence."""
 
@@ -755,12 +777,27 @@ class PipelineJobManager:
         if end_value is not None:
             updated_inputs.setdefault("end_sentence", end_value)
 
+        batch_size = self._coerce_non_negative_int(
+            updated_inputs.get("sentences_per_output_file")
+        )
+        if batch_size is None and job.request is not None:
+            batch_size = self._coerce_non_negative_int(
+                getattr(job.request.inputs, "sentences_per_output_file", None)
+            )
+        if batch_size is not None and batch_size > 0:
+            updated_inputs.setdefault("sentences_per_output_file", batch_size)
+
         if next_start is None:
             payload["inputs"] = updated_inputs
             job.resume_context = payload
             return
 
-        updated_inputs["start_sentence"] = next_start
+        resume_start = self._compute_resume_batch_start(
+            base_start=base_start,
+            resume_start=next_start,
+            sentences_per_file=batch_size,
+        )
+        updated_inputs["start_sentence"] = resume_start
         payload["inputs"] = updated_inputs
         job.resume_context = payload
 

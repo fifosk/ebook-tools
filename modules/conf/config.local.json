@@ -47,7 +47,7 @@
     "queue_size": 20,
     "pipeline_mode": false,
     "use_ramdisk": true,
-    "job_max_workers": 2,
+    "job_max_workers": 10,
     "book_cover_title": "Unknown Title",
     "book_title": "The Man in the Brown Suit",
     "book_author": "Agatha Christie",

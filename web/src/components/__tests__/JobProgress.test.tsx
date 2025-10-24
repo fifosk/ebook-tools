@@ -194,7 +194,7 @@ describe('JobProgress', () => {
       tuning: {
         thread_count: 4,
         queue_size: 32,
-        job_worker_slots: 2
+        job_worker_slots: 10
       }
     };
 
