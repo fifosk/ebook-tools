@@ -327,11 +327,11 @@ directory.
   Defaults to `books/`, which lives next to `conf/`. The script resolves
   `input_file` and `book_cover_file` relative to this folder.
 - **`working_dir`**: Root directory for downloaded covers and other
-  long-lived artifacts. Defaults to `output/`.
+  long-lived artifacts. Defaults to `storage/`.
 - **`output_dir`**: Location for generated HTML/PDF/EPUB/audio/video files.
-  Defaults to `output/ebook/` inside the working directory.
+  Defaults to `storage/ebook/` inside the working directory.
 - **`tmp_dir`**: Scratch space for intermediate assets such as slide images
-  and concatenation lists. Defaults to `tmp/`.
+  and concatenation lists. Defaults to `storage/tmp/`.
 
 You can override any of these via the matching CLI flags (`--ebooks-dir`,
 `--working-dir`, `--output-dir`, `--tmp-dir`) or environment variables

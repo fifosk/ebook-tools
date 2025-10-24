@@ -6,10 +6,10 @@ import shutil
 from pathlib import Path
 
 MODULE_DIR = Path(__file__).resolve().parent
-SCRIPT_DIR = MODULE_DIR.parent.resolve()
-DEFAULT_WORKING_RELATIVE = Path("output")
+SCRIPT_DIR = MODULE_DIR.parent.parent.resolve()
+DEFAULT_WORKING_RELATIVE = Path("storage")
 DEFAULT_OUTPUT_RELATIVE = DEFAULT_WORKING_RELATIVE / "ebook"
-DEFAULT_TMP_RELATIVE = Path("tmp")
+DEFAULT_TMP_RELATIVE = DEFAULT_WORKING_RELATIVE / "tmp"
 DEFAULT_BOOKS_RELATIVE = Path("books")
 DEFAULT_SMB_SHARE_ROOT = Path("/Volumes/Data/Download/Subs")
 DEFAULT_SMB_OUTPUT_PATH = DEFAULT_SMB_SHARE_ROOT / "ebook"

@@ -72,6 +72,27 @@ def _teardown_tmp_workspace() -> None:
         _STARTUP_RUNTIME_CONTEXT = None
 
 
+def _resolve_storage_mount_directory() -> Path | None:
+    """Return the directory that should be exposed for artifact downloads."""
+
+    context = _STARTUP_RUNTIME_CONTEXT
+    if context is None:
+        try:
+            _initialise_tmp_workspace()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to initialise runtime context for storage mount")
+            return None
+        context = _STARTUP_RUNTIME_CONTEXT
+    if context is None:
+        return None
+    try:
+        context.working_dir.mkdir(parents=True, exist_ok=True)
+    except OSError:  # pragma: no cover - defensive logging
+        LOGGER.exception("Unable to prepare storage directory at %s", context.working_dir)
+        return None
+    return context.working_dir
+
+
 @dataclass(frozen=True)
 class StaticAssetsConfig:
     """Configuration for serving the bundled single-page application."""
@@ -223,6 +244,17 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
+
+    storage_directory = _resolve_storage_mount_directory()
+    if storage_directory is not None:
+        app.mount(
+            "/storage",
+            StaticFiles(directory=str(storage_directory), html=False, check_dir=False),
+            name="storage",
+        )
+        LOGGER.info("Serving storage artifacts from %s at '/storage'", storage_directory)
+    else:
+        LOGGER.warning("Storage artifact mounting disabled; storage directory unavailable")
 
     static_enabled = _configure_static_assets(app)
     if not static_enabled:

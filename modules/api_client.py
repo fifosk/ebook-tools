@@ -133,7 +133,7 @@ class _JobRecord:
 class EbookToolsClient:
     """Simple client that simulates the ebook-tools job API locally."""
 
-    def __init__(self, *, output_dir: str | Path = "output/ebook") -> None:
+    def __init__(self, *, output_dir: str | Path = "storage/ebook") -> None:
         self._output_root = Path(output_dir).expanduser().resolve()
         self._output_root.mkdir(parents=True, exist_ok=True)
         self._jobs: Dict[str, _JobRecord] = {}

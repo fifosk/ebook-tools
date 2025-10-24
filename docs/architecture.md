@@ -5,7 +5,7 @@
 - `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API.
 - `web/` – React/Vite single-page application that talks to the FastAPI backend.
 - `scripts/` – Shell helpers (`run-webapi.sh`, `run-webui.sh`) that wrap common dev workflows.
-- `books/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, generated artifacts, temp data, and logs.
+- `books/`, `storage/`, `storage/tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, generated artifacts, temp data, and logs.
 
 ## Pipeline Flow
 1. **Entry point** – `modules/ebook_tools.py` parses CLI or interactive input and builds a `PipelineRequest`.

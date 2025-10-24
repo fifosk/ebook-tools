@@ -20,10 +20,10 @@ const mockFileListing: PipelineFileBrowserResponse = {
     { name: 'example.epub', path: 'example.epub', type: 'file' as const }
   ],
   outputs: [
-    { name: 'output', path: 'output/output', type: 'directory' as const }
+    { name: 'ebook', path: 'storage/ebook', type: 'directory' as const }
   ],
   books_root: '/workspace/ebooks',
-  output_root: '/workspace/output'
+  output_root: '/workspace/storage/ebook'
 };
 
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
@@ -82,7 +82,7 @@ describe('PipelineSubmissionForm', () => {
     await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
-    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+    await user.type(screen.getByLabelText(/Base output file/i), 'storage');
     await user.clear(screen.getByLabelText(/Input language/i));
     await user.type(screen.getByLabelText(/Input language/i), 'English');
 
@@ -122,7 +122,7 @@ describe('PipelineSubmissionForm', () => {
     await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
-    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+    await user.type(screen.getByLabelText(/Base output file/i), 'storage');
     await user.clear(screen.getByLabelText(/Input language/i));
     await user.type(screen.getByLabelText(/Input language/i), 'English');
     await user.click(screen.getByRole('checkbox', { name: 'French' }));
@@ -148,7 +148,7 @@ describe('PipelineSubmissionForm', () => {
       defaults: {
         config: {
           input_file: '/books/default.epub',
-          base_output_file: '/output/result',
+          base_output_file: '/storage/result',
           input_language: 'Spanish',
           target_languages: ['German', 'French'],
           sentences_per_output_file: 8,
@@ -174,7 +174,7 @@ describe('PipelineSubmissionForm', () => {
       expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/default.epub')
     );
 
-    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/result');
+    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/storage/result');
     expect(screen.getByLabelText(/Input language/i)).toHaveValue('Spanish');
     expect(screen.getByRole('checkbox', { name: 'German' })).toBeChecked();
     expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
@@ -210,9 +210,9 @@ describe('PipelineSubmissionForm', () => {
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('example.epub');
 
     await user.click(screen.getByRole('button', { name: /browse output paths/i }));
-    await user.click(screen.getByRole('button', { name: /select output/i }));
+    await user.click(screen.getByRole('button', { name: /select ebook/i }));
 
-    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('output/output');
+    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('storage/ebook');
   });
 
   it('uploads an EPUB via drag and drop', async () => {

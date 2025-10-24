@@ -31,7 +31,7 @@ from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client import create_client
 
-DEFAULT_OUTPUT_DIR = Path("output/ebook")
+DEFAULT_OUTPUT_DIR = Path("storage/ebook")
 
 _LANGUAGE_CANONICAL_MAP = {name.lower(): name for name in LANGUAGE_CODES}
 for _alias_name, _alias_code in LANGUAGE_CODES.items():

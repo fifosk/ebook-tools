@@ -74,9 +74,9 @@ class EbookToolsSettings(BaseModel):
     slide_parallel_workers: Optional[int] = None
     prefer_pillow_simd: bool = False
     slide_render_benchmark: bool = False
-    working_dir: str = "output"
-    output_dir: str = "output/ebook"
-    tmp_dir: str = "tmp"
+    working_dir: str = "storage"
+    output_dir: str = "storage/ebook"
+    tmp_dir: str = "storage/tmp"
     ollama_url: str = DEFAULT_OLLAMA_URL
     llm_source: str = DEFAULT_LLM_SOURCE
     ollama_local_url: str = DEFAULT_OLLAMA_URL
