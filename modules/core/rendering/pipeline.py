@@ -48,6 +48,11 @@ class PipelineState:
     current_batch_start: int = 0
     last_target_language: str = ""
     processed: int = 0
+    sentences_per_file: int = 0
+    latest_preview_path: Optional[str] = None
+    latest_preview_index: Optional[int] = None
+    next_preview_refresh_at: Optional[int] = None
+    last_preview_refresh_processed: Optional[int] = None
 
 
 class RenderPipeline:
@@ -177,6 +182,7 @@ class RenderPipeline:
             generate_audio=generate_audio,
             start_sentence=start_sentence,
             target_languages=target_languages,
+            sentences_per_file=sentences_per_file,
         )
 
         translation_client = self._ensure_translation_client()
@@ -253,29 +259,7 @@ class RenderPipeline:
                 video_blocks=list(state.video_blocks),
             )
             video_path, preview_images = exporter.export(request)
-            if video_path:
-                state.batch_video_files.append(video_path)
-            if preview_images:
-                seen_previews: set[str] = set()
-                for image in preview_images:
-                    if not image or image in seen_previews:
-                        continue
-                    seen_previews.add(image)
-                    if image not in state.batch_preview_files:
-                        state.batch_preview_files.append(image)
-            if self._progress is not None and (video_path or preview_images):
-                batch_index = len(state.batch_video_files) if video_path else None
-                metadata = {"stage": "batch_export"}
-                if batch_index is not None:
-                    metadata["batch_index"] = batch_index
-                if video_path:
-                    metadata["batch_video_file"] = video_path
-                cleaned = [img for img in preview_images or [] if img]
-                if cleaned:
-                    metadata["batch_previews"] = list(dict.fromkeys(cleaned))
-                    metadata["batch_preview"] = cleaned[-1]
-                    metadata["preview_path"] = cleaned[-1]
-                self._progress.publish_progress(metadata)
+            self._handle_completed_export(state, video_path, preview_images)
         elif self._should_stop():
             console_info(
                 "Skip final batch export due to shutdown request.",
@@ -289,6 +273,8 @@ class RenderPipeline:
             logger_obj=logger,
         )
 
+        self._finalise_preview_refresh(state)
+
         return (
             state.written_blocks,
             state.all_audio_segments,
@@ -300,16 +286,107 @@ class RenderPipeline:
 
     # ------------------------------------------------------------------
     # Internal helpers
+    def _handle_completed_export(
+        self,
+        state: PipelineState,
+        video_path: Optional[str],
+        preview_images: Optional[Sequence[str]],
+    ) -> None:
+        cleaned_previews: List[str] = []
+        if preview_images:
+            seen_previews: set[str] = set()
+            for image in preview_images:
+                if not image:
+                    continue
+                if image in seen_previews:
+                    continue
+                seen_previews.add(image)
+                cleaned_previews.append(image)
+                if image not in state.batch_preview_files:
+                    state.batch_preview_files.append(image)
+
+        batch_index: Optional[int] = None
+        if video_path:
+            state.batch_video_files.append(video_path)
+            batch_index = len(state.batch_video_files)
+
+        if cleaned_previews:
+            latest = cleaned_previews[-1]
+            state.latest_preview_path = latest
+            if batch_index is not None:
+                state.latest_preview_index = batch_index
+            elif state.latest_preview_index is None and state.batch_video_files:
+                state.latest_preview_index = len(state.batch_video_files)
+            batch_size = max(1, state.sentences_per_file or 1)
+            preview_batch_index = state.latest_preview_index or len(state.batch_preview_files)
+            if preview_batch_index:
+                state.next_preview_refresh_at = (preview_batch_index + 1) * batch_size
+            else:
+                state.next_preview_refresh_at = (state.processed or 0) + batch_size
+            state.last_preview_refresh_processed = None
+
+        if self._progress is not None and (video_path or cleaned_previews):
+            metadata = {"stage": "batch_export"}
+            if batch_index is not None:
+                metadata["batch_index"] = batch_index
+            if video_path:
+                metadata["batch_video_file"] = video_path
+            if cleaned_previews:
+                metadata["batch_previews"] = list(cleaned_previews)
+                metadata["batch_preview"] = cleaned_previews[-1]
+                metadata["preview_path"] = cleaned_previews[-1]
+            self._progress.publish_progress(metadata)
+
+    # ------------------------------------------------------------------
+    def _publish_preview_refresh_event(self, state: PipelineState) -> None:
+        if self._progress is None:
+            return
+        if not state.latest_preview_path:
+            return
+        metadata: dict[str, object] = {
+            "stage": "batch_preview_refresh",
+            "batch_preview": state.latest_preview_path,
+            "preview_path": state.latest_preview_path,
+            "batch_previews": [state.latest_preview_path],
+        }
+        if state.latest_preview_index is not None:
+            metadata["batch_index"] = state.latest_preview_index
+        self._progress.publish_progress(metadata)
+        state.last_preview_refresh_processed = state.processed
+
+    def _maybe_publish_preview_refresh(self, state: PipelineState) -> None:
+        if not state.latest_preview_path:
+            return
+        batch_size = max(1, state.sentences_per_file or 1)
+        if state.next_preview_refresh_at is None:
+            state.next_preview_refresh_at = state.processed + batch_size
+        if state.processed < (state.next_preview_refresh_at or 0):
+            return
+        if state.last_preview_refresh_processed == state.processed:
+            return
+        self._publish_preview_refresh_event(state)
+        state.next_preview_refresh_at = state.processed + batch_size
+
+    def _finalise_preview_refresh(self, state: PipelineState) -> None:
+        if not state.latest_preview_path:
+            return
+        if state.last_preview_refresh_processed == state.processed:
+            return
+        self._publish_preview_refresh_event(state)
+
+    # ------------------------------------------------------------------
     def _initial_state(
         self,
         *,
         generate_audio: bool,
         start_sentence: int,
         target_languages: Sequence[str],
+        sentences_per_file: int,
     ) -> PipelineState:
         state = PipelineState()
         state.current_batch_start = start_sentence
         state.last_target_language = target_languages[0] if target_languages else ""
+        state.sentences_per_file = max(1, sentences_per_file)
         if generate_audio:
             state.all_audio_segments = []
             state.current_audio_segments = []
@@ -452,34 +529,7 @@ class RenderPipeline:
                 video_blocks=list(state.video_blocks),
             )
             video_path, preview_images = exporter.export(request)
-            if video_path:
-                state.batch_video_files.append(video_path)
-            cleaned_previews: List[str] = []
-            if preview_images:
-                seen_previews: set[str] = set()
-                for image in preview_images:
-                    if not image:
-                        continue
-                    if image in seen_previews:
-                        continue
-                    seen_previews.add(image)
-                    cleaned_previews.append(image)
-                    if image not in state.batch_preview_files:
-                        state.batch_preview_files.append(image)
-            if self._progress is not None and (video_path or cleaned_previews):
-                batch_index = len(state.batch_video_files) if video_path else None
-                metadata = {
-                    "stage": "batch_export",
-                }
-                if batch_index is not None:
-                    metadata["batch_index"] = batch_index
-                if video_path:
-                    metadata["batch_video_file"] = video_path
-                if cleaned_previews:
-                    metadata["batch_previews"] = list(cleaned_previews)
-                    metadata["batch_preview"] = cleaned_previews[-1]
-                    metadata["preview_path"] = cleaned_previews[-1]
-                self._progress.publish_progress(metadata)
+            self._handle_completed_export(state, video_path, preview_images)
             state.written_blocks.clear()
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
@@ -489,6 +539,7 @@ class RenderPipeline:
         state.processed += 1
         if self._progress is not None:
             self._progress.record_media_completion(state.processed - 1, sentence_number)
+        self._maybe_publish_preview_refresh(state)
 
     def _process_sequential(
         self,
@@ -669,13 +720,42 @@ class RenderPipeline:
         buffered_results = {}
         next_index = 0
         export_futures: List[concurrent.futures.Future] = []
+
+        def handle_completed_export(
+            video_path: Optional[str], preview_images: Optional[Sequence[str]]
+        ) -> None:
+            self._handle_completed_export(state, video_path, preview_images)
+
+        def drain_export_futures(*, block: bool = False) -> None:
+            if not export_futures:
+                return
+            ready_futures: List[concurrent.futures.Future]
+            if block:
+                ready_futures = list(export_futures)
+            else:
+                ready_futures = [future for future in export_futures if future.done()]
+                if not ready_futures:
+                    return
+            for future in ready_futures:
+                try:
+                    export_futures.remove(future)
+                except ValueError:
+                    continue
+                try:
+                    video_path, preview_images = future.result()
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    logger.error("Failed to finalize batch export: %s", exc)
+                    continue
+                handle_completed_export(video_path, preview_images)
         try:
             while state.processed < total_refined:
                 if pipeline_stop_event.is_set() and not buffered_results:
                     break
+                drain_export_futures()
                 try:
                     media_item = media_queue.get(timeout=0.1)
                 except queue.Empty:
+                    drain_export_futures()
                     if pipeline_stop_event.is_set():
                         break
                     continue
@@ -753,6 +833,7 @@ class RenderPipeline:
                         )
                         future = finalize_executor.submit(exporter.export, request)
                         export_futures.append(future)
+                        drain_export_futures()
                         state.written_blocks.clear()
                         state.video_blocks.clear()
                         if state.current_audio_segments is not None:
@@ -764,9 +845,11 @@ class RenderPipeline:
                         self._progress.record_media_completion(
                             state.processed - 1, item.sentence_number
                         )
+                    self._maybe_publish_preview_refresh(state)
                     next_index += 1
                 if pipeline_stop_event.is_set() and not buffered_results:
                     break
+                drain_export_futures()
         except KeyboardInterrupt:
             console_warning(
                 "Processing interrupted by user; shutting down pipeline...",
@@ -780,34 +863,4 @@ class RenderPipeline:
             if translation_thread is not None:
                 translation_thread.join(timeout=1.0)
             finalize_executor.shutdown(wait=True)
-            for future in export_futures:
-                try:
-                    video_path, preview_images = future.result()
-                except Exception as exc:  # pragma: no cover - defensive logging
-                    logger.error("Failed to finalize batch export: %s", exc)
-                else:
-                    cleaned_previews: List[str] = []
-                    if preview_images:
-                        seen_previews: set[str] = set()
-                        for image in preview_images:
-                            if not image or image in seen_previews:
-                                continue
-                            seen_previews.add(image)
-                            cleaned_previews.append(image)
-                            if image not in state.batch_preview_files:
-                                state.batch_preview_files.append(image)
-                    batch_index = None
-                    if video_path:
-                        state.batch_video_files.append(video_path)
-                        batch_index = len(state.batch_video_files)
-                    if self._progress is not None and (video_path or cleaned_previews):
-                        metadata = {"stage": "batch_export"}
-                        if batch_index is not None:
-                            metadata["batch_index"] = batch_index
-                        if video_path:
-                            metadata["batch_video_file"] = video_path
-                        if cleaned_previews:
-                            metadata["batch_previews"] = list(cleaned_previews)
-                            metadata["batch_preview"] = cleaned_previews[-1]
-                            metadata["preview_path"] = cleaned_previews[-1]
-                        self._progress.publish_progress(metadata)
+            drain_export_futures(block=True)

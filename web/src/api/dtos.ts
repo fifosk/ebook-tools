@@ -25,6 +25,16 @@ export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }
 
+export interface PipelineMetadataRequest {
+  input_file: string;
+  force_refresh?: boolean;
+  existing_metadata?: Record<string, unknown>;
+}
+
+export interface PipelineMetadataResponse {
+  metadata: Record<string, unknown>;
+}
+
 export interface PipelineInputPayload {
   input_file: string;
   base_output_file: string;

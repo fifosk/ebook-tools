@@ -1,6 +1,11 @@
 import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { PipelineFileBrowserResponse, PipelineRequestPayload } from '../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../api/client';
+import {
+  fetchPipelineDefaults,
+  fetchPipelineFiles,
+  fetchPipelineMetadataForFile,
+  uploadEpubFile
+} from '../api/client';
 import LanguageSelector from './LanguageSelector';
 import {
   AUDIO_MODE_OPTIONS,
@@ -371,6 +376,10 @@ export function PipelineSubmissionForm({
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recentUploadName, setRecentUploadName] = useState<string | null>(null);
+  const [isMetadataLoading, setIsMetadataLoading] = useState(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const [isMetadataDirty, setIsMetadataDirty] = useState(false);
+  const [lastMetadataInput, setLastMetadataInput] = useState<string | null>(null);
 
   const isSubmitSection = !activeSection || activeSection === 'submit';
   const visibleSections = activeSection ? [activeSection] : SECTION_ORDER;
@@ -385,16 +394,24 @@ export function PipelineSubmissionForm({
   const handleInputFileChange = (value: string) => {
     setRecentUploadName(null);
     setUploadError(null);
-    setFormState((previous) => {
-      if (previous.input_file === value) {
-        return previous;
-      }
-      return {
-        ...previous,
-        input_file: value,
-        book_metadata: '{}'
-      };
-    });
+    setFormState((previous) => ({
+      ...previous,
+      input_file: value,
+      book_metadata: '{}'
+    }));
+    setIsMetadataDirty(false);
+    setMetadataError(null);
+    setIsMetadataLoading(false);
+    setLastMetadataInput(null);
+  };
+
+  const handleBookMetadataChange = (value: string) => {
+    setIsMetadataDirty(true);
+    setMetadataError(null);
+    setFormState((previous) => ({
+      ...previous,
+      book_metadata: value
+    }));
   };
 
   const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
@@ -407,6 +424,17 @@ export function PipelineSubmissionForm({
       .filter(Boolean);
     return Array.from(new Set([...formState.target_languages, ...manualTargets]));
   }, [formState.custom_target_languages, formState.target_languages]);
+  const parsedBookMetadata = useMemo<Record<string, unknown>>(() => {
+    try {
+      const parsed = JSON.parse(formState.book_metadata);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Ignore parse errors; treat as empty metadata until valid JSON is provided.
+    }
+    return {};
+  }, [formState.book_metadata]);
 
   const refreshFiles = useCallback(async () => {
     setIsLoadingFiles(true);
@@ -507,6 +535,70 @@ export function PipelineSubmissionForm({
   useEffect(() => {
     void refreshFiles();
   }, [refreshFiles]);
+
+  useEffect(() => {
+    const inputFile = formState.input_file.trim();
+    if (!inputFile) {
+      setIsMetadataLoading(false);
+      setMetadataError(null);
+      setLastMetadataInput(null);
+      return;
+    }
+    if (isMetadataDirty) {
+      return;
+    }
+    if (lastMetadataInput === inputFile) {
+      return;
+    }
+
+    let cancelled = false;
+    setIsMetadataLoading(true);
+    setMetadataError(null);
+
+    fetchPipelineMetadataForFile(inputFile, { existingMetadata: parsedBookMetadata })
+      .then((metadata) => {
+        if (cancelled) {
+          return;
+        }
+        setIsMetadataLoading(false);
+        setLastMetadataInput(inputFile);
+        if (metadata && Object.keys(metadata).length > 0) {
+          const formatted = JSON.stringify(metadata, null, 2);
+          setFormState((previous) => {
+            if (previous.input_file.trim() !== inputFile) {
+              return previous;
+            }
+            if (previous.book_metadata === formatted) {
+              return previous;
+            }
+            return {
+              ...previous,
+              book_metadata: formatted
+            };
+          });
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) {
+          return;
+        }
+        setIsMetadataLoading(false);
+        setLastMetadataInput(inputFile);
+        const message =
+          error instanceof Error ? error.message : 'Unable to load book metadata.';
+        setMetadataError(message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    formState.input_file,
+    isMetadataDirty,
+    lastMetadataInput,
+    parsedBookMetadata,
+    setFormState
+  ]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1087,8 +1179,14 @@ export function PipelineSubmissionForm({
                   id="book_metadata"
                   name="book_metadata"
                   value={formState.book_metadata}
-                  onChange={(event) => handleChange('book_metadata', event.target.value)}
+                  onChange={(event) => handleBookMetadataChange(event.target.value)}
                 />
+                {isMetadataLoading ? (
+                  <p className="form-help-text" role="status">Loading book metadata…</p>
+                ) : null}
+                {metadataError ? (
+                  <p className="form-help-text" role="alert">{metadataError}</p>
+                ) : null}
               </details>
             </div>
           </section>

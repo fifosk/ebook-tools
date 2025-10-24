@@ -6,12 +6,18 @@ import {
   PipelineFileBrowserResponse,
   PipelineRequestPayload
 } from '../../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../../api/client';
+import {
+  fetchPipelineDefaults,
+  fetchPipelineFiles,
+  fetchPipelineMetadataForFile,
+  uploadEpubFile
+} from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
   fetchPipelineDefaults: vi.fn(),
+  fetchPipelineMetadataForFile: vi.fn(),
   uploadEpubFile: vi.fn()
 }));
 
@@ -28,6 +34,7 @@ const mockFileListing: PipelineFileBrowserResponse = {
 
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
 let resolveFiles: ((value: PipelineFileBrowserResponse) => void) | null = null;
+let resolveMetadata: ((value: Record<string, unknown>) => void) | null = null;
 
 async function resolveFetches({
   defaults = { config: {} },
@@ -45,6 +52,14 @@ async function resolveFetches({
   });
 }
 
+async function resolveMetadataFetch(metadata: Record<string, unknown> = {}) {
+  await act(async () => {
+    resolveMetadata?.(metadata);
+    resolveMetadata = null;
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
   vi.mocked(fetchPipelineFiles).mockImplementation(
     () =>
@@ -58,12 +73,19 @@ beforeEach(() => {
         resolveDefaults = resolve;
       })
   );
+  vi.mocked(fetchPipelineMetadataForFile).mockImplementation(
+    () =>
+      new Promise<Record<string, unknown>>((resolve) => {
+        resolveMetadata = resolve;
+      })
+  );
 });
 
 afterEach(() => {
   vi.clearAllMocks();
   resolveDefaults = null;
   resolveFiles = null;
+  resolveMetadata = null;
 });
 
 describe('PipelineSubmissionForm', () => {
@@ -81,6 +103,8 @@ describe('PipelineSubmissionForm', () => {
 
     await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await waitFor(() => expect(fetchPipelineMetadataForFile).toHaveBeenCalled());
+    await resolveMetadataFetch();
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'storage');
     await user.clear(screen.getByLabelText(/Input language/i));
@@ -121,6 +145,8 @@ describe('PipelineSubmissionForm', () => {
 
     await user.clear(screen.getByLabelText(/Input file path/i));
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await waitFor(() => expect(fetchPipelineMetadataForFile).toHaveBeenCalled());
+    await resolveMetadataFetch();
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'storage');
     await user.clear(screen.getByLabelText(/Input language/i));
@@ -170,6 +196,9 @@ describe('PipelineSubmissionForm', () => {
       }
     });
 
+    await waitFor(() => expect(fetchPipelineMetadataForFile).toHaveBeenCalled());
+    await resolveMetadataFetch();
+
     await waitFor(() =>
       expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/default.epub')
     );
@@ -208,6 +237,8 @@ describe('PipelineSubmissionForm', () => {
     await user.click(screen.getByRole('button', { name: /select example.epub/i }));
 
     expect(screen.getByLabelText(/Input file path/i)).toHaveValue('example.epub');
+    await waitFor(() => expect(fetchPipelineMetadataForFile).toHaveBeenCalled());
+    await resolveMetadataFetch();
 
     await user.click(screen.getByRole('button', { name: /browse output paths/i }));
     await user.click(screen.getByRole('button', { name: /select ebook/i }));
@@ -247,5 +278,37 @@ describe('PipelineSubmissionForm', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/Input file path/i)).toHaveValue('dropped.epub')
     );
+    await waitFor(() => expect(fetchPipelineMetadataForFile).toHaveBeenCalled());
+    await resolveMetadataFetch();
+  });
+
+  it('auto populates book metadata when lookup succeeds', async () => {
+    const user = userEvent.setup();
+
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    fireEvent.change(screen.getByLabelText(/Input file path/i), {
+      target: { value: 'sample.epub' }
+    });
+
+    await waitFor(() => expect(fetchPipelineMetadataForFile).toHaveBeenCalledTimes(1));
+
+    const loadingIndicator = await screen.findByText(/Loading book metadata/i);
+
+    await resolveMetadataFetch({ book_title: 'Lookup Title', book_author: 'Lookup Author' });
+
+    await waitFor(() =>
+      expect(screen.queryByText(/Loading book metadata/i)).not.toBeInTheDocument()
+    );
+
+    const metadataField = screen.getByLabelText(/Book metadata JSON/i) as HTMLTextAreaElement;
+    expect(metadataField.value).toContain('Lookup Title');
+    expect(metadataField.value).toContain('Lookup Author');
   });
 });

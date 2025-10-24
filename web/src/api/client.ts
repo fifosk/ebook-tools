@@ -4,6 +4,8 @@ import {
   PipelineFileEntry,
   PipelineJobActionResponse,
   PipelineJobListResponse,
+  PipelineMetadataRequest,
+  PipelineMetadataResponse,
   PipelineRequestPayload,
   PipelineStatusResponse,
   PipelineSubmissionResponse
@@ -351,6 +353,33 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
   const response = await fetch(withBase('/pipelines/defaults'));
   return handleResponse<PipelineDefaultsResponse>(response);
+}
+
+export async function fetchPipelineMetadataForFile(
+  inputFile: string,
+  options: { existingMetadata?: Record<string, unknown>; forceRefresh?: boolean } = {}
+): Promise<Record<string, unknown>> {
+  const payload: PipelineMetadataRequest = {
+    input_file: inputFile
+  };
+
+  if (options.existingMetadata && Object.keys(options.existingMetadata).length > 0) {
+    payload.existing_metadata = options.existingMetadata;
+  }
+  if (options.forceRefresh) {
+    payload.force_refresh = true;
+  }
+
+  const response = await fetch(withBase('/pipelines/files/metadata'), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const result = await handleResponse<PipelineMetadataResponse>(response);
+  return result.metadata ?? {};
 }
 
 export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {

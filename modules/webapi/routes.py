@@ -15,7 +15,7 @@ from .dependencies import (
     get_runtime_context_provider,
 )
 from .jobs import PipelineJob, PipelineJobTransitionError
-from .. import config_manager as cfg
+from .. import config_manager as cfg, metadata_manager
 from ..services.pipeline_service import PipelineService
 from .schemas import (
     PipelineJobActionResponse,
@@ -23,6 +23,8 @@ from .schemas import (
     PipelineFileBrowserResponse,
     PipelineFileEntry,
     PipelineDefaultsResponse,
+    PipelineMetadataRequest,
+    PipelineMetadataResponse,
     PipelineRequestPayload,
     PipelineStatusResponse,
     PipelineSubmissionResponse,
@@ -182,6 +184,34 @@ async def upload_pipeline_ebook(
         path=_format_relative_path(destination, destination_dir),
         type="file",
     )
+
+
+@router.post("/files/metadata", response_model=PipelineMetadataResponse)
+async def infer_pipeline_metadata(
+    payload: PipelineMetadataRequest,
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Infer metadata for the provided EPUB without creating a pipeline job."""
+
+    with context_provider.activation({}, {}) as context:
+        resolved = cfg.resolve_file_path(payload.input_file, context.books_dir)
+        if not resolved:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Input file not found")
+
+        try:
+            metadata = metadata_manager.infer_metadata(
+                payload.input_file,
+                existing_metadata=dict(payload.existing_metadata),
+                force_refresh=payload.force_refresh,
+            )
+        except Exception as exc:  # pragma: no cover - defensive logging
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc) or "Unable to infer metadata",
+            ) from exc
+
+    cleaned = {key: value for key, value in metadata.items() if value is not None}
+    return PipelineMetadataResponse(metadata=cleaned)
 
 
 @router.get("/defaults", response_model=PipelineDefaultsResponse)

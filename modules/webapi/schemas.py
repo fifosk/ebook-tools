@@ -46,6 +46,20 @@ class PipelineDefaultsResponse(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
 
 
+class PipelineMetadataRequest(BaseModel):
+    """Request payload for inferring metadata for an input file."""
+
+    input_file: str
+    force_refresh: bool = False
+    existing_metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PipelineMetadataResponse(BaseModel):
+    """Response payload containing inferred metadata for an input file."""
+
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
 class PipelineRequestPayload(BaseModel):
     """Schema mirroring :class:`PipelineRequest` for incoming submissions."""
 
