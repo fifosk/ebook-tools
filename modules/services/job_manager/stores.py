@@ -10,7 +10,7 @@ try:  # pragma: no cover - optional dependency
 except Exception:  # pragma: no cover - defensive import guard
     redis = None
 
-from ..jobs import persistence as job_persistence
+from ...jobs import persistence as job_persistence
 from .metadata import PipelineJobMetadata
 
 
