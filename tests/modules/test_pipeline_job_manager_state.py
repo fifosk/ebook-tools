@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from modules.progress_tracker import ProgressEvent, ProgressSnapshot
 from modules.services.job_manager import (
     JobStore,
     PipelineJobManager,
@@ -44,6 +45,11 @@ class _InMemoryJobStore(JobStore):
 
 def _build_metadata(job_id: str, status: PipelineJobStatus) -> PipelineJobMetadata:
     now = datetime.now(timezone.utc)
+    inputs = {
+        "input_file": "book.epub",
+        "sentences_per_output_file": 10,
+        "start_sentence": 1,
+    }
     return PipelineJobMetadata(
         job_id=job_id,
         status=status,
@@ -53,8 +59,8 @@ def _build_metadata(job_id: str, status: PipelineJobStatus) -> PipelineJobMetada
         error_message=None,
         last_event=None,
         result=None,
-        request_payload={"config": {}, "inputs": {"input_file": "book.epub"}},
-        resume_context={"config": {}, "inputs": {"input_file": "book.epub"}},
+        request_payload={"config": {}, "inputs": dict(inputs)},
+        resume_context={"config": {}, "inputs": dict(inputs)},
     )
 
 
@@ -92,13 +98,28 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
 
     manager = job_manager_factory(store)
 
+    job = manager.get(metadata.job_id)
+    job.status = PipelineJobStatus.RUNNING
+    job.last_event = ProgressEvent(
+        event_type="progress",
+        snapshot=ProgressSnapshot(completed=5, total=20, elapsed=1.0, speed=5.0, eta=None),
+        timestamp=1.0,
+        metadata={"stage": "media", "sentence_number": 12},
+    )
+    manager._jobs[metadata.job_id] = job
+
     paused = manager.pause_job(metadata.job_id)
     assert paused.status == PipelineJobStatus.PAUSED
     assert store.get(metadata.job_id).status == PipelineJobStatus.PAUSED
+    paused_inputs = paused.resume_context["inputs"]
+    assert paused_inputs["start_sentence"] == 11
+    assert paused_inputs["resume_block_start"] == 11
+    assert paused_inputs["resume_last_sentence"] == 12
 
     resumed = manager.resume_job(metadata.job_id)
     assert resumed.status == PipelineJobStatus.PENDING
     assert store.get(metadata.job_id).status == PipelineJobStatus.PENDING
+    assert resumed.request_payload["inputs"]["start_sentence"] == 11
 
     cancelled = manager.cancel_job(metadata.job_id)
     assert cancelled.status == PipelineJobStatus.CANCELLED
