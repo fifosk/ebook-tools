@@ -71,14 +71,21 @@ def test_resume_requeues_job_and_completes(monkeypatch):
     first_run_started = threading.Event()
     first_run_released = threading.Event()
     resumed_run_started = threading.Event()
+    progress_recorded = threading.Event()
 
     run_count = 0
+    start_sentences: list[int] = []
 
     def fake_run_pipeline(request: pipeline_service.PipelineRequest) -> pipeline_service.PipelineResponse:
         nonlocal run_count
+        start_sentences.append(request.inputs.start_sentence)
         run_count += 1
         if run_count == 1:
             first_run_started.set()
+            if request.progress_tracker is not None:
+                request.progress_tracker.set_total(10)
+                request.progress_tracker.record_media_completion(0, 4)
+            progress_recorded.set()
             while not request.stop_event.wait(0.01):
                 pass
             first_run_released.set()
@@ -91,14 +98,23 @@ def test_resume_requeues_job_and_completes(monkeypatch):
 
     manager = PipelineJobManager(max_workers=1, store=InMemoryJobStore())
     try:
-        job = manager.submit(_build_request())
+        request = _build_request()
+        request.inputs.start_sentence = 1
+        request.inputs.end_sentence = 8
+        job = manager.submit(request)
 
         assert first_run_started.wait(timeout=1.0)
+        assert progress_recorded.wait(timeout=1.0)
 
         paused = manager.pause_job(job.job_id)
         assert paused.status == PipelineJobStatus.PAUSED
 
         assert first_run_released.wait(timeout=1.0)
+
+        state = manager.get(job.job_id)
+        assert state.resume_context is not None
+        resume_inputs = state.resume_context.get("inputs", {})
+        assert resume_inputs.get("start_sentence") == 5
 
         resumed = manager.resume_job(job.job_id)
         assert resumed.status == PipelineJobStatus.PENDING
@@ -118,5 +134,6 @@ def test_resume_requeues_job_and_completes(monkeypatch):
         assert final_state.status == PipelineJobStatus.COMPLETED
         assert final_state.stop_event is not None and not final_state.stop_event.is_set()
         assert run_count == 2
+        assert start_sentences == [1, 5]
     finally:
         manager._executor.shutdown(wait=True)

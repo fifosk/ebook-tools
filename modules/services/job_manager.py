@@ -654,18 +654,152 @@ class PipelineJobManager:
         self._maybe_update_translation_pool_summary(job, pool)
         return pool, True
 
+    def _compute_resume_start(
+        self,
+        job: PipelineJob,
+        *,
+        base_start: int,
+        end_sentence: Optional[int],
+        tracker_snapshot: Optional[ProgressSnapshot],
+    ) -> Optional[int]:
+        """Return the next sentence number that should be processed on resume."""
+
+        candidate_values: list[int] = []
+        last_event = job.last_event
+        if last_event is not None:
+            metadata = dict(last_event.metadata)
+            sentence_number = metadata.get("sentence_number")
+            if isinstance(sentence_number, int):
+                candidate_values.append(sentence_number + 1)
+            else:
+                index = metadata.get("index")
+                if isinstance(index, int):
+                    candidate_values.append(base_start + index + 1)
+
+        if tracker_snapshot is not None:
+            completed = PipelineJobManager._coerce_non_negative_int(
+                tracker_snapshot.completed
+            )
+            total = PipelineJobManager._coerce_non_negative_int(tracker_snapshot.total)
+            if total is not None and completed is not None and completed >= total:
+                return None
+            if completed is not None and completed > 0:
+                candidate_values.append(base_start + completed)
+
+        if not candidate_values:
+            return None
+
+        resume_start = max(candidate_values)
+        upper_bound: Optional[int] = None
+        if tracker_snapshot is not None:
+            total = PipelineJobManager._coerce_non_negative_int(tracker_snapshot.total)
+            if total is not None:
+                upper_bound = base_start + total
+
+        if end_sentence is not None:
+            limit = end_sentence + 1
+            if upper_bound is None or limit < upper_bound:
+                upper_bound = limit
+
+        if upper_bound is not None and resume_start >= upper_bound:
+            return None
+
+        if resume_start <= base_start:
+            return None
+
+        return resume_start
+
+    def _update_resume_context(self, job: PipelineJob) -> None:
+        """Capture resume metadata reflecting the latest processed sentence."""
+
+        payload_source: Optional[Mapping[str, Any]]
+        if job.request is not None:
+            payload_source = serialize_pipeline_request(job.request)
+        elif job.resume_context is not None:
+            payload_source = copy.deepcopy(job.resume_context)
+        elif job.request_payload is not None:
+            payload_source = copy.deepcopy(job.request_payload)
+        else:
+            payload_source = None
+
+        if payload_source is None:
+            return
+
+        payload = dict(payload_source)
+        inputs_payload = payload.get("inputs")
+        if not isinstance(inputs_payload, Mapping):
+            job.resume_context = payload
+            return
+
+        base_start = self._coerce_non_negative_int(inputs_payload.get("start_sentence"))
+        if base_start is None and job.request is not None:
+            base_start = self._coerce_non_negative_int(job.request.inputs.start_sentence)
+        if base_start is None:
+            base_start = 0
+
+        end_sentence = inputs_payload.get("end_sentence")
+        if end_sentence is None and job.request is not None:
+            end_sentence = job.request.inputs.end_sentence
+        end_value = self._coerce_non_negative_int(end_sentence)
+
+        tracker_snapshot = job.tracker.snapshot() if job.tracker is not None else None
+
+        next_start = self._compute_resume_start(
+            job,
+            base_start=base_start,
+            end_sentence=end_value,
+            tracker_snapshot=tracker_snapshot,
+        )
+
+        updated_inputs = dict(inputs_payload)
+        if end_value is not None:
+            updated_inputs.setdefault("end_sentence", end_value)
+
+        if next_start is None:
+            payload["inputs"] = updated_inputs
+            job.resume_context = payload
+            return
+
+        updated_inputs["start_sentence"] = next_start
+        payload["inputs"] = updated_inputs
+        job.resume_context = payload
+
+    def _apply_resume_inputs(
+        self,
+        job: PipelineJob,
+        request: PipelineRequest,
+        payload: Optional[Mapping[str, Any]],
+    ) -> None:
+        if payload is None:
+            return
+        inputs_payload = payload.get("inputs") if isinstance(payload, Mapping) else None
+        if not isinstance(inputs_payload, Mapping):
+            return
+
+        start_candidate = self._coerce_non_negative_int(inputs_payload.get("start_sentence"))
+        if start_candidate is not None:
+            request.inputs.start_sentence = start_candidate
+
+        end_candidate = self._coerce_non_negative_int(inputs_payload.get("end_sentence"))
+        if end_candidate is not None:
+            request.inputs.end_sentence = end_candidate
+
     def _prepare_job_for_resume(self, job: PipelineJob) -> None:
         """Ensure ``job`` has the resources required for execution."""
 
+        self._update_resume_context(job)
+
+        resume_payload: Optional[Mapping[str, Any]]
+        if job.resume_context is not None:
+            resume_payload = copy.deepcopy(job.resume_context)
+        elif job.request_payload is not None:
+            resume_payload = copy.deepcopy(job.request_payload)
+        else:
+            resume_payload = None
+
         request = job.request
         if request is None:
-            raw_payload: Optional[Mapping[str, Any]]
-            if job.resume_context is not None:
-                raw_payload = copy.deepcopy(job.resume_context)
-            elif job.request_payload is not None:
-                raw_payload = copy.deepcopy(job.request_payload)
-            else:
-                raw_payload = None
+            raw_payload = resume_payload
 
             if raw_payload is None:
                 raise ValueError(
@@ -694,8 +828,12 @@ class PipelineJobManager:
             )
             request.job_id = job.job_id
             job.request = request
-            job.request_payload = copy.deepcopy(payload)
-            job.resume_context = copy.deepcopy(payload)
+            if job.request_payload is None:
+                job.request_payload = copy.deepcopy(payload)
+            if job.resume_context is None:
+                job.resume_context = copy.deepcopy(payload)
+
+        self._apply_resume_inputs(job, request, resume_payload)
 
         tracker = job.tracker
         if tracker is None:
@@ -884,6 +1022,7 @@ class PipelineJobManager:
                 job.stop_event.set()
             if job.request is not None and job.request.stop_event is not None:
                 job.request.stop_event.set()
+            self._update_resume_context(job)
 
         return self._mutate_job(job_id, _pause)
 
