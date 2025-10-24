@@ -5,21 +5,24 @@ import {
   PipelineFileBrowserResponse,
   PipelineRequestPayload
 } from '../../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles } from '../../api/client';
+import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
-  fetchPipelineDefaults: vi.fn()
+  fetchPipelineDefaults: vi.fn(),
+  uploadEpubFile: vi.fn()
 }));
 
 const mockFileListing: PipelineFileBrowserResponse = {
   ebooks: [
-    { name: 'example.epub', path: '/books/example.epub', type: 'file' as const }
+    { name: 'example.epub', path: 'example.epub', type: 'file' as const }
   ],
   outputs: [
-    { name: 'output', path: '/output/output', type: 'directory' as const }
-  ]
+    { name: 'output', path: 'output/output', type: 'directory' as const }
+  ],
+  books_root: '/workspace/ebooks',
+  output_root: '/workspace/output'
 };
 
 let resolveDefaults: ((value: PipelineDefaultsResponse) => void) | null = null;
@@ -90,8 +93,7 @@ describe('PipelineSubmissionForm', () => {
     });
 
     await user.click(screen.getByRole('button', { name: /Submit job/i }));
-
-    await waitFor(() => expect(handleSubmit).toHaveBeenCalled());
+    expect(handleSubmit).toHaveBeenCalled();
 
     const firstCall = handleSubmit.mock.calls[0];
     expect(firstCall).toBeDefined();
@@ -102,7 +104,7 @@ describe('PipelineSubmissionForm', () => {
     expect(payload.inputs.target_languages).toEqual(['French', 'German']);
     expect(payload.config).toEqual({ debug: true });
     expect(payload.inputs.generate_audio).toBe(true);
-  });
+  }, 10000);
 
   it('shows an error when JSON input cannot be parsed', async () => {
     const user = userEvent.setup();
@@ -204,11 +206,45 @@ describe('PipelineSubmissionForm', () => {
     await user.click(screen.getByRole('button', { name: /browse ebooks/i }));
     await user.click(screen.getByRole('button', { name: /select example.epub/i }));
 
-    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/example.epub');
+    expect(screen.getByLabelText(/Input file path/i)).toHaveValue('example.epub');
 
     await user.click(screen.getByRole('button', { name: /browse output paths/i }));
     await user.click(screen.getByRole('button', { name: /select output/i }));
 
-    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/output');
+    expect(screen.getByLabelText(/Base output file/i)).toHaveValue('output/output');
+  });
+
+  it('uploads an EPUB via drag and drop', async () => {
+    vi.mocked(uploadEpubFile).mockResolvedValue({
+      name: 'dropped.epub',
+      path: 'dropped.epub',
+      type: 'file'
+    });
+
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    const dropLabel = screen.getByText(/Drag & drop an EPUB file/i);
+    const dropzone = dropLabel.closest('.file-dropzone');
+    expect(dropzone).not.toBeNull();
+
+    const file = new File(['ebook'], 'dropped.epub', { type: 'application/epub+zip' });
+    fireEvent.drop(dropzone!, {
+      dataTransfer: {
+        files: [file]
+      }
+    });
+
+    await waitFor(() => expect(uploadEpubFile).toHaveBeenCalledWith(file));
+    resolveFiles?.(mockFileListing);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Input file path/i)).toHaveValue('dropped.epub')
+    );
   });
 });

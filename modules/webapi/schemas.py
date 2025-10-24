@@ -261,3 +261,5 @@ class PipelineFileBrowserResponse(BaseModel):
 
     ebooks: List[PipelineFileEntry] = Field(default_factory=list)
     outputs: List[PipelineFileEntry] = Field(default_factory=list)
+    books_root: str = ""
+    output_root: str = ""

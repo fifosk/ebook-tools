@@ -1,6 +1,6 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { PipelineFileBrowserResponse, PipelineRequestPayload } from '../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles } from '../api/client';
+import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../api/client';
 import LanguageSelector from './LanguageSelector';
 import {
   AUDIO_MODE_OPTIONS,
@@ -10,9 +10,19 @@ import {
 } from '../constants/menuOptions';
 import FileSelectionDialog from './FileSelectionDialog';
 
+export type PipelineFormSection =
+  | 'source'
+  | 'language'
+  | 'output'
+  | 'performance'
+  | 'advanced'
+  | 'submit';
+
 type Props = {
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
   isSubmitting?: boolean;
+  activeSection?: PipelineFormSection;
+  externalError?: string | null;
 };
 
 type JsonFields =
@@ -79,6 +89,42 @@ const DEFAULT_FORM_STATE: FormState = {
   environment_overrides: '{}',
   pipeline_overrides: '{}',
   book_metadata: '{}'
+};
+
+const SECTION_ORDER: PipelineFormSection[] = [
+  'source',
+  'language',
+  'output',
+  'performance',
+  'advanced',
+  'submit'
+];
+
+const SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
+  source: {
+    title: 'Source material',
+    description: 'Select the EPUB to ingest and where generated files should be written.'
+  },
+  language: {
+    title: 'Language & translation',
+    description: 'Configure the input language, target translations, and processing window.'
+  },
+  output: {
+    title: 'Output & narration',
+    description: 'Control narration voices, written formats, and other presentation options.'
+  },
+  performance: {
+    title: 'Performance tuning',
+    description: 'Adjust concurrency and orchestration parameters to fit your environment.'
+  },
+  advanced: {
+    title: 'Advanced options',
+    description: 'Fine-tune JSON overrides and experimental controls before submission.'
+  },
+  submit: {
+    title: 'Submit pipeline job',
+    description: 'Review the configured settings and enqueue the job for processing.'
+  }
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -295,13 +341,39 @@ function parseOptionalNumberInput(value: string): number | undefined {
   return parsed;
 }
 
-export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props) {
+function formatList(items: string[]): string {
+  if (items.length === 0) {
+    return '';
+  }
+  if (items.length === 1) {
+    return items[0];
+  }
+  if (items.length === 2) {
+    return `${items[0]} and ${items[1]}`;
+  }
+  const initial = items.slice(0, -1).join(', ');
+  return `${initial}, and ${items[items.length - 1]}`;
+}
+
+export function PipelineSubmissionForm({
+  onSubmit,
+  isSubmitting = false,
+  activeSection,
+  externalError = null
+}: Props) {
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [error, setError] = useState<string | null>(null);
   const [fileOptions, setFileOptions] = useState<PipelineFileBrowserResponse | null>(null);
   const [fileDialogError, setFileDialogError] = useState<string | null>(null);
   const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(true);
   const [activeFileDialog, setActiveFileDialog] = useState<'input' | 'output' | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [recentUploadName, setRecentUploadName] = useState<string | null>(null);
+
+  const isSubmitSection = !activeSection || activeSection === 'submit';
+  const visibleSections = activeSection ? [activeSection] : SECTION_ORDER;
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((previous) => ({
@@ -311,6 +383,8 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
   };
 
   const handleInputFileChange = (value: string) => {
+    setRecentUploadName(null);
+    setUploadError(null);
     setFormState((previous) => {
       if (previous.input_file === value) {
         return previous;
@@ -326,6 +400,90 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
   const availableAudioModes = useMemo<MenuOption[]>(() => AUDIO_MODE_OPTIONS, []);
   const availableWrittenModes = useMemo<MenuOption[]>(() => WRITTEN_MODE_OPTIONS, []);
   const availableVoices = useMemo<MenuOption[]>(() => VOICE_OPTIONS, []);
+  const normalizedTargetLanguages = useMemo(() => {
+    const manualTargets = formState.custom_target_languages
+      .split(',')
+      .map((language) => language.trim())
+      .filter(Boolean);
+    return Array.from(new Set([...formState.target_languages, ...manualTargets]));
+  }, [formState.custom_target_languages, formState.target_languages]);
+
+  const refreshFiles = useCallback(async () => {
+    setIsLoadingFiles(true);
+    try {
+      const response = await fetchPipelineFiles();
+      setFileOptions(response);
+      setFileDialogError(null);
+    } catch (fetchError) {
+      const message =
+        fetchError instanceof Error ? fetchError.message : 'Unable to load available files.';
+      setFileDialogError(message);
+      setFileOptions(null);
+    } finally {
+      setIsLoadingFiles(false);
+    }
+  }, []);
+
+  const processFileUpload = useCallback(
+    async (file: File) => {
+      setUploadError(null);
+      setRecentUploadName(null);
+
+      const filename = file.name || 'uploaded.epub';
+      if (!filename.toLowerCase().endsWith('.epub')) {
+        setUploadError('Only EPUB files can be imported.');
+        return;
+      }
+
+      setIsUploadingFile(true);
+      try {
+        const entry = await uploadEpubFile(file);
+        handleInputFileChange(entry.path);
+        setRecentUploadName(entry.name);
+        await refreshFiles();
+      } catch (uploadFailure) {
+        const message =
+          uploadFailure instanceof Error
+            ? uploadFailure.message
+            : 'Unable to upload EPUB file.';
+        setUploadError(message);
+      } finally {
+        setIsUploadingFile(false);
+      }
+    },
+    [handleInputFileChange, refreshFiles]
+  );
+
+  const handleDropzoneDragOver = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!isDraggingFile) {
+        setIsDraggingFile(true);
+      }
+    },
+    [isDraggingFile]
+  );
+
+  const handleDropzoneDragLeave = useCallback((event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDraggingFile(false);
+  }, []);
+
+  const handleDropzoneDrop = useCallback(
+    (event: DragEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setIsDraggingFile(false);
+
+      const droppedFile = event.dataTransfer?.files?.[0];
+      if (droppedFile) {
+        void processFileUpload(droppedFile);
+      }
+    },
+    [processFileUpload]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -347,37 +505,14 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    setIsLoadingFiles(true);
-    fetchPipelineFiles()
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        setFileOptions(response);
-        setFileDialogError(null);
-      })
-      .catch((fetchError) => {
-        if (cancelled) {
-          return;
-        }
-        const message =
-          fetchError instanceof Error ? fetchError.message : 'Unable to load available files.';
-        setFileDialogError(message);
-        setFileOptions(null);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setIsLoadingFiles(false);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    void refreshFiles();
+  }, [refreshFiles]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!isSubmitSection) {
+      return;
+    }
     setError(null);
 
     try {
@@ -391,14 +526,7 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
         book_metadata: parseJsonField('book_metadata', formState.book_metadata)
       };
 
-      const manualTargets = formState.custom_target_languages
-        .split(',')
-        .map((language) => language.trim())
-        .filter(Boolean);
-
-      const targetLanguages = Array.from(new Set([...formState.target_languages, ...manualTargets]));
-
-      if (targetLanguages.length === 0) {
+      if (normalizedTargetLanguages.length === 0) {
         throw new Error('Please choose at least one target language.');
       }
 
@@ -437,7 +565,7 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
           input_file: formState.input_file,
           base_output_file: formState.base_output_file,
           input_language: formState.input_language,
-          target_languages: targetLanguages,
+          target_languages: normalizedTargetLanguages,
           sentences_per_output_file: Number(formState.sentences_per_output_file),
           start_sentence: Number(formState.start_sentence),
           end_sentence: formState.end_sentence ? Number(formState.end_sentence) : null,
@@ -465,432 +593,566 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
     }
   };
 
+  const headerTitle = activeSection ? SECTION_META[activeSection].title : 'Submit a Pipeline Job';
+  const headerDescription = activeSection
+    ? SECTION_META[activeSection].description
+    : 'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';
+  const missingRequirements: string[] = [];
+  if (!formState.input_file.trim()) {
+    missingRequirements.push('an input EPUB');
+  }
+  if (!formState.base_output_file.trim()) {
+    missingRequirements.push('a base output path');
+  }
+  if (normalizedTargetLanguages.length === 0) {
+    missingRequirements.push('at least one target language');
+  }
+  const dropzoneClassNames = ['file-dropzone'];
+  if (isDraggingFile) {
+    dropzoneClassNames.push('file-dropzone--dragging');
+  }
+  if (isUploadingFile) {
+    dropzoneClassNames.push('file-dropzone--uploading');
+  }
+  const dropzoneClassName = dropzoneClassNames.join(' ');
+  const targetLanguageSummary =
+    normalizedTargetLanguages.length > 0 ? normalizedTargetLanguages.join(', ') : 'None selected';
+  const isSubmitDisabled = isSubmitting || missingRequirements.length > 0;
+  const outputFormats =
+    [
+      formState.output_html ? 'HTML' : null,
+      formState.output_pdf ? 'PDF' : null,
+      formState.generate_audio ? 'Audio' : null,
+      formState.generate_video ? 'Video' : null
+    ]
+      .filter(Boolean)
+      .join(', ') || 'Default';
+
+  const renderSection = (section: PipelineFormSection) => {
+    switch (section) {
+      case 'source':
+        return (
+          <section key="source" className="pipeline-card" aria-labelledby="pipeline-card-source">
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-source">{SECTION_META.source.title}</h3>
+              <p>{SECTION_META.source.description}</p>
+            </header>
+            <div className="pipeline-card__body">
+              <label htmlFor="input_file">Input file path</label>
+              <input
+                id="input_file"
+                name="input_file"
+                type="text"
+                value={formState.input_file}
+                onChange={(event) => handleInputFileChange(event.target.value)}
+                placeholder="/books/source.epub"
+                required
+              />
+              <div className="pipeline-card__actions">
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => setActiveFileDialog('input')}
+                  disabled={!fileOptions || isLoadingFiles}
+                >
+                  {isLoadingFiles ? 'Loading…' : 'Browse ebooks'}
+                </button>
+              </div>
+              {fileDialogError ? (
+                <p className="form-help-text" role="status">
+                  {fileDialogError}
+                </p>
+              ) : null}
+              <div
+                className={dropzoneClassName}
+                onDragEnter={handleDropzoneDragOver}
+                onDragOver={handleDropzoneDragOver}
+                onDragLeave={handleDropzoneDragLeave}
+                onDrop={handleDropzoneDrop}
+              >
+                <label htmlFor="epub-upload-input">
+                  <strong>{isUploadingFile ? 'Uploading EPUB…' : 'Drag & drop an EPUB file'}</strong>
+                  <span>or click to choose a file from your computer.</span>
+                </label>
+                <input
+                  id="epub-upload-input"
+                  type="file"
+                  accept=".epub"
+                  onChange={(event) => {
+                    const nextFile = event.target.files?.[0] ?? null;
+                    if (nextFile) {
+                      void processFileUpload(nextFile);
+                    }
+                    event.target.value = '';
+                  }}
+                  disabled={isUploadingFile}
+                />
+              </div>
+              {uploadError ? (
+                <p className="form-help-text form-help-text--error" role="alert">
+                  {uploadError}
+                </p>
+              ) : null}
+              {recentUploadName ? (
+                <p className="form-help-text form-help-text--success" role="status">
+                  Uploaded <strong>{recentUploadName}</strong> to the ebooks library.
+                </p>
+              ) : null}
+              <label htmlFor="base_output_file">Base output file</label>
+              <input
+                id="base_output_file"
+                name="base_output_file"
+                type="text"
+                value={formState.base_output_file}
+                onChange={(event) => handleChange('base_output_file', event.target.value)}
+                placeholder="ebooks/output"
+                required
+              />
+              <div className="pipeline-card__actions">
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => setActiveFileDialog('output')}
+                  disabled={!fileOptions || isLoadingFiles}
+                >
+                  {isLoadingFiles ? 'Loading…' : 'Browse output paths'}
+                </button>
+              </div>
+            </div>
+          </section>
+        );
+      case 'language':
+        return (
+          <section
+            key="language"
+            className="pipeline-card"
+            aria-labelledby="pipeline-card-language"
+          >
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-language">{SECTION_META.language.title}</h3>
+              <p>{SECTION_META.language.description}</p>
+            </header>
+            <div className="pipeline-card__body">
+              <label htmlFor="input_language">Input language</label>
+              <input
+                id="input_language"
+                name="input_language"
+                type="text"
+                value={formState.input_language}
+                onChange={(event) => handleChange('input_language', event.target.value)}
+                required
+                placeholder="English"
+              />
+              <LanguageSelector
+                value={formState.target_languages}
+                onChange={(next) => handleChange('target_languages', next)}
+              />
+              <label htmlFor="custom_target_languages">Other target languages (comma separated)</label>
+              <input
+                id="custom_target_languages"
+                name="custom_target_languages"
+                type="text"
+                value={formState.custom_target_languages}
+                onChange={(event) => handleChange('custom_target_languages', event.target.value)}
+                placeholder="e.g. Klingon, Sindarin"
+              />
+              <div className="field-grid">
+                <label htmlFor="sentences_per_output_file">
+                  Sentences per output file
+                  <input
+                    id="sentences_per_output_file"
+                    name="sentences_per_output_file"
+                    type="number"
+                    min={1}
+                    value={formState.sentences_per_output_file}
+                    onChange={(event) =>
+                      handleChange('sentences_per_output_file', Number(event.target.value))
+                    }
+                  />
+                </label>
+                <label htmlFor="start_sentence">
+                  Start sentence
+                  <input
+                    id="start_sentence"
+                    name="start_sentence"
+                    type="number"
+                    min={1}
+                    value={formState.start_sentence}
+                    onChange={(event) => handleChange('start_sentence', Number(event.target.value))}
+                  />
+                </label>
+                <label htmlFor="end_sentence">
+                  End sentence (optional)
+                  <input
+                    id="end_sentence"
+                    name="end_sentence"
+                    type="number"
+                    min={formState.start_sentence}
+                    value={formState.end_sentence}
+                    onChange={(event) => handleChange('end_sentence', event.target.value)}
+                    placeholder="Leave blank for entire document"
+                  />
+                </label>
+              </div>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="stitch_full"
+                  checked={formState.stitch_full}
+                  onChange={(event) => handleChange('stitch_full', event.target.checked)}
+                />
+                Stitch full document once complete
+              </label>
+            </div>
+          </section>
+        );
+      case 'output':
+        return (
+          <section key="output" className="pipeline-card" aria-labelledby="pipeline-card-output">
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-output">{SECTION_META.output.title}</h3>
+              <p>{SECTION_META.output.description}</p>
+            </header>
+            <div className="pipeline-card__body">
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="generate_audio"
+                  checked={formState.generate_audio}
+                  onChange={(event) => handleChange('generate_audio', event.target.checked)}
+                />
+                Generate narration tracks
+              </label>
+              <div className="option-grid">
+                {availableAudioModes.map((option) => (
+                  <label key={option.value} className="option-card">
+                    <input
+                      type="radio"
+                      name="audio_mode"
+                      value={option.value}
+                      checked={formState.audio_mode === option.value}
+                      onChange={(event) => handleChange('audio_mode', event.target.value)}
+                    />
+                    <div>
+                      <strong>{option.label}</strong>
+                      <p>{option.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="option-grid">
+                {availableVoices.map((option) => (
+                  <label key={option.value} className="option-card">
+                    <input
+                      type="radio"
+                      name="selected_voice"
+                      value={option.value}
+                      checked={formState.selected_voice === option.value}
+                      onChange={(event) => handleChange('selected_voice', event.target.value)}
+                    />
+                    <div>
+                      <strong>{option.label}</strong>
+                      <p>{option.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <div className="option-grid">
+                {availableWrittenModes.map((option) => (
+                  <label key={option.value} className="option-card">
+                    <input
+                      type="radio"
+                      name="written_mode"
+                      value={option.value}
+                      checked={formState.written_mode === option.value}
+                      onChange={(event) => handleChange('written_mode', event.target.value)}
+                    />
+                    <div>
+                      <strong>{option.label}</strong>
+                      <p>{option.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="output_html"
+                  checked={formState.output_html}
+                  onChange={(event) => handleChange('output_html', event.target.checked)}
+                />
+                Generate HTML output
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="output_pdf"
+                  checked={formState.output_pdf}
+                  onChange={(event) => handleChange('output_pdf', event.target.checked)}
+                />
+                Generate PDF output
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="include_transliteration"
+                  checked={formState.include_transliteration}
+                  onChange={(event) => handleChange('include_transliteration', event.target.checked)}
+                />
+                Include transliteration in written output
+              </label>
+              <label htmlFor="tempo">
+                Tempo
+                <input
+                  id="tempo"
+                  name="tempo"
+                  type="number"
+                  step="0.1"
+                  min={0.5}
+                  value={formState.tempo}
+                  onChange={(event) => handleChange('tempo', Number(event.target.value))}
+                />
+              </label>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  name="generate_video"
+                  checked={formState.generate_video}
+                  onChange={(event) => handleChange('generate_video', event.target.checked)}
+                />
+                Generate stitched video assets
+              </label>
+            </div>
+          </section>
+        );
+      case 'performance':
+        return (
+          <section
+            key="performance"
+            className="pipeline-card"
+            aria-labelledby="pipeline-card-performance"
+          >
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-performance">{SECTION_META.performance.title}</h3>
+              <p>{SECTION_META.performance.description}</p>
+            </header>
+            <div className="pipeline-card__body">
+              <div className="collapsible-group">
+                <details>
+                  <summary>Translation threads</summary>
+                  <p className="form-help-text">
+                    Control how many translation and media workers run simultaneously. Leave blank to
+                    use the backend default.
+                  </p>
+                  <label htmlFor="thread_count">
+                    Worker threads
+                    <input
+                      id="thread_count"
+                      name="thread_count"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={formState.thread_count}
+                      onChange={(event) => handleChange('thread_count', event.target.value)}
+                      placeholder="Default"
+                    />
+                  </label>
+                </details>
+                <details>
+                  <summary>Job orchestration</summary>
+                  <p className="form-help-text">
+                    Tune job level parallelism and queue pressure for large or resource constrained
+                    hosts.
+                  </p>
+                  <label htmlFor="job_max_workers">
+                    Maximum concurrent jobs
+                    <input
+                      id="job_max_workers"
+                      name="job_max_workers"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={formState.job_max_workers}
+                      onChange={(event) => handleChange('job_max_workers', event.target.value)}
+                      placeholder="Default"
+                    />
+                  </label>
+                  <label htmlFor="queue_size">
+                    Translation queue size
+                    <input
+                      id="queue_size"
+                      name="queue_size"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={formState.queue_size}
+                      onChange={(event) => handleChange('queue_size', event.target.value)}
+                      placeholder="Default"
+                    />
+                  </label>
+                </details>
+                <details>
+                  <summary>Slide rendering parallelism</summary>
+                  <p className="form-help-text">
+                    Select the rendering backend for slide generation and optionally cap worker count
+                    when video output is enabled.
+                  </p>
+                  <label htmlFor="slide_parallelism">
+                    Slide parallelism mode
+                    <select
+                      id="slide_parallelism"
+                      name="slide_parallelism"
+                      value={formState.slide_parallelism}
+                      onChange={(event) => handleChange('slide_parallelism', event.target.value)}
+                    >
+                      <option value="">Use configured default</option>
+                      <option value="off">Off</option>
+                      <option value="auto">Auto</option>
+                      <option value="thread">Thread</option>
+                      <option value="process">Process</option>
+                    </select>
+                  </label>
+                  <label htmlFor="slide_parallel_workers">
+                    Parallel slide workers
+                    <input
+                      id="slide_parallel_workers"
+                      name="slide_parallel_workers"
+                      type="number"
+                      min={1}
+                      step={1}
+                      value={formState.slide_parallel_workers}
+                      onChange={(event) => handleChange('slide_parallel_workers', event.target.value)}
+                      placeholder="Default"
+                    />
+                  </label>
+                </details>
+              </div>
+            </div>
+          </section>
+        );
+      case 'advanced':
+        return (
+          <section
+            key="advanced"
+            className="pipeline-card"
+            aria-labelledby="pipeline-card-advanced"
+          >
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-advanced">{SECTION_META.advanced.title}</h3>
+              <p>{SECTION_META.advanced.description}</p>
+            </header>
+            <div className="pipeline-card__body">
+              <details>
+                <summary>Config overrides (JSON)</summary>
+                <label className="visually-hidden" htmlFor="config">
+                  Config overrides JSON
+                </label>
+                <textarea
+                  id="config"
+                  name="config"
+                  value={formState.config}
+                  onChange={(event) => handleChange('config', event.target.value)}
+                />
+              </details>
+              <details>
+                <summary>Environment overrides (JSON)</summary>
+                <label className="visually-hidden" htmlFor="environment_overrides">
+                  Environment overrides JSON
+                </label>
+                <textarea
+                  id="environment_overrides"
+                  name="environment_overrides"
+                  value={formState.environment_overrides}
+                  onChange={(event) => handleChange('environment_overrides', event.target.value)}
+                />
+              </details>
+              <details>
+                <summary>Pipeline overrides (JSON)</summary>
+                <label className="visually-hidden" htmlFor="pipeline_overrides">
+                  Pipeline overrides JSON
+                </label>
+                <textarea
+                  id="pipeline_overrides"
+                  name="pipeline_overrides"
+                  value={formState.pipeline_overrides}
+                  onChange={(event) => handleChange('pipeline_overrides', event.target.value)}
+                />
+              </details>
+              <details>
+                <summary>Book metadata (JSON)</summary>
+                <label className="visually-hidden" htmlFor="book_metadata">
+                  Book metadata JSON
+                </label>
+                <textarea
+                  id="book_metadata"
+                  name="book_metadata"
+                  value={formState.book_metadata}
+                  onChange={(event) => handleChange('book_metadata', event.target.value)}
+                />
+              </details>
+            </div>
+          </section>
+        );
+      case 'submit':
+      default:
+        return (
+          <section key="submit" className="pipeline-card" aria-labelledby="pipeline-card-submit">
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-submit">{SECTION_META.submit.title}</h3>
+              <p>{SECTION_META.submit.description}</p>
+            </header>
+            <div className="pipeline-card__body">
+              {missingRequirements.length > 0 ? (
+                <div className="form-callout form-callout--warning" role="status">
+                  Provide {formatList(missingRequirements)} before submitting.
+                </div>
+              ) : (
+                <div className="form-callout form-callout--success" role="status">
+                  All required settings are ready to submit.
+                </div>
+              )}
+              {isSubmitSection && (error || externalError) ? (
+                <div className="alert" role="alert">
+                  {error ?? externalError}
+                </div>
+              ) : null}
+              <dl className="pipeline-summary">
+                <div>
+                  <dt>Input file</dt>
+                  <dd>{formState.input_file || 'Not set'}</dd>
+                </div>
+                <div>
+                  <dt>Base output</dt>
+                  <dd>{formState.base_output_file || 'Not set'}</dd>
+                </div>
+                <div>
+                  <dt>Input language</dt>
+                  <dd>{formState.input_language || 'Not set'}</dd>
+                </div>
+                <div>
+                  <dt>Target languages</dt>
+                  <dd>{targetLanguageSummary}</dd>
+                </div>
+                <div>
+                  <dt>Output formats</dt>
+                  <dd>{outputFormats}</dd>
+                </div>
+              </dl>
+              <button type="submit" disabled={isSubmitDisabled}>
+                {isSubmitting ? 'Submitting…' : 'Submit job'}
+              </button>
+            </div>
+          </section>
+        );
+    }
+  };
+
   return (
-    <section>
-      <h2>Submit a Pipeline Job</h2>
-      <p>
-        Provide the input file, target languages, and any overrides to enqueue a new ebook processing
-        job.
-      </p>
-      {error ? <div className="alert" role="alert">{error}</div> : null}
-      <form onSubmit={handleSubmit} className="pipeline-form">
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Source material</legend>
-          <details open>
-            <summary>Source material</summary>
-            <label htmlFor="input_file">Input file path</label>
-            <input
-              id="input_file"
-              name="input_file"
-              type="text"
-              value={formState.input_file}
-              onChange={(event) => handleInputFileChange(event.target.value)}
-              placeholder="/books/source.epub"
-              required
-            />
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => setActiveFileDialog('input')}
-              disabled={!fileOptions || isLoadingFiles}
-            >
-              {isLoadingFiles ? 'Loading…' : 'Browse ebooks'}
-            </button>
-            {fileDialogError ? (
-              <p className="form-help-text" role="status">
-                {fileDialogError}
-              </p>
-            ) : null}
-
-            <label htmlFor="base_output_file">Base output file</label>
-            <input
-              id="base_output_file"
-              name="base_output_file"
-              type="text"
-              value={formState.base_output_file}
-              onChange={(event) => handleChange('base_output_file', event.target.value)}
-              placeholder="ebooks/output"
-              required
-            />
-            <button
-              type="button"
-              className="link-button"
-              onClick={() => setActiveFileDialog('output')}
-              disabled={!fileOptions || isLoadingFiles}
-            >
-              {isLoadingFiles ? 'Loading…' : 'Browse output paths'}
-            </button>
-
-            <label htmlFor="input_language">Input language</label>
-            <input
-              id="input_language"
-              name="input_language"
-              type="text"
-              value={formState.input_language}
-              onChange={(event) => handleChange('input_language', event.target.value)}
-              required
-              placeholder="English"
-            />
-          </details>
-        </fieldset>
-
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Target languages</legend>
-          <details open>
-            <summary>Target languages</summary>
-            <LanguageSelector
-              value={formState.target_languages}
-              onChange={(next) => handleChange('target_languages', next)}
-            />
-            <label htmlFor="custom_target_languages">Other target languages (comma separated)</label>
-            <input
-              id="custom_target_languages"
-              name="custom_target_languages"
-              type="text"
-              value={formState.custom_target_languages}
-              onChange={(event) => handleChange('custom_target_languages', event.target.value)}
-              placeholder="e.g. Klingon, Sindarin"
-            />
-          </details>
-        </fieldset>
-
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Sentence window</legend>
-          <details open>
-            <summary>Sentence window</summary>
-            <div className="field-grid">
-              <label htmlFor="sentences_per_output_file">
-                Sentences per output file
-                <input
-                  id="sentences_per_output_file"
-                  name="sentences_per_output_file"
-                  type="number"
-                  min={1}
-                  value={formState.sentences_per_output_file}
-                  onChange={(event) =>
-                    handleChange('sentences_per_output_file', Number(event.target.value))
-                  }
-                />
-              </label>
-              <label htmlFor="start_sentence">
-                Start sentence
-                <input
-                  id="start_sentence"
-                  name="start_sentence"
-                  type="number"
-                  min={1}
-                  value={formState.start_sentence}
-                  onChange={(event) => handleChange('start_sentence', Number(event.target.value))}
-                />
-              </label>
-              <label htmlFor="end_sentence">
-                End sentence (optional)
-                <input
-                  id="end_sentence"
-                  name="end_sentence"
-                  type="number"
-                  min={formState.start_sentence}
-                  value={formState.end_sentence}
-                  onChange={(event) => handleChange('end_sentence', event.target.value)}
-                  placeholder="Leave blank for entire document"
-                />
-              </label>
-            </div>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="stitch_full"
-                checked={formState.stitch_full}
-                onChange={(event) => handleChange('stitch_full', event.target.checked)}
-              />
-              Stitch full document once complete
-            </label>
-          </details>
-        </fieldset>
-
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Audio narration</legend>
-          <details open>
-            <summary>Audio narration</summary>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="generate_audio"
-                checked={formState.generate_audio}
-                onChange={(event) => handleChange('generate_audio', event.target.checked)}
-              />
-              Generate narration tracks
-            </label>
-
-            <div className="option-grid">
-              {availableAudioModes.map((option) => (
-                <label key={option.value} className="option-card">
-                  <input
-                    type="radio"
-                    name="audio_mode"
-                    value={option.value}
-                    checked={formState.audio_mode === option.value}
-                    onChange={(event) => handleChange('audio_mode', event.target.value)}
-                  />
-                  <div>
-                    <strong>{option.label}</strong>
-                    <p>{option.description}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <div className="option-grid">
-              {availableVoices.map((option) => (
-                <label key={option.value} className="option-card">
-                  <input
-                    type="radio"
-                    name="selected_voice"
-                    value={option.value}
-                    checked={formState.selected_voice === option.value}
-                    onChange={(event) => handleChange('selected_voice', event.target.value)}
-                  />
-                  <div>
-                    <strong>{option.label}</strong>
-                    <p>{option.description}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </details>
-        </fieldset>
-
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Written output</legend>
-          <details open>
-            <summary>Written output</summary>
-            <div className="option-grid">
-              {availableWrittenModes.map((option) => (
-                <label key={option.value} className="option-card">
-                  <input
-                    type="radio"
-                    name="written_mode"
-                    value={option.value}
-                    checked={formState.written_mode === option.value}
-                    onChange={(event) => handleChange('written_mode', event.target.value)}
-                  />
-                  <div>
-                    <strong>{option.label}</strong>
-                    <p>{option.description}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="output_html"
-                checked={formState.output_html}
-                onChange={(event) => handleChange('output_html', event.target.checked)}
-              />
-              Generate HTML output
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="output_pdf"
-                checked={formState.output_pdf}
-                onChange={(event) => handleChange('output_pdf', event.target.checked)}
-              />
-              Generate PDF output
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="include_transliteration"
-                checked={formState.include_transliteration}
-                onChange={(event) => handleChange('include_transliteration', event.target.checked)}
-              />
-              Include transliteration in written output
-            </label>
-          </details>
-        </fieldset>
-
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Performance tuning</legend>
-          <details open>
-            <summary>Performance tuning</summary>
-            <p className="form-help-text">
-              Adjust concurrency and queue sizing to match your hardware capabilities.
-            </p>
-            <div className="collapsible-group">
-              <details>
-                <summary>Translation threads</summary>
-                <p className="form-help-text">
-                  Control how many translation and media workers run simultaneously. Leave blank to
-                  use the backend default.
-                </p>
-                <label htmlFor="thread_count">
-                  Worker threads
-                  <input
-                    id="thread_count"
-                    name="thread_count"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={formState.thread_count}
-                    onChange={(event) => handleChange('thread_count', event.target.value)}
-                    placeholder="Default"
-                  />
-                </label>
-              </details>
-              <details>
-                <summary>Job orchestration</summary>
-                <p className="form-help-text">
-                  Tune job level parallelism and queue pressure for large or resource constrained
-                  hosts.
-                </p>
-                <label htmlFor="job_max_workers">
-                  Maximum concurrent jobs
-                  <input
-                    id="job_max_workers"
-                    name="job_max_workers"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={formState.job_max_workers}
-                    onChange={(event) => handleChange('job_max_workers', event.target.value)}
-                    placeholder="Default"
-                  />
-                </label>
-                <label htmlFor="queue_size">
-                  Translation queue size
-                  <input
-                    id="queue_size"
-                    name="queue_size"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={formState.queue_size}
-                    onChange={(event) => handleChange('queue_size', event.target.value)}
-                    placeholder="Default"
-                  />
-                </label>
-              </details>
-              <details>
-                <summary>Slide rendering parallelism</summary>
-                <p className="form-help-text">
-                  Select the rendering backend for slide generation and optionally cap worker count
-                  when video output is enabled.
-                </p>
-                <label htmlFor="slide_parallelism">
-                  Slide parallelism mode
-                  <select
-                    id="slide_parallelism"
-                    name="slide_parallelism"
-                    value={formState.slide_parallelism}
-                    onChange={(event) => handleChange('slide_parallelism', event.target.value)}
-                  >
-                    <option value="">Use configured default</option>
-                    <option value="off">Off</option>
-                    <option value="auto">Auto</option>
-                    <option value="thread">Thread</option>
-                    <option value="process">Process</option>
-                  </select>
-                </label>
-                <label htmlFor="slide_parallel_workers">
-                  Parallel slide workers
-                  <input
-                    id="slide_parallel_workers"
-                    name="slide_parallel_workers"
-                    type="number"
-                    min={1}
-                    step={1}
-                    value={formState.slide_parallel_workers}
-                    onChange={(event) => handleChange('slide_parallel_workers', event.target.value)}
-                    placeholder="Default"
-                  />
-                </label>
-              </details>
-            </div>
-          </details>
-        </fieldset>
-
-        <fieldset className="collapsible-fieldset">
-          <legend className="visually-hidden">Advanced options</legend>
-          <details open>
-            <summary>Advanced options</summary>
-            <label htmlFor="tempo">
-              Tempo
-              <input
-                id="tempo"
-                name="tempo"
-                type="number"
-                step="0.1"
-                min={0.5}
-                value={formState.tempo}
-                onChange={(event) => handleChange('tempo', Number(event.target.value))}
-              />
-            </label>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                name="generate_video"
-                checked={formState.generate_video}
-                onChange={(event) => handleChange('generate_video', event.target.checked)}
-              />
-              Generate stitched video assets
-            </label>
-            <details>
-              <summary>Config overrides (JSON)</summary>
-              <label className="visually-hidden" htmlFor="config">
-                Config overrides JSON
-              </label>
-              <textarea
-                id="config"
-                name="config"
-                value={formState.config}
-                onChange={(event) => handleChange('config', event.target.value)}
-              />
-            </details>
-            <details>
-              <summary>Environment overrides (JSON)</summary>
-              <label className="visually-hidden" htmlFor="environment_overrides">
-                Environment overrides JSON
-              </label>
-              <textarea
-                id="environment_overrides"
-                name="environment_overrides"
-                value={formState.environment_overrides}
-                onChange={(event) => handleChange('environment_overrides', event.target.value)}
-              />
-            </details>
-            <details>
-              <summary>Pipeline overrides (JSON)</summary>
-              <label className="visually-hidden" htmlFor="pipeline_overrides">
-                Pipeline overrides JSON
-              </label>
-              <textarea
-                id="pipeline_overrides"
-                name="pipeline_overrides"
-                value={formState.pipeline_overrides}
-                onChange={(event) => handleChange('pipeline_overrides', event.target.value)}
-              />
-            </details>
-            <details>
-              <summary>Book metadata (JSON)</summary>
-              <label className="visually-hidden" htmlFor="book_metadata">
-                Book metadata JSON
-              </label>
-              <textarea
-                id="book_metadata"
-                name="book_metadata"
-                value={formState.book_metadata}
-                onChange={(event) => handleChange('book_metadata', event.target.value)}
-              />
-            </details>
-          </details>
-        </fieldset>
-
-        <button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? 'Submitting…' : 'Submit job'}
-        </button>
+    <section className="pipeline-settings">
+      <h2>{headerTitle}</h2>
+      <p>{headerDescription}</p>
+      <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
+        {visibleSections.map((section) => renderSection(section))}
       </form>
       {activeFileDialog && fileOptions ? (
         <FileSelectionDialog
@@ -914,6 +1176,7 @@ export function PipelineSubmissionForm({ onSubmit, isSubmitting = false }: Props
       ) : null}
     </section>
   );
+
 }
 
 export default PipelineSubmissionForm;
