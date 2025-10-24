@@ -1,330 +1,40 @@
-"""Job orchestration utilities for ebook-tools pipeline executions."""
+"""High-level orchestration utilities for pipeline jobs."""
 
 from __future__ import annotations
 
 import copy
-import json
 import os
 import threading
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from enum import Enum
-from typing import Any, Callable, Dict, Mapping, Optional, Protocol
+from typing import Any, Callable, Dict, Mapping, Optional
 from uuid import uuid4
 
-try:  # pragma: no cover - optional dependency
-    import redis  # type: ignore
-except Exception:  # pragma: no cover - defensive import guard
-    redis = None
-
-from .. import config_manager as cfg
-from .. import logging_manager as log_mgr
-from .. import metadata_manager
-from .. import observability
-from ..progress_tracker import ProgressEvent, ProgressSnapshot, ProgressTracker
-from ..translation_engine import TranslationWorkerPool
-from ..jobs import persistence as job_persistence
-from .pipeline_service import (
+from ... import config_manager as cfg
+from ... import logging_manager as log_mgr
+from ... import metadata_manager
+from ... import observability
+from ...progress_tracker import ProgressEvent, ProgressTracker
+from ...translation_engine import TranslationWorkerPool
+from ..pipeline_service import (
+    PipelineInput,
     PipelineRequest,
     PipelineResponse,
     run_pipeline,
     serialize_pipeline_request,
     serialize_pipeline_response,
 )
+from .job import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
+from .lifecycle import (
+    apply_pause_transition,
+    apply_resume_transition,
+    compute_resume_context,
+)
+from .metadata import PipelineJobMetadata
+from .progress import deserialize_progress_event, serialize_progress_event
+from .stores import FileJobStore, InMemoryJobStore, JobStore, RedisJobStore
 
 logger = log_mgr.logger
-
-
-def _stable_copy(value: Any) -> Any:
-    """Return a deterministically ordered, JSON-serializable copy of ``value``."""
-
-    if isinstance(value, Mapping):
-        return {key: _stable_copy(value[key]) for key in sorted(value)}
-    if isinstance(value, (list, tuple)):
-        return [_stable_copy(item) for item in value]
-    if isinstance(value, set):
-        return [_stable_copy(item) for item in sorted(value, key=lambda item: repr(item))]
-    return value
-
-
-class PipelineJobStatus(str, Enum):
-    """Enumeration of possible job states."""
-
-    PENDING = "pending"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
-
-
-@dataclass
-class PipelineJobMetadata:
-    """Serializable metadata describing a pipeline job."""
-
-    job_id: str
-    status: PipelineJobStatus
-    created_at: datetime
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    error_message: Optional[str] = None
-    last_event: Optional[Dict[str, Any]] = None
-    result: Optional[Dict[str, Any]] = None
-    request_payload: Optional[Dict[str, Any]] = None
-    resume_context: Optional[Dict[str, Any]] = None
-    tuning_summary: Optional[Dict[str, Any]] = None
-
-    def to_dict(self) -> Dict[str, Any]:
-        def _dt(value: Optional[datetime]) -> Optional[str]:
-            return value.isoformat() if value is not None else None
-
-        payload: Dict[str, Any] = {
-            "job_id": self.job_id,
-            "status": self.status.value,
-            "created_at": _dt(self.created_at),
-            "started_at": _dt(self.started_at),
-            "completed_at": _dt(self.completed_at),
-            "error_message": self.error_message,
-            "last_event": _stable_copy(self.last_event) if self.last_event is not None else None,
-            "result": _stable_copy(self.result) if self.result is not None else None,
-            "resume_context": _stable_copy(self.resume_context)
-            if self.resume_context is not None
-            else None,
-            "tuning_summary": _stable_copy(self.tuning_summary)
-            if self.tuning_summary is not None
-            else None,
-        }
-        if self.request_payload is not None:
-            payload["request"] = _stable_copy(self.request_payload)
-        return payload
-
-    def to_json(self) -> str:
-        return json.dumps(
-            self.to_dict(), ensure_ascii=False, sort_keys=True, separators=(",", ":")
-        )
-
-    @staticmethod
-    def _parse_datetime(value: Optional[str]) -> Optional[datetime]:
-        if value is None:
-            return None
-        return datetime.fromisoformat(value)
-
-    @classmethod
-    def from_dict(cls, data: Mapping[str, Any]) -> "PipelineJobMetadata":
-        return cls(
-            job_id=str(data["job_id"]),
-            status=PipelineJobStatus(str(data["status"])),
-            created_at=cls._parse_datetime(data.get("created_at")) or datetime.now(timezone.utc),
-            started_at=cls._parse_datetime(data.get("started_at")),
-            completed_at=cls._parse_datetime(data.get("completed_at")),
-            error_message=data.get("error_message"),
-            last_event=data.get("last_event"),
-            result=data.get("result"),
-            request_payload=data.get("request"),
-            resume_context=data.get("resume_context") or data.get("request"),
-            tuning_summary=data.get("tuning_summary"),
-        )
-
-    @classmethod
-    def from_json(cls, payload: str) -> "PipelineJobMetadata":
-        return cls.from_dict(json.loads(payload))
-
-
-class JobStore(Protocol):
-    """Persistence backend for job metadata."""
-
-    def save(self, metadata: PipelineJobMetadata) -> None:
-        ...
-
-    def update(self, metadata: PipelineJobMetadata) -> None:
-        ...
-
-    def get(self, job_id: str) -> PipelineJobMetadata:
-        ...
-
-    def list(self) -> Dict[str, PipelineJobMetadata]:
-        ...
-
-    def delete(self, job_id: str) -> None:
-        ...
-
-
-class InMemoryJobStore(JobStore):
-    """Simple process-local store used as a default fallback."""
-
-    def __init__(self) -> None:
-        self._lock = threading.RLock()
-        self._records: Dict[str, PipelineJobMetadata] = {}
-
-    def save(self, metadata: PipelineJobMetadata) -> None:
-        with self._lock:
-            self._records[metadata.job_id] = metadata
-
-    def update(self, metadata: PipelineJobMetadata) -> None:
-        with self._lock:
-            self._records[metadata.job_id] = metadata
-
-    def get(self, job_id: str) -> PipelineJobMetadata:
-        with self._lock:
-            try:
-                return self._records[job_id]
-            except KeyError as exc:
-                raise KeyError(job_id) from exc
-
-    def list(self) -> Dict[str, PipelineJobMetadata]:
-        with self._lock:
-            return dict(self._records)
-
-    def delete(self, job_id: str) -> None:
-        with self._lock:
-            try:
-                del self._records[job_id]
-            except KeyError as exc:
-                raise KeyError(job_id) from exc
-
-
-class FileJobStore(JobStore):
-    """Filesystem-backed job store using :mod:`modules.jobs.persistence`."""
-
-    def save(self, metadata: PipelineJobMetadata) -> None:
-        job_persistence.save_job(metadata)
-
-    def update(self, metadata: PipelineJobMetadata) -> None:
-        job_persistence.save_job(metadata)
-
-    def get(self, job_id: str) -> PipelineJobMetadata:
-        try:
-            return job_persistence.load_job(job_id)
-        except FileNotFoundError as exc:  # pragma: no cover - passthrough
-            raise KeyError(job_id) from exc
-
-    def list(self) -> Dict[str, PipelineJobMetadata]:
-        return job_persistence.load_all_jobs()
-
-    def delete(self, job_id: str) -> None:
-        try:
-            job_persistence.delete_job(job_id)
-        except FileNotFoundError as exc:  # pragma: no cover - passthrough
-            raise KeyError(job_id) from exc
-
-
-class RedisJobStore(JobStore):
-    """Redis-backed implementation of :class:`JobStore`."""
-
-    def __init__(self, url: str, *, namespace: str = "ebook-tools:jobs") -> None:
-        if redis is None:  # pragma: no cover - optional dependency
-            raise RuntimeError("redis-py is not available; cannot use RedisJobStore")
-        self._client = redis.Redis.from_url(url, decode_responses=True)
-        self._namespace = namespace
-
-    def _key(self, job_id: str) -> str:
-        return f"{self._namespace}:{job_id}"
-
-    def save(self, metadata: PipelineJobMetadata) -> None:
-        self._client.set(self._key(metadata.job_id), metadata.to_json())
-
-    def update(self, metadata: PipelineJobMetadata) -> None:
-        self.save(metadata)
-
-    def get(self, job_id: str) -> PipelineJobMetadata:
-        payload = self._client.get(self._key(job_id))
-        if payload is None:
-            raise KeyError(job_id)
-        return PipelineJobMetadata.from_json(payload)
-
-    def list(self) -> Dict[str, PipelineJobMetadata]:
-        records: Dict[str, PipelineJobMetadata] = {}
-        cursor = 0
-        pattern = f"{self._namespace}:*"
-        while True:
-            cursor, keys = self._client.scan(cursor=cursor, match=pattern)
-            for key in keys:
-                payload = self._client.get(key)
-                if payload is None:
-                    continue
-                job_id = key.split(":", 1)[-1]
-                records[job_id] = PipelineJobMetadata.from_json(payload)
-            if cursor == 0:
-                break
-        return records
-
-    def delete(self, job_id: str) -> None:
-        removed = self._client.delete(self._key(job_id))
-        if not removed:
-            raise KeyError(job_id)
-
-
-class PipelineJobTransitionError(ValueError):
-    """Raised when an invalid state transition is requested for a job."""
-
-    def __init__(self, job_id: str, job: PipelineJob, message: str) -> None:
-        super().__init__(message)
-        self.job_id = job_id
-        self.job = job
-
-
-@dataclass
-class PipelineJob:
-    """Container describing the state of an in-flight or completed pipeline execution."""
-
-    job_id: str
-    status: PipelineJobStatus
-    created_at: datetime
-    request: Optional[PipelineRequest] = None
-    tracker: Optional[ProgressTracker] = None
-    stop_event: Optional[threading.Event] = None
-    started_at: Optional[datetime] = None
-    completed_at: Optional[datetime] = None
-    result: Optional[PipelineResponse] = None
-    error_message: Optional[str] = None
-    last_event: Optional[ProgressEvent] = None
-    result_payload: Optional[Dict[str, Any]] = None
-    owns_translation_pool: bool = False
-    request_payload: Optional[Dict[str, Any]] = None
-    resume_context: Optional[Dict[str, Any]] = None
-    tuning_summary: Optional[Dict[str, Any]] = None
-
-
-def _serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
-    snapshot = event.snapshot
-    return {
-        "event_type": event.event_type,
-        "timestamp": event.timestamp,
-        "metadata": dict(event.metadata),
-        "error": str(event.error) if event.error else None,
-        "snapshot": {
-            "completed": snapshot.completed,
-            "total": snapshot.total,
-            "elapsed": snapshot.elapsed,
-            "speed": snapshot.speed,
-            "eta": snapshot.eta,
-        },
-    }
-
-
-def _deserialize_progress_event(payload: Mapping[str, Any]) -> ProgressEvent:
-    snapshot_data = payload.get("snapshot", {})
-    snapshot = ProgressSnapshot(
-        completed=int(snapshot_data.get("completed", 0)),
-        total=snapshot_data.get("total"),
-        elapsed=float(snapshot_data.get("elapsed", 0.0)),
-        speed=float(snapshot_data.get("speed", 0.0)),
-        eta=snapshot_data.get("eta"),
-    )
-    error_message = payload.get("error")
-    error: Optional[BaseException] = None
-    if error_message:
-        error = RuntimeError(str(error_message))
-    metadata = dict(payload.get("metadata", {}))
-    return ProgressEvent(
-        event_type=str(payload.get("event_type", "progress")),
-        snapshot=snapshot,
-        timestamp=float(payload.get("timestamp", 0.0)),
-        metadata=metadata,
-        error=error,
-    )
-
 
 class PipelineJobManager:
     """Orchestrate background execution of pipeline jobs with persistence support."""
@@ -524,8 +234,118 @@ class PipelineJobManager:
             logger.warning("Failed to initialize FileJobStore: %s", exc)
         return InMemoryJobStore()
 
+    @staticmethod
+    def _coerce_bool(value: Any, default: bool = False) -> bool:
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return default
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"true", "1", "yes", "y", "on"}:
+                return True
+            if normalized in {"false", "0", "no", "n", "off"}:
+                return False
+        return bool(value)
+
+    @staticmethod
+    def _coerce_int(value: Any, default: int = 0) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @staticmethod
+    def _coerce_float(value: Any, default: float = 0.0) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
+
+    def _build_pipeline_input(self, payload: Mapping[str, Any]) -> PipelineInput:
+        data = dict(payload or {})
+        raw_targets = data.get("target_languages") or []
+        if isinstance(raw_targets, list):
+            target_languages = [str(item) for item in raw_targets]
+        elif isinstance(raw_targets, (tuple, set)):
+            target_languages = [str(item) for item in raw_targets]
+        elif raw_targets is None:
+            target_languages = []
+        else:
+            target_languages = [str(raw_targets)]
+
+        end_sentence_value = data.get("end_sentence")
+        end_sentence = None
+        if end_sentence_value is not None:
+            try:
+                end_sentence = int(end_sentence_value)
+            except (TypeError, ValueError):
+                end_sentence = None
+
+        book_metadata = data.get("book_metadata")
+        if not isinstance(book_metadata, Mapping):
+            book_metadata = {}
+
+        return PipelineInput(
+            input_file=str(data.get("input_file") or ""),
+            base_output_file=str(data.get("base_output_file") or ""),
+            input_language=str(data.get("input_language") or ""),
+            target_languages=target_languages,
+            sentences_per_output_file=self._coerce_int(data.get("sentences_per_output_file"), 1),
+            start_sentence=self._coerce_int(data.get("start_sentence"), 1),
+            end_sentence=end_sentence,
+            stitch_full=self._coerce_bool(data.get("stitch_full")),
+            generate_audio=self._coerce_bool(data.get("generate_audio")),
+            audio_mode=str(data.get("audio_mode") or ""),
+            written_mode=str(data.get("written_mode") or ""),
+            selected_voice=str(data.get("selected_voice") or ""),
+            output_html=self._coerce_bool(data.get("output_html")),
+            output_pdf=self._coerce_bool(data.get("output_pdf")),
+            generate_video=self._coerce_bool(data.get("generate_video")),
+            include_transliteration=self._coerce_bool(data.get("include_transliteration")),
+            tempo=self._coerce_float(data.get("tempo"), 1.0),
+            book_metadata=dict(book_metadata),
+        )
+
+    def _hydrate_request_from_payload(
+        self,
+        job: PipelineJob,
+        payload: Mapping[str, Any],
+        stop_event: threading.Event,
+    ) -> PipelineRequest:
+        config = dict(payload.get("config") or {})
+        environment_overrides = dict(payload.get("environment_overrides") or {})
+        pipeline_overrides = dict(payload.get("pipeline_overrides") or {})
+        inputs_payload = payload.get("inputs")
+        if not isinstance(inputs_payload, Mapping):
+            inputs_payload = {}
+
+        tracker = job.tracker or ProgressTracker()
+        if job.tracker is None:
+            tracker.register_observer(lambda event: self._store_event(job.job_id, event))
+            job.tracker = tracker
+
+        correlation_id = payload.get("correlation_id")
+        if correlation_id is None and job.request is not None:
+            correlation_id = job.request.correlation_id
+
+        request = PipelineRequest(
+            config=config,
+            context=job.request.context if job.request is not None else None,
+            environment_overrides=environment_overrides,
+            pipeline_overrides=pipeline_overrides,
+            inputs=self._build_pipeline_input(inputs_payload),
+            progress_tracker=tracker,
+            stop_event=stop_event,
+            translation_pool=None,
+            correlation_id=correlation_id,
+            job_id=job.job_id,
+        )
+
+        return request
+
     def _snapshot(self, job: PipelineJob) -> PipelineJobMetadata:
-        last_event = _serialize_progress_event(job.last_event) if job.last_event else None
+        last_event = serialize_progress_event(job.last_event) if job.last_event else None
         result_payload = (
             copy.deepcopy(job.result_payload) if job.result_payload is not None else None
         )
@@ -616,6 +436,10 @@ class PipelineJobManager:
             if job is None:
                 return
             job.last_event = event
+            if job.status == PipelineJobStatus.RUNNING:
+                resume_context = compute_resume_context(job)
+                if resume_context is not None:
+                    job.resume_context = resume_context
             self._store.update(self._snapshot(job))
         metadata = dict(event.metadata)
         stage = metadata.get("stage")
@@ -689,63 +513,127 @@ class PipelineJobManager:
                 job.owns_translation_pool = owns_pool
                 response = run_pipeline(job.request)
             with self._lock:
-                job.result = response
-                job.result_payload = serialize_pipeline_response(response)
-                job.status = (
-                    PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
-                )
-                job.error_message = None if response.success else "Pipeline execution reported failure."
-                self._store.update(self._snapshot(job))
+                current_status = job.status
+                if current_status == PipelineJobStatus.PAUSED:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                elif current_status == PipelineJobStatus.CANCELLED:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                else:
+                    job.result = response
+                    job.result_payload = serialize_pipeline_response(response)
+                    job.status = (
+                        PipelineJobStatus.COMPLETED
+                        if response.success
+                        else PipelineJobStatus.FAILED
+                    )
+                    job.error_message = (
+                        None if response.success else "Pipeline execution reported failure."
+                    )
         except Exception as exc:  # pragma: no cover - defensive logging
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.error(
-                    "Pipeline job encountered an error",
-                    extra={
-                        "event": "pipeline.job.error",
-                        "status": PipelineJobStatus.FAILED.value,
-                        "attributes": {"error": str(exc)},
-                    },
-                )
             with self._lock:
-                job.result = None
-                job.result_payload = None
-                job.status = PipelineJobStatus.FAILED
-                job.error_message = str(exc)
-                self._store.update(self._snapshot(job))
-            if job.tracker is not None:
-                job.tracker.record_error(exc, {"stage": "pipeline"})
+                interruption = job.status in (
+                    PipelineJobStatus.PAUSED,
+                    PipelineJobStatus.CANCELLED,
+                ) and (job.stop_event is None or job.stop_event.is_set())
+                if interruption:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                    status_after_error = job.status
+                else:
+                    job.result = None
+                    job.result_payload = None
+                    job.status = PipelineJobStatus.FAILED
+                    job.error_message = str(exc)
+                    status_after_error = job.status
+            if status_after_error == PipelineJobStatus.FAILED:
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.error(
+                        "Pipeline job encountered an error",
+                        extra={
+                            "event": "pipeline.job.error",
+                            "status": PipelineJobStatus.FAILED.value,
+                            "attributes": {"error": str(exc)},
+                        },
+                    )
+                if job.tracker is not None:
+                    job.tracker.record_error(exc, {"stage": "pipeline"})
+            else:
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.info(
+                        "Pipeline job interrupted",
+                        extra={
+                            "event": "pipeline.job.interrupted",
+                            "status": status_after_error.value,
+                            "console_suppress": True,
+                        },
+                    )
         finally:
+            pool_to_shutdown: Optional[TranslationWorkerPool] = None
             with self._lock:
-                job.completed_at = datetime.now(timezone.utc)
-                self._store.update(self._snapshot(job))
+                status = job.status
+                if job.owns_translation_pool and job.request is not None:
+                    pool_to_shutdown = job.request.translation_pool
+                    job.request.translation_pool = None
+                job.owns_translation_pool = False
+                terminal_states = {
+                    PipelineJobStatus.COMPLETED,
+                    PipelineJobStatus.FAILED,
+                    PipelineJobStatus.CANCELLED,
+                }
+                if status in terminal_states:
+                    job.completed_at = job.completed_at or datetime.now(timezone.utc)
+                snapshot = self._snapshot(job)
+            self._store.update(snapshot)
+            if pool_to_shutdown is not None:
+                try:
+                    pool_to_shutdown.shutdown()
+                except Exception:  # pragma: no cover - defensive logging
+                    logger.debug(
+                        "Translation worker pool shutdown raised an exception",
+                        exc_info=True,
+                    )
             if job.tracker is not None:
-                result = job.result
-                forced = not (result.success if isinstance(result, PipelineResponse) else False)
-                reason = "completed" if not forced else "failed"
-                job.tracker.mark_finished(reason=reason, forced=forced)
-            if job.request is not None and job.owns_translation_pool:
-                pool = job.request.translation_pool
-                if pool is not None:
-                    pool.shutdown()
+                if status == PipelineJobStatus.COMPLETED:
+                    job.tracker.mark_finished(reason="completed", forced=False)
+                elif status == PipelineJobStatus.FAILED:
+                    job.tracker.mark_finished(reason="failed", forced=True)
+                elif status == PipelineJobStatus.CANCELLED:
+                    job.tracker.mark_finished(reason="cancelled", forced=True)
             with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.info(
-                    "Pipeline job finished",
-                    extra={
-                        "event": "pipeline.job.finished",
-                        "status": job.status.value,
-                        "console_suppress": True,
-                    },
-                )
-                duration_ms = 0.0
-                if job.started_at and job.completed_at:
-                    duration_ms = (
-                        job.completed_at - job.started_at
-                    ).total_seconds() * 1000.0
-                observability.record_metric(
-                    "pipeline.job.duration",
-                    duration_ms,
-                    {"job_id": job_id, "status": job.status.value},
-                )
+                if status == PipelineJobStatus.PAUSED:
+                    logger.info(
+                        "Pipeline job paused",
+                        extra={
+                            "event": "pipeline.job.paused",
+                            "status": status.value,
+                            "console_suppress": True,
+                        },
+                    )
+                else:
+                    logger.info(
+                        "Pipeline job finished",
+                        extra={
+                            "event": "pipeline.job.finished",
+                            "status": status.value,
+                            "console_suppress": True,
+                        },
+                    )
+                    if status in terminal_states:
+                        duration_ms = 0.0
+                        if job.started_at and job.completed_at:
+                            duration_ms = (
+                                job.completed_at - job.started_at
+                            ).total_seconds() * 1000.0
+                        observability.record_metric(
+                            "pipeline.job.duration",
+                            duration_ms,
+                            {"job_id": job_id, "status": status.value},
+                        )
 
     def get(self, job_id: str) -> PipelineJob:
         """Return the job associated with ``job_id``."""
@@ -786,17 +674,16 @@ class PipelineJobManager:
         """Mark ``job_id`` as paused and persist the updated status."""
 
         def _pause(job: PipelineJob) -> None:
-            if job.status in (
-                PipelineJobStatus.COMPLETED,
-                PipelineJobStatus.FAILED,
-                PipelineJobStatus.CANCELLED,
-            ):
-                raise ValueError(
-                    f"Cannot pause job {job.job_id} in terminal state {job.status.value}"
-                )
-            if job.status == PipelineJobStatus.PAUSED:
-                raise ValueError(f"Job {job.job_id} is already paused")
-            job.status = PipelineJobStatus.PAUSED
+            apply_pause_transition(job)
+            event = job.stop_event
+            if event is None and job.request is not None:
+                event = job.request.stop_event
+            if event is None:
+                event = threading.Event()
+            event.set()
+            job.stop_event = event
+            if job.request is not None:
+                job.request.stop_event = event
 
         return self._mutate_job(job_id, _pause)
 
@@ -804,13 +691,29 @@ class PipelineJobManager:
         """Resume ``job_id`` from a paused state and persist the change."""
 
         def _resume(job: PipelineJob) -> None:
-            if job.status != PipelineJobStatus.PAUSED:
+            apply_resume_transition(job)
+            payload = job.resume_context or job.request_payload
+            if payload is None:
                 raise ValueError(
-                    f"Cannot resume job {job.job_id} from state {job.status.value}"
+                    f"Job {job.job_id} is missing resume context and cannot be resumed"
                 )
-            job.status = PipelineJobStatus.PENDING
+            stop_event = threading.Event()
+            request = self._hydrate_request_from_payload(job, payload, stop_event)
+            job.request = request
+            job.stop_event = stop_event
+            job.request.stop_event = stop_event
+            job.result = None
+            job.result_payload = None
+            job.error_message = None
+            job.started_at = None
+            job.completed_at = None
+            job.owns_translation_pool = False
+            if job.request is not None:
+                job.request.translation_pool = None
 
-        return self._mutate_job(job_id, _resume)
+        job = self._mutate_job(job_id, _resume)
+        self._executor.submit(self._execute, job_id)
+        return job
 
     def cancel_job(self, job_id: str) -> PipelineJob:
         """Cancel ``job_id`` and persist the terminal state."""
@@ -824,8 +727,15 @@ class PipelineJobManager:
                 raise ValueError(
                     f"Cannot cancel job {job.job_id} in terminal state {job.status.value}"
                 )
-            if job.stop_event is not None:
-                job.stop_event.set()
+            event = job.stop_event
+            if event is None and job.request is not None:
+                event = job.request.stop_event
+            if event is None:
+                event = threading.Event()
+            event.set()
+            job.stop_event = event
+            if job.request is not None:
+                job.request.stop_event = event
             job.status = PipelineJobStatus.CANCELLED
             job.completed_at = job.completed_at or datetime.now(timezone.utc)
 
@@ -907,7 +817,7 @@ class PipelineJobManager:
             else None,
         )
         if metadata.last_event is not None:
-            job.last_event = _deserialize_progress_event(metadata.last_event)
+            job.last_event = deserialize_progress_event(metadata.last_event)
         return job
 
     def list(self) -> Dict[str, PipelineJob]:
