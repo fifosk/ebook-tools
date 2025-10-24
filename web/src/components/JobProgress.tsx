@@ -519,6 +519,18 @@ export function JobProgress({
   }, [status?.result?.batch_video_files, setPreviewFromEntry]);
 
   useEffect(() => {
+    if (!status?.result?.batch_previews) {
+      return;
+    }
+    const entries = status.result.batch_previews.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    if (entries.length === 0) {
+      return;
+    }
+    const latestEntry = entries[entries.length - 1];
+    setPreviewFromEntry(latestEntry, parseBatchIndex(entries.length));
+  }, [status?.result?.batch_previews, setPreviewFromEntry]);
+
+  useEffect(() => {
     if (!previewMetadata) {
       return;
     }

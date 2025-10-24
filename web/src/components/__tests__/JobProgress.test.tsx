@@ -576,6 +576,55 @@ describe('JobProgress', () => {
     }
   });
 
+  it('uses batch_previews when direct slide paths are provided', async () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => 1_500_000);
+
+    const status: PipelineStatusResponse = {
+      job_id: 'job-9',
+      status: 'running',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {},
+        batch_video_files: [],
+        batch_previews: ['storage/runtime/job-9/batch_0001/slides/0001.png']
+      }
+    };
+
+    try {
+      render(
+        <JobProgress
+          jobId="job-9"
+          status={status}
+          latestEvent={undefined}
+          onEvent={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onReload={vi.fn()}
+        />
+      );
+
+      const preview = (await screen.findByRole('img', {
+        name: /Slide preview for Batch 1/i
+      })) as HTMLImageElement;
+
+      expect(preview.src).toContain(
+        '/runtime/job-9/batch_0001/slides/0001.png?cb=1500000'
+      );
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('shows a placeholder when no cover metadata is available', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-5',

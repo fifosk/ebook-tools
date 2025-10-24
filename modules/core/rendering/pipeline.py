@@ -44,6 +44,7 @@ class PipelineState:
     all_audio_segments: Optional[List[AudioSegment]] = None
     current_audio_segments: Optional[List[AudioSegment]] = None
     batch_video_files: List[str] = field(default_factory=list)
+    batch_preview_files: List[str] = field(default_factory=list)
     current_batch_start: int = 0
     last_target_language: str = ""
     processed: int = 0
@@ -88,6 +89,7 @@ class RenderPipeline:
     ) -> Tuple[
         List[str],
         Optional[List[AudioSegment]],
+        List[str],
         List[str],
         str,
         str,
@@ -250,9 +252,30 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
             )
-            video_path = exporter.export(request)
+            video_path, preview_images = exporter.export(request)
             if video_path:
                 state.batch_video_files.append(video_path)
+            if preview_images:
+                seen_previews: set[str] = set()
+                for image in preview_images:
+                    if not image or image in seen_previews:
+                        continue
+                    seen_previews.add(image)
+                    if image not in state.batch_preview_files:
+                        state.batch_preview_files.append(image)
+            if self._progress is not None and (video_path or preview_images):
+                batch_index = len(state.batch_video_files) if video_path else None
+                metadata = {"stage": "batch_export"}
+                if batch_index is not None:
+                    metadata["batch_index"] = batch_index
+                if video_path:
+                    metadata["batch_video_file"] = video_path
+                cleaned = [img for img in preview_images or [] if img]
+                if cleaned:
+                    metadata["batch_previews"] = list(dict.fromkeys(cleaned))
+                    metadata["batch_preview"] = cleaned[-1]
+                    metadata["preview_path"] = cleaned[-1]
+                self._progress.publish_progress(metadata)
         elif self._should_stop():
             console_info(
                 "Skip final batch export due to shutdown request.",
@@ -270,6 +293,7 @@ class RenderPipeline:
             state.written_blocks,
             state.all_audio_segments,
             state.batch_video_files,
+            state.batch_preview_files,
             base_dir,
             base_name,
         )
@@ -427,9 +451,35 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
             )
-            video_path = exporter.export(request)
+            video_path, preview_images = exporter.export(request)
             if video_path:
                 state.batch_video_files.append(video_path)
+            cleaned_previews: List[str] = []
+            if preview_images:
+                seen_previews: set[str] = set()
+                for image in preview_images:
+                    if not image:
+                        continue
+                    if image in seen_previews:
+                        continue
+                    seen_previews.add(image)
+                    cleaned_previews.append(image)
+                    if image not in state.batch_preview_files:
+                        state.batch_preview_files.append(image)
+            if self._progress is not None and (video_path or cleaned_previews):
+                batch_index = len(state.batch_video_files) if video_path else None
+                metadata = {
+                    "stage": "batch_export",
+                }
+                if batch_index is not None:
+                    metadata["batch_index"] = batch_index
+                if video_path:
+                    metadata["batch_video_file"] = video_path
+                if cleaned_previews:
+                    metadata["batch_previews"] = list(cleaned_previews)
+                    metadata["batch_preview"] = cleaned_previews[-1]
+                    metadata["preview_path"] = cleaned_previews[-1]
+                self._progress.publish_progress(metadata)
             state.written_blocks.clear()
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
@@ -732,9 +782,32 @@ class RenderPipeline:
             finalize_executor.shutdown(wait=True)
             for future in export_futures:
                 try:
-                    video_path = future.result()
+                    video_path, preview_images = future.result()
                 except Exception as exc:  # pragma: no cover - defensive logging
                     logger.error("Failed to finalize batch export: %s", exc)
                 else:
+                    cleaned_previews: List[str] = []
+                    if preview_images:
+                        seen_previews: set[str] = set()
+                        for image in preview_images:
+                            if not image or image in seen_previews:
+                                continue
+                            seen_previews.add(image)
+                            cleaned_previews.append(image)
+                            if image not in state.batch_preview_files:
+                                state.batch_preview_files.append(image)
+                    batch_index = None
                     if video_path:
                         state.batch_video_files.append(video_path)
+                        batch_index = len(state.batch_video_files)
+                    if self._progress is not None and (video_path or cleaned_previews):
+                        metadata = {"stage": "batch_export"}
+                        if batch_index is not None:
+                            metadata["batch_index"] = batch_index
+                        if video_path:
+                            metadata["batch_video_file"] = video_path
+                        if cleaned_previews:
+                            metadata["batch_previews"] = list(cleaned_previews)
+                            metadata["batch_preview"] = cleaned_previews[-1]
+                            metadata["preview_path"] = cleaned_previews[-1]
+                        self._progress.publish_progress(metadata)

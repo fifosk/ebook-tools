@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import List, Optional, Sequence
 
 from PIL import Image
 from pydub import AudioSegment
@@ -58,8 +58,8 @@ class BatchExporter:
     def __init__(self, context: BatchExportContext) -> None:
         self._context = context
 
-    def export(self, request: BatchExportRequest) -> Optional[str]:
-        """Write batch outputs and return any generated video path."""
+    def export(self, request: BatchExportRequest) -> Tuple[Optional[str], List[str]]:
+        """Write batch outputs and return the generated video path and previews."""
 
         range_fragment = output_formatter.format_sentence_range(
             request.start_sentence,
@@ -83,6 +83,7 @@ class BatchExporter:
         video_blocks = list(request.video_blocks) if request.generate_video else []
 
         video_path: Optional[str] = None
+        preview_images: List[str] = []
 
         if request.generate_audio and audio_segments:
             combined = AudioSegment.empty()
@@ -95,7 +96,7 @@ class BatchExporter:
             combined.export(audio_filename, format="mp3", bitrate="320k")
 
         if request.generate_video and audio_segments and video_blocks:
-            video_path = av_gen.generate_video_slides_ffmpeg(
+            video_path, preview_images = av_gen.generate_video_slides_ffmpeg(
                 video_blocks,
                 audio_segments,
                 self._context.base_dir,
@@ -117,7 +118,7 @@ class BatchExporter:
                 slide_render_options=self._context.slide_render_options,
                 template_name=self._context.template_name,
             )
-        return video_path
+        return video_path, preview_images
 
 
 def build_exporter(

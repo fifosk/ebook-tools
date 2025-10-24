@@ -89,6 +89,7 @@ class PipelineResponsePayload(BaseModel):
     written_blocks: Optional[List[str]] = None
     audio_segments: Optional[List[float]] = None
     batch_video_files: Optional[List[str]] = None
+    batch_previews: Optional[List[str]] = None
     base_dir: Optional[str] = None
     base_output_stem: Optional[str] = None
     stitched_documents: Dict[str, str] = Field(default_factory=dict)

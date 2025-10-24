@@ -25,7 +25,7 @@ def test_persist_batch_preview_creates_expected_assets(tmp_path, monkeypatch):
 
     monkeypatch.setattr(av_gen.subprocess, "run", fake_run)
 
-    av_gen._persist_batch_preview(str(final_video), slide_index=1)
+    created = av_gen._persist_batch_preview(str(final_video), slide_index=1)
 
     preview_image = video_dir / "video.png"
     assert preview_image.exists(), "expected extracted preview alongside video"
@@ -39,3 +39,28 @@ def test_persist_batch_preview_creates_expected_assets(tmp_path, monkeypatch):
 
     parent_dir = slides_root / "batch_0001"
     assert (parent_dir / "0001.png").exists(), "parent slide alias missing"
+
+    default_slide = slides_root / "0001.png"
+    assert default_slide.exists(), "default slide alias missing"
+
+    stem_alias = slides_root / "video_0001.png"
+    assert stem_alias.exists(), "stem slide alias missing"
+
+    stem_subdir = slides_root / "video" / "0001.png"
+    assert stem_subdir.exists(), "stem-specific directory slide missing"
+
+    root_alias = video_dir / "0001.png"
+    assert root_alias.exists(), "root-level slide alias missing"
+
+    expected = {
+        str(preview_image),
+        str((primary_dir / "0001.png")),
+        str(unique_named),
+        str(parent_dir / "0001.png"),
+        str(default_slide),
+        str(stem_alias),
+        str(stem_subdir),
+        str(root_alias),
+    }
+
+    assert set(created) == expected, "persisted preview paths did not match expected aliases"

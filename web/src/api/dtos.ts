@@ -84,6 +84,7 @@ export interface PipelineResponsePayload {
   written_blocks?: string[] | null;
   audio_segments?: number[] | null;
   batch_video_files?: string[] | null;
+  batch_previews?: string[] | null;
   base_dir?: string | null;
   base_output_stem?: string | null;
   stitched_documents: Record<string, string>;

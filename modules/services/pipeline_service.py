@@ -80,6 +80,7 @@ class PipelineResponse:
     written_blocks: Optional[List[str]] = None
     audio_segments: Optional[List[AudioSegment]] = None
     batch_video_files: Optional[List[str]] = None
+    batch_previews: Optional[List[str]] = None
     base_dir: Optional[str] = None
     base_output_stem: Optional[str] = None
     stitched_documents: Dict[str, str] = field(default_factory=dict)
@@ -101,6 +102,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
     stitched_video_path: Optional[str] = None
     stitched_documents: Dict[str, str] = {}
     refined_list: List[str] = []
+    batch_preview_files: List[str] = []
     total_fully = 0
     tracker = request.progress_tracker
 
@@ -225,6 +227,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                     written_blocks,
                     all_audio_segments,
                     batch_video_files,
+                    batch_preview_files,
                     base_dir,
                     base_no_ext,
                 ) = process_epub(
@@ -375,6 +378,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             written_blocks=written_blocks,
             audio_segments=all_audio_segments,
             batch_video_files=batch_video_files,
+            batch_previews=batch_preview_files,
             base_dir=base_dir,
             base_output_stem=base_no_ext,
             stitched_documents=stitched_documents,
@@ -454,6 +458,7 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "written_blocks": response.written_blocks,
         "audio_segments": audio_segments,
         "batch_video_files": response.batch_video_files,
+        "batch_previews": response.batch_previews,
         "base_dir": str(response.base_dir) if response.base_dir else None,
         "base_output_stem": response.base_output_stem,
         "stitched_documents": dict(response.stitched_documents),

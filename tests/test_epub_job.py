@@ -821,6 +821,11 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
         existing_batches = [path for path in batch_videos if Path(path).exists()]
         print(f"[artifacts] Batch video segments located: {existing_batches}")
 
+    batch_previews = result_payload.get("batch_previews") or []
+    if batch_previews:
+        existing_previews = [path for path in batch_previews if Path(path).exists()]
+        print(f"[artifacts] Batch preview images located: {existing_previews}")
+
     print(
         f"[artifacts] HTML generated at {html_path} ({html_path.stat().st_size} bytes)"
     )
