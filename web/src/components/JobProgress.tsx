@@ -485,14 +485,20 @@ export function JobProgress({
               : null
             : prev.batchIndex;
 
+      const candidates = buildBatchSlidePreviewUrls(trimmedEntry);
+
       if (prev.batchEntry === trimmedEntry) {
-        if (prev.batchIndex === nextIndex) {
-          return prev;
-        }
-        return { ...prev, batchIndex: nextIndex };
+        const nextCandidateIndex = candidates.length === 0 ? 0 : Math.min(prev.candidateIndex, candidates.length - 1);
+        return {
+          ...prev,
+          batchIndex: nextIndex,
+          candidates,
+          candidateIndex: nextCandidateIndex,
+          cacheBuster: Date.now(),
+          status: candidates.length > 0 ? 'loading' : 'error'
+        };
       }
 
-      const candidates = buildBatchSlidePreviewUrls(trimmedEntry);
       return {
         batchEntry: trimmedEntry,
         batchIndex: nextIndex,
@@ -503,8 +509,6 @@ export function JobProgress({
       };
     });
   }, []);
-
-  const previewMetadata = useMemo(() => extractBatchPreviewMetadata(event?.metadata ?? null), [event?.metadata]);
 
   useEffect(() => {
     if (!status?.result?.batch_video_files) {
@@ -531,11 +535,15 @@ export function JobProgress({
   }, [status?.result?.batch_previews, setPreviewFromEntry]);
 
   useEffect(() => {
-    if (!previewMetadata) {
+    if (!event?.metadata) {
       return;
     }
-    setPreviewFromEntry(previewMetadata.entry, previewMetadata.indexHint);
-  }, [previewMetadata, setPreviewFromEntry]);
+    const metadata = extractBatchPreviewMetadata(event.metadata ?? null);
+    if (!metadata) {
+      return;
+    }
+    setPreviewFromEntry(metadata.entry, metadata.indexHint);
+  }, [event, setPreviewFromEntry]);
 
   const previewSrc = useMemo(() => {
     const candidate = previewState.candidates[previewState.candidateIndex];
