@@ -1,7 +1,6 @@
 """Utilities for generating audio and video artifacts."""
 
 import os
-import shutil
 import subprocess
 import threading
 import time
@@ -584,7 +583,7 @@ def _persist_batch_preview(final_video_path: str, *, slide_index: int = 1) -> Li
         return []
 
     slide_token = f"{max(1, int(slide_index)):04d}"
-    preview_path = os.path.join(video_dir, f"{video_stem}.png")
+    preview_path = os.path.join(video_dir, f"{video_stem}_{slide_token}.png")
 
     try:
         result = subprocess.run(
@@ -624,80 +623,12 @@ def _persist_batch_preview(final_video_path: str, *, slide_index: int = 1) -> Li
         )
         return []
 
-    parent_segment = os.path.basename(video_dir.rstrip(os.sep))
-    unique_key_segments = [segment for segment in (parent_segment, video_stem) if segment]
-    unique_key = "_".join(unique_key_segments) if unique_key_segments else video_stem
-
-    slides_root = os.path.join(video_dir, "slides")
-    try:
-        os.makedirs(slides_root, exist_ok=True)
-    except Exception:  # pragma: no cover - directory creation best effort
+    if not os.path.exists(preview_path):
+        logger.debug(
+            "Expected preview not found after extraction for %s (looked for %s)",
+            final_video_path,
+            preview_path,
+        )
         return []
 
-    destinations: List[str] = []
-
-    def _append_destination(path: Optional[str]) -> None:
-        if not path:
-            return
-        normalised = os.path.normpath(path)
-        if os.path.normpath(preview_path) == normalised:
-            return
-        if normalised in destinations:
-            return
-        destinations.append(normalised)
-
-    if unique_key:
-        unique_dir = os.path.join(slides_root, unique_key)
-        try:
-            os.makedirs(unique_dir, exist_ok=True)
-            _append_destination(os.path.join(unique_dir, f"{slide_token}.png"))
-        except Exception:
-            logger.debug(
-                "Unable to create slide preview directory %s", unique_dir
-            )
-        _append_destination(os.path.join(slides_root, f"{unique_key}_{slide_token}.png"))
-
-    if parent_segment:
-        parent_dir = os.path.join(slides_root, parent_segment)
-        try:
-            os.makedirs(parent_dir, exist_ok=True)
-            _append_destination(os.path.join(parent_dir, f"{slide_token}.png"))
-        except Exception:
-            logger.debug(
-                "Unable to create parent slide directory %s", parent_dir
-            )
-
-    _append_destination(os.path.join(slides_root, f"{slide_token}.png"))
-    _append_destination(os.path.join(slides_root, f"{video_stem}_{slide_token}.png"))
-    _append_destination(os.path.join(slides_root, video_stem, f"{slide_token}.png"))
-    _append_destination(os.path.join(video_dir, f"{slide_token}.png"))
-
-    created: List[str] = []
-    if os.path.exists(preview_path):
-        created.append(preview_path)
-
-    for destination in destinations:
-        try:
-            os.makedirs(os.path.dirname(destination), exist_ok=True)
-            shutil.copy2(preview_path, destination)
-            created.append(destination)
-        except Exception as exc:  # pragma: no cover - best effort
-            logger.debug(
-                "Failed to copy slide preview from %s to %s: %s",
-                preview_path,
-                destination,
-                exc,
-            )
-
-    unique_created: List[str] = []
-    seen: set[str] = set()
-    for path in created:
-        if not path:
-            continue
-        norm = os.path.normpath(path)
-        if norm in seen:
-            continue
-        seen.add(norm)
-        unique_created.append(path)
-
-    return unique_created
+    return [preview_path]

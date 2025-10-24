@@ -262,6 +262,10 @@ export function buildBatchSlidePreviewUrls(entry: string, options?: { slideIndex
     const uniqueKeySegments = [parentSegment, videoBase].filter((segment) => segment);
     const uniqueKey = uniqueKeySegments.length > 0 ? uniqueKeySegments.join('_') : videoBase;
 
+    if (directory && videoBase) {
+      pushCandidate(`${directory}/${videoBase}_${slideToken}.png`);
+    }
+
     if (uniqueKey) {
       pushCandidate(`${slideDir}/${uniqueKey}/${slideToken}.png`);
       pushCandidate(`${slideDir}/${uniqueKey}_${slideToken}.png`);

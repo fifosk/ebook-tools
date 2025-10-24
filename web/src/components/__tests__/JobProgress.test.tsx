@@ -528,7 +528,7 @@ describe('JobProgress', () => {
       })) as HTMLImageElement;
 
       expect(initialPreview.src).toContain(
-        '/outputs/job-8/batch_0001/slides/batch_0001_video/0001.png?cb=1000000'
+        '/outputs/job-8/batch_0001/video_0001.png?cb=1000000'
       );
 
       const event: ProgressEventPayload = {
@@ -569,7 +569,7 @@ describe('JobProgress', () => {
       })) as HTMLImageElement;
 
       expect(updatedPreview.src).toContain(
-        '/outputs/job-8/batch_0002/slides/batch_0002_video/0001.png?cb=2000000'
+        '/outputs/job-8/batch_0002/video_0001.png?cb=2000000'
       );
     } finally {
       nowSpy.mockRestore();
@@ -594,7 +594,7 @@ describe('JobProgress', () => {
         stitched_documents: {},
         book_metadata: {},
         batch_video_files: [],
-        batch_previews: ['storage/runtime/job-9/batch_0001/slides/0001.png']
+        batch_previews: ['storage/runtime/job-9/batch_0001/video_0001.png']
       }
     };
 
@@ -618,7 +618,7 @@ describe('JobProgress', () => {
       })) as HTMLImageElement;
 
       expect(preview.src).toContain(
-        '/runtime/job-9/batch_0001/slides/0001.png?cb=1500000'
+        '/runtime/job-9/batch_0001/video_0001.png?cb=1500000'
       );
     } finally {
       nowSpy.mockRestore();
