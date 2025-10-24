@@ -14,8 +14,8 @@ from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import metadata_manager
 from .. import observability
-from ..progress_tracker import ProgressEvent, ProgressTracker
-from ..translation_engine import TranslationWorkerPool
+from ...progress_tracker import ProgressEvent, ProgressTracker
+from ...translation_engine import TranslationWorkerPool
 from ..pipeline_service import (
     PipelineRequest,
     PipelineResponse,

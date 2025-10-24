@@ -9,8 +9,8 @@ from enum import Enum
 from typing import Any, Dict, Optional
 
 from ..pipeline_service import PipelineRequest, PipelineResponse
-from ..progress_tracker import ProgressEvent, ProgressTracker
-from ..translation_engine import TranslationWorkerPool
+from ...progress_tracker import ProgressEvent, ProgressTracker
+from ...translation_engine import TranslationWorkerPool
 
 
 class PipelineJobStatus(str, Enum):

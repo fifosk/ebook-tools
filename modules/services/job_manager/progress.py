@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
 
-from ..progress_tracker import ProgressEvent, ProgressSnapshot
+from ...progress_tracker import ProgressEvent, ProgressSnapshot
 
 
 def serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
