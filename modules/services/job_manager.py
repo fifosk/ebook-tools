@@ -26,6 +26,7 @@ from ..progress_tracker import ProgressEvent, ProgressSnapshot, ProgressTracker
 from ..translation_engine import TranslationWorkerPool
 from ..jobs import persistence as job_persistence
 from .pipeline_service import (
+    PipelineInput,
     PipelineRequest,
     PipelineResponse,
     run_pipeline,
@@ -653,6 +654,75 @@ class PipelineJobManager:
         self._maybe_update_translation_pool_summary(job, pool)
         return pool, True
 
+    def _prepare_job_for_resume(self, job: PipelineJob) -> None:
+        """Ensure ``job`` has the resources required for execution."""
+
+        request = job.request
+        if request is None:
+            raw_payload: Optional[Mapping[str, Any]]
+            if job.resume_context is not None:
+                raw_payload = copy.deepcopy(job.resume_context)
+            elif job.request_payload is not None:
+                raw_payload = copy.deepcopy(job.request_payload)
+            else:
+                raw_payload = None
+
+            if raw_payload is None:
+                raise ValueError(
+                    f"Job {job.job_id} cannot be resumed because the original request is unavailable"
+                )
+
+            if not isinstance(raw_payload, Mapping):
+                raise ValueError(
+                    f"Job {job.job_id} cannot be resumed because the request payload is malformed"
+                )
+
+            payload = dict(raw_payload)
+            inputs_payload = payload.get("inputs")
+            if not isinstance(inputs_payload, Mapping):
+                raise ValueError(
+                    f"Job {job.job_id} cannot be resumed because the input parameters are missing"
+                )
+
+            request = PipelineRequest(
+                config=dict(payload.get("config") or {}),
+                context=None,
+                environment_overrides=dict(payload.get("environment_overrides") or {}),
+                pipeline_overrides=dict(payload.get("pipeline_overrides") or {}),
+                inputs=PipelineInput(**dict(inputs_payload)),
+                correlation_id=payload.get("correlation_id"),
+            )
+            request.job_id = job.job_id
+            job.request = request
+            job.request_payload = copy.deepcopy(payload)
+            job.resume_context = copy.deepcopy(payload)
+
+        tracker = job.tracker
+        if tracker is None:
+            tracker = ProgressTracker()
+            job.tracker = tracker
+            tracker.register_observer(
+                lambda event, job_id=job.job_id: self._store_event(job_id, event)
+            )
+
+        stop_event = job.stop_event
+        if stop_event is None:
+            stop_event = threading.Event()
+            job.stop_event = stop_event
+
+        stop_event.clear()
+
+        request.progress_tracker = tracker
+        request.stop_event = stop_event
+        request.translation_pool = None
+        request.job_id = job.job_id
+        request.correlation_id = request.correlation_id or job.job_id
+        job.owns_translation_pool = False
+        job.result = None
+        job.result_payload = None
+        job.error_message = None
+        job.completed_at = None
+
     def _execute(self, job_id: str) -> None:
         try:
             job = self.get(job_id)
@@ -825,13 +895,12 @@ class PipelineJobManager:
                 raise ValueError(
                     f"Cannot resume job {job.job_id} from state {job.status.value}"
                 )
+            self._prepare_job_for_resume(job)
             job.status = PipelineJobStatus.PENDING
-            if job.stop_event is not None:
-                job.stop_event.clear()
-            if job.request is not None and job.request.stop_event is not None:
-                job.request.stop_event.clear()
 
-        return self._mutate_job(job_id, _resume)
+        job = self._mutate_job(job_id, _resume)
+        self._executor.submit(self._execute, job_id)
+        return job
 
     def cancel_job(self, job_id: str) -> PipelineJob:
         """Cancel ``job_id`` and persist the terminal state."""
