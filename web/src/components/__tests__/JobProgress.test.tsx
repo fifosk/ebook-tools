@@ -1,5 +1,18 @@
-import { render, screen } from '@testing-library/react';
 import { vi } from 'vitest';
+
+const buildStorageUrlMock = vi.hoisted(() =>
+  vi.fn<[string], string>((path) => `https://storage.example/${path}`)
+);
+
+vi.mock('../../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../../api/client')>('../../api/client');
+  return {
+    ...actual,
+    buildStorageUrl: buildStorageUrlMock
+  };
+});
+
+import { fireEvent, render, screen } from '@testing-library/react';
 import { JobProgress } from '../JobProgress';
 import { PipelineStatusResponse, ProgressEventPayload } from '../../api/dtos';
 
@@ -29,6 +42,10 @@ beforeAll(() => {
 });
 
 describe('JobProgress', () => {
+  beforeEach(() => {
+    buildStorageUrlMock.mockClear();
+  });
+
   it('renders snapshot metrics when an event is supplied', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-1',
@@ -91,7 +108,8 @@ describe('JobProgress', () => {
         stitched_documents: {},
         book_metadata: {
           book_title: 'Example Title',
-          book_author: 'Author Name'
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/example-cover.jpg'
         }
       }
     };
@@ -111,6 +129,10 @@ describe('JobProgress', () => {
     );
 
     expect(screen.getByText('Example Title')).toBeInTheDocument();
+    const image = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
+    expect(image).toBeInTheDocument();
+    expect(image.src).toBe('https://storage.example/runtime/example-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
   });
 
@@ -150,5 +172,86 @@ describe('JobProgress', () => {
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('Translation queue size')).toBeInTheDocument();
     expect(screen.getByText('32')).toBeInTheDocument();
+  });
+
+  it('falls back to placeholder text when the cover fails to load', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-4',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Broken Cover',
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/broken-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-4"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+
+    expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByAltText('Cover of Broken Cover by Author Name')).not.toBeInTheDocument();
+  });
+
+  it('shows a placeholder when no cover metadata is available', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-5',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'No Cover Title',
+          book_author: 'No Cover Author'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-5"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Cover image not provided yet/i)).toBeInTheDocument();
   });
 });

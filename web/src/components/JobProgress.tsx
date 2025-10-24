@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import {
   PipelineJobStatus,
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
+import { buildStorageUrl } from '../api/client';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 
@@ -105,6 +106,62 @@ function formatTuningValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
+type CoverAsset =
+  | { type: 'external'; url: string }
+  | { type: 'storage'; path: string }
+  | null;
+
+function isExternalAsset(path: string): boolean {
+  const lower = path.trim().toLowerCase();
+  return lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:');
+}
+
+function normaliseStoragePath(path: string): string {
+  const normalised = path.replace(/\\/g, '/').trim();
+  if (!normalised) {
+    return '';
+  }
+
+  const lower = normalised.toLowerCase();
+  const markers: Array<{ token: string; dropToken: boolean }> = [
+    { token: '/storage/', dropToken: true },
+    { token: '/output/', dropToken: false },
+    { token: '/runtime/', dropToken: false },
+    { token: '/books/', dropToken: false }
+  ];
+
+  for (const marker of markers) {
+    const index = lower.indexOf(marker.token);
+    if (index >= 0) {
+      if (marker.dropToken) {
+        return normalised.slice(index + marker.token.length).replace(/^\/+/, '');
+      }
+      return normalised.slice(index + 1).replace(/^\/+/, '');
+    }
+  }
+
+  return normalised.replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
+}
+
+function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
+  const rawValue = metadata['book_cover_file'];
+  if (typeof rawValue !== 'string') {
+    return null;
+  }
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (isExternalAsset(trimmed)) {
+    return { type: 'external', url: trimmed };
+  }
+  const relative = normaliseStoragePath(trimmed);
+  if (!relative) {
+    return null;
+  }
+  return { type: 'storage', path: relative };
+}
+
 function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
   const order = new Map<string, number>(TUNING_ORDER.map((key, index) => [key, index]));
   return entries
@@ -148,6 +205,51 @@ export function JobProgress({
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
   });
+  const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
+  const coverUrl = useMemo(() => {
+    if (!coverAsset) {
+      return null;
+    }
+    if (coverAsset.type === 'external') {
+      return coverAsset.url;
+    }
+    try {
+      return buildStorageUrl(coverAsset.path);
+    } catch (error) {
+      console.warn('Unable to build storage URL for cover image', error);
+      return null;
+    }
+  }, [coverAsset]);
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [coverUrl]);
+  const handleCoverError = useCallback(() => {
+    setCoverFailed(true);
+  }, []);
+  const coverAltText = useMemo(() => {
+    const title = normalizeMetadataValue(metadata['book_title']);
+    const author = normalizeMetadataValue(metadata['book_author']);
+    if (title && author) {
+      return `Cover of ${title} by ${author}`;
+    }
+    if (title) {
+      return `Cover of ${title}`;
+    }
+    if (author) {
+      return `Book cover for ${author}`;
+    }
+    return 'Book cover preview';
+  }, [metadata]);
+  const coverPlaceholderMessage = useMemo(() => {
+    if (coverFailed) {
+      return 'Cover preview could not be loaded.';
+    }
+    if (coverAsset) {
+      return 'Cover preview is not available.';
+    }
+    return 'Cover image not provided yet.';
+  }, [coverAsset, coverFailed]);
   const tuningEntries = useMemo(() => {
     const tuning = status?.tuning ?? null;
     if (!tuning) {
@@ -284,6 +386,13 @@ export function JobProgress({
       )}
       <div style={{ marginTop: '1rem' }}>
         <h4>Book metadata</h4>
+        <div className="metadata-cover-preview">
+          {coverUrl && !coverFailed ? (
+            <img src={coverUrl} alt={coverAltText} onError={handleCoverError} />
+          ) : (
+            <span className="metadata-cover-preview__placeholder">{coverPlaceholderMessage}</span>
+          )}
+        </div>
         {metadataEntries.length > 0 ? (
           <dl className="metadata-grid">
             {metadataEntries.map(([key, value]) => {
