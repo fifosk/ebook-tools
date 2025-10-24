@@ -99,6 +99,7 @@ export interface PipelineStatusResponse {
   result: PipelineResponsePayload | null;
   error: string | null;
   latest_event: ProgressEventPayload | null;
+  tuning: Record<string, unknown> | null;
 }
 
 export interface PipelineJobListResponse {

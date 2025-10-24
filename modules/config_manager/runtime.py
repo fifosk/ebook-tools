@@ -3,9 +3,11 @@ from __future__ import annotations
 
 import atexit
 import os
+import platform
 from contextvars import ContextVar
 from dataclasses import dataclass
 from pathlib import Path
+from functools import lru_cache
 from typing import Any, Dict, Optional, cast, overload
 
 from modules import logging_manager, ramdisk_manager
@@ -28,6 +30,11 @@ from .paths import resolve_directory
 from .settings import normalize_llm_source
 
 logger = logging_manager.get_logger()
+
+try:  # pragma: no cover - optional dependency safety
+    import psutil
+except Exception:  # pragma: no cover - environment fallback
+    psutil = None  # type: ignore[assignment]
 
 
 @dataclass(frozen=True)
@@ -75,6 +82,67 @@ _ACTIVE_CONTEXT: ContextVar[Optional[RuntimeContext]] = ContextVar(
 _PRESERVED_TMP_DIRS: set[Path] = set()
 
 _DEFAULT_CONTEXT_SENTINEL = object()
+
+
+def _safe_cpu_count() -> int:
+    try:
+        count = os.cpu_count()
+    except (ValueError, OSError):  # pragma: no cover - defensive
+        count = None
+    if count is None:
+        return 0
+    try:
+        return max(0, int(count))
+    except (TypeError, ValueError):  # pragma: no cover - defensive
+        return 0
+
+
+def _safe_memory_total_gib() -> float:
+    if psutil is None:  # pragma: no cover - optional dependency
+        return 0.0
+    try:
+        memory = psutil.virtual_memory()
+    except Exception:  # pragma: no cover - defensive fallback
+        return 0.0
+    return float(memory.total) / (1024**3)
+
+
+@lru_cache(maxsize=1)
+def _hardware_tuning_defaults() -> Dict[str, Any]:
+    """Return heuristic tuning defaults based on the current host."""
+
+    defaults: Dict[str, Any] = {}
+    cpu_count = _safe_cpu_count()
+    memory_gib = _safe_memory_total_gib()
+    system = platform.system()
+
+    if system == "Darwin" and cpu_count >= 10 and 34 <= memory_gib <= 38:
+        thread_count = max(8, cpu_count - 2)
+        queue_size = max(DEFAULT_QUEUE_SIZE, thread_count * 5)
+        job_max_workers = max(2, min(4, cpu_count // 4))
+        slide_parallelism = "thread"
+        slide_parallel_workers = max(2, min(8, cpu_count // 2))
+        defaults.update(
+            {
+                "profile": "mac_studio_max_36gb",
+                "detected_cpu_count": cpu_count,
+                "detected_memory_gib": round(memory_gib, 1),
+                "thread_count": thread_count,
+                "queue_size": queue_size,
+                "job_max_workers": job_max_workers,
+                "slide_parallelism": slide_parallelism,
+                "slide_parallel_workers": slide_parallel_workers,
+                "pipeline_mode": True,
+            }
+        )
+
+    return defaults
+
+
+def get_hardware_tuning_defaults() -> Dict[str, Any]:
+    """Expose cached hardware-aware tuning suggestions for other modules."""
+
+    return dict(_hardware_tuning_defaults())
 
 
 @overload
@@ -141,6 +209,10 @@ def _coerce_thread_count(value: Optional[Any]) -> int:
     """Return a safe worker count based on ``value``."""
 
     if value is None:
+        defaults = _hardware_tuning_defaults()
+        candidate = defaults.get("thread_count")
+        if isinstance(candidate, int) and candidate > 0:
+            return candidate
         return DEFAULT_THREADS
     try:
         parsed = int(value)
@@ -151,6 +223,10 @@ def _coerce_thread_count(value: Optional[Any]) -> int:
 
 def _coerce_queue_size(value: Optional[Any]) -> int:
     if value is None:
+        defaults = _hardware_tuning_defaults()
+        candidate = defaults.get("queue_size")
+        if isinstance(candidate, int) and candidate > 0:
+            return candidate
         return DEFAULT_QUEUE_SIZE
     try:
         parsed = int(value)
@@ -359,8 +435,13 @@ def build_runtime_context(
     queue_size = _coerce_queue_size(queue_override or config.get("queue_size"))
 
     pipeline_override = overrides.get("pipeline_mode") if overrides else None
+    pipeline_default = config.get("pipeline_mode")
+    if pipeline_default is None:
+        defaults = _hardware_tuning_defaults()
+        if "pipeline_mode" in defaults:
+            pipeline_default = defaults["pipeline_mode"]
     pipeline_enabled = _coerce_bool(
-        pipeline_override if pipeline_override is not None else config.get("pipeline_mode")
+        pipeline_override if pipeline_override is not None else pipeline_default
     )
 
     context = RuntimeContext(

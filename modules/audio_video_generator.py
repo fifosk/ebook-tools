@@ -333,10 +333,6 @@ def _media_worker(
                 break
             try:
                 result_queue.put(payload, timeout=0.1)
-                if progress_tracker:
-                    progress_tracker.record_media_completion(
-                        payload.index, payload.sentence_number
-                    )
                 break
             except Full:
                 continue

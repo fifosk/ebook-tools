@@ -73,6 +73,7 @@ class PipelineJobMetadata:
     result: Optional[Dict[str, Any]] = None
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
+    tuning_summary: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -89,6 +90,9 @@ class PipelineJobMetadata:
             "result": _stable_copy(self.result) if self.result is not None else None,
             "resume_context": _stable_copy(self.resume_context)
             if self.resume_context is not None
+            else None,
+            "tuning_summary": _stable_copy(self.tuning_summary)
+            if self.tuning_summary is not None
             else None,
         }
         if self.request_payload is not None:
@@ -119,6 +123,7 @@ class PipelineJobMetadata:
             result=data.get("result"),
             request_payload=data.get("request"),
             resume_context=data.get("resume_context") or data.get("request"),
+            tuning_summary=data.get("tuning_summary"),
         )
 
     @classmethod
@@ -278,6 +283,7 @@ class PipelineJob:
     owns_translation_pool: bool = False
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
+    tuning_summary: Optional[Dict[str, Any]] = None
 
 
 def _serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
@@ -334,11 +340,131 @@ class PipelineJobManager:
         self._jobs: Dict[str, PipelineJob] = {}
         settings = cfg.get_settings()
         configured_workers = max_workers if max_workers is not None else settings.job_max_workers
+        if max_workers is None:
+            hardware_defaults = cfg.get_hardware_tuning_defaults()
+            recommended_workers = hardware_defaults.get("job_max_workers")
+            if (
+                isinstance(recommended_workers, int)
+                and recommended_workers > 0
+                and (
+                    settings.job_max_workers <= 0
+                    or settings.job_max_workers == cfg.DEFAULT_JOB_MAX_WORKERS
+                )
+            ):
+                configured_workers = recommended_workers
         resolved_workers = max(1, int(configured_workers))
         self._executor = ThreadPoolExecutor(max_workers=resolved_workers)
         self._store = store or self._default_store()
-        self._worker_pool_factory = worker_pool_factory or (lambda request: TranslationWorkerPool())
+        self._worker_pool_factory = (
+            worker_pool_factory or self._default_worker_pool_factory
+        )
         self._restore_persisted_jobs()
+
+    @staticmethod
+    def _coerce_non_negative_int(value: Any) -> Optional[int]:
+        if value is None:
+            return None
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number >= 0 else None
+
+    def _resolve_thread_count(self, request: PipelineRequest) -> Optional[int]:
+        candidate = request.pipeline_overrides.get("thread_count")
+        if candidate is None and request.context is not None:
+            candidate = request.context.thread_count
+        if candidate is None:
+            candidate = request.config.get("thread_count")
+        value = self._coerce_non_negative_int(candidate)
+        if value is None:
+            return None
+        return max(1, value)
+
+    def _resolve_queue_size(self, request: PipelineRequest) -> Optional[int]:
+        candidate = request.pipeline_overrides.get("queue_size")
+        if candidate is None and request.context is not None:
+            candidate = request.context.queue_size
+        if candidate is None:
+            candidate = request.config.get("queue_size")
+        return self._coerce_non_negative_int(candidate)
+
+    def _resolve_job_max_workers(self, request: PipelineRequest) -> Optional[int]:
+        candidate = request.pipeline_overrides.get("job_max_workers")
+        if candidate is None:
+            candidate = request.config.get("job_max_workers")
+        if candidate is None:
+            candidate = getattr(cfg.get_settings(), "job_max_workers", None)
+        value = self._coerce_non_negative_int(candidate)
+        if value is None or value <= 0:
+            defaults = cfg.get_hardware_tuning_defaults()
+            recommended = defaults.get("job_max_workers")
+            if isinstance(recommended, int) and recommended > 0:
+                return recommended
+            return None
+        return value
+
+    def _build_tuning_summary(self, request: PipelineRequest) -> Dict[str, Any]:
+        summary: Dict[str, Any] = {}
+        thread_count = self._resolve_thread_count(request)
+        if thread_count is not None:
+            summary["thread_count"] = thread_count
+        queue_size = self._resolve_queue_size(request)
+        if queue_size is not None:
+            summary["queue_size"] = queue_size
+        job_max_workers = self._resolve_job_max_workers(request)
+        if job_max_workers is not None:
+            summary["job_max_workers"] = job_max_workers
+        slide_workers = request.pipeline_overrides.get("slide_parallel_workers")
+        if slide_workers is None:
+            slide_workers = request.config.get("slide_parallel_workers")
+        slide_workers_value = self._coerce_non_negative_int(slide_workers)
+        if slide_workers_value is not None:
+            summary["slide_parallel_workers"] = slide_workers_value
+        slide_mode = request.pipeline_overrides.get("slide_parallelism") or request.config.get(
+            "slide_parallelism"
+        )
+        if slide_mode:
+            summary["slide_parallelism"] = slide_mode
+        executor_slots = getattr(self._executor, "_max_workers", None)
+        if isinstance(executor_slots, int) and executor_slots > 0:
+            summary["job_worker_slots"] = executor_slots
+        pipeline_mode_override = request.pipeline_overrides.get("pipeline_mode")
+        pipeline_mode = pipeline_mode_override
+        if pipeline_mode is None and request.context is not None:
+            pipeline_mode = request.context.pipeline_enabled
+        if pipeline_mode is None:
+            pipeline_mode = request.config.get("pipeline_mode")
+        if pipeline_mode is not None:
+            summary["pipeline_mode"] = bool(pipeline_mode)
+        hardware_defaults = cfg.get_hardware_tuning_defaults()
+        hardware_profile = hardware_defaults.get("profile")
+        if isinstance(hardware_profile, str) and hardware_profile:
+            summary.setdefault("hardware_profile", hardware_profile)
+        detected_cpu = hardware_defaults.get("detected_cpu_count")
+        if isinstance(detected_cpu, int) and detected_cpu > 0:
+            summary.setdefault("detected_cpu_cores", detected_cpu)
+        detected_memory = hardware_defaults.get("detected_memory_gib")
+        if isinstance(detected_memory, (int, float)) and detected_memory > 0:
+            summary.setdefault("detected_memory_gib", detected_memory)
+        return summary
+
+    def _default_worker_pool_factory(self, request: PipelineRequest) -> TranslationWorkerPool:
+        max_workers = self._resolve_thread_count(request)
+        return TranslationWorkerPool(max_workers=max_workers)
+
+    @staticmethod
+    def _maybe_update_translation_pool_summary(
+        job: PipelineJob, pool: Optional[TranslationWorkerPool]
+    ) -> None:
+        if job.tuning_summary is None or pool is None:
+            return
+        worker_count = getattr(pool, "max_workers", None)
+        if worker_count is not None:
+            job.tuning_summary["translation_pool_workers"] = int(worker_count)
+        pool_mode = getattr(pool, "mode", None)
+        if pool_mode:
+            job.tuning_summary["translation_pool_mode"] = pool_mode
 
     def _restore_persisted_jobs(self) -> None:
         """Load persisted jobs and reconcile their in-memory representation."""
@@ -427,6 +553,9 @@ class PipelineJobManager:
             result=result_payload,
             request_payload=request_payload,
             resume_context=resume_context,
+            tuning_summary=copy.deepcopy(job.tuning_summary)
+            if job.tuning_summary is not None
+            else None,
         )
 
     def submit(self, request: PipelineRequest) -> PipelineJob:
@@ -452,12 +581,17 @@ class PipelineJobManager:
             request_payload=request_payload,
             resume_context=copy.deepcopy(request_payload),
         )
+        tuning_summary = self._build_tuning_summary(request)
+        job.tuning_summary = tuning_summary if tuning_summary else None
 
         tracker.register_observer(lambda event: self._store_event(job_id, event))
 
         with self._lock:
             self._jobs[job_id] = job
             self._store.save(self._snapshot(job))
+
+        if tuning_summary:
+            tracker.publish_progress({"stage": "configuration", **tuning_summary})
 
         with log_mgr.log_context(job_id=job_id, correlation_id=request.correlation_id):
             logger.info(
@@ -504,11 +638,19 @@ class PipelineJobManager:
                 },
             )
 
-    def _acquire_worker_pool(self, request: PipelineRequest) -> tuple[Optional[TranslationWorkerPool], bool]:
+    def _acquire_worker_pool(
+        self, job: PipelineJob
+    ) -> tuple[Optional[TranslationWorkerPool], bool]:
+        request = job.request
+        if request is None:
+            return None, False
         if request.translation_pool is not None:
-            return request.translation_pool, False
+            pool = request.translation_pool
+            self._maybe_update_translation_pool_summary(job, pool)
+            return pool, False
         pool = self._worker_pool_factory(request)
         request.translation_pool = pool
+        self._maybe_update_translation_pool_summary(job, pool)
         return pool, True
 
     def _execute(self, job_id: str) -> None:
@@ -540,7 +682,10 @@ class PipelineJobManager:
                 "job",
                 attributes={"job_id": job_id, "correlation_id": correlation_id},
             ):
-                pool, owns_pool = self._acquire_worker_pool(job.request)
+                pool, owns_pool = self._acquire_worker_pool(job)
+                if job.tuning_summary is not None:
+                    with self._lock:
+                        self._store.update(self._snapshot(job))
                 job.owns_translation_pool = owns_pool
                 response = run_pipeline(job.request)
             with self._lock:
@@ -757,6 +902,9 @@ class PipelineJobManager:
             result_payload=result_payload,
             request_payload=request_payload,
             resume_context=resume_context,
+            tuning_summary=copy.deepcopy(metadata.tuning_summary)
+            if metadata.tuning_summary is not None
+            else None,
         )
         if metadata.last_event is not None:
             job.last_event = _deserialize_progress_event(metadata.last_event)

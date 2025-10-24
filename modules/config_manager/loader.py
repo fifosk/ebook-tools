@@ -16,9 +16,12 @@ from .constants import (
     DEFAULT_FFMPEG_PATH,
     DEFAULT_LOCAL_CONFIG_PATH,
     DEFAULT_MODEL,
+    DEFAULT_QUEUE_SIZE,
+    DEFAULT_THREADS,
     DERIVED_CONFIG_KEYS,
     SENSITIVE_CONFIG_KEYS,
     VAULT_FILE_ENV,
+    DEFAULT_JOB_MAX_WORKERS,
 )
 from .settings import (
     EbookToolsSettings,
@@ -26,6 +29,7 @@ from .settings import (
     load_environment_overrides,
     load_vault_secrets,
 )
+from .runtime import get_hardware_tuning_defaults
 
 logger = logging_manager.get_logger()
 console_info = logging_manager.console_info
@@ -136,6 +140,59 @@ def load_configuration(
 
     settings = apply_settings_updates(settings, dict(vault_updates))
     settings = apply_settings_updates(settings, env_overrides)
+
+    tuning_defaults = get_hardware_tuning_defaults()
+    tuning_updates: Dict[str, Any] = {}
+    if tuning_defaults:
+        recommended_threads = tuning_defaults.get("thread_count")
+        if (
+            isinstance(recommended_threads, int)
+            and recommended_threads > 0
+            and settings.thread_count == DEFAULT_THREADS
+        ):
+            tuning_updates["thread_count"] = recommended_threads
+
+        recommended_queue = tuning_defaults.get("queue_size")
+        if (
+            isinstance(recommended_queue, int)
+            and recommended_queue > 0
+            and settings.queue_size == DEFAULT_QUEUE_SIZE
+        ):
+            tuning_updates["queue_size"] = recommended_queue
+
+        recommended_pipeline = tuning_defaults.get("pipeline_mode")
+        if (
+            isinstance(recommended_pipeline, bool)
+            and recommended_pipeline
+            and not settings.pipeline_mode
+        ):
+            tuning_updates["pipeline_mode"] = recommended_pipeline
+
+        recommended_job_workers = tuning_defaults.get("job_max_workers")
+        if (
+            isinstance(recommended_job_workers, int)
+            and recommended_job_workers > 0
+            and settings.job_max_workers == DEFAULT_JOB_MAX_WORKERS
+        ):
+            tuning_updates["job_max_workers"] = recommended_job_workers
+
+        recommended_slide_mode = tuning_defaults.get("slide_parallelism")
+        if (
+            isinstance(recommended_slide_mode, str)
+            and recommended_slide_mode
+            and settings.slide_parallelism == "off"
+        ):
+            tuning_updates["slide_parallelism"] = recommended_slide_mode
+
+        recommended_slide_workers = tuning_defaults.get("slide_parallel_workers")
+        if (
+            isinstance(recommended_slide_workers, int)
+            and recommended_slide_workers > 0
+            and settings.slide_parallel_workers in {None, 0}
+        ):
+            tuning_updates["slide_parallel_workers"] = recommended_slide_workers
+
+    settings = apply_settings_updates(settings, tuning_updates)
 
     if default_model is None:
         default_model = DEFAULT_MODEL

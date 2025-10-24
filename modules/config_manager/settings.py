@@ -24,6 +24,7 @@ from .constants import (
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
     VALID_LLM_SOURCES,
+    DEFAULT_JOB_MAX_WORKERS,
 )
 
 logger = logging_manager.get_logger()
@@ -88,7 +89,7 @@ class EbookToolsSettings(BaseModel):
     ollama_api_key: Optional[SecretStr] = None
     database_url: Optional[SecretStr] = None
     job_store_url: Optional[SecretStr] = None
-    job_max_workers: int = 2
+    job_max_workers: int = DEFAULT_JOB_MAX_WORKERS
 
 
 class EnvironmentOverrides(BaseSettings):
