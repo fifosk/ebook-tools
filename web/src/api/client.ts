@@ -130,6 +130,105 @@ export function buildStorageUrl(path: string): string {
   return `${STORAGE_BASE_URL}${path}`;
 }
 
+function isAbsoluteUrl(path: string): boolean {
+  const lower = path.trim().toLowerCase();
+  return lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:') || lower.startsWith('blob:');
+}
+
+function stripQueryAndFragment(path: string): string {
+  const match = path.match(/^[^?#]*/u);
+  return match ? match[0] : path;
+}
+
+function normalisePath(path: string): string {
+  return stripQueryAndFragment(path.replace(/\\+/g, '/'));
+}
+
+function padSlideIndex(index: number): string {
+  if (!Number.isFinite(index) || index <= 0) {
+    return '0001';
+  }
+  return Math.max(1, Math.trunc(index)).toString().padStart(4, '0');
+}
+
+export function buildBatchSlidePreviewUrls(entry: string, options?: { slideIndex?: number }): string[] {
+  const rawEntry = (entry ?? '').trim();
+  if (!rawEntry) {
+    return [];
+  }
+
+  const slideIndex = options?.slideIndex ?? 1;
+  const slideToken = padSlideIndex(slideIndex);
+  const normalisedEntry = normalisePath(rawEntry);
+  if (!normalisedEntry) {
+    return [];
+  }
+
+  const candidates = new Set<string>();
+  const pushCandidate = (candidate: string | null | undefined) => {
+    if (!candidate) {
+      return;
+    }
+    const trimmed = normalisePath(candidate.trim());
+    if (!trimmed) {
+      return;
+    }
+    if (candidates.has(trimmed)) {
+      return;
+    }
+    candidates.add(trimmed);
+  };
+
+  const ensureSlideSuffix = (base: string) => {
+    const cleaned = base.replace(/\/+$/u, '');
+    if (!cleaned) {
+      return null;
+    }
+    return `${cleaned}/${slideToken}.png`;
+  };
+
+  const extensionMatch = normalisedEntry.match(/\.([a-z0-9]+)$/iu);
+  const extension = extensionMatch ? extensionMatch[1].toLowerCase() : '';
+
+  if (extension === 'png' || extension === 'jpg' || extension === 'jpeg' || extension === 'webp') {
+    pushCandidate(normalisedEntry);
+  } else if (extension === 'mp4' || extension === 'mov' || extension === 'm4v') {
+    const directory = normalisedEntry.replace(/\/[^/]*$/u, '');
+    const slideDir = directory ? `${directory}/slides` : 'slides';
+    pushCandidate(`${slideDir}/${slideToken}.png`);
+    pushCandidate(`${directory}/${slideToken}.png`);
+    pushCandidate(normalisedEntry.replace(/\.[a-z0-9]+$/iu, '.png'));
+  } else if (normalisedEntry.includes('/slides/')) {
+    const base = normalisedEntry.replace(/\/+$/u, '');
+    if (base.match(/\.png$/iu)) {
+      pushCandidate(base);
+    } else {
+      pushCandidate(`${base}/${slideToken}.png`);
+    }
+  } else {
+    pushCandidate(ensureSlideSuffix(normalisedEntry));
+    pushCandidate(`${normalisedEntry.replace(/\/+$/u, '')}/${slideToken}.png`);
+  }
+
+  const resolved: string[] = [];
+  for (const candidate of candidates) {
+    if (!candidate) {
+      continue;
+    }
+    if (isAbsoluteUrl(candidate)) {
+      resolved.push(candidate);
+      continue;
+    }
+    try {
+      resolved.push(buildStorageUrl(candidate));
+    } catch (error) {
+      console.warn('Unable to build storage URL for batch slide preview', error);
+    }
+  }
+
+  return resolved;
+}
+
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
   const response = await fetch(withBase('/pipelines/files'));
   return handleResponse<PipelineFileBrowserResponse>(response);

@@ -1110,6 +1110,91 @@ button.link-button:focus {
   padding: 0;
 }
 
+.slide-preview-card {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-card-alt);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.slide-preview-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.slide-preview-card__label {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.slide-preview-card__frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 0.75rem;
+  border: 1px dashed var(--color-border-subtle);
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.4));
+}
+
+.slide-preview-card__frame[data-state='success'] {
+  border-style: solid;
+  border-color: var(--color-border-strong);
+}
+
+.slide-preview-card__frame img {
+  width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  display: block;
+}
+
+.slide-preview-card__placeholder {
+  padding: 1.5rem;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.slide-preview-card__status {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+.slide-preview-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+}
+
+.slide-preview-card__meta-label {
+  font-weight: 600;
+}
+
+.slide-preview-card__meta-value {
+  font-family: 'Fira Code', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 0.85rem;
+  background: rgba(15, 23, 42, 0.4);
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-subtle);
+  word-break: break-all;
+}
+
 .job-status {
   display: inline-flex;
   align-items: center;

@@ -487,6 +487,91 @@ describe('JobProgress', () => {
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
   });
 
+  it('updates slide preview when a new batch path is reported', async () => {
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => 1_000_000);
+
+    const status: PipelineStatusResponse = {
+      job_id: 'job-8',
+      status: 'running',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {},
+        batch_video_files: ['outputs/job-8/batch_0001/video.mp4']
+      }
+    };
+
+    try {
+      const { rerender } = render(
+        <JobProgress
+          jobId="job-8"
+          status={status}
+          latestEvent={undefined}
+          onEvent={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onReload={vi.fn()}
+        />
+      );
+
+      const initialPreview = (await screen.findByRole('img', {
+        name: /Slide preview for Batch 1/i
+      })) as HTMLImageElement;
+
+      expect(initialPreview.src).toContain('/outputs/job-8/batch_0001/slides/0001.png?cb=1000000');
+
+      const event: ProgressEventPayload = {
+        event_type: 'progress',
+        timestamp: Date.now() / 1000,
+        metadata: {
+          batch_video_path: 'outputs/job-8/batch_0002/video.mp4',
+          batch_index: 2
+        },
+        error: null,
+        snapshot: {
+          completed: 10,
+          total: 40,
+          elapsed: 15,
+          speed: 0.5,
+          eta: 50
+        }
+      };
+
+      nowSpy.mockImplementation(() => 2_000_000);
+
+      rerender(
+        <JobProgress
+          jobId="job-8"
+          status={status}
+          latestEvent={event}
+          onEvent={vi.fn()}
+          onPause={vi.fn()}
+          onResume={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onReload={vi.fn()}
+        />
+      );
+
+      const updatedPreview = (await screen.findByRole('img', {
+        name: /Slide preview for Batch 2/i
+      })) as HTMLImageElement;
+
+      expect(updatedPreview.src).toContain('/outputs/job-8/batch_0002/slides/0001.png?cb=2000000');
+    } finally {
+      nowSpy.mockRestore();
+    }
+  });
+
   it('shows a placeholder when no cover metadata is available', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-5',

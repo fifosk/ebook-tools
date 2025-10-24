@@ -5,7 +5,7 @@ import {
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { buildStorageUrl } from '../api/client';
+import { buildBatchSlidePreviewUrls, buildStorageUrl } from '../api/client';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 
@@ -110,6 +110,135 @@ type CoverAsset =
   | { type: 'external'; url: string }
   | { type: 'storage'; path: string; raw: string }
   | null;
+
+type SlidePreviewState = {
+  batchEntry: string | null;
+  batchIndex: number | null;
+  candidates: string[];
+  candidateIndex: number;
+  cacheBuster: number;
+  status: 'idle' | 'loading' | 'success' | 'error';
+};
+
+type BatchPreviewMetadata = {
+  entry: string;
+  indexHint: number | null;
+} | null;
+
+function parseBatchIndex(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.max(1, Math.trunc(value));
+  }
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    if (!Number.isNaN(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return null;
+}
+
+function extractBatchPreviewMetadata(metadata: Record<string, unknown> | null | undefined): BatchPreviewMetadata {
+  if (!metadata) {
+    return null;
+  }
+
+  const indexCandidates = ['batch_index', 'batch_number', 'batch_no', 'batch_id', 'batch'];
+  let indexHint: number | null = null;
+  for (const key of indexCandidates) {
+    if (key in metadata) {
+      indexHint = parseBatchIndex(metadata[key]);
+      if (indexHint !== null) {
+        break;
+      }
+    }
+  }
+
+  const pathKeys = [
+    'batch_video_path',
+    'batch_video_file',
+    'batch_video',
+    'batch_output_path',
+    'batch_output_dir',
+    'batch_path',
+    'batch_directory',
+    'batch_dir',
+    'video_path',
+    'slides_path',
+    'slide_preview',
+    'slide_preview_path',
+    'batch_preview',
+    'preview_path'
+  ];
+
+  for (const key of pathKeys) {
+    const value = metadata[key];
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed) {
+        return { entry: trimmed, indexHint };
+      }
+    }
+  }
+
+  const arrayCandidates = ['batch_video_files', 'batch_previews'];
+  for (const key of arrayCandidates) {
+    const value = metadata[key];
+    if (Array.isArray(value)) {
+      const strings = value.filter((item): item is string => typeof item === 'string');
+      if (strings.length > 0) {
+        const last = strings[strings.length - 1].trim();
+        if (last) {
+          return { entry: last, indexHint: indexHint ?? parseBatchIndex(strings.length) };
+        }
+      }
+    }
+  }
+
+  for (const value of Object.values(metadata)) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        continue;
+      }
+      if (/\.mp4(?:$|[?#])/iu.test(trimmed) || /\/slides\//iu.test(trimmed) || /\.png(?:$|[?#])/iu.test(trimmed)) {
+        return { entry: trimmed, indexHint };
+      }
+    } else if (Array.isArray(value)) {
+      const match = value.find((item) => typeof item === 'string' && /\.mp4|\/slides\//iu.test(item));
+      if (typeof match === 'string') {
+        const trimmed = match.trim();
+        if (trimmed) {
+          return { entry: trimmed, indexHint };
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+function normalisePreviewSource(entry: string | null): string {
+  if (!entry) {
+    return '';
+  }
+  return entry.replace(/\\+/g, '/').replace(/[?#].*$/u, '').trim();
+}
+
+function resolvePreviewBatchLabel(entry: string | null, index: number | null): string {
+  if (index !== null) {
+    return `Batch ${index}`;
+  }
+  const source = normalisePreviewSource(entry);
+  if (source) {
+    const segments = source.split('/').filter((segment) => segment.length > 0);
+    if (segments.length > 0) {
+      const last = segments[segments.length - 1];
+      return last.replace(/\.[^.]+$/u, '') || 'Latest batch';
+    }
+  }
+  return 'Latest batch';
+}
 
 function isExternalAsset(path: string): boolean {
   const lower = path.trim().toLowerCase();
@@ -356,6 +485,170 @@ export function JobProgress({
       })
     : false;
 
+  const [previewState, setPreviewState] = useState<SlidePreviewState>({
+    batchEntry: null,
+    batchIndex: null,
+    candidates: [],
+    candidateIndex: 0,
+    cacheBuster: 0,
+    status: 'idle'
+  });
+
+  const setPreviewFromEntry = useCallback((entry: string, indexHint?: number | null) => {
+    const trimmedEntry = entry.trim();
+    if (!trimmedEntry) {
+      return;
+    }
+    const safeIndex = indexHint !== undefined && indexHint !== null ? parseBatchIndex(indexHint) : null;
+
+    setPreviewState((prev) => {
+      const nextIndex =
+        safeIndex !== null
+          ? safeIndex
+          : prev.batchEntry && prev.batchEntry !== trimmedEntry
+            ? prev.batchIndex !== null
+              ? prev.batchIndex + 1
+              : null
+            : prev.batchIndex;
+
+      if (prev.batchEntry === trimmedEntry) {
+        if (prev.batchIndex === nextIndex) {
+          return prev;
+        }
+        return { ...prev, batchIndex: nextIndex };
+      }
+
+      const candidates = buildBatchSlidePreviewUrls(trimmedEntry);
+      return {
+        batchEntry: trimmedEntry,
+        batchIndex: nextIndex,
+        candidates,
+        candidateIndex: 0,
+        cacheBuster: Date.now(),
+        status: candidates.length > 0 ? 'loading' : 'error'
+      };
+    });
+  }, []);
+
+  const previewMetadata = useMemo(() => extractBatchPreviewMetadata(event?.metadata ?? null), [event?.metadata]);
+
+  useEffect(() => {
+    if (!status?.result?.batch_video_files) {
+      return;
+    }
+    const entries = status.result.batch_video_files.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+    if (entries.length === 0) {
+      return;
+    }
+    const latestEntry = entries[entries.length - 1];
+    setPreviewFromEntry(latestEntry, parseBatchIndex(entries.length));
+  }, [status?.result?.batch_video_files, setPreviewFromEntry]);
+
+  useEffect(() => {
+    if (!previewMetadata) {
+      return;
+    }
+    setPreviewFromEntry(previewMetadata.entry, previewMetadata.indexHint);
+  }, [previewMetadata, setPreviewFromEntry]);
+
+  const previewSrc = useMemo(() => {
+    const candidate = previewState.candidates[previewState.candidateIndex];
+    if (!candidate) {
+      return null;
+    }
+    if (!previewState.cacheBuster) {
+      return candidate;
+    }
+    const separator = candidate.includes('?') ? '&' : '?';
+    return `${candidate}${separator}cb=${previewState.cacheBuster}`;
+  }, [previewState.candidates, previewState.candidateIndex, previewState.cacheBuster]);
+
+  const previewSource = useMemo(() => normalisePreviewSource(previewState.batchEntry), [previewState.batchEntry]);
+  const previewBatchLabel = useMemo(
+    () => resolvePreviewBatchLabel(previewState.batchEntry, previewState.batchIndex),
+    [previewState.batchEntry, previewState.batchIndex]
+  );
+  const previewAltText = useMemo(() => `Slide preview for ${previewBatchLabel}`, [previewBatchLabel]);
+  const previewUpdatedAt = useMemo(() => {
+    if (!previewState.cacheBuster) {
+      return null;
+    }
+    const timestamp = new Date(previewState.cacheBuster);
+    if (Number.isNaN(timestamp.getTime())) {
+      return null;
+    }
+    return timestamp.toLocaleTimeString();
+  }, [previewState.cacheBuster]);
+
+  const handlePreviewError = useCallback(() => {
+    setPreviewState((prev) => {
+      if (prev.candidates.length === 0) {
+        if (prev.status === 'error') {
+          return prev;
+        }
+        return { ...prev, status: 'error' };
+      }
+      const nextIndex = prev.candidateIndex + 1;
+      if (nextIndex < prev.candidates.length) {
+        return {
+          ...prev,
+          candidateIndex: nextIndex,
+          cacheBuster: Date.now(),
+          status: 'loading'
+        };
+      }
+      return { ...prev, status: 'error' };
+    });
+  }, []);
+
+  const handlePreviewLoad = useCallback(() => {
+    setPreviewState((prev) => {
+      if (prev.status === 'success') {
+        return prev;
+      }
+      return { ...prev, status: 'success' };
+    });
+  }, []);
+
+  const handlePreviewRetry = useCallback(() => {
+    setPreviewState((prev) => {
+      if (!prev.batchEntry) {
+        return prev;
+      }
+      const candidates = prev.candidates.length > 0 ? prev.candidates : buildBatchSlidePreviewUrls(prev.batchEntry);
+      if (candidates.length === 0) {
+        return { ...prev, candidates: [], status: 'error', cacheBuster: Date.now() };
+      }
+      return {
+        ...prev,
+        candidates,
+        candidateIndex: 0,
+        cacheBuster: Date.now(),
+        status: 'loading'
+      };
+    });
+  }, []);
+
+  const previewStatusMessage = useMemo(() => {
+    switch (previewState.status) {
+      case 'loading':
+        return `Slide preview is loading for ${previewBatchLabel}…`;
+      case 'error':
+        return 'Slide preview is not available yet. The slide image may still be rendering.';
+      case 'success':
+        if (previewUpdatedAt) {
+          return `Slide preview refreshed for ${previewBatchLabel} at ${previewUpdatedAt}.`;
+        }
+        return `Slide preview refreshed for ${previewBatchLabel}.`;
+      default:
+        return 'Slide preview will appear once the first batch finishes rendering.';
+    }
+  }, [previewBatchLabel, previewState.status, previewUpdatedAt]);
+
+  const previewStatusRole = previewState.status === 'error' ? 'alert' : 'status';
+  const showPreviewRetry = previewState.status === 'error' && !!previewState.batchEntry;
+  const previewFrameState = previewState.batchEntry ? previewState.status : 'idle';
+
   const canPause = !isTerminal && statusValue !== 'paused';
   const canResume = statusValue === 'paused';
   const canCancel = !isTerminal;
@@ -465,6 +758,37 @@ export function JobProgress({
       ) : (
         <p>No progress events received yet.</p>
       )}
+      <div className="slide-preview-card" data-state={previewFrameState} aria-live="polite">
+        <div className="slide-preview-card__header">
+          <div>
+            <h4 style={{ marginTop: 0, marginBottom: '0.25rem' }}>Slide preview</h4>
+            <span className="slide-preview-card__label">{previewBatchLabel}</span>
+          </div>
+          {showPreviewRetry ? (
+            <button type="button" className="link-button" onClick={handlePreviewRetry}>
+              Retry preview
+            </button>
+          ) : null}
+        </div>
+        <div className="slide-preview-card__frame" data-state={previewFrameState} aria-busy={previewState.status === 'loading'}>
+          {previewSrc ? (
+            <img src={previewSrc} alt={previewAltText} onError={handlePreviewError} onLoad={handlePreviewLoad} />
+          ) : (
+            <div className="slide-preview-card__placeholder" role="status">
+              <span>{previewState.status === 'loading' ? 'Loading preview…' : 'Preview will appear after the first batch is ready.'}</span>
+            </div>
+          )}
+        </div>
+        <p className="slide-preview-card__status" role={previewStatusRole}>
+          {previewStatusMessage}
+        </p>
+        {previewSource ? (
+          <div className="slide-preview-card__meta">
+            <span className="slide-preview-card__meta-label">Source</span>
+            <code className="slide-preview-card__meta-value">{previewSource}</code>
+          </div>
+        ) : null}
+      </div>
       <div style={{ marginTop: '1rem' }}>
         <h4>Book metadata</h4>
         <div className="metadata-cover-preview">
