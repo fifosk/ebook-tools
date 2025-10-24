@@ -32,6 +32,16 @@ from .schemas import (
 router = APIRouter()
 
 
+def _format_relative_path(path: Path, root: Path) -> str:
+    """Return ``path`` relative to ``root`` using POSIX separators when possible."""
+
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return path.as_posix()
+    return relative.as_posix() or path.name
+
+
 def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
     entries: List[PipelineFileEntry] = []
     if not root.exists():
@@ -42,7 +52,7 @@ def _list_ebook_files(root: Path) -> List[PipelineFileEntry]:
         entries.append(
             PipelineFileEntry(
                 name=path.name,
-                path=str(path),
+                path=_format_relative_path(path, root),
                 type="file",
             )
         )
@@ -60,7 +70,7 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
         entries.append(
             PipelineFileEntry(
                 name=path.name,
-                path=str(path),
+                path=_format_relative_path(path, root),
                 type=entry_type,
             )
         )
@@ -120,7 +130,12 @@ async def list_pipeline_files(
         ebooks = _list_ebook_files(context.books_dir)
         outputs = _list_output_entries(context.output_dir)
 
-    return PipelineFileBrowserResponse(ebooks=ebooks, outputs=outputs)
+    return PipelineFileBrowserResponse(
+        ebooks=ebooks,
+        outputs=outputs,
+        books_root=context.books_dir.as_posix(),
+        output_root=context.output_dir.as_posix(),
+    )
 
 
 @router.post("/files/upload", response_model=PipelineFileEntry, status_code=status.HTTP_201_CREATED)
@@ -162,7 +177,11 @@ async def upload_pipeline_ebook(
         finally:
             await file.close()
 
-    return PipelineFileEntry(name=destination.name, path=str(destination), type="file")
+    return PipelineFileEntry(
+        name=destination.name,
+        path=_format_relative_path(destination, destination_dir),
+        type="file",
+    )
 
 
 @router.get("/defaults", response_model=PipelineDefaultsResponse)

@@ -17,6 +17,8 @@ export interface PipelineFileEntry {
 export interface PipelineFileBrowserResponse {
   ebooks: PipelineFileEntry[];
   outputs: PipelineFileEntry[];
+  books_root: string;
+  output_root: string;
 }
 
 export interface PipelineDefaultsResponse {
