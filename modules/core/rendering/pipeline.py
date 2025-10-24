@@ -235,9 +235,11 @@ class RenderPipeline:
                 active_translation_pool.shutdown()
 
         if state.written_blocks and not self._should_stop():
+            block_start = state.current_batch_start
+            block_end = state.current_batch_start + len(state.written_blocks) - 1
             request = BatchExportRequest(
-                start_sentence=state.current_batch_start,
-                end_sentence=state.current_batch_start + len(state.written_blocks) - 1,
+                start_sentence=block_start,
+                end_sentence=block_end,
                 written_blocks=list(state.written_blocks),
                 target_language=(
                     state.last_target_language
@@ -253,6 +255,7 @@ class RenderPipeline:
             video_path = exporter.export(request)
             if video_path:
                 state.batch_video_files.append(video_path)
+            self._publish_export_event(block_start, block_end)
         elif self._should_stop():
             console_info(
                 "Skip final batch export due to shutdown request.",
@@ -290,6 +293,19 @@ class RenderPipeline:
             state.all_audio_segments = []
             state.current_audio_segments = []
         return state
+
+    def _publish_export_event(self, start_sentence: int, end_sentence: int) -> None:
+        if self._progress is None:
+            return
+        if end_sentence < start_sentence:
+            return
+        metadata = {
+            "stage": "export",
+            "block_start": start_sentence,
+            "block_end": end_sentence,
+            "resume_safe_start": end_sentence + 1,
+        }
+        self._progress.publish_progress(metadata)
 
     def _ensure_translation_client(self):
         translation_client = getattr(self._config, "translation_client", None)
@@ -415,8 +431,9 @@ class RenderPipeline:
             (sentence_number - state.current_batch_start + 1) % sentences_per_file == 0
         )
         if should_flush:
+            block_start = state.current_batch_start
             request = BatchExportRequest(
-                start_sentence=state.current_batch_start,
+                start_sentence=block_start,
                 end_sentence=sentence_number,
                 written_blocks=list(state.written_blocks),
                 target_language=target_language or state.last_target_language,
@@ -430,6 +447,7 @@ class RenderPipeline:
             video_path = exporter.export(request)
             if video_path:
                 state.batch_video_files.append(video_path)
+            self._publish_export_event(block_start, sentence_number)
             state.written_blocks.clear()
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
@@ -688,9 +706,11 @@ class RenderPipeline:
                         == 0
                     ) and not pipeline_stop_event.is_set()
                     if should_flush:
+                        block_start = state.current_batch_start
+                        block_end = item.sentence_number
                         request = BatchExportRequest(
-                            start_sentence=state.current_batch_start,
-                            end_sentence=item.sentence_number,
+                            start_sentence=block_start,
+                            end_sentence=block_end,
                             written_blocks=list(state.written_blocks),
                             target_language=
                             item.target_language or state.last_target_language,
@@ -702,12 +722,29 @@ class RenderPipeline:
                             video_blocks=list(state.video_blocks),
                         )
                         future = finalize_executor.submit(exporter.export, request)
+                        if self._progress is not None:
+                            def _on_export_complete(done_future, start=block_start, end=block_end):
+                                try:
+                                    done_future.result()
+                                except Exception as exc:  # pragma: no cover - best effort reporting
+                                    self._progress.record_error(
+                                        exc,
+                                        metadata={
+                                            "stage": "export",
+                                            "block_start": start,
+                                            "block_end": end,
+                                        },
+                                    )
+                                else:
+                                    self._publish_export_event(start, end)
+
+                            future.add_done_callback(_on_export_complete)
                         export_futures.append(future)
                         state.written_blocks.clear()
                         state.video_blocks.clear()
                         if state.current_audio_segments is not None:
                             state.current_audio_segments.clear()
-                        state.current_batch_start = item.sentence_number + 1
+                        state.current_batch_start = block_end + 1
                     state.last_target_language = item.target_language or state.last_target_language
                     state.processed += 1
                     if self._progress is not None:

@@ -52,6 +52,7 @@ class PipelineJob:
     owns_translation_pool: bool = False
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
+    last_exported_sentence: Optional[int] = None
     tuning_summary: Optional[Dict[str, Any]] = None
 
 

@@ -104,18 +104,34 @@ def compute_resume_context(job: PipelineJob) -> Optional[Dict[str, Any]]:
 
     block_size = _resolve_block_size(job, inputs)
 
-    start_sentence = _coerce_positive_int(inputs.get("start_sentence"))
-    if start_sentence is None:
-        start_sentence = 1
+    start_sentence = _coerce_positive_int(inputs.get("start_sentence")) or 1
+
+    last_exported = _coerce_positive_int(getattr(job, "last_exported_sentence", None))
+    if last_exported is not None and last_exported >= 0:
+        safe_start = max(start_sentence, last_exported + 1)
+    else:
+        safe_start = start_sentence
+
+    resume_start = safe_start
 
     if last_sentence is not None:
         block_start = _compute_block_start(last_sentence, block_size, start_sentence)
-        inputs["start_sentence"] = block_start
-        inputs["resume_block_start"] = block_start
+        if last_exported is not None:
+            resume_start = min(block_start, safe_start)
+        else:
+            resume_start = block_start
         inputs["resume_last_sentence"] = last_sentence
         inputs["resume_next_sentence"] = last_sentence + 1
     else:
-        inputs.setdefault("resume_block_start", start_sentence)
+        inputs.pop("resume_last_sentence", None)
+        inputs["resume_next_sentence"] = resume_start
+
+    inputs["start_sentence"] = resume_start
+    inputs["resume_block_start"] = resume_start
+    if last_exported is not None:
+        inputs["resume_last_exported_sentence"] = last_exported
+    else:
+        inputs.pop("resume_last_exported_sentence", None)
 
     return payload
 

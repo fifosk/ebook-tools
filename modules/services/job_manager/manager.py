@@ -80,6 +80,16 @@ class PipelineJobManager:
             return None
         return number if number >= 0 else None
 
+    @staticmethod
+    def _coerce_positive_int(value: Any) -> Optional[int]:
+        if value is None:
+            return None
+        try:
+            number = int(value)
+        except (TypeError, ValueError):
+            return None
+        return number if number > 0 else None
+
     def _resolve_thread_count(self, request: PipelineRequest) -> Optional[int]:
         candidate = request.pipeline_overrides.get("thread_count")
         if candidate is None and request.context is not None:
@@ -376,6 +386,7 @@ class PipelineJobManager:
             tuning_summary=copy.deepcopy(job.tuning_summary)
             if job.tuning_summary is not None
             else None,
+            last_exported_sentence=job.last_exported_sentence,
         )
 
     def submit(self, request: PipelineRequest) -> PipelineJob:
@@ -400,6 +411,7 @@ class PipelineJobManager:
             stop_event=stop_event,
             request_payload=request_payload,
             resume_context=copy.deepcopy(request_payload),
+            last_exported_sentence=None,
         )
         tuning_summary = self._build_tuning_summary(request)
         job.tuning_summary = tuning_summary if tuning_summary else None
@@ -436,6 +448,13 @@ class PipelineJobManager:
             if job is None:
                 return
             job.last_event = event
+            metadata = event.metadata
+            if isinstance(metadata, Mapping):
+                stage = metadata.get("stage")
+                if stage == "export":
+                    block_end = self._coerce_positive_int(metadata.get("block_end"))
+                    if block_end is not None:
+                        job.last_exported_sentence = block_end
             if job.status == PipelineJobStatus.RUNNING:
                 resume_context = compute_resume_context(job)
                 if resume_context is not None:
@@ -815,6 +834,9 @@ class PipelineJobManager:
             tuning_summary=copy.deepcopy(metadata.tuning_summary)
             if metadata.tuning_summary is not None
             else None,
+            last_exported_sentence=self._coerce_positive_int(
+                metadata.last_exported_sentence
+            ),
         )
         if metadata.last_event is not None:
             job.last_event = deserialize_progress_event(metadata.last_event)

@@ -68,6 +68,7 @@ def _build_metadata(job_id: str, status: PipelineJobStatus) -> PipelineJobMetada
         result=None,
         request_payload={"config": {}, "inputs": dict(inputs)},
         resume_context={"config": {}, "inputs": dict(inputs)},
+        last_exported_sentence=None,
     )
 
 
@@ -107,6 +108,7 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
 
     job = manager.get(metadata.job_id)
     job.status = PipelineJobStatus.RUNNING
+    job.last_exported_sentence = 10
     job.last_event = ProgressEvent(
         event_type="progress",
         snapshot=ProgressSnapshot(completed=5, total=20, elapsed=1.0, speed=5.0, eta=None),
@@ -122,6 +124,8 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
     assert paused_inputs["start_sentence"] == 11
     assert paused_inputs["resume_block_start"] == 11
     assert paused_inputs["resume_last_sentence"] == 12
+    assert paused_inputs["resume_last_exported_sentence"] == 10
+    assert paused_inputs["resume_next_sentence"] == 13
 
     resumed = manager.resume_job(metadata.job_id)
     assert resumed.status == PipelineJobStatus.PENDING
@@ -301,6 +305,66 @@ def test_compute_resume_context_aligns_with_offset_block():
     assert inputs["start_sentence"] == 11
     assert inputs["resume_block_start"] == 11
     assert inputs["resume_last_sentence"] == 16
+
+
+def test_compute_resume_context_rewinds_to_last_export():
+    request = PipelineRequest(
+        config={},
+        context=None,
+        environment_overrides={},
+        pipeline_overrides={},
+        inputs=PipelineInput(
+            input_file="book.epub",
+            base_output_file="output",
+            input_language="en",
+            target_languages=["es"],
+            sentences_per_output_file=80,
+            start_sentence=1,
+            end_sentence=None,
+            stitch_full=False,
+            generate_audio=False,
+            audio_mode="narration",
+            written_mode="text",
+            selected_voice="",
+            output_html=True,
+            output_pdf=False,
+            generate_video=False,
+            include_transliteration=False,
+            tempo=1.0,
+            book_metadata={},
+        ),
+    )
+
+    job = PipelineJob(
+        job_id="resume-export",
+        status=PipelineJobStatus.RUNNING,
+        created_at=datetime.now(timezone.utc),
+        request=request,
+        last_exported_sentence=80,
+    )
+
+    progress_event = ProgressEvent(
+        event_type="progress",
+        snapshot=ProgressSnapshot(
+            completed=178,
+            total=500,
+            elapsed=5.0,
+            speed=10.0,
+            eta=None,
+        ),
+        timestamp=1.0,
+        metadata={"stage": "media", "sentence_number": 178},
+    )
+    job.last_event = progress_event
+
+    context = compute_resume_context(job)
+    assert context is not None
+    inputs = context["inputs"]
+    assert inputs["start_sentence"] == 81
+    assert inputs["resume_block_start"] == 81
+    assert inputs["resume_last_exported_sentence"] == 80
+    assert inputs["resume_last_sentence"] == 178
+    assert inputs["resume_next_sentence"] == 179
 
 
 def test_finish_job_persists_terminal_state(job_manager_factory):

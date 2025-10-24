@@ -37,6 +37,7 @@ class PipelineJobMetadata:
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
     tuning_summary: Optional[Dict[str, Any]] = None
+    last_exported_sentence: Optional[int] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -58,6 +59,8 @@ class PipelineJobMetadata:
             if self.tuning_summary is not None
             else None,
         }
+        if self.last_exported_sentence is not None:
+            payload["last_exported_sentence"] = int(self.last_exported_sentence)
         if self.request_payload is not None:
             payload["request"] = _stable_copy(self.request_payload)
         return payload
@@ -87,6 +90,7 @@ class PipelineJobMetadata:
             request_payload=data.get("request"),
             resume_context=data.get("resume_context") or data.get("request"),
             tuning_summary=data.get("tuning_summary"),
+            last_exported_sentence=data.get("last_exported_sentence"),
         )
 
     @classmethod
