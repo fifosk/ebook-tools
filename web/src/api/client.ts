@@ -256,8 +256,28 @@ export function buildBatchSlidePreviewUrls(entry: string, options?: { slideIndex
   } else if (extension === 'mp4' || extension === 'mov' || extension === 'm4v') {
     const directory = normalisedEntry.replace(/\/[^/]*$/u, '');
     const slideDir = directory ? `${directory}/slides` : 'slides';
+    const videoFile = normalisedEntry.split('/').pop() ?? '';
+    const videoBase = videoFile.replace(/\.[^./]+$/u, '') || '';
+    const parentSegment = (directory.split('/').filter(Boolean).pop() ?? '').trim();
+    const uniqueKeySegments = [parentSegment, videoBase].filter((segment) => segment);
+    const uniqueKey = uniqueKeySegments.length > 0 ? uniqueKeySegments.join('_') : videoBase;
+
+    if (uniqueKey) {
+      pushCandidate(`${slideDir}/${uniqueKey}/${slideToken}.png`);
+      pushCandidate(`${slideDir}/${uniqueKey}_${slideToken}.png`);
+    }
+    if (parentSegment) {
+      pushCandidate(`${slideDir}/${parentSegment}/${slideToken}.png`);
+    }
+    if (videoBase) {
+      pushCandidate(`${slideDir}/${videoBase}/${slideToken}.png`);
+      pushCandidate(`${slideDir}/${videoBase}_${slideToken}.png`);
+    }
+
     pushCandidate(`${slideDir}/${slideToken}.png`);
-    pushCandidate(`${directory}/${slideToken}.png`);
+    if (directory) {
+      pushCandidate(`${directory}/${slideToken}.png`);
+    }
     pushCandidate(normalisedEntry.replace(/\.[a-z0-9]+$/iu, '.png'));
   } else if (normalisedEntry.includes('/slides/')) {
     const base = normalisedEntry.replace(/\/+$/u, '');

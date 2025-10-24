@@ -527,7 +527,9 @@ describe('JobProgress', () => {
         name: /Slide preview for Batch 1/i
       })) as HTMLImageElement;
 
-      expect(initialPreview.src).toContain('/outputs/job-8/batch_0001/slides/0001.png?cb=1000000');
+      expect(initialPreview.src).toContain(
+        '/outputs/job-8/batch_0001/slides/batch_0001_video/0001.png?cb=1000000'
+      );
 
       const event: ProgressEventPayload = {
         event_type: 'progress',
@@ -566,7 +568,9 @@ describe('JobProgress', () => {
         name: /Slide preview for Batch 2/i
       })) as HTMLImageElement;
 
-      expect(updatedPreview.src).toContain('/outputs/job-8/batch_0002/slides/0001.png?cb=2000000');
+      expect(updatedPreview.src).toContain(
+        '/outputs/job-8/batch_0002/slides/batch_0002_video/0001.png?cb=2000000'
+      );
     } finally {
       nowSpy.mockRestore();
     }

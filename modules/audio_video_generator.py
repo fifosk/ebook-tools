@@ -1,6 +1,7 @@
 """Utilities for generating audio and video artifacts."""
 
 import os
+import shutil
 import subprocess
 import threading
 import time
@@ -541,6 +542,11 @@ def generate_video_slides_ffmpeg(
 
     logger.info("Final stitched video slide output saved to: %s", final_video_path)
 
+    _persist_batch_preview(
+        final_video_path,
+        slide_index=1,
+    )
+
     if cleanup:
         for video_file in sentence_video_files:
             if os.path.exists(video_file):
@@ -555,3 +561,109 @@ __all__ = [
     "generate_audio_for_sentence",
     "generate_video_slides_ffmpeg",
 ]
+
+
+def _persist_batch_preview(final_video_path: str, *, slide_index: int = 1) -> None:
+    """Extract and store a slide preview image for ``final_video_path``."""
+
+    if not final_video_path:
+        return
+
+    video_dir = os.path.dirname(final_video_path)
+    if not video_dir:
+        return
+
+    try:
+        os.makedirs(video_dir, exist_ok=True)
+    except Exception:  # pragma: no cover - directory creation best effort
+        return
+
+    video_filename = os.path.basename(final_video_path)
+    video_stem, _ = os.path.splitext(video_filename)
+    if not video_stem:
+        return
+
+    slide_token = f"{max(1, int(slide_index)):04d}"
+    preview_path = os.path.join(video_dir, f"{video_stem}.png")
+
+    try:
+        result = subprocess.run(
+            [
+                "ffmpeg",
+                "-loglevel",
+                "quiet",
+                "-y",
+                "-i",
+                final_video_path,
+                "-frames:v",
+                "1",
+                preview_path,
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        logger.debug(
+            "FFmpeg executable not found; skipping slide preview extraction for %s",
+            final_video_path,
+        )
+        return
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.debug(
+            "Unexpected error extracting slide preview for %s: %s",
+            final_video_path,
+            exc,
+        )
+        return
+
+    if result.returncode != 0:
+        logger.debug(
+            "FFmpeg failed to extract slide preview for %s: %s",
+            final_video_path,
+            result.stderr.decode(errors="ignore"),
+        )
+        return
+
+    parent_segment = os.path.basename(video_dir.rstrip(os.sep))
+    unique_key_segments = [segment for segment in (parent_segment, video_stem) if segment]
+    unique_key = "_".join(unique_key_segments) if unique_key_segments else video_stem
+
+    slides_root = os.path.join(video_dir, "slides")
+    try:
+        os.makedirs(slides_root, exist_ok=True)
+    except Exception:  # pragma: no cover - directory creation best effort
+        return
+
+    destinations: List[str] = []
+
+    if unique_key:
+        unique_dir = os.path.join(slides_root, unique_key)
+        try:
+            os.makedirs(unique_dir, exist_ok=True)
+            destinations.append(os.path.join(unique_dir, f"{slide_token}.png"))
+        except Exception:
+            logger.debug(
+                "Unable to create slide preview directory %s", unique_dir
+            )
+        destinations.append(os.path.join(slides_root, f"{unique_key}_{slide_token}.png"))
+
+    if parent_segment:
+        parent_dir = os.path.join(slides_root, parent_segment)
+        try:
+            os.makedirs(parent_dir, exist_ok=True)
+            destinations.append(os.path.join(parent_dir, f"{slide_token}.png"))
+        except Exception:
+            logger.debug(
+                "Unable to create parent slide directory %s", parent_dir
+            )
+
+    for destination in destinations:
+        try:
+            shutil.copy2(preview_path, destination)
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.debug(
+                "Failed to copy slide preview from %s to %s: %s",
+                preview_path,
+                destination,
+                exc,
+            )
