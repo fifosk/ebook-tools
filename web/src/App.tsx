@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
 import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
@@ -13,6 +13,8 @@ import {
   resumeJob,
   submitPipeline
 } from './api/client';
+import { useTheme } from './components/ThemeProvider';
+import type { ThemeMode } from './components/ThemeProvider';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
@@ -56,6 +58,7 @@ export function App() {
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
 
   const refreshJobs = useCallback(async () => {
     try {
@@ -116,6 +119,13 @@ export function App() {
       setSelectedView('pipeline:submit');
     }
   }, [jobs, selectedView]);
+
+  const handleThemeChange = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      setThemeMode(event.target.value as ThemeMode);
+    },
+    [setThemeMode]
+  );
 
   const handleSubmit = useCallback(async (payload: PipelineRequestPayload) => {
     setIsSubmitting(true);
@@ -412,6 +422,19 @@ export function App() {
       </aside>
       <main className="dashboard__main">
         <div className="dashboard__toolbar">
+          <div className="theme-control">
+            <label className="theme-control__label" htmlFor="theme-select">
+              Theme
+            </label>
+            <select id="theme-select" value={themeMode} onChange={handleThemeChange}>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="system">System</option>
+            </select>
+            {themeMode === 'system' ? (
+              <span className="theme-control__hint">Following {resolvedTheme} mode</span>
+            ) : null}
+          </div>
           <button
             type="button"
             className="sidebar-toggle"
