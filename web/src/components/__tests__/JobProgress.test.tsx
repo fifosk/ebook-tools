@@ -1,5 +1,18 @@
-import { render, screen } from '@testing-library/react';
-import { vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const buildStorageUrlMock = vi.hoisted(() =>
+  vi.fn<[string], string>((path) => `https://storage.example/${path}`)
+);
+
+vi.mock('../../api/client', async () => {
+  const actual = await vi.importActual<typeof import('../../api/client')>('../../api/client');
+  return {
+    ...actual,
+    buildStorageUrl: buildStorageUrlMock
+  };
+});
+
+import { fireEvent, render, screen } from '@testing-library/react';
 import { JobProgress } from '../JobProgress';
 import { PipelineStatusResponse, ProgressEventPayload } from '../../api/dtos';
 
@@ -29,6 +42,11 @@ beforeAll(() => {
 });
 
 describe('JobProgress', () => {
+  beforeEach(() => {
+    buildStorageUrlMock.mockReset();
+    buildStorageUrlMock.mockImplementation((path) => `https://storage.example/${path}`);
+  });
+
   it('renders snapshot metrics when an event is supplied', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-1',
@@ -91,7 +109,8 @@ describe('JobProgress', () => {
         stitched_documents: {},
         book_metadata: {
           book_title: 'Example Title',
-          book_author: 'Author Name'
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/example-cover.jpg'
         }
       }
     };
@@ -111,7 +130,55 @@ describe('JobProgress', () => {
     );
 
     expect(screen.getByText('Example Title')).toBeInTheDocument();
+    const image = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
+    expect(image).toBeInTheDocument();
+    expect(image.src).toBe('https://storage.example/runtime/example-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
+  });
+
+  it('normalises storage-rooted cover metadata to avoid double storage prefixes', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-2a',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Storage Rooted Title',
+          book_author: 'Storage Rooted Author',
+          book_cover_file: 'storage/runtime/storage-rooted-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-2a"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText(
+      'Cover of Storage Rooted Title by Storage Rooted Author'
+    ) as HTMLImageElement;
+    expect(image.src).toBe('https://storage.example/runtime/storage-rooted-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/storage-rooted-cover.jpg');
+    expect(screen.getByText('storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
   });
 
   it('renders tuning metrics when provided', () => {
@@ -150,5 +217,311 @@ describe('JobProgress', () => {
     expect(screen.getByText('4')).toBeInTheDocument();
     expect(screen.getByText('Translation queue size')).toBeInTheDocument();
     expect(screen.getByText('32')).toBeInTheDocument();
+  });
+
+  it('falls back to placeholder text when the cover fails to load', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-4',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Broken Cover',
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/broken-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-4"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    let image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
+
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src.endsWith('/storage/runtime/broken-cover.jpg')).toBe(true);
+
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src.endsWith('/runtime/broken-cover.jpg')).toBe(true);
+
+    fireEvent.error(image);
+
+    expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry preview/i })).toBeInTheDocument();
+    expect(screen.queryByAltText('Cover of Broken Cover by Author Name')).not.toBeInTheDocument();
+  });
+
+  it('allows retrying the cover preview after a failure', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-4',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Broken Cover',
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/broken-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-4"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+
+    expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /retry preview/i }));
+
+    expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
+  });
+
+  it('retries the cover preview when metadata refreshes without changing the path', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-6',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Broken Cover',
+          book_author: 'Author Name',
+          book_cover_file: 'runtime/broken-cover.jpg'
+        }
+      }
+    };
+
+    const { rerender } = render(
+      <JobProgress
+        jobId="job-6"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+
+    expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+
+    const refreshedStatus: PipelineStatusResponse = {
+      ...status,
+      result: {
+        ...status.result!,
+        book_metadata: {
+          ...status.result!.book_metadata,
+          book_summary: 'An updated summary after metadata refresh.'
+        }
+      }
+    };
+
+    rerender(
+      <JobProgress
+        jobId="job-6"
+        status={refreshedStatus}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    expect(screen.queryByText(/Cover preview could not be loaded/i)).not.toBeInTheDocument();
+    expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
+
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
+  });
+
+  it('normalises cover metadata rooted in the output directory to storage paths', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-7',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Output Rooted Cover',
+          book_author: 'Author Name',
+          book_cover_file: '/Users/me/modules/output/runtime/output-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-7"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Output Rooted Cover by Author Name') as HTMLImageElement;
+    expect(image.src).toBe('https://storage.example/runtime/output-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/output-cover.jpg');
+    expect(screen.getByText('storage/runtime/output-cover.jpg')).toBeInTheDocument();
+  });
+
+  it('tries a relative storage path when building a storage URL fails', () => {
+    buildStorageUrlMock.mockImplementation(() => {
+      throw new Error('Missing storage base URL');
+    });
+
+    const status: PipelineStatusResponse = {
+      job_id: 'job-7',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Example Title',
+          book_author: 'Author Name',
+          book_cover_file: '/storage/runtime/example-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-7"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
+    expect(image.src.endsWith('/storage/runtime/example-cover.jpg')).toBe(true);
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
+  });
+
+  it('shows a placeholder when no cover metadata is available', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-5',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'No Cover Title',
+          book_author: 'No Cover Author'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-5"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText(/Cover image not provided yet/i)).toBeInTheDocument();
   });
 });

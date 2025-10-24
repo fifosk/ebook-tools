@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import {
   PipelineJobStatus,
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
+import { buildStorageUrl } from '../api/client';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 
@@ -105,6 +106,93 @@ function formatTuningValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
+type CoverAsset =
+  | { type: 'external'; url: string }
+  | { type: 'storage'; path: string; raw: string }
+  | null;
+
+function isExternalAsset(path: string): boolean {
+  const lower = path.trim().toLowerCase();
+  return lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:');
+}
+
+function normaliseStoragePath(path: string): string {
+  const normalised = path.replace(/\\/g, '/').trim();
+  if (!normalised) {
+    return '';
+  }
+
+  const withoutDrive = normalised.replace(/^[A-Za-z]:/, '');
+  const segments = withoutDrive
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+
+  if (segments.length === 0) {
+    return '';
+  }
+
+  const lowered = segments.map((segment) => segment.toLowerCase());
+  const runtimeIndex = lowered.lastIndexOf('runtime');
+  if (runtimeIndex >= 0) {
+    return segments.slice(runtimeIndex).join('/');
+  }
+
+  const booksIndex = lowered.lastIndexOf('books');
+  if (booksIndex >= 0) {
+    return segments.slice(booksIndex).join('/');
+  }
+
+  const storageIndex = lowered.indexOf('storage');
+  if (storageIndex >= 0 && storageIndex + 1 < segments.length) {
+    return segments.slice(storageIndex + 1).join('/');
+  }
+
+  const outputIndex = lowered.indexOf('output');
+  if (outputIndex >= 0 && outputIndex + 1 < segments.length) {
+    return segments.slice(outputIndex + 1).join('/');
+  }
+
+  return segments.join('/');
+}
+
+function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
+  const rawValue = metadata['book_cover_file'];
+  if (typeof rawValue !== 'string') {
+    return null;
+  }
+  const trimmed = rawValue.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (isExternalAsset(trimmed)) {
+    return { type: 'external', url: trimmed };
+  }
+  const relative = normaliseStoragePath(trimmed);
+  if (!relative) {
+    return { type: 'storage', path: '', raw: trimmed };
+  }
+  return { type: 'storage', path: relative, raw: trimmed };
+}
+
+function formatMetadataValue(key: string, value: unknown, coverAsset: CoverAsset): string {
+  const normalized = normalizeMetadataValue(value);
+  if (!normalized) {
+    return '';
+  }
+  if (key === 'book_cover_file' && coverAsset) {
+    if (coverAsset.type === 'external') {
+      return coverAsset.url;
+    }
+    const relative = coverAsset.path.trim();
+    if (relative) {
+      return `storage/${relative.replace(/^\/+/, '')}`;
+    }
+    return coverAsset.raw || normalized;
+  }
+  return normalized;
+}
+
 function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
   const order = new Map<string, number>(TUNING_ORDER.map((key, index) => [key, index]));
   return entries
@@ -143,11 +231,106 @@ export function JobProgress({
   usePipelineEvents(jobId, !isTerminal, onEvent);
 
   const event = latestEvent ?? status?.latest_event ?? undefined;
-  const metadata = status?.result?.book_metadata ?? {};
+  const bookMetadata = status?.result?.book_metadata ?? null;
+  const metadata = bookMetadata ?? {};
   const metadataEntries = Object.entries(metadata).filter(([, value]) => {
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
   });
+  const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
+  const coverSources = useMemo(() => {
+    if (!coverAsset) {
+      return [] as string[];
+    }
+    if (coverAsset.type === 'external') {
+      return [coverAsset.url];
+    }
+
+    const sources: string[] = [];
+    const unique = new Set<string>();
+
+    const push = (candidate: string | null | undefined) => {
+      const trimmed = candidate?.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (unique.has(trimmed)) {
+        return;
+      }
+      unique.add(trimmed);
+      sources.push(trimmed);
+    };
+
+    const normalisedPath = coverAsset.path.trim();
+    if (normalisedPath) {
+      try {
+        push(buildStorageUrl(normalisedPath));
+      } catch (error) {
+        console.warn('Unable to build storage URL for cover image', error);
+      }
+
+      const stripped = normalisedPath.replace(/^\/+/, '');
+      push(`/storage/${stripped}`);
+      push(`/${stripped}`);
+    }
+
+    const rawValue = coverAsset.raw.trim();
+    if (rawValue) {
+      if (isExternalAsset(rawValue)) {
+        push(rawValue);
+      } else if (rawValue.startsWith('/')) {
+        push(rawValue);
+      } else {
+        push(`/${rawValue}`);
+      }
+    }
+
+    return sources;
+  }, [coverAsset]);
+  const [coverSourceIndex, setCoverSourceIndex] = useState(0);
+  const coverUrl = coverSources[coverSourceIndex] ?? null;
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverSourceIndex(0);
+    setCoverFailed(false);
+  }, [coverSources, bookMetadata]);
+  const handleCoverError = useCallback(() => {
+    setCoverSourceIndex((currentIndex) => {
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= coverSources.length) {
+        setCoverFailed(true);
+        return currentIndex;
+      }
+      return nextIndex;
+    });
+  }, [coverSources.length]);
+  const handleCoverRetry = useCallback(() => {
+    setCoverFailed(false);
+    setCoverSourceIndex(0);
+  }, []);
+  const coverAltText = useMemo(() => {
+    const title = normalizeMetadataValue(metadata['book_title']);
+    const author = normalizeMetadataValue(metadata['book_author']);
+    if (title && author) {
+      return `Cover of ${title} by ${author}`;
+    }
+    if (title) {
+      return `Cover of ${title}`;
+    }
+    if (author) {
+      return `Book cover for ${author}`;
+    }
+    return 'Book cover preview';
+  }, [metadata]);
+  const coverPlaceholderMessage = useMemo(() => {
+    if (coverFailed) {
+      return 'Cover preview could not be loaded.';
+    }
+    if (coverAsset) {
+      return 'Cover preview is not available.';
+    }
+    return 'Cover image not provided yet.';
+  }, [coverAsset, coverFailed]);
   const tuningEntries = useMemo(() => {
     const tuning = status?.tuning ?? null;
     if (!tuning) {
@@ -284,17 +467,31 @@ export function JobProgress({
       )}
       <div style={{ marginTop: '1rem' }}>
         <h4>Book metadata</h4>
+        <div className="metadata-cover-preview">
+          {coverUrl && !coverFailed ? (
+            <img src={coverUrl} alt={coverAltText} onError={handleCoverError} />
+          ) : (
+            <div className="metadata-cover-preview__placeholder" role="status" aria-live="polite">
+              <span>{coverPlaceholderMessage}</span>
+              {coverFailed && coverUrl ? (
+                <button type="button" className="link-button" onClick={handleCoverRetry}>
+                  Retry preview
+                </button>
+              ) : null}
+            </div>
+          )}
+        </div>
         {metadataEntries.length > 0 ? (
           <dl className="metadata-grid">
             {metadataEntries.map(([key, value]) => {
-              const normalized = normalizeMetadataValue(value);
-              if (!normalized) {
+              const formatted = formatMetadataValue(key, value, coverAsset);
+              if (!formatted) {
                 return null;
               }
               return (
                 <div key={key} className="metadata-grid__row">
                   <dt>{formatMetadataLabel(key)}</dt>
-                  <dd>{normalized}</dd>
+                  <dd>{formatted}</dd>
                 </div>
               );
             })}
