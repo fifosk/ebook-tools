@@ -108,7 +108,7 @@ function formatTuningValue(value: unknown): string {
 
 type CoverAsset =
   | { type: 'external'; url: string }
-  | { type: 'storage'; path: string }
+  | { type: 'storage'; path: string; raw: string }
   | null;
 
 function isExternalAsset(path: string): boolean {
@@ -157,9 +157,9 @@ function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
   }
   const relative = normaliseStoragePath(trimmed);
   if (!relative) {
-    return null;
+    return { type: 'storage', path: '', raw: trimmed };
   }
-  return { type: 'storage', path: relative };
+  return { type: 'storage', path: relative, raw: trimmed };
 }
 
 function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
@@ -207,29 +207,75 @@ export function JobProgress({
     return normalized.length > 0;
   });
   const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
-  const coverUrl = useMemo(() => {
+  const coverSources = useMemo(() => {
     if (!coverAsset) {
-      return null;
+      return [] as string[];
     }
     if (coverAsset.type === 'external') {
-      return coverAsset.url;
+      return [coverAsset.url];
     }
-    try {
-      return buildStorageUrl(coverAsset.path);
-    } catch (error) {
-      console.warn('Unable to build storage URL for cover image', error);
-      return null;
+
+    const sources: string[] = [];
+    const unique = new Set<string>();
+
+    const push = (candidate: string | null | undefined) => {
+      const trimmed = candidate?.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (unique.has(trimmed)) {
+        return;
+      }
+      unique.add(trimmed);
+      sources.push(trimmed);
+    };
+
+    const normalisedPath = coverAsset.path.trim();
+    if (normalisedPath) {
+      try {
+        push(buildStorageUrl(normalisedPath));
+      } catch (error) {
+        console.warn('Unable to build storage URL for cover image', error);
+      }
+
+      const stripped = normalisedPath.replace(/^\/+/, '');
+      push(`/storage/${stripped}`);
+      push(`/${stripped}`);
     }
+
+    const rawValue = coverAsset.raw.trim();
+    if (rawValue) {
+      if (isExternalAsset(rawValue)) {
+        push(rawValue);
+      } else if (rawValue.startsWith('/')) {
+        push(rawValue);
+      } else {
+        push(`/${rawValue}`);
+      }
+    }
+
+    return sources;
   }, [coverAsset]);
+  const [coverSourceIndex, setCoverSourceIndex] = useState(0);
+  const coverUrl = coverSources[coverSourceIndex] ?? null;
   const [coverFailed, setCoverFailed] = useState(false);
   useEffect(() => {
+    setCoverSourceIndex(0);
     setCoverFailed(false);
-  }, [coverUrl, bookMetadata]);
+  }, [coverSources, bookMetadata]);
   const handleCoverError = useCallback(() => {
-    setCoverFailed(true);
-  }, []);
+    setCoverSourceIndex((currentIndex) => {
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= coverSources.length) {
+        setCoverFailed(true);
+        return currentIndex;
+      }
+      return nextIndex;
+    });
+  }, [coverSources.length]);
   const handleCoverRetry = useCallback(() => {
     setCoverFailed(false);
+    setCoverSourceIndex(0);
   }, []);
   const coverAltText = useMemo(() => {
     const title = normalizeMetadataValue(metadata['book_title']);

@@ -43,7 +43,8 @@ beforeAll(() => {
 
 describe('JobProgress', () => {
   beforeEach(() => {
-    buildStorageUrlMock.mockClear();
+    buildStorageUrlMock.mockReset();
+    buildStorageUrlMock.mockImplementation((path) => `https://storage.example/${path}`);
   });
 
   it('renders snapshot metrics when an event is supplied', () => {
@@ -210,7 +211,17 @@ describe('JobProgress', () => {
       />
     );
 
-    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    let image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
+
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src.endsWith('/storage/runtime/broken-cover.jpg')).toBe(true);
+
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src.endsWith('/runtime/broken-cover.jpg')).toBe(true);
+
     fireEvent.error(image);
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
@@ -254,7 +265,11 @@ describe('JobProgress', () => {
       />
     );
 
-    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
     fireEvent.error(image);
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
@@ -300,7 +315,11 @@ describe('JobProgress', () => {
       />
     );
 
-    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
     fireEvent.error(image);
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
@@ -332,6 +351,54 @@ describe('JobProgress', () => {
 
     expect(screen.queryByText(/Cover preview could not be loaded/i)).not.toBeInTheDocument();
     expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
+
+    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
+  });
+
+  it('tries a relative storage path when building a storage URL fails', () => {
+    buildStorageUrlMock.mockImplementation(() => {
+      throw new Error('Missing storage base URL');
+    });
+
+    const status: PipelineStatusResponse = {
+      job_id: 'job-7',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Example Title',
+          book_author: 'Author Name',
+          book_cover_file: '/storage/runtime/example-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-7"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
+    expect(image.src.endsWith('/storage/runtime/example-cover.jpg')).toBe(true);
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
   });
 
   it('shows a placeholder when no cover metadata is available', () => {
