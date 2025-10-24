@@ -917,105 +917,106 @@ class PipelineJobManager:
 
         job.execution_complete.clear()
         try:
-            with self._lock:
-                job.status = PipelineJobStatus.RUNNING
-                job.started_at = datetime.now(timezone.utc)
-                self._store.update(self._snapshot(job))
+            try:
+                with self._lock:
+                    job.status = PipelineJobStatus.RUNNING
+                    job.started_at = datetime.now(timezone.utc)
+                    self._store.update(self._snapshot(job))
 
-            request = job.request
-            correlation_id = request.correlation_id if request else None
+                request = job.request
+                correlation_id = request.correlation_id if request else None
 
-            assert request is not None  # noqa: S101
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.info(
-                    "Pipeline job started",
-                    extra={
-                        "event": "pipeline.job.started",
-                        "status": PipelineJobStatus.RUNNING.value,
-                        "console_suppress": True,
-                    },
-                )
-            with observability.pipeline_operation(
-                "job",
-                attributes={"job_id": job_id, "correlation_id": correlation_id},
-            ):
-                pool, owns_pool = self._acquire_worker_pool(job)
-                if job.tuning_summary is not None:
-                    with self._lock:
-                        self._store.update(self._snapshot(job))
-                job.owns_translation_pool = owns_pool
-                response = run_pipeline(request)
-            with self._lock:
-                current_status = job.status
-                if current_status == PipelineJobStatus.RUNNING:
-                    job.result = response
-                    job.result_payload = serialize_pipeline_response(response)
-                    job.status = (
-                        PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
+                assert request is not None  # noqa: S101
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.info(
+                        "Pipeline job started",
+                        extra={
+                            "event": "pipeline.job.started",
+                            "status": PipelineJobStatus.RUNNING.value,
+                            "console_suppress": True,
+                        },
                     )
-                    job.error_message = (
-                        None if response.success else "Pipeline execution reported failure."
+                with observability.pipeline_operation(
+                    "job",
+                    attributes={"job_id": job_id, "correlation_id": correlation_id},
+                ):
+                    pool, owns_pool = self._acquire_worker_pool(job)
+                    if job.tuning_summary is not None:
+                        with self._lock:
+                            self._store.update(self._snapshot(job))
+                    job.owns_translation_pool = owns_pool
+                    response = run_pipeline(request)
+                with self._lock:
+                    current_status = job.status
+                    if current_status == PipelineJobStatus.RUNNING:
+                        job.result = response
+                        job.result_payload = serialize_pipeline_response(response)
+                        job.status = (
+                            PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
+                        )
+                        job.error_message = (
+                            None if response.success else "Pipeline execution reported failure."
+                        )
+                    else:
+                        # Preserve externally requested state transitions (pause/cancel).
+                        job.result = None
+                        job.result_payload = None
+                    self._store.update(self._snapshot(job))
+            except Exception as exc:  # pragma: no cover - defensive logging
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.error(
+                        "Pipeline job encountered an error",
+                        extra={
+                            "event": "pipeline.job.error",
+                            "status": PipelineJobStatus.FAILED.value,
+                            "attributes": {"error": str(exc)},
+                        },
                     )
-                else:
-                    # Preserve externally requested state transitions (pause/cancel).
+                with self._lock:
                     job.result = None
                     job.result_payload = None
-                self._store.update(self._snapshot(job))
-        except Exception as exc:  # pragma: no cover - defensive logging
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.error(
-                    "Pipeline job encountered an error",
-                    extra={
-                        "event": "pipeline.job.error",
-                        "status": PipelineJobStatus.FAILED.value,
-                        "attributes": {"error": str(exc)},
-                    },
-                )
-            with self._lock:
-                job.result = None
-                job.result_payload = None
-                job.status = PipelineJobStatus.FAILED
-                job.error_message = str(exc)
-                self._store.update(self._snapshot(job))
-            if job.tracker is not None:
-                job.tracker.record_error(exc, {"stage": "pipeline"})
-        finally:
-            with self._lock:
-                if job.status in (
-                    PipelineJobStatus.COMPLETED,
-                    PipelineJobStatus.FAILED,
-                    PipelineJobStatus.CANCELLED,
-                ):
-                    job.completed_at = job.completed_at or datetime.now(timezone.utc)
-                self._store.update(self._snapshot(job))
-            if job.tracker is not None and job.status != PipelineJobStatus.PAUSED:
-                result = job.result
-                forced = not (result.success if isinstance(result, PipelineResponse) else False)
-                reason = "completed" if not forced else "failed"
-                job.tracker.mark_finished(reason=reason, forced=forced)
-            if job.request is not None and job.owns_translation_pool:
-                pool = job.request.translation_pool
-                if pool is not None:
-                    pool.shutdown()
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                logger.info(
-                    "Pipeline job finished",
-                    extra={
-                        "event": "pipeline.job.finished",
-                        "status": job.status.value,
-                        "console_suppress": True,
-                    },
-                )
-                duration_ms = 0.0
-                if job.started_at and job.completed_at:
-                    duration_ms = (
-                        job.completed_at - job.started_at
-                    ).total_seconds() * 1000.0
-                observability.record_metric(
-                    "pipeline.job.duration",
-                    duration_ms,
-                    {"job_id": job_id, "status": job.status.value},
-                )
+                    job.status = PipelineJobStatus.FAILED
+                    job.error_message = str(exc)
+                    self._store.update(self._snapshot(job))
+                if job.tracker is not None:
+                    job.tracker.record_error(exc, {"stage": "pipeline"})
+            finally:
+                with self._lock:
+                    if job.status in (
+                        PipelineJobStatus.COMPLETED,
+                        PipelineJobStatus.FAILED,
+                        PipelineJobStatus.CANCELLED,
+                    ):
+                        job.completed_at = job.completed_at or datetime.now(timezone.utc)
+                    self._store.update(self._snapshot(job))
+                if job.tracker is not None and job.status != PipelineJobStatus.PAUSED:
+                    result = job.result
+                    forced = not (result.success if isinstance(result, PipelineResponse) else False)
+                    reason = "completed" if not forced else "failed"
+                    job.tracker.mark_finished(reason=reason, forced=forced)
+                if job.request is not None and job.owns_translation_pool:
+                    pool = job.request.translation_pool
+                    if pool is not None:
+                        pool.shutdown()
+                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+                    logger.info(
+                        "Pipeline job finished",
+                        extra={
+                            "event": "pipeline.job.finished",
+                            "status": job.status.value,
+                            "console_suppress": True,
+                        },
+                    )
+                    duration_ms = 0.0
+                    if job.started_at and job.completed_at:
+                        duration_ms = (
+                            job.completed_at - job.started_at
+                        ).total_seconds() * 1000.0
+                    observability.record_metric(
+                        "pipeline.job.duration",
+                        duration_ms,
+                        {"job_id": job_id, "status": job.status.value},
+                    )
         finally:
             job.execution_complete.set()
 
