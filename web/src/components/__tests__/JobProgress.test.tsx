@@ -42,6 +42,16 @@ beforeAll(() => {
 });
 
 describe('JobProgress', () => {
+  const exhaustCoverPreview = (altText: string) => {
+    for (let attempt = 0; attempt < 8; attempt += 1) {
+      const image = screen.queryByAltText(altText) as HTMLImageElement | null;
+      if (!image) {
+        return;
+      }
+      fireEvent.error(image);
+    }
+  };
+
   beforeEach(() => {
     buildStorageUrlMock.mockReset();
     buildStorageUrlMock.mockImplementation((path) => `https://storage.example/${path}`);
@@ -266,7 +276,7 @@ describe('JobProgress', () => {
     image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
     expect(image.src.endsWith('/runtime/broken-cover.jpg')).toBe(true);
 
-    fireEvent.error(image);
+    exhaustCoverPreview('Cover of Broken Cover by Author Name');
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry preview/i })).toBeInTheDocument();
@@ -309,12 +319,7 @@ describe('JobProgress', () => {
       />
     );
 
-    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
+    exhaustCoverPreview('Cover of Broken Cover by Author Name');
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
 
@@ -359,12 +364,7 @@ describe('JobProgress', () => {
       />
     );
 
-    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
+    exhaustCoverPreview('Cover of Broken Cover by Author Name');
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
 
@@ -396,7 +396,7 @@ describe('JobProgress', () => {
     expect(screen.queryByText(/Cover preview could not be loaded/i)).not.toBeInTheDocument();
     expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
 
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    const image = screen.getByAltText('Cover of Broken Cover by Author Name');
     expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
   });
 

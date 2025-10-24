@@ -7,6 +7,7 @@ import {
 } from '../api/dtos';
 import {
   buildBatchSlidePreviewUrls,
+  buildApiUrl,
   buildStorageUrl,
   normaliseStorageRelativePath
 } from '../api/client';
@@ -367,6 +368,8 @@ export function JobProgress({
       }
 
       const stripped = normalisedPath.replace(/^\/+/, '');
+      push(buildApiUrl(`storage/${stripped}`));
+      push(buildApiUrl(normalisedPath));
       push(`/storage/${stripped}`);
       push(`/${stripped}`);
     }
@@ -376,9 +379,12 @@ export function JobProgress({
       if (isExternalAsset(rawValue)) {
         push(rawValue);
       } else if (rawValue.startsWith('/')) {
+        push(buildApiUrl(rawValue));
         push(rawValue);
       } else {
+        push(buildApiUrl(rawValue));
         push(`/${rawValue}`);
+        push(rawValue);
       }
     }
 

@@ -148,6 +148,23 @@ function normalisePath(path: string): string {
   return stripQueryAndFragment(path.replace(/\\+/g, '/'));
 }
 
+export function buildApiUrl(path: string): string {
+  const base = (API_BASE_URL ?? '').trim().replace(/\/+$/, '');
+  const trimmed = (path ?? '').trim();
+
+  if (!trimmed) {
+    return base;
+  }
+
+  const normalisedPath = trimmed.replace(/^\/+/, '');
+
+  if (!base) {
+    return trimmed.startsWith('/') ? trimmed : `/${normalisedPath}`;
+  }
+
+  return `${base}/${normalisedPath}`;
+}
+
 export function normaliseStorageRelativePath(rawPath: string): string {
   const normalised = normalisePath(rawPath ?? '');
   if (!normalised) {
@@ -283,13 +300,17 @@ export function buildBatchSlidePreviewUrls(entry: string, options?: { slideIndex
       } catch (error) {
         console.warn('Unable to build storage URL for batch slide preview', error);
       }
+      pushResolved(buildApiUrl(`storage/${relativeWithoutLeading}`));
+      pushResolved(buildApiUrl(storageRelative));
       pushResolved(`/storage/${relativeWithoutLeading}`);
       pushResolved(`/${relativeWithoutLeading}`);
     }
 
     if (candidate.startsWith('/')) {
+      pushResolved(buildApiUrl(candidate));
       pushResolved(candidate);
     } else {
+      pushResolved(buildApiUrl(candidateWithoutLeading));
       pushResolved(`/${candidateWithoutLeading}`);
       pushResolved(candidateWithoutLeading);
     }
