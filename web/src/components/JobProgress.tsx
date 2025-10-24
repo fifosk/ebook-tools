@@ -122,25 +122,38 @@ function normaliseStoragePath(path: string): string {
     return '';
   }
 
-  const lower = normalised.toLowerCase();
-  const markers: Array<{ token: string; dropToken: boolean }> = [
-    { token: '/storage/', dropToken: true },
-    { token: '/output/', dropToken: true },
-    { token: '/runtime/', dropToken: false },
-    { token: '/books/', dropToken: false }
-  ];
+  const withoutDrive = normalised.replace(/^[A-Za-z]:/, '');
+  const segments = withoutDrive
+    .split('/')
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
 
-  for (const marker of markers) {
-    const index = lower.indexOf(marker.token);
-    if (index >= 0) {
-      if (marker.dropToken) {
-        return normalised.slice(index + marker.token.length).replace(/^\/+/, '');
-      }
-      return normalised.slice(index + 1).replace(/^\/+/, '');
-    }
+  if (segments.length === 0) {
+    return '';
   }
 
-  return normalised.replace(/^[A-Za-z]:/, '').replace(/^\/+/, '');
+  const lowered = segments.map((segment) => segment.toLowerCase());
+  const runtimeIndex = lowered.lastIndexOf('runtime');
+  if (runtimeIndex >= 0) {
+    return segments.slice(runtimeIndex).join('/');
+  }
+
+  const booksIndex = lowered.lastIndexOf('books');
+  if (booksIndex >= 0) {
+    return segments.slice(booksIndex).join('/');
+  }
+
+  const storageIndex = lowered.indexOf('storage');
+  if (storageIndex >= 0 && storageIndex + 1 < segments.length) {
+    return segments.slice(storageIndex + 1).join('/');
+  }
+
+  const outputIndex = lowered.indexOf('output');
+  if (outputIndex >= 0 && outputIndex + 1 < segments.length) {
+    return segments.slice(outputIndex + 1).join('/');
+  }
+
+  return segments.join('/');
 }
 
 function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {

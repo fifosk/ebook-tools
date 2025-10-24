@@ -137,6 +137,50 @@ describe('JobProgress', () => {
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
   });
 
+  it('normalises storage-rooted cover metadata to avoid double storage prefixes', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-2a',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Storage Rooted Title',
+          book_author: 'Storage Rooted Author',
+          book_cover_file: 'storage/runtime/storage-rooted-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId="job-2a"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+      />
+    );
+
+    const image = screen.getByAltText(
+      'Cover of Storage Rooted Title by Storage Rooted Author'
+    ) as HTMLImageElement;
+    expect(image.src).toBe('https://storage.example/runtime/storage-rooted-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/storage-rooted-cover.jpg');
+    expect(screen.getByText('/storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
+  });
+
   it('renders tuning metrics when provided', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-3',
