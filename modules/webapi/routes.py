@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import AsyncIterator, Callable, List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from .dependencies import (
@@ -67,6 +67,24 @@ def _list_output_entries(root: Path) -> List[PipelineFileEntry]:
     return entries
 
 
+def _normalise_epub_name(filename: str | None) -> str:
+    raw_name = Path(filename or "uploaded.epub").name or "uploaded.epub"
+    if raw_name.lower().endswith(".epub"):
+        return raw_name
+    return f"{raw_name}.epub"
+
+
+def _reserve_destination_path(directory: Path, filename: str) -> Path:
+    stem = Path(filename).stem
+    suffix = Path(filename).suffix or ".epub"
+    candidate = directory / f"{stem}{suffix}"
+    counter = 1
+    while candidate.exists():
+        candidate = directory / f"{stem}-{counter}{suffix}"
+        counter += 1
+    return candidate
+
+
 def _build_action_response(
     job: PipelineJob, *, error: str | None = None
 ) -> PipelineJobActionResponse:
@@ -103,6 +121,48 @@ async def list_pipeline_files(
         outputs = _list_output_entries(context.output_dir)
 
     return PipelineFileBrowserResponse(ebooks=ebooks, outputs=outputs)
+
+
+@router.post("/files/upload", response_model=PipelineFileEntry, status_code=status.HTTP_201_CREATED)
+async def upload_pipeline_ebook(
+    file: UploadFile = File(...),
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Persist an uploaded EPUB file into the configured books directory."""
+
+    content_type = (file.content_type or "").lower()
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename required")
+
+    if content_type and content_type not in {
+        "application/epub+zip",
+        "application/zip",
+        "application/octet-stream",
+    }:
+        if not file.filename.lower().endswith(".epub"):
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Only EPUB files can be uploaded",
+            )
+
+    normalised_name = _normalise_epub_name(file.filename)
+
+    with context_provider.activation({}, {}) as context:
+        destination_dir = context.books_dir
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        destination = _reserve_destination_path(destination_dir, normalised_name)
+
+        try:
+            with destination.open("wb") as buffer:
+                while True:
+                    chunk = await file.read(1 << 20)
+                    if not chunk:
+                        break
+                    buffer.write(chunk)
+        finally:
+            await file.close()
+
+    return PipelineFileEntry(name=destination.name, path=str(destination), type="file")
 
 
 @router.get("/defaults", response_model=PipelineDefaultsResponse)

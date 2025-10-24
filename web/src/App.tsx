@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import PipelineSubmissionForm from './components/PipelineSubmissionForm';
-import JobList, { JobState } from './components/JobList';
+import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
+import type { JobState } from './components/JobList';
+import JobProgress from './components/JobProgress';
 import { PipelineRequestPayload, PipelineStatusResponse, ProgressEventPayload } from './api/dtos';
 import {
   cancelJob,
@@ -20,12 +21,41 @@ interface JobRegistryEntry {
 
 type JobAction = 'pause' | 'resume' | 'cancel' | 'delete';
 
+type PipelineMenuView =
+  | 'pipeline:source'
+  | 'pipeline:language'
+  | 'pipeline:output'
+  | 'pipeline:performance'
+  | 'pipeline:advanced'
+  | 'pipeline:submit';
+
+type SelectedView = PipelineMenuView | string;
+
+const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
+  'pipeline:source': 'source',
+  'pipeline:language': 'language',
+  'pipeline:output': 'output',
+  'pipeline:performance': 'performance',
+  'pipeline:advanced': 'advanced',
+  'pipeline:submit': 'submit'
+};
+
+const PIPELINE_SETTINGS: Array<{ key: PipelineMenuView; label: string }> = [
+  { key: 'pipeline:source', label: 'Source material' },
+  { key: 'pipeline:language', label: 'Language & scope' },
+  { key: 'pipeline:output', label: 'Output & narration' },
+  { key: 'pipeline:performance', label: 'Performance tuning' },
+  { key: 'pipeline:advanced', label: 'Advanced options' }
+];
+
 export function App() {
   const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
+  const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const refreshJobs = useCallback(async () => {
     try {
@@ -77,6 +107,15 @@ export function App() {
       window.clearInterval(interval);
     };
   }, [refreshJobs]);
+
+  useEffect(() => {
+    if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
+      return;
+    }
+    if (!jobs[selectedView]) {
+      setSelectedView('pipeline:submit');
+    }
+  }, [jobs, selectedView]);
 
   const handleSubmit = useCallback(async (payload: PipelineRequestPayload) => {
     setIsSubmitting(true);
@@ -281,27 +320,156 @@ export function App() {
     }));
   }, [jobs, mutatingJobs, reloadingJobs]);
 
+  const sortedJobs = useMemo(() => {
+    return [...jobList].sort((a, b) => {
+      const left = new Date(a.status.created_at).getTime();
+      const right = new Date(b.status.created_at).getTime();
+      return right - left;
+    });
+  }, [jobList]);
+
+  const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
+  const activePipelineSection = useMemo(() => {
+    if (!isPipelineView) {
+      return null;
+    }
+    return PIPELINE_SECTION_MAP[selectedView as PipelineMenuView];
+  }, [isPipelineView, selectedView]);
+
+  const selectedJob = useMemo(() => {
+    if (isPipelineView) {
+      return undefined;
+    }
+    return jobList.find((job) => job.jobId === selectedView);
+  }, [isPipelineView, jobList, selectedView]);
+
   return (
-    <main>
-      <header style={{ marginBottom: '1.5rem' }}>
-        <h1>ebook-tools pipeline dashboard</h1>
-        <p style={{ maxWidth: 720 }}>
-          Submit ebook processing jobs, monitor their current state, and observe real-time progress
-          streamed directly from the FastAPI backend.
-        </p>
-      </header>
-      {submitError ? <div className="alert">{submitError}</div> : null}
-      <PipelineSubmissionForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
-      <JobList
-        jobs={jobList}
-        onProgressEvent={handleProgressEvent}
-        onPauseJob={handlePauseJob}
-        onResumeJob={handleResumeJob}
-        onCancelJob={handleCancelJob}
-        onDeleteJob={handleDeleteJob}
-        onReloadJob={handleReloadJob}
-      />
-    </main>
+    <div className={`dashboard ${isSidebarOpen ? '' : 'dashboard--collapsed'}`}>
+      <aside
+        id="dashboard-sidebar"
+        className={`dashboard__sidebar ${isSidebarOpen ? '' : 'dashboard__sidebar--collapsed'}`}
+      >
+        <div className="sidebar__brand">
+          <span className="sidebar__title">ebook-tools</span>
+          <span className="sidebar__subtitle">Pipeline dashboard</span>
+        </div>
+        <nav className="sidebar__nav" aria-label="Dashboard menu">
+          <details className="sidebar__section" open>
+            <summary>Pipeline</summary>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === 'pipeline:submit' ? 'is-active' : ''}`}
+              onClick={() => setSelectedView('pipeline:submit')}
+            >
+              Submit pipeline job
+            </button>
+            <details className="sidebar__section sidebar__section--nested" open>
+              <summary>Pipeline settings</summary>
+              <ul className="sidebar__list sidebar__list--nested">
+                {PIPELINE_SETTINGS.map((entry) => (
+                  <li key={entry.key}>
+                    <button
+                      type="button"
+                      className={`sidebar__link ${selectedView === entry.key ? 'is-active' : ''}`}
+                      onClick={() => setSelectedView(entry.key)}
+                    >
+                      {entry.label}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </details>
+          <details className="sidebar__section" open>
+            <summary>Tracked jobs</summary>
+            {sortedJobs.length > 0 ? (
+              <ul className="sidebar__list">
+                {sortedJobs.map((job) => {
+                  const statusValue = job.status?.status ?? 'pending';
+                  return (
+                    <li key={job.jobId}>
+                      <button
+                        type="button"
+                        className={`sidebar__link sidebar__link--job ${
+                          selectedView === job.jobId ? 'is-active' : ''
+                        }`}
+                        onClick={() => setSelectedView(job.jobId)}
+                      >
+                        <span className="sidebar__job-label">Job {job.jobId}</span>
+                        <span className="job-status" data-state={statusValue}>
+                          {statusValue}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="sidebar__empty">No persisted jobs yet.</p>
+            )}
+          </details>
+        </nav>
+      </aside>
+      <main className="dashboard__main">
+        <div className="dashboard__toolbar">
+          <button
+            type="button"
+            className="sidebar-toggle"
+            onClick={() => setIsSidebarOpen((previous) => !previous)}
+            aria-expanded={isSidebarOpen}
+            aria-controls="dashboard-sidebar"
+          >
+            {isSidebarOpen ? 'Hide menu' : 'Show menu'}
+          </button>
+        </div>
+        <header className="dashboard__header">
+          <h1>ebook-tools pipeline dashboard</h1>
+          <p>
+            Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
+            directly from the FastAPI backend.
+          </p>
+        </header>
+        {activePipelineSection ? (
+          <section>
+            <PipelineSubmissionForm
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+              activeSection={activePipelineSection ?? undefined}
+              externalError={activePipelineSection === 'submit' ? submitError : null}
+            />
+          </section>
+        ) : null}
+        {activePipelineSection === 'submit' && sortedJobs.length > 0 ? (
+          <section>
+            <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+            <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
+          </section>
+        ) : null}
+        {sortedJobs.length === 0 ? (
+          <section>
+            <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+            <p style={{ marginBottom: 0 }}>No persisted jobs yet. Submit a pipeline request to get started.</p>
+          </section>
+        ) : null}
+        {selectedJob ? (
+          <section>
+            <JobProgress
+              jobId={selectedJob.jobId}
+              status={selectedJob.status}
+              latestEvent={selectedJob.latestEvent}
+              onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
+              onPause={() => handlePauseJob(selectedJob.jobId)}
+              onResume={() => handleResumeJob(selectedJob.jobId)}
+              onCancel={() => handleCancelJob(selectedJob.jobId)}
+              onDelete={() => handleDeleteJob(selectedJob.jobId)}
+              onReload={() => handleReloadJob(selectedJob.jobId)}
+              isReloading={selectedJob.isReloading}
+              isMutating={selectedJob.isMutating}
+            />
+          </section>
+        ) : null}
+      </main>
+    </div>
   );
 }
 

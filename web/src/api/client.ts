@@ -1,6 +1,7 @@
 import {
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
+  PipelineFileEntry,
   PipelineJobActionResponse,
   PipelineJobListResponse,
   PipelineRequestPayload,
@@ -137,4 +138,16 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
   const response = await fetch(withBase('/pipelines/defaults'));
   return handleResponse<PipelineDefaultsResponse>(response);
+}
+
+export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+
+  const response = await fetch(withBase('/pipelines/files/upload'), {
+    method: 'POST',
+    body: formData
+  });
+
+  return handleResponse<PipelineFileEntry>(response);
 }

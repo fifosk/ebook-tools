@@ -5,12 +5,13 @@ import {
   PipelineFileBrowserResponse,
   PipelineRequestPayload
 } from '../../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles } from '../../api/client';
+import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
-  fetchPipelineDefaults: vi.fn()
+  fetchPipelineDefaults: vi.fn(),
+  uploadEpubFile: vi.fn()
 }));
 
 const mockFileListing: PipelineFileBrowserResponse = {
@@ -210,5 +211,39 @@ describe('PipelineSubmissionForm', () => {
     await user.click(screen.getByRole('button', { name: /select output/i }));
 
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/output');
+  });
+
+  it('uploads an EPUB via drag and drop', async () => {
+    vi.mocked(uploadEpubFile).mockResolvedValue({
+      name: 'dropped.epub',
+      path: '/books/dropped.epub',
+      type: 'file'
+    });
+
+    await act(async () => {
+      render(<PipelineSubmissionForm onSubmit={vi.fn()} activeSection="source" />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    const dropLabel = screen.getByText(/Drag & drop an EPUB file/i);
+    const dropzone = dropLabel.closest('.file-dropzone');
+    expect(dropzone).not.toBeNull();
+
+    const file = new File(['ebook'], 'dropped.epub', { type: 'application/epub+zip' });
+    fireEvent.drop(dropzone!, {
+      dataTransfer: {
+        files: [file]
+      }
+    });
+
+    await waitFor(() => expect(uploadEpubFile).toHaveBeenCalledWith(file));
+    resolveFiles?.(mockFileListing);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/dropped.epub')
+    );
   });
 });
