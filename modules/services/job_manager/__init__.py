@@ -1,5 +1,6 @@
 """Public interface for the pipeline job management subsystem."""
 
+from ..file_locator import FileLocator
 from .job import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
 from .execution_adapter import PipelineExecutionAdapter
 from .job_storage import JobStorageCoordinator
@@ -21,4 +22,5 @@ __all__ = [
     "InMemoryJobStore",
     "FileJobStore",
     "RedisJobStore",
+    "FileLocator",
 ]
