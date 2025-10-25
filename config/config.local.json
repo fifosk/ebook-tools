@@ -1,0 +1,12 @@
+{
+  "authentication": {
+    "user_store": {
+      "backend": "local",
+      "storage_path": "config/users/users.json"
+    },
+    "sessions": {
+      "session_file": "~/.ebooktools_session.json",
+      "active_session_file": "~/.ebooktools_active_session"
+    }
+  }
+}
