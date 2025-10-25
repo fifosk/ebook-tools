@@ -112,3 +112,24 @@ export interface PipelineJobActionResponse {
   job: PipelineStatusResponse;
   error?: string | null;
 }
+
+export interface SessionUser {
+  username: string;
+  role: string;
+  last_login: string | null;
+}
+
+export interface SessionStatusResponse {
+  token: string;
+  user: SessionUser;
+}
+
+export interface LoginRequestPayload {
+  username: string;
+  password: string;
+}
+
+export interface PasswordChangeRequestPayload {
+  current_password: string;
+  new_password: string;
+}

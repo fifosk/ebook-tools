@@ -1,4 +1,6 @@
 import {
+  LoginRequestPayload,
+  PasswordChangeRequestPayload,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineFileEntry,
@@ -6,7 +8,8 @@ import {
   PipelineJobListResponse,
   PipelineRequestPayload,
   PipelineStatusResponse,
-  PipelineSubmissionResponse
+  PipelineSubmissionResponse,
+  SessionStatusResponse
 } from './dtos';
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -51,18 +54,128 @@ function withBase(path: string): string {
   return `${API_BASE_URL}${path}`;
 }
 
+let authToken: string | null = null;
+let unauthorizedHandler: (() => void) | null = null;
+
+export function setAuthToken(token: string | null): void {
+  authToken = token;
+}
+
+export function getAuthToken(): string | null {
+  return authToken;
+}
+
+export function setUnauthorizedHandler(handler: (() => void) | null): () => void {
+  unauthorizedHandler = handler;
+  return () => {
+    if (unauthorizedHandler === handler) {
+      unauthorizedHandler = null;
+    }
+  };
+}
+
+type FetchOptions = {
+  skipAuth?: boolean;
+};
+
+function buildHeaders(initHeaders?: HeadersInit): Headers {
+  const headers = new Headers(initHeaders ?? {});
+  return headers;
+}
+
+async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  { skipAuth = false }: FetchOptions = {}
+): Promise<Response> {
+  const headers = buildHeaders(init.headers);
+  if (!skipAuth && authToken) {
+    headers.set('Authorization', `Bearer ${authToken}`);
+  }
+
+  const response = await fetch(withBase(path), { ...init, headers });
+
+  if (!skipAuth && (response.status === 401 || response.status === 403)) {
+    unauthorizedHandler?.();
+  }
+
+  return response;
+}
+
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || `Request failed with status ${response.status}`);
   }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  const contentLength = response.headers.get('content-length');
+  if (contentLength === '0') {
+    return undefined as T;
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    if (!text) {
+      return undefined as T;
+    }
+    try {
+      return JSON.parse(text) as T;
+    } catch (error) {
+      console.warn('Unexpected non-JSON response', error);
+      return undefined as T;
+    }
+  }
+
   return (await response.json()) as T;
+}
+
+export async function login(payload: LoginRequestPayload): Promise<SessionStatusResponse> {
+  const response = await apiFetch(
+    '/auth/login',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    },
+    { skipAuth: true }
+  );
+  return handleResponse<SessionStatusResponse>(response);
+}
+
+export async function logout(): Promise<void> {
+  const response = await apiFetch('/auth/logout', {
+    method: 'POST'
+  });
+  await handleResponse<unknown>(response);
+}
+
+export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
+  const response = await apiFetch('/auth/session');
+  return handleResponse<SessionStatusResponse>(response);
+}
+
+export async function changePassword(payload: PasswordChangeRequestPayload): Promise<void> {
+  const response = await apiFetch('/auth/password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  await handleResponse<unknown>(response);
 }
 
 export async function submitPipeline(
   payload: PipelineRequestPayload
 ): Promise<PipelineSubmissionResponse> {
-  const response = await fetch(withBase('/pipelines'), {
+  const response = await apiFetch('/pipelines', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -73,18 +186,18 @@ export async function submitPipeline(
 }
 
 export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await fetch(withBase(`/pipelines/${jobId}`));
+  const response = await apiFetch(`/pipelines/${jobId}`);
   return handleResponse<PipelineStatusResponse>(response);
 }
 
 export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
-  const response = await fetch(withBase('/pipelines/jobs'));
+  const response = await apiFetch('/pipelines/jobs');
   const payload = await handleResponse<PipelineJobListResponse>(response);
   return payload.jobs;
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {
-  const response = await fetch(withBase(`/pipelines/jobs/${jobId}/${action}`), {
+  const response = await apiFetch(`/pipelines/jobs/${jobId}/${action}`, {
     method: 'POST'
   });
   return handleResponse<PipelineJobActionResponse>(response);
@@ -107,14 +220,28 @@ export async function deleteJob(jobId: string): Promise<PipelineJobActionRespons
 }
 
 export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await fetch(withBase(`/pipelines/${jobId}/metadata/refresh`), {
+  const response = await apiFetch(`/pipelines/${jobId}/metadata/refresh`, {
     method: 'POST'
   });
   return handleResponse<PipelineStatusResponse>(response);
 }
 
 export function buildEventStreamUrl(jobId: string): string {
-  return withBase(`/pipelines/${jobId}/events`);
+  const baseUrl = withBase(`/pipelines/${jobId}/events`);
+  const token = getAuthToken();
+  try {
+    const url = new URL(baseUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
+    if (token) {
+      url.searchParams.set('access_token', token);
+    }
+    return url.toString();
+  } catch (error) {
+    if (token) {
+      const separator = baseUrl.includes('?') ? '&' : '?';
+      return `${baseUrl}${separator}access_token=${encodeURIComponent(token)}`;
+    }
+    return baseUrl;
+  }
 }
 
 export function buildStorageUrl(path: string): string {
@@ -131,12 +258,12 @@ export function buildStorageUrl(path: string): string {
 }
 
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
-  const response = await fetch(withBase('/pipelines/files'));
+  const response = await apiFetch('/pipelines/files');
   return handleResponse<PipelineFileBrowserResponse>(response);
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
-  const response = await fetch(withBase('/pipelines/defaults'));
+  const response = await apiFetch('/pipelines/defaults');
   return handleResponse<PipelineDefaultsResponse>(response);
 }
 
@@ -144,7 +271,7 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
   const formData = new FormData();
   formData.append('file', file, file.name);
 
-  const response = await fetch(withBase('/pipelines/files/upload'), {
+  const response = await apiFetch('/pipelines/files/upload', {
     method: 'POST',
     body: formData
   });

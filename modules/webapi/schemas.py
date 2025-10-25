@@ -13,6 +13,35 @@ from ..services.pipeline_service import PipelineInput, PipelineRequest, Pipeline
 from .jobs import PipelineJob, PipelineJobStatus
 
 
+class SessionUserPayload(BaseModel):
+    """Lightweight description of an authenticated user."""
+
+    username: str
+    role: str
+    last_login: Optional[str] = None
+
+
+class SessionStatusResponse(BaseModel):
+    """Response payload returned for active session lookups."""
+
+    token: str
+    user: SessionUserPayload
+
+
+class LoginRequestPayload(BaseModel):
+    """Incoming payload for the login endpoint."""
+
+    username: str
+    password: str
+
+
+class PasswordChangeRequestPayload(BaseModel):
+    """Payload for updating the authenticated user's password."""
+
+    current_password: str
+    new_password: str
+
+
 class PipelineInputPayload(BaseModel):
     """Public schema representing :class:`PipelineInput`."""
 

@@ -7,13 +7,13 @@ export function usePipelineEvents(
   enabled: boolean,
   onEvent: (event: ProgressEventPayload) => void
 ): void {
+  const eventStreamUrl = buildEventStreamUrl(jobId);
   useEffect(() => {
     if (!enabled) {
       return;
     }
 
-    const url = buildEventStreamUrl(jobId);
-    const eventSource = new EventSource(url);
+    const eventSource = new EventSource(eventStreamUrl);
 
     eventSource.onmessage = (message) => {
       try {
@@ -31,5 +31,5 @@ export function usePipelineEvents(
     return () => {
       eventSource.close();
     };
-  }, [jobId, enabled, onEvent]);
+  }, [eventStreamUrl, enabled, onEvent]);
 }
