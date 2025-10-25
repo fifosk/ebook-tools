@@ -6,7 +6,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from queue import Empty, Full, Queue
+from queue import Queue
 from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from pydub import AudioSegment
@@ -17,6 +17,7 @@ from modules.audio.tts import synthesize_segment
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import output_formatter
+from modules.render import AudioWorker, MediaBatchOrchestrator
 from modules.translation_engine import TranslationTask
 from modules.core.translation import split_translation_and_transliteration
 from modules.video.slides import SlideRenderOptions, build_sentence_video
@@ -162,67 +163,26 @@ def _media_worker(
     stop_event: Optional[threading.Event] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
 ) -> None:
-    """Consume translation results and emit completed media payloads."""
+    """Delegate media processing to the shared :class:`AudioWorker`."""
 
-    while True:
-        if stop_event and stop_event.is_set():
-            break
-        try:
-            task = task_queue.get(timeout=0.1)
-        except Empty:
-            continue
-        if task is None:
-            task_queue.task_done()
-            break
-        start_time = time.perf_counter()
-        audio_segment: Optional[AudioSegment] = None
-        try:
-            if generate_audio:
-                audio_segment = generate_audio_for_sentence(
-                    task.sentence_number,
-                    task.sentence,
-                    task.translation,
-                    input_language,
-                    task.target_language,
-                    audio_mode,
-                    total_sentences,
-                    language_codes,
-                    selected_voice,
-                    tempo,
-                    macos_reading_speed,
-                )
-        except Exception as exc:  # pragma: no cover - defensive logging
-            logger.error(
-                "Consumer %s failed for sentence %s: %s", name, task.sentence_number, exc
-            )
-            if generate_audio:
-                audio_segment = AudioSegment.silent(duration=0)
-        finally:
-            task_queue.task_done()
-        elapsed = time.perf_counter() - start_time
-        logger.debug(
-            "Consumer %s processed sentence %s in %.3fs",
-            name,
-            task.sentence_number,
-            elapsed,
-        )
-        payload = MediaPipelineResult(
-            index=task.index,
-            sentence_number=task.sentence_number,
-            sentence=task.sentence,
-            target_language=task.target_language,
-            translation=task.translation,
-            transliteration=task.transliteration,
-            audio_segment=audio_segment,
-        )
-        while True:
-            if stop_event and stop_event.is_set():
-                break
-            try:
-                result_queue.put(payload, timeout=0.1)
-                break
-            except Full:
-                continue
+    worker = AudioWorker(
+        name,
+        task_queue,
+        result_queue,
+        total_sentences=total_sentences,
+        input_language=input_language,
+        audio_mode=audio_mode,
+        language_codes=language_codes,
+        selected_voice=selected_voice,
+        tempo=tempo,
+        macos_reading_speed=macos_reading_speed,
+        generate_audio=generate_audio,
+        audio_stop_event=stop_event,
+        progress_tracker=progress_tracker,
+        audio_generator=generate_audio_for_sentence,
+        media_result_factory=MediaPipelineResult,
+    )
+    worker.run()
 
 
 def start_media_pipeline(
@@ -243,49 +203,24 @@ def start_media_pipeline(
 ) -> Tuple[Queue[Optional[MediaPipelineResult]], List[threading.Thread]]:
     """Start consumer threads that transform translations into media artifacts."""
 
-    worker_total = worker_count or cfg.get_thread_count()
-    worker_total = max(1, worker_total)
-    result_queue: Queue[Optional[MediaPipelineResult]] = Queue(maxsize=queue_size or 0)
-    stop_event = stop_event or threading.Event()
-    workers: List[threading.Thread] = []
-    active_context = cfg.get_runtime_context(None)
-
-    def _thread_target(*args, **kwargs) -> None:
-        if active_context is not None:
-            cfg.set_runtime_context(active_context)
-        try:
-            _media_worker(*args, **kwargs)
-        finally:
-            if active_context is not None:
-                cfg.clear_runtime_context()
-
-    for idx in range(worker_total):
-        thread_name = f"Consumer-{idx + 1}"
-        thread = threading.Thread(
-            target=_thread_target,
-            name=thread_name,
-            args=(
-                thread_name,
-                task_queue,
-                result_queue,
-            ),
-            kwargs={
-                "total_sentences": total_sentences,
-                "input_language": input_language,
-                "audio_mode": audio_mode,
-                "language_codes": language_codes,
-                "selected_voice": selected_voice,
-                "tempo": tempo,
-                "macos_reading_speed": macos_reading_speed,
-                "generate_audio": generate_audio,
-                "stop_event": stop_event,
-                "progress_tracker": progress_tracker,
-            },
-            daemon=True,
-        )
-        thread.start()
-        workers.append(thread)
-    return result_queue, workers
+    orchestrator = MediaBatchOrchestrator(
+        task_queue,
+        worker_count=worker_count,
+        total_sentences=total_sentences,
+        input_language=input_language,
+        audio_mode=audio_mode,
+        language_codes=language_codes,
+        selected_voice=selected_voice,
+        tempo=tempo,
+        macos_reading_speed=macos_reading_speed,
+        generate_audio=generate_audio,
+        queue_size=queue_size,
+        audio_stop_event=stop_event,
+        progress_tracker=progress_tracker,
+        audio_generator=generate_audio_for_sentence,
+        media_result_factory=MediaPipelineResult,
+    )
+    return orchestrator.start()
 
 
 def generate_video_slides_ffmpeg(

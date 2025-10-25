@@ -12,6 +12,7 @@ from PIL import Image
 from pydub import AudioSegment
 
 from modules import audio_video_generator as av_gen
+from modules.render import MediaBatchOrchestrator
 from modules import output_formatter
 from modules.book_cover import fetch_book_cover
 from modules.config_manager import resolve_file_path
@@ -586,7 +587,7 @@ class RenderPipeline:
         pipeline_stop_event = self._stop_event or threading.Event()
         translation_queue = create_translation_queue(self._config.queue_size)
         finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        media_queue, media_threads = av_gen.start_media_pipeline(
+        media_orchestrator = MediaBatchOrchestrator(
             translation_queue,
             worker_count=worker_count,
             total_sentences=total_fully,
@@ -598,9 +599,12 @@ class RenderPipeline:
             macos_reading_speed=self._config.macos_reading_speed,
             generate_audio=generate_audio,
             queue_size=self._config.queue_size,
-            stop_event=pipeline_stop_event,
+            audio_stop_event=pipeline_stop_event,
             progress_tracker=self._progress,
+            audio_generator=av_gen.generate_audio_for_sentence,
+            media_result_factory=av_gen.MediaPipelineResult,
         )
+        media_queue, media_threads = media_orchestrator.start()
         target_sequence = build_target_sequence(
             target_languages,
             total_refined,
