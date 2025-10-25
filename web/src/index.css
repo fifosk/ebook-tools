@@ -1700,20 +1700,15 @@ button.link-button:focus {
 
 @media (min-width: var(--bp-md)) {
   .player-panel__body {
-    display: grid;
-    grid-template-columns: minmax(0, 3.5fr) minmax(18rem, 2fr);
-    align-items: start;
-    gap: 2.25rem;
-  }
-
-  .player-panel__primary {
-    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
   }
 
   .player-panel__secondary {
     display: flex;
     flex-direction: column;
-    align-self: start;
+    align-self: stretch;
     min-width: 0;
     border-radius: 1rem;
     border: 1px solid rgba(148, 163, 184, 0.25);
@@ -1724,7 +1719,7 @@ button.link-button:focus {
   }
 
   .player-panel__list {
-    max-height: calc(100vh - 16rem);
+    max-height: 24rem;
     flex: 1 1 auto;
     padding-right: 0.5rem;
   }
@@ -1733,6 +1728,27 @@ button.link-button:focus {
   .player-panel__drawer,
   .player-panel__drawer-backdrop {
     display: none;
+  }
+}
+
+@media (min-width: var(--bp-lg)) {
+  .player-panel__body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.85fr);
+    align-items: start;
+    gap: 2.5rem;
+  }
+
+  .player-panel__primary {
+    align-self: stretch;
+  }
+
+  .player-panel__secondary {
+    align-self: start;
+  }
+
+  .player-panel__list {
+    max-height: calc(100vh - 16rem);
   }
 }
 
