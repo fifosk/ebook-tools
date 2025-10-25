@@ -55,7 +55,13 @@ describe('storageResolver', () => {
   it('falls back to the API base URL when the storage base is not set', () => {
     setStorageBase('');
     setApiBase('https://api.example');
-    expect(resolve('job-123', 'output.epub')).toBe('https://api.example/job-123/output.epub');
+    expect(resolve('job-123', 'output.epub')).toBe('https://api.example/storage/jobs/job-123/output.epub');
+  });
+
+  it('does not duplicate the storage path when it already exists on the API base URL', () => {
+    setStorageBase('');
+    setApiBase('https://api.example/storage/jobs');
+    expect(resolve('job-123', 'output.epub')).toBe('https://api.example/storage/jobs/job-123/output.epub');
   });
 
   it('throws when no storage base URL can be resolved', () => {

@@ -7,6 +7,27 @@ function normaliseBaseUrl(value: string | null | undefined): string {
   return value.trim().replace(/\/+$/, '');
 }
 
+function ensureStoragePath(baseUrl: string): string {
+  if (!baseUrl) {
+    return '';
+  }
+
+  const normalised = normaliseBaseUrl(baseUrl);
+  if (!normalised) {
+    return '';
+  }
+
+  if (/\/storage\/jobs$/i.test(normalised)) {
+    return normalised;
+  }
+
+  if (/\/storage$/i.test(normalised)) {
+    return `${normalised}/jobs`;
+  }
+
+  return `${normalised}/storage/jobs`;
+}
+
 function normaliseJobId(value: string | null | undefined): string {
   if (!value) {
     return '';
@@ -50,15 +71,15 @@ export function resolveStorageBaseUrl(apiBaseUrl?: string | null | undefined): s
 
   const inferred = normaliseBaseUrl(readEnv('VITE_API_BASE_URL'));
   if (inferred) {
-    return inferred;
+    return ensureStoragePath(inferred);
   }
 
   const fallback = normaliseBaseUrl(apiBaseUrl);
   if (fallback) {
-    return fallback;
+    return ensureStoragePath(fallback);
   }
 
-  return resolveWindowOrigin();
+  return ensureStoragePath(resolveWindowOrigin());
 }
 
 export function resolve(
