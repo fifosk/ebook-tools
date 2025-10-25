@@ -39,6 +39,7 @@ class PipelineJobMetadata:
     tuning_summary: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    generated_files: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -66,6 +67,8 @@ class PipelineJobMetadata:
             payload["user_id"] = self.user_id
         if self.user_role is not None:
             payload["user_role"] = self.user_role
+        if self.generated_files is not None:
+            payload["generated_files"] = _stable_copy(self.generated_files)
         return payload
 
     def to_json(self) -> str:
@@ -95,6 +98,7 @@ class PipelineJobMetadata:
             tuning_summary=data.get("tuning_summary"),
             user_id=data.get("user_id"),
             user_role=data.get("user_role"),
+            generated_files=data.get("generated_files"),
         )
 
     @classmethod

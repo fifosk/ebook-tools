@@ -11,11 +11,13 @@ import pytest
 from modules.progress_tracker import ProgressEvent, ProgressSnapshot
 from modules.services.job_manager import (
     JobStore,
+    PipelineJob,
     PipelineJobManager,
     PipelineJobMetadata,
     PipelineJobStatus,
 )
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
+from modules.services.file_locator import FileLocator
 import modules.services.job_manager.manager as manager_module
 
 
@@ -332,6 +334,74 @@ def test_submit_records_user_context(tmp_path, job_manager_factory):
     assert expected_dir.exists()
     assert store.saved and store.saved[0].user_id == "alice"
     assert store.saved[0].user_role == "user"
+
+
+def test_store_event_records_generated_files(tmp_path):
+    store = _InMemoryJobStore()
+    file_locator = FileLocator(storage_dir=tmp_path, base_url="https://example.invalid/jobs")
+    manager = PipelineJobManager(max_workers=1, store=store, file_locator=file_locator)
+
+    try:
+        job_id = "job-files"
+        job = PipelineJob(
+            job_id=job_id,
+            status=PipelineJobStatus.RUNNING,
+            created_at=datetime.now(timezone.utc),
+        )
+        manager._jobs[job_id] = job
+
+        job_root = file_locator.resolve_path(job_id)
+        html_path = job_root / "001-010_output.html"
+        audio_path = job_root / "001-010_output.mp3"
+
+        generated_payload = {
+            "chunks": [
+                {
+                    "chunk_id": "chunk-1",
+                    "range_fragment": "001-010",
+                    "start_sentence": 1,
+                    "end_sentence": 10,
+                    "files": [
+                        {"type": "html", "path": str(html_path)},
+                        {"type": "audio", "path": str(audio_path)},
+                    ],
+                }
+            ]
+        }
+
+        event = ProgressEvent(
+            event_type="file_chunk_generated",
+            snapshot=ProgressSnapshot(
+                completed=0,
+                total=None,
+                elapsed=0.0,
+                speed=0.0,
+                eta=None,
+            ),
+            timestamp=time.perf_counter(),
+            metadata={
+                "chunk_id": "chunk-1",
+                "range_fragment": "001-010",
+                "start_sentence": 1,
+                "end_sentence": 10,
+                "generated_files": generated_payload,
+            },
+        )
+
+        manager._store_event(job_id, event)
+
+        assert job.generated_files is not None
+        chunk_entry = job.generated_files["chunks"][0]
+        file_entry = chunk_entry["files"][0]
+        assert file_entry["type"] == "html"
+        assert file_entry["relative_path"].endswith("001-010_output.html")
+        assert file_entry["url"].startswith("https://example.invalid/jobs")
+
+        persisted = store.updated[-1]
+        assert persisted.generated_files is not None
+        assert persisted.generated_files["files"][0]["chunk_id"] == "chunk-1"
+    finally:
+        manager._executor.shutdown(wait=False)
 
 
 def test_list_jobs_filters_by_role(job_manager_factory):

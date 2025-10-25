@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import threading
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
@@ -86,6 +87,7 @@ class PipelineResponse:
     render: Optional[RenderResult] = None
     stitching: StitchingArtifacts = field(default_factory=StitchingArtifacts)
     metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
+    generated_files: Dict[str, Any] = field(default_factory=dict)
 
     @property
     def refined_sentences(self) -> Optional[List[str]]:
@@ -267,6 +269,8 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
                 },
             )
 
+        generated_files = tracker.get_generated_files() if tracker is not None else {}
+
         return PipelineResponse(
             success=True,
             pipeline_config=config_result.pipeline_config,
@@ -274,6 +278,7 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             render=render_result,
             stitching=stitching_result,
             metadata=metadata_result.metadata,
+            generated_files=generated_files,
         )
     except Exception as exc:  # pragma: no cover - defensive logging
         with log_mgr.log_context(
@@ -291,12 +296,15 @@ def run_pipeline(request: PipelineRequest) -> PipelineResponse:
             tracker.record_error(exc, {"stage": "pipeline"})
             tracker.mark_finished(reason="pipeline error", forced=True)
         metadata_payload = metadata_result.metadata if metadata_result else metadata
+        generated_files = tracker.get_generated_files() if tracker is not None else {}
+
         return PipelineResponse(
             success=False,
             pipeline_config=(
                 config_result.pipeline_config if config_result else None
             ),
             metadata=metadata_payload,
+            generated_files=generated_files,
         )
     finally:
         if context is not None:
@@ -358,6 +366,7 @@ def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
         "stitched_audio_path": response.stitched_audio_path,
         "stitched_video_path": response.stitched_video_path,
         "book_metadata": dict(response.book_metadata),
+        "generated_files": copy.deepcopy(response.generated_files),
     }
 
     if response.pipeline_config is not None:

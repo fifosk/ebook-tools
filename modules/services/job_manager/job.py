@@ -55,6 +55,7 @@ class PipelineJob:
     tuning_summary: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    generated_files: Optional[Dict[str, Any]] = None
 
 
 __all__ = [

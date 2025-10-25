@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import threading
+from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
@@ -230,6 +231,10 @@ class PipelineJobManager:
         )
         if resume_context is None and request_payload is not None:
             resume_context = copy.deepcopy(request_payload)
+        normalized_files = self._normalize_generated_files(job)
+        job.generated_files = (
+            copy.deepcopy(normalized_files) if normalized_files is not None else None
+        )
         return PipelineJobMetadata(
             job_id=job.job_id,
             status=job.status,
@@ -246,6 +251,9 @@ class PipelineJobManager:
             else None,
             user_id=job.user_id,
             user_role=job.user_role,
+            generated_files=copy.deepcopy(normalized_files)
+            if normalized_files is not None
+            else None,
         )
 
     def submit(
@@ -330,6 +338,7 @@ class PipelineJobManager:
         return job
 
     def _store_event(self, job_id: str, event: ProgressEvent) -> None:
+        metadata = dict(event.metadata)
         with self._lock:
             job = self._jobs.get(job_id)
             if job is None:
@@ -339,8 +348,11 @@ class PipelineJobManager:
                 resume_context = compute_resume_context(job)
                 if resume_context is not None:
                     job.resume_context = resume_context
+            if event.event_type == "file_chunk_generated":
+                generated = metadata.get("generated_files")
+                if generated is not None:
+                    job.generated_files = copy.deepcopy(generated)
             self._store.update(self._snapshot(job))
-        metadata = dict(event.metadata)
         stage = metadata.get("stage")
         correlation_id = None
         if job and job.request is not None:
@@ -407,6 +419,7 @@ class PipelineJobManager:
                 else:
                     job.result = response
                     job.result_payload = serialize_pipeline_response(response)
+                    job.generated_files = copy.deepcopy(response.generated_files)
                     job.status = (
                         PipelineJobStatus.COMPLETED
                         if response.success
@@ -777,7 +790,89 @@ class PipelineJobManager:
         )
         if metadata.last_event is not None:
             job.last_event = deserialize_progress_event(metadata.last_event)
+        if metadata.generated_files is not None:
+            job.generated_files = copy.deepcopy(metadata.generated_files)
         return job
+
+    def _normalize_generated_files(
+        self, job: PipelineJob
+    ) -> Optional[Dict[str, Any]]:
+        raw = job.generated_files
+        if not raw:
+            return None
+        if not isinstance(raw, Mapping):
+            return copy.deepcopy(raw)  # type: ignore[return-value]
+
+        chunks_raw = raw.get("chunks", [])
+        if not isinstance(chunks_raw, list):
+            return None
+
+        job_root = self._file_locator.resolve_path(job.job_id)
+        normalized_chunks: list[Dict[str, Any]] = []
+        for chunk in chunks_raw:
+            if not isinstance(chunk, Mapping):
+                continue
+            chunk_entry: Dict[str, Any] = {
+                "chunk_id": chunk.get("chunk_id"),
+                "range_fragment": chunk.get("range_fragment"),
+                "start_sentence": chunk.get("start_sentence"),
+                "end_sentence": chunk.get("end_sentence"),
+                "files": [],
+            }
+            files_raw = chunk.get("files", [])
+            if not isinstance(files_raw, list):
+                files_raw = []
+            for file_entry in files_raw:
+                if not isinstance(file_entry, Mapping):
+                    continue
+                normalized_entry: Dict[str, Any] = {}
+                file_type = file_entry.get("type")
+                if file_type is not None:
+                    normalized_entry["type"] = file_type
+                path_value = file_entry.get("path")
+                if path_value:
+                    path_candidate = Path(str(path_value))
+                    if not path_candidate.is_absolute():
+                        path_candidate = job_root / path_candidate
+                    normalized_entry["path"] = path_candidate.as_posix()
+                    relative_path: Optional[str]
+                    try:
+                        relative_path = path_candidate.relative_to(job_root).as_posix()
+                    except ValueError:
+                        relative_path = None
+                    if relative_path:
+                        normalized_entry["relative_path"] = relative_path
+                        url = self._file_locator.resolve_url(job.job_id, relative_path)
+                    else:
+                        url = None
+                    if url:
+                        normalized_entry["url"] = url
+                chunk_entry.setdefault("files", []).append(normalized_entry)
+            normalized_chunks.append(chunk_entry)
+
+        files_index: list[Dict[str, Any]] = []
+        seen: set[tuple] = set()
+        for chunk in normalized_chunks:
+            chunk_id = chunk.get("chunk_id")
+            range_fragment = chunk.get("range_fragment")
+            for entry in chunk.get("files", []):
+                path_value = entry.get("path")
+                file_type = entry.get("type")
+                if not path_value:
+                    continue
+                key = (str(path_value), str(file_type))
+                if key in seen:
+                    continue
+                seen.add(key)
+                record = dict(entry)
+                record["chunk_id"] = chunk_id
+                if range_fragment is not None and "range_fragment" not in record:
+                    record["range_fragment"] = range_fragment
+                files_index.append(record)
+
+        if not normalized_chunks and not files_index:
+            return None
+        return {"chunks": normalized_chunks, "files": files_index}
 
     def list(
         self,
