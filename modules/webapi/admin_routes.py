@@ -19,7 +19,7 @@ from .schemas import (
 )
 
 
-router = APIRouter(prefix="/admin")
+router = APIRouter()
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:

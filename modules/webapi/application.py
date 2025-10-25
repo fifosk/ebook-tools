@@ -225,7 +225,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
-    app.include_router(admin_router, tags=["admin"])
+    app.include_router(admin_router, prefix="/admin", tags=["admin"])
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
 
     static_enabled = _configure_static_assets(app)
