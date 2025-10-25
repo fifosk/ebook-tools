@@ -609,7 +609,8 @@ export function App() {
           ) : null}
         </nav>
       </aside>
-      <main className="dashboard__main">
+      <div className="dashboard__content">
+        <main className="dashboard__main">
         <div className="dashboard__toolbar">
           <div className="session-info">
             <div className="session-info__details">
@@ -751,7 +752,8 @@ export function App() {
             ) : null}
           </>
         )}
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
