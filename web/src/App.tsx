@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'rea
 import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
+import JobDetail from './pages/JobDetail';
 import { PipelineRequestPayload, PipelineStatusResponse, ProgressEventPayload } from './api/dtos';
 import {
   cancelJob,
@@ -744,21 +745,26 @@ export function App() {
                 </section>
               ) : null}
               {selectedJob ? (
-                <section>
-                  <JobProgress
-                    jobId={selectedJob.jobId}
-                    status={selectedJob.status}
-                    latestEvent={selectedJob.latestEvent}
-                    onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
-                    onPause={() => handlePauseJob(selectedJob.jobId)}
-                    onResume={() => handleResumeJob(selectedJob.jobId)}
-                    onCancel={() => handleCancelJob(selectedJob.jobId)}
-                    onDelete={() => handleDeleteJob(selectedJob.jobId)}
-                    onReload={() => handleReloadJob(selectedJob.jobId)}
-                    isReloading={selectedJob.isReloading}
-                    isMutating={selectedJob.isMutating}
-                    canManage={selectedJob.canManage}
-                  />
+                <section className="job-detail-layout">
+                  <div className="job-detail-layout__progress">
+                    <JobProgress
+                      jobId={selectedJob.jobId}
+                      status={selectedJob.status}
+                      latestEvent={selectedJob.latestEvent}
+                      onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
+                      onPause={() => handlePauseJob(selectedJob.jobId)}
+                      onResume={() => handleResumeJob(selectedJob.jobId)}
+                      onCancel={() => handleCancelJob(selectedJob.jobId)}
+                      onDelete={() => handleDeleteJob(selectedJob.jobId)}
+                      onReload={() => handleReloadJob(selectedJob.jobId)}
+                      isReloading={selectedJob.isReloading}
+                      isMutating={selectedJob.isMutating}
+                      canManage={selectedJob.canManage}
+                    />
+                  </div>
+                  <div className="job-detail-layout__media">
+                    <JobDetail jobId={selectedJob.jobId} />
+                  </div>
                 </section>
               ) : null}
             </>
