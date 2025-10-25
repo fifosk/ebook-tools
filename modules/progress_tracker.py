@@ -7,15 +7,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 import threading
 import time
-from typing import (
-    AsyncIterator,
-    Callable,
-    Dict,
-    Mapping,
-    Optional,
-    Sequence,
-    Tuple,
-)
+import copy
+from typing import AsyncIterator, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -98,6 +91,8 @@ class ProgressTracker:
         self._observers: Sequence[Callable[[ProgressEvent], None]] = []
         self._started = False
         self._completion_emitted = False
+        self._generated_chunks: List[Dict[str, object]] = []
+        self._generated_files_snapshot: Dict[str, object] = {"chunks": [], "files": []}
 
     @property
     def report_interval(self) -> float:
@@ -175,6 +170,55 @@ class ProgressTracker:
         """Emit a ``progress`` event without mutating tracker statistics."""
 
         self._emit_event("progress", metadata=dict(metadata or {}))
+
+    def record_generated_chunk(
+        self,
+        *,
+        chunk_id: str,
+        start_sentence: int,
+        end_sentence: int,
+        range_fragment: str,
+        files: Mapping[str, object],
+    ) -> None:
+        """Record metadata about files produced for a completed chunk."""
+
+        normalized_files = [
+            {"type": str(kind), "path": str(path)}
+            for kind, path in sorted(files.items())
+            if path is not None and str(path)
+        ]
+        with self._lock:
+            chunk_entry: Dict[str, object] = {
+                "chunk_id": chunk_id,
+                "range_fragment": range_fragment,
+                "start_sentence": start_sentence,
+                "end_sentence": end_sentence,
+                "files": normalized_files,
+            }
+            for index, existing in enumerate(self._generated_chunks):
+                if existing.get("chunk_id") == chunk_id:
+                    self._generated_chunks[index] = chunk_entry
+                    break
+            else:
+                self._generated_chunks.append(chunk_entry)
+            snapshot = self._build_generated_files_snapshot_locked()
+            self._generated_files_snapshot = snapshot
+        self._emit_event(
+            "file_chunk_generated",
+            metadata={
+                "chunk_id": chunk_id,
+                "range_fragment": range_fragment,
+                "start_sentence": start_sentence,
+                "end_sentence": end_sentence,
+                "generated_files": snapshot,
+            },
+        )
+
+    def get_generated_files(self) -> Dict[str, object]:
+        """Return a snapshot of all recorded generated files."""
+
+        with self._lock:
+            return copy.deepcopy(self._generated_files_snapshot)
 
     def record_error(
         self, error: BaseException, metadata: Optional[Dict[str, object]] = None
@@ -323,6 +367,38 @@ class ProgressTracker:
         if "forced" not in payload:
             payload["forced"] = False
         self._emit_event("complete", snapshot=snapshot, metadata=payload)
+
+    def _build_generated_files_snapshot_locked(self) -> Dict[str, object]:
+        chunks_copy = copy.deepcopy(self._generated_chunks)
+        chunks_copy.sort(
+            key=lambda entry: (
+                int(entry.get("start_sentence") or 0),
+                str(entry.get("chunk_id") or ""),
+            )
+        )
+        files_index: List[Dict[str, object]] = []
+        seen_keys: set[tuple] = set()
+        for chunk in chunks_copy:
+            chunk_id = chunk.get("chunk_id")
+            range_fragment = chunk.get("range_fragment")
+            for file_entry in list(chunk.get("files", [])):
+                path_value = file_entry.get("path")
+                file_type = file_entry.get("type")
+                if not path_value:
+                    continue
+                key = (str(path_value), str(file_type))
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                files_index.append(
+                    {
+                        "chunk_id": chunk_id,
+                        "range_fragment": range_fragment,
+                        "type": file_type,
+                        "path": path_value,
+                    }
+                )
+        return {"chunks": chunks_copy, "files": files_index}
 
 
 __all__ = [

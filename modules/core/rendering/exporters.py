@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from pathlib import Path
-from dataclasses import dataclass
-from typing import Optional, Sequence
+from dataclasses import dataclass, field
+from typing import Dict, Optional, Sequence
 
 from PIL import Image
 from pydub import AudioSegment
@@ -56,20 +56,33 @@ class BatchExportRequest:
     video_blocks: Sequence[str]
 
 
+@dataclass(frozen=True)
+class BatchExportResult:
+    """Description of artifacts generated for a single batch export."""
+
+    chunk_id: str
+    start_sentence: int
+    end_sentence: int
+    range_fragment: str
+    artifacts: Dict[str, str] = field(default_factory=dict)
+
+
 class BatchExporter:
     """Persist batch outputs for written, audio, and optional video artifacts."""
 
     def __init__(self, context: BatchExportContext) -> None:
         self._context = context
 
-    def export(self, request: BatchExportRequest) -> Optional[str]:
-        """Write batch outputs and return any generated video path."""
+    def export(self, request: BatchExportRequest) -> BatchExportResult:
+        """Write batch outputs and return a description of created files."""
 
         range_fragment = output_formatter.format_sentence_range(
             request.start_sentence,
             request.end_sentence,
             self._context.total_sentences,
         )
+
+        chunk_id = f"{range_fragment}_{self._context.base_name}"
 
         config = get_rendering_config()
         runtime_context = cfg.get_runtime_context(None)
@@ -94,6 +107,8 @@ class BatchExporter:
         batch_context = RenderBatchContext(manifest=manifest_context, media=media_context)
         writer = DeferredBatchWriter(Path(self._context.base_dir), batch_context)
 
+        artifacts: Dict[str, str] = {}
+
         try:
             document_paths = output_formatter.export_batch_documents(
                 str(writer.work_dir),
@@ -106,13 +121,12 @@ class BatchExporter:
                 output_html=request.output_html,
                 output_pdf=request.output_pdf,
             )
-            for created_path in document_paths.values():
-                writer.stage(Path(created_path))
+            for kind, created_path in document_paths.items():
+                staged_path = writer.stage(Path(created_path))
+                artifacts[kind] = str(staged_path)
 
             audio_segments = list(request.audio_segments) if request.generate_audio else []
             video_blocks = list(request.video_blocks) if request.generate_video else []
-
-            video_path: Optional[Path] = None
 
             if request.generate_audio and audio_segments:
                 combined = AudioSegment.empty()
@@ -120,7 +134,8 @@ class BatchExporter:
                     combined += segment
                 audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}.mp3"
                 combined.export(str(audio_filename), format="mp3", bitrate="320k")
-                writer.stage(audio_filename)
+                staged_audio = writer.stage(audio_filename)
+                artifacts["audio"] = str(staged_audio)
 
             if request.generate_video and audio_segments and video_blocks:
                 video_output = av_gen.render_video_slides(
@@ -147,13 +162,20 @@ class BatchExporter:
                 )
                 video_path = Path(video_output)
                 video_path = writer.stage(video_path)
+                artifacts["video"] = str(video_path)
 
             writer.commit()
         except Exception:
             writer.rollback()
             raise
 
-        return str(video_path) if video_path else None
+        return BatchExportResult(
+            chunk_id=chunk_id,
+            start_sentence=request.start_sentence,
+            end_sentence=request.end_sentence,
+            range_fragment=range_fragment,
+            artifacts=artifacts,
+        )
 
 
 def build_exporter(

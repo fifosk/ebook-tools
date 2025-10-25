@@ -34,7 +34,7 @@ from modules.transliteration import TransliterationService, get_transliterator
 
 from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
-from .exporters import BatchExportRequest, BatchExporter, build_exporter
+from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
 
 
 @dataclass
@@ -254,9 +254,8 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
             )
-            video_path = exporter.export(request)
-            if video_path:
-                state.batch_video_files.append(video_path)
+            export_result = exporter.export(request)
+            self._register_export_result(state, export_result)
         elif self._should_stop():
             console_info(
                 "Skip final batch export due to shutdown request.",
@@ -280,6 +279,23 @@ class RenderPipeline:
 
     # ------------------------------------------------------------------
     # Internal helpers
+    def _register_export_result(
+        self, state: PipelineState, result: Optional[BatchExportResult]
+    ) -> None:
+        if result is None:
+            return
+        video_path = result.artifacts.get("video")
+        if video_path:
+            state.batch_video_files.append(video_path)
+        if self._progress is not None:
+            self._progress.record_generated_chunk(
+                chunk_id=result.chunk_id,
+                start_sentence=result.start_sentence,
+                end_sentence=result.end_sentence,
+                range_fragment=result.range_fragment,
+                files=result.artifacts,
+            )
+
     def _initial_state(
         self,
         *,
@@ -431,9 +447,8 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
             )
-            video_path = exporter.export(request)
-            if video_path:
-                state.batch_video_files.append(video_path)
+            export_result = exporter.export(request)
+            self._register_export_result(state, export_result)
             state.written_blocks.clear()
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
@@ -744,9 +759,8 @@ class RenderPipeline:
             finalize_executor.shutdown(wait=True)
             for future in export_futures:
                 try:
-                    video_path = future.result()
+                    export_result = future.result()
                 except Exception as exc:  # pragma: no cover - defensive logging
                     logger.error("Failed to finalize batch export: %s", exc)
                 else:
-                    if video_path:
-                        state.batch_video_files.append(video_path)
+                    self._register_export_result(state, export_result)

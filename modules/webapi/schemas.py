@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import copy
 from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
@@ -181,6 +182,7 @@ class PipelineResponsePayload(BaseModel):
     stitched_audio_path: Optional[str] = None
     stitched_video_path: Optional[str] = None
     book_metadata: Dict[str, Any] = Field(default_factory=dict)
+    generated_files: Dict[str, Any] = Field(default_factory=dict)
 
     @staticmethod
     def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
@@ -236,6 +238,7 @@ class PipelineResponsePayload(BaseModel):
             stitched_audio_path=response.stitched_audio_path,
             stitched_video_path=response.stitched_video_path,
             book_metadata=dict(response.book_metadata),
+            generated_files=copy.deepcopy(response.generated_files),
         )
 
 
@@ -297,6 +300,7 @@ class PipelineStatusResponse(BaseModel):
     tuning: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    generated_files: Optional[Dict[str, Any]] = None
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -310,6 +314,10 @@ class PipelineStatusResponse(BaseModel):
         if job.last_event is not None:
             latest_event = ProgressEventPayload.from_event(job.last_event)
 
+        generated_files = None
+        if job.generated_files is not None:
+            generated_files = copy.deepcopy(job.generated_files)
+
         return cls(
             job_id=job.job_id,
             status=job.status,
@@ -322,6 +330,7 @@ class PipelineStatusResponse(BaseModel):
             tuning=dict(job.tuning_summary) if job.tuning_summary else None,
             user_id=job.user_id,
             user_role=job.user_role,
+            generated_files=generated_files,
         )
 
 

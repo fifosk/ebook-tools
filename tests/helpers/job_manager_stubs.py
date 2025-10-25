@@ -51,6 +51,7 @@ def install_job_manager_stubs() -> None:
         class PipelineResponse:
             success: bool
             book_metadata: Dict[str, Any] = field(default_factory=dict)
+            generated_files: Dict[str, Any] = field(default_factory=dict)
 
         def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
             return {
@@ -65,7 +66,11 @@ def install_job_manager_stubs() -> None:
             }
 
         def serialize_pipeline_response(response: PipelineResponse) -> Dict[str, Any]:
-            return {"success": response.success, "book_metadata": dict(response.book_metadata)}
+            return {
+                "success": response.success,
+                "book_metadata": dict(response.book_metadata),
+                "generated_files": dict(response.generated_files),
+            }
 
         def run_pipeline(request: PipelineRequest) -> PipelineResponse:  # pragma: no cover - defensive stub
             return PipelineResponse(success=True, book_metadata=dict(request.inputs.book_metadata))
