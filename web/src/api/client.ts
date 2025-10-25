@@ -41,17 +41,21 @@ function resolveApiBaseUrl(): string {
 }
 
 function resolveStorageBaseUrl(): string {
-  const explicit = (import.meta.env.VITE_STORAGE_BASE_URL ?? '').trim().replace(/\/$/, '');
+  const explicit = (import.meta.env.VITE_STORAGE_BASE_URL ?? '').trim();
   if (explicit) {
-    return explicit;
+    return explicit.replace(/\/$/, '');
   }
 
-  const inferred = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
+  const inferred = (import.meta.env.VITE_API_BASE_URL ?? '').trim();
   if (inferred) {
-    return inferred;
+    return `${inferred.replace(/\/$/, '')}/pipelines/storage`;
   }
 
-  return API_BASE_URL;
+  if (API_BASE_URL) {
+    return `${API_BASE_URL.replace(/\/$/, '')}/pipelines/storage`;
+  }
+
+  return '/pipelines/storage';
 }
 
 function withBase(path: string): string {

@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Dict, Mapping, Optional
+from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 from uuid import uuid4
 
 from ... import config_manager as cfg
@@ -50,6 +50,48 @@ def _sanitize_directory_fragment(value: str) -> str:
     cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", value.strip())
     cleaned = cleaned.strip("._")
     return cleaned or _DEFAULT_JOB_USER
+
+
+def _normalise_generated_files(job_id: str, source: Mapping[str, Iterable[str]]) -> Dict[str, list[str]]:
+    """Normalise stored media paths so they point at the job file endpoint."""
+
+    normalised: Dict[str, list[str]] = {}
+    prefix = f"jobs/{job_id}/files/"
+    for media_type, entries in source.items():
+        cleaned: list[str] = []
+        seen: set[str] = set()
+        for entry in entries:
+            candidate = str(entry or "").strip()
+            if not candidate:
+                continue
+            candidate = candidate.replace("\\", "/")
+            candidate = candidate.lstrip("/")
+            if candidate.startswith("pipelines/"):
+                candidate = candidate[len("pipelines/") :].lstrip("/")
+            if candidate.startswith("storage/"):
+                candidate = candidate[len("storage/") :].lstrip("/")
+            if candidate.startswith(f"jobs/{job_id}/files/"):
+                normalised_path = candidate
+            elif candidate.startswith(f"jobs/{job_id}/"):
+                remainder = candidate[len(f"jobs/{job_id}/") :].lstrip("/")
+                if not remainder:
+                    continue
+                if remainder.startswith("files/"):
+                    normalised_path = f"jobs/{job_id}/{remainder}"
+                else:
+                    normalised_path = f"jobs/{job_id}/files/{remainder}"
+            elif candidate.startswith("jobs/"):
+                # Skip paths from other jobs to avoid accidental leakage.
+                continue
+            else:
+                normalised_path = f"{prefix}{candidate}"
+            if normalised_path in seen:
+                continue
+            seen.add(normalised_path)
+            cleaned.append(normalised_path)
+        if cleaned:
+            normalised[media_type] = cleaned
+    return normalised
 
 class PipelineJobManager:
     """Orchestrate background execution of pipeline jobs with persistence support."""
@@ -240,6 +282,8 @@ class PipelineJobManager:
         )
         if resume_context is None and request_payload is not None:
             resume_context = copy.deepcopy(request_payload)
+        if job.generated_files:
+            job.generated_files = _normalise_generated_files(job.job_id, job.generated_files)
         generated_files = (
             {
                 media_type: list(files)
@@ -355,10 +399,9 @@ class PipelineJobManager:
                 return
             job.last_event = event
             if event.snapshot.generated_files is not None:
-                job.generated_files = {
-                    media_type: list(paths)
-                    for media_type, paths in event.snapshot.generated_files.items()
-                }
+                job.generated_files = _normalise_generated_files(
+                    job.job_id, event.snapshot.generated_files
+                )
             if job.status == PipelineJobStatus.RUNNING:
                 resume_context = compute_resume_context(job)
                 if resume_context is not None:
@@ -783,6 +826,9 @@ class PipelineJobManager:
         result_payload = (
             copy.deepcopy(metadata.result) if metadata.result is not None else None
         )
+        generated_files = _normalise_generated_files(
+            metadata.job_id, metadata.generated_files or {}
+        )
         job = PipelineJob(
             job_id=metadata.job_id,
             status=metadata.status,
@@ -798,10 +844,7 @@ class PipelineJobManager:
             else None,
             user_id=metadata.user_id,
             user_role=metadata.user_role,
-            generated_files={
-                media_type: list(files)
-                for media_type, files in (metadata.generated_files or {}).items()
-            },
+            generated_files=generated_files,
             output_dir=metadata.output_dir,
         )
         if metadata.last_event is not None:
