@@ -258,11 +258,17 @@ main {
 .dashboard {
   display: flex;
   min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   gap: 0;
 }
 
 .dashboard__sidebar {
-  width: 320px;
+  flex: 0 0 320px;
+  max-width: 320px;
+  height: 100%;
+  min-height: 0;
+  max-height: 100vh;
   padding: 2rem 1.75rem;
   background: var(--color-sidebar-bg);
   border-right: 1px solid var(--color-sidebar-border);
@@ -270,15 +276,23 @@ main {
   flex-direction: column;
   gap: 1.5rem;
   transition: width 0.3s ease, padding 0.3s ease, opacity 0.3s ease, border-color 0.3s ease;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .dashboard__sidebar--collapsed {
+  flex: 0 0 0;
   width: 0;
   padding: 0;
   opacity: 0;
   border-right-color: transparent;
   pointer-events: none;
+}
+
+.dashboard__content {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
 }
 
 .dashboard__main {
@@ -287,6 +301,9 @@ main {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .dashboard__toolbar {
@@ -744,18 +761,30 @@ main {
 @media (max-width: 960px) {
   .dashboard {
     flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+    overflow: visible;
   }
 
   .dashboard__sidebar {
+    flex: 0 0 auto;
     width: 100%;
+    max-width: none;
+    height: auto;
+    max-height: none;
     border-right: none;
     border-bottom: 1px solid var(--color-border-subtle);
+    overflow: visible;
   }
 
   .dashboard__sidebar--collapsed {
     height: 0;
     padding: 0;
     border-bottom-color: transparent;
+  }
+
+  .dashboard__content {
+    width: 100%;
   }
 
   .dashboard__main {
