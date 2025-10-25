@@ -209,6 +209,8 @@ class PipelineStatusResponse(BaseModel):
     error: Optional[str]
     latest_event: Optional[ProgressEventPayload]
     tuning: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
+    user_role: Optional[str] = None
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -232,6 +234,8 @@ class PipelineStatusResponse(BaseModel):
             error=job.error_message,
             latest_event=latest_event,
             tuning=dict(job.tuning_summary) if job.tuning_summary else None,
+            user_id=job.user_id,
+            user_role=job.user_role,
         )
 
 

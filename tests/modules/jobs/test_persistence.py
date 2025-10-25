@@ -63,6 +63,8 @@ def _build_metadata(job_id: str) -> PipelineJobMetadata:
             },
         },
         resume_context={"resume": True, "order": ["second", "first"]},
+        user_id="test-user",
+        user_role="user",
     )
 
 
@@ -79,6 +81,8 @@ def test_save_and_load_job_roundtrip(storage_dir: Path):
 
     loaded = persistence.load_job(metadata.job_id)
     assert loaded == metadata
+    assert loaded.user_id == metadata.user_id
+    assert loaded.user_role == metadata.user_role
 
 
 def test_load_all_jobs_returns_all(storage_dir: Path):
@@ -91,6 +95,7 @@ def test_load_all_jobs_returns_all(storage_dir: Path):
     assert set(loaded) == {"job-a", "job-b"}
     assert loaded["job-a"] == first
     assert loaded["job-b"] == second
+    assert loaded["job-a"].user_id == first.user_id
 
 
 def test_delete_job_removes_file(storage_dir: Path):
@@ -111,6 +116,7 @@ def test_save_job_accepts_mapping(storage_dir: Path):
     raw = persistence.load_job("job-mapping")
     assert raw.job_id == "job-mapping"
     assert json.loads(raw.to_json()) == json.loads(metadata.to_json())
+    assert raw.user_id == metadata.user_id
 
 
 def test_save_job_rejects_unknown_payload_type(storage_dir: Path):

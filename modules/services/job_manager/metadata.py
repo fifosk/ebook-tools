@@ -37,6 +37,8 @@ class PipelineJobMetadata:
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
     tuning_summary: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
+    user_role: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -60,6 +62,10 @@ class PipelineJobMetadata:
         }
         if self.request_payload is not None:
             payload["request"] = _stable_copy(self.request_payload)
+        if self.user_id is not None:
+            payload["user_id"] = self.user_id
+        if self.user_role is not None:
+            payload["user_role"] = self.user_role
         return payload
 
     def to_json(self) -> str:
@@ -87,6 +93,8 @@ class PipelineJobMetadata:
             request_payload=data.get("request"),
             resume_context=data.get("resume_context") or data.get("request"),
             tuning_summary=data.get("tuning_summary"),
+            user_id=data.get("user_id"),
+            user_role=data.get("user_role"),
         )
 
     @classmethod

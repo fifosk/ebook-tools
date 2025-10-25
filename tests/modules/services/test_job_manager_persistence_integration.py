@@ -90,11 +90,13 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
     manager = PipelineJobManager(max_workers=1, store=store, worker_pool_factory=lambda _: _DummyWorkerPool())
 
     request = _build_request()
-    job = manager.submit(request)
+    job = manager.submit(request, user_id="integration", user_role="user")
 
     persisted = persistence.load_job(job.job_id)
     assert persisted.status == PipelineJobStatus.PENDING
     assert persisted.created_at <= datetime.now(timezone.utc)
+    assert persisted.user_id == "integration"
+    assert persisted.user_role == "user"
 
     manager._executor.shutdown()
 

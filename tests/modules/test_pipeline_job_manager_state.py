@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 import threading
 import time
@@ -48,7 +49,13 @@ class _InMemoryJobStore(JobStore):
         }
 
 
-def _build_metadata(job_id: str, status: PipelineJobStatus) -> PipelineJobMetadata:
+def _build_metadata(
+    job_id: str,
+    status: PipelineJobStatus,
+    *,
+    user_id: str = "user",
+    user_role: str = "user",
+) -> PipelineJobMetadata:
     now = datetime.now(timezone.utc)
     inputs = {
         "input_file": "book.epub",
@@ -66,6 +73,8 @@ def _build_metadata(job_id: str, status: PipelineJobStatus) -> PipelineJobMetada
         result=None,
         request_payload={"config": {}, "inputs": dict(inputs)},
         resume_context={"config": {}, "inputs": dict(inputs)},
+        user_id=user_id,
+        user_role=user_role,
     )
 
 
@@ -262,3 +271,80 @@ def test_finish_job_persists_terminal_state(job_manager_factory):
     assert stored.status == PipelineJobStatus.COMPLETED
     assert stored.completed_at is not None
     assert stored.result == result_payload
+
+
+def test_submit_records_user_context(tmp_path, job_manager_factory):
+    store = _InMemoryJobStore()
+    manager = job_manager_factory(store)
+    manager._executor.submit = lambda *args, **kwargs: None
+
+    request = PipelineRequest(
+        config={},
+        context=None,
+        environment_overrides={
+            "working_dir": str(tmp_path / "working"),
+            "tmp_dir": str(tmp_path / "tmp"),
+            "ebooks_dir": str(tmp_path / "books"),
+        },
+        pipeline_overrides={},
+        inputs=PipelineInput(
+            input_file="book.epub",
+            base_output_file="output",
+            input_language="en",
+            target_languages=["es"],
+            sentences_per_output_file=5,
+            start_sentence=1,
+            end_sentence=None,
+            stitch_full=False,
+            generate_audio=False,
+            audio_mode="narration",
+            written_mode="text",
+            selected_voice="",
+            output_html=True,
+            output_pdf=False,
+            generate_video=False,
+            include_transliteration=False,
+            tempo=1.0,
+            book_metadata={},
+        ),
+    )
+
+    job = manager.submit(request, user_id="alice", user_role="user")
+    expected_dir = Path.cwd() / "data" / "jobs" / "alice" / job.job_id
+
+    assert job.user_id == "alice"
+    assert job.user_role == "user"
+    assert job.request.context is not None
+    assert job.request.context.output_dir == expected_dir
+    assert job.request.environment_overrides["output_dir"] == str(expected_dir)
+    assert expected_dir.exists()
+    assert store.saved and store.saved[0].user_id == "alice"
+    assert store.saved[0].user_role == "user"
+
+
+def test_list_jobs_filters_by_role(job_manager_factory):
+    records = {
+        "job-admin": _build_metadata(
+            "job-admin",
+            PipelineJobStatus.PENDING,
+            user_id="carol",
+            user_role="admin",
+        ),
+        "job-user": _build_metadata(
+            "job-user",
+            PipelineJobStatus.PENDING,
+            user_id="dave",
+            user_role="user",
+        ),
+    }
+    store = _InMemoryJobStore(records)
+    manager = job_manager_factory(store)
+
+    admin_visible = manager.list(user_id="carol", user_role="admin")
+    assert set(admin_visible) == {"job-admin", "job-user"}
+
+    user_visible = manager.list(user_id="dave", user_role="user")
+    assert set(user_visible) == {"job-user"}
+
+    default_visible = manager.list()
+    assert set(default_visible) == {"job-admin", "job-user"}
