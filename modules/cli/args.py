@@ -122,10 +122,22 @@ def parse_cli_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
     """Parse ``argv`` using the new CLI parser with sub-commands."""
 
     parser = build_cli_parser()
-    namespace = parser.parse_args(argv)
-    if getattr(namespace, "command", None) is None:
-        # Fall back to legacy positional parsing for backwards compatibility.
+
+    try:
+        # ``parse_known_args`` lets us detect legacy invocations like ``-i``
+        # without triggering an early ``SystemExit`` from ``argparse``.
+        preliminary, unknown = parser.parse_known_args(argv)
+    except SystemExit:
         return parse_legacy_args(argv)
+
+    if getattr(preliminary, "command", None) is None:
+        # No sub-command detected; assume legacy positional usage.
+        return parse_legacy_args(argv)
+
+    if unknown:
+        parser.error(f"unrecognized arguments: {' '.join(unknown)}")
+
+    namespace = parser.parse_args(argv)
     if namespace.command == "run" and getattr(namespace, "interactive", False):
         namespace.command = "interactive"
     return namespace
