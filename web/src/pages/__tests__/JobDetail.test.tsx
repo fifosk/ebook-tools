@@ -61,7 +61,7 @@ describe('JobDetail', () => {
     render(<JobDetail jobId="job-1" />);
 
     await waitFor(() => {
-      expect(screen.getByText('001-010_output.html')).toBeInTheDocument();
+      expect(screen.getAllByText('001-010_output.html')[0]).toBeInTheDocument();
     });
 
     expect(screen.getByRole('tab', { name: /Text \(1\)/i })).toHaveAttribute('aria-selected', 'true');
@@ -103,7 +103,7 @@ describe('JobDetail', () => {
       expect(screen.getByTestId('audio-player')).toBeInTheDocument();
     });
 
-    const audioList = screen.getByTestId('media-list-audio');
+    const [audioList] = screen.getAllByTestId('media-list-audio');
     expect(within(audioList).getByText('001-010_output.mp3')).toBeInTheDocument();
   });
 
@@ -133,6 +133,7 @@ describe('JobDetail', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('tab', { name: /Text \(0\)/i }));
 
-    expect(screen.getByTestId('media-list-text')).toHaveTextContent('No text media yet.');
+    const [textList] = screen.getAllByTestId('media-list-text');
+    expect(textList).toHaveTextContent('No text media yet.');
   });
 });

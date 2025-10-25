@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import TextViewer, { TextFile } from './TextViewer';
+import TextViewer, { type TextFile } from './TextViewer';
 
 const sampleFiles: TextFile[] = [
   {
@@ -24,25 +24,19 @@ export default {
   component: TextViewer
 };
 
-export const ProgressiveUpdates = () => {
-  const [files, setFiles] = useState<TextFile[]>(sampleFiles.slice(0, 1));
+export const BasicReader = () => {
+  const [index, setIndex] = useState(0);
 
-  const addNextFile = () => {
-    setFiles((previous) => {
-      if (previous.length >= sampleFiles.length) {
-        return previous;
-      }
-
-      return [...previous, sampleFiles[previous.length]];
-    });
+  const nextFile = () => {
+    setIndex((previous) => (previous + 1) % sampleFiles.length);
   };
 
   return (
     <div>
-      <button type="button" onClick={addNextFile} disabled={files.length >= sampleFiles.length}>
-        Add next text file
+      <button type="button" onClick={nextFile}>
+        Show next text file
       </button>
-      <TextViewer files={files} />
+      <TextViewer file={sampleFiles[index]} />
     </div>
   );
 };

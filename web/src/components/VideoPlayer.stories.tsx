@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import VideoPlayer, { VideoFile } from './VideoPlayer';
+import VideoPlayer, { type VideoFile } from './VideoPlayer';
 
 const sampleVideos: VideoFile[] = [
   {
@@ -25,25 +25,19 @@ export default {
   component: VideoPlayer
 };
 
-export const ProgressiveUpdates = () => {
-  const [files, setFiles] = useState<VideoFile[]>(sampleVideos.slice(0, 1));
+export const BasicPlayback = () => {
+  const [index, setIndex] = useState(0);
 
-  const addNextVideo = () => {
-    setFiles((previous) => {
-      if (previous.length >= sampleVideos.length) {
-        return previous;
-      }
-
-      return [...previous, sampleVideos[previous.length]];
-    });
+  const nextVideo = () => {
+    setIndex((previous) => (previous + 1) % sampleVideos.length);
   };
 
   return (
     <div>
-      <button type="button" onClick={addNextVideo} disabled={files.length >= sampleVideos.length}>
-        Add next video
+      <button type="button" onClick={nextVideo}>
+        Play next video
       </button>
-      <VideoPlayer files={files} />
+      <VideoPlayer file={sampleVideos[index]} />
     </div>
   );
 };
