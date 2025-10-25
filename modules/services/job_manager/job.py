@@ -53,6 +53,8 @@ class PipelineJob:
     request_payload: Optional[Dict[str, Any]] = None
     resume_context: Optional[Dict[str, Any]] = None
     tuning_summary: Optional[Dict[str, Any]] = None
+    user_id: Optional[str] = None
+    user_role: Optional[str] = None
 
 
 __all__ = [

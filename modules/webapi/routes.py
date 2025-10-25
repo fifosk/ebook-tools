@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import AsyncIterator, Callable, List
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Header, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from .dependencies import (
@@ -107,10 +107,12 @@ def _build_action_response(
 @router.get("/jobs", response_model=PipelineJobListResponse)
 async def list_jobs(
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Return all persisted jobs ordered by creation time."""
 
-    jobs = pipeline_service.list_jobs().values()
+    jobs = pipeline_service.list_jobs(user_id=user_id, user_role=user_role).values()
     ordered = sorted(
         jobs,
         key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
@@ -200,6 +202,8 @@ async def submit_pipeline(
     payload: PipelineRequestPayload,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Submit a pipeline execution request and return an identifier."""
 
@@ -214,7 +218,7 @@ async def submit_pipeline(
         context=context,
         resolved_config=resolved_config,
     )
-    job = pipeline_service.enqueue(request)
+    job = pipeline_service.enqueue(request, user_id=user_id, user_role=user_role)
     return PipelineSubmissionResponse(
         job_id=job.job_id,
         status=job.status,

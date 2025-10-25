@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import copy
+import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional
 from uuid import uuid4
 
@@ -36,6 +39,17 @@ from .stores import JobStore
 from .execution_adapter import PipelineExecutionAdapter
 
 logger = log_mgr.logger
+
+_DEFAULT_JOB_USER = "anonymous"
+_JOB_OUTPUT_ROOT = Path("data") / "jobs"
+
+
+def _sanitize_directory_fragment(value: str) -> str:
+    """Return a filesystem-safe fragment derived from ``value``."""
+
+    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", value.strip())
+    cleaned = cleaned.strip("._")
+    return cleaned or _DEFAULT_JOB_USER
 
 class PipelineJobManager:
     """Orchestrate background execution of pipeline jobs with persistence support."""
@@ -240,9 +254,17 @@ class PipelineJobManager:
             tuning_summary=copy.deepcopy(job.tuning_summary)
             if job.tuning_summary is not None
             else None,
+            user_id=job.user_id,
+            user_role=job.user_role,
         )
 
-    def submit(self, request: PipelineRequest) -> PipelineJob:
+    def submit(
+        self,
+        request: PipelineRequest,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Register ``request`` for background execution."""
 
         job_id = str(uuid4())
@@ -254,6 +276,25 @@ class PipelineJobManager:
         request.correlation_id = request.correlation_id or job_id
         request.job_id = job_id
 
+        sanitized_user = _sanitize_directory_fragment(user_id or _DEFAULT_JOB_USER)
+        job_output_dir = (_JOB_OUTPUT_ROOT / sanitized_user / job_id).resolve()
+        job_output_dir.mkdir(parents=True, exist_ok=True)
+
+        environment_overrides = dict(request.environment_overrides)
+        environment_overrides.setdefault("output_dir", str(job_output_dir))
+        request.environment_overrides = environment_overrides
+
+        context = request.context
+        if context is not None:
+            context = dataclass_replace(context, output_dir=job_output_dir)
+        else:
+            context = cfg.build_runtime_context(
+                dict(request.config),
+                dict(environment_overrides),
+            )
+            context = dataclass_replace(context, output_dir=job_output_dir)
+        request.context = context
+
         request_payload = serialize_pipeline_request(request)
         job = PipelineJob(
             job_id=job_id,
@@ -264,6 +305,8 @@ class PipelineJobManager:
             stop_event=stop_event,
             request_payload=request_payload,
             resume_context=copy.deepcopy(request_payload),
+            user_id=user_id,
+            user_role=user_role,
         )
         tuning_summary = self._tuner.build_tuning_summary(request)
         job.tuning_summary = tuning_summary if tuning_summary else None
@@ -662,19 +705,35 @@ class PipelineJobManager:
             tuning_summary=copy.deepcopy(metadata.tuning_summary)
             if metadata.tuning_summary is not None
             else None,
+            user_id=metadata.user_id,
+            user_role=metadata.user_role,
         )
         if metadata.last_event is not None:
             job.last_event = deserialize_progress_event(metadata.last_event)
         return job
 
-    def list(self) -> Dict[str, PipelineJob]:
-        """Return a snapshot mapping of all jobs."""
+    def list(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> Dict[str, PipelineJob]:
+        """Return a snapshot mapping of jobs respecting role-based visibility."""
 
         with self._lock:
             active_jobs = dict(self._jobs)
         stored = self._store.list()
         for job_id, metadata in stored.items():
             active_jobs.setdefault(job_id, self._build_job_from_metadata(metadata))
+
+        if user_role and user_role.lower() == "admin":
+            return active_jobs
+        if user_id:
+            return {
+                job_id: job
+                for job_id, job in active_jobs.items()
+                if job.user_id == user_id
+            }
         return active_jobs
 
     def refresh_metadata(self, job_id: str) -> PipelineJob:

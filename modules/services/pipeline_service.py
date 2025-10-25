@@ -390,20 +390,31 @@ class PipelineService:
     def __init__(self, job_manager: "PipelineJobManager") -> None:
         self._job_manager = job_manager
 
-    def enqueue(self, request: PipelineRequest) -> "PipelineJob":
+    def enqueue(
+        self,
+        request: PipelineRequest,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Submit ``request`` for background execution and return the job handle."""
 
-        return self._job_manager.submit(request)
+        return self._job_manager.submit(request, user_id=user_id, user_role=user_role)
 
     def get_job(self, job_id: str) -> "PipelineJob":
         """Return the job associated with ``job_id``."""
 
         return self._job_manager.get(job_id)
 
-    def list_jobs(self) -> Dict[str, "PipelineJob"]:
+    def list_jobs(
+        self,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> Dict[str, "PipelineJob"]:
         """Return a mapping of all known job handles."""
 
-        return self._job_manager.list()
+        return self._job_manager.list(user_id=user_id, user_role=user_role)
 
     def pause_job(self, job_id: str) -> "PipelineJob":
         """Pause the specified job and return the updated handle."""

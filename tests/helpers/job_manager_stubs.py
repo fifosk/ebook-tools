@@ -74,7 +74,13 @@ def install_job_manager_stubs() -> None:
             def __init__(self) -> None:
                 self._manager = None
 
-            def enqueue(self, request: PipelineRequest) -> PipelineResponse:
+            def enqueue(
+                self,
+                request: PipelineRequest,
+                *,
+                user_id: Optional[str] = None,
+                user_role: Optional[str] = None,
+            ) -> PipelineResponse:
                 return run_pipeline(request)
 
         pipeline_module.PipelineInput = PipelineInput
