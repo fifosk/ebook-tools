@@ -50,6 +50,9 @@ class ManagedUserPayload(BaseModel):
 
     username: str
     roles: List[str] = Field(default_factory=list)
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     status: Optional[Literal["active", "suspended", "inactive"]] = None
     is_active: Optional[bool] = None
     is_suspended: Optional[bool] = None
@@ -77,6 +80,17 @@ class UserCreateRequestPayload(BaseModel):
     username: str
     password: str
     roles: List[str] = Field(default_factory=list)
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+
+
+class UserUpdateRequestPayload(BaseModel):
+    """Payload for updating profile metadata for an existing managed user."""
+
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 
 class UserPasswordResetRequestPayload(BaseModel):

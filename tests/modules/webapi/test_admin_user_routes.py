@@ -78,7 +78,14 @@ def test_create_user_provisions_account(admin_client) -> None:
 
     response = client.post(
         "/admin/users",
-        json={"username": "newbie", "password": "hunter2", "roles": ["standard_user"]},
+        json={
+            "username": "newbie",
+            "password": "hunter2",
+            "roles": ["standard_user"],
+            "email": "newbie@example.com",
+            "first_name": "New",
+            "last_name": "User",
+        },
         headers={"Authorization": f"Bearer {admin_token}"},
     )
 
@@ -86,7 +93,36 @@ def test_create_user_provisions_account(admin_client) -> None:
     body = response.json()
     assert body["user"]["username"] == "newbie"
     assert body["user"]["status"] == "active"
+    assert body["user"]["email"] == "newbie@example.com"
+    assert body["user"]["first_name"] == "New"
+    assert body["user"]["last_name"] == "User"
     assert service.user_store.get_user("newbie") is not None
+
+
+def test_update_user_details_persists_profile_metadata(admin_client) -> None:
+    client, service, admin_token, _ = admin_client
+
+    response = client.put(
+        "/admin/users/member",
+        json={
+            "email": "member@example.com",
+            "first_name": "Member",
+            "last_name": "User",
+        },
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["user"]
+    assert payload["email"] == "member@example.com"
+    assert payload["first_name"] == "Member"
+    assert payload["last_name"] == "User"
+
+    record = service.user_store.get_user("member")
+    assert record is not None
+    assert record.metadata.get("email") == "member@example.com"
+    assert record.metadata.get("first_name") == "Member"
+    assert record.metadata.get("last_name") == "User"
 
 
 def test_suspend_user_updates_metadata_and_clears_sessions(admin_client) -> None:

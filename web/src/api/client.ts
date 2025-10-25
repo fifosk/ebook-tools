@@ -14,7 +14,8 @@ import {
   UserAccountResponse,
   UserCreateRequestPayload,
   UserListResponse,
-  UserPasswordResetRequestPayload
+  UserPasswordResetRequestPayload,
+  UserUpdateRequestPayload
 } from './dtos';
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -210,6 +211,21 @@ export async function listUsers(): Promise<ManagedUser[]> {
 export async function createUser(payload: UserCreateRequestPayload): Promise<ManagedUser> {
   const response = await apiFetch('/admin/users', {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const body = await handleResponse<UserAccountResponse>(response);
+  return body.user;
+}
+
+export async function updateUserProfile(
+  username: string,
+  payload: UserUpdateRequestPayload
+): Promise<ManagedUser> {
+  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}`, {
+    method: 'PUT',
     headers: {
       'Content-Type': 'application/json'
     },
