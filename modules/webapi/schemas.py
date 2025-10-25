@@ -18,6 +18,9 @@ class SessionUserPayload(BaseModel):
 
     username: str
     role: str
+    email: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     last_login: Optional[str] = None
 
 

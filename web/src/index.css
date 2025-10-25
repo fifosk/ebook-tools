@@ -351,6 +351,19 @@ main {
   font-size: 1.05rem;
 }
 
+.session-info__username {
+  margin-left: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+.session-info__email {
+  font-size: 0.95rem;
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
 .session-info__meta {
   display: flex;
   gap: 1rem;

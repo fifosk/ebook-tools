@@ -52,12 +52,24 @@ def _resolve_last_login(record: UserRecord, session_data: dict[str, str] | None)
     return None
 
 
+def _metadata_string(record: UserRecord, key: str) -> str | None:
+    value = record.metadata.get(key)
+    if isinstance(value, str):
+        value = value.strip()
+        if value:
+            return value
+    return None
+
+
 def _build_session_response(token: str, record: UserRecord, session_data: dict[str, str] | None) -> SessionStatusResponse:
     return SessionStatusResponse(
         token=token,
         user=SessionUserPayload(
             username=record.username,
             role=_primary_role(record),
+            email=_metadata_string(record, "email"),
+            first_name=_metadata_string(record, "first_name"),
+            last_name=_metadata_string(record, "last_name"),
             last_login=_resolve_last_login(record, session_data),
         ),
     )

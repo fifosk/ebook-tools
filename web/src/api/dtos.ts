@@ -116,6 +116,9 @@ export interface PipelineJobActionResponse {
 export interface SessionUser {
   username: string;
   role: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
   last_login: string | null;
 }
 
