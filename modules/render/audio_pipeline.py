@@ -11,6 +11,7 @@ from typing import Callable, Mapping, Optional, Protocol, TYPE_CHECKING
 from pydub import AudioSegment
 
 from modules import logging_manager as log_mgr
+from .context import RenderBatchContext
 
 if TYPE_CHECKING:  # pragma: no cover - imports for static analysis only
     from modules.progress_tracker import ProgressTracker
@@ -64,18 +65,11 @@ class AudioWorker:
     name: str
     audio_task_queue: "Queue[Optional[TranslationTask]]"
     audio_result_queue: "Queue[Optional[MediaPipelineResult]]"
-    total_sentences: int
-    input_language: str
-    audio_mode: str
-    language_codes: Mapping[str, str]
-    selected_voice: str
-    tempo: float
-    macos_reading_speed: int
-    generate_audio: bool
-    audio_stop_event: Optional[threading.Event]
-    progress_tracker: Optional["ProgressTracker"]
-    audio_generator: Optional[AudioGenerator]
+    batch_context: RenderBatchContext
     media_result_factory: MediaResultFactory
+    audio_stop_event: Optional[threading.Event] = None
+    progress_tracker: Optional["ProgressTracker"] = None
+    audio_generator: Optional[AudioGenerator] = None
 
     def run(self) -> None:
         """Execute the wrapped audio worker coroutine."""
@@ -84,18 +78,11 @@ class AudioWorker:
             self.name,
             self.audio_task_queue,
             self.audio_result_queue,
-            total_sentences=self.total_sentences,
-            input_language=self.input_language,
-            audio_mode=self.audio_mode,
-            language_codes=self.language_codes,
-            selected_voice=self.selected_voice,
-            tempo=self.tempo,
-            macos_reading_speed=self.macos_reading_speed,
-            generate_audio=self.generate_audio,
+            batch_context=self.batch_context,
+            media_result_factory=self.media_result_factory,
             audio_stop_event=self.audio_stop_event,
             progress_tracker=self.progress_tracker,
             audio_generator=self.audio_generator,
-            media_result_factory=self.media_result_factory,
         )
 
 
@@ -123,20 +110,46 @@ def audio_worker_body(
     audio_task_queue: "Queue[Optional[TranslationTask]]",
     audio_result_queue: "Queue[Optional[MediaPipelineResult]]",
     *,
-    total_sentences: int,
-    input_language: str,
-    audio_mode: str,
-    language_codes: Mapping[str, str],
-    selected_voice: str,
-    tempo: float,
-    macos_reading_speed: int,
-    generate_audio: bool,
-    audio_stop_event: Optional[threading.Event],
-    progress_tracker: Optional["ProgressTracker"],
-    audio_generator: Optional[AudioGenerator],
+    batch_context: RenderBatchContext,
     media_result_factory: MediaResultFactory,
+    audio_stop_event: Optional[threading.Event] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
+    audio_generator: Optional[AudioGenerator] = None,
 ) -> None:
     """Consume translation results and emit completed media payloads."""
+
+    manifest_context = batch_context.manifest
+    audio_context = batch_context.media_context("audio")
+
+    total_sentences = int(
+        audio_context.get("total_sentences")
+        or manifest_context.get("total_sentences")
+        or 0
+    )
+    input_language = str(
+        audio_context.get("input_language")
+        or manifest_context.get("input_language")
+        or ""
+    )
+    audio_mode = str(audio_context.get("audio_mode") or manifest_context.get("audio_mode") or "1")
+    raw_language_codes = audio_context.get("language_codes") or manifest_context.get("language_codes") or {}
+    if not isinstance(raw_language_codes, Mapping):
+        raw_language_codes = {}
+    language_codes = dict(raw_language_codes)
+    selected_voice = str(
+        audio_context.get("selected_voice")
+        or manifest_context.get("selected_voice")
+        or ""
+    )
+    tempo = float(audio_context.get("tempo") or manifest_context.get("tempo") or 1.0)
+    macos_reading_speed = int(
+        audio_context.get("macos_reading_speed")
+        or manifest_context.get("macos_reading_speed")
+        or 0
+    )
+    generate_audio = bool(
+        audio_context.get("generate_audio", manifest_context.get("generate_audio", True))
+    )
 
     while True:
         if audio_stop_event and audio_stop_event.is_set():

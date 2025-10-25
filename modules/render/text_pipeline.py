@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable, List, Sequence
 
 from modules.config.loader import get_rendering_config
+from .context import RenderBatchContext
 from .parallel import RenderTask, RenderingConcurrency
 
 TextBatch = Sequence[str]
@@ -43,8 +44,22 @@ def build_text_tasks(
     concurrency: RenderingConcurrency | None = None,
     task_factory: _TaskFactory | None = None,
     start_index: int = 0,
+    batch_context: RenderBatchContext | None = None,
 ) -> List[RenderTask]:
     """Create render tasks for the provided chapters respecting concurrency limits."""
+
+    manifest_context = batch_context.manifest if batch_context else {}
+    text_context = batch_context.media_context("text") if batch_context else {}
+
+    if not chapters and text_context:
+        context_chapters = text_context.get("chapters") or manifest_context.get("chapters")
+        if isinstance(context_chapters, Sequence):
+            chapters = context_chapters
+
+    if start_index == 0 and text_context:
+        context_start = text_context.get("start_index") or manifest_context.get("start_index")
+        if isinstance(context_start, int):
+            start_index = context_start
 
     if concurrency is None:
         config = get_rendering_config()

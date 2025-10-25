@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import inspect
 import threading
-from collections import defaultdict, deque
 from dataclasses import dataclass
 from queue import Queue
 from typing import (
     TYPE_CHECKING,
     Any,
-    Awaitable,
     Callable,
-    Deque,
     Dict,
-    Iterable,
-    Literal,
     Mapping,
     Optional,
     Sequence,
@@ -28,14 +22,13 @@ from modules import config_manager as cfg
 from modules.config.loader import RenderingConfig, get_rendering_config
 
 from .audio_pipeline import AudioGenerator, AudioWorker
+from .context import MediaType, RenderBatchContext
+from .manifest import RenderManifest, RenderTask
 
 if TYPE_CHECKING:  # pragma: no cover - imports used for static analysis only
     from modules.progress_tracker import ProgressTracker
     from modules.translation_engine import TranslationTask
     from modules.audio_video_generator import MediaPipelineResult
-
-
-MediaType = Literal["video", "audio", "text"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,61 +52,6 @@ class RenderingConcurrency:
             audio=config.audio_concurrency,
             text=config.text_concurrency,
         )
-
-
-@dataclass(slots=True)
-class RenderTask:
-    """Description of a single asynchronous render operation."""
-
-    order: int
-    media_type: MediaType
-    action: Callable[[], Awaitable[Any]] | Awaitable[Any]
-    label: Optional[str] = None
-
-    async def run(self) -> Any:
-        """Execute the task action and return its result."""
-
-        if inspect.iscoroutine(self.action) or inspect.isawaitable(self.action):
-            return await self.action  # type: ignore[return-value]
-        result = self.action()
-        if not inspect.isawaitable(result):
-            raise TypeError(
-                "RenderTask action must produce an awaitable result"
-            )
-        return await result  # type: ignore[return-value]
-
-
-class RenderManifest:
-    """Container that exposes render tasks to media-specific workers."""
-
-    def __init__(self, tasks: Iterable[RenderTask] | None = None) -> None:
-        self._queues: Dict[MediaType, Deque[RenderTask]] = defaultdict(deque)
-        self._lock = asyncio.Lock()
-        self._size = 0
-        if tasks:
-            for task in tasks:
-                self.add_task(task)
-
-    def add_task(self, task: RenderTask) -> None:
-        self._queues[task.media_type].append(task)
-        self._size += 1
-
-    async def acquire(self, media_type: MediaType) -> Optional[RenderTask]:
-        """Return the next task for ``media_type`` or ``None`` if exhausted."""
-
-        async with self._lock:
-            queue = self._queues.get(media_type)
-            if not queue:
-                return None
-            self._size -= 1
-            task = queue.popleft()
-            if not queue:
-                # Clean up empty queues to keep ``__len__`` accurate
-                self._queues.pop(media_type, None)
-            return task
-
-    def __len__(self) -> int:  # pragma: no cover - trivial
-        return self._size
 
 
 async def dispatch_render_manifest(
@@ -174,23 +112,40 @@ class MediaBatchOrchestrator:
         audio_generator: Optional[AudioGenerator] = None,
         media_result_factory: Optional[Callable[..., "MediaPipelineResult"]] = None,
         audio_worker_cls: Type[AudioWorker] = AudioWorker,
+        batch_context: Optional[RenderBatchContext] = None,
     ) -> None:
         self.audio_task_queue = audio_task_queue
         self.worker_count = worker_count
-        self.total_sentences = total_sentences
-        self.input_language = input_language
-        self.audio_mode = audio_mode
-        self.language_codes = language_codes
-        self.selected_voice = selected_voice
-        self.tempo = tempo
-        self.macos_reading_speed = macos_reading_speed
-        self.generate_audio = generate_audio
         self.queue_size = queue_size
         self.audio_stop_event = audio_stop_event or threading.Event()
         self.progress_tracker = progress_tracker
         self.audio_generator = audio_generator
+        if media_result_factory is None:
+            raise ValueError("media_result_factory must be provided for audio workers")
         self.media_result_factory = media_result_factory
         self.audio_worker_cls = audio_worker_cls
+        manifest_payload = {
+            "total_sentences": total_sentences,
+            "input_language": input_language,
+            "audio_mode": audio_mode,
+            "selected_voice": selected_voice,
+            "tempo": tempo,
+            "macos_reading_speed": macos_reading_speed,
+            "generate_audio": generate_audio,
+        }
+        audio_payload = {
+            "total_sentences": total_sentences,
+            "input_language": input_language,
+            "audio_mode": audio_mode,
+            "language_codes": dict(language_codes),
+            "selected_voice": selected_voice,
+            "tempo": tempo,
+            "macos_reading_speed": macos_reading_speed,
+            "generate_audio": generate_audio,
+        }
+        context = batch_context or RenderBatchContext(manifest=manifest_payload, media={"audio": audio_payload})
+        context = context.merge_manifest(manifest_payload).merge_media("audio", audio_payload)
+        self.batch_context = context
         self._active_context = cfg.get_runtime_context(None)
 
     def start(self) -> Tuple["Queue[Optional[MediaPipelineResult]]", Sequence[threading.Thread]]:
@@ -209,18 +164,11 @@ class MediaBatchOrchestrator:
                 worker_name,
                 self.audio_task_queue,
                 audio_result_queue,
-                total_sentences=self.total_sentences,
-                input_language=self.input_language,
-                audio_mode=self.audio_mode,
-                language_codes=self.language_codes,
-                selected_voice=self.selected_voice,
-                tempo=self.tempo,
-                macos_reading_speed=self.macos_reading_speed,
-                generate_audio=self.generate_audio,
+                batch_context=self.batch_context,
+                media_result_factory=self.media_result_factory,
                 audio_stop_event=self.audio_stop_event,
                 progress_tracker=self.progress_tracker,
                 audio_generator=self.audio_generator,
-                media_result_factory=self.media_result_factory,
             )
             thread = threading.Thread(
                 target=self._thread_target,
