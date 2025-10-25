@@ -22,7 +22,7 @@ from modules import load_environment
 from .admin_routes import router as admin_router
 from .auth_routes import router as auth_router
 from .dependencies import get_runtime_context_provider
-from .routes import router
+from .routes import router, storage_router
 
 load_environment()
 
@@ -227,6 +227,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
+    app.include_router(storage_router, prefix="/storage", tags=["storage"])
 
     static_enabled = _configure_static_assets(app)
     if not static_enabled:
