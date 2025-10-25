@@ -18,6 +18,7 @@ import type { ThemeMode } from './components/ThemeProvider';
 import { useAuth } from './components/AuthProvider';
 import LoginForm from './components/LoginForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
+import UserManagementPanel from './components/admin/UserManagementPanel';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
@@ -34,7 +35,9 @@ type PipelineMenuView =
   | 'pipeline:advanced'
   | 'pipeline:submit';
 
-type SelectedView = PipelineMenuView | string;
+const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
+
+type SelectedView = PipelineMenuView | typeof ADMIN_USER_MANAGEMENT_VIEW | string;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -70,6 +73,7 @@ export function App() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const isAuthenticated = Boolean(session);
+  const isAdmin = session?.user.role === 'admin';
 
   const handleLogin = useCallback(
     async (username: string, password: string) => {
@@ -188,6 +192,9 @@ export function App() {
 
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
+      return;
+    }
+    if (selectedView === ADMIN_USER_MANAGEMENT_VIEW) {
       return;
     }
     if (!jobs[selectedView]) {
@@ -420,6 +427,7 @@ export function App() {
   }, [jobList]);
 
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
+  const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
       return null;
@@ -428,11 +436,11 @@ export function App() {
   }, [isPipelineView, selectedView]);
 
   const selectedJob = useMemo(() => {
-    if (isPipelineView) {
+    if (isPipelineView || isAdminView) {
       return undefined;
     }
     return jobList.find((job) => job.jobId === selectedView);
-  }, [isPipelineView, jobList, selectedView]);
+  }, [isAdminView, isPipelineView, jobList, selectedView]);
 
   const lastLoginLabel = useMemo(() => {
     if (!session?.user.last_login) {
@@ -538,6 +546,20 @@ export function App() {
               <p className="sidebar__empty">No persisted jobs yet.</p>
             )}
           </details>
+          {isAdmin ? (
+            <details className="sidebar__section" open>
+              <summary>Administration</summary>
+              <button
+                type="button"
+                className={`sidebar__link ${
+                  selectedView === ADMIN_USER_MANAGEMENT_VIEW ? 'is-active' : ''
+                }`}
+                onClick={() => setSelectedView(ADMIN_USER_MANAGEMENT_VIEW)}
+              >
+                User management
+              </button>
+            </details>
+          ) : null}
         </nav>
       </aside>
       <main className="dashboard__main">
@@ -615,51 +637,68 @@ export function App() {
           </section>
         ) : null}
         <header className="dashboard__header">
-          <h1>ebook-tools pipeline dashboard</h1>
-          <p>
-            Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
-            directly from the FastAPI backend.
-          </p>
+          {isAdminView ? (
+            <>
+              <h1>User management</h1>
+              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
+            </>
+          ) : (
+            <>
+              <h1>ebook-tools pipeline dashboard</h1>
+              <p>
+                Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
+                directly from the FastAPI backend.
+              </p>
+            </>
+          )}
         </header>
-        {activePipelineSection ? (
+        {isAdminView ? (
           <section>
-            <PipelineSubmissionForm
-              onSubmit={handleSubmit}
-              isSubmitting={isSubmitting}
-              activeSection={activePipelineSection ?? undefined}
-              externalError={activePipelineSection === 'submit' ? submitError : null}
-            />
+            <UserManagementPanel currentUser={session.user.username} />
           </section>
-        ) : null}
-        {activePipelineSection === 'submit' && sortedJobs.length > 0 ? (
-          <section>
-            <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
-            <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
-          </section>
-        ) : null}
-        {sortedJobs.length === 0 ? (
-          <section>
-            <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
-            <p style={{ marginBottom: 0 }}>No persisted jobs yet. Submit a pipeline request to get started.</p>
-          </section>
-        ) : null}
-        {selectedJob ? (
-          <section>
-            <JobProgress
-              jobId={selectedJob.jobId}
-              status={selectedJob.status}
-              latestEvent={selectedJob.latestEvent}
-              onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
-              onPause={() => handlePauseJob(selectedJob.jobId)}
-              onResume={() => handleResumeJob(selectedJob.jobId)}
-              onCancel={() => handleCancelJob(selectedJob.jobId)}
-              onDelete={() => handleDeleteJob(selectedJob.jobId)}
-              onReload={() => handleReloadJob(selectedJob.jobId)}
-              isReloading={selectedJob.isReloading}
-              isMutating={selectedJob.isMutating}
-            />
-          </section>
-        ) : null}
+        ) : (
+          <>
+            {activePipelineSection ? (
+              <section>
+                <PipelineSubmissionForm
+                  onSubmit={handleSubmit}
+                  isSubmitting={isSubmitting}
+                  activeSection={activePipelineSection ?? undefined}
+                  externalError={activePipelineSection === 'submit' ? submitError : null}
+                />
+              </section>
+            ) : null}
+            {activePipelineSection === 'submit' && sortedJobs.length > 0 ? (
+              <section>
+                <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+                <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
+              </section>
+            ) : null}
+            {sortedJobs.length === 0 ? (
+              <section>
+                <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+                <p style={{ marginBottom: 0 }}>No persisted jobs yet. Submit a pipeline request to get started.</p>
+              </section>
+            ) : null}
+            {selectedJob ? (
+              <section>
+                <JobProgress
+                  jobId={selectedJob.jobId}
+                  status={selectedJob.status}
+                  latestEvent={selectedJob.latestEvent}
+                  onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
+                  onPause={() => handlePauseJob(selectedJob.jobId)}
+                  onResume={() => handleResumeJob(selectedJob.jobId)}
+                  onCancel={() => handleCancelJob(selectedJob.jobId)}
+                  onDelete={() => handleDeleteJob(selectedJob.jobId)}
+                  onReload={() => handleReloadJob(selectedJob.jobId)}
+                  isReloading={selectedJob.isReloading}
+                  isMutating={selectedJob.isMutating}
+                />
+              </section>
+            ) : null}
+          </>
+        )}
       </main>
     </div>
   );

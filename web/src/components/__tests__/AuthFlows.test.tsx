@@ -264,4 +264,96 @@ describe('authentication flows', () => {
 
     expect(await screen.findByText(/current password incorrect/i)).toBeInTheDocument();
   });
+
+  it('allows admins to access the user management panel', async () => {
+    const user = userEvent.setup();
+    const sessionResponse = {
+      token: 'test-token',
+      user: { username: 'alice', role: 'admin', last_login: '2024-03-01T12:00:00Z' }
+    };
+
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const path = resolvePath(input);
+      if (path === '/auth/login') {
+        return Promise.resolve(createJsonResponse(sessionResponse));
+      }
+      if (path === '/pipelines/jobs') {
+        return Promise.resolve(createJsonResponse({ jobs: [] }));
+      }
+      if (path === '/pipelines/defaults') {
+        return Promise.resolve(createJsonResponse({ config: {} }));
+      }
+      if (path === '/pipelines/files') {
+        return Promise.resolve(
+          createJsonResponse({
+            ebooks: [],
+            outputs: [],
+            books_root: '/ebooks',
+            output_root: '/output'
+          })
+        );
+      }
+      if (path === '/admin/users') {
+        expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
+        return Promise.resolve(createJsonResponse({ users: [] }));
+      }
+      throw new Error(`Unhandled request for ${path}`);
+    });
+
+    renderWithProviders();
+
+    await user.type(screen.getByLabelText(/Username/i), 'alice');
+    await user.type(screen.getByLabelText(/Password/i), 'secret');
+    await user.click(screen.getByRole('button', { name: /Sign in/i }));
+
+    await waitFor(() => expect(screen.getByText(/Signed in as/i)).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /User management/i }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { level: 1, name: /User management/i })).toBeInTheDocument()
+    );
+    expect(screen.getByText(/No users registered yet/i)).toBeInTheDocument();
+  });
+
+  it('hides admin controls for standard users', async () => {
+    const user = userEvent.setup();
+    const sessionResponse = {
+      token: 'test-token',
+      user: { username: 'sarah', role: 'standard_user', last_login: '2024-03-01T12:00:00Z' }
+    };
+
+    vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
+      const path = resolvePath(input);
+      if (path === '/auth/login') {
+        return Promise.resolve(createJsonResponse(sessionResponse));
+      }
+      if (path === '/pipelines/jobs') {
+        return Promise.resolve(createJsonResponse({ jobs: [] }));
+      }
+      if (path === '/pipelines/defaults') {
+        return Promise.resolve(createJsonResponse({ config: {} }));
+      }
+      if (path === '/pipelines/files') {
+        return Promise.resolve(
+          createJsonResponse({
+            ebooks: [],
+            outputs: [],
+            books_root: '/ebooks',
+            output_root: '/output'
+          })
+        );
+      }
+      throw new Error(`Unhandled request for ${path}`);
+    });
+
+    renderWithProviders();
+
+    await user.type(screen.getByLabelText(/Username/i), 'sarah');
+    await user.type(screen.getByLabelText(/Password/i), 'secret');
+    await user.click(screen.getByRole('button', { name: /Sign in/i }));
+
+    await waitFor(() => expect(screen.getByText(/Signed in as/i)).toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: /User management/i })).toBeNull();
+  });
 });
