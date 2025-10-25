@@ -17,9 +17,10 @@ import {
   UserPasswordResetRequestPayload,
   UserUpdateRequestPayload
 } from './dtos';
+import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
 const API_BASE_URL = resolveApiBaseUrl();
-const STORAGE_BASE_URL = resolveStorageBaseUrl();
+const STORAGE_BASE_URL = resolveStorageBaseUrl(API_BASE_URL);
 
 function resolveApiBaseUrl(): string {
   const explicit = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
@@ -37,20 +38,6 @@ function resolveApiBaseUrl(): string {
   }
 
   return '';
-}
-
-function resolveStorageBaseUrl(): string {
-  const explicit = (import.meta.env.VITE_STORAGE_BASE_URL ?? '').trim().replace(/\/$/, '');
-  if (explicit) {
-    return explicit;
-  }
-
-  const inferred = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
-  if (inferred) {
-    return inferred;
-  }
-
-  return API_BASE_URL;
 }
 
 function withBase(path: string): string {
@@ -321,16 +308,20 @@ export function buildEventStreamUrl(jobId: string): string {
 }
 
 export function buildStorageUrl(path: string): string {
-  if (!STORAGE_BASE_URL) {
-    throw new Error('VITE_STORAGE_BASE_URL is not configured.');
+  const trimmed = (path ?? '').trim();
+  if (!trimmed) {
+    return resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
   }
-  if (!path) {
-    return STORAGE_BASE_URL;
+
+  const normalised = trimmed.replace(/^\/+/, '');
+  if (!normalised) {
+    return resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
   }
-  if (!path.startsWith('/')) {
-    return `${STORAGE_BASE_URL}/${path}`;
-  }
-  return `${STORAGE_BASE_URL}${path}`;
+
+  const [jobSegment, ...rest] = normalised.split('/');
+  const fileSegment = rest.length > 0 ? rest.join('/') : '';
+
+  return resolveStoragePath(jobSegment, fileSegment, STORAGE_BASE_URL, API_BASE_URL);
 }
 
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
