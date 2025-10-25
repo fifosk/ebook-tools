@@ -15,7 +15,7 @@ from ... import logging_manager as log_mgr
 from ... import metadata_manager
 from ... import observability
 from ...progress_tracker import ProgressEvent, ProgressTracker
-from ...translation_engine import TranslationWorkerPool
+from ...translation_engine import ThreadWorkerPool
 from ..pipeline_service import (
     PipelineInput,
     PipelineRequest,
@@ -45,7 +45,7 @@ class PipelineJobManager:
         *,
         max_workers: Optional[int] = None,
         store: Optional[JobStore] = None,
-        worker_pool_factory: Optional[Callable[[PipelineRequest], TranslationWorkerPool]] = None,
+        worker_pool_factory: Optional[Callable[[PipelineRequest], ThreadWorkerPool]] = None,
     ) -> None:
         self._lock = threading.RLock()
         self._jobs: Dict[str, PipelineJob] = {}
@@ -160,13 +160,13 @@ class PipelineJobManager:
             summary.setdefault("detected_memory_gib", detected_memory)
         return summary
 
-    def _default_worker_pool_factory(self, request: PipelineRequest) -> TranslationWorkerPool:
+    def _default_worker_pool_factory(self, request: PipelineRequest) -> ThreadWorkerPool:
         max_workers = self._resolve_thread_count(request)
-        return TranslationWorkerPool(max_workers=max_workers)
+        return ThreadWorkerPool(max_workers=max_workers)
 
     @staticmethod
     def _maybe_update_translation_pool_summary(
-        job: PipelineJob, pool: Optional[TranslationWorkerPool]
+        job: PipelineJob, pool: Optional[ThreadWorkerPool]
     ) -> None:
         if job.tuning_summary is None or pool is None:
             return
@@ -465,7 +465,7 @@ class PipelineJobManager:
 
     def _acquire_worker_pool(
         self, job: PipelineJob
-    ) -> tuple[Optional[TranslationWorkerPool], bool]:
+    ) -> tuple[Optional[ThreadWorkerPool], bool]:
         request = job.request
         if request is None:
             return None, False
@@ -489,7 +489,7 @@ class PipelineJobManager:
             job.started_at = datetime.now(timezone.utc)
             self._store.update(self._snapshot(job))
 
-        pool: Optional[TranslationWorkerPool]
+        pool: Optional[ThreadWorkerPool]
         owns_pool: bool
         correlation_id = job.request.correlation_id if job.request else None
         try:
@@ -574,7 +574,7 @@ class PipelineJobManager:
                         },
                     )
         finally:
-            pool_to_shutdown: Optional[TranslationWorkerPool] = None
+            pool_to_shutdown: Optional[ThreadWorkerPool] = None
             with self._lock:
                 status = job.status
                 if job.owns_translation_pool and job.request is not None:

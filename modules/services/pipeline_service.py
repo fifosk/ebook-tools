@@ -13,7 +13,7 @@ from .. import observability
 from ..core import ingestion
 from ..core.config import PipelineConfig
 from ..progress_tracker import ProgressTracker
-from ..translation_engine import TranslationWorkerPool
+from ..translation_engine import ThreadWorkerPool
 from .pipeline_phases import config_phase, metadata_phase, render_phase
 from .pipeline_types import (
     ConfigPhaseResult,
@@ -71,7 +71,7 @@ class PipelineRequest:
     inputs: PipelineInput
     progress_tracker: Optional[ProgressTracker] = None
     stop_event: Optional[threading.Event] = None
-    translation_pool: Optional[TranslationWorkerPool] = None
+    translation_pool: Optional[ThreadWorkerPool] = None
     correlation_id: Optional[str] = None
     job_id: Optional[str] = None
 

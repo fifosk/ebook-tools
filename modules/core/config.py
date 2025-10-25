@@ -8,7 +8,7 @@ from pydub import AudioSegment
 
 from .. import config_manager as cfg
 from ..config_manager import RuntimeContext
-from .. import translation_engine
+from .. import llm_client_manager, translation_engine
 from ..llm_client import LLMClient, create_client
 from ..epub_parser import (
     DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON,
@@ -123,7 +123,7 @@ class PipelineConfig:
     def apply_runtime_settings(self) -> None:
         """Propagate configuration to dependent subsystems."""
 
-        translation_engine.configure_default_client(
+        llm_client_manager.configure_default_client(
             model=self.ollama_model,
             api_url=self.ollama_url,
             debug=self.debug,

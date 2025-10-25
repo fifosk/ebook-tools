@@ -9,7 +9,8 @@ from typing import List, Optional, Sequence, Tuple
 from pydub import AudioSegment
 
 from modules.core.config import PipelineConfig
-from modules.core.translation import TranslationWorkerPool
+from modules.core.translation import ThreadWorkerPool
+from modules.transliteration import TransliterationService
 from modules.progress_tracker import ProgressTracker
 
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
@@ -44,7 +45,8 @@ def process_epub(
     *,
     progress_tracker: Optional[ProgressTracker] = None,
     stop_event: Optional[Event] = None,
-    translation_pool: Optional[TranslationWorkerPool] = None,
+    translation_pool: Optional[ThreadWorkerPool] = None,
+    transliterator: Optional[TransliterationService] = None,
 ) -> Tuple[
     List[str],
     Optional[List[AudioSegment]],
@@ -59,6 +61,7 @@ def process_epub(
         progress_tracker=progress_tracker,
         stop_event=stop_event,
         translation_pool=translation_pool,
+        transliterator=transliterator,
     )
     return pipeline.process_epub(
         input_file=request.input_file,

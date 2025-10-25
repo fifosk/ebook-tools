@@ -21,7 +21,7 @@ from modules.logging_manager import console_info, console_warning, logger
 from modules.progress_tracker import ProgressTracker
 from modules.core.config import PipelineConfig
 from modules.core.translation import (
-    TranslationWorkerPool,
+    ThreadWorkerPool,
     build_target_sequence,
     create_translation_queue,
     split_translation_and_transliteration,
@@ -29,6 +29,7 @@ from modules.core.translation import (
     translate_batch,
     transliterate_sentence,
 )
+from modules.transliteration import TransliterationService, get_transliterator
 
 from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
@@ -58,12 +59,14 @@ class RenderPipeline:
         pipeline_config: PipelineConfig,
         progress_tracker: Optional[ProgressTracker] = None,
         stop_event: Optional[threading.Event] = None,
-        translation_pool: Optional[TranslationWorkerPool] = None,
+        translation_pool: Optional[ThreadWorkerPool] = None,
+        transliterator: Optional[TransliterationService] = None,
     ) -> None:
         self._config = pipeline_config
         self._progress = progress_tracker
         self._stop_event = stop_event
         self._external_translation_pool = translation_pool
+        self._transliterator = transliterator or get_transliterator()
 
     # ------------------------------------------------------------------
     # Public API
@@ -182,7 +185,7 @@ class RenderPipeline:
         active_translation_pool = self._external_translation_pool
         own_pool = False
         if active_translation_pool is None:
-            active_translation_pool = TranslationWorkerPool(max_workers=worker_count)
+            active_translation_pool = ThreadWorkerPool(max_workers=worker_count)
             own_pool = True
 
         try:
@@ -459,7 +462,7 @@ class RenderPipeline:
         output_html: bool,
         output_pdf: bool,
         translation_client,
-        worker_pool: TranslationWorkerPool,
+        worker_pool: ThreadWorkerPool,
         worker_count: int,
         total_fully: int,
     ) -> None:
@@ -513,16 +516,17 @@ class RenderPipeline:
                 )
                 transliteration_result = inline_transliteration
                 if should_transliterate:
-                    transliteration_candidate = transliterate_sentence(
-                        fluent,
-                        current_target,
-                        client=translation_client,
-                    )
-                    transliteration_candidate = remove_quotes(
-                        transliteration_candidate or ""
-                    ).strip()
-                    if transliteration_candidate:
-                        transliteration_result = transliteration_candidate
+                    candidate = remove_quotes(inline_transliteration or "").strip()
+                    if not candidate:
+                        candidate = transliterate_sentence(
+                            fluent,
+                            current_target,
+                            client=translation_client,
+                            transliterator=self._transliterator,
+                        )
+                        candidate = remove_quotes(candidate or "").strip()
+                    if candidate:
+                        transliteration_result = candidate
                 audio_segment = None
                 if generate_audio:
                     audio_segment = self._maybe_generate_audio(
@@ -575,7 +579,7 @@ class RenderPipeline:
         output_html: bool,
         output_pdf: bool,
         translation_client,
-        worker_pool: TranslationWorkerPool,
+        worker_pool: ThreadWorkerPool,
         worker_count: int,
         total_fully: int,
     ) -> None:
@@ -614,6 +618,8 @@ class RenderPipeline:
             progress_tracker=self._progress,
             client=translation_client,
             worker_pool=worker_pool,
+            transliterator=self._transliterator,
+            include_transliteration=include_transliteration,
         )
 
         buffered_results = {}
@@ -648,16 +654,19 @@ class RenderPipeline:
                     )
                     transliteration_result = inline_transliteration
                     if should_transliterate:
-                        transliteration_candidate = transliterate_sentence(
-                            fluent,
-                            item.target_language,
-                            client=translation_client,
-                        )
-                        transliteration_candidate = remove_quotes(
-                            transliteration_candidate or ""
+                        candidate = remove_quotes(
+                            (item.transliteration or inline_transliteration or "")
                         ).strip()
-                        if transliteration_candidate:
-                            transliteration_result = transliteration_candidate
+                        if not candidate:
+                            candidate = transliterate_sentence(
+                                fluent,
+                                item.target_language,
+                                client=translation_client,
+                                transliterator=self._transliterator,
+                            )
+                            candidate = remove_quotes(candidate or "").strip()
+                        if candidate:
+                            transliteration_result = candidate
                     audio_segment = None
                     if generate_audio:
                         audio_segment = item.audio_segment or AudioSegment.silent(

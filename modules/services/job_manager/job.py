@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 
 from ..pipeline_service import PipelineRequest, PipelineResponse
 from ...progress_tracker import ProgressEvent, ProgressTracker
-from ...translation_engine import TranslationWorkerPool
+from ...translation_engine import ThreadWorkerPool
 
 
 class PipelineJobStatus(str, Enum):

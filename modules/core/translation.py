@@ -4,7 +4,8 @@ import queue
 from typing import Iterable, List, Optional, Sequence, Tuple
 
 from .. import translation_engine
-from ..translation_engine import TranslationWorkerPool
+from ..translation_engine import ThreadWorkerPool
+from ..transliteration import TransliterationService, get_transliterator
 
 
 def translate_sentence_simple(
@@ -26,12 +27,18 @@ def translate_sentence_simple(
     )
 
 
-def transliterate_sentence(translated_sentence: str, target_language: str, *, client=None) -> str:
+def transliterate_sentence(
+    translated_sentence: str,
+    target_language: str,
+    *,
+    client=None,
+    transliterator: Optional[TransliterationService] = None,
+) -> str:
     """Return a transliteration for ``translated_sentence`` when supported."""
 
-    return translation_engine.transliterate_sentence(
-        translated_sentence, target_language, client=client
-    )
+    service = transliterator or get_transliterator()
+    result = service.transliterate(translated_sentence, target_language, client=client)
+    return result.text
 
 
 def translate_batch(
@@ -137,7 +144,9 @@ def start_translation_pipeline(
     worker_count: Optional[int] = None,
     progress_tracker=None,
     client=None,
-    worker_pool=None,
+    worker_pool: Optional[ThreadWorkerPool] = None,
+    transliterator: Optional[TransliterationService] = None,
+    include_transliteration: bool = False,
 ):
     """Start the background translation pipeline using the translation engine."""
 
@@ -153,4 +162,6 @@ def start_translation_pipeline(
         progress_tracker=progress_tracker,
         client=client,
         worker_pool=worker_pool,
+        transliterator=transliterator,
+        include_transliteration=include_transliteration,
     )

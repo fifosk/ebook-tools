@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-from contextlib import contextmanager
 from dataclasses import dataclass
 from queue import Full, Queue
 import threading
@@ -12,47 +11,33 @@ import time
 from typing import Iterable, Iterator, List, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from concurrent.futures import Future
     from modules.progress_tracker import ProgressTracker
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import observability, prompt_templates
-from modules.llm_client import ClientSettings, LLMClient, create_client
+from modules import llm_client_manager
+from modules.llm_client import LLMClient
+from modules.transliteration import TransliterationService, get_transliterator
 
 logger = log_mgr.logger
 
 
-class TranslationWorkerPool:
-    """Abstraction for executing translation work using different execution models."""
+class ThreadWorkerPool:
+    """Threaded worker pool implementation for translation tasks."""
 
-    def __init__(
-        self,
-        *,
-        max_workers: Optional[int] = None,
-        mode: str = "thread",
-        loop: Optional[asyncio.AbstractEventLoop] = None,
-    ) -> None:
-        if mode not in {"thread", "async"}:
-            raise ValueError("mode must be either 'thread' or 'async'")
-        self.mode = mode
+    mode = "thread"
+
+    def __init__(self, *, max_workers: Optional[int] = None) -> None:
         self.max_workers = max(1, max_workers or cfg.get_thread_count())
-        self._loop = loop
         self._executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
         self._shutdown = False
         observability.worker_pool_event(
             "created", mode=self.mode, max_workers=self.max_workers
         )
 
-    # ------------------------------------------------------------------
-    # Execution helpers
-    # ------------------------------------------------------------------
-    @property
-    def is_async(self) -> bool:
-        return self.mode == "async"
-
     def _ensure_executor(self) -> concurrent.futures.ThreadPoolExecutor:
-        if self.mode != "thread":
-            raise RuntimeError("Executor access is only valid for threaded pools.")
         if self._executor is None:
             self._executor = concurrent.futures.ThreadPoolExecutor(
                 max_workers=self.max_workers
@@ -62,56 +47,80 @@ class TranslationWorkerPool:
             )
         return self._executor
 
-    def submit(self, func, *args, **kwargs):
-        if self.mode == "thread":
-            observability.record_metric(
-                "worker_pool.tasks_submitted",
-                1.0,
-                {"mode": self.mode, "max_workers": self.max_workers},
-            )
-            return self._ensure_executor().submit(func, *args, **kwargs)
-
-        loop = self._loop or asyncio.get_event_loop()
-        result = func(*args, **kwargs)
-        if asyncio.iscoroutine(result) or isinstance(result, asyncio.Future):
-            observability.record_metric(
-                "worker_pool.tasks_submitted",
-                1.0,
-                {"mode": self.mode, "max_workers": self.max_workers},
-            )
-            return asyncio.ensure_future(result, loop=loop)
+    def submit(self, func, *args, **kwargs) -> Future:
         observability.record_metric(
             "worker_pool.tasks_submitted",
             1.0,
             {"mode": self.mode, "max_workers": self.max_workers},
         )
-        return loop.run_in_executor(None, lambda: result)
+        return self._ensure_executor().submit(func, *args, **kwargs)
 
-    def iter_completed(self, futures: Iterable) -> Iterator:
-        if self.mode != "thread":
-            raise RuntimeError(
-                "iter_completed is only available in threaded mode. "
-                "Use async_iter_completed for asynchronous pools."
-            )
+    def iter_completed(self, futures: Iterable[Future]) -> Iterator[Future]:
         return concurrent.futures.as_completed(futures)
-
-    async def async_iter_completed(self, futures: Iterable) -> Iterator:
-        if self.mode != "async":
-            raise RuntimeError("async_iter_completed is only available in async mode")
-        for awaitable in asyncio.as_completed(list(futures)):
-            yield await awaitable
 
     def shutdown(self, wait: bool = True) -> None:
         if self._shutdown:
             return
-        if self.mode == "thread" and self._executor is not None:
+        if self._executor is not None:
             self._executor.shutdown(wait=wait)
         self._shutdown = True
         observability.worker_pool_event(
             "shutdown", mode=self.mode, max_workers=self.max_workers
         )
 
-    def __enter__(self) -> "TranslationWorkerPool":  # pragma: no cover - trivial
+    def __enter__(self) -> "ThreadWorkerPool":  # pragma: no cover - trivial
+        return self
+
+    def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover - trivial
+        self.shutdown()
+
+
+class AsyncWorkerPool:
+    """Asynchronous worker pool backed by an event loop."""
+
+    mode = "async"
+
+    def __init__(
+        self,
+        *,
+        max_workers: Optional[int] = None,
+        loop: Optional[asyncio.AbstractEventLoop] = None,
+    ) -> None:
+        self.max_workers = max(1, max_workers or cfg.get_thread_count())
+        self._loop = loop or asyncio.get_event_loop()
+        self._shutdown = False
+        observability.worker_pool_event(
+            "created", mode=self.mode, max_workers=self.max_workers
+        )
+
+    @property
+    def loop(self) -> asyncio.AbstractEventLoop:
+        return self._loop
+
+    def submit(self, func, *args, **kwargs) -> asyncio.Future:
+        result = func(*args, **kwargs)
+        observability.record_metric(
+            "worker_pool.tasks_submitted",
+            1.0,
+            {"mode": self.mode, "max_workers": self.max_workers},
+        )
+        if asyncio.iscoroutine(result) or isinstance(result, asyncio.Future):
+            return asyncio.ensure_future(result, loop=self._loop)
+        return self._loop.run_in_executor(None, lambda: result)
+
+    async def iter_completed(self, futures: Iterable[asyncio.Future]) -> Iterator:
+        for awaitable in asyncio.as_completed(list(futures)):
+            yield await awaitable
+
+    def shutdown(self, wait: bool = True) -> None:  # pragma: no cover - interface parity
+        if self._shutdown:
+            return
+        self._shutdown = True
+        observability.worker_pool_event(
+            "shutdown", mode=self.mode, max_workers=self.max_workers
+        )
+
+    def __enter__(self) -> "AsyncWorkerPool":  # pragma: no cover - trivial
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:  # pragma: no cover - trivial
@@ -127,80 +136,13 @@ class TranslationTask:
     sentence: str
     target_language: str
     translation: str
+    transliteration: str = ""
 
 
-_DEFAULT_CLIENT_SETTINGS = ClientSettings()
-
-
-def configure_default_client(
-    *,
-    model: Optional[str] = None,
-    api_url: Optional[str] = None,
-    debug: Optional[bool] = None,
-    api_key: Optional[str] = None,
-    llm_source: Optional[str] = None,
-    local_api_url: Optional[str] = None,
-    cloud_api_url: Optional[str] = None,
-    fallback_sources: Optional[Sequence[str]] = None,
-    allow_fallback: Optional[bool] = None,
-    cloud_api_key: Optional[str] = None,
-) -> None:
+def configure_default_client(**kwargs) -> None:
     """Adjust the fallback client settings used when no explicit client is provided."""
 
-    global _DEFAULT_CLIENT_SETTINGS
-    updates = {}
-    if model is not None:
-        updates["model"] = model
-    if api_url is not None:
-        updates["api_url"] = api_url
-    if debug is not None:
-        updates["debug"] = debug
-    if api_key is not None:
-        updates["api_key"] = api_key
-    if llm_source is not None:
-        updates["llm_source"] = llm_source
-    if local_api_url is not None:
-        updates["local_api_url"] = local_api_url
-    if cloud_api_url is not None:
-        updates["cloud_api_url"] = cloud_api_url
-    if fallback_sources is not None:
-        updates["fallback_sources"] = tuple(fallback_sources)
-    if allow_fallback is not None:
-        updates["allow_fallback"] = bool(allow_fallback)
-    if cloud_api_key is not None:
-        updates["cloud_api_key"] = cloud_api_key
-    if updates:
-        _DEFAULT_CLIENT_SETTINGS = _DEFAULT_CLIENT_SETTINGS.with_updates(**updates)
-
-
-def _borrow_client(client: Optional[LLMClient]) -> tuple[LLMClient, bool]:
-    if client is not None:
-        return client, False
-    return (
-        create_client(
-            model=_DEFAULT_CLIENT_SETTINGS.model,
-            api_url=_DEFAULT_CLIENT_SETTINGS.api_url,
-            debug=_DEFAULT_CLIENT_SETTINGS.debug,
-            api_key=_DEFAULT_CLIENT_SETTINGS.api_key,
-            llm_source=_DEFAULT_CLIENT_SETTINGS.llm_source,
-            local_api_url=_DEFAULT_CLIENT_SETTINGS.local_api_url,
-            cloud_api_url=_DEFAULT_CLIENT_SETTINGS.cloud_api_url,
-            fallback_sources=_DEFAULT_CLIENT_SETTINGS.fallback_sources,
-            allow_fallback=_DEFAULT_CLIENT_SETTINGS.allow_fallback,
-            cloud_api_key=_DEFAULT_CLIENT_SETTINGS.cloud_api_key,
-        ),
-        True,
-    )
-
-
-@contextmanager
-def _client_scope(client: Optional[LLMClient]):
-    resolved, owns = _borrow_client(client)
-    try:
-        yield resolved
-    finally:
-        if owns:
-            resolved.close()
+    llm_client_manager.configure_default_client(**kwargs)
 
 
 def _valid_translation(text: str) -> bool:
@@ -227,7 +169,7 @@ def translate_sentence_simple(
         include_transliteration=include_transliteration,
     )
 
-    with _client_scope(client) as resolved_client:
+    with llm_client_manager.client_scope(client) as resolved_client:
         payload = prompt_templates.make_sentence_payload(
             wrapped_sentence,
             model=resolved_client.model,
@@ -250,55 +192,6 @@ def translate_sentence_simple(
             logger.debug("Translation failed: %s", response.error)
 
     return "N/A"
-
-
-def transliterate_sentence(
-    translated_sentence: str,
-    target_language: str,
-    *,
-    client: Optional[LLMClient] = None,
-) -> str:
-    """Return a romanised version of ``translated_sentence`` when possible."""
-
-    lang = target_language.lower()
-    with _client_scope(client) as resolved_client:
-        try:
-            if lang == "arabic":
-                from camel_tools.transliteration import Transliterator
-
-                transliterator = Transliterator("buckwalter")
-                return transliterator.transliterate(translated_sentence)
-            if lang == "chinese":
-                import pypinyin
-
-                pinyin_list = pypinyin.lazy_pinyin(translated_sentence)
-                return " ".join(pinyin_list)
-            if lang == "japanese":
-                import pykakasi
-
-                kks = pykakasi.kakasi()
-                result = kks.convert(translated_sentence)
-                return " ".join(item["hepburn"] for item in result)
-        except Exception as exc:  # pragma: no cover - best-effort helper
-            if resolved_client.debug_enabled:
-                logger.debug("Non-LLM transliteration error for %s: %s", target_language, exc)
-
-        system_prompt = prompt_templates.make_transliteration_prompt(target_language)
-        payload = prompt_templates.make_sentence_payload(
-            translated_sentence,
-            model=resolved_client.model,
-            stream=False,
-            system_prompt=system_prompt,
-        )
-
-        response = resolved_client.send_chat_request(payload, max_attempts=2, timeout=60)
-        if response.text:
-            return response.text.strip()
-
-        if resolved_client.debug_enabled and response.error:
-            logger.debug("LLM transliteration failed: %s", response.error)
-
-    return ""
 
 
 def _normalize_target_sequence(
@@ -324,7 +217,7 @@ def translate_batch(
     include_transliteration: bool = False,
     max_workers: Optional[int] = None,
     client: Optional[LLMClient] = None,
-    worker_pool: Optional[TranslationWorkerPool] = None,
+    worker_pool: Optional[ThreadWorkerPool] = None,
 ) -> List[str]:
     """Translate ``sentences`` concurrently while preserving order."""
 
@@ -337,7 +230,7 @@ def translate_batch(
 
     results: List[str] = ["" for _ in sentences]
 
-    with _client_scope(client) as resolved_client:
+    with llm_client_manager.client_scope(client) as resolved_client:
         def _translate(index: int, sentence: str, target: str) -> str:
             return translate_sentence_simple(
                 sentence,
@@ -347,8 +240,8 @@ def translate_batch(
                 client=resolved_client,
             )
 
-        pool = worker_pool or TranslationWorkerPool(max_workers=worker_count)
-        if pool.is_async:
+        pool = worker_pool or ThreadWorkerPool(max_workers=worker_count)
+        if getattr(pool, "mode", "thread") != "thread":
             raise RuntimeError(
                 "translate_batch does not support asynchronous worker pools in synchronous mode"
             )
@@ -373,6 +266,35 @@ def translate_batch(
     return results
 
 
+def _enqueue_with_backpressure(
+    queue: Queue[Optional[TranslationTask]],
+    task: Optional[TranslationTask],
+    *,
+    stop_event: Optional[threading.Event],
+) -> bool:
+    while True:
+        if stop_event and stop_event.is_set():
+            return False
+        try:
+            queue.put(task, timeout=0.1)
+            return True
+        except Full:
+            continue
+
+
+def _log_translation_timing(sentence_number: int, elapsed: float, mode: str) -> None:
+    observability.record_metric(
+        "translation.duration_seconds",
+        elapsed,
+        {"mode": mode},
+    )
+    logger.debug(
+        "Producer translated sentence %s in %.3fs",
+        sentence_number,
+        elapsed,
+    )
+
+
 def start_translation_pipeline(
     sentences: Sequence[str],
     input_language: str,
@@ -385,12 +307,15 @@ def start_translation_pipeline(
     max_workers: Optional[int] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
     client: Optional[LLMClient] = None,
-    worker_pool: Optional[TranslationWorkerPool] = None,
+    worker_pool: Optional[ThreadWorkerPool] = None,
+    transliterator: Optional[TransliterationService] = None,
+    include_transliteration: bool = False,
 ) -> threading.Thread:
     """Spawn a background producer thread that streams translations into ``output_queue``."""
 
     worker_count = max_workers or cfg.get_thread_count()
     worker_count = max(1, min(worker_count, len(sentences) or 1))
+    transliterator = transliterator or get_transliterator()
 
     active_context = cfg.get_runtime_context(None)
 
@@ -398,38 +323,51 @@ def start_translation_pipeline(
         if active_context is not None:
             cfg.set_runtime_context(active_context)
 
-        local_client, owns_client = _borrow_client(client)
-        pool = worker_pool or TranslationWorkerPool(max_workers=worker_count)
+        local_client, owns_client = llm_client_manager.acquire_client(client)
+        pool = worker_pool or ThreadWorkerPool(max_workers=worker_count)
         own_pool = worker_pool is None
+        pool_mode = getattr(pool, "mode", "thread")
 
         try:
             if not sentences:
                 for _ in range(max(1, consumer_count)):
-                    output_queue.put(None)
+                    _enqueue_with_backpressure(
+                        output_queue, None, stop_event=stop_event
+                    )
                 return
 
             futures_map: dict = {}
 
-            def _translate(index: int, sentence: str, target: str) -> str:
-                start = time.perf_counter()
+            def _translate(index: int, sentence: str, target: str) -> TranslationTask:
+                start_time = time.perf_counter()
                 try:
-                    translated = translate_sentence_simple(
+                    translation = translate_sentence_simple(
                         sentence,
                         input_language,
                         target,
+                        include_transliteration=include_transliteration,
                         client=local_client,
                     )
+                    transliteration_text = ""
+                    if include_transliteration and translation not in {"", "N/A"}:
+                        transliteration_result = transliterator.transliterate(
+                            translation, target, client=local_client
+                        )
+                        transliteration_text = transliteration_result.text
                 finally:
-                    elapsed = time.perf_counter() - start
-                    logger.debug(
-                        "Producer translated sentence %s in %.3fs",
-                        start_sentence + index,
-                        elapsed,
-                    )
-                return translated
+                    elapsed = time.perf_counter() - start_time
+                    _log_translation_timing(start_sentence + index, elapsed, pool_mode)
+                return TranslationTask(
+                    index=index,
+                    sentence_number=start_sentence + index,
+                    sentence=sentence,
+                    target_language=target,
+                    translation=translation,
+                    transliteration=transliteration_text,
+                )
 
             try:
-                if pool.is_async:
+                if pool_mode != "thread":
                     raise RuntimeError(
                         "start_translation_pipeline requires a threaded worker pool in synchronous mode"
                     )
@@ -441,45 +379,40 @@ def start_translation_pipeline(
                     if stop_event and stop_event.is_set():
                         break
                     idx = futures_map[future]
-                    sentence_number = start_sentence + idx
-                    sentence = sentences[idx]
-                    target = target_language[idx]
                     try:
-                        translation = future.result()
+                        task = future.result()
                     except Exception as exc:  # pragma: no cover - defensive logging
+                        sentence_number = start_sentence + idx
                         logger.error(
                             "Translation failed for sentence %s: %s", sentence_number, exc
                         )
-                        translation = "N/A"
-                    task = TranslationTask(
-                        index=idx,
-                        sentence_number=sentence_number,
-                        sentence=sentence,
-                        target_language=target,
-                        translation=translation,
-                    )
+                        task = TranslationTask(
+                            index=idx,
+                            sentence_number=sentence_number,
+                            sentence=sentences[idx],
+                            target_language=target_language[idx],
+                            translation="N/A",
+                        )
                     if progress_tracker:
                         progress_tracker.record_translation_completion(
                             task.index, task.sentence_number
                         )
-                    while True:
-                        if stop_event and stop_event.is_set():
-                            break
-                        try:
-                            output_queue.put(task, timeout=0.1)
-                            break
-                        except Full:
-                            continue
-                    if stop_event and stop_event.is_set():
+                    if not _enqueue_with_backpressure(
+                        output_queue, task, stop_event=stop_event
+                    ):
                         break
+                else:
+                    # Only executed if loop did not break
+                    pass
             finally:
                 if own_pool:
                     pool.shutdown()
         finally:
             for _ in range(max(1, consumer_count)):
-                output_queue.put(None)
-            if owns_client:
-                local_client.close()
+                _enqueue_with_backpressure(
+                    output_queue, None, stop_event=stop_event
+                )
+            llm_client_manager.release_client(local_client, owns_client)
             if active_context is not None:
                 cfg.clear_runtime_context()
 
