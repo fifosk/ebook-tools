@@ -152,6 +152,7 @@ def _resolve_job_file_path(base_dir: Path, job_id: str, entry: str) -> Path | No
 
     resolved_path: Path | None = None
     checked: set[Path] = set()
+    candidate_names: list[str] = []
 
     for candidate_fragment in collect_job_file_candidates(job_id, entry):
         fragments_to_try = [candidate_fragment]
@@ -159,6 +160,9 @@ def _resolve_job_file_path(base_dir: Path, job_id: str, entry: str) -> Path | No
             fragments_to_try.append(f"files/{candidate_fragment}")
 
         for fragment in fragments_to_try:
+            fragment_name = Path(fragment).name
+            if fragment_name:
+                candidate_names.append(fragment_name)
             candidate_path = (base_dir / fragment).resolve()
             if candidate_path in checked:
                 continue
@@ -184,6 +188,36 @@ def _resolve_job_file_path(base_dir: Path, job_id: str, entry: str) -> Path | No
             else:
                 if candidate_path.is_file():
                     resolved_path = candidate_path
+            if resolved_path is not None:
+                checked.add(candidate_path)
+
+    if resolved_path is None:
+        fallback_names: list[str] = []
+        fallback_names.extend(candidate_names)
+        entry_name = Path(entry).name
+        if entry_name:
+            fallback_names.append(entry_name)
+        for name in dict.fromkeys(fallback_names):
+            if not name:
+                continue
+            try:
+                candidate_iter = base_dir.rglob(name)
+            except OSError:
+                continue
+            for candidate_path in candidate_iter:
+                candidate_path = candidate_path.resolve()
+                if candidate_path in checked:
+                    continue
+                checked.add(candidate_path)
+                try:
+                    candidate_path.relative_to(base_dir)
+                except ValueError:
+                    continue
+                if candidate_path.is_file():
+                    resolved_path = candidate_path
+                    break
+            if resolved_path is not None:
+                break
 
     return resolved_path
 
