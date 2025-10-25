@@ -1,0 +1,17 @@
+{
+  "_comment": "Template credentials for ebook-tools. Replace all password hashes before production use.",
+  "users": [
+    {
+      "username": "admin",
+      "password_hash": "MeqzJH7Y1CBVI-h_3GbAUg$b08ed568fce111a1518c83076187c0e717ec915b1fce86685be59f50c00689f4",
+      "roles": ["admin"],
+      "metadata": {}
+    },
+    {
+      "username": "standard-user",
+      "password_hash": "89znYLQFygXtkKFL7idH0A$8ac752544b496d363fa2b9a369a2ee14cf9b46808a2de41d856f35c133c71a8f",
+      "roles": ["editor"],
+      "metadata": {}
+    }
+  ]
+}

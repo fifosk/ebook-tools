@@ -187,6 +187,20 @@ def execute_user_command(args) -> int:
         log_mgr.console_info("Token: %s", token, logger_obj=logger)
         return 0
 
+    if command == "password":
+        password = getattr(args, "password", None) or _prompt_password(args.username)
+        try:
+            record = auth_service.user_store.update_user(args.username, password=password)
+        except KeyError:
+            log_mgr.console_error(
+                f"User '{args.username}' not found.", logger_obj=logger
+            )
+            return 1
+        log_mgr.console_info(
+            "Updated password for '%s'.", record.username, logger_obj=logger
+        )
+        return 0
+
     if command == "logout":
         explicit_token = getattr(args, "token", None) or os.environ.get(SESSION_TOKEN_ENV)
         token = explicit_token or active_store.load()
