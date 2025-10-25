@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import copy
 import threading
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
@@ -792,6 +792,10 @@ class PipelineJobManager:
             job.last_event = deserialize_progress_event(metadata.last_event)
         if metadata.generated_files is not None:
             job.generated_files = copy.deepcopy(metadata.generated_files)
+            normalized_files = self._normalize_generated_files(job)
+            job.generated_files = (
+                copy.deepcopy(normalized_files) if normalized_files is not None else None
+            )
         return job
 
     def _normalize_generated_files(
@@ -829,24 +833,42 @@ class PipelineJobManager:
                 file_type = file_entry.get("type")
                 if file_type is not None:
                     normalized_entry["type"] = file_type
+
+                relative_path_value = file_entry.get("relative_path")
+                relative_path: Optional[str] = None
+                path_candidate: Optional[Path] = None
+
+                if relative_path_value:
+                    relative_candidate = PurePosixPath(str(relative_path_value).replace("\\", "/"))
+                    if not relative_candidate.is_absolute() and ".." not in relative_candidate.parts:
+                        relative_path = relative_candidate.as_posix()
+                        path_candidate = job_root.joinpath(*relative_candidate.parts)
+
                 path_value = file_entry.get("path")
-                if path_value:
+                if path_candidate is None and path_value:
                     path_candidate = Path(str(path_value))
                     if not path_candidate.is_absolute():
                         path_candidate = job_root / path_candidate
+
+                if path_candidate is not None:
                     normalized_entry["path"] = path_candidate.as_posix()
-                    relative_path: Optional[str]
+                    if relative_path is None:
+                        try:
+                            relative_candidate = path_candidate.relative_to(job_root)
+                        except ValueError:
+                            relative_candidate = None
+                        else:
+                            relative_path = relative_candidate.as_posix()
+
+                url: Optional[str] = None
+                if relative_path:
+                    normalized_entry["relative_path"] = relative_path
                     try:
-                        relative_path = path_candidate.relative_to(job_root).as_posix()
-                    except ValueError:
-                        relative_path = None
-                    if relative_path:
-                        normalized_entry["relative_path"] = relative_path
                         url = self._file_locator.resolve_url(job.job_id, relative_path)
-                    else:
+                    except ValueError:
                         url = None
-                    if url:
-                        normalized_entry["url"] = url
+                if url:
+                    normalized_entry["url"] = url
                 chunk_entry.setdefault("files", []).append(normalized_entry)
             normalized_chunks.append(chunk_entry)
 

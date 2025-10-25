@@ -40,6 +40,23 @@ def test_download_full_file(storage_app) -> None:
     assert response.headers["Content-Disposition"].endswith('"output.txt"')
 
 
+def test_download_full_file_without_files_prefix(storage_app) -> None:
+    app, locator = storage_app
+    job_id = "download-full-legacy"
+    file_path = locator.resolve_path(job_id, "results/output.txt")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_text("pipeline completed")
+
+    with TestClient(app) as client:
+        response = client.get(f"/storage/jobs/{job_id}/results/output.txt")
+
+    assert response.status_code == 200
+    assert response.content == b"pipeline completed"
+    assert response.headers["Content-Length"] == str(len("pipeline completed"))
+    assert response.headers["Accept-Ranges"] == "bytes"
+    assert response.headers["Content-Disposition"].endswith('"output.txt"')
+
+
 def test_download_partial_range(storage_app) -> None:
     app, locator = storage_app
     job_id = "download-range"
