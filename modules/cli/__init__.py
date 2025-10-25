@@ -24,7 +24,8 @@ functions, keeping configuration and pipeline behaviour consistent regardless
 of entry point.
 """
 
-from . import args, context, interactive, orchestrator, pipeline_runner, progress
+from importlib import import_module
+from typing import TYPE_CHECKING
 
 __all__ = [
     "args",
@@ -33,4 +34,17 @@ __all__ = [
     "orchestrator",
     "pipeline_runner",
     "progress",
+    "user_commands",
 ]
+
+
+if TYPE_CHECKING:  # pragma: no cover - import side effects only for typing
+    from . import args, context, interactive, orchestrator, pipeline_runner, progress, user_commands
+
+
+def __getattr__(name: str):
+    if name in __all__:
+        module = import_module(f"{__name__}.{name}")
+        globals()[name] = module
+        return module
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")

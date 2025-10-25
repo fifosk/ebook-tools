@@ -17,6 +17,25 @@ def test_parse_cli_args_interactive_subcommand():
     assert parsed.interactive is True
 
 
+def test_parse_cli_args_user_add_subcommand():
+    parsed = args.parse_cli_args([
+        "user",
+        "--store",
+        "users.json",
+        "add",
+        "alice",
+        "--password",
+        "secret",
+        "--role",
+        "admin",
+    ])
+    assert parsed.command == "user"
+    assert parsed.user_command == "add"
+    assert parsed.username == "alice"
+    assert parsed.password == "secret"
+    assert parsed.user_store == "users.json"
+
+
 def test_parse_legacy_args_matches_positional_layout():
     parsed = args.parse_legacy_args([
         "input.epub",
