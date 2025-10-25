@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image
 from pydub import AudioSegment
@@ -61,8 +61,20 @@ class BatchExporter:
 
     def __init__(self, context: BatchExportContext) -> None:
         self._context = context
+        self._base_dir = Path(self._context.base_dir)
 
-    def export(self, request: BatchExportRequest) -> Optional[str]:
+    def _relative_path(self, path: Path) -> str:
+        try:
+            return path.relative_to(self._base_dir).as_posix()
+        except ValueError:
+            return path.as_posix()
+
+    def export(
+        self,
+        request: BatchExportRequest,
+        *,
+        on_artifact_generated: Optional[Callable[[str, str, Dict[str, object]], None]] = None,
+    ) -> Optional[str]:
         """Write batch outputs and return any generated video path."""
 
         range_fragment = output_formatter.format_sentence_range(
@@ -94,6 +106,12 @@ class BatchExporter:
         batch_context = RenderBatchContext(manifest=manifest_context, media=media_context)
         writer = DeferredBatchWriter(Path(self._context.base_dir), batch_context)
 
+        generated: Dict[str, List[Tuple[Path, Dict[str, object]]]] = {
+            "text": [],
+            "audio": [],
+            "video": [],
+        }
+
         try:
             document_paths = output_formatter.export_batch_documents(
                 str(writer.work_dir),
@@ -107,7 +125,16 @@ class BatchExporter:
                 output_pdf=request.output_pdf,
             )
             for created_path in document_paths.values():
-                writer.stage(Path(created_path))
+                final_path = Path(writer.stage(Path(created_path)))
+                generated["text"].append(
+                    (
+                        final_path,
+                        {
+                            "range_fragment": range_fragment,
+                            "extension": final_path.suffix.lstrip("."),
+                        },
+                    )
+                )
 
             audio_segments = list(request.audio_segments) if request.generate_audio else []
             video_blocks = list(request.video_blocks) if request.generate_video else []
@@ -120,7 +147,16 @@ class BatchExporter:
                     combined += segment
                 audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}.mp3"
                 combined.export(str(audio_filename), format="mp3", bitrate="320k")
-                writer.stage(audio_filename)
+                final_audio = Path(writer.stage(audio_filename))
+                generated["audio"].append(
+                    (
+                        final_audio,
+                        {
+                            "range_fragment": range_fragment,
+                            "extension": final_audio.suffix.lstrip("."),
+                        },
+                    )
+                )
 
             if request.generate_video and audio_segments and video_blocks:
                 video_output = av_gen.render_video_slides(
@@ -146,9 +182,22 @@ class BatchExporter:
                     template_name=self._context.template_name,
                 )
                 video_path = Path(video_output)
-                video_path = writer.stage(video_path)
+                video_path = Path(writer.stage(video_path))
+                generated["video"].append(
+                    (
+                        video_path,
+                        {
+                            "range_fragment": range_fragment,
+                            "extension": video_path.suffix.lstrip("."),
+                        },
+                    )
+                )
 
             writer.commit()
+            if on_artifact_generated is not None:
+                for media_type, payloads in generated.items():
+                    for artifact, info in payloads:
+                        on_artifact_generated(media_type, self._relative_path(artifact), info)
         except Exception:
             writer.rollback()
             raise

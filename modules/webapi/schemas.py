@@ -247,6 +247,7 @@ class ProgressSnapshotPayload(BaseModel):
     elapsed: float
     speed: float
     eta: Optional[float]
+    generated_files: Optional[Dict[str, List[str]]] = None
 
     @classmethod
     def from_snapshot(cls, snapshot: ProgressSnapshot) -> "ProgressSnapshotPayload":
@@ -256,6 +257,14 @@ class ProgressSnapshotPayload(BaseModel):
             elapsed=snapshot.elapsed,
             speed=snapshot.speed,
             eta=snapshot.eta,
+            generated_files=(
+                {
+                    media_type: list(paths)
+                    for media_type, paths in (snapshot.generated_files or {}).items()
+                }
+                if snapshot.generated_files
+                else None
+            ),
         )
 
 
@@ -297,6 +306,7 @@ class PipelineStatusResponse(BaseModel):
     tuning: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    generated_files: Dict[str, List[str]] = Field(default_factory=dict)
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -322,6 +332,10 @@ class PipelineStatusResponse(BaseModel):
             tuning=dict(job.tuning_summary) if job.tuning_summary else None,
             user_id=job.user_id,
             user_role=job.user_role,
+            generated_files={
+                media_type: list(paths)
+                for media_type, paths in job.generated_files.items()
+            },
         )
 
 
@@ -329,6 +343,15 @@ class PipelineJobListResponse(BaseModel):
     """Response payload describing a collection of pipeline jobs."""
 
     jobs: List[PipelineStatusResponse] = Field(default_factory=list)
+
+
+class LiveMediaResponse(BaseModel):
+    """Snapshot of media artifacts available for an in-progress job."""
+
+    job_id: str
+    status: PipelineJobStatus
+    progressive: bool = True
+    generated_files: Dict[str, List[str]] = Field(default_factory=dict)
 
 
 class PipelineJobActionResponse(BaseModel):

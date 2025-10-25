@@ -22,6 +22,12 @@ def serialize_progress_event(event: ProgressEvent) -> Dict[str, Any]:
             "elapsed": snapshot.elapsed,
             "speed": snapshot.speed,
             "eta": snapshot.eta,
+            "generated_files": {
+                media_type: list(paths)
+                for media_type, paths in (snapshot.generated_files or {}).items()
+            }
+            if snapshot.generated_files
+            else None,
         },
     }
 
@@ -36,6 +42,14 @@ def deserialize_progress_event(payload: Mapping[str, Any]) -> ProgressEvent:
         elapsed=float(snapshot_data.get("elapsed", 0.0)),
         speed=float(snapshot_data.get("speed", 0.0)),
         eta=snapshot_data.get("eta"),
+        generated_files=(
+            {
+                str(media_type): tuple(str(path) for path in paths)
+                for media_type, paths in snapshot_data.get("generated_files", {}).items()
+            }
+            if snapshot_data.get("generated_files")
+            else None
+        ),
     )
     error_message = payload.get("error")
     error: Optional[BaseException] = None

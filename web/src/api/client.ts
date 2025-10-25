@@ -10,6 +10,7 @@ import {
   PipelineRequestPayload,
   PipelineStatusResponse,
   PipelineSubmissionResponse,
+  LiveMediaResponse,
   SessionStatusResponse,
   UserAccountResponse,
   UserCreateRequestPayload,
@@ -194,6 +195,11 @@ export async function submitPipeline(
 export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatusResponse> {
   const response = await apiFetch(`/pipelines/${jobId}`);
   return handleResponse<PipelineStatusResponse>(response);
+}
+
+export async function fetchLiveMedia(jobId: string): Promise<LiveMediaResponse> {
+  const response = await apiFetch(`/pipelines/jobs/${jobId}/media/live`);
+  return handleResponse<LiveMediaResponse>(response);
 }
 
 export async function fetchJobs(): Promise<PipelineStatusResponse[]> {

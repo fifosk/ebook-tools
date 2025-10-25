@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import threading
+from pathlib import Path
 from dataclasses import asdict, dataclass, field
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import uuid4
@@ -505,3 +506,8 @@ class PipelineService:
             user_id=user_id,
             user_role=user_role,
         )
+
+    def resolve_job_output_dir(self, job: "PipelineJob") -> Path:
+        """Return the output directory associated with ``job``."""
+
+        return self._job_manager.resolve_output_dir(job)

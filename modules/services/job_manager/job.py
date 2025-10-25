@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, Optional
@@ -55,6 +55,8 @@ class PipelineJob:
     tuning_summary: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    generated_files: Dict[str, list[str]] = field(default_factory=dict)
+    output_dir: Optional[str] = None
 
 
 __all__ = [

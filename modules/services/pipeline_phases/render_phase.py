@@ -51,6 +51,7 @@ def execute_render_phase(
         generate_video=request.inputs.generate_video,
         include_transliteration=request.inputs.include_transliteration,
         book_metadata=metadata_result.metadata.as_dict(),
+        job_id=request.job_id,
     )
     (
         written_blocks,

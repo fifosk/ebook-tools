@@ -240,6 +240,14 @@ class PipelineJobManager:
         )
         if resume_context is None and request_payload is not None:
             resume_context = copy.deepcopy(request_payload)
+        generated_files = (
+            {
+                media_type: list(files)
+                for media_type, files in job.generated_files.items()
+            }
+            if job.generated_files
+            else None
+        )
         return PipelineJobMetadata(
             job_id=job.job_id,
             status=job.status,
@@ -256,6 +264,8 @@ class PipelineJobManager:
             else None,
             user_id=job.user_id,
             user_role=job.user_role,
+            generated_files=generated_files,
+            output_dir=job.output_dir,
         )
 
     def submit(
@@ -308,6 +318,7 @@ class PipelineJobManager:
             user_id=user_id,
             user_role=user_role,
         )
+        job.output_dir = str(job_output_dir)
         tuning_summary = self._tuner.build_tuning_summary(request)
         job.tuning_summary = tuning_summary if tuning_summary else None
 
@@ -343,6 +354,11 @@ class PipelineJobManager:
             if job is None:
                 return
             job.last_event = event
+            if event.snapshot.generated_files is not None:
+                job.generated_files = {
+                    media_type: list(paths)
+                    for media_type, paths in event.snapshot.generated_files.items()
+                }
             if job.status == PipelineJobStatus.RUNNING:
                 resume_context = compute_resume_context(job)
                 if resume_context is not None:
@@ -782,6 +798,11 @@ class PipelineJobManager:
             else None,
             user_id=metadata.user_id,
             user_role=metadata.user_role,
+            generated_files={
+                media_type: list(files)
+                for media_type, files in (metadata.generated_files or {}).items()
+            },
+            output_dir=metadata.output_dir,
         )
         if metadata.last_event is not None:
             job.last_event = deserialize_progress_event(metadata.last_event)
@@ -896,3 +917,38 @@ class PipelineJobManager:
             self._store.update(self._snapshot(job))
 
         return job
+
+    def resolve_output_dir(self, job: PipelineJob) -> Path:
+        """Return the output directory for ``job`` resolving fallbacks as needed."""
+
+        if job.output_dir:
+            resolved = Path(job.output_dir).resolve()
+            job.output_dir = str(resolved)
+            return resolved
+
+        if job.request is not None:
+            context = job.request.context
+            if context is not None and getattr(context, "output_dir", None):
+                resolved = Path(context.output_dir).resolve()
+                job.output_dir = str(resolved)
+                return resolved
+            overrides = job.request.environment_overrides or {}
+            candidate = overrides.get("output_dir")
+            if candidate:
+                resolved = Path(str(candidate)).resolve()
+                job.output_dir = str(resolved)
+                return resolved
+
+        payload: Mapping[str, Any] | None = job.resume_context or job.request_payload
+        if isinstance(payload, Mapping):
+            overrides = payload.get("environment_overrides") or {}
+            candidate = overrides.get("output_dir")
+            if candidate:
+                resolved = Path(str(candidate)).resolve()
+                job.output_dir = str(resolved)
+                return resolved
+
+        sanitized_user = _sanitize_directory_fragment(job.user_id or _DEFAULT_JOB_USER)
+        resolved = (_JOB_OUTPUT_ROOT / sanitized_user / job.job_id).resolve()
+        job.output_dir = str(resolved)
+        return resolved

@@ -179,7 +179,7 @@ def _configure_cors(app: FastAPI) -> None:
         allow_origins=allowed_origins,
         allow_credentials=allow_credentials,
         allow_methods=["*"],
-        allow_headers=["*"],
+        allow_headers=["*", "Range"],
     )
 
 

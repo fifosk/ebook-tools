@@ -39,6 +39,8 @@ class PipelineJobMetadata:
     tuning_summary: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    generated_files: Optional[Dict[str, list[str]]] = None
+    output_dir: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -59,6 +61,10 @@ class PipelineJobMetadata:
             "tuning_summary": _stable_copy(self.tuning_summary)
             if self.tuning_summary is not None
             else None,
+            "generated_files": _stable_copy(self.generated_files)
+            if self.generated_files is not None
+            else None,
+            "output_dir": self.output_dir,
         }
         if self.request_payload is not None:
             payload["request"] = _stable_copy(self.request_payload)
@@ -95,6 +101,8 @@ class PipelineJobMetadata:
             tuning_summary=data.get("tuning_summary"),
             user_id=data.get("user_id"),
             user_role=data.get("user_role"),
+            generated_files=data.get("generated_files"),
+            output_dir=data.get("output_dir"),
         )
 
     @classmethod

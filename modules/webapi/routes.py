@@ -2,19 +2,21 @@
 
 from __future__ import annotations
 
+import mimetypes
+import re
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import AsyncIterator, Callable, List
+from typing import AsyncIterator, Callable, Iterator, List
 
 from fastapi import APIRouter, Depends, File, HTTPException, Header, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from .dependencies import (
     RuntimeContextProvider,
     get_pipeline_service,
     get_runtime_context_provider,
 )
-from .jobs import PipelineJob, PipelineJobTransitionError
+from .jobs import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
 from .. import config_manager as cfg
 from ..services.pipeline_service import PipelineService
 from .schemas import (
@@ -23,6 +25,7 @@ from .schemas import (
     PipelineFileBrowserResponse,
     PipelineFileEntry,
     PipelineDefaultsResponse,
+    LiveMediaResponse,
     PipelineRequestPayload,
     PipelineStatusResponse,
     PipelineSubmissionResponse,
@@ -93,6 +96,53 @@ def _reserve_destination_path(directory: Path, filename: str) -> Path:
         candidate = directory / f"{stem}-{counter}{suffix}"
         counter += 1
     return candidate
+
+
+_RANGE_HEADER_PATTERN = re.compile(r"bytes=(\d*)-(\d*)")
+
+
+def _parse_range_header(header_value: str, file_size: int) -> tuple[int, int] | None:
+    """Parse a HTTP Range header and return the requested byte span."""
+
+    match = _RANGE_HEADER_PATTERN.match(header_value.strip())
+    if not match:
+        return None
+    start_str, end_str = match.groups()
+    if start_str:
+        start = int(start_str)
+        if start >= file_size:
+            raise ValueError("Range start beyond file size")
+    else:
+        if not end_str:
+            return None
+        length = int(end_str)
+        if length <= 0:
+            raise ValueError("Invalid range length")
+        start = max(file_size - length, 0)
+    if end_str:
+        end = int(end_str)
+        if end < start:
+            raise ValueError("Range end before start")
+        end = min(end, file_size - 1)
+    else:
+        end = file_size - 1
+    return start, end
+
+
+def _iter_file_range(path: Path, start: int, end: int) -> Iterator[bytes]:
+    """Yield chunks of ``path`` from ``start`` to ``end`` inclusive."""
+
+    chunk_size = 1 << 16
+    with path.open("rb") as handle:
+        handle.seek(start)
+        remaining = end - start + 1
+        while remaining > 0:
+            read_size = min(chunk_size, remaining)
+            chunk = handle.read(read_size)
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
 
 
 def _build_action_response(
@@ -224,6 +274,104 @@ async def submit_pipeline(
         status=job.status,
         created_at=job.created_at,
     )
+
+
+@router.get("/jobs/{job_id}/media/live", response_model=LiveMediaResponse)
+async def get_live_media(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    """Return the currently available media artifacts for ``job_id``."""
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    generated_files = {
+        media_type: list(paths)
+        for media_type, paths in job.generated_files.items()
+    }
+    progressive = job.status != PipelineJobStatus.COMPLETED
+    return LiveMediaResponse(
+        job_id=job.job_id,
+        status=job.status,
+        progressive=progressive,
+        generated_files=generated_files,
+    )
+
+
+@router.get("/storage/jobs/{job_id}/files/{file_path:path}")
+async def stream_job_file(
+    job_id: str,
+    file_path: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    range_header: str | None = Header(default=None, alias="Range"),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    """Stream a generated job artifact with optional HTTP range support."""
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    try:
+        base_dir = pipeline_service.resolve_job_output_dir(job)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job output not available")
+
+    candidate = (base_dir / file_path).resolve()
+    try:
+        candidate.relative_to(base_dir)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    if not candidate.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    file_size = candidate.stat().st_size
+    media_type, _ = mimetypes.guess_type(candidate.name)
+    media_type = media_type or "application/octet-stream"
+
+    if range_header:
+        try:
+            byte_range = _parse_range_header(range_header, file_size)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                detail="Invalid Range header",
+            )
+        if byte_range is not None:
+            start, end = byte_range
+            response = StreamingResponse(
+                _iter_file_range(candidate, start, end),
+                status_code=status.HTTP_206_PARTIAL_CONTENT,
+                media_type=media_type,
+            )
+            response.headers["Content-Range"] = f"bytes {start}-{end}/{file_size}"
+            response.headers["Content-Length"] = str(end - start + 1)
+            response.headers["Accept-Ranges"] = "bytes"
+            return response
+
+    response = FileResponse(candidate, media_type=media_type, filename=candidate.name)
+    response.headers["Accept-Ranges"] = "bytes"
+    return response
 
 
 @router.post("/{job_id}/metadata/refresh", response_model=PipelineStatusResponse)

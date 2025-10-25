@@ -4,6 +4,15 @@ const buildStorageUrlMock = vi.hoisted(() =>
   vi.fn<[string], string>((path) => `https://storage.example/${path}`)
 );
 
+const useLiveMediaMock = vi.hoisted(() =>
+  vi.fn(() => ({
+    mediaFiles: { text: [], audio: [], video: [] },
+    progressive: false,
+    isLoading: false,
+    error: null
+  }))
+);
+
 vi.mock('../../api/client', async () => {
   const actual = await vi.importActual<typeof import('../../api/client')>('../../api/client');
   return {
@@ -11,6 +20,10 @@ vi.mock('../../api/client', async () => {
     buildStorageUrl: buildStorageUrlMock
   };
 });
+
+vi.mock('../../hooks/useLiveMedia', () => ({
+  useLiveMedia: useLiveMediaMock
+}));
 
 import { fireEvent, render, screen } from '@testing-library/react';
 import { JobProgress } from '../JobProgress';
@@ -45,6 +58,13 @@ describe('JobProgress', () => {
   beforeEach(() => {
     buildStorageUrlMock.mockReset();
     buildStorageUrlMock.mockImplementation((path) => `https://storage.example/${path}`);
+    useLiveMediaMock.mockReset();
+    useLiveMediaMock.mockReturnValue({
+      mediaFiles: { text: [], audio: [], video: [] },
+      progressive: false,
+      isLoading: false,
+      error: null
+    });
   });
 
   it('renders snapshot metrics when an event is supplied', () => {
@@ -57,7 +77,8 @@ describe('JobProgress', () => {
       result: null,
       error: null,
       latest_event: null,
-      tuning: null
+      tuning: null,
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     const event: ProgressEventPayload = {
@@ -104,7 +125,8 @@ describe('JobProgress', () => {
       latest_event: null,
       error: null,
       tuning: null,
-      result: null
+      result: null,
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -146,7 +168,8 @@ describe('JobProgress', () => {
           book_author: 'Author Name',
           book_cover_file: 'runtime/example-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -191,7 +214,8 @@ describe('JobProgress', () => {
           book_author: 'Storage Rooted Author',
           book_cover_file: 'storage/runtime/storage-rooted-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -231,7 +255,8 @@ describe('JobProgress', () => {
         thread_count: 4,
         queue_size: 32,
         job_worker_slots: 2
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -275,7 +300,8 @@ describe('JobProgress', () => {
           book_author: 'Author Name',
           book_cover_file: 'runtime/broken-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -330,7 +356,8 @@ describe('JobProgress', () => {
           book_author: 'Author Name',
           book_cover_file: 'runtime/broken-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -381,7 +408,8 @@ describe('JobProgress', () => {
           book_author: 'Author Name',
           book_cover_file: 'runtime/broken-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     const { rerender } = render(
@@ -460,7 +488,8 @@ describe('JobProgress', () => {
           book_author: 'Author Name',
           book_cover_file: '/Users/me/modules/output/runtime/output-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -507,7 +536,8 @@ describe('JobProgress', () => {
           book_author: 'Author Name',
           book_cover_file: '/storage/runtime/example-cover.jpg'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(
@@ -548,7 +578,8 @@ describe('JobProgress', () => {
           book_title: 'No Cover Title',
           book_author: 'No Cover Author'
         }
-      }
+      },
+      generated_files: { text: [], audio: [], video: [] }
     };
 
     render(

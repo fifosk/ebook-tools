@@ -6,7 +6,7 @@ import concurrent.futures
 import queue
 import threading
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 from PIL import Image
 from pydub import AudioSegment
@@ -62,12 +62,14 @@ class RenderPipeline:
         stop_event: Optional[threading.Event] = None,
         translation_pool: Optional[ThreadWorkerPool] = None,
         transliterator: Optional[TransliterationService] = None,
+        job_id: Optional[str] = None,
     ) -> None:
         self._config = pipeline_config
         self._progress = progress_tracker
         self._stop_event = stop_event
         self._external_translation_pool = translation_pool
         self._transliterator = transliterator or get_transliterator()
+        self._job_id = job_id
 
     # ------------------------------------------------------------------
     # Public API
@@ -254,7 +256,7 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
             )
-            video_path = exporter.export(request)
+            video_path = self._export_batch(exporter, request)
             if video_path:
                 state.batch_video_files.append(video_path)
         elif self._should_stop():
@@ -376,6 +378,28 @@ class RenderPipeline:
             self._config.macos_reading_speed,
         )
 
+    def _on_artifact_generated(
+        self,
+        media_type: str,
+        relative_path: str,
+        info: Dict[str, object],
+    ) -> None:
+        if self._progress is None:
+            return
+        payload: Dict[str, object] = {"stage": "media", **info}
+        payload.setdefault("media_type", media_type)
+        if self._job_id:
+            payload.setdefault("job_id", self._job_id)
+        self._progress.record_generated_file(media_type, relative_path, metadata=payload)
+
+    def _export_batch(
+        self, exporter: BatchExporter, request: BatchExportRequest
+    ) -> Optional[str]:
+        return exporter.export(
+            request,
+            on_artifact_generated=self._on_artifact_generated,
+        )
+
     def _handle_sentence(
         self,
         *,
@@ -431,7 +455,7 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
             )
-            video_path = exporter.export(request)
+            video_path = self._export_batch(exporter, request)
             if video_path:
                 state.batch_video_files.append(video_path)
             state.written_blocks.clear()
@@ -713,7 +737,9 @@ class RenderPipeline:
                             generate_video=generate_video,
                             video_blocks=list(state.video_blocks),
                         )
-                        future = finalize_executor.submit(exporter.export, request)
+                        future = finalize_executor.submit(
+                            self._export_batch, exporter, request
+                        )
                         export_futures.append(future)
                         state.written_blocks.clear()
                         state.video_blocks.clear()

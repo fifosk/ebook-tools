@@ -38,6 +38,7 @@ class RenderPhaseRequest:
     generate_video: bool
     include_transliteration: bool = False
     book_metadata: Optional[dict] = None
+    job_id: Optional[str] = None
 
 
 def process_epub(
@@ -62,6 +63,7 @@ def process_epub(
         stop_event=stop_event,
         translation_pool=translation_pool,
         transliterator=transliterator,
+        job_id=request.job_id,
     )
     return pipeline.process_epub(
         input_file=request.input_file,

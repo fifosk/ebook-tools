@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import {
   PipelineJobStatus,
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
 import { buildStorageUrl } from '../api/client';
+import JobDetail from '../pages/JobDetail';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 
@@ -230,7 +230,6 @@ export function JobProgress({
     return TERMINAL_STATES.includes(status.status);
   }, [status]);
 
-  usePipelineEvents(jobId, !isTerminal, onEvent);
 
   const event = latestEvent ?? status?.latest_event ?? undefined;
   const bookMetadata = status?.result?.book_metadata ?? null;
@@ -518,6 +517,9 @@ export function JobProgress({
           <pre style={{ overflowX: 'auto' }}>{JSON.stringify(status.result, null, 2)}</pre>
         </details>
       ) : null}
+      <div style={{ marginTop: '1.5rem' }}>
+        <JobDetail jobId={jobId} status={status} onEvent={onEvent} isTerminal={isTerminal} />
+      </div>
     </div>
   );
 }

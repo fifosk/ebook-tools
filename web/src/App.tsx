@@ -231,7 +231,8 @@ export function App() {
         result: null,
         error: null,
         latest_event: null,
-        tuning: null
+        tuning: null,
+        generated_files: { text: [], audio: [], video: [] }
       };
       setJobs((previous) => ({
         ...previous,

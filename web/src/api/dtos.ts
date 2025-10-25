@@ -66,6 +66,7 @@ export interface ProgressSnapshotPayload {
   elapsed: number;
   speed: number;
   eta: number | null;
+  generated_files?: Record<string, string[]> | null;
 }
 
 export interface ProgressEventPayload {
@@ -104,6 +105,7 @@ export interface PipelineStatusResponse {
   tuning: Record<string, unknown> | null;
   user_id?: string | null;
   user_role?: string | null;
+  generated_files: Record<string, string[]>;
 }
 
 export interface PipelineJobListResponse {
@@ -113,6 +115,13 @@ export interface PipelineJobListResponse {
 export interface PipelineJobActionResponse {
   job: PipelineStatusResponse;
   error?: string | null;
+}
+
+export interface LiveMediaResponse {
+  job_id: string;
+  status: PipelineJobStatus;
+  progressive: boolean;
+  generated_files: Record<string, string[]>;
 }
 
 export interface SessionUser {

@@ -27,6 +27,7 @@ class ProgressSnapshot:
     elapsed: float
     speed: float
     eta: Optional[float]
+    generated_files: Mapping[str, Tuple[str, ...]] | None = None
 
 
 @dataclass(frozen=True)
@@ -98,6 +99,7 @@ class ProgressTracker:
         self._observers: Sequence[Callable[[ProgressEvent], None]] = []
         self._started = False
         self._completion_emitted = False
+        self._generated_files: Dict[str, Tuple[str, ...]] = {}
 
     @property
     def report_interval(self) -> float:
@@ -184,12 +186,18 @@ class ProgressTracker:
         payload = {"forced": True, **(metadata or {})}
         self._emit_event("error", metadata=payload, error=error)
 
-    def snapshot(self) -> ProgressSnapshot:
+    def snapshot(self, *, include_generated_files: bool = False) -> ProgressSnapshot:
         """Return a snapshot of the current progress statistics."""
 
         with self._lock:
             completed = self._completed
             total = self._total
+            generated_files: Optional[Dict[str, Tuple[str, ...]]] = None
+            if include_generated_files and self._generated_files:
+                generated_files = {
+                    media_type: tuple(paths)
+                    for media_type, paths in self._generated_files.items()
+                }
         now = time.perf_counter()
         elapsed = max(0.0, now - self._start_time)
         if elapsed > 0 and completed > 0:
@@ -208,6 +216,7 @@ class ProgressTracker:
             elapsed=elapsed,
             speed=speed,
             eta=eta,
+            generated_files=generated_files,
         )
 
     def is_complete(self) -> bool:
@@ -241,6 +250,32 @@ class ProgressTracker:
         if reason:
             metadata["reason"] = reason
         self._emit_completion(metadata=metadata)
+
+    def record_generated_file(
+        self,
+        media_type: str,
+        filename: str,
+        *,
+        metadata: Optional[Dict[str, object]] = None,
+    ) -> None:
+        """Register a newly generated media artifact and emit a progress event."""
+
+        normalized_type = media_type.strip().lower() or "unknown"
+        normalized_filename = filename
+        with self._lock:
+            existing = list(self._generated_files.get(normalized_type, ()))
+            if normalized_filename not in existing:
+                existing.append(normalized_filename)
+            self._generated_files[normalized_type] = tuple(existing)
+        snapshot = self.snapshot(include_generated_files=True)
+        payload: Dict[str, object] = {"media_type": normalized_type, "file": normalized_filename}
+        if metadata:
+            payload.update(metadata)
+        self._emit_event(
+            "file_chunk_generated",
+            snapshot=snapshot,
+            metadata=payload,
+        )
 
     def wait(self, timeout: float) -> bool:
         """Wait for completion or for ``timeout`` seconds."""
