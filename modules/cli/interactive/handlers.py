@@ -7,7 +7,7 @@ from typing import Any, Callable, Dict, Sequence, Tuple
 
 from ... import config_manager as cfg
 from ... import metadata_manager
-from ... import translation_engine
+from ... import llm_client_manager
 from ...shared import assets
 from .. import context
 from .common import (
@@ -383,7 +383,7 @@ def _handle_debug(
     prompt = f"Enable debug mode? (yes/no, default {'yes' if default_debug else 'no'}): "
     config["debug"] = _prompt_boolean(prompt, default_debug, accept_blank=False)
     configure_logging_level(config["debug"])
-    translation_engine.configure_default_client(debug=config["debug"])
+    llm_client_manager.configure_default_client(debug=config["debug"])
     return config, False
 
 

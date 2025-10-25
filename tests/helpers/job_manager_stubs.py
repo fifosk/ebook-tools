@@ -98,11 +98,11 @@ def install_job_manager_stubs() -> None:
     if "modules.translation_engine" not in sys.modules:
         translation_module = types.ModuleType("modules.translation_engine")
 
-        class TranslationWorkerPool:
+        class ThreadWorkerPool:
             def shutdown(self) -> None:  # pragma: no cover - defensive stub
                 return None
 
-        translation_module.TranslationWorkerPool = TranslationWorkerPool
+        translation_module.ThreadWorkerPool = ThreadWorkerPool
         sys.modules["modules.translation_engine"] = translation_module
 
     if "modules.observability" not in sys.modules:

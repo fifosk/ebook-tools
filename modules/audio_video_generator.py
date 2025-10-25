@@ -34,6 +34,7 @@ class MediaPipelineResult:
     sentence: str
     target_language: str
     translation: str
+    transliteration: str
     audio_segment: Optional[AudioSegment]
 # ---------------------------------------------------------------------------
 # Audio helpers
@@ -211,6 +212,7 @@ def _media_worker(
             sentence=task.sentence,
             target_language=task.target_language,
             translation=task.translation,
+            transliteration=task.transliteration,
             audio_segment=audio_segment,
         )
         while True:
