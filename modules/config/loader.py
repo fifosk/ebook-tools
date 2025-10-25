@@ -12,10 +12,12 @@ _DEFAULT_RENDERING_CONFIG_PATH = (
     Path(__file__).resolve().parent.parent.parent / "conf" / "rendering.yaml"
 )
 
-_DEFAULT_LIMITS = {
+_DEFAULT_CONFIG = {
     "video_concurrency": 1,
     "audio_concurrency": 2,
     "text_concurrency": 2,
+    "video_backend": "ffmpeg",
+    "audio_backend": "polly",
 }
 
 
@@ -35,8 +37,14 @@ def _coerce_positive_int(name: str, value: Any) -> int:
     return candidate
 
 
+def _coerce_backend_name(name: str, value: Any) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    raise ValueError(f"{name} must be a non-empty string")
+
+
 def _normalise_payload(data: Mapping[str, Any] | None) -> MutableMapping[str, Any]:
-    payload: MutableMapping[str, Any] = dict(_DEFAULT_LIMITS)
+    payload: MutableMapping[str, Any] = dict(_DEFAULT_CONFIG)
     if not data:
         return payload
     for key, value in data.items():
@@ -53,6 +61,8 @@ class RenderingConfig:
     video_concurrency: int
     audio_concurrency: int
     text_concurrency: int
+    video_backend: str
+    audio_backend: str
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any] | None) -> "RenderingConfig":
@@ -60,13 +70,23 @@ class RenderingConfig:
         video = _coerce_positive_int("video_concurrency", normalised["video_concurrency"])
         audio = _coerce_positive_int("audio_concurrency", normalised["audio_concurrency"])
         text = _coerce_positive_int("text_concurrency", normalised["text_concurrency"])
-        return cls(video_concurrency=video, audio_concurrency=audio, text_concurrency=text)
+        video_backend = _coerce_backend_name("video_backend", normalised["video_backend"])
+        audio_backend = _coerce_backend_name("audio_backend", normalised["audio_backend"])
+        return cls(
+            video_concurrency=video,
+            audio_concurrency=audio,
+            text_concurrency=text,
+            video_backend=video_backend,
+            audio_backend=audio_backend,
+        )
 
     def to_dict(self) -> dict[str, int]:
         return {
             "video_concurrency": self.video_concurrency,
             "audio_concurrency": self.audio_concurrency,
             "text_concurrency": self.text_concurrency,
+            "video_backend": self.video_backend,
+            "audio_backend": self.audio_backend,
         }
 
 

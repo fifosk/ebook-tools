@@ -8,15 +8,14 @@ from modules.progress_tracker import ProgressTracker
 from modules.translation_engine import TranslationTask
 
 
-def test_media_worker_does_not_increment_tracker_when_queueing_results(monkeypatch):
+def test_media_worker_does_not_increment_tracker_when_queueing_results():
     tracker = ProgressTracker(total_blocks=1)
 
-    def fake_generate(*args, **kwargs):
-        return AudioSegment.silent(duration=0)
+    class DummySynthesizer:
+        def synthesize_sentence(self, *args, **kwargs):
+            return AudioSegment.silent(duration=0)
 
-    monkeypatch.setattr(
-        "modules.audio_video_generator.generate_audio_for_sentence", fake_generate
-    )
+    synthesizer = DummySynthesizer()
 
     task_queue = Queue()
     result_queue = Queue()
@@ -51,6 +50,7 @@ def test_media_worker_does_not_increment_tracker_when_queueing_results(monkeypat
             "generate_audio": True,
             "stop_event": stop_event,
             "progress_tracker": tracker,
+            "audio_synthesizer": synthesizer,
         },
         daemon=True,
     )

@@ -601,7 +601,6 @@ class RenderPipeline:
             queue_size=self._config.queue_size,
             audio_stop_event=pipeline_stop_event,
             progress_tracker=self._progress,
-            audio_generator=av_gen.generate_audio_for_sentence,
             media_result_factory=av_gen.MediaPipelineResult,
         )
         media_queue, media_threads = media_orchestrator.start()
