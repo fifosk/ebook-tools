@@ -19,6 +19,7 @@ from .dependencies import (
 from .jobs import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
 from .. import config_manager as cfg
 from ..services.pipeline_service import PipelineService
+from ..services.job_manager.manager import collect_job_file_candidates
 from .schemas import (
     PipelineJobActionResponse,
     PipelineJobListResponse,
@@ -336,17 +337,39 @@ async def stream_job_file(
     except Exception:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job output not available")
 
-    candidate = (base_dir / file_path).resolve()
-    try:
-        candidate.relative_to(base_dir)
-    except ValueError:
+    resolved_path: Path | None = None
+    checked: set[Path] = set()
+
+    for candidate_fragment in collect_job_file_candidates(job_id, file_path):
+        candidate_path = (base_dir / candidate_fragment).resolve()
+        if candidate_path in checked:
+            continue
+        checked.add(candidate_path)
+        try:
+            candidate_path.relative_to(base_dir)
+        except ValueError:
+            continue
+        if candidate_path.is_file():
+            resolved_path = candidate_path
+            break
+
+    if resolved_path is None:
+        absolute_candidate = Path(file_path)
+        if absolute_candidate.is_absolute():
+            candidate_path = absolute_candidate.resolve()
+            try:
+                candidate_path.relative_to(base_dir)
+            except ValueError:
+                candidate_path = None
+            else:
+                if candidate_path.is_file():
+                    resolved_path = candidate_path
+
+    if resolved_path is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
-    if not candidate.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-
-    file_size = candidate.stat().st_size
-    media_type, _ = mimetypes.guess_type(candidate.name)
+    file_size = resolved_path.stat().st_size
+    media_type, _ = mimetypes.guess_type(resolved_path.name)
     media_type = media_type or "application/octet-stream"
 
     if range_header:
@@ -360,7 +383,7 @@ async def stream_job_file(
         if byte_range is not None:
             start, end = byte_range
             response = StreamingResponse(
-                _iter_file_range(candidate, start, end),
+                _iter_file_range(resolved_path, start, end),
                 status_code=status.HTTP_206_PARTIAL_CONTENT,
                 media_type=media_type,
             )
@@ -369,7 +392,7 @@ async def stream_job_file(
             response.headers["Accept-Ranges"] = "bytes"
             return response
 
-    response = FileResponse(candidate, media_type=media_type, filename=candidate.name)
+    response = FileResponse(resolved_path, media_type=media_type, filename=resolved_path.name)
     response.headers["Accept-Ranges"] = "bytes"
     return response
 

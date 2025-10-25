@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, Mapping, Optional
 from uuid import uuid4
 
+from collections import deque
+
 from ... import config_manager as cfg
 from ... import logging_manager as log_mgr
 from ... import metadata_manager
@@ -52,6 +54,78 @@ def _sanitize_directory_fragment(value: str) -> str:
     return cleaned or _DEFAULT_JOB_USER
 
 
+def collect_job_file_candidates(job_id: str, entry: str | Path) -> list[str]:
+    """Return possible relative paths for ``entry`` within ``job_id`` output."""
+
+    raw_value = str(entry or "").strip()
+    if not raw_value:
+        return []
+
+    normalised = raw_value.replace("\\", "/")
+    queue: deque[str] = deque([normalised])
+    candidates: list[str] = []
+    seen: set[str] = set()
+
+    prefixes = (
+        f"pipelines/storage/jobs/{job_id}/files/",
+        f"storage/jobs/{job_id}/files/",
+        f"jobs/{job_id}/files/",
+        f"jobs/{job_id}/",
+        "pipelines/storage/",
+        "storage/jobs/",
+        "storage/",
+    )
+
+    job_marker = f"{job_id}/"
+
+    while queue:
+        current = queue.popleft()
+        if not current:
+            continue
+        trimmed = re.sub(r"/{2,}", "/", current).strip("/")
+        if not trimmed or trimmed in seen:
+            continue
+        seen.add(trimmed)
+
+        path_obj = Path(trimmed)
+        if any(part in ("..", "") for part in path_obj.parts):
+            continue
+
+        candidates.append(trimmed)
+
+        for prefix in prefixes:
+            if trimmed.startswith(prefix):
+                remainder = trimmed[len(prefix) :]
+                if remainder and remainder not in seen:
+                    queue.append(remainder)
+
+        if job_marker in trimmed:
+            _, remainder = trimmed.split(job_marker, 1)
+            if remainder and remainder not in seen:
+                queue.append(remainder)
+
+        if trimmed.startswith("files/"):
+            remainder = trimmed[len("files/") :]
+            if remainder and remainder not in seen:
+                queue.append(remainder)
+
+    return candidates
+
+
+def _select_canonical_job_file(job_id: str, entry: str | Path) -> str | None:
+    """Return the shortest relative path candidate for ``entry``."""
+
+    candidates = collect_job_file_candidates(job_id, entry)
+    if not candidates:
+        return None
+
+    def _sort_key(value: str) -> tuple[int, int, str]:
+        parts = Path(value).parts
+        return (len(parts), len(value), value)
+
+    return min(candidates, key=_sort_key)
+
+
 def _normalise_generated_files(job_id: str, source: Mapping[str, Iterable[str]]) -> Dict[str, list[str]]:
     """Normalise stored media paths so they point at the job file endpoint."""
 
@@ -61,30 +135,10 @@ def _normalise_generated_files(job_id: str, source: Mapping[str, Iterable[str]])
         cleaned: list[str] = []
         seen: set[str] = set()
         for entry in entries:
-            candidate = str(entry or "").strip()
-            if not candidate:
+            canonical = _select_canonical_job_file(job_id, entry)
+            if not canonical:
                 continue
-            candidate = candidate.replace("\\", "/")
-            candidate = candidate.lstrip("/")
-            if candidate.startswith("pipelines/"):
-                candidate = candidate[len("pipelines/") :].lstrip("/")
-            if candidate.startswith("storage/"):
-                candidate = candidate[len("storage/") :].lstrip("/")
-            if candidate.startswith(f"jobs/{job_id}/files/"):
-                normalised_path = candidate
-            elif candidate.startswith(f"jobs/{job_id}/"):
-                remainder = candidate[len(f"jobs/{job_id}/") :].lstrip("/")
-                if not remainder:
-                    continue
-                if remainder.startswith("files/"):
-                    normalised_path = f"jobs/{job_id}/{remainder}"
-                else:
-                    normalised_path = f"jobs/{job_id}/files/{remainder}"
-            elif candidate.startswith("jobs/"):
-                # Skip paths from other jobs to avoid accidental leakage.
-                continue
-            else:
-                normalised_path = f"{prefix}{candidate}"
+            normalised_path = f"{prefix}{canonical}"
             if normalised_path in seen:
                 continue
             seen.add(normalised_path)
