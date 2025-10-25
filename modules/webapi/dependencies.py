@@ -5,11 +5,13 @@ from __future__ import annotations
 from contextlib import contextmanager
 from copy import deepcopy
 from functools import lru_cache
+from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, cast
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from ..services.pipeline_service import PipelineService
+from ..user_management import AuthService, LocalUserStore, SessionManager
 from .jobs import PipelineJobManager
 
 
@@ -109,3 +111,32 @@ def get_pipeline_service() -> PipelineService:
     """Return a lazily constructed :class:`PipelineService`."""
 
     return PipelineService(get_pipeline_job_manager())
+
+
+def _expand_path(path_value: Optional[str]) -> Optional[Path]:
+    if not path_value:
+        return None
+    return Path(path_value).expanduser()
+
+
+def _resolve_auth_configuration() -> tuple[Optional[Path], Optional[Path]]:
+    config = cfg.load_configuration(verbose=False)
+    auth_config = config.get("authentication") or {}
+
+    user_store_config = auth_config.get("user_store") or {}
+    sessions_config = auth_config.get("sessions") or {}
+
+    user_store_path = _expand_path(user_store_config.get("storage_path"))
+    session_file = _expand_path(sessions_config.get("session_file"))
+
+    return user_store_path, session_file
+
+
+@lru_cache
+def get_auth_service() -> AuthService:
+    """Return a configured :class:`AuthService` instance."""
+
+    user_store_path, session_file = _resolve_auth_configuration()
+    user_store = LocalUserStore(storage_path=user_store_path)
+    session_manager = SessionManager(session_file=session_file)
+    return AuthService(user_store, session_manager)
