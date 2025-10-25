@@ -5,5 +5,5 @@ audio_concurrency: 4
 text_concurrency: 4
 video_backend: ffmpeg
 audio_backend: polly
-ramdisk_enabled: false
-ramdisk_path: /dev/shm/ebook-tools
+ramdisk_enabled: true
+ramdisk_path: tmp/render

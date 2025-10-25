@@ -10,6 +10,7 @@ from PIL import Image
 from pydub import AudioSegment
 
 from modules import audio_video_generator as av_gen
+from modules import config_manager as cfg
 from modules import output_formatter
 from modules.config.loader import get_rendering_config
 from modules.render.context import RenderBatchContext
@@ -71,10 +72,19 @@ class BatchExporter:
         )
 
         config = get_rendering_config()
+        runtime_context = cfg.get_runtime_context(None)
+        ramdisk_enabled = config.ramdisk_enabled
+        ramdisk_path = config.ramdisk_path
+        if runtime_context is not None:
+            candidate = Path(ramdisk_path)
+            if not candidate.is_absolute():
+                candidate = runtime_context.tmp_dir / candidate
+            ramdisk_path = str(candidate)
+            ramdisk_enabled = ramdisk_enabled and runtime_context.is_tmp_ramdisk
         manifest_context = {
             "batch_id": f"{range_fragment}_{self._context.base_name}",
-            "ramdisk_enabled": config.ramdisk_enabled,
-            "ramdisk_path": config.ramdisk_path,
+            "ramdisk_enabled": ramdisk_enabled,
+            "ramdisk_path": ramdisk_path,
         }
         media_context = {
             "text": {"range_fragment": range_fragment},

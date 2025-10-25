@@ -7,6 +7,8 @@ from typing import Any, Dict, Mapping, Optional
 from typing import Literal
 from uuid import uuid4
 
+from modules import config_manager as cfg
+
 MediaType = Literal["video", "audio", "text"]
 
 
@@ -45,7 +47,14 @@ class RenderBatchContext:
             return None
         base_path = manifest.get("ramdisk_path")
         if isinstance(base_path, str) and base_path.strip():
-            return Path(base_path.strip()) / batch_id
+            candidate = Path(base_path.strip())
+            if not candidate.is_absolute():
+                runtime_context = cfg.get_runtime_context(None)
+                if runtime_context is not None:
+                    candidate = runtime_context.tmp_dir / candidate
+                else:
+                    candidate = (cfg.SCRIPT_DIR / candidate).resolve()
+            return candidate / batch_id
         return None
 
     @property

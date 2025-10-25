@@ -18,8 +18,8 @@ _DEFAULT_CONFIG = {
     "text_concurrency": 2,
     "video_backend": "ffmpeg",
     "audio_backend": "polly",
-    "ramdisk_enabled": False,
-    "ramdisk_path": "/dev/shm/ebook-tools",
+    "ramdisk_enabled": True,
+    "ramdisk_path": "tmp/render",
 }
 
 
