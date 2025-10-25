@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import shutil
 import sys
+import time
 from importlib import import_module
 from pathlib import Path
 from typing import Callable
@@ -25,6 +27,8 @@ FileJobStore = job_manager_module.FileJobStore
 PipelineJobManager = job_manager_module.PipelineJobManager
 PipelineJobStatus = job_manager_module.PipelineJobStatus
 job_manager = job_manager_module
+
+from modules.progress_tracker import ProgressEvent, ProgressSnapshot
 
 
 class _DummyExecutor:
@@ -140,3 +144,98 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
     assert final.completed_at is not None
 
     restarted_manager._executor.shutdown()
+
+
+def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypatch):
+    original_storage = tmp_path / "jobs-original"
+    monkeypatch.setenv("JOB_STORAGE_DIR", str(original_storage))
+    original_base_url = "https://cdn.example.invalid/original"
+    monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", original_base_url)
+
+    store = FileJobStore()
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: _DummyWorkerPool(),
+    )
+
+    try:
+        request = _build_request()
+        job = manager.submit(request, user_id="migrator", user_role="user")
+        job.status = PipelineJobStatus.RUNNING
+
+        job_root = manager._file_locator.resolve_path(job.job_id)
+        media_path = job_root / "chunk-001" / "sample.mp3"
+        media_path.parent.mkdir(parents=True, exist_ok=True)
+        media_path.write_bytes(b"hello world")
+
+        generated_payload = {
+            "chunks": [
+                {
+                    "chunk_id": "chunk-001",
+                    "range_fragment": "001-010",
+                    "start_sentence": 1,
+                    "end_sentence": 10,
+                    "files": [
+                        {"type": "audio", "path": str(media_path)},
+                    ],
+                }
+            ]
+        }
+
+        event = ProgressEvent(
+            event_type="file_chunk_generated",
+            snapshot=ProgressSnapshot(
+                completed=0,
+                total=None,
+                elapsed=0.0,
+                speed=0.0,
+                eta=None,
+            ),
+            timestamp=time.perf_counter(),
+            metadata={
+                "chunk_id": "chunk-001",
+                "range_fragment": "001-010",
+                "start_sentence": 1,
+                "end_sentence": 10,
+                "generated_files": generated_payload,
+            },
+        )
+
+        manager._store_event(job.job_id, event)
+
+        persisted_before = persistence.load_job(job.job_id)
+        assert persisted_before.generated_files is not None
+        assert persisted_before.generated_files["files"][0]["url"].startswith(original_base_url)
+    finally:
+        manager._executor.shutdown(wait=False)
+
+    migrated_storage = tmp_path / "jobs-migrated"
+    new_base_url = "https://cdn.example.invalid/new"
+    monkeypatch.setenv("JOB_STORAGE_DIR", str(migrated_storage))
+    monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", new_base_url)
+
+    shutil.move(str(original_storage), str(migrated_storage))
+
+    restarted_store = FileJobStore()
+    restarted_manager = PipelineJobManager(
+        max_workers=1,
+        store=restarted_store,
+        worker_pool_factory=lambda _: _DummyWorkerPool(),
+    )
+
+    try:
+        restored_job = restarted_manager.get(
+            job.job_id,
+            user_id="migrator",
+            user_role="user",
+        )
+        assert restored_job.generated_files is not None
+        files_index = restored_job.generated_files.get("files", [])
+        assert files_index
+        entry = files_index[0]
+        assert entry["relative_path"] == "chunk-001/sample.mp3"
+        assert entry["url"].startswith(new_base_url)
+        assert entry["path"].startswith(str(migrated_storage))
+    finally:
+        restarted_manager._executor.shutdown(wait=False)
