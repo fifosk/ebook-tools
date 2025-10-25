@@ -4,6 +4,16 @@
 
 - [Architecture overview](docs/architecture.md)
 
+### High-level diagrams
+
+The main flows are summarised with the following HLD snapshots. Embed them in
+design reviews or onboarding decks as needed to illustrate how the SPA, API, and
+worker services collaborate.
+
+![Backend high-level design](docs/images/backend-hld.svg)
+
+![Frontend high-level design](docs/images/frontend-hld.svg)
+
 ## Backend setup
 
 ### Install dependencies
@@ -89,6 +99,60 @@ single-page application:
   layer. Defaults to `storage/jobs` relative to the working directory. The
   server creates the directory automatically when the first job is persisted.
 
+### Authenticate with the API
+
+The dashboard and CLI now rely on the FastAPI session endpoints to issue and
+refresh authentication tokens. Use the `/auth/login` route to obtain a bearer
+token and attach it to subsequent requests via the `Authorization: Bearer`
+header.
+
+```bash
+curl -X POST http://127.0.0.1:8000/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"admin","password":"secret"}'
+# {"token":"<session>","user":{"username":"admin","role":"admin","last_login":"2024-05-01T12:34:56+00:00"}}
+
+export EBOOKTOOLS_SESSION_TOKEN="<session>"
+```
+
+Keep the token in sync by calling `GET /auth/session` (used by the SPA to
+restore persisted sessions), `POST /auth/logout`, and `POST /auth/password` when
+rotating credentials. These handlers resolve to the functions defined in
+`modules/webapi/auth_routes.py`, which in turn delegate to `AuthService` for
+verification and metadata updates. Tokens can also be passed to SSE streams by
+appending `?access_token=<token>` to the `/pipelines/{job_id}/events` URL so that
+browser `EventSource` consumers remain authorised.【F:modules/webapi/auth_routes.py†L12-L139】【F:web/src/api/client.ts†L303-L317】
+
+### Administrative API endpoints
+
+Administrators can provision, suspend, or edit user accounts over HTTP through
+`modules/webapi/admin_routes.py`. All routes require a valid bearer token that
+belongs to a user with the `admin` role. Common flows include:
+
+```bash
+# List accounts and their roles/status metadata
+curl -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/admin/users
+
+# Create a new editor
+curl -X POST http://127.0.0.1:8000/admin/users \
+  -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"frank","password":"change-me","roles":["editor"],"email":"frank@example.com"}'
+
+# Suspend an account or reset its password
+curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/admin/users/frank/suspend
+curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"password":"new-secret"}' \
+  http://127.0.0.1:8000/admin/users/frank/password
+```
+
+The responses surface normalised status flags (`status`, `is_active`,
+`is_suspended`) and audit metadata (`created_at`, `updated_at`, `last_login`) for
+use in the dashboard.【F:modules/webapi/admin_routes.py†L37-L288】
+
 ### Pipeline job persistence cheatsheet
 
 The API keeps a JSON snapshot of each job in `JOB_STORAGE_DIR` when Redis is
@@ -106,13 +170,18 @@ the filesystem directly:
 
 ```bash
 # List all persisted jobs ordered by creation time
-curl http://127.0.0.1:8000/api/jobs
+curl -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/pipelines/jobs
 
 # Pause, resume, cancel, or delete a specific job
-curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/pause
-curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/resume
-curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/cancel
-curl -X POST http://127.0.0.1:8000/api/jobs/<job_id>/delete
+curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/pipelines/jobs/<job_id>/pause
+curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/pipelines/jobs/<job_id>/resume
+curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/pipelines/jobs/<job_id>/cancel
+curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  http://127.0.0.1:8000/pipelines/jobs/<job_id>/delete
 ```
 
 Restarting the application automatically reloads any JSON files from the
@@ -159,6 +228,54 @@ artifacts. As with the backend, you can create environment-specific files such
 as `web/.env.production` and pick them up by running Vite with the corresponding
 mode (`npm run build -- --mode production`).
 
+### Frontend capabilities
+
+The SPA composes several providers to offer a multi-user dashboard:
+
+- `AuthProvider` restores persisted sessions from `localStorage`, surfaces the
+  current user/role, and injects bearer tokens into every request. It also
+  exposes password rotation helpers that call `/auth/password`. Logout events
+  automatically clear the cached token.【F:web/src/components/AuthProvider.tsx†L1-L122】
+- `ThemeProvider` persists the preferred colour scheme (`light`, `dark`,
+  `magenta`, or `system`) and sets the `<html data-theme>` attribute so that CSS
+  variables adapt instantly. User preferences survive reloads via
+  `localStorage`.【F:web/src/components/ThemeProvider.tsx†L1-L69】
+- `PipelineSubmissionForm` is grouped into source, language, output,
+  performance, and advanced sections. It draws defaults from
+  `/pipelines/defaults`, lets users upload EPUBs, and validates overrides before
+  calling `submitPipeline`.【F:web/src/App.tsx†L1-L89】
+- The job board renders active and historical jobs, keeps a registry of the
+  latest SSE events per job, and exposes pause/resume/cancel/delete actions that
+  map to `/pipelines/jobs/{job_id}/…` endpoints. Selecting a job opens
+  `JobDetail`, which refreshes media metadata on demand.【F:web/src/App.tsx†L90-L215】
+- Administrators gain access to the `UserManagementPanel`, a CRUD surface that
+  lists accounts, normalises profile metadata, and issues suspend/activate or
+  password-reset operations against the admin API.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
+
+#### Frontend user journey
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as SPA (web/)
+    participant API as FastAPI backend
+    participant JM as Job Manager
+
+    U->>UI: Open dashboard & choose login
+    UI->>API: POST /auth/login
+    API-->>UI: Bearer token + profile
+    UI->>UI: Persist token via AuthProvider
+    U->>UI: Configure pipeline form & submit
+    UI->>API: POST /pipelines with EPUB payload
+    API->>JM: Enqueue job & persist snapshot
+    API-->>UI: Return job_id + initial status
+    UI->>API: Subscribe to /pipelines/{job}/events
+    API-->>UI: Stream progress events (SSE)
+    JM-->>API: Update job state until complete
+    API-->>UI: Final snapshot delivered
+    UI-->>U: Present artefact links & admin tools
+```
+
 > **Tip:** The FastAPI loader merges `.env`, `.env.<env>`, and `.env.local` in
 > that order. Vite follows a similar pattern based on the active mode, letting
 > you keep per-environment tweaks checked in while secrets stay local.
@@ -171,8 +288,11 @@ mode (`npm run build -- --mode production`).
 2. **Start the frontend.** In a separate terminal run `npm run dev` from `web/`.
    The app becomes available at <http://127.0.0.1:5173/> and proxies API calls
    to the URL specified by `VITE_API_BASE_URL`.
-3. **Submit a pipeline job.** Trigger a run through the UI or by calling the API
-   directly:
+3. **Sign in.** Use the login form in the dashboard or `POST /auth/login` from a
+   terminal to obtain a session token. The SPA persists the token in
+   `localStorage` and forwards it automatically with each request.
+4. **Submit a pipeline job.** Trigger a run through the UI or by calling the API
+    directly:
 
    ```bash
    curl -X POST http://127.0.0.1:8000/pipelines \
@@ -181,12 +301,13 @@ mode (`npm run build -- --mode production`).
    ```
 
    The response contains a `job_id`.
-4. **Watch progress via Server-Sent Events (SSE).** Stream updates with any SSE
+5. **Watch progress via Server-Sent Events (SSE).** Stream updates with any SSE
    client. For example, `curl -N` keeps the connection open and prints each
    event:
 
    ```bash
-   curl -N http://127.0.0.1:8000/pipelines/<job_id>/events
+   curl -N -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+     "http://127.0.0.1:8000/pipelines/<job_id>/events?access_token=$EBOOKTOOLS_SESSION_TOKEN"
    ```
 
    Each message contains a JSON `data:` payload shaped like
