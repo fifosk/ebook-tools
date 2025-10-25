@@ -434,21 +434,21 @@ class RenderPipeline:
         should_flush = (
             (sentence_number - state.current_batch_start + 1) % sentences_per_file == 0
         )
-            if should_flush:
-                request = BatchExportRequest(
-                    start_sentence=state.current_batch_start,
-                    end_sentence=sentence_number,
-                    written_blocks=list(state.written_blocks),
-                    target_language=target_language or state.last_target_language,
-                    output_html=output_html,
-                    output_pdf=output_pdf,
-                    generate_audio=generate_audio,
-                    audio_segments=list(state.current_audio_segments or []),
-                    generate_video=generate_video,
-                    video_blocks=list(state.video_blocks),
-                )
-                export_result = exporter.export(request)
-                self._register_export_result(state, export_result)
+        if should_flush:
+            request = BatchExportRequest(
+                start_sentence=state.current_batch_start,
+                end_sentence=sentence_number,
+                written_blocks=list(state.written_blocks),
+                target_language=target_language or state.last_target_language,
+                output_html=output_html,
+                output_pdf=output_pdf,
+                generate_audio=generate_audio,
+                audio_segments=list(state.current_audio_segments or []),
+                generate_video=generate_video,
+                video_blocks=list(state.video_blocks),
+            )
+            export_result = exporter.export(request)
+            self._register_export_result(state, export_result)
             state.written_blocks.clear()
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
