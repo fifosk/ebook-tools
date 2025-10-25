@@ -90,6 +90,8 @@ class EbookToolsSettings(BaseModel):
     database_url: Optional[SecretStr] = None
     job_store_url: Optional[SecretStr] = None
     job_max_workers: int = DEFAULT_JOB_MAX_WORKERS
+    job_storage_dir: str = str(Path("storage") / "jobs")
+    storage_base_url: str = ""
 
 
 class EnvironmentOverrides(BaseSettings):
@@ -152,6 +154,12 @@ class EnvironmentOverrides(BaseSettings):
     )
     job_max_workers: Optional[int] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_JOB_MAX_WORKERS")
+    )
+    job_storage_dir: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("JOB_STORAGE_DIR")
+    )
+    storage_base_url: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_STORAGE_BASE_URL")
     )
 
 

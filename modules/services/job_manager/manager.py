@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import copy
-import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional
 from uuid import uuid4
 
@@ -18,6 +16,7 @@ from ... import metadata_manager
 from ... import observability
 from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import ThreadWorkerPool
+from ..file_locator import FileLocator
 from ..pipeline_service import (
     PipelineInput,
     PipelineRequest,
@@ -40,17 +39,6 @@ from .execution_adapter import PipelineExecutionAdapter
 
 logger = log_mgr.logger
 
-_DEFAULT_JOB_USER = "anonymous"
-_JOB_OUTPUT_ROOT = Path("data") / "jobs"
-
-
-def _sanitize_directory_fragment(value: str) -> str:
-    """Return a filesystem-safe fragment derived from ``value``."""
-
-    cleaned = re.sub(r"[^A-Za-z0-9._-]", "_", value.strip())
-    cleaned = cleaned.strip("._")
-    return cleaned or _DEFAULT_JOB_USER
-
 class PipelineJobManager:
     """Orchestrate background execution of pipeline jobs with persistence support."""
 
@@ -63,6 +51,7 @@ class PipelineJobManager:
         storage_coordinator: Optional[JobStorageCoordinator] = None,
         tuner: Optional[PipelineJobTuner] = None,
         execution_adapter: Optional[PipelineExecutionAdapter] = None,
+        file_locator: Optional[FileLocator] = None,
     ) -> None:
         self._lock = threading.RLock()
         self._jobs: Dict[str, PipelineJob] = {}
@@ -90,6 +79,7 @@ class PipelineJobManager:
             executor_slots_getter=executor_slots_getter,
         )
         self._execution = execution_adapter or PipelineExecutionAdapter()
+        self._file_locator = file_locator or FileLocator()
         self._restore_persisted_jobs()
 
     def _restore_persisted_jobs(self) -> None:
@@ -276,12 +266,14 @@ class PipelineJobManager:
         request.correlation_id = request.correlation_id or job_id
         request.job_id = job_id
 
-        sanitized_user = _sanitize_directory_fragment(user_id or _DEFAULT_JOB_USER)
-        job_output_dir = (_JOB_OUTPUT_ROOT / sanitized_user / job_id).resolve()
+        job_output_dir = self._file_locator.resolve_path(job_id)
         job_output_dir.mkdir(parents=True, exist_ok=True)
 
         environment_overrides = dict(request.environment_overrides)
         environment_overrides.setdefault("output_dir", str(job_output_dir))
+        job_storage_url = self._file_locator.resolve_url(job_id)
+        if job_storage_url:
+            environment_overrides.setdefault("job_storage_url", job_storage_url)
         request.environment_overrides = environment_overrides
 
         context = request.context
