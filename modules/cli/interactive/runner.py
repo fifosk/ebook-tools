@@ -13,6 +13,7 @@ from ... import metadata_manager
 from ...core import ingestion
 from ...core.config import build_pipeline_config
 from ...services.pipeline_service import PipelineInput
+from ...services.pipeline_types import PipelineMetadata
 from ...shared import assets
 from .. import context
 from .common import (
@@ -87,7 +88,7 @@ def confirm_settings(
         generate_video=config.get("generate_video", False),
         include_transliteration=config.get("include_transliteration", False),
         tempo=config.get("tempo", 1.0),
-        book_metadata=book_metadata,
+        book_metadata=PipelineMetadata.from_mapping(book_metadata),
     )
     return config, pipeline_input
 

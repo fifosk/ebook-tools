@@ -24,6 +24,7 @@ from ..pipeline_service import (
     serialize_pipeline_request,
     serialize_pipeline_response,
 )
+from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
 from .lifecycle import (
     apply_pause_transition,
@@ -304,7 +305,7 @@ class PipelineJobManager:
             generate_video=self._coerce_bool(data.get("generate_video")),
             include_transliteration=self._coerce_bool(data.get("include_transliteration")),
             tempo=self._coerce_float(data.get("tempo"), 1.0),
-            book_metadata=dict(book_metadata),
+            book_metadata=PipelineMetadata.from_mapping(book_metadata),
         )
 
     def _hydrate_request_from_payload(
@@ -881,12 +882,12 @@ class PipelineJobManager:
         request_payload["inputs"] = inputs_payload
 
         if job.request is not None:
-            job.request.inputs.book_metadata = dict(metadata)
+            job.request.inputs.book_metadata = PipelineMetadata.from_mapping(metadata)
         job.request_payload = request_payload
         job.resume_context = copy.deepcopy(request_payload)
 
         if job.result is not None:
-            job.result.book_metadata = dict(metadata)
+            job.result.metadata = PipelineMetadata.from_mapping(metadata)
             job.result_payload = serialize_pipeline_response(job.result)
         else:
             result_payload = dict(job.result_payload or {})

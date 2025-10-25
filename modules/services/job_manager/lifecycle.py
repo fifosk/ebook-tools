@@ -6,6 +6,7 @@ import copy
 from typing import Any, Dict, Mapping, Optional
 
 from ..pipeline_service import serialize_pipeline_request
+from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob, PipelineJobStatus
 
 _TERMINAL_STATES = {
@@ -115,7 +116,9 @@ def apply_resume_context(job: PipelineJob, context: Mapping[str, Any]) -> Dict[s
     if job.request is not None and start_sentence is not None:
         job.request.inputs.start_sentence = start_sentence
     if job.request is not None and isinstance(inputs.get("book_metadata"), Mapping):
-        job.request.inputs.book_metadata = dict(inputs["book_metadata"])
+        job.request.inputs.book_metadata = PipelineMetadata.from_mapping(
+            inputs["book_metadata"]
+        )
 
     job.request_payload = copy.deepcopy(payload)
     job.resume_context = payload

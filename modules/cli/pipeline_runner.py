@@ -28,6 +28,7 @@ from ..services.pipeline_service import (
     PipelineResponse,
     run_pipeline as run_pipeline_service,
 )
+from ..services.pipeline_types import PipelineMetadata
 from ..shared import assets
 from . import context
 
@@ -337,7 +338,7 @@ def _build_pipeline_input(
         generate_video=config.get("generate_video", False),
         include_transliteration=config.get("include_transliteration", False),
         tempo=config.get("tempo", 1.0),
-        book_metadata=book_metadata,
+        book_metadata=PipelineMetadata.from_mapping(book_metadata),
     )
 
 
@@ -494,13 +495,15 @@ def prepare_non_interactive_run(
 
     if config.get("auto_metadata", True):
         metadata_manager.populate_config_metadata(config, input_file)
-        pipeline_input.book_metadata = {
-            "book_title": config.get("book_title"),
-            "book_author": config.get("book_author"),
-            "book_year": config.get("book_year"),
-            "book_summary": config.get("book_summary"),
-            "book_cover_file": config.get("book_cover_file"),
-        }
+        pipeline_input.book_metadata = PipelineMetadata.from_mapping(
+            {
+                "book_title": config.get("book_title"),
+                "book_author": config.get("book_author"),
+                "book_year": config.get("book_year"),
+                "book_summary": config.get("book_summary"),
+                "book_cover_file": config.get("book_cover_file"),
+            }
+        )
 
     if args.debug:
         config["debug"] = True
@@ -593,15 +596,18 @@ def run_pipeline_from_args(
             metadata_manager.populate_config_metadata(
                 config, pipeline_input.input_file
             )
-            pipeline_input.book_metadata = {
-                "book_title": config.get("book_title"),
-                "book_author": config.get("book_author"),
-                "book_year": config.get("book_year"),
-                "book_summary": config.get("book_summary"),
-                "book_cover_file": config.get("book_cover_file"),
-            }
+            pipeline_input.book_metadata = PipelineMetadata.from_mapping(
+                {
+                    "book_title": config.get("book_title"),
+                    "book_author": config.get("book_author"),
+                    "book_year": config.get("book_year"),
+                    "book_summary": config.get("book_summary"),
+                    "book_cover_file": config.get("book_cover_file"),
+                }
+            )
         else:
-            pipeline_input.book_metadata = pipeline_input.book_metadata or {}
+            if not pipeline_input.book_metadata.values:
+                pipeline_input.book_metadata = PipelineMetadata()
 
         active_context = context.get_active_context(None)
         if active_context is None:

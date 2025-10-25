@@ -16,6 +16,7 @@ from .pipeline_service import (
     run_pipeline,
     serialize_pipeline_response,
 )
+from .pipeline_types import PipelineMetadata
 
 __all__ = [
     "InMemoryJobStore",
@@ -27,6 +28,7 @@ __all__ = [
     "PipelineRequest",
     "PipelineResponse",
     "PipelineService",
+    "PipelineMetadata",
     "RedisJobStore",
     "run_pipeline",
     "serialize_pipeline_response",
