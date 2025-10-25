@@ -224,6 +224,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
             </button>
           </div>
           <aside className="player-panel__secondary" aria-label={`${activeTabDefinition.label} files`}>
+            <header className="player-panel__secondary-header">
+              <h3>{activeTabDefinition.label} playlist</h3>
+              <span>{activeItems.length} items</span>
+            </header>
             <div className="player-panel__list">
               <MediaList
                 items={activeItems}
@@ -258,6 +262,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
           </button>
         </header>
         <div className="player-panel__drawer-content">
+          <header className="player-panel__secondary-header player-panel__secondary-header--drawer">
+            <h3>{activeTabDefinition.label} playlist</h3>
+            <span>{activeItems.length} items</span>
+          </header>
           <MediaList
             items={activeItems}
             category={activeTab}
