@@ -365,19 +365,11 @@ export function JobProgress({
 
   return (
     <div className="job-card" aria-live="polite">
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '0.75rem',
-          flexWrap: 'wrap'
-        }}
-      >
-        <div style={{ flexGrow: 1 }}>
-          <h3 style={{ marginTop: 0 }}>Job {jobId}</h3>
+      <div className="job-card__header">
+        <div className="job-card__header-title">
+          <h3>Job {jobId}</h3>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <div className="job-card__header-actions">
           <span className="job-status" data-state={statusValue}>
             {statusValue}
           </span>
@@ -467,7 +459,7 @@ export function JobProgress({
       ) : (
         <p>No progress events received yet.</p>
       )}
-      <div style={{ marginTop: '1rem' }}>
+      <div className="job-card__section">
         <h4>Book metadata</h4>
         <div className="metadata-cover-preview">
           {coverUrl && !coverFailed ? (
@@ -499,7 +491,7 @@ export function JobProgress({
             })}
           </dl>
         ) : (
-          <p style={{ marginTop: 0 }}>Metadata is not available yet.</p>
+          <p className="job-card__metadata-empty">Metadata is not available yet.</p>
         )}
         <button
           type="button"
@@ -507,13 +499,13 @@ export function JobProgress({
           onClick={onReload}
           disabled={!canManage || isReloading || isMutating}
           aria-busy={isReloading || isMutating}
-          style={{ marginTop: '0.5rem' }}
+          data-variant="metadata-action"
         >
           {isReloading ? 'Reloading…' : 'Reload metadata'}
         </button>
       </div>
       {status?.result ? (
-        <details style={{ marginTop: '1rem' }}>
+        <details className="job-card__details">
           <summary>View pipeline result payload</summary>
           <pre style={{ overflowX: 'auto' }}>{JSON.stringify(status.result, null, 2)}</pre>
         </details>
