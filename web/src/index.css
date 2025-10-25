@@ -1252,8 +1252,9 @@ button.link-button:focus {
 
 .job-detail-layout {
   display: grid;
-  gap: 1.5rem;
+  gap: 2rem;
   align-items: start;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .job-detail-layout__progress,
@@ -1261,10 +1262,8 @@ button.link-button:focus {
   min-width: 0;
 }
 
-@media (min-width: 1080px) {
-  .job-detail-layout {
-    grid-template-columns: minmax(0, 2.5fr) minmax(280px, 1.5fr);
-  }
+.job-detail-layout__media {
+  width: 100%;
 }
 
 .job-detail {
