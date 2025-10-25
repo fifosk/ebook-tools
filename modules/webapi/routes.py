@@ -99,6 +99,7 @@ def _reserve_destination_path(directory: Path, filename: str) -> Path:
     return candidate
 
 
+
 _RANGE_HEADER_PATTERN = re.compile(r"bytes=(\d*)-(\d*)")
 
 
@@ -144,6 +145,47 @@ def _iter_file_range(path: Path, start: int, end: int) -> Iterator[bytes]:
                 break
             remaining -= len(chunk)
             yield chunk
+
+
+def _resolve_job_file_path(base_dir: Path, job_id: str, entry: str) -> Path | None:
+    """Return the on-disk path for ``entry`` within ``base_dir`` if it exists."""
+
+    resolved_path: Path | None = None
+    checked: set[Path] = set()
+
+    for candidate_fragment in collect_job_file_candidates(job_id, entry):
+        fragments_to_try = [candidate_fragment]
+        if candidate_fragment and not candidate_fragment.startswith("files/"):
+            fragments_to_try.append(f"files/{candidate_fragment}")
+
+        for fragment in fragments_to_try:
+            candidate_path = (base_dir / fragment).resolve()
+            if candidate_path in checked:
+                continue
+            checked.add(candidate_path)
+            try:
+                candidate_path.relative_to(base_dir)
+            except ValueError:
+                continue
+            if candidate_path.is_file():
+                resolved_path = candidate_path
+                break
+        if resolved_path is not None:
+            break
+
+    if resolved_path is None:
+        absolute_candidate = Path(entry)
+        if absolute_candidate.is_absolute():
+            candidate_path = absolute_candidate.resolve()
+            try:
+                candidate_path.relative_to(base_dir)
+            except ValueError:
+                candidate_path = None
+            else:
+                if candidate_path.is_file():
+                    resolved_path = candidate_path
+
+    return resolved_path
 
 
 def _build_action_response(
@@ -337,34 +379,7 @@ async def stream_job_file(
     except Exception:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job output not available")
 
-    resolved_path: Path | None = None
-    checked: set[Path] = set()
-
-    for candidate_fragment in collect_job_file_candidates(job_id, file_path):
-        candidate_path = (base_dir / candidate_fragment).resolve()
-        if candidate_path in checked:
-            continue
-        checked.add(candidate_path)
-        try:
-            candidate_path.relative_to(base_dir)
-        except ValueError:
-            continue
-        if candidate_path.is_file():
-            resolved_path = candidate_path
-            break
-
-    if resolved_path is None:
-        absolute_candidate = Path(file_path)
-        if absolute_candidate.is_absolute():
-            candidate_path = absolute_candidate.resolve()
-            try:
-                candidate_path.relative_to(base_dir)
-            except ValueError:
-                candidate_path = None
-            else:
-                if candidate_path.is_file():
-                    resolved_path = candidate_path
-
+    resolved_path = _resolve_job_file_path(base_dir, job_id, file_path)
     if resolved_path is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
