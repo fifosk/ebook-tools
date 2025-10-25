@@ -534,9 +534,80 @@ export function App() {
         id="dashboard-sidebar"
         className={`dashboard__sidebar ${isSidebarOpen ? '' : 'dashboard__sidebar--collapsed'}`}
       >
-        <div className="sidebar__brand">
-          <span className="sidebar__title">ebook-tools</span>
-          <span className="sidebar__subtitle">Pipeline dashboard</span>
+        <div className="sidebar__header">
+          <div className="sidebar__brand">
+            <span className="sidebar__logo-mark" aria-hidden="true">
+              et
+            </span>
+            <span className="sidebar__title">ebook-tools</span>
+            <span className="sidebar__subtitle">Pipeline dashboard</span>
+          </div>
+          <button
+            type="button"
+            className="sidebar__collapse-toggle"
+            onClick={() => setIsSidebarOpen((previous) => !previous)}
+            aria-expanded={isSidebarOpen}
+            aria-controls="dashboard-sidebar"
+          >
+            <span className="visually-hidden">
+              {isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            </span>
+            <span className="sidebar__collapse-icon" aria-hidden="true">
+              {isSidebarOpen ? '‹' : '›'}
+            </span>
+          </button>
+        </div>
+        <div className="sidebar__account">
+          <div className="session-info">
+            <div className="session-info__details">
+              <span className="session-info__user">
+                Signed in as <strong>{displayName.label}</strong>
+                {displayName.showUsernameTag ? (
+                  <span className="session-info__username">({sessionUser?.username})</span>
+                ) : null}
+              </span>
+              {sessionEmail ? <span className="session-info__email">{sessionEmail}</span> : null}
+              <span className="session-info__meta">
+                <span className="session-info__role">Role: {sessionUser?.role}</span>
+                {lastLoginLabel ? (
+                  <span className="session-info__last-login">Last login: {lastLoginLabel}</span>
+                ) : null}
+              </span>
+            </div>
+            <div className="session-info__actions">
+              <button
+                type="button"
+                className="session-info__button"
+                onClick={toggleChangePassword}
+              >
+                {showChangePassword ? 'Hide password form' : 'Change password'}
+              </button>
+              <button
+                type="button"
+                className="session-info__button session-info__button--logout"
+                onClick={() => {
+                  void handleLogout();
+                }}
+              >
+                Log out
+              </button>
+            </div>
+            <div className="session-info__preferences">
+              <div className="theme-control theme-control--sidebar">
+                <label className="theme-control__label" htmlFor="theme-select">
+                  Theme
+                </label>
+                <select id="theme-select" value={themeMode} onChange={handleThemeChange}>
+                  <option value="light">Light</option>
+                  <option value="dark">Dark</option>
+                  <option value="system">System</option>
+                </select>
+                {themeMode === 'system' ? (
+                  <span className="theme-control__hint">Following {resolvedTheme} mode</span>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </div>
         <nav className="sidebar__nav" aria-label="Dashboard menu">
           <details className="sidebar__section" open>
@@ -611,147 +682,86 @@ export function App() {
       </aside>
       <div className="dashboard__content">
         <main className="dashboard__main">
-        <div className="dashboard__toolbar">
-          <div className="session-info">
-            <div className="session-info__details">
-              <span className="session-info__user">
-                Signed in as <strong>{displayName.label}</strong>
-                {displayName.showUsernameTag ? (
-                  <span className="session-info__username">({sessionUser?.username})</span>
-                ) : null}
-              </span>
-              {sessionEmail ? <span className="session-info__email">{sessionEmail}</span> : null}
-              <span className="session-info__meta">
-                <span className="session-info__role">Role: {sessionUser?.role}</span>
-                {lastLoginLabel ? (
-                  <span className="session-info__last-login">Last login: {lastLoginLabel}</span>
-                ) : null}
-              </span>
+          {passwordMessage ? (
+            <div className="password-message" role="status">
+              {passwordMessage}
             </div>
-            <div className="session-info__actions">
-              <button
-                type="button"
-                className="session-info__button"
-                onClick={toggleChangePassword}
-              >
-                {showChangePassword ? 'Hide password form' : 'Change password'}
-              </button>
-              <button
-                type="button"
-                className="session-info__button session-info__button--logout"
-                onClick={() => {
-                  void handleLogout();
-                }}
-              >
-                Log out
-              </button>
-            </div>
-          </div>
-          <div className="toolbar-actions">
-            <div className="theme-control">
-              <label className="theme-control__label" htmlFor="theme-select">
-                Theme
-              </label>
-              <select id="theme-select" value={themeMode} onChange={handleThemeChange}>
-                <option value="light">Light</option>
-                <option value="dark">Dark</option>
-                <option value="system">System</option>
-              </select>
-              {themeMode === 'system' ? (
-                <span className="theme-control__hint">Following {resolvedTheme} mode</span>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              className="sidebar-toggle"
-              onClick={() => setIsSidebarOpen((previous) => !previous)}
-              aria-expanded={isSidebarOpen}
-              aria-controls="dashboard-sidebar"
-            >
-              {isSidebarOpen ? 'Hide menu' : 'Show menu'}
-            </button>
-          </div>
-        </div>
-        {passwordMessage ? (
-          <div className="password-message" role="status">
-            {passwordMessage}
-          </div>
-        ) : null}
-        {showChangePassword ? (
-          <section className="account-panel">
-            <h2>Change password</h2>
-            <ChangePasswordForm
-              onSubmit={handlePasswordChange}
-              onCancel={handlePasswordCancel}
-              isSubmitting={isUpdatingPassword}
-              error={passwordError}
-            />
-          </section>
-        ) : null}
-        <header className="dashboard__header">
+          ) : null}
+          {showChangePassword ? (
+            <section className="account-panel">
+              <h2>Change password</h2>
+              <ChangePasswordForm
+                onSubmit={handlePasswordChange}
+                onCancel={handlePasswordCancel}
+                isSubmitting={isUpdatingPassword}
+                error={passwordError}
+              />
+            </section>
+          ) : null}
+          <header className="dashboard__header">
+            {isAdminView ? (
+              <>
+                <h1>User management</h1>
+                <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
+              </>
+            ) : (
+              <>
+                <h1>ebook-tools pipeline dashboard</h1>
+                <p>
+                  Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
+                  directly from the FastAPI backend.
+                </p>
+              </>
+            )}
+          </header>
           {isAdminView ? (
-            <>
-              <h1>User management</h1>
-              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
-            </>
+            <section>
+              <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
+            </section>
           ) : (
             <>
-              <h1>ebook-tools pipeline dashboard</h1>
-              <p>
-                Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
-                directly from the FastAPI backend.
-              </p>
+              {activePipelineSection ? (
+                <section>
+                  <PipelineSubmissionForm
+                    onSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                    activeSection={activePipelineSection ?? undefined}
+                    externalError={activePipelineSection === 'submit' ? submitError : null}
+                  />
+                </section>
+              ) : null}
+              {activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
+                <section>
+                  <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+                  <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
+                </section>
+              ) : null}
+              {sidebarJobs.length === 0 ? (
+                <section>
+                  <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+                  <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
+                </section>
+              ) : null}
+              {selectedJob ? (
+                <section>
+                  <JobProgress
+                    jobId={selectedJob.jobId}
+                    status={selectedJob.status}
+                    latestEvent={selectedJob.latestEvent}
+                    onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
+                    onPause={() => handlePauseJob(selectedJob.jobId)}
+                    onResume={() => handleResumeJob(selectedJob.jobId)}
+                    onCancel={() => handleCancelJob(selectedJob.jobId)}
+                    onDelete={() => handleDeleteJob(selectedJob.jobId)}
+                    onReload={() => handleReloadJob(selectedJob.jobId)}
+                    isReloading={selectedJob.isReloading}
+                    isMutating={selectedJob.isMutating}
+                    canManage={selectedJob.canManage}
+                  />
+                </section>
+              ) : null}
             </>
           )}
-        </header>
-        {isAdminView ? (
-          <section>
-            <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
-          </section>
-        ) : (
-          <>
-            {activePipelineSection ? (
-              <section>
-                <PipelineSubmissionForm
-                  onSubmit={handleSubmit}
-                  isSubmitting={isSubmitting}
-                  activeSection={activePipelineSection ?? undefined}
-                  externalError={activePipelineSection === 'submit' ? submitError : null}
-                />
-              </section>
-            ) : null}
-            {activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
-              <section>
-                <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
-                <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
-              </section>
-            ) : null}
-            {sidebarJobs.length === 0 ? (
-              <section>
-                <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
-                <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
-              </section>
-            ) : null}
-            {selectedJob ? (
-              <section>
-                <JobProgress
-                  jobId={selectedJob.jobId}
-                  status={selectedJob.status}
-                  latestEvent={selectedJob.latestEvent}
-                  onEvent={(event) => handleProgressEvent(selectedJob.jobId, event)}
-                  onPause={() => handlePauseJob(selectedJob.jobId)}
-                  onResume={() => handleResumeJob(selectedJob.jobId)}
-                  onCancel={() => handleCancelJob(selectedJob.jobId)}
-                  onDelete={() => handleDeleteJob(selectedJob.jobId)}
-                  onReload={() => handleReloadJob(selectedJob.jobId)}
-                  isReloading={selectedJob.isReloading}
-                  isMutating={selectedJob.isMutating}
-                  canManage={selectedJob.canManage}
-                />
-              </section>
-            ) : null}
-          </>
-        )}
         </main>
       </div>
     </div>
