@@ -16,13 +16,7 @@ from PIL import Image
 from pydub import AudioSegment
 
 from modules import logging_manager as log_mgr
-from modules.audio.highlight import (
-    HighlightEvent,
-    _build_events_from_metadata,
-    _build_legacy_highlight_events,
-    _get_audio_metadata,
-    coalesce_highlight_events,
-)
+from modules.audio.highlight import HighlightEvent, coalesce_highlight_events, timeline
 from modules.audio.tts import active_tmp_dir, silence_audio_path
 
 from .layout_engine import GlyphMetricsCache, LayoutEngine
@@ -267,92 +261,21 @@ class SlideRenderer:
                 )
 
         block = slide.metadata.get("raw_block", slide.title)
-        raw_lines = block.split("\n")
-        content = "\n".join(raw_lines[1:]).strip()
-        lines = [line.strip() for line in content.split("\n") if line.strip()]
-
-        if len(lines) >= 3:
-            original_seg = lines[0]
-            translation_seg = lines[1]
-            transliteration_seg = lines[2]
-        elif len(lines) >= 2:
-            original_seg = lines[0]
-            translation_seg = " ".join(lines[1:])
-            transliteration_seg = ""
-        else:
-            original_seg = translation_seg = content
-            transliteration_seg = ""
-
-        original_words = original_seg.split()
-        num_original_words = len(original_words)
-
-        header_line = raw_lines[0] if raw_lines else ""
-        if "Chinese" in header_line or "Japanese" in header_line:
-            translation_units: Sequence[str] = list(translation_seg)
-        else:
-            translation_units = translation_seg.split() or [translation_seg]
-        num_translation_words = len(translation_units)
-
-        transliteration_words = transliteration_seg.split()
-        num_translit_words = len(transliteration_words)
 
         audio_duration = audio_seg.duration_seconds
-        audio_metadata = _get_audio_metadata(audio_seg)
-
-        if highlight_events is None:
-            if not word_highlighting:
-                events: Sequence[HighlightEvent] = [
-                    HighlightEvent(
-                        duration=max(audio_duration * sync_ratio, 0.0),
-                        original_index=num_original_words,
-                        translation_index=num_translation_words,
-                        transliteration_index=num_translit_words,
-                    )
-                ]
-            else:
-                generated: List[HighlightEvent] = []
-                if audio_metadata and audio_metadata.parts:
-                    generated = _build_events_from_metadata(
-                        audio_metadata,
-                        sync_ratio,
-                        num_original_words,
-                        num_translation_words,
-                        num_translit_words,
-                    )
-                if not generated:
-                    generated = _build_legacy_highlight_events(
-                        audio_duration,
-                        sync_ratio,
-                        original_words,
-                        translation_units,
-                        transliteration_words,
-                    )
-                events = generated
-        else:
-            events = list(highlight_events)
-
-        timeline_events = [event for event in events if event.duration > 0]
-        if not timeline_events:
-            timeline_events = [
-                HighlightEvent(
-                    duration=max(audio_duration * sync_ratio, 0.0),
-                    original_index=num_original_words,
-                    translation_index=num_translation_words,
-                    transliteration_index=num_translit_words,
-                )
-            ]
-
-        has_char_steps = any(
-            event.step is not None
-            and event.step.char_index_start is not None
-            and event.step.char_index_end is not None
-            for event in timeline_events
+        timeline_options = timeline.TimelineBuildOptions(
+            sync_ratio=sync_ratio,
+            word_highlighting=word_highlighting,
+            highlight_granularity=highlight_granularity,
+            events=highlight_events,
         )
-        effective_granularity = (
-            "char"
-            if word_highlighting and highlight_granularity == "char" and has_char_steps
-            else "word"
-        )
+        timeline_result = timeline.build(block, audio_seg, timeline_options)
+
+        timeline_events = timeline_result.events
+        effective_granularity = timeline_result.effective_granularity
+        num_original_words = timeline_result.original_word_count
+        num_translation_words = timeline_result.translation_word_count
+        num_translit_words = timeline_result.transliteration_word_count
 
         segments = coalesce_highlight_events(timeline_events)
         video_duration = sum(segment.duration for segment in segments)

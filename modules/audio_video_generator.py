@@ -12,14 +12,7 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 from pydub import AudioSegment
 from PIL import Image
 
-from modules.audio.highlight import (
-    HighlightEvent,
-    _build_events_from_metadata,
-    _build_legacy_highlight_events,
-    _compute_audio_highlight_metadata,
-    _get_audio_metadata,
-    _store_audio_metadata,
-)
+from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata, timeline
 from modules.audio.tts import synthesize_segment
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
@@ -42,114 +35,6 @@ class MediaPipelineResult:
     target_language: str
     translation: str
     audio_segment: Optional[AudioSegment]
-
-
-def _parse_sentence_block(block: str) -> Tuple[str, str, str, str]:
-    """Extract header and text segments from a sentence block."""
-
-    raw_lines = block.split("\n")
-    header_line = raw_lines[0] if raw_lines else ""
-    content = "\n".join(raw_lines[1:]).strip()
-    content_lines = [line.strip() for line in content.split("\n") if line.strip()]
-    if len(content_lines) >= 3:
-        original_seg = content_lines[0]
-        translation_seg = content_lines[1]
-        transliteration_seg = content_lines[2]
-    elif len(content_lines) >= 2:
-        original_seg = content_lines[0]
-        translation_seg = " ".join(content_lines[1:])
-        transliteration_seg = ""
-    else:
-        original_seg = translation_seg = content
-        transliteration_seg = ""
-    return header_line, original_seg, translation_seg, transliteration_seg
-
-
-def _assemble_highlight_timeline(
-    block: str,
-    audio_seg: AudioSegment,
-    *,
-    sync_ratio: float,
-    word_highlighting: bool,
-    highlight_granularity: str,
-) -> Tuple[List[HighlightEvent], str]:
-    """Generate slide highlight events and determine effective granularity."""
-
-    header_line, original_seg, translation_seg, transliteration_seg = _parse_sentence_block(
-        block
-    )
-    original_words = original_seg.split()
-    if "Chinese" in header_line or "Japanese" in header_line:
-        translation_units: Sequence[str] = list(translation_seg)
-    else:
-        translation_units = translation_seg.split() or [translation_seg]
-    transliteration_words = transliteration_seg.split()
-
-    num_original_words = len(original_words)
-    num_translation_words = len(translation_units)
-    num_translit_words = len(transliteration_words)
-
-    audio_duration = audio_seg.duration_seconds
-    metadata = _get_audio_metadata(audio_seg)
-
-    events: List[HighlightEvent]
-    metadata_has_char = False
-
-    if not word_highlighting:
-        events = [
-            HighlightEvent(
-                duration=max(audio_duration * sync_ratio, 0.0),
-                original_index=num_original_words,
-                translation_index=num_translation_words,
-                transliteration_index=num_translit_words,
-            )
-        ]
-    else:
-        generated: List[HighlightEvent] = []
-        if metadata and metadata.parts:
-            generated = _build_events_from_metadata(
-                metadata,
-                sync_ratio,
-                num_original_words,
-                num_translation_words,
-                num_translit_words,
-            )
-            metadata_has_char = any(
-                event.step is not None
-                and event.step.char_index_start is not None
-                and event.step.char_index_end is not None
-                for event in generated
-            )
-        if not generated:
-            generated = _build_legacy_highlight_events(
-                audio_duration,
-                sync_ratio,
-                original_words,
-                translation_units,
-                transliteration_words,
-            )
-        events = generated
-
-    events = [event for event in events if event.duration > 0]
-    if not events:
-        events = [
-            HighlightEvent(
-                duration=max(audio_duration * sync_ratio, 0.0),
-                original_index=num_original_words,
-                translation_index=num_translation_words,
-                transliteration_index=num_translit_words,
-            )
-        ]
-
-    effective_granularity = (
-        "char" if highlight_granularity == "char" and metadata_has_char else "word"
-    )
-    if not word_highlighting:
-        effective_granularity = "word"
-
-    return events, effective_granularity
-
-
 # ---------------------------------------------------------------------------
 # Audio helpers
 # ---------------------------------------------------------------------------
@@ -458,12 +343,14 @@ def generate_video_slides_ffmpeg(
 
         local_cover = cover_img.copy() if cover_img else None
 
-        highlight_events, effective_granularity = _assemble_highlight_timeline(
+        timeline_result = timeline.build(
             block,
             audio_seg,
-            sync_ratio=sync_ratio,
-            word_highlighting=word_highlighting,
-            highlight_granularity=highlight_granularity,
+            timeline.TimelineBuildOptions(
+                sync_ratio=sync_ratio,
+                word_highlighting=word_highlighting,
+                highlight_granularity=highlight_granularity,
+            ),
         )
 
         return build_sentence_video(
@@ -472,8 +359,8 @@ def generate_video_slides_ffmpeg(
             sentence_number,
             sync_ratio=sync_ratio,
             word_highlighting=word_highlighting,
-            highlight_events=highlight_events,
-            highlight_granularity=effective_granularity,
+            highlight_events=timeline_result.events,
+            highlight_granularity=timeline_result.effective_granularity,
             slide_size=slide_size,
             initial_font_size=initial_font_size,
             bg_color=bg_color,
