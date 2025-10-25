@@ -666,14 +666,13 @@ def _iter_file_chunks(path: Path, start: int, end: int) -> Iterator[bytes]:
             yield chunk
 
 
-@storage_router.get("/jobs/{job_id}/files/{filename:path}")
-async def download_job_file(
+async def _download_job_file(
     job_id: str,
     filename: str,
-    file_locator: FileLocator = Depends(get_file_locator),
-    range_header: str | None = Header(default=None, alias="Range"),
+    file_locator: FileLocator,
+    range_header: str | None,
 ):
-    """Stream the requested job file supporting optional byte ranges."""
+    """Return a streaming response for the requested job file."""
 
     try:
         resolved_path = file_locator.resolve_path(job_id, filename)
@@ -722,6 +721,30 @@ async def download_job_file(
         headers=headers,
     )
     return response
+
+
+@storage_router.get("/jobs/{job_id}/files/{filename:path}")
+async def download_job_file(
+    job_id: str,
+    filename: str,
+    file_locator: FileLocator = Depends(get_file_locator),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Stream the requested job file supporting optional byte ranges."""
+
+    return await _download_job_file(job_id, filename, file_locator, range_header)
+
+
+@storage_router.get("/jobs/{job_id}/{filename:path}")
+async def download_job_file_without_prefix(
+    job_id: str,
+    filename: str,
+    file_locator: FileLocator = Depends(get_file_locator),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Stream job files that were referenced without the legacy ``/files`` prefix."""
+
+    return await _download_job_file(job_id, filename, file_locator, range_header)
 
 
 __all__ = ["router", "storage_router"]
