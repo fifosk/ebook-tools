@@ -7,6 +7,27 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+USER_STORE_PATH="${REPO_ROOT}/config/users/users.json"
+USER_SAMPLE_PATH="${REPO_ROOT}/config/users/users.sample.json"
+
+if [ ! -f "$USER_STORE_PATH" ] && [ -f "$USER_SAMPLE_PATH" ]; then
+  echo "User store not found at ${USER_STORE_PATH}." >&2
+  if [ -t 0 ]; then
+    read -r -p "Create it from users.sample.json now? [y/N] " response || response=""
+    case "${response}" in
+      [yY][eE][sS]|[yY])
+        cp "$USER_SAMPLE_PATH" "$USER_STORE_PATH"
+        echo "Copied template credentials. Update the passwords with 'ebook-tools user password'." >&2
+        ;;
+      *)
+        echo "Skipping automatic copy. Create the file manually before allowing logins." >&2
+        ;;
+    esac
+  else
+    echo "Run 'cp config/users/users.sample.json config/users/users.json' and rotate the passwords before continuing." >&2
+  fi
+fi
+
 NEEDS_HOST=true
 for arg in "$@"; do
   case "$arg" in

@@ -166,6 +166,15 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="Password for the account (prompts interactively when omitted).",
     )
 
+    password_parser = user_subparsers.add_parser(
+        "password", help="Update the password for an existing account", allow_abbrev=False
+    )
+    password_parser.add_argument("username", help="Account whose password should change.")
+    password_parser.add_argument(
+        "--password",
+        help="New password to set (prompts interactively when omitted).",
+    )
+
     logout_parser = user_subparsers.add_parser(
         "logout", help="Terminate an existing session", allow_abbrev=False
     )

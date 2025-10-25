@@ -396,6 +396,12 @@ strategies. By default the bundled [`LocalUserStore`](modules/user_management/lo
 keeps credentials in `config/users/users.json` and stores active sessions next
 to the current user's home directory.
 
+- Bootstrap new environments by copying `config/users/users.sample.json` to
+  `config/users/users.json`. The sample includes hashed placeholders for an
+  administrator and a standard operator so the application can start, but you
+  **must** immediately rotate them with `ebook-tools user password <username>`.
+  The CLI updates the bcrypt-compatible hash in place and supports interactive
+  prompts when the `--password` flag is omitted.
 - Use `ebook-tools user add <username>` to create the first administrator. Pass
   `--role admin --role editor` (or any other role labels your workflow
   requires) to seed role-based permissions.

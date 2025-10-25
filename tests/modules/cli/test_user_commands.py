@@ -118,6 +118,33 @@ def test_user_login_and_logout_flow(
     assert token not in sessions.get("sessions", {})
 
 
+def test_user_password_command_updates_hash(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, orchestrator_module
+) -> None:
+    user_store, _, _ = _configure_env(monkeypatch, tmp_path)
+
+    exit_code = orchestrator_module.run_cli(
+        ["user", "add", "erin", "--password", "initial"]
+    )
+    assert exit_code == 0
+    capsys.readouterr()
+
+    initial_data = json.loads(user_store.read_text(encoding="utf-8"))
+    initial_hash = initial_data["users"][0]["password_hash"]
+    assert initial_hash
+
+    exit_code = orchestrator_module.run_cli(
+        ["user", "password", "erin", "--password", "updated"]
+    )
+    assert exit_code == 0
+    captured = capsys.readouterr()
+    assert "Updated password for 'erin'." in captured.out
+
+    updated_data = json.loads(user_store.read_text(encoding="utf-8"))
+    updated_hash = updated_data["users"][0]["password_hash"]
+    assert updated_hash and updated_hash != initial_hash
+
+
 def test_run_requires_active_session(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, orchestrator_module
 ):

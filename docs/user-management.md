@@ -40,6 +40,24 @@ Use `AuthService.require_role("admin")` or
 helper such as `ensure_active_session` (used before running the pipeline) can
 also be extended to enforce required roles.
 
+## Bootstrapping credentials
+
+The repository ships with `config/users/users.sample.json`, which contains
+placeholder accounts for an administrator and an editor. The hashes are derived
+with the same bcrypt-compatible helper used by the runtime, but **must be
+replaced before deployment**. To get started:
+
+1. Copy the template: `cp config/users/users.sample.json config/users/users.json`.
+2. Rotate the administrator password with the CLI. For example,
+   `ebook-tools user password admin --password 'new-secret'` prompts or accepts
+   the replacement and updates the hash in place.
+3. Repeat the command for the remaining seed accounts or delete them once real
+   users have been created via `ebook-tools user add`.
+
+The `ebook-tools user list` command prints the available users and their role
+assignments, making it easy to verify that required capabilities (`admin`,
+`editor`, or `viewer`) are present.
+
 ## Session flow
 
 1. Create an account with `ebook-tools user add <username>`. If the `--password`
