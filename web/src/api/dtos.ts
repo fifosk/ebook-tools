@@ -102,6 +102,8 @@ export interface PipelineStatusResponse {
   error: string | null;
   latest_event: ProgressEventPayload | null;
   tuning: Record<string, unknown> | null;
+  user_id?: string | null;
+  user_role?: string | null;
 }
 
 export interface PipelineJobListResponse {

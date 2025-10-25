@@ -525,17 +525,51 @@ class PipelineJobManager:
                             {"job_id": job_id, "status": status.value},
                         )
 
-    def get(self, job_id: str) -> PipelineJob:
+    @staticmethod
+    def _is_admin(user_role: Optional[str]) -> bool:
+        return bool(user_role and user_role.lower() == "admin")
+
+    def _assert_job_access(
+        self,
+        job: PipelineJob,
+        *,
+        user_id: Optional[str],
+        user_role: Optional[str],
+    ) -> None:
+        if self._is_admin(user_role):
+            return
+        if job.user_id is None:
+            return
+        if user_id is None or job.user_id != user_id:
+            raise PermissionError("Not authorized to manage this job")
+
+    def get(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Return the job associated with ``job_id``."""
 
         with self._lock:
             job = self._jobs.get(job_id)
             if job is not None:
+                self._assert_job_access(job, user_id=user_id, user_role=user_role)
                 return job
         metadata = self._store.get(job_id)
-        return self._build_job_from_metadata(metadata)
+        job = self._build_job_from_metadata(metadata)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+        return job
 
-    def _mutate_job(self, job_id: str, mutator: Callable[[PipelineJob], None]) -> PipelineJob:
+    def _mutate_job(
+        self,
+        job_id: str,
+        mutator: Callable[[PipelineJob], None],
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Apply ``mutator`` to ``job_id`` and persist the resulting state."""
 
         with self._lock:
@@ -543,6 +577,7 @@ class PipelineJobManager:
             if job is None:
                 metadata = self._store.get(job_id)
                 job = self._build_job_from_metadata(metadata)
+            self._assert_job_access(job, user_id=user_id, user_role=user_role)
             try:
                 mutator(job)
             except ValueError as exc:
@@ -560,7 +595,13 @@ class PipelineJobManager:
         self._store.update(snapshot)
         return job
 
-    def pause_job(self, job_id: str) -> PipelineJob:
+    def pause_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Mark ``job_id`` as paused and persist the updated status."""
 
         def _pause(job: PipelineJob) -> None:
@@ -575,9 +616,20 @@ class PipelineJobManager:
             if job.request is not None:
                 job.request.stop_event = event
 
-        return self._mutate_job(job_id, _pause)
+        return self._mutate_job(
+            job_id,
+            _pause,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
-    def resume_job(self, job_id: str) -> PipelineJob:
+    def resume_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Resume ``job_id`` from a paused state and persist the change."""
 
         def _resume(job: PipelineJob) -> None:
@@ -601,11 +653,22 @@ class PipelineJobManager:
             if job.request is not None:
                 job.request.translation_pool = None
 
-        job = self._mutate_job(job_id, _resume)
+        job = self._mutate_job(
+            job_id,
+            _resume,
+            user_id=user_id,
+            user_role=user_role,
+        )
         self._executor.submit(self._execute, job_id)
         return job
 
-    def cancel_job(self, job_id: str) -> PipelineJob:
+    def cancel_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Cancel ``job_id`` and persist the terminal state."""
 
         def _cancel(job: PipelineJob) -> None:
@@ -629,9 +692,20 @@ class PipelineJobManager:
             job.status = PipelineJobStatus.CANCELLED
             job.completed_at = job.completed_at or datetime.now(timezone.utc)
 
-        return self._mutate_job(job_id, _cancel)
+        return self._mutate_job(
+            job_id,
+            _cancel,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
-    def delete_job(self, job_id: str) -> PipelineJob:
+    def delete_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Remove ``job_id`` from in-memory tracking and persistence."""
 
         with self._lock:
@@ -649,6 +723,7 @@ class PipelineJobManager:
                 # if persistence update fails, continue with delete attempt
                 pass
 
+        self._assert_job_access(job, user_id=user_id, user_role=user_role)
         self._store.delete(job_id)
         return job
 
@@ -726,7 +801,7 @@ class PipelineJobManager:
         for job_id, metadata in stored.items():
             active_jobs.setdefault(job_id, self._build_job_from_metadata(metadata))
 
-        if user_role and user_role.lower() == "admin":
+        if self._is_admin(user_role):
             return active_jobs
         if user_id:
             return {
@@ -736,7 +811,13 @@ class PipelineJobManager:
             }
         return active_jobs
 
-    def refresh_metadata(self, job_id: str) -> PipelineJob:
+    def refresh_metadata(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
         """Force a metadata refresh for ``job_id`` and persist the updated state."""
 
         with self._lock:
@@ -745,6 +826,7 @@ class PipelineJobManager:
         if job is None:
             metadata = self._store.get(job_id)
             job = self._build_job_from_metadata(metadata)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role)
 
         if job.request is not None:
             request_payload = serialize_pipeline_request(job.request)

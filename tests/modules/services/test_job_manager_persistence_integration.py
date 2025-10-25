@@ -106,18 +106,34 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
         max_workers=1, store=restarted_store, worker_pool_factory=lambda _: _DummyWorkerPool()
     )
 
-    restored_job = restarted_manager.get(job.job_id)
+    restored_job = restarted_manager.get(
+        job.job_id,
+        user_id="integration",
+        user_role="user",
+    )
     assert restored_job.status == PipelineJobStatus.PENDING
 
-    paused = restarted_manager.pause_job(job.job_id)
+    paused = restarted_manager.pause_job(
+        job.job_id,
+        user_id="integration",
+        user_role="user",
+    )
     assert paused.status == PipelineJobStatus.PAUSED
     assert persistence.load_job(job.job_id).status == PipelineJobStatus.PAUSED
 
-    resumed = restarted_manager.resume_job(job.job_id)
+    resumed = restarted_manager.resume_job(
+        job.job_id,
+        user_id="integration",
+        user_role="user",
+    )
     assert resumed.status == PipelineJobStatus.PENDING
     assert persistence.load_job(job.job_id).status == PipelineJobStatus.PENDING
 
-    cancelled = restarted_manager.cancel_job(job.job_id)
+    cancelled = restarted_manager.cancel_job(
+        job.job_id,
+        user_id="integration",
+        user_role="user",
+    )
     assert cancelled.status == PipelineJobStatus.CANCELLED
     final = persistence.load_job(job.job_id)
     assert final.status == PipelineJobStatus.CANCELLED
