@@ -386,3 +386,47 @@ python modules/ebook_tools.py <input.epub> "English" "Arabic" 10
 Both sub-commands honour the same overrides as before (`--ebooks-dir`,
 `--output-dir`, etc.) and interactive updates continue to save back into the
 `conf/config.local.json` file when possible.
+
+## User accounts, roles, and sessions
+
+The CLI bundles a lightweight authentication layer so that shared machines can
+require logins before the pipeline runs. Credentials are managed via
+`ebook-tools user` sub-commands and can be backed by different persistence
+strategies. By default the bundled [`LocalUserStore`](modules/user_management/local_user_store.py)
+keeps credentials in `config/users/users.json` and stores active sessions next
+to the current user's home directory.
+
+- Use `ebook-tools user add <username>` to create the first administrator. Pass
+  `--role admin --role editor` (or any other role labels your workflow
+  requires) to seed role-based permissions.
+- `ebook-tools user login <username>` prompts for a password, creates a session
+  token, and writes it to `~/.ebooktools_active_session`. Subsequent CLI
+  commands pick the token up automatically. Export `EBOOKTOOLS_SESSION_TOKEN`
+  to override the automatic discovery when scripting.
+- Run `ebook-tools user list` to inspect registered accounts and their role
+  assignments. `ebook-tools user logout` revokes a token and clears the active
+  session file.
+
+You can pin the storage locations or replace the backend entirely by editing
+`config/config.local.json`:
+
+```json
+{
+  "authentication": {
+    "user_store": {
+      "backend": "local",
+      "storage_path": "config/users/users.json"
+    },
+    "sessions": {
+      "session_file": "~/.ebooktools_session.json",
+      "active_session_file": "~/.ebooktools_active_session"
+    }
+  }
+}
+```
+
+Set the matching environment variables (`EBOOKTOOLS_USER_STORE`,
+`EBOOKTOOLS_SESSION_FILE`, and `EBOOKTOOLS_ACTIVE_SESSION_FILE`) to override the
+paths at runtime. See [docs/user-management.md](docs/user-management.md) for a
+deeper walkthrough of the workflow, the role semantics, and guidance on adding
+new backends.

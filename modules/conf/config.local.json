@@ -53,5 +53,15 @@
     "book_author": "Agatha Christie",
     "book_year": "1924",
     "book_summary": "Newly-orphaned Anne Beddingfeld is a nice English girl looking for a bit of adventure in London. But she stumbles upon more than she bargained for! Anne is on the platform at Hyde Park Corner tube station when a man falls onto the live track, dying instantly. A doctor examines the man, pronounces him dead, and leaves, dropping a note on his way.",
-    "book_cover_file": "/Users/fifo/Projects/ebook-tools/modules/output/runtime/book_cover.jpg"
+    "book_cover_file": "/Users/fifo/Projects/ebook-tools/modules/output/runtime/book_cover.jpg",
+    "authentication": {
+        "user_store": {
+            "backend": "local",
+            "storage_path": "config/users/users.json"
+        },
+        "sessions": {
+            "session_file": "~/.ebooktools_session.json",
+            "active_session_file": "~/.ebooktools_active_session"
+        }
+    }
 }
