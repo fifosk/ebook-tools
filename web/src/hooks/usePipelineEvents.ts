@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { buildEventStreamUrl } from '../api/client';
+import { subscribeToJobEvents } from '../services/api';
 import { ProgressEventPayload } from '../api/dtos';
 
 export function usePipelineEvents(
@@ -7,29 +7,22 @@ export function usePipelineEvents(
   enabled: boolean,
   onEvent: (event: ProgressEventPayload) => void
 ): void {
-  const eventStreamUrl = buildEventStreamUrl(jobId);
   useEffect(() => {
-    if (!enabled) {
+    if (!enabled || !jobId) {
       return;
     }
 
-    const eventSource = new EventSource(eventStreamUrl);
-
-    eventSource.onmessage = (message) => {
-      try {
-        const payload = JSON.parse(message.data) as ProgressEventPayload;
+    const unsubscribe = subscribeToJobEvents(jobId, {
+      onEvent: (payload) => {
         onEvent(payload);
-      } catch (error) {
-        console.error('Failed to parse progress event', error);
+      },
+      onError: () => {
+        /* no-op: connection errors will trigger retries on next render */
       }
-    };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
+    });
 
     return () => {
-      eventSource.close();
+      unsubscribe();
     };
-  }, [eventStreamUrl, enabled, onEvent]);
+  }, [enabled, jobId, onEvent]);
 }

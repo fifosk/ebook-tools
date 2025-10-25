@@ -11,6 +11,7 @@ import {
   PipelineStatusResponse,
   PipelineSubmissionResponse,
   SessionStatusResponse,
+  PipelineMediaResponse,
   UserAccountResponse,
   UserCreateRequestPayload,
   UserListResponse,
@@ -287,6 +288,16 @@ export async function refreshPipelineMetadata(jobId: string): Promise<PipelineSt
     method: 'POST'
   });
   return handleResponse<PipelineStatusResponse>(response);
+}
+
+export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {
+  const response = await apiFetch(`/pipelines/jobs/${jobId}/media`);
+  return handleResponse<PipelineMediaResponse>(response);
+}
+
+export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
+  const response = await apiFetch(`/pipelines/jobs/${jobId}/media/live`);
+  return handleResponse<PipelineMediaResponse>(response);
 }
 
 export function buildEventStreamUrl(jobId: string): string {

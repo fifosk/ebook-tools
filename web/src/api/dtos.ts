@@ -104,6 +104,7 @@ export interface PipelineStatusResponse {
   tuning: Record<string, unknown> | null;
   user_id?: string | null;
   user_role?: string | null;
+  generated_files?: Record<string, unknown> | null;
 }
 
 export interface PipelineJobListResponse {
@@ -188,4 +189,16 @@ export interface UserUpdateRequestPayload {
   email?: string | null;
   first_name?: string | null;
   last_name?: string | null;
+}
+
+export interface PipelineMediaFile {
+  name: string;
+  url: string | null;
+  size?: number | null;
+  updated_at?: string | null;
+  source: 'completed' | 'live';
+}
+
+export interface PipelineMediaResponse {
+  media: Record<string, PipelineMediaFile[] | undefined>;
 }
