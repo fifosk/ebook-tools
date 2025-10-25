@@ -7,7 +7,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from queue import Empty, Full, Queue
-from typing import Dict, List, Mapping, Optional, Sequence, TYPE_CHECKING
+from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from pydub import AudioSegment
 from PIL import Image
