@@ -95,7 +95,7 @@ class BatchExporter:
             combined.export(audio_filename, format="mp3", bitrate="320k")
 
         if request.generate_video and audio_segments and video_blocks:
-            video_path = av_gen.generate_video_slides_ffmpeg(
+            video_path = av_gen.render_video_slides(
                 video_blocks,
                 audio_segments,
                 self._context.base_dir,

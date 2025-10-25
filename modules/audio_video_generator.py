@@ -1,30 +1,25 @@
 """Utilities for generating audio and video artifacts."""
 
-import os
-import subprocess
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from queue import Queue
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from pydub import AudioSegment
 from PIL import Image
 
-from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata, timeline
-from modules.audio.tts import synthesize_segment
-from modules import config_manager as cfg
-from modules import logging_manager as log_mgr
-from modules import output_formatter
 from modules.render import AudioWorker, MediaBatchOrchestrator
+from modules.render.backends import (
+    AudioSynthesizer,
+    VideoRenderer,
+    get_audio_synthesizer,
+    get_video_renderer,
+)
 from modules.translation_engine import TranslationTask
-from modules.core.translation import split_translation_and_transliteration
-from modules.video.slides import SlideRenderOptions, build_sentence_video
 
 if TYPE_CHECKING:
     from modules.progress_tracker import ProgressTracker
-logger = log_mgr.logger
 
 @dataclass(slots=True)
 class MediaPipelineResult:
@@ -41,12 +36,16 @@ class MediaPipelineResult:
 # Audio helpers
 # ---------------------------------------------------------------------------
 
+
 def change_audio_tempo(sound: AudioSegment, tempo: float = 1.0) -> AudioSegment:
     """Adjust the tempo of an ``AudioSegment`` by modifying its frame rate."""
+
     if tempo == 1.0:
         return sound
     new_frame_rate = int(sound.frame_rate * tempo)
-    return sound._spawn(sound.raw_data, overrides={"frame_rate": new_frame_rate}).set_frame_rate(sound.frame_rate)
+    return sound._spawn(sound.raw_data, overrides={"frame_rate": new_frame_rate}).set_frame_rate(
+        sound.frame_rate
+    )
 
 
 def generate_audio_for_sentence(
@@ -61,90 +60,25 @@ def generate_audio_for_sentence(
     selected_voice: str,
     tempo: float,
     macos_reading_speed: int,
+    *,
+    audio_synthesizer: AudioSynthesizer | None = None,
 ) -> AudioSegment:
-    """Generate the audio segment for a single sentence."""
+    """Generate audio for a sentence using the configured synthesizer."""
 
-    def _lang_code(lang: str) -> str:
-        return language_codes.get(lang, "en")
-
-    silence = AudioSegment.silent(duration=100)
-
-    translation_audio_text, _ = split_translation_and_transliteration(fluent_translation)
-    translation_audio_text = (translation_audio_text or fluent_translation).strip()
-
-    tasks = []
-    segment_texts: Dict[str, str] = {}
-
-    def enqueue(key: str, text: str, lang_code: str) -> None:
-        tasks.append((key, text, lang_code))
-        segment_texts[key] = text
-
-    target_lang_code = _lang_code(target_language)
-    source_lang_code = _lang_code(input_language)
-
-    numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
-
-    if audio_mode == "1":
-        enqueue("translation", translation_audio_text, target_lang_code)
-        sequence = ["translation"]
-    elif audio_mode == "2":
-        enqueue("number", numbering_str, "en")
-        enqueue("translation", translation_audio_text, target_lang_code)
-        sequence = ["number", "translation"]
-    elif audio_mode == "3":
-        enqueue("number", numbering_str, "en")
-        enqueue("input", input_sentence, source_lang_code)
-        enqueue("translation", translation_audio_text, target_lang_code)
-        sequence = ["number", "input", "translation"]
-    elif audio_mode == "4":
-        enqueue("input", input_sentence, source_lang_code)
-        enqueue("translation", translation_audio_text, target_lang_code)
-        sequence = ["input", "translation"]
-    elif audio_mode == "5":
-        enqueue("input", input_sentence, source_lang_code)
-        sequence = ["input"]
-    else:
-        enqueue("input", input_sentence, source_lang_code)
-        enqueue("translation", translation_audio_text, target_lang_code)
-        sequence = ["input", "translation"]
-
-    if not tasks:
-        return change_audio_tempo(AudioSegment.silent(duration=0), tempo)
-
-    worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
-    segments = {}
-
-    if worker_count == 1:
-        for key, text, lang_code in tasks:
-            segments[key] = synthesize_segment(text, lang_code, selected_voice, macos_reading_speed)
-    else:
-        with ThreadPoolExecutor(max_workers=worker_count) as executor:
-            future_map = {
-                executor.submit(synthesize_segment, text, lang_code, selected_voice, macos_reading_speed): key
-                for key, text, lang_code in tasks
-            }
-            for future in as_completed(future_map):
-                key = future_map[future]
-                try:
-                    segments[key] = future.result()
-                except Exception as exc:  # pragma: no cover - defensive
-                    logger.error("Audio synthesis failed for segment '%s': %s", key, exc)
-                    segments[key] = AudioSegment.silent(duration=0)
-
-    audio = AudioSegment.silent(duration=0)
-    for key in sequence:
-        audio += segments.get(key, AudioSegment.silent(duration=0)) + silence
-
-    tempo_adjusted = change_audio_tempo(audio, tempo)
-    try:
-        metadata = _compute_audio_highlight_metadata(
-            tempo_adjusted, sequence, segments, tempo, segment_texts
-        )
-        _store_audio_metadata(tempo_adjusted, metadata)
-    except Exception:  # pragma: no cover - metadata attachment best effort
-        logger.debug("Failed to compute audio metadata for sentence %s", sentence_number)
-
-    return tempo_adjusted
+    synthesizer = audio_synthesizer or get_audio_synthesizer()
+    return synthesizer.synthesize_sentence(
+        sentence_number,
+        input_sentence,
+        fluent_translation,
+        input_language,
+        target_language,
+        audio_mode,
+        total_sentences,
+        language_codes,
+        selected_voice,
+        tempo,
+        macos_reading_speed,
+    )
 
 
 def _media_worker(
@@ -162,9 +96,11 @@ def _media_worker(
     generate_audio: bool,
     stop_event: Optional[threading.Event] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
+    audio_synthesizer: AudioSynthesizer | None = None,
 ) -> None:
     """Delegate media processing to the shared :class:`AudioWorker`."""
 
+    synthesizer = audio_synthesizer or get_audio_synthesizer()
     worker = AudioWorker(
         name,
         task_queue,
@@ -179,7 +115,7 @@ def _media_worker(
         generate_audio=generate_audio,
         audio_stop_event=stop_event,
         progress_tracker=progress_tracker,
-        audio_generator=generate_audio_for_sentence,
+        audio_generator=synthesizer.synthesize_sentence,
         media_result_factory=MediaPipelineResult,
     )
     worker.run()
@@ -200,6 +136,7 @@ def start_media_pipeline(
     queue_size: Optional[int] = None,
     stop_event: Optional[threading.Event] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
+    audio_synthesizer: AudioSynthesizer | None = None,
 ) -> Tuple[Queue[Optional[MediaPipelineResult]], List[threading.Thread]]:
     """Start consumer threads that transform translations into media artifacts."""
 
@@ -217,10 +154,69 @@ def start_media_pipeline(
         queue_size=queue_size,
         audio_stop_event=stop_event,
         progress_tracker=progress_tracker,
-        audio_generator=generate_audio_for_sentence,
+        audio_synthesizer=audio_synthesizer,
         media_result_factory=MediaPipelineResult,
     )
     return orchestrator.start()
+
+
+def render_video_slides(
+    text_blocks: Sequence[str],
+    audio_segments: Sequence[AudioSegment],
+    output_dir: str,
+    batch_start: int,
+    batch_end: int,
+    base_no_ext: str,
+    cover_img: Optional[Image.Image],
+    book_author: str,
+    book_title: str,
+    cumulative_word_counts: Sequence[int],
+    total_word_count: int,
+    macos_reading_speed: int,
+    input_language: str,
+    total_sentences: int,
+    tempo: float,
+    sync_ratio: float,
+    word_highlighting: bool,
+    highlight_granularity: str,
+    slide_render_options: Optional[object] = None,
+    cleanup: bool = True,
+    slide_size: Sequence[int] = (1280, 720),
+    initial_font_size: int = 60,
+    bg_color: Optional[Sequence[int]] = None,
+    template_name: Optional[str] = None,
+    *,
+    video_renderer: VideoRenderer | None = None,
+) -> str:
+    """Render video slides using the configured renderer backend."""
+
+    renderer = video_renderer or get_video_renderer()
+    return renderer.render_slides(
+        text_blocks,
+        audio_segments,
+        output_dir,
+        batch_start,
+        batch_end,
+        base_no_ext,
+        cover_img,
+        book_author,
+        book_title,
+        cumulative_word_counts,
+        total_word_count,
+        macos_reading_speed,
+        input_language,
+        total_sentences,
+        tempo,
+        sync_ratio,
+        word_highlighting,
+        highlight_granularity,
+        slide_render_options=slide_render_options,
+        cleanup=cleanup,
+        slide_size=slide_size,
+        initial_font_size=initial_font_size,
+        bg_color=bg_color,
+        template_name=template_name,
+    )
 
 
 def generate_video_slides_ffmpeg(
@@ -242,140 +238,49 @@ def generate_video_slides_ffmpeg(
     sync_ratio: float,
     word_highlighting: bool,
     highlight_granularity: str,
-    slide_render_options: Optional[SlideRenderOptions] = None,
+    slide_render_options: Optional[object] = None,
     cleanup: bool = True,
     slide_size: Sequence[int] = (1280, 720),
     initial_font_size: int = 60,
     bg_color: Optional[Sequence[int]] = None,
     template_name: Optional[str] = None,
+    *,
+    video_renderer: VideoRenderer | None = None,
 ) -> str:
-    """Stitch sentence-level videos together for a batch of slides."""
+    """Backward-compatible wrapper around :func:`render_video_slides`."""
 
-    logger.info("Generating video slide set for sentences %s to %s...", batch_start, batch_end)
-    sentence_video_files: List[str] = []
-    tasks = list(enumerate(zip(text_blocks, audio_segments)))
-    worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
-    ordered_results: List[Optional[str]] = [None] * len(tasks)
-
-    def _render_sentence(index: int, block: str, audio_seg: AudioSegment) -> str:
-        sentence_number = batch_start + index
-        words_processed = cumulative_word_counts[sentence_number - 1]
-        remaining_words = total_word_count - words_processed
-        if macos_reading_speed > 0:
-            est_seconds = int(remaining_words * 60 / macos_reading_speed)
-        else:
-            est_seconds = 0
-        hours = est_seconds // 3600
-        minutes = (est_seconds % 3600) // 60
-        seconds = est_seconds % 60
-        remaining_time_str = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
-        header_tokens = block.split("\n")[0].split(" - ")
-        target_lang = header_tokens[0].strip() if header_tokens else ""
-        progress_percentage = (sentence_number / total_sentences) * 100 if total_sentences else 0
-        header_info = (
-            f"Book: {book_title} | Author: {book_author}\n"
-            f"Source Language: {input_language} | Target: {target_lang} | Speed: {tempo}\n"
-            f"Sentence: {sentence_number}/{total_sentences} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}"
-        )
-
-        local_cover = cover_img.copy() if cover_img else None
-
-        timeline_result = timeline.build(
-            block,
-            audio_seg,
-            timeline.TimelineBuildOptions(
-                sync_ratio=sync_ratio,
-                word_highlighting=word_highlighting,
-                highlight_granularity=highlight_granularity,
-            ),
-        )
-
-        return build_sentence_video(
-            block,
-            audio_seg,
-            sentence_number,
-            sync_ratio=sync_ratio,
-            word_highlighting=word_highlighting,
-            highlight_events=timeline_result.events,
-            highlight_granularity=timeline_result.effective_granularity,
-            slide_size=slide_size,
-            initial_font_size=initial_font_size,
-            bg_color=bg_color,
-            cover_img=local_cover,
-            header_info=header_info,
-            render_options=slide_render_options,
-            template_name=template_name,
-        )
-
-    if worker_count == 1:
-        for idx, (block, audio_seg) in tasks:
-            try:
-                ordered_results[idx] = _render_sentence(idx, block, audio_seg)
-            except Exception as exc:  # pylint: disable=broad-except
-                logger.error("Error generating sentence video for sentence %s: %s", batch_start + idx, exc)
-    else:
-        with ThreadPoolExecutor(max_workers=worker_count) as executor:
-            future_map = {
-                executor.submit(_render_sentence, idx, block, audio_seg): idx
-                for idx, (block, audio_seg) in tasks
-            }
-            for future in as_completed(future_map):
-                idx = future_map[future]
-                try:
-                    ordered_results[idx] = future.result()
-                except Exception as exc:  # pylint: disable=broad-except
-                    logger.error("Error generating sentence video for sentence %s: %s", batch_start + idx, exc)
-
-    sentence_video_files.extend(path for path in ordered_results if path)
-
-    range_fragment = output_formatter.format_sentence_range(
-        batch_start, batch_end, total_sentences
+    return render_video_slides(
+        text_blocks,
+        audio_segments,
+        output_dir,
+        batch_start,
+        batch_end,
+        base_no_ext,
+        cover_img,
+        book_author,
+        book_title,
+        cumulative_word_counts,
+        total_word_count,
+        macos_reading_speed,
+        input_language,
+        total_sentences,
+        tempo,
+        sync_ratio,
+        word_highlighting,
+        highlight_granularity,
+        slide_render_options=slide_render_options,
+        cleanup=cleanup,
+        slide_size=slide_size,
+        initial_font_size=initial_font_size,
+        bg_color=bg_color,
+        template_name=template_name,
+        video_renderer=video_renderer,
     )
-    concat_list_path = os.path.join(output_dir, f"concat_{range_fragment}.txt")
-    with open(concat_list_path, "w", encoding="utf-8") as f:
-        for video_file in sentence_video_files:
-            f.write(f"file '{video_file}'\n")
-
-    final_video_path = os.path.join(output_dir, f"{range_fragment}_{base_no_ext}.mp4")
-    cmd_concat = [
-        "ffmpeg",
-        "-loglevel",
-        "quiet",
-        "-y",
-        "-f",
-        "concat",
-        "-safe",
-        "0",
-        "-i",
-        concat_list_path,
-        "-c",
-        "copy",
-        final_video_path,
-    ]
-    try:
-        result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if result.returncode != 0:
-            logger.error("FFmpeg final concat error: %s", result.stderr.decode())
-            raise subprocess.CalledProcessError(result.returncode, cmd_concat)
-    except subprocess.CalledProcessError as exc:
-        logger.error("Error concatenating sentence slides: %s", exc)
-    finally:
-        if os.path.exists(concat_list_path):
-            os.remove(concat_list_path)
-
-    logger.info("Final stitched video slide output saved to: %s", final_video_path)
-
-    if cleanup:
-        for video_file in sentence_video_files:
-            if os.path.exists(video_file):
-                os.remove(video_file)
-        # The shared silence clip is reused across batches, so we keep it on disk.
-
-    return final_video_path
 
 
 __all__ = [
     "change_audio_tempo",
     "generate_audio_for_sentence",
+    "render_video_slides",
     "generate_video_slides_ffmpeg",
 ]

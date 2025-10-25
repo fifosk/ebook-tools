@@ -22,6 +22,7 @@ from modules import config_manager as cfg
 from modules.config.loader import RenderingConfig, get_rendering_config
 
 from .audio_pipeline import AudioGenerator, AudioWorker
+from .backends import AudioSynthesizer, get_audio_synthesizer
 from .context import MediaType, RenderBatchContext
 from .manifest import RenderManifest, RenderTask
 
@@ -110,6 +111,7 @@ class MediaBatchOrchestrator:
         audio_stop_event: Optional[threading.Event] = None,
         progress_tracker: Optional["ProgressTracker"] = None,
         audio_generator: Optional[AudioGenerator] = None,
+        audio_synthesizer: Optional[AudioSynthesizer] = None,
         media_result_factory: Optional[Callable[..., "MediaPipelineResult"]] = None,
         audio_worker_cls: Type[AudioWorker] = AudioWorker,
         batch_context: Optional[RenderBatchContext] = None,
@@ -119,7 +121,18 @@ class MediaBatchOrchestrator:
         self.queue_size = queue_size
         self.audio_stop_event = audio_stop_event or threading.Event()
         self.progress_tracker = progress_tracker
-        self.audio_generator = audio_generator
+        if audio_generator and audio_synthesizer:
+            raise ValueError("Provide either audio_generator or audio_synthesizer, not both")
+        if audio_generator is not None:
+            self._audio_callable = audio_generator
+            self.audio_synthesizer = None
+        else:
+            synthesizer = audio_synthesizer or get_audio_synthesizer()
+            self.audio_synthesizer = synthesizer
+            self._audio_callable = (
+                synthesizer.synthesize_sentence if synthesizer is not None else None
+            )
+        self.audio_generator = self._audio_callable
         if media_result_factory is None:
             raise ValueError("media_result_factory must be provided for audio workers")
         self.media_result_factory = media_result_factory
@@ -168,7 +181,7 @@ class MediaBatchOrchestrator:
                 media_result_factory=self.media_result_factory,
                 audio_stop_event=self.audio_stop_event,
                 progress_tracker=self.progress_tracker,
-                audio_generator=self.audio_generator,
+                audio_generator=self._audio_callable,
             )
             thread = threading.Thread(
                 target=self._thread_target,

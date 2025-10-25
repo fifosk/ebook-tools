@@ -161,6 +161,7 @@ if str(project_root) not in sys.path:
 from modules.audio import highlight
 from modules.audio.tts import SILENCE_DURATION_MS
 from modules.audio_video_generator import generate_audio_for_sentence
+from modules.render.backends.polly import PollyAudioSynthesizer
 from modules.core.translation import split_translation_and_transliteration
 
 
@@ -188,7 +189,9 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         setattr(segment, "character_timing", timings)
         return segment
 
-    monkeypatch.setattr("modules.audio_video_generator.synthesize_segment", fake_synthesize)
+    monkeypatch.setattr("modules.render.backends.polly.synthesize_segment", fake_synthesize)
+
+    synthesizer = PollyAudioSynthesizer()
 
     audio = generate_audio_for_sentence(
         sentence_number=1,
@@ -202,6 +205,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         selected_voice="gTTS",
         tempo=1.0,
         macos_reading_speed=180,
+        audio_synthesizer=synthesizer,
     )
 
     metadata = highlight._get_audio_metadata(audio)

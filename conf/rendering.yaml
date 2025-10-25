@@ -3,3 +3,5 @@
 video_concurrency: 2
 audio_concurrency: 4
 text_concurrency: 4
+video_backend: ffmpeg
+audio_backend: polly
