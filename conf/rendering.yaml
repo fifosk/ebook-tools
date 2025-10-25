@@ -1,0 +1,5 @@
+# Default concurrency limits for rendering pipelines.
+# These values can be tuned per deployment to balance throughput and resource usage.
+video_concurrency: 2
+audio_concurrency: 4
+text_concurrency: 4
