@@ -401,10 +401,20 @@ class PipelineService:
 
         return self._job_manager.submit(request, user_id=user_id, user_role=user_role)
 
-    def get_job(self, job_id: str) -> "PipelineJob":
+    def get_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Return the job associated with ``job_id``."""
 
-        return self._job_manager.get(job_id)
+        return self._job_manager.get(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
     def list_jobs(
         self,
@@ -416,32 +426,82 @@ class PipelineService:
 
         return self._job_manager.list(user_id=user_id, user_role=user_role)
 
-    def pause_job(self, job_id: str) -> "PipelineJob":
+    def pause_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Pause the specified job and return the updated handle."""
 
-        return self._job_manager.pause_job(job_id)
+        return self._job_manager.pause_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
-    def resume_job(self, job_id: str) -> "PipelineJob":
+    def resume_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Resume the specified job and return the updated handle."""
 
-        return self._job_manager.resume_job(job_id)
+        return self._job_manager.resume_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
-    def cancel_job(self, job_id: str) -> "PipelineJob":
+    def cancel_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Cancel the specified job and return the updated handle."""
 
-        return self._job_manager.cancel_job(job_id)
+        return self._job_manager.cancel_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
-    def delete_job(self, job_id: str) -> "PipelineJob":
+    def delete_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Delete the specified job from persistence and return its final snapshot."""
 
-        return self._job_manager.delete_job(job_id)
+        return self._job_manager.delete_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
     def run_sync(self, request: PipelineRequest) -> PipelineResponse:
         """Execute ``request`` synchronously and return the pipeline response."""
 
         return run_pipeline(request)
 
-    def refresh_metadata(self, job_id: str) -> "PipelineJob":
+    def refresh_metadata(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
         """Force-refresh metadata for the specified job and return the updated handle."""
 
-        return self._job_manager.refresh_metadata(job_id)
+        return self._job_manager.refresh_metadata(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )

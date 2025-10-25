@@ -230,15 +230,23 @@ async def submit_pipeline(
 async def refresh_pipeline_metadata(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Trigger metadata inference again for ``job_id`` and return the updated status."""
 
     try:
-        job = pipeline_service.refresh_metadata(job_id)
+        job = pipeline_service.refresh_metadata(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return PipelineStatusResponse.from_job(job)
 
@@ -247,25 +255,38 @@ async def refresh_pipeline_metadata(
 async def get_pipeline_status(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Return the latest status for the requested job."""
 
     try:
-        job = pipeline_service.get_job(job_id)
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return PipelineStatusResponse.from_job(job)
 
 
 def _handle_job_action(
     job_id: str,
-    action: Callable[[str], PipelineJob],
+    action: Callable[..., PipelineJob],
+    *,
+    user_id: str | None = None,
+    user_role: str | None = None,
 ) -> PipelineJobActionResponse:
     try:
-        job = action(job_id)
+        job = action(job_id, user_id=user_id, user_role=user_role)
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     except PipelineJobTransitionError as exc:
         return _build_action_response(exc.job, error=str(exc))
     return _build_action_response(job)
@@ -275,40 +296,68 @@ def _handle_job_action(
 async def pause_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Pause the specified job if possible."""
 
-    return _handle_job_action(job_id, pipeline_service.pause_job)
+    return _handle_job_action(
+        job_id,
+        pipeline_service.pause_job,
+        user_id=user_id,
+        user_role=user_role,
+    )
 
 
 @router.post("/jobs/{job_id}/resume", response_model=PipelineJobActionResponse)
 async def resume_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Resume a paused job."""
 
-    return _handle_job_action(job_id, pipeline_service.resume_job)
+    return _handle_job_action(
+        job_id,
+        pipeline_service.resume_job,
+        user_id=user_id,
+        user_role=user_role,
+    )
 
 
 @router.post("/jobs/{job_id}/cancel", response_model=PipelineJobActionResponse)
 async def cancel_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Cancel a running or pending job."""
 
-    return _handle_job_action(job_id, pipeline_service.cancel_job)
+    return _handle_job_action(
+        job_id,
+        pipeline_service.cancel_job,
+        user_id=user_id,
+        user_role=user_role,
+    )
 
 
 @router.post("/jobs/{job_id}/delete", response_model=PipelineJobActionResponse)
 async def delete_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Delete persisted metadata for a job."""
 
-    return _handle_job_action(job_id, pipeline_service.delete_job)
+    return _handle_job_action(
+        job_id,
+        pipeline_service.delete_job,
+        user_id=user_id,
+        user_role=user_role,
+    )
 
 
 async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
@@ -338,13 +387,21 @@ async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
 async def stream_pipeline_events(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
 ):
     """Stream progress events for ``job_id`` as Server-Sent Events."""
 
     try:
-        job = pipeline_service.get_job(job_id)
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     generator = _event_stream(job)
     return StreamingResponse(generator, media_type="text/event-stream")

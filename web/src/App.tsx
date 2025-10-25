@@ -74,6 +74,7 @@ export function App() {
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const isAuthenticated = Boolean(session);
   const sessionUser = session?.user ?? null;
+  const sessionUsername = sessionUser?.username ?? null;
   const isAdmin = sessionUser?.role === 'admin';
 
   const handleLogin = useCallback(
@@ -305,6 +306,15 @@ export function App() {
 
   const performJobAction = useCallback(
     async (jobId: string, action: JobAction) => {
+      const entry = jobs[jobId];
+      const owner = typeof entry?.status?.user_id === 'string' ? entry.status.user_id : null;
+      const canManage = Boolean(
+        isAdmin || !owner || (sessionUsername && owner === sessionUsername)
+      );
+      if (!entry || !canManage) {
+        console.warn(`Skipping ${action} for unauthorized job`, jobId);
+        return;
+      }
       setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
       let response: PipelineStatusResponse | null = null;
       let errorMessage: string | null = null;
@@ -370,7 +380,7 @@ export function App() {
         await refreshJobs();
       }
     },
-    [refreshJobs]
+    [isAdmin, jobs, refreshJobs, sessionUsername]
   );
 
   const handlePauseJob = useCallback(
@@ -410,14 +420,21 @@ export function App() {
   );
 
   const jobList: JobState[] = useMemo(() => {
-    return Object.entries(jobs).map(([jobId, entry]) => ({
-      jobId,
-      status: entry.status,
-      latestEvent: entry.latestEvent,
-      isReloading: Boolean(reloadingJobs[jobId]),
-      isMutating: Boolean(mutatingJobs[jobId])
-    }));
-  }, [jobs, mutatingJobs, reloadingJobs]);
+    return Object.entries(jobs).map(([jobId, entry]) => {
+      const owner = typeof entry.status?.user_id === 'string' ? entry.status.user_id : null;
+      const canManage = Boolean(
+        isAdmin || !owner || (sessionUsername && owner === sessionUsername)
+      );
+      return {
+        jobId,
+        status: entry.status,
+        latestEvent: entry.latestEvent,
+        isReloading: Boolean(reloadingJobs[jobId]),
+        isMutating: Boolean(mutatingJobs[jobId]),
+        canManage
+      };
+    });
+  }, [isAdmin, jobs, mutatingJobs, reloadingJobs, sessionUsername]);
 
   const sortedJobs = useMemo(() => {
     return [...jobList].sort((a, b) => {
@@ -426,6 +443,10 @@ export function App() {
       return right - left;
     });
   }, [jobList]);
+
+  const sidebarJobs = useMemo(() => {
+    return sortedJobs.filter((job) => job.canManage);
+  }, [sortedJobs]);
 
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
   const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
@@ -440,7 +461,11 @@ export function App() {
     if (isPipelineView || isAdminView) {
       return undefined;
     }
-    return jobList.find((job) => job.jobId === selectedView);
+    const job = jobList.find((entry) => entry.jobId === selectedView);
+    if (job && !job.canManage) {
+      return undefined;
+    }
+    return job;
   }, [isAdminView, isPipelineView, jobList, selectedView]);
 
   const displayName = useMemo(() => {
@@ -542,9 +567,9 @@ export function App() {
           </details>
           <details className="sidebar__section" open>
             <summary>Tracked jobs</summary>
-            {sortedJobs.length > 0 ? (
+            {sidebarJobs.length > 0 ? (
               <ul className="sidebar__list">
-                {sortedJobs.map((job) => {
+                {sidebarJobs.map((job) => {
                   const statusValue = job.status?.status ?? 'pending';
                   return (
                     <li key={job.jobId}>
@@ -565,7 +590,7 @@ export function App() {
                 })}
               </ul>
             ) : (
-              <p className="sidebar__empty">No persisted jobs yet.</p>
+              <p className="sidebar__empty">No accessible jobs yet.</p>
             )}
           </details>
           {isAdmin ? (
@@ -694,16 +719,16 @@ export function App() {
                 />
               </section>
             ) : null}
-            {activePipelineSection === 'submit' && sortedJobs.length > 0 ? (
+            {activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
               <section>
                 <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
                 <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
               </section>
             ) : null}
-            {sortedJobs.length === 0 ? (
+            {sidebarJobs.length === 0 ? (
               <section>
                 <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
-                <p style={{ marginBottom: 0 }}>No persisted jobs yet. Submit a pipeline request to get started.</p>
+                <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
               </section>
             ) : null}
             {selectedJob ? (
@@ -720,6 +745,7 @@ export function App() {
                   onReload={() => handleReloadJob(selectedJob.jobId)}
                   isReloading={selectedJob.isReloading}
                   isMutating={selectedJob.isMutating}
+                  canManage={selectedJob.canManage}
                 />
               </section>
             ) : null}

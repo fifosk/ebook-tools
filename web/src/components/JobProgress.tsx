@@ -21,6 +21,7 @@ type Props = {
   onReload: () => void;
   isReloading?: boolean;
   isMutating?: boolean;
+  canManage: boolean;
 };
 
 function formatDate(value: string | null | undefined): string {
@@ -218,7 +219,8 @@ export function JobProgress({
   onDelete,
   onReload,
   isReloading = false,
-  isMutating = false
+  isMutating = false,
+  canManage
 }: Props) {
   const statusValue = status?.status ?? 'pending';
   const isTerminal = useMemo(() => {
@@ -356,10 +358,10 @@ export function JobProgress({
       })
     : false;
 
-  const canPause = !isTerminal && statusValue !== 'paused';
-  const canResume = statusValue === 'paused';
-  const canCancel = !isTerminal;
-  const canDelete = isTerminal;
+  const canPause = canManage && !isTerminal && statusValue !== 'paused';
+  const canResume = canManage && statusValue === 'paused';
+  const canCancel = canManage && !isTerminal;
+  const canDelete = canManage && isTerminal;
 
   return (
     <div className="job-card" aria-live="polite">
@@ -503,7 +505,7 @@ export function JobProgress({
           type="button"
           className="link-button"
           onClick={onReload}
-          disabled={isReloading || isMutating}
+          disabled={!canManage || isReloading || isMutating}
           aria-busy={isReloading || isMutating}
           style={{ marginTop: '0.5rem' }}
         >

@@ -8,6 +8,7 @@ export interface JobState {
   latestEvent?: ProgressEventPayload;
   isReloading: boolean;
   isMutating: boolean;
+  canManage: boolean;
 }
 
 type Props = {
@@ -77,6 +78,7 @@ export function JobList({
                   onReload={() => onReloadJob(job.jobId)}
                   isReloading={job.isReloading}
                   isMutating={job.isMutating}
+                  canManage={job.canManage}
                 />
               </details>
             );

@@ -102,7 +102,7 @@ def test_restore_pauses_inflight_jobs(job_manager_factory):
     restored = store.get(metadata.job_id)
     assert restored.status == PipelineJobStatus.PAUSED
 
-    job = manager.get(metadata.job_id)
+    job = manager.get(metadata.job_id, user_id="user", user_role="user")
     assert job.status == PipelineJobStatus.PAUSED
 
 
@@ -112,7 +112,7 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
 
     manager = job_manager_factory(store)
 
-    job = manager.get(metadata.job_id)
+    job = manager.get(metadata.job_id, user_id="user", user_role="user")
     job.status = PipelineJobStatus.RUNNING
     job.last_event = ProgressEvent(
         event_type="progress",
@@ -122,7 +122,11 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
     )
     manager._jobs[metadata.job_id] = job
 
-    paused = manager.pause_job(metadata.job_id)
+    paused = manager.pause_job(
+        metadata.job_id,
+        user_id="user",
+        user_role="user",
+    )
     assert paused.status == PipelineJobStatus.PAUSED
     assert store.get(metadata.job_id).status == PipelineJobStatus.PAUSED
     paused_inputs = paused.resume_context["inputs"]
@@ -130,12 +134,20 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
     assert paused_inputs["resume_block_start"] == 11
     assert paused_inputs["resume_last_sentence"] == 12
 
-    resumed = manager.resume_job(metadata.job_id)
+    resumed = manager.resume_job(
+        metadata.job_id,
+        user_id="user",
+        user_role="user",
+    )
     assert resumed.status == PipelineJobStatus.PENDING
     assert store.get(metadata.job_id).status == PipelineJobStatus.PENDING
     assert resumed.request_payload["inputs"]["start_sentence"] == 11
 
-    cancelled = manager.cancel_job(metadata.job_id)
+    cancelled = manager.cancel_job(
+        metadata.job_id,
+        user_id="user",
+        user_role="user",
+    )
     assert cancelled.status == PipelineJobStatus.CANCELLED
     stored = store.get(metadata.job_id)
     assert stored.status == PipelineJobStatus.CANCELLED

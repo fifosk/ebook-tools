@@ -85,12 +85,46 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
     expect(screen.getByText(/Latest progress/i)).toBeInTheDocument();
     expect(screen.getByText(/10 /)).toBeInTheDocument();
     expect(screen.getByText(/2.00 items/)).toBeInTheDocument();
+  });
+
+  it('hides job action buttons when the session cannot manage the job', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-unauthorized',
+      status: 'running',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: null,
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: null
+    };
+
+    render(
+      <JobProgress
+        jobId="job-unauthorized"
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+        canManage={false}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: /pause/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
   it('renders metadata when present and enables reload control', () => {
@@ -126,6 +160,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -170,6 +205,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -209,6 +245,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -252,6 +289,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -306,6 +344,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -356,6 +395,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -390,6 +430,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -433,6 +474,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -479,6 +521,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 
@@ -519,6 +562,7 @@ describe('JobProgress', () => {
         onCancel={vi.fn()}
         onDelete={vi.fn()}
         onReload={vi.fn()}
+        canManage={true}
       />
     );
 

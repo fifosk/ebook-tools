@@ -7,6 +7,7 @@ from typing import Callable
 import pytest
 
 from modules.services.job_manager import manager as manager_module
+from modules.services.job_manager.job import PipelineJobStatus
 from modules.services.job_manager.manager import PipelineJobManager
 from modules.services.job_manager.stores import InMemoryJobStore
 from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineService
@@ -95,5 +96,36 @@ def test_list_jobs_respects_role_visibility(tmp_path: Path) -> None:
         stored = store.list()
         assert stored[alice_job.job_id].user_id == "alice"
         assert stored[alice_job.job_id].user_role == "editor"
+    finally:
+        manager._executor.shutdown()
+
+
+def test_job_actions_require_authorisation(tmp_path: Path) -> None:
+    store = InMemoryJobStore()
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: _DummyWorkerPool(),
+    )
+    service = PipelineService(manager)
+
+    try:
+        job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
+        job.status = PipelineJobStatus.RUNNING
+        manager._jobs[job.job_id] = job
+
+        with pytest.raises(PermissionError):
+            service.pause_job(job.job_id, user_id="bob", user_role="viewer")
+
+        paused = service.pause_job(job.job_id, user_id="admin", user_role="admin")
+        assert paused.status == PipelineJobStatus.PAUSED
+
+        other_job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
+
+        with pytest.raises(PermissionError):
+            service.delete_job(other_job.job_id, user_id="carol", user_role="viewer")
+
+        deleted = service.delete_job(other_job.job_id, user_id="admin", user_role="admin")
+        assert deleted.job_id == other_job.job_id
     finally:
         manager._executor.shutdown()
