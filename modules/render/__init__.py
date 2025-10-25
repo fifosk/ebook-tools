@@ -4,6 +4,7 @@ from .context import RenderBatchContext
 from .manifest import RenderManifest, RenderTask
 from .parallel import MediaBatchOrchestrator
 from .audio_pipeline import AudioWorker, VideoWorker, TextWorker
+from .output_writer import DeferredBatchWriter
 
 __all__ = [
     "MediaBatchOrchestrator",
@@ -13,4 +14,5 @@ __all__ = [
     "RenderBatchContext",
     "RenderManifest",
     "RenderTask",
+    "DeferredBatchWriter",
 ]
