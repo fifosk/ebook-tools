@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional
+from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Header, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -34,6 +34,7 @@ from .schemas import (
 )
 
 router = APIRouter()
+storage_router = APIRouter()
 
 
 def _format_relative_path(path: Path, root: Path) -> str:
@@ -587,3 +588,140 @@ async def stream_pipeline_events(
 
     generator = _event_stream(job)
     return StreamingResponse(generator, media_type="text/event-stream")
+
+
+class _RangeParseError(Exception):
+    """Raised when the supplied Range header cannot be satisfied."""
+
+
+def _parse_byte_range(range_value: str, file_size: int) -> Tuple[int, int]:
+    """Return the inclusive byte range requested by ``range_value``.
+
+    ``range_value`` must follow the ``bytes=start-end`` syntax. Only a single range is
+    supported and the resulting indices are clamped to the available file size. A
+    :class:`_RangeParseError` is raised when the header is malformed or does not
+    overlap the file contents.
+    """
+
+    if file_size <= 0:
+        raise _RangeParseError
+
+    if not range_value.startswith("bytes="):
+        raise _RangeParseError
+
+    raw_spec = range_value[len("bytes=") :].strip()
+    if "," in raw_spec:
+        raise _RangeParseError
+
+    if "-" not in raw_spec:
+        raise _RangeParseError
+
+    start_token, end_token = raw_spec.split("-", 1)
+
+    if not start_token:
+        # suffix-byte-range-spec: bytes=-N
+        if not end_token.isdigit():
+            raise _RangeParseError
+        length = int(end_token)
+        if length <= 0:
+            raise _RangeParseError
+        start = max(file_size - length, 0)
+        end = file_size - 1
+    else:
+        if not start_token.isdigit():
+            raise _RangeParseError
+        start = int(start_token)
+        if start >= file_size:
+            raise _RangeParseError
+
+        if end_token:
+            if not end_token.isdigit():
+                raise _RangeParseError
+            end = int(end_token)
+            if end < start:
+                raise _RangeParseError
+            end = min(end, file_size - 1)
+        else:
+            end = file_size - 1
+
+    return start, end
+
+
+def _iter_file_chunks(path: Path, start: int, end: int) -> Iterator[bytes]:
+    """Yield chunks from ``path`` between ``start`` and ``end`` (inclusive)."""
+
+    chunk_size = 1 << 16
+    total = max(end - start + 1, 0)
+    if total <= 0:
+        return
+
+    with path.open("rb") as stream:
+        stream.seek(start)
+        remaining = total
+        while remaining > 0:
+            chunk = stream.read(min(chunk_size, remaining))
+            if not chunk:
+                break
+            remaining -= len(chunk)
+            yield chunk
+
+
+@storage_router.get("/jobs/{job_id}/files/{filename:path}")
+async def download_job_file(
+    job_id: str,
+    filename: str,
+    file_locator: FileLocator = Depends(get_file_locator),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Stream the requested job file supporting optional byte ranges."""
+
+    try:
+        resolved_path = file_locator.resolve_path(job_id, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+
+    if not resolved_path.exists() or not resolved_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    try:
+        stat_result = resolved_path.stat()
+    except OSError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+
+    file_size = int(stat_result.st_size)
+
+    if range_header:
+        try:
+            start, end = _parse_byte_range(range_header, file_size)
+        except _RangeParseError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_416_REQUESTED_RANGE_NOT_SATISFIABLE,
+                detail="Requested range not satisfiable",
+                headers={"Content-Range": f"bytes */{file_size}"},
+            ) from exc
+        status_code = status.HTTP_206_PARTIAL_CONTENT
+        headers = {
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Accept-Ranges": "bytes",
+        }
+    else:
+        start = 0
+        end = file_size - 1 if file_size > 0 else -1
+        status_code = status.HTTP_200_OK
+        headers = {"Accept-Ranges": "bytes"}
+
+    content_length = max(end - start + 1, 0)
+    headers["Content-Length"] = str(content_length)
+    headers["Content-Disposition"] = f'attachment; filename="{resolved_path.name}"'
+
+    body_iterator = _iter_file_chunks(resolved_path, start, end)
+    response = StreamingResponse(
+        body_iterator,
+        status_code=status_code,
+        media_type="application/octet-stream",
+        headers=headers,
+    )
+    return response
+
+
+__all__ = ["router", "storage_router"]
