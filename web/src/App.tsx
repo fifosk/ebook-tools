@@ -15,6 +15,9 @@ import {
 } from './api/client';
 import { useTheme } from './components/ThemeProvider';
 import type { ThemeMode } from './components/ThemeProvider';
+import { useAuth } from './components/AuthProvider';
+import LoginForm from './components/LoginForm';
+import ChangePasswordForm from './components/ChangePasswordForm';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
@@ -51,6 +54,7 @@ const PIPELINE_SETTINGS: Array<{ key: PipelineMenuView; label: string }> = [
 ];
 
 export function App() {
+  const { session, isLoading: isAuthLoading, logoutReason, login, logout, updatePassword } = useAuth();
   const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -58,9 +62,72 @@ export function App() {
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showChangePassword, setShowChangePassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
+  const isAuthenticated = Boolean(session);
+
+  const handleLogin = useCallback(
+    async (username: string, password: string) => {
+      setIsLoggingIn(true);
+      setAuthError(null);
+      try {
+        await login(username, password);
+      } catch (error) {
+        setAuthError(error instanceof Error ? error.message : 'Unable to sign in.');
+      } finally {
+        setIsLoggingIn(false);
+      }
+    },
+    [login]
+  );
+
+  const handleLogout = useCallback(async () => {
+    setShowChangePassword(false);
+    setPasswordError(null);
+    setPasswordMessage(null);
+    await logout();
+  }, [logout]);
+
+  const handlePasswordChange = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      setPasswordError(null);
+      setPasswordMessage(null);
+      setIsUpdatingPassword(true);
+      try {
+        await updatePassword(currentPassword, newPassword);
+        setPasswordMessage('Password updated successfully.');
+        setShowChangePassword(false);
+      } catch (error) {
+        setPasswordError(
+          error instanceof Error ? error.message : 'Unable to update password. Please try again.'
+        );
+      } finally {
+        setIsUpdatingPassword(false);
+      }
+    },
+    [updatePassword]
+  );
+
+  const toggleChangePassword = useCallback(() => {
+    setPasswordError(null);
+    setPasswordMessage(null);
+    setShowChangePassword((previous) => !previous);
+  }, []);
+
+  const handlePasswordCancel = useCallback(() => {
+    setShowChangePassword(false);
+    setPasswordError(null);
+  }, []);
 
   const refreshJobs = useCallback(async () => {
+    if (!session) {
+      return;
+    }
     try {
       const statuses = await fetchJobs();
       const knownJobIds = new Set(statuses.map((job) => job.job_id));
@@ -99,9 +166,17 @@ export function App() {
     } catch (error) {
       console.warn('Unable to load persisted jobs', error);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
+    if (!session) {
+      setJobs({});
+      setReloadingJobs({});
+      setMutatingJobs({});
+      setSelectedView('pipeline:source');
+      return;
+    }
+
     refreshJobs();
     const interval = window.setInterval(() => {
       void refreshJobs();
@@ -109,7 +184,7 @@ export function App() {
     return () => {
       window.clearInterval(interval);
     };
-  }, [refreshJobs]);
+  }, [refreshJobs, session]);
 
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
@@ -119,6 +194,12 @@ export function App() {
       setSelectedView('pipeline:submit');
     }
   }, [jobs, selectedView]);
+
+  useEffect(() => {
+    if (session) {
+      setAuthError(null);
+    }
+  }, [session]);
 
   const handleThemeChange = useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
@@ -353,6 +434,45 @@ export function App() {
     return jobList.find((job) => job.jobId === selectedView);
   }, [isPipelineView, jobList, selectedView]);
 
+  const lastLoginLabel = useMemo(() => {
+    if (!session?.user.last_login) {
+      return null;
+    }
+    try {
+      return new Date(session.user.last_login).toLocaleString();
+    } catch (error) {
+      console.warn('Unable to parse last login timestamp', error);
+      return session.user.last_login;
+    }
+  }, [session]);
+
+  if (isAuthLoading) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <p>Checking session…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="auth-screen">
+        <div className="auth-card">
+          <h1>ebook-tools pipeline dashboard</h1>
+          <p>Sign in to submit jobs and manage pipeline activity.</p>
+          <LoginForm
+            onSubmit={handleLogin}
+            isSubmitting={isLoggingIn}
+            error={authError}
+            notice={logoutReason}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`dashboard ${isSidebarOpen ? '' : 'dashboard--collapsed'}`}>
       <aside
@@ -422,29 +542,78 @@ export function App() {
       </aside>
       <main className="dashboard__main">
         <div className="dashboard__toolbar">
-          <div className="theme-control">
-            <label className="theme-control__label" htmlFor="theme-select">
-              Theme
-            </label>
-            <select id="theme-select" value={themeMode} onChange={handleThemeChange}>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="system">System</option>
-            </select>
-            {themeMode === 'system' ? (
-              <span className="theme-control__hint">Following {resolvedTheme} mode</span>
-            ) : null}
+          <div className="session-info">
+            <div className="session-info__details">
+              <span className="session-info__user">
+                Signed in as <strong>{session.user.username}</strong>
+              </span>
+              <span className="session-info__meta">
+                <span className="session-info__role">Role: {session.user.role}</span>
+                {lastLoginLabel ? (
+                  <span className="session-info__last-login">Last login: {lastLoginLabel}</span>
+                ) : null}
+              </span>
+            </div>
+            <div className="session-info__actions">
+              <button
+                type="button"
+                className="session-info__button"
+                onClick={toggleChangePassword}
+              >
+                {showChangePassword ? 'Hide password form' : 'Change password'}
+              </button>
+              <button
+                type="button"
+                className="session-info__button session-info__button--logout"
+                onClick={() => {
+                  void handleLogout();
+                }}
+              >
+                Log out
+              </button>
+            </div>
           </div>
-          <button
-            type="button"
-            className="sidebar-toggle"
-            onClick={() => setIsSidebarOpen((previous) => !previous)}
-            aria-expanded={isSidebarOpen}
-            aria-controls="dashboard-sidebar"
-          >
-            {isSidebarOpen ? 'Hide menu' : 'Show menu'}
-          </button>
+          <div className="toolbar-actions">
+            <div className="theme-control">
+              <label className="theme-control__label" htmlFor="theme-select">
+                Theme
+              </label>
+              <select id="theme-select" value={themeMode} onChange={handleThemeChange}>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+                <option value="system">System</option>
+              </select>
+              {themeMode === 'system' ? (
+                <span className="theme-control__hint">Following {resolvedTheme} mode</span>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="sidebar-toggle"
+              onClick={() => setIsSidebarOpen((previous) => !previous)}
+              aria-expanded={isSidebarOpen}
+              aria-controls="dashboard-sidebar"
+            >
+              {isSidebarOpen ? 'Hide menu' : 'Show menu'}
+            </button>
+          </div>
         </div>
+        {passwordMessage ? (
+          <div className="password-message" role="status">
+            {passwordMessage}
+          </div>
+        ) : null}
+        {showChangePassword ? (
+          <section className="account-panel">
+            <h2>Change password</h2>
+            <ChangePasswordForm
+              onSubmit={handlePasswordChange}
+              onCancel={handlePasswordCancel}
+              isSubmitting={isUpdatingPassword}
+              error={passwordError}
+            />
+          </section>
+        ) : null}
         <header className="dashboard__header">
           <h1>ebook-tools pipeline dashboard</h1>
           <p>
