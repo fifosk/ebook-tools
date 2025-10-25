@@ -8,12 +8,18 @@ import select
 import sys
 import threading
 import time
+from pathlib import Path
 from typing import Callable, Optional, Sequence
 
-from .. import config_manager, logging_manager as log_mgr
+try:  # pragma: no cover - dependency fallback for minimal environments
+    from .. import config_manager
+except ModuleNotFoundError:  # pragma: no cover - fallback when optional deps missing
+    config_manager = None  # type: ignore[assignment]
+from .. import logging_manager as log_mgr
 from ..progress_tracker import ProgressTracker
 from ..services.pipeline_service import PipelineResponse
 from .args import parse_cli_args, parse_legacy_args
+from .user_commands import SessionRequirementError, ensure_active_session, execute_user_command
 from .pipeline_runner import run_pipeline_from_args
 from .progress import CLIProgressLogger
 
@@ -127,6 +133,8 @@ def _start_shutdown_listener(
 
 
 def _cleanup_runtime_context() -> None:
+    if config_manager is None:
+        return
     try:
         context = config_manager.get_runtime_context(None)
         if context is not None:
@@ -177,6 +185,30 @@ def run_cli(argv: Optional[Sequence[str]] = None, *, report_interval: float = 5.
 
     args = parse_cli_args(argv)
     command = getattr(args, "command", "run") or "run"
+
+    if command == "user":
+        return execute_user_command(args)
+
+    if command in {"run", "interactive"}:
+        user_store_override = getattr(args, "user_store", None)
+        session_file_override = getattr(args, "session_file", None)
+        active_session_override = getattr(args, "active_session_file", None)
+        try:
+            ensure_active_session(
+                user_store_path=Path(user_store_override).expanduser()
+                if user_store_override
+                else None,
+                session_file=Path(session_file_override).expanduser()
+                if session_file_override
+                else None,
+                active_session_path=Path(active_session_override).expanduser()
+                if active_session_override
+                else None,
+            )
+        except SessionRequirementError as exc:
+            log_mgr.console_error(str(exc), logger_obj=logger)
+            return 2
+
     tracker = _create_tracker(report_interval)
     stop_event = threading.Event()
     progress_logger = CLIProgressLogger(tracker, logger_obj=logger)

@@ -115,6 +115,65 @@ def build_cli_parser() -> argparse.ArgumentParser:
     _add_shared_arguments(interactive_parser)
     interactive_parser.set_defaults(command="interactive", interactive=True)
 
+    user_parser = subparsers.add_parser(
+        "user", help="Manage ebook-tools user accounts", allow_abbrev=False
+    )
+    user_parser.add_argument(
+        "--store",
+        dest="user_store",
+        help="Path to the user store JSON file (defaults to config/users/users.json).",
+    )
+    user_parser.add_argument(
+        "--session-file",
+        dest="session_file",
+        help="Path to the session storage file (defaults to ~/.ebooktools_session.json).",
+    )
+    user_parser.add_argument(
+        "--active-session-file",
+        dest="active_session_file",
+        help="Path to the active session token file (defaults to ~/.ebooktools_active_session).",
+    )
+    user_parser.set_defaults(command="user")
+
+    user_subparsers = user_parser.add_subparsers(dest="user_command", required=True)
+
+    add_parser = user_subparsers.add_parser(
+        "add", help="Create a new user account", allow_abbrev=False
+    )
+    add_parser.add_argument("username", help="Username for the new account.")
+    add_parser.add_argument(
+        "--password",
+        help="Password for the new account (prompts interactively when omitted).",
+    )
+    add_parser.add_argument(
+        "--role",
+        dest="roles",
+        action="append",
+        help="Assign a role to the new account (repeatable).",
+    )
+
+    list_parser = user_subparsers.add_parser(
+        "list", help="List registered user accounts", allow_abbrev=False
+    )
+    list_parser.set_defaults(user_command="list")
+
+    login_parser = user_subparsers.add_parser(
+        "login", help="Authenticate and create a new session", allow_abbrev=False
+    )
+    login_parser.add_argument("username", help="Username to authenticate.")
+    login_parser.add_argument(
+        "--password",
+        help="Password for the account (prompts interactively when omitted).",
+    )
+
+    logout_parser = user_subparsers.add_parser(
+        "logout", help="Terminate an existing session", allow_abbrev=False
+    )
+    logout_parser.add_argument(
+        "--token",
+        help="Session token to revoke (defaults to the active session token).",
+    )
+
     return parser
 
 
