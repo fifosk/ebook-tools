@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-type ThemeMode = 'light' | 'dark' | 'system';
-type ResolvedTheme = 'light' | 'dark';
+type ThemeMode = 'light' | 'dark' | 'magenta' | 'system';
+type ResolvedTheme = 'light' | 'dark' | 'magenta';
 
 interface ThemeContextValue {
   mode: ThemeMode;
@@ -25,7 +25,7 @@ function readStoredMode(): ThemeMode {
     return 'system';
   }
   const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (stored === 'light' || stored === 'dark' || stored === 'system') {
+  if (stored === 'light' || stored === 'dark' || stored === 'system' || stored === 'magenta') {
     return stored;
   }
   return 'system';
@@ -73,7 +73,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     document.documentElement.setAttribute('data-theme', resolvedTheme);
-    document.documentElement.style.colorScheme = resolvedTheme;
+    document.documentElement.style.colorScheme = resolvedTheme === 'dark' ? 'dark' : 'light';
   }, [resolvedTheme]);
 
   const value = useMemo<ThemeContextValue>(
