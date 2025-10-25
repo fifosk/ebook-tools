@@ -15,6 +15,20 @@
 5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, and optional video batches.
 6. **Observability** – `modules/progress_tracker.py` emits structured events that feed CLI logs and the API SSE stream; `modules/observability.py` wraps stages with structured logging/telemetry.
 
+### Backend input processing diagram
+
+```mermaid
+flowchart TD
+    A[Source EPUB uploaded via CLI or /pipelines request]
+    A --> B[PipelineService.build_config]
+    B --> C[Ingestion\nmodules/core/ingestion.py]
+    C --> D[Translation workers\nmodules/translation_engine.py]
+    D --> E[Rendering + media synthesis\nmodules/core/rendering/*]
+    E --> F[Progress tracker emits events\nmodules/progress_tracker.py]
+    F --> G[Job manager persists state\nmodules/services/job_manager.py]
+    G --> H[API responses & SSE stream]
+```
+
 ## Runtime Services
 - `modules/services/job_manager.py` tracks job metadata, persists state (memory or Redis), and exposes lifecycle operations.
 - `modules/config_manager.py` resolves configuration files, environment overrides, and runtime directories. `modules/environment.py` layers `.env` files on import.

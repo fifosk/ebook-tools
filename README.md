@@ -242,6 +242,30 @@ The SPA composes several providers to offer a multi-user dashboard:
   lists accounts, normalises profile metadata, and issues suspend/activate or
   password-reset operations against the admin API.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
 
+#### Frontend user journey
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant UI as SPA (web/)
+    participant API as FastAPI backend
+    participant JM as Job Manager
+
+    U->>UI: Open dashboard & choose login
+    UI->>API: POST /auth/login
+    API-->>UI: Bearer token + profile
+    UI->>UI: Persist token via AuthProvider
+    U->>UI: Configure pipeline form & submit
+    UI->>API: POST /pipelines with EPUB payload
+    API->>JM: Enqueue job & persist snapshot
+    API-->>UI: Return job_id + initial status
+    UI->>API: Subscribe to /pipelines/{job}/events
+    API-->>UI: Stream progress events (SSE)
+    JM-->>API: Update job state until complete
+    API-->>UI: Final snapshot delivered
+    UI-->>U: Present artefact links & admin tools
+```
+
 > **Tip:** The FastAPI loader merges `.env`, `.env.<env>`, and `.env.local` in
 > that order. Vite follows a similar pattern based on the active mode, letting
 > you keep per-environment tweaks checked in while secrets stay local.
