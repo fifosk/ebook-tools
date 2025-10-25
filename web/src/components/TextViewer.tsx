@@ -1,6 +1,3 @@
-import { useMemo } from 'react';
-import { useActiveFile } from './useActiveFile';
-
 export interface TextFile {
   id: string;
   name?: string;
@@ -9,22 +6,20 @@ export interface TextFile {
 }
 
 interface TextViewerProps {
-  files: TextFile[];
+  file: TextFile | null;
+  isLoading?: boolean;
 }
 
-export default function TextViewer({ files }: TextViewerProps) {
-  const { activeFile, activeId, selectFile } = useActiveFile(files);
+function openDocument(url: string) {
+  if (typeof window === 'undefined') {
+    return;
+  }
 
-  const labels = useMemo(
-    () =>
-      files.map((file, index) => ({
-        id: file.id,
-        label: file.name ?? `Text ${index + 1}`
-      })),
-    [files]
-  );
+  window.open(url, '_blank', 'noopener');
+}
 
-  if (files.length === 0) {
+export default function TextViewer({ file, isLoading = false }: TextViewerProps) {
+  if (isLoading) {
     return (
       <div className="text-viewer" role="status">
         Loading text files…
@@ -32,44 +27,30 @@ export default function TextViewer({ files }: TextViewerProps) {
     );
   }
 
-  if (!activeFile) {
+  if (!file) {
     return (
       <div className="text-viewer" role="status">
-        Preparing the latest text file…
+        Waiting for text files…
       </div>
     );
   }
 
   return (
-    <div className="text-viewer">
-      <div className="text-viewer__tabs" role="tablist" aria-label="Text files">
-        {labels.map((file) => (
+    <div className="text-viewer" data-testid="text-viewer-content" aria-live="polite">
+      <header className="text-viewer__header">
+        <h3>{file.name ?? 'Latest text output'}</h3>
+      </header>
+      <div className="text-viewer__body">
+        {file.content ? (
+          <pre>{file.content}</pre>
+        ) : file.url ? (
           <button
-            key={file.id}
             type="button"
-            role="tab"
-            className="text-viewer__tab"
-            aria-selected={file.id === activeId}
-            aria-controls={`text-viewer-panel-${file.id}`}
-            onClick={() => selectFile(file.id)}
+            className="text-viewer__open"
+            onClick={() => openDocument(file.url!)}
           >
-            {file.label}
+            Open document in a new tab
           </button>
-        ))}
-      </div>
-      <div
-        className="text-viewer__content"
-        role="tabpanel"
-        id={`text-viewer-panel-${activeFile.id}`}
-        aria-live="polite"
-        data-testid="text-viewer-content"
-      >
-        {activeFile.content ? (
-          <pre>{activeFile.content}</pre>
-        ) : activeFile.url ? (
-          <a href={activeFile.url} target="_blank" rel="noreferrer">
-            Open {activeFile.name ?? 'document'}
-          </a>
         ) : (
           <p>No preview available.</p>
         )}

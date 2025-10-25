@@ -1,46 +1,30 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import VideoPlayer, { VideoFile } from '../VideoPlayer';
+import VideoPlayer, { type VideoFile } from '../VideoPlayer';
 
 describe('VideoPlayer', () => {
-  it('shows loading message until videos are available', () => {
-    render(<VideoPlayer files={[]} />);
+  it('shows loading message when fetching new videos', () => {
+    render(<VideoPlayer file={null} isLoading />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Waiting for video files');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading video');
   });
 
-  it('updates the active video as new files arrive', async () => {
-    const user = userEvent.setup();
+  it('renders the active video when available', () => {
     const trailer: VideoFile = {
       id: 'trailer',
       name: 'Trailer',
       url: 'https://example.com/video/trailer.mp4',
       poster: 'https://example.com/video/trailer.jpg'
     };
-    const fullVideo: VideoFile = {
-      id: 'full',
-      name: 'Full Video',
-      url: 'https://example.com/video/full.mp4'
-    };
 
-    const { rerender } = render(<VideoPlayer files={[trailer]} />);
+    render(<VideoPlayer file={trailer} />);
 
-    expect(screen.getByRole('button', { name: 'Trailer' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('video-player')).toHaveAttribute('src', trailer.url);
+    expect(screen.getByText('Trailer')).toBeInTheDocument();
+  });
 
-    rerender(<VideoPlayer files={[trailer, fullVideo]} />);
+  it('shows waiting message when there is nothing to play', () => {
+    render(<VideoPlayer file={null} />);
 
-    expect(screen.getByRole('button', { name: 'Trailer' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('video-player')).toHaveAttribute('src', trailer.url);
-
-    await user.click(screen.getByRole('button', { name: 'Full Video' }));
-
-    expect(screen.getByRole('button', { name: 'Full Video' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('video-player')).toHaveAttribute('src', fullVideo.url);
-
-    rerender(<VideoPlayer files={[fullVideo]} />);
-
-    expect(screen.getByRole('button', { name: 'Full Video' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('video-player')).toHaveAttribute('src', fullVideo.url);
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting for video files');
   });
 });

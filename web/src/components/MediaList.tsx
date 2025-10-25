@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { LiveMediaItem } from '../hooks/useLiveMedia';
+import { deriveMediaItemId } from './mediaUtils';
 
 type MediaCategory = LiveMediaItem['type'];
 
@@ -7,6 +8,16 @@ export interface MediaListProps {
   items: LiveMediaItem[];
   category: MediaCategory;
   emptyMessage?: string;
+  selectedId?: string | null;
+  onSelect?: (item: LiveMediaItem, id: string) => void;
+}
+
+interface MediaEntry extends LiveMediaItem {
+  key: string;
+  size: string | null;
+  updatedAt: string | null;
+  id: string | null;
+  isSelectable: boolean;
 }
 
 function formatFileSize(size: number | null | undefined): string | null {
@@ -56,18 +67,21 @@ function deriveEmptyMessage(category: MediaCategory): string {
   }
 }
 
-export default function MediaList({ items, category, emptyMessage }: MediaListProps) {
+export default function MediaList({ items, category, emptyMessage, selectedId, onSelect }: MediaListProps) {
   const resolvedEmptyMessage = emptyMessage ?? deriveEmptyMessage(category);
 
-  const entries = useMemo(
+  const entries: MediaEntry[] = useMemo(
     () =>
-      items.map((item) => {
-        const key = item.url ?? `${item.type}:${item.name}`;
+      items.map((item, index) => {
+        const id = deriveMediaItemId(item, index);
+        const key = id ?? `${item.type}:${index}`;
         const size = formatFileSize(item.size ?? null);
         const updatedAt = formatTimestamp(item.updated_at ?? null);
-        return { ...item, key, size, updatedAt };
+        const hasUrl = typeof item.url === 'string' && item.url.length > 0;
+        const isSelectable = Boolean(id) && (category === 'text' ? true : hasUrl);
+        return { ...item, key, id, size, updatedAt, isSelectable };
       }),
-    [items],
+    [items, category],
   );
 
   if (entries.length === 0) {
@@ -80,27 +94,39 @@ export default function MediaList({ items, category, emptyMessage }: MediaListPr
 
   return (
     <ul className="media-list" data-testid={`media-list-${category}`} aria-live="polite">
-      {entries.map((item) => (
-        <li key={item.key} className="media-list__item">
-          <div className="media-list__details">
-            <span className="media-list__name">{item.name}</span>
-            {item.updatedAt ? (
-              <time className="media-list__timestamp" dateTime={item.updated_at ?? undefined}>
-                {item.updatedAt}
-              </time>
-            ) : null}
-            {item.size ? <span className="media-list__size">{item.size}</span> : null}
-            <span className="media-list__source" data-source={item.source}>
-              {item.source === 'completed' ? 'Completed' : 'Live'}
-            </span>
-          </div>
-          {item.url ? (
-            <a className="media-list__link" href={item.url} target="_blank" rel="noreferrer">
-              Open
-            </a>
-          ) : null}
-        </li>
-      ))}
+      {entries.map((item) => {
+        const isActive = item.id !== null && item.id === selectedId;
+        const actionLabel =
+          category === 'audio' ? 'Play audio' : category === 'video' ? 'Play video' : 'View text';
+
+        return (
+          <li key={item.key} className="media-list__item" data-active={isActive || undefined}>
+            <button
+              type="button"
+              className="media-list__button"
+              onClick={() => (item.id && item.isSelectable && onSelect ? onSelect(item, item.id) : undefined)}
+              disabled={!item.isSelectable || !onSelect}
+              aria-pressed={isActive}
+            >
+              <div className="media-list__details">
+                <span className="media-list__name">{item.name}</span>
+                {item.updatedAt ? (
+                  <time className="media-list__timestamp" dateTime={item.updated_at ?? undefined}>
+                    {item.updatedAt}
+                  </time>
+                ) : null}
+                {item.size ? <span className="media-list__size">{item.size}</span> : null}
+                <span className="media-list__source" data-source={item.source}>
+                  {item.source === 'completed' ? 'Completed' : 'Live'}
+                </span>
+              </div>
+              <span className="media-list__action" aria-hidden="true">
+                {item.isSelectable && onSelect ? actionLabel : 'Unavailable'}
+              </span>
+            </button>
+          </li>
+        );
+      })}
     </ul>
   );
 }

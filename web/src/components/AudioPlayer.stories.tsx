@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import AudioPlayer, { AudioFile } from './AudioPlayer';
+import AudioPlayer, { type AudioFile } from './AudioPlayer';
 
 const sampleTracks: AudioFile[] = [
   {
@@ -24,25 +24,19 @@ export default {
   component: AudioPlayer
 };
 
-export const ProgressiveUpdates = () => {
-  const [files, setFiles] = useState<AudioFile[]>(sampleTracks.slice(0, 1));
+export const BasicPlayback = () => {
+  const [index, setIndex] = useState(0);
 
-  const addNextTrack = () => {
-    setFiles((previous) => {
-      if (previous.length >= sampleTracks.length) {
-        return previous;
-      }
-
-      return [...previous, sampleTracks[previous.length]];
-    });
+  const nextTrack = () => {
+    setIndex((previous) => (previous + 1) % sampleTracks.length);
   };
 
   return (
     <div>
-      <button type="button" onClick={addNextTrack} disabled={files.length >= sampleTracks.length}>
-        Add next audio track
+      <button type="button" onClick={nextTrack}>
+        Play next track
       </button>
-      <AudioPlayer files={files} />
+      <AudioPlayer file={sampleTracks[index]} />
     </div>
   );
 };

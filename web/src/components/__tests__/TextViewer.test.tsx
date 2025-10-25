@@ -1,40 +1,50 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import TextViewer, { TextFile } from '../TextViewer';
+import { vi } from 'vitest';
+import TextViewer, { type TextFile } from '../TextViewer';
 
 describe('TextViewer', () => {
-  it('shows loading state until files are available', () => {
-    render(<TextViewer files={[]} />);
+  it('shows loading state while waiting for content', () => {
+    render(<TextViewer file={null} isLoading />);
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading text files');
   });
 
-  it('supports progressive updates and selection changes', async () => {
-    const user = userEvent.setup();
-    const initialFile: TextFile = {
+  it('renders inline content when provided', () => {
+    const file: TextFile = {
       id: 'intro',
       name: 'Introduction',
       content: 'Welcome to the preview.'
     };
-    const additionalFile: TextFile = {
+
+    render(<TextViewer file={file} />);
+
+    expect(screen.getByTestId('text-viewer-content')).toHaveTextContent('Welcome to the preview.');
+    expect(screen.getByText('Introduction')).toBeInTheDocument();
+  });
+
+  it('opens a new tab for linked documents', async () => {
+    const user = userEvent.setup();
+    const file: TextFile = {
       id: 'chapter-1',
       name: 'Chapter 1',
-      content: 'This is the first chapter.'
+      url: 'https://example.com/chapter-1.pdf'
     };
 
-    const { rerender } = render(<TextViewer files={[initialFile]} />);
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null);
 
-    expect(screen.getByRole('tab', { name: 'Introduction' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('text-viewer-content')).toHaveTextContent('Welcome to the preview.');
+    render(<TextViewer file={file} />);
 
-    rerender(<TextViewer files={[initialFile, additionalFile]} />);
+    await user.click(screen.getByRole('button', { name: /open document/i }));
 
-    expect(screen.getByRole('tab', { name: 'Introduction' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('text-viewer-content')).toHaveTextContent('Welcome to the preview.');
+    expect(openSpy).toHaveBeenCalledWith(file.url, '_blank', 'noopener');
 
-    await user.click(screen.getByRole('tab', { name: 'Chapter 1' }));
+    openSpy.mockRestore();
+  });
 
-    expect(screen.getByRole('tab', { name: 'Chapter 1' })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByTestId('text-viewer-content')).toHaveTextContent('This is the first chapter.');
+  it('shows waiting message when no text file is active', () => {
+    render(<TextViewer file={null} />);
+
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting for text files');
   });
 });

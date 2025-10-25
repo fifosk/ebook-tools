@@ -1,6 +1,3 @@
-import { useMemo } from 'react';
-import { useActiveFile } from './useActiveFile';
-
 export interface AudioFile {
   id: string;
   url: string;
@@ -8,22 +5,20 @@ export interface AudioFile {
 }
 
 interface AudioPlayerProps {
-  files: AudioFile[];
+  file: AudioFile | null;
+  isLoading?: boolean;
 }
 
-export default function AudioPlayer({ files }: AudioPlayerProps) {
-  const { activeFile, activeId, selectFile } = useActiveFile(files);
+export default function AudioPlayer({ file, isLoading = false }: AudioPlayerProps) {
+  if (isLoading) {
+    return (
+      <div className="audio-player" role="status">
+        Loading audio…
+      </div>
+    );
+  }
 
-  const labels = useMemo(
-    () =>
-      files.map((file, index) => ({
-        id: file.id,
-        label: file.name ?? `Track ${index + 1}`
-      })),
-    [files]
-  );
-
-  if (files.length === 0) {
+  if (!file) {
     return (
       <div className="audio-player" role="status">
         Waiting for audio files…
@@ -31,38 +26,20 @@ export default function AudioPlayer({ files }: AudioPlayerProps) {
     );
   }
 
-  if (!activeFile) {
-    return (
-      <div className="audio-player" role="status">
-        Preparing the latest audio track…
-      </div>
-    );
-  }
-
   return (
     <div className="audio-player">
+      <div className="audio-player__metadata" aria-live="polite">
+        <span className="audio-player__title">{file.name ?? 'Latest audio track'}</span>
+      </div>
       <audio
-        key={activeFile.id}
+        key={file.id}
         className="audio-player__element"
         data-testid="audio-player"
         controls
-        src={activeFile.url}
+        src={file.url}
       >
         Your browser does not support the audio element.
       </audio>
-      <div className="audio-player__playlist" role="group" aria-label="Audio tracks">
-        {labels.map((file) => (
-          <button
-            key={file.id}
-            type="button"
-            className="audio-player__track"
-            aria-pressed={file.id === activeId}
-            onClick={() => selectFile(file.id)}
-          >
-            {file.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }

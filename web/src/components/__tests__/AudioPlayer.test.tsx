@@ -1,45 +1,29 @@
 import { render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
-import AudioPlayer, { AudioFile } from '../AudioPlayer';
+import AudioPlayer, { type AudioFile } from '../AudioPlayer';
 
 describe('AudioPlayer', () => {
-  it('shows loading message until tracks are available', () => {
-    render(<AudioPlayer files={[]} />);
+  it('shows loading message while preparing content', () => {
+    render(<AudioPlayer file={null} isLoading />);
 
-    expect(screen.getByRole('status')).toHaveTextContent('Waiting for audio files');
+    expect(screen.getByRole('status')).toHaveTextContent('Loading audio');
   });
 
-  it('keeps the selected track during progressive updates and switches when removed', async () => {
-    const user = userEvent.setup();
-    const intro: AudioFile = {
+  it('renders an audio element when a file is provided', () => {
+    const file: AudioFile = {
       id: 'intro',
       name: 'Introduction',
       url: 'https://example.com/audio/intro.mp3'
     };
-    const chapter: AudioFile = {
-      id: 'chapter-1',
-      name: 'Chapter 1',
-      url: 'https://example.com/audio/chapter-1.mp3'
-    };
 
-    const { rerender } = render(<AudioPlayer files={[intro]} />);
+    render(<AudioPlayer file={file} />);
 
-    expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
+    expect(screen.getByTestId('audio-player')).toHaveAttribute('src', file.url);
+    expect(screen.getByText('Introduction')).toBeInTheDocument();
+  });
 
-    rerender(<AudioPlayer files={[intro, chapter]} />);
+  it('shows waiting message when no file has been selected yet', () => {
+    render(<AudioPlayer file={null} />);
 
-    expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
-
-    await user.click(screen.getByRole('button', { name: 'Chapter 1' }));
-
-    expect(screen.getByRole('button', { name: 'Chapter 1' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('audio-player')).toHaveAttribute('src', chapter.url);
-
-    rerender(<AudioPlayer files={[chapter]} />);
-
-    expect(screen.getByRole('button', { name: 'Chapter 1' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('audio-player')).toHaveAttribute('src', chapter.url);
+    expect(screen.getByRole('status')).toHaveTextContent('Waiting for audio files');
   });
 });

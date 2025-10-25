@@ -1,6 +1,3 @@
-import { useMemo } from 'react';
-import { useActiveFile } from './useActiveFile';
-
 export interface VideoFile {
   id: string;
   url: string;
@@ -9,22 +6,20 @@ export interface VideoFile {
 }
 
 interface VideoPlayerProps {
-  files: VideoFile[];
+  file: VideoFile | null;
+  isLoading?: boolean;
 }
 
-export default function VideoPlayer({ files }: VideoPlayerProps) {
-  const { activeFile, activeId, selectFile } = useActiveFile(files);
+export default function VideoPlayer({ file, isLoading = false }: VideoPlayerProps) {
+  if (isLoading) {
+    return (
+      <div className="video-player" role="status">
+        Loading video…
+      </div>
+    );
+  }
 
-  const labels = useMemo(
-    () =>
-      files.map((file, index) => ({
-        id: file.id,
-        label: file.name ?? `Video ${index + 1}`
-      })),
-    [files]
-  );
-
-  if (files.length === 0) {
+  if (!file) {
     return (
       <div className="video-player" role="status">
         Waiting for video files…
@@ -32,39 +27,21 @@ export default function VideoPlayer({ files }: VideoPlayerProps) {
     );
   }
 
-  if (!activeFile) {
-    return (
-      <div className="video-player" role="status">
-        Preparing the latest video…
-      </div>
-    );
-  }
-
   return (
     <div className="video-player">
+      <div className="video-player__metadata" aria-live="polite">
+        <span className="video-player__title">{file.name ?? 'Latest video'}</span>
+      </div>
       <video
-        key={activeFile.id}
+        key={file.id}
         className="video-player__element"
         data-testid="video-player"
         controls
-        src={activeFile.url}
-        poster={activeFile.poster}
+        src={file.url}
+        poster={file.poster}
       >
         Your browser does not support the video element.
       </video>
-      <div className="video-player__playlist" role="group" aria-label="Video playlist">
-        {labels.map((file) => (
-          <button
-            key={file.id}
-            type="button"
-            className="video-player__item"
-            aria-pressed={file.id === activeId}
-            onClick={() => selectFile(file.id)}
-          >
-            {file.label}
-          </button>
-        ))}
-      </div>
     </div>
   );
 }
