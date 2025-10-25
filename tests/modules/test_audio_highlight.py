@@ -491,6 +491,83 @@ def test_transliteration_progress_tracks_translation_characters():
     assert indices[-1] == 6
 
 
+def test_timeline_build_word_granularity_without_metadata():
+    block = "French - Sample\nBonjour le monde\nHello world\n"
+    audio = AudioSegment.silent(duration=1200)
+
+    result = highlight.timeline.build(
+        block,
+        audio,
+        highlight.timeline.TimelineBuildOptions(
+            sync_ratio=1.0,
+            word_highlighting=True,
+            highlight_granularity="char",
+        ),
+    )
+
+    assert result.effective_granularity == "word"
+    assert result.original_word_count == 3
+    assert result.translation_word_count == 2
+    assert result.events
+    assert sum(event.duration for event in result.events) > 0
+
+
+def test_timeline_build_char_granularity_with_metadata():
+    block = "French - Sample\nBonjour le monde\nBonjour\n"
+    audio = AudioSegment.silent(duration=600)
+
+    steps = (
+        highlight.HighlightStep(
+            kind="translation",
+            word_index=0,
+            char_index_start=0,
+            char_index_end=3,
+            start_ms=0.0,
+            duration_ms=200.0,
+        ),
+        highlight.HighlightStep(
+            kind="translation",
+            word_index=0,
+            char_index_start=3,
+            char_index_end=7,
+            start_ms=200.0,
+            duration_ms=300.0,
+        ),
+    )
+    metadata = highlight.SentenceAudioMetadata(
+        parts=[
+            highlight.AudioHighlightPart(
+                kind="translation",
+                duration=0.6,
+                text="Bonjour",
+                start_offset=0.0,
+                steps=steps,
+            )
+        ],
+        total_duration=0.6,
+    )
+    highlight._store_audio_metadata(audio, metadata)
+
+    result = highlight.timeline.build(
+        block,
+        audio,
+        highlight.timeline.TimelineBuildOptions(
+            sync_ratio=1.0,
+            word_highlighting=True,
+            highlight_granularity="char",
+        ),
+    )
+
+    assert result.effective_granularity == "char"
+    assert result.translation_word_count == 1
+    assert any(
+        event.step and event.step.char_index_end == 3 for event in result.events
+    )
+    assert any(
+        event.step and event.step.char_index_end == 7 for event in result.events
+    )
+
+
 def test_split_translation_and_transliteration_handles_prefixes():
     text = "Translation: こんにちは世界\nTransliteration: Kon'nichiwa sekai"
     translation, transliteration = split_translation_and_transliteration(text)
