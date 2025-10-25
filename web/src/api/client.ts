@@ -1,5 +1,6 @@
 import {
   LoginRequestPayload,
+  ManagedUser,
   PasswordChangeRequestPayload,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
@@ -9,7 +10,11 @@ import {
   PipelineRequestPayload,
   PipelineStatusResponse,
   PipelineSubmissionResponse,
-  SessionStatusResponse
+  SessionStatusResponse,
+  UserAccountResponse,
+  UserCreateRequestPayload,
+  UserListResponse,
+  UserPasswordResetRequestPayload
 } from './dtos';
 
 const API_BASE_URL = resolveApiBaseUrl();
@@ -194,6 +199,61 @@ export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
   const response = await apiFetch('/pipelines/jobs');
   const payload = await handleResponse<PipelineJobListResponse>(response);
   return payload.jobs;
+}
+
+export async function listUsers(): Promise<ManagedUser[]> {
+  const response = await apiFetch('/admin/users');
+  const payload = await handleResponse<UserListResponse>(response);
+  return payload.users;
+}
+
+export async function createUser(payload: UserCreateRequestPayload): Promise<ManagedUser> {
+  const response = await apiFetch('/admin/users', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  const body = await handleResponse<UserAccountResponse>(response);
+  return body.user;
+}
+
+export async function deleteUserAccount(username: string): Promise<void> {
+  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}`, {
+    method: 'DELETE'
+  });
+  await handleResponse<unknown>(response);
+}
+
+export async function suspendUserAccount(username: string): Promise<ManagedUser> {
+  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}/suspend`, {
+    method: 'POST'
+  });
+  const body = await handleResponse<UserAccountResponse>(response);
+  return body.user;
+}
+
+export async function activateUserAccount(username: string): Promise<ManagedUser> {
+  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}/activate`, {
+    method: 'POST'
+  });
+  const body = await handleResponse<UserAccountResponse>(response);
+  return body.user;
+}
+
+export async function resetUserPassword(
+  username: string,
+  payload: UserPasswordResetRequestPayload
+): Promise<void> {
+  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}/password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  await handleResponse<unknown>(response);
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {

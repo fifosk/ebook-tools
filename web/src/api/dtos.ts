@@ -133,3 +133,42 @@ export interface PasswordChangeRequestPayload {
   current_password: string;
   new_password: string;
 }
+
+export type UserAccountStatus = 'active' | 'suspended' | 'inactive';
+
+export interface ManagedUserMetadata {
+  [key: string]: unknown;
+  last_login?: string | null;
+  suspended?: boolean;
+  is_suspended?: boolean;
+}
+
+export interface ManagedUser {
+  username: string;
+  roles: string[];
+  status?: UserAccountStatus;
+  is_active?: boolean;
+  is_suspended?: boolean;
+  last_login?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  metadata?: ManagedUserMetadata;
+}
+
+export interface UserListResponse {
+  users: ManagedUser[];
+}
+
+export interface UserAccountResponse {
+  user: ManagedUser;
+}
+
+export interface UserCreateRequestPayload {
+  username: string;
+  password: string;
+  roles: string[];
+}
+
+export interface UserPasswordResetRequestPayload {
+  password: string;
+}

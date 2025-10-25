@@ -1419,6 +1419,156 @@ button.link-button:focus {
   margin-bottom: 1rem;
 }
 
+.user-management {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.user-management__card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 18px;
+  padding: 1.75rem;
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(18px);
+}
+
+.user-management__description {
+  margin-top: 0.25rem;
+  margin-bottom: 1.25rem;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+  max-width: 60ch;
+}
+
+.user-management__form {
+  display: grid;
+  gap: 1rem;
+  max-width: 520px;
+}
+
+.user-management__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.user-management__label {
+  font-weight: 600;
+}
+
+.user-management__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.user-management__primary {
+  background: var(--color-button-primary-gradient);
+  color: var(--color-button-primary-text);
+}
+
+.user-management__secondary {
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  border: 1px solid var(--color-button-secondary-border);
+}
+
+.user-management__danger {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.user-management__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.user-management__alert,
+.user-management__notice {
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.user-management__alert {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+}
+
+.user-management__notice {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.user-management__empty {
+  padding: 1rem 0;
+  color: var(--color-text-muted);
+}
+
+.user-management__table-wrapper {
+  overflow-x: auto;
+}
+
+.user-management__table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+}
+
+.user-management__table th,
+.user-management__table td {
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.user-management__table tbody tr:hover {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.user-management__actions-column {
+  width: 280px;
+}
+
+.user-management__row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.user-management__status {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.user-management__status--active {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+}
+
+.user-management__status--suspended {
+  background: var(--color-status-danger-bg);
+  color: var(--color-status-danger-text);
+}
+
+.user-management__status--inactive {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-text);
+}
+
 small {
   color: var(--color-text-muted);
 }
