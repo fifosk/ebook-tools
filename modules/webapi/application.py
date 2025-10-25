@@ -28,11 +28,20 @@ load_environment()
 
 LOGGER = logging.getLogger(__name__)
 
-# Default Vite dev server origins for local development convenience.
+# Default origins considered safe for local development convenience.
+DEFAULT_LOCAL_ORIGINS = (
+    "http://localhost",
+    "http://127.0.0.1",
+)
 DEFAULT_DEVSERVER_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 )
+
+# Additional headers that should be explicitly allowed/exposed for media
+# streaming support.
+RANGE_REQUEST_HEADERS = ("Range",)
+RANGE_RESPONSE_HEADERS = ("Content-Range",)
 
 _STARTUP_RUNTIME_CONTEXT: cfg.RuntimeContext | None = None
 
@@ -110,7 +119,7 @@ def _normalise_mount_path(value: str | None) -> str:
 def _default_devserver_origins() -> list[str]:
     """Return the default dev server origins, including the local IP if available."""
 
-    origins = set(DEFAULT_DEVSERVER_ORIGINS)
+    origins = set(DEFAULT_LOCAL_ORIGINS) | set(DEFAULT_DEVSERVER_ORIGINS)
     try:
         with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as sock:
             # The socket never sends data; the connection is only used to discover
@@ -121,6 +130,7 @@ def _default_devserver_origins() -> list[str]:
         local_ip = None
 
     if local_ip and local_ip not in {"127.0.0.1", "0.0.0.0"}:
+        origins.add(f"http://{local_ip}")
         origins.add(f"http://{local_ip}:5173")
 
     return sorted(origins)
@@ -179,7 +189,8 @@ def _configure_cors(app: FastAPI) -> None:
         allow_origins=allowed_origins,
         allow_credentials=allow_credentials,
         allow_methods=["*"],
-        allow_headers=["*"],
+        allow_headers=["*"] + list(RANGE_REQUEST_HEADERS),
+        expose_headers=list(RANGE_RESPONSE_HEADERS),
     )
 
 
