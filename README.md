@@ -4,6 +4,16 @@
 
 - [Architecture overview](docs/architecture.md)
 
+### High-level diagrams
+
+The main flows are summarised with the following HLD snapshots. Embed them in
+design reviews or onboarding decks as needed to illustrate how the SPA, API, and
+worker services collaborate.
+
+![Backend high-level design](docs/images/backend-hld.svg)
+
+![Frontend high-level design](docs/images/frontend-hld.svg)
+
 ## Backend setup
 
 ### Install dependencies
