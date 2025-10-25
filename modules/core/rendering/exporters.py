@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Optional, Sequence
 
@@ -11,6 +11,9 @@ from pydub import AudioSegment
 
 from modules import audio_video_generator as av_gen
 from modules import output_formatter
+from modules.config.loader import get_rendering_config
+from modules.render.context import RenderBatchContext
+from modules.render.output_writer import DeferredBatchWriter
 from modules.video.slides import SlideRenderOptions
 
 
@@ -67,57 +70,80 @@ class BatchExporter:
             self._context.total_sentences,
         )
 
-        output_formatter.export_batch_documents(
-            self._context.base_dir,
-            self._context.base_name,
-            request.start_sentence,
-            request.end_sentence,
-            list(request.written_blocks),
-            request.target_language,
-            self._context.total_sentences,
-            output_html=request.output_html,
-            output_pdf=request.output_pdf,
-        )
+        config = get_rendering_config()
+        manifest_context = {
+            "batch_id": f"{range_fragment}_{self._context.base_name}",
+            "ramdisk_enabled": config.ramdisk_enabled,
+            "ramdisk_path": config.ramdisk_path,
+        }
+        media_context = {
+            "text": {"range_fragment": range_fragment},
+            "audio": {"range_fragment": range_fragment},
+            "video": {"range_fragment": range_fragment},
+        }
+        batch_context = RenderBatchContext(manifest=manifest_context, media=media_context)
+        writer = DeferredBatchWriter(Path(self._context.base_dir), batch_context)
 
-        audio_segments = list(request.audio_segments) if request.generate_audio else []
-        video_blocks = list(request.video_blocks) if request.generate_video else []
-
-        video_path: Optional[str] = None
-
-        if request.generate_audio and audio_segments:
-            combined = AudioSegment.empty()
-            for segment in audio_segments:
-                combined += segment
-            audio_filename = os.path.join(
-                self._context.base_dir,
-                f"{range_fragment}_{self._context.base_name}.mp3",
-            )
-            combined.export(audio_filename, format="mp3", bitrate="320k")
-
-        if request.generate_video and audio_segments and video_blocks:
-            video_path = av_gen.render_video_slides(
-                video_blocks,
-                audio_segments,
-                self._context.base_dir,
+        try:
+            document_paths = output_formatter.export_batch_documents(
+                str(writer.work_dir),
+                self._context.base_name,
                 request.start_sentence,
                 request.end_sentence,
-                self._context.base_name,
-                self._context.cover_image,
-                self._context.book_author,
-                self._context.book_title,
-                list(self._context.global_cumulative_word_counts),
-                self._context.total_book_words,
-                self._context.macos_reading_speed,
-                self._context.input_language,
+                list(request.written_blocks),
+                request.target_language,
                 self._context.total_sentences,
-                self._context.tempo,
-                self._context.sync_ratio,
-                self._context.word_highlighting,
-                self._context.highlight_granularity,
-                slide_render_options=self._context.slide_render_options,
-                template_name=self._context.template_name,
+                output_html=request.output_html,
+                output_pdf=request.output_pdf,
             )
-        return video_path
+            for created_path in document_paths.values():
+                writer.stage(Path(created_path))
+
+            audio_segments = list(request.audio_segments) if request.generate_audio else []
+            video_blocks = list(request.video_blocks) if request.generate_video else []
+
+            video_path: Optional[Path] = None
+
+            if request.generate_audio and audio_segments:
+                combined = AudioSegment.empty()
+                for segment in audio_segments:
+                    combined += segment
+                audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}.mp3"
+                combined.export(str(audio_filename), format="mp3", bitrate="320k")
+                writer.stage(audio_filename)
+
+            if request.generate_video and audio_segments and video_blocks:
+                video_output = av_gen.render_video_slides(
+                    video_blocks,
+                    audio_segments,
+                    str(writer.work_dir),
+                    request.start_sentence,
+                    request.end_sentence,
+                    self._context.base_name,
+                    self._context.cover_image,
+                    self._context.book_author,
+                    self._context.book_title,
+                    list(self._context.global_cumulative_word_counts),
+                    self._context.total_book_words,
+                    self._context.macos_reading_speed,
+                    self._context.input_language,
+                    self._context.total_sentences,
+                    self._context.tempo,
+                    self._context.sync_ratio,
+                    self._context.word_highlighting,
+                    self._context.highlight_granularity,
+                    slide_render_options=self._context.slide_render_options,
+                    template_name=self._context.template_name,
+                )
+                video_path = Path(video_output)
+                video_path = writer.stage(video_path)
+
+            writer.commit()
+        except Exception:
+            writer.rollback()
+            raise
+
+        return str(video_path) if video_path else None
 
 
 def build_exporter(
