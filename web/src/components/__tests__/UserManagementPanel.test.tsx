@@ -8,7 +8,8 @@ import {
   deleteUserAccount,
   listUsers,
   resetUserPassword,
-  suspendUserAccount
+  suspendUserAccount,
+  updateUserProfile
 } from '../../api/client';
 import type { ManagedUser } from '../../api/dtos';
 
@@ -21,6 +22,7 @@ describe('UserManagementPanel', () => {
   const activateUserMock = vi.mocked(activateUserAccount);
   const deleteUserMock = vi.mocked(deleteUserAccount);
   const resetPasswordMock = vi.mocked(resetUserPassword);
+  const updateProfileMock = vi.mocked(updateUserProfile);
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -29,7 +31,15 @@ describe('UserManagementPanel', () => {
   it('creates a new user and refreshes the listing', async () => {
     const user = userEvent.setup();
     let users: ManagedUser[] = [
-      { username: 'alice', roles: ['admin'], status: 'active', metadata: {} }
+      {
+        username: 'alice',
+        roles: ['admin'],
+        status: 'active',
+        metadata: {},
+        email: 'alice@example.com',
+        first_name: 'Alice',
+        last_name: 'Admin'
+      }
     ];
 
     listUsersMock.mockImplementation(async () => users);
@@ -38,7 +48,10 @@ describe('UserManagementPanel', () => {
         username: payload.username,
         roles: payload.roles,
         status: 'active',
-        metadata: {}
+        metadata: {},
+        email: payload.email ?? null,
+        first_name: payload.first_name ?? null,
+        last_name: payload.last_name ?? null
       };
       users = [...users, created];
       return created;
@@ -49,6 +62,9 @@ describe('UserManagementPanel', () => {
     expect(await screen.findByText('alice')).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/Username/i), 'bob');
+    await user.type(screen.getByLabelText(/Email address/i), 'bob@example.com');
+    await user.type(screen.getByLabelText(/^First name/i), 'Bob');
+    await user.type(screen.getByLabelText(/Last name/i), 'Builder');
     await user.type(screen.getByLabelText(/Temporary password/i), 'secretpass!');
     await user.selectOptions(screen.getByLabelText(/Role/i), 'standard_user');
     await user.click(screen.getByRole('button', { name: /Create user/i }));
@@ -57,7 +73,10 @@ describe('UserManagementPanel', () => {
       expect(createUserMock).toHaveBeenCalledWith({
         username: 'bob',
         password: 'secretpass!',
-        roles: ['standard_user']
+        roles: ['standard_user'],
+        email: 'bob@example.com',
+        first_name: 'Bob',
+        last_name: 'Builder'
       })
     );
 
@@ -68,11 +87,40 @@ describe('UserManagementPanel', () => {
   it('manages suspension, password resets, and deletion', async () => {
     const user = userEvent.setup();
     let users: ManagedUser[] = [
-      { username: 'alice', roles: ['admin'], status: 'active', metadata: {} },
-      { username: 'bob', roles: ['standard_user'], status: 'active', metadata: {} }
+      {
+        username: 'alice',
+        roles: ['admin'],
+        status: 'active',
+        metadata: {},
+        email: 'alice@example.com',
+        first_name: 'Alice',
+        last_name: 'Admin'
+      },
+      {
+        username: 'bob',
+        roles: ['standard_user'],
+        status: 'active',
+        metadata: {},
+        email: 'bob@example.com',
+        first_name: 'Bob',
+        last_name: 'Builder'
+      }
     ];
 
     listUsersMock.mockImplementation(async () => users);
+    updateProfileMock.mockImplementation(async (username, payload) => {
+      users = users.map((record) =>
+        record.username === username
+          ? {
+              ...record,
+              email: payload.email ?? null,
+              first_name: payload.first_name ?? null,
+              last_name: payload.last_name ?? null
+            }
+          : record
+      );
+      return users.find((record) => record.username === username)!;
+    });
     suspendUserMock.mockImplementation(async (username) => {
       users = users.map((record) =>
         record.username === username ? { ...record, status: 'suspended' } : record
@@ -117,5 +165,75 @@ describe('UserManagementPanel', () => {
 
     confirmSpy.mockRestore();
     promptSpy.mockRestore();
+  });
+
+  it('updates profile metadata for an existing user', async () => {
+    const user = userEvent.setup();
+    let users: ManagedUser[] = [
+      {
+        username: 'alice',
+        roles: ['admin'],
+        status: 'active',
+        metadata: {},
+        email: 'alice@example.com',
+        first_name: 'Alice',
+        last_name: 'Admin'
+      },
+      {
+        username: 'bob',
+        roles: ['standard_user'],
+        status: 'active',
+        metadata: {},
+        email: 'bob@example.com',
+        first_name: 'Bob',
+        last_name: 'Builder'
+      }
+    ];
+
+    listUsersMock.mockImplementation(async () => users);
+    updateProfileMock.mockImplementation(async (username, payload) => {
+      users = users.map((record) =>
+        record.username === username
+          ? {
+              ...record,
+              email: payload.email ?? null,
+              first_name: payload.first_name ?? null,
+              last_name: payload.last_name ?? null
+            }
+          : record
+      );
+      return users.find((record) => record.username === username)!;
+    });
+
+    render(<UserManagementPanel currentUser="alice" />);
+
+    const bobRow = await screen.findByRole('row', { name: /bob/i });
+
+    await user.click(within(bobRow).getByRole('button', { name: /Edit profile/i }));
+
+    const profileForm = await screen.findByRole('form', { name: /Edit profile for bob/i });
+    const emailField = within(profileForm).getByLabelText(/Email address/i);
+    const firstNameField = within(profileForm).getByLabelText(/First name/i);
+    const lastNameField = within(profileForm).getByLabelText(/Last name/i);
+
+    await user.clear(emailField);
+    await user.type(emailField, 'bob.updated@example.com');
+    await user.clear(firstNameField);
+    await user.type(firstNameField, 'Robert');
+    await user.clear(lastNameField);
+    await user.type(lastNameField, 'Builder');
+
+    await user.click(within(profileForm).getByRole('button', { name: /Save bob/i }));
+
+    await waitFor(() =>
+      expect(updateProfileMock).toHaveBeenCalledWith('bob', {
+        email: 'bob.updated@example.com',
+        first_name: 'Robert',
+        last_name: 'Builder'
+      })
+    );
+
+    expect(await screen.findByText('bob.updated@example.com')).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(/updated profile for 'bob'/i);
   });
 });

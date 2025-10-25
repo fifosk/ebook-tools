@@ -16,10 +16,14 @@ from .schemas import (
     UserCreateRequestPayload,
     UserListResponse,
     UserPasswordResetRequestPayload,
+    UserUpdateRequestPayload,
 )
 
 
 router = APIRouter()
+
+
+PROFILE_FIELDS = ("email", "first_name", "last_name")
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:
@@ -87,9 +91,20 @@ def _serialize_user(record: UserRecord) -> ManagedUserPayload:
     metadata = dict(record.metadata or {})
     status, is_active, is_suspended = _resolve_account_status(record)
 
+    def _metadata_string(key: str) -> str | None:
+        value = metadata.get(key)
+        if isinstance(value, str):
+            candidate = value.strip()
+            if candidate:
+                return candidate
+        return None
+
     return ManagedUserPayload(
         username=record.username,
         roles=list(record.roles),
+        email=_metadata_string("email"),
+        first_name=_metadata_string("first_name"),
+        last_name=_metadata_string("last_name"),
         status=status,
         is_active=is_active,
         is_suspended=is_suspended,
@@ -102,6 +117,26 @@ def _serialize_user(record: UserRecord) -> ManagedUserPayload:
 
 def _touch_timestamp(metadata: Dict[str, Any], key: str) -> None:
     metadata[key] = datetime.now(timezone.utc).isoformat()
+
+
+def _normalise_profile_field(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        candidate = value.strip()
+        return candidate or None
+    return str(value).strip() or None
+
+
+def _apply_profile_updates(metadata: Dict[str, Any], updates: Dict[str, Any]) -> None:
+    for field in PROFILE_FIELDS:
+        if field not in updates:
+            continue
+        normalised = _normalise_profile_field(updates[field])
+        if normalised is None:
+            metadata.pop(field, None)
+        else:
+            metadata[field] = normalised
 
 
 @router.get("/users", response_model=UserListResponse)
@@ -129,6 +164,14 @@ def create_user(
 
     metadata: Dict[str, Any] = {}
     _touch_timestamp(metadata, "created_at")
+    _apply_profile_updates(
+        metadata,
+        {
+            "email": payload.email,
+            "first_name": payload.first_name,
+            "last_name": payload.last_name,
+        },
+    )
 
     try:
         record = auth_service.user_store.create_user(
@@ -166,6 +209,33 @@ def suspend_user(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from exc
 
     auth_service.session_manager.clear_sessions_for_user(username)
+    return UserAccountResponse(user=_serialize_user(record))
+
+
+@router.put("/users/{username}", response_model=UserAccountResponse)
+def update_user_details(
+    username: str,
+    payload: UserUpdateRequestPayload,
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> UserAccountResponse:
+    _require_admin(authorization, auth_service)
+
+    record = auth_service.user_store.get_user(username)
+    if record is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    metadata = dict(record.metadata or {})
+    updates = payload.model_dump(exclude_unset=True)
+    if updates:
+        _apply_profile_updates(metadata, updates)
+        _touch_timestamp(metadata, "updated_at")
+
+    try:
+        record = auth_service.user_store.update_user(username, metadata=metadata)
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found") from exc
+
     return UserAccountResponse(user=_serialize_user(record))
 
 

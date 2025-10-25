@@ -116,6 +116,9 @@ export interface PipelineJobActionResponse {
 export interface SessionUser {
   username: string;
   role: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
   last_login: string | null;
 }
 
@@ -146,6 +149,9 @@ export interface ManagedUserMetadata {
 export interface ManagedUser {
   username: string;
   roles: string[];
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
   status?: UserAccountStatus;
   is_active?: boolean;
   is_suspended?: boolean;
@@ -167,8 +173,17 @@ export interface UserCreateRequestPayload {
   username: string;
   password: string;
   roles: string[];
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface UserPasswordResetRequestPayload {
   password: string;
+}
+
+export interface UserUpdateRequestPayload {
+  email?: string | null;
+  first_name?: string | null;
+  last_name?: string | null;
 }

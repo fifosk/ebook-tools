@@ -73,7 +73,8 @@ export function App() {
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
   const isAuthenticated = Boolean(session);
-  const isAdmin = session?.user.role === 'admin';
+  const sessionUser = session?.user ?? null;
+  const isAdmin = sessionUser?.role === 'admin';
 
   const handleLogin = useCallback(
     async (username: string, password: string) => {
@@ -442,17 +443,38 @@ export function App() {
     return jobList.find((job) => job.jobId === selectedView);
   }, [isAdminView, isPipelineView, jobList, selectedView]);
 
+  const displayName = useMemo(() => {
+    if (!sessionUser) {
+      return { label: '', showUsernameTag: false };
+    }
+    const parts = [sessionUser.first_name, sessionUser.last_name]
+      .map((value) => (typeof value === 'string' ? value.trim() : ''))
+      .filter((value) => Boolean(value));
+    const fullName = parts.length > 0 ? parts.join(' ') : null;
+    const label = fullName ?? sessionUser.username;
+    const showUsernameTag = Boolean(fullName && sessionUser.username && fullName !== sessionUser.username);
+    return { label, showUsernameTag };
+  }, [sessionUser]);
+
+  const sessionEmail = useMemo(() => {
+    if (!sessionUser?.email) {
+      return null;
+    }
+    const trimmed = sessionUser.email.trim();
+    return trimmed || null;
+  }, [sessionUser]);
+
   const lastLoginLabel = useMemo(() => {
-    if (!session?.user.last_login) {
+    if (!sessionUser?.last_login) {
       return null;
     }
     try {
-      return new Date(session.user.last_login).toLocaleString();
+      return new Date(sessionUser.last_login).toLocaleString();
     } catch (error) {
       console.warn('Unable to parse last login timestamp', error);
-      return session.user.last_login;
+      return sessionUser.last_login;
     }
-  }, [session]);
+  }, [sessionUser]);
 
   if (isAuthLoading) {
     return (
@@ -567,10 +589,14 @@ export function App() {
           <div className="session-info">
             <div className="session-info__details">
               <span className="session-info__user">
-                Signed in as <strong>{session.user.username}</strong>
+                Signed in as <strong>{displayName.label}</strong>
+                {displayName.showUsernameTag ? (
+                  <span className="session-info__username">({sessionUser?.username})</span>
+                ) : null}
               </span>
+              {sessionEmail ? <span className="session-info__email">{sessionEmail}</span> : null}
               <span className="session-info__meta">
-                <span className="session-info__role">Role: {session.user.role}</span>
+                <span className="session-info__role">Role: {sessionUser?.role}</span>
                 {lastLoginLabel ? (
                   <span className="session-info__last-login">Last login: {lastLoginLabel}</span>
                 ) : null}
@@ -654,7 +680,7 @@ export function App() {
         </header>
         {isAdminView ? (
           <section>
-            <UserManagementPanel currentUser={session.user.username} />
+            <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
           </section>
         ) : (
           <>
