@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import sys
 import threading
+import warnings
 from typing import Optional
 
-from .cli import args as cli_args
-from .cli import pipeline_runner as cli_pipeline_runner
+from .cli.orchestrator import run_legacy_pipeline
 from .progress_tracker import ProgressTracker
 from .services.pipeline_service import PipelineResponse
 
@@ -22,13 +22,15 @@ def run_pipeline(
 ) -> Optional[PipelineResponse]:
     """Entry point for executing the ebook processing pipeline."""
 
-    args = cli_args.parse_legacy_args()
-    response = cli_pipeline_runner.run_pipeline_from_args(
-        args,
+    warnings.warn(
+        "modules.ebook_tools is deprecated; import modules.cli.orchestrator instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return run_legacy_pipeline(
         progress_tracker=progress_tracker,
         stop_event=stop_event,
     )
-    return response
 
 
 if __name__ == "__main__":  # pragma: no cover - manual execution
