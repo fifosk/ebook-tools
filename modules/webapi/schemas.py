@@ -362,3 +362,19 @@ class PipelineFileBrowserResponse(BaseModel):
     outputs: List[PipelineFileEntry] = Field(default_factory=list)
     books_root: str = ""
     output_root: str = ""
+
+
+class PipelineMediaFile(BaseModel):
+    """Describes generated media metadata for a job."""
+
+    name: str
+    url: Optional[str] = None
+    size: Optional[int] = None
+    updated_at: Optional[datetime] = None
+    source: Literal["completed", "live"]
+
+
+class PipelineMediaResponse(BaseModel):
+    """Response payload grouping generated media by type."""
+
+    media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)

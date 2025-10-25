@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterator, Mapping, Optional, cast
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
+from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from .jobs import PipelineJobManager
@@ -111,6 +112,13 @@ def get_pipeline_service() -> PipelineService:
     """Return a lazily constructed :class:`PipelineService`."""
 
     return PipelineService(get_pipeline_job_manager())
+
+
+@lru_cache
+def get_file_locator() -> FileLocator:
+    """Return a cached :class:`FileLocator` instance for route handlers."""
+
+    return FileLocator()
 
 
 def _expand_path(path_value: Optional[str]) -> Optional[Path]:

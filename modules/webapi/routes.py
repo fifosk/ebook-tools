@@ -4,22 +4,26 @@ from __future__ import annotations
 
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import AsyncIterator, Callable, List
+from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Header, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from .dependencies import (
     RuntimeContextProvider,
+    get_file_locator,
     get_pipeline_service,
     get_runtime_context_provider,
 )
 from .jobs import PipelineJob, PipelineJobTransitionError
 from .. import config_manager as cfg
+from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from .schemas import (
     PipelineJobActionResponse,
     PipelineJobListResponse,
+    PipelineMediaFile,
+    PipelineMediaResponse,
     PipelineFileBrowserResponse,
     PipelineFileEntry,
     PipelineDefaultsResponse,
@@ -102,6 +106,118 @@ def _build_action_response(
         job=PipelineStatusResponse.from_job(job),
         error=error,
     )
+
+
+def _resolve_media_path(
+    job_id: str,
+    entry: Mapping[str, Any],
+    locator: FileLocator,
+    job_root: Path,
+) -> tuple[Optional[Path], Optional[str]]:
+    """Return the absolute and relative paths for a generated media entry."""
+
+    relative_value = entry.get("relative_path")
+    resolved_path: Optional[Path] = None
+    relative_path: Optional[str] = None
+
+    if relative_value:
+        relative_path = Path(str(relative_value)).as_posix()
+        try:
+            resolved_path = locator.resolve_path(job_id, relative_path)
+        except ValueError:
+            resolved_path = None
+
+    path_value = entry.get("path")
+    if resolved_path is None and path_value:
+        candidate = Path(str(path_value))
+        if candidate.is_absolute():
+            resolved_path = candidate
+            try:
+                relative_candidate = candidate.relative_to(job_root)
+            except ValueError:
+                pass
+            else:
+                relative_path = relative_candidate.as_posix()
+        else:
+            try:
+                resolved_path = locator.resolve_path(job_id, candidate)
+            except ValueError:
+                resolved_path = None
+            else:
+                relative_path = candidate.as_posix()
+
+    return resolved_path, relative_path
+
+
+def _serialize_media_entries(
+    job_id: str,
+    generated_files: Optional[Mapping[str, Any]],
+    locator: FileLocator,
+    *,
+    source: str,
+) -> Dict[str, List[PipelineMediaFile]]:
+    """Return a mapping of media types to serialized file metadata."""
+
+    media_map: Dict[str, List[PipelineMediaFile]] = {}
+    if not isinstance(generated_files, Mapping):
+        return media_map
+
+    files_section = generated_files.get("files")
+    if not isinstance(files_section, list):
+        return media_map
+
+    job_root = locator.resolve_path(job_id)
+
+    for entry in files_section:
+        if not isinstance(entry, Mapping):
+            continue
+        file_type_raw = entry.get("type") or "unknown"
+        file_type = str(file_type_raw).lower() or "unknown"
+
+        resolved_path, relative_path = _resolve_media_path(job_id, entry, locator, job_root)
+
+        url: Optional[str] = entry.get("url") if isinstance(entry.get("url"), str) else None
+        if not url and relative_path:
+            try:
+                url = locator.resolve_url(job_id, relative_path)
+            except ValueError:
+                url = None
+
+        size: Optional[int] = None
+        updated_at: Optional[datetime] = None
+        if resolved_path is not None and resolved_path.exists():
+            try:
+                stat_result = resolved_path.stat()
+            except OSError:
+                pass
+            else:
+                size = int(stat_result.st_size)
+                updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
+
+        name_value = entry.get("name")
+        name = str(name_value) if name_value else None
+        if not name:
+            if resolved_path is not None:
+                name = resolved_path.name
+            elif relative_path:
+                name = Path(relative_path).name
+            else:
+                path_value = entry.get("path")
+                if path_value:
+                    name = Path(str(path_value)).name
+        if not name:
+            name = "media" if file_type == "unknown" else file_type
+
+        record = PipelineMediaFile(
+            name=name,
+            url=url,
+            size=size,
+            updated_at=updated_at,
+            source=source,
+        )
+        media_map.setdefault(file_type, []).append(record)
+
+    return media_map
 
 
 @router.get("/jobs", response_model=PipelineJobListResponse)
@@ -272,6 +388,72 @@ async def get_pipeline_status(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return PipelineStatusResponse.from_job(job)
+
+
+@router.get("/jobs/{job_id}/media", response_model=PipelineMediaResponse)
+async def get_job_media(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    file_locator: FileLocator = Depends(get_file_locator),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    """Return generated media metadata for a completed or persisted job."""
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    media_entries = _serialize_media_entries(
+        job.job_id,
+        job.generated_files,
+        file_locator,
+        source="completed",
+    )
+    return PipelineMediaResponse(media=media_entries)
+
+
+@router.get("/jobs/{job_id}/media/live", response_model=PipelineMediaResponse)
+async def get_job_media_live(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    file_locator: FileLocator = Depends(get_file_locator),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    """Return live generated media metadata from the active progress tracker."""
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    generated_payload: Optional[Mapping[str, Any]] = None
+    if job.tracker is not None:
+        generated_payload = job.tracker.get_generated_files()
+    elif job.generated_files is not None:
+        generated_payload = job.generated_files
+
+    media_entries = _serialize_media_entries(
+        job.job_id,
+        generated_payload,
+        file_locator,
+        source="live",
+    )
+    return PipelineMediaResponse(media=media_entries)
 
 
 def _handle_job_action(
