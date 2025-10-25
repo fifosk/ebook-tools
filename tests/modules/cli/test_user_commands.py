@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 
+from modules.user_management import AuthService, LocalUserStore, SessionManager
+
 
 def _configure_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> tuple[Path, Path, Path]:
     user_store = tmp_path / "users.json"
@@ -144,3 +146,36 @@ def test_run_requires_active_session(
     assert exit_code == 0
     assert called.get("invoked") is True
     assert "No active session" not in captured.err
+
+
+def test_cli_sessions_share_auth_service(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys, orchestrator_module
+) -> None:
+    user_store, session_file, active_file = _configure_env(monkeypatch, tmp_path)
+
+    exit_code = orchestrator_module.run_cli(
+        ["user", "add", "dana", "--password", "s3cret", "--role", "editor"]
+    )
+    assert exit_code == 0
+    capsys.readouterr()
+
+    exit_code = orchestrator_module.run_cli(
+        ["user", "login", "dana", "--password", "s3cret"]
+    )
+    assert exit_code == 0
+    capsys.readouterr()
+
+    token = active_file.read_text(encoding="utf-8").strip()
+    assert token
+
+    auth = AuthService(LocalUserStore(user_store), SessionManager(session_file))
+    user = auth.authenticate(token)
+    assert user is not None
+    assert user.username == "dana"
+    assert "editor" in user.roles
+
+    exit_code = orchestrator_module.run_cli(["user", "logout"])
+    assert exit_code == 0
+    capsys.readouterr()
+
+    assert auth.authenticate(token) is None
