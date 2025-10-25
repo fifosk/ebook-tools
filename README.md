@@ -68,9 +68,10 @@ control cross-origin requests and optional static hosting of the bundled
 single-page application:
 
 - **`EBOOK_API_CORS_ORIGINS`** – Comma or whitespace separated list of allowed
-  origins for CORS. Defaults to the local Vite dev server URLs
-  (`http://localhost:5173` and `http://127.0.0.1:5173`). Set to `*` to allow
-  every origin or to an empty string to disable the middleware entirely.
+  origins for CORS. Defaults to the local API and Vite dev server URLs
+  (`http://localhost`, `http://127.0.0.1`, `http://localhost:5173`,
+  `http://127.0.0.1:5173`, plus the machine's LAN IP if available). Set to `*`
+  to allow every origin or to an empty string to disable the middleware entirely.
 - **`EBOOK_API_STATIC_ROOT`** – Filesystem path to the built web assets. When
   unset, the server looks for `web/dist/` relative to the repository root. Set
   this value to an empty string to run in API-only mode even if the directory
@@ -81,6 +82,9 @@ single-page application:
   (default: `/`).
 - **`JOB_STORE_URL`** – Redis (or compatible) URL used to persist job metadata.
   When unset the service falls back to filesystem persistence.
+- **`EBOOK_STORAGE_BASE_URL`** – Public base URL for the storage routes exposed
+  by the API. Downstream services and the SPA use this to resolve download
+  links. Defaults to the API origin with `/storage` appended.
 - **`JOB_STORAGE_DIR`** – Filesystem directory used by the fallback persistence
   layer. Defaults to `storage/jobs` relative to the working directory. The
   server creates the directory automatically when the first job is persisted.
