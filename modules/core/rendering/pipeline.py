@@ -13,6 +13,7 @@ from pydub import AudioSegment
 
 from modules import audio_video_generator as av_gen
 from modules.render import MediaBatchOrchestrator
+from modules.render.backends import PollyAudioSynthesizer
 from modules import output_formatter
 from modules.book_cover import fetch_book_cover
 from modules.config_manager import resolve_file_path
@@ -606,6 +607,11 @@ class RenderPipeline:
         pipeline_stop_event = self._stop_event or threading.Event()
         translation_queue = create_translation_queue(self._config.queue_size)
         finalize_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        audio_synthesizer = PollyAudioSynthesizer(
+            base_url=self._config.audio_api_base_url,
+            timeout=self._config.audio_api_timeout_seconds,
+            poll_interval=self._config.audio_api_poll_interval_seconds,
+        )
         media_orchestrator = MediaBatchOrchestrator(
             translation_queue,
             worker_count=worker_count,
@@ -624,6 +630,7 @@ class RenderPipeline:
             queue_size=self._config.queue_size,
             audio_stop_event=pipeline_stop_event,
             progress_tracker=self._progress,
+            audio_synthesizer=audio_synthesizer,
             media_result_factory=av_gen.MediaPipelineResult,
         )
         media_queue, media_threads = media_orchestrator.start()

@@ -63,6 +63,9 @@ class EbookToolsSettings(BaseModel):
     )
     tts_executable_path: Optional[str] = None
     say_path: Optional[str] = None
+    audio_api_base_url: Optional[str] = None
+    audio_api_timeout_seconds: float = 60.0
+    audio_api_poll_interval_seconds: float = 1.0
     book_title: str = "Unknown Title"
     book_author: str = "Unknown Author"
     book_year: str = "Unknown Year"
@@ -188,6 +191,31 @@ class EnvironmentOverrides(BaseSettings):
         default=None,
         validation_alias=AliasChoices(
             "SAY_PATH", "EBOOK_SAY_PATH", "EBOOK_AUDIO_SAY_PATH"
+        ),
+    )
+    audio_api_base_url: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUDIO_API_BASE_URL",
+            "EBOOK_AUDIO_API_BASE_URL",
+        ),
+    )
+    audio_api_timeout_seconds: Optional[float] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUDIO_API_TIMEOUT",
+            "AUDIO_API_TIMEOUT_SECONDS",
+            "EBOOK_AUDIO_API_TIMEOUT",
+            "EBOOK_AUDIO_API_TIMEOUT_SECONDS",
+        ),
+    )
+    audio_api_poll_interval_seconds: Optional[float] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "AUDIO_API_POLL_INTERVAL",
+            "AUDIO_API_POLL_INTERVAL_SECONDS",
+            "EBOOK_AUDIO_API_POLL_INTERVAL",
+            "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS",
         ),
     )
 

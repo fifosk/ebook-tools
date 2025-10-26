@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from modules.audio.api import AudioService
@@ -25,6 +27,9 @@ def _reset_media_services(monkeypatch: pytest.MonkeyPatch) -> None:
         "EBOOK_TTS_EXECUTABLE",
         "EBOOK_SAY_PATH",
         "EBOOK_AUDIO_SAY_PATH",
+        "EBOOK_AUDIO_API_BASE_URL",
+        "EBOOK_AUDIO_API_TIMEOUT_SECONDS",
+        "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS",
         "EBOOK_VIDEO_BACKEND",
         "VIDEO_BACKEND",
         "EBOOK_VIDEO_EXECUTABLE",
@@ -96,4 +101,20 @@ def test_video_service_merges_ffmpeg_path_from_config() -> None:
     video_service = get_video_service()
 
     assert video_service._backend_settings["ffmpeg"]["executable"] == "/usr/local/bin/ffmpeg"
+
+
+def test_configure_media_services_sets_audio_api_environment() -> None:
+    """Audio API settings should be exported for downstream synthesizers."""
+
+    configure_media_services(
+        config={
+            "audio_api_base_url": "https://audio.example",
+            "audio_api_timeout_seconds": 42,
+            "audio_api_poll_interval_seconds": 2.5,
+        }
+    )
+
+    assert os.environ["EBOOK_AUDIO_API_BASE_URL"] == "https://audio.example"
+    assert os.environ["EBOOK_AUDIO_API_TIMEOUT_SECONDS"] == "42.0"
+    assert os.environ["EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS"] == "2.5"
 

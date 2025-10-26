@@ -92,6 +92,9 @@ class PipelineConfig:
     tts_backend: str = field(default_factory=get_default_backend_name)
     tts_executable_path: Optional[str] = None
     say_path: Optional[str] = None
+    audio_api_base_url: Optional[str] = None
+    audio_api_timeout_seconds: Optional[float] = None
+    audio_api_poll_interval_seconds: Optional[float] = None
     tempo: float = 1.0
     macos_reading_speed: int = 100
     sync_ratio: float = 0.9
@@ -167,6 +170,22 @@ class PipelineConfig:
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
             AudioSegment.converter = ffmpeg_path
+        if self.audio_api_base_url:
+            os.environ["EBOOK_AUDIO_API_BASE_URL"] = self.audio_api_base_url
+        else:
+            os.environ.pop("EBOOK_AUDIO_API_BASE_URL", None)
+        if self.audio_api_timeout_seconds is not None:
+            os.environ["EBOOK_AUDIO_API_TIMEOUT_SECONDS"] = str(
+                float(self.audio_api_timeout_seconds)
+            )
+        else:
+            os.environ.pop("EBOOK_AUDIO_API_TIMEOUT_SECONDS", None)
+        if self.audio_api_poll_interval_seconds is not None:
+            os.environ["EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS"] = str(
+                float(self.audio_api_poll_interval_seconds)
+            )
+        else:
+            os.environ.pop("EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS", None)
 
     def get_slide_render_options(self) -> SlideRenderOptions:
         """Return rendering options used for sentence slide generation."""
@@ -250,6 +269,23 @@ def build_pipeline_config(
     )
     tts_executable_path = raw_tts_executable or raw_say_path
     say_path = raw_say_path or tts_executable_path
+    audio_api_base_url = _normalize_optional_str(
+        _select_value("audio_api_base_url", config, overrides, None)
+    )
+    raw_audio_api_timeout = _select_value(
+        "audio_api_timeout_seconds", config, overrides, None
+    )
+    if raw_audio_api_timeout is None:
+        audio_api_timeout_seconds: Optional[float] = None
+    else:
+        audio_api_timeout_seconds = max(0.0, _coerce_float(raw_audio_api_timeout, 60.0))
+    raw_audio_api_poll = _select_value(
+        "audio_api_poll_interval_seconds", config, overrides, None
+    )
+    if raw_audio_api_poll is None:
+        audio_api_poll_interval_seconds: Optional[float] = None
+    else:
+        audio_api_poll_interval_seconds = max(0.0, _coerce_float(raw_audio_api_poll, 1.0))
     tempo = _coerce_float(_select_value("tempo", config, overrides, 1.0), 1.0)
     macos_reading_speed = _coerce_int(
         _select_value("macos_reading_speed", config, overrides, 100),
@@ -413,6 +449,9 @@ def build_pipeline_config(
         tts_backend=tts_backend,
         tts_executable_path=tts_executable_path,
         say_path=say_path,
+        audio_api_base_url=audio_api_base_url,
+        audio_api_timeout_seconds=audio_api_timeout_seconds,
+        audio_api_poll_interval_seconds=audio_api_poll_interval_seconds,
         tempo=tempo,
         macos_reading_speed=macos_reading_speed,
         sync_ratio=sync_ratio,

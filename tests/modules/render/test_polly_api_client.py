@@ -65,21 +65,63 @@ def test_polly_synthesizer_uses_audio_api_client(synthesizer):
     assert attributes["status"] == "success"
 
 
-def test_polly_synthesizer_records_error_metrics(monkeypatch):
+def test_polly_synthesizer_falls_back_on_media_backend_error(monkeypatch):
     metrics = []
     monkeypatch.setattr(
         "modules.render.backends.polly.observability.record_metric",
         lambda name, value, attributes=None: metrics.append((name, attributes)),
     )
+
+    fallback_calls = []
+
+    def _fake_generate_audio(text, lang_code, voice, speed, config):
+        fallback_calls.append((text, lang_code, voice, speed, config))
+        return AudioSegment.silent(duration=12)
+
+    monkeypatch.setattr(
+        "modules.render.backends.polly.generate_audio", _fake_generate_audio
+    )
+
     error = MediaBackendError("boom")
     client = _StubAudioClient(error=error)
     synth = PollyAudioSynthesizer(audio_client=client)
 
-    with pytest.raises(MediaBackendError):
-        _synthesize_sentence(synth)
+    segment = _synthesize_sentence(synth)
 
+    assert len(segment) > 0, "Synthesizer should fall back to legacy backend"
     assert client.calls, "Audio API client should be invoked"
+    assert fallback_calls, "Legacy backend should be used after API failure"
     assert metrics, "Telemetry metric should be recorded"
     metric_name, attributes = metrics[-1]
     assert metric_name == "audio.api.synthesize.duration"
     assert attributes["status"] == "error"
+
+
+def test_polly_synthesizer_builds_client_from_environment(monkeypatch):
+    metrics = []
+    monkeypatch.setattr(
+        "modules.render.backends.polly.observability.record_metric",
+        lambda name, value, attributes=None: metrics.append((name, attributes)),
+    )
+    monkeypatch.setenv("EBOOK_AUDIO_API_BASE_URL", "https://audio.example")
+    monkeypatch.setenv("EBOOK_AUDIO_API_TIMEOUT_SECONDS", "120")
+
+    created: dict[str, tuple[str, float]] = {}
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout):
+            created["args"] = (base_url, timeout)
+
+        def synthesize(self, **kwargs):
+            return AudioSegment.silent(duration=20)
+
+    monkeypatch.setattr(
+        "modules.integrations.audio_client.AudioAPIClient", _FakeClient
+    )
+
+    synth = PollyAudioSynthesizer()
+    segment = _synthesize_sentence(synth)
+
+    assert len(segment) > 0
+    assert created["args"] == ("https://audio.example", 120.0)
+    assert metrics, "Expected API metrics when using the HTTP client"

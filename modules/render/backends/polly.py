@@ -13,6 +13,7 @@ from modules import logging_manager as log_mgr, observability
 from modules.audio.backends import get_default_backend_name
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
 from modules.audio.tts import generate_audio
+from modules.media.exceptions import MediaBackendError
 from modules.core.translation import split_translation_and_transliteration
 
 from .base import AudioSynthesizer
@@ -35,11 +36,13 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         *,
         audio_client: AudioAPIClient | None = None,
         base_url: str | None = None,
-        timeout: float = 60.0,
+        timeout: float | None = None,
+        poll_interval: float | None = None,
     ) -> None:
         self._client = audio_client
         self._client_base_url = base_url
         self._client_timeout = timeout
+        self._client_poll_interval = poll_interval
 
     def _resolve_client(self) -> AudioAPIClient | None:
         if self._client is not None:
@@ -47,6 +50,17 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         base_url = self._client_base_url or os.environ.get("EBOOK_AUDIO_API_BASE_URL")
         if not base_url:
             return None
+        timeout = self._client_timeout if self._client_timeout is not None else 60.0
+        timeout_override = os.environ.get("EBOOK_AUDIO_API_TIMEOUT_SECONDS")
+        if timeout_override:
+            try:
+                timeout = float(timeout_override)
+            except (TypeError, ValueError):  # pragma: no cover - defensive log
+                logger.warning(
+                    "Ignoring invalid EBOOK_AUDIO_API_TIMEOUT_SECONDS value: %r",
+                    timeout_override,
+                    extra={"event": "audio.api.invalid_timeout"},
+                )
         try:
             from modules.integrations.audio_client import AudioAPIClient as RuntimeAudioClient
         except ImportError as exc:  # pragma: no cover - optional dependency safeguard
@@ -56,7 +70,8 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 exc_info=exc,
             )
             return None
-        self._client = RuntimeAudioClient(base_url, timeout=self._client_timeout)
+        self._client = RuntimeAudioClient(base_url, timeout=timeout)
+        self._client_timeout = timeout
         return self._client
 
     def synthesize_sentence(
@@ -128,32 +143,33 @@ class PollyAudioSynthesizer(AudioSynthesizer):
 
         client = self._resolve_client()
 
+        backend_config = {
+            "tts_backend": tts_backend,
+            "tts_executable_path": tts_executable_path,
+            "say_path": tts_executable_path,
+        }
+
+        def _generate_with_legacy(text: str, lang_code: str) -> AudioSegment:
+            return generate_audio(
+                text,
+                lang_code,
+                selected_voice,
+                macos_reading_speed,
+                config=backend_config,
+            )
+
         if client is None:
-            backend_config = {
-                "tts_backend": tts_backend,
-                "tts_executable_path": tts_executable_path,
-                "say_path": tts_executable_path,
-            }
 
             if worker_count == 1:
                 for key, text, lang_code in tasks:
-                    segments[key] = generate_audio(
-                        text,
-                        lang_code,
-                        selected_voice,
-                        macos_reading_speed,
-                        config=backend_config,
-                    )
+                    segments[key] = _generate_with_legacy(text, lang_code)
             else:
                 with ThreadPoolExecutor(max_workers=worker_count) as executor:
                     future_map = {
                         executor.submit(
-                            generate_audio,
+                            _generate_with_legacy,
                             text,
                             lang_code,
-                            selected_voice,
-                            macos_reading_speed,
-                            config=backend_config,
                         ): key
                         for key, text, lang_code in tasks
                     }
@@ -191,6 +207,23 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                         speed=macos_reading_speed or None,
                         language=lang_code,
                     )
+                except MediaBackendError:
+                    duration_ms = (time.perf_counter() - start) * 1000.0
+                    observability.record_metric(
+                        "audio.api.synthesize.duration",
+                        duration_ms,
+                        {**attributes, "status": "error"},
+                    )
+                    logger.warning(
+                        "Audio API synthesis failed; falling back to local backend",
+                        extra={
+                            "event": "audio.api.synthesize.fallback",
+                            "attributes": attributes,
+                            "console_suppress": True,
+                        },
+                        exc_info=True,
+                    )
+                    return key, _generate_with_legacy(text, lang_code)
                 except Exception:
                     duration_ms = (time.perf_counter() - start) * 1000.0
                     observability.record_metric(
