@@ -10,7 +10,7 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
 from pydub import AudioSegment
 
@@ -26,6 +26,12 @@ AUTO_MACOS_VOICE_FEMALE = "macOS-auto-female"
 AUTO_MACOS_VOICE_MALE = "macOS-auto-male"
 _VOICE_QUALITIES = ("Premium", "Enhanced")
 _AUTO_VOICE_CACHE: Dict[Tuple[str, str], Optional[Tuple[str, str, str, Optional[str]]]] = {}
+
+_LANGUAGE_TO_MACOS_LOCALES: Dict[str, Tuple[str, ...]] = {
+    "en": ("en_US", "en_GB", "en_AU", "en_ZA", "en_IE"),
+    "es": ("es_ES", "es_MX"),
+    "ja": ("ja_JP",),
+}
 
 _SILENCE_LOCK = Lock()
 _SILENCE_FILENAME = "silence.wav"
@@ -157,38 +163,129 @@ def _locale_matches(lang_code: str, locale: str) -> bool:
     )
 
 
-def select_voice(lang_code: str, gender_preference: str) -> Optional[Tuple[str, str, str, Optional[str]]]:
-    """Return the best matching macOS voice for ``lang_code`` and gender preference."""
+def _unique_preserving_order(values: Iterable[str]) -> Tuple[str, ...]:
+    """Return ``values`` with duplicates removed while preserving order."""
+
+    seen = set()
+    result: List[str] = []
+    for value in values:
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(value)
+    return tuple(result)
+
+
+def _language_variants(language: str) -> Tuple[str, ...]:
+    """Return locale variants to consider for ``language`` selection."""
+
+    normalized = language.strip()
+    if not normalized:
+        return tuple()
+
+    normalized = normalized.replace("-", "_")
+    lowered = normalized.lower()
+    short = lowered.split("_")[0]
+    preferred_locales = _LANGUAGE_TO_MACOS_LOCALES.get(short, tuple())
+
+    candidates: List[str] = list(preferred_locales)
+    candidates.append(normalized)
+    if short:
+        candidates.append(short)
+    return _unique_preserving_order(candidates)
+
+
+def _gender_priority(preference: str) -> List[Optional[Iterable[str]]]:
+    """Return search order for genders given ``preference``."""
+
+    normalized = preference.strip().lower()
+    if normalized == "female":
+        return [["female"], ["male"], None]
+    if normalized == "male":
+        return [["male"], ["female"], None]
+    return [["female", "male"], None]
+
+
+def _select_macos_voice_candidate(
+    language_variants: Sequence[str], preference: str
+) -> Optional[Tuple[str, str, str, Optional[str]]]:
+    """Return best macOS voice tuple for ``language_variants`` and ``preference``."""
 
     voices = macos_voice_inventory()
     if not voices:
         return None
 
-    candidates = [
-        voice
-        for voice in voices
-        if voice[2] in _VOICE_QUALITIES and _locale_matches(lang_code, voice[1])
-    ]
-    if not candidates:
+    variants = tuple(language_variants)
+    if not variants:
         return None
 
-    gender_cycles: List[Optional[Iterable[str]]]
-    if gender_preference == "female":
-        gender_cycles = [["female"], ["male"], None]
-    elif gender_preference == "male":
-        gender_cycles = [["male"], ["female"], None]
-    else:
-        gender_cycles = [["female", "male"], None]
+    filtered: List[Tuple[str, str, str, Optional[str]]] = [
+        voice
+        for voice in voices
+        if voice[2] in _VOICE_QUALITIES
+        and any(_locale_matches(variant, voice[1]) for variant in variants)
+    ]
+    if not filtered:
+        return None
+
+    gender_cycles = _gender_priority(preference)
 
     for genders in gender_cycles:
-        for desired_quality in _VOICE_QUALITIES:
-            for voice in candidates:
-                voice_gender = voice[3]
-                if genders is not None and voice_gender not in genders:
-                    continue
-                if voice[2] == desired_quality:
-                    return voice
+        best_voice: Optional[Tuple[str, str, str, Optional[str]]] = None
+        best_rank: Optional[Tuple[int, int]] = None
+        for voice in filtered:
+            voice_gender = voice[3]
+            if genders is not None and voice_gender not in genders:
+                continue
+            try:
+                quality_rank = _VOICE_QUALITIES.index(voice[2])
+            except ValueError:
+                continue
+            locale_rank = min(
+                (
+                    index
+                    for index, variant in enumerate(variants)
+                    if _locale_matches(variant, voice[1])
+                ),
+                default=len(variants),
+            )
+            rank = (quality_rank, locale_rank)
+            if best_rank is None or rank < best_rank:
+                best_rank = rank
+                best_voice = voice
+        if best_voice is not None:
+            return best_voice
     return None
+
+
+def _format_voice_display(voice: Tuple[str, str, str, Optional[str]]) -> str:
+    """Return human-readable string for ``voice`` tuple."""
+
+    name, locale, quality, gender = voice
+    gender_suffix = f" - {gender.capitalize()}" if gender else ""
+    return f"{name} - {locale} - ({quality}){gender_suffix}"
+
+
+def _gtts_fallback(language: str) -> str:
+    """Return fallback identifier for gTTS based on ``language``."""
+
+    normalized = language.strip().lower()
+    if not normalized:
+        return "gTTS-en"
+    short = normalized.replace("_", "-").split("-")[0]
+    short = short or "en"
+    return f"gTTS-{short}"
+
+
+def select_voice(language: str, voice_preference: str) -> str:
+    """Select a voice identifier for ``language`` respecting ``voice_preference``."""
+
+    variants = _language_variants(language)
+    candidate = _select_macos_voice_candidate(variants, voice_preference)
+    if candidate is not None:
+        return _format_voice_display(candidate)
+    return _gtts_fallback(language)
 
 
 def _synthesize_with_gtts(text: str, lang_code: str, speed: int) -> AudioSegment:
@@ -215,7 +312,8 @@ def _resolve_macos_voice_name(selected_voice: str, lang_code: str) -> Optional[s
         cache_key = (lang_code, preference)
         cached_voice = _AUTO_VOICE_CACHE.get(cache_key)
         if cache_key not in _AUTO_VOICE_CACHE:
-            cached_voice = select_voice(lang_code, preference)
+            variants = _language_variants(lang_code)
+            cached_voice = _select_macos_voice_candidate(variants, preference)
             _AUTO_VOICE_CACHE[cache_key] = cached_voice
         if cached_voice:
             voice_name, _locale, _quality, _gender = cached_voice
