@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import os
+import time
 from pathlib import Path
 from typing import Any, Callable, Mapping, Optional, Sequence, TYPE_CHECKING
 
 from pydub import AudioSegment
 
-from modules import logging_manager as log_mgr
+from modules import logging_manager as log_mgr, observability
 from modules.config.loader import RenderingConfig, get_rendering_config
 
 from .backends import BaseVideoRenderer, VideoRenderOptions, create_video_renderer
@@ -141,11 +142,58 @@ class VideoService:
         if self._backend_name == "api" and api_client is not None:
             option_payload = self._options_payload(options)
             if option_payload is not None:
-                result = api_client.render(
-                    slides=slides,
-                    audio_segments=audio_tracks,
-                    options=option_payload,
-                    output_filename=Path(output_path).name,
+                attributes = {
+                    "backend": self._backend_name,
+                    "slides": len(slides),
+                    "audio_tracks": len(audio_tracks),
+                    "output_filename": Path(output_path).name,
+                }
+                logger.info(
+                    "Dispatching remote video render request",
+                    extra={
+                        "event": "video.api.render.start",
+                        "attributes": attributes,
+                        "console_suppress": True,
+                    },
+                )
+                start = time.perf_counter()
+                try:
+                    result = api_client.render(
+                        slides=slides,
+                        audio_segments=audio_tracks,
+                        options=option_payload,
+                        output_filename=attributes["output_filename"],
+                    )
+                except Exception:
+                    duration_ms = (time.perf_counter() - start) * 1000.0
+                    observability.record_metric(
+                        "video.api.render.duration",
+                        duration_ms,
+                        {**attributes, "status": "error"},
+                    )
+                    logger.error(
+                        "Remote video render failed",
+                        extra={
+                            "event": "video.api.render.error",
+                            "attributes": attributes,
+                            "console_suppress": True,
+                        },
+                        exc_info=True,
+                    )
+                    raise
+                duration_ms = (time.perf_counter() - start) * 1000.0
+                observability.record_metric(
+                    "video.api.render.duration",
+                    duration_ms,
+                    {**attributes, "status": "success"},
+                )
+                logger.info(
+                    "Remote video render completed",
+                    extra={
+                        "event": "video.api.render.complete",
+                        "attributes": {**attributes, "duration_ms": round(duration_ms, 2)},
+                        "console_suppress": True,
+                    },
                 )
                 result_payload = result.get("result") if isinstance(result, Mapping) else None
                 if isinstance(result_payload, Mapping):
@@ -161,7 +209,53 @@ class VideoService:
 
         api_client = self._resolve_api_client()
         if self._backend_name == "api" and api_client is not None:
-            result = api_client.concatenate(video_paths, correlation_id=None)
+            attributes = {
+                "backend": self._backend_name,
+                "segment_count": len(video_paths),
+                "output_filename": Path(output_path).name,
+            }
+            logger.info(
+                "Dispatching remote video concatenate request",
+                extra={
+                    "event": "video.api.concatenate.start",
+                    "attributes": attributes,
+                    "console_suppress": True,
+                },
+            )
+            start = time.perf_counter()
+            try:
+                result = api_client.concatenate(video_paths, correlation_id=None)
+            except Exception:
+                duration_ms = (time.perf_counter() - start) * 1000.0
+                observability.record_metric(
+                    "video.api.concatenate.duration",
+                    duration_ms,
+                    {**attributes, "status": "error"},
+                )
+                logger.error(
+                    "Remote video concatenate failed",
+                    extra={
+                        "event": "video.api.concatenate.error",
+                        "attributes": attributes,
+                        "console_suppress": True,
+                    },
+                    exc_info=True,
+                )
+                raise
+            duration_ms = (time.perf_counter() - start) * 1000.0
+            observability.record_metric(
+                "video.api.concatenate.duration",
+                duration_ms,
+                {**attributes, "status": "success"},
+            )
+            logger.info(
+                "Remote video concatenate completed",
+                extra={
+                    "event": "video.api.concatenate.complete",
+                    "attributes": {**attributes, "duration_ms": round(duration_ms, 2)},
+                    "console_suppress": True,
+                },
+            )
             result_payload = result.get("result") if isinstance(result, Mapping) else None
             if isinstance(result_payload, Mapping):
                 path = result_payload.get("path")

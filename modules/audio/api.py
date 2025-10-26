@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any, Mapping, Optional
 
 from pydub import AudioSegment
 
-from modules import logging_manager as log_mgr
+from modules import logging_manager as log_mgr, observability
 
 from .backends import BaseTTSBackend, create_backend, get_tts_backend
 
@@ -77,19 +78,63 @@ class AudioService:
         """Generate speech audio using the configured backend."""
 
         backend = self._resolve_backend()
-        logger.debug(
-            "Synthesizing audio with backend '%s' (voice=%s, speed=%s).",
-            backend.name,
-            voice,
-            speed,
+        attributes = {
+            "backend": backend.name,
+            "voice": voice,
+            "speed": speed,
+            "language": lang_code,
+            "has_output_path": bool(output_path),
+        }
+        logger.info(
+            "Dispatching audio synthesis request",
+            extra={
+                "event": "audio.service.synthesize.start",
+                "attributes": attributes,
+                "console_suppress": True,
+            },
         )
-        return backend.synthesize(
-            text=text,
-            voice=voice,
-            speed=speed,
-            lang_code=lang_code,
-            output_path=output_path,
+        start_time = time.perf_counter()
+        try:
+            segment = backend.synthesize(
+                text=text,
+                voice=voice,
+                speed=speed,
+                lang_code=lang_code,
+                output_path=output_path,
+            )
+        except Exception:
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            observability.record_metric(
+                "audio.service.synthesize.duration",
+                duration_ms,
+                {**attributes, "status": "error"},
+            )
+            logger.error(
+                "Audio synthesis failed",
+                extra={
+                    "event": "audio.service.synthesize.error",
+                    "attributes": attributes,
+                    "console_suppress": True,
+                },
+                exc_info=True,
+            )
+            raise
+
+        duration_ms = (time.perf_counter() - start_time) * 1000.0
+        observability.record_metric(
+            "audio.service.synthesize.duration",
+            duration_ms,
+            {**attributes, "status": "success"},
         )
+        logger.info(
+            "Audio synthesis completed",
+            extra={
+                "event": "audio.service.synthesize.complete",
+                "attributes": {**attributes, "duration_ms": round(duration_ms, 2)},
+                "console_suppress": True,
+            },
+        )
+        return segment
 
 
 __all__ = ["AudioService"]
