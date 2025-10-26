@@ -34,7 +34,7 @@ def _normalize_api_voice(selected_voice: Optional[str]) -> Optional[str]:
 
     lowered = voice.lower()
     if lowered.startswith("macos-auto"):
-        return None
+        return "0"
     if lowered == "gtts":
         return None
     return voice
