@@ -3,16 +3,13 @@
 from __future__ import annotations
 
 import os
-import shutil
-from typing import Iterable, MutableSequence, Sequence
+from typing import Iterable, Mapping, MutableMapping, Sequence
 
 from pydub import AudioSegment
 
-from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import output_formatter
 from modules.audio.tts import silence_audio_path
-from modules.config.loader import get_rendering_config
 from modules.media.command_runner import run_command
 from modules.video.slides import prepare_sentence_frames
 
@@ -39,20 +36,17 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
     def __init__(
         self,
         *,
+        executable: str = "ffmpeg",
+        loglevel: str = "quiet",
+        presets: Mapping[str, Iterable[str] | str] | None = None,
         frame_builder=prepare_sentence_frames,
         command_runner=run_command,
     ) -> None:
         self._frame_builder = frame_builder
         self._run_external = command_runner
-        self._config = get_rendering_config()
-        self._backend_settings = (
-            self._config.video_backend_settings.get("ffmpeg", {})
-            if hasattr(self._config, "video_backend_settings")
-            else {}
-        )
-        self._loglevel = str(self._backend_settings.get("loglevel", "quiet"))
-        self._presets = self._backend_settings.get("presets", {})
-        self._executable = self._resolve_executable()
+        self._executable = executable
+        self._loglevel = loglevel
+        self._presets = self._normalise_presets(presets or {})
 
     # ------------------------------------------------------------------
     # Public API
@@ -87,9 +81,11 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
             },
         )
 
-        sentence_videos: MutableSequence[str] = []
+        sentence_videos: list[str] = []
 
-        for index, (block, audio_seg) in enumerate(zip(slides, audio_tracks), start=options.batch_start):
+        for index, (block, audio_seg) in enumerate(
+            zip(slides, audio_tracks), start=options.batch_start
+        ):
             header_info = self._build_header_info(block, index, options)
             frame_batch = self._frame_builder(
                 block,
@@ -302,23 +298,22 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
 
     def _preset(self, name: str, fallback: Sequence[str]) -> list[str]:
         preset = self._presets.get(name)
+        if preset is None:
+            return list(fallback)
         if isinstance(preset, str):
             return [preset]
-        if isinstance(preset, Iterable):
-            return [str(part) for part in preset]
-        return list(fallback)
+        return [str(part) for part in preset]
 
-    def _resolve_executable(self) -> str:
-        configured = self._backend_settings.get("executable")
-        if configured:
-            return str(configured)
-
-        runtime = cfg.get_runtime_context(None)
-        if runtime and getattr(runtime, "ffmpeg_path", None):
-            return runtime.ffmpeg_path
-
-        path = shutil.which("ffmpeg")
-        return path or "ffmpeg"
+    @staticmethod
+    def _normalise_presets(
+        presets: Mapping[str, Iterable[str] | str]
+    ) -> MutableMapping[str, Iterable[str] | str]:
+        normalised: MutableMapping[str, Iterable[str] | str] = {}
+        for key, value in presets.items():
+            if not key:
+                continue
+            normalised[str(key)] = value
+        return normalised
 
     @staticmethod
     def _safe_remove(path: str) -> None:
@@ -378,4 +373,3 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
 
 
 __all__ = ["FFmpegVideoRenderer"]
-

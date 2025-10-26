@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 from pathlib import Path
+import types
 
 import pytest
 from pydub import AudioSegment
 
 from modules.media.exceptions import CommandExecutionError
-from modules.render.backends import get_video_renderer
-from modules.render.backends.base import GolangVideoRenderer
-from modules.video.backends import FFmpegVideoRenderer, VideoRenderOptions
+from modules.video.api import VideoService
+from modules.video.backends import VideoRenderOptions
+from modules.video.backends.ffmpeg_renderer import FFmpegVideoRenderer
 from modules.video.slide_renderer import SentenceFrameBatch, SlideFrameTask
 
 
@@ -49,43 +52,14 @@ def silence_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     silence_path = tmp_path / "silence.wav"
     silence_path.write_bytes(b"")
     monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.silence_audio_path",
+        "modules.video.backends.ffmpeg_renderer.silence_audio_path",
         lambda: str(silence_path),
     )
     return silence_path
 
 
-def test_ffmpeg_renderer_builds_expected_commands(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, silence_file: Path) -> None:
-    class DummyConfig:
-        video_backend_settings = {"ffmpeg": {"executable": "custom_ffmpeg"}}
-        video_backend = "ffmpeg"
-
-    monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.get_rendering_config",
-        lambda: DummyConfig(),
-    )
-    monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.cfg.get_runtime_context",
-        lambda _=None: None,
-    )
-
-    batch = _make_frame_batch(tmp_path)
-    monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.prepare_sentence_frames",
-        lambda *args, **kwargs: batch,
-    )
-
-    monkeypatch.setattr(
-        AudioSegment,
-        "export",
-        lambda self, out_f, format="wav", **_: Path(out_f).write_bytes(b""),
-        raising=False,
-    )
-
-    fake_runner = DummyRunner()
-    renderer = FFmpegVideoRenderer(command_runner=fake_runner)
-
-    options = VideoRenderOptions(
+def _video_options() -> VideoRenderOptions:
+    return VideoRenderOptions(
         batch_start=1,
         batch_end=1,
         cover_image=None,
@@ -102,9 +76,78 @@ def test_ffmpeg_renderer_builds_expected_commands(monkeypatch: pytest.MonkeyPatc
         highlight_granularity="word",
     )
 
+
+def test_video_service_selects_backend_and_merges_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    captured: dict[str, object] = {}
+
+    class StubRenderer:
+        def __init__(self) -> None:
+            self.render_calls = 0
+
+        def render_slides(self, slides, audio, output_path, options):  # noqa: ANN001
+            self.render_calls += 1
+            captured["options"] = options
+            return output_path
+
+        def concatenate(self, video_paths, output_path):  # noqa: ANN001
+            return output_path
+
+    renderer = StubRenderer()
+
+    def fake_factory(name: str, settings: dict[str, object] | None):
+        captured["name"] = name
+        captured["settings"] = settings or {}
+        return renderer
+
+    config = types.SimpleNamespace(
+        video_backend="ffmpeg",
+        video_backend_settings={"ffmpeg": {"loglevel": "info"}},
+    )
+    monkeypatch.setattr("modules.video.api.get_rendering_config", lambda: config)
+
+    service = VideoService(
+        backend="ffmpeg",
+        backend_settings={"ffmpeg": {"executable": "custom"}},
+        renderer_factory=fake_factory,
+    )
+
+    audio = AudioSegment.silent(duration=1000)
+    output_path = tmp_path / "service_output.mp4"
+    result = service.render(["Slide"], [audio], str(output_path), _video_options())
+
+    assert result == str(output_path)
+    assert renderer.render_calls == 1
+    assert captured["name"] == "ffmpeg"
+    assert captured["settings"]["loglevel"] == "info"
+    assert captured["settings"]["executable"] == "custom"
+
+
+def test_ffmpeg_renderer_builds_expected_commands(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, silence_file: Path
+) -> None:
+    batch = _make_frame_batch(tmp_path)
+    monkeypatch.setattr(
+        "modules.video.backends.ffmpeg_renderer.prepare_sentence_frames",
+        lambda *args, **kwargs: batch,
+    )
+
+    monkeypatch.setattr(
+        AudioSegment,
+        "export",
+        lambda self, out_f, format="wav", **_: Path(out_f).write_bytes(b""),
+        raising=False,
+    )
+
+    fake_runner = DummyRunner()
+    renderer = FFmpegVideoRenderer(
+        executable="custom_ffmpeg", command_runner=fake_runner
+    )
+
     audio = AudioSegment.silent(duration=1000)
     output_path = tmp_path / "output" / "video.mp4"
-    result_path = renderer.render_slides(["Header"], [audio], str(output_path), options)
+    result_path = renderer.render_slides(["Header"], [audio], str(output_path), _video_options())
 
     assert result_path == str(output_path)
     assert fake_runner.commands[0][0] == "custom_ffmpeg"
@@ -112,22 +155,12 @@ def test_ffmpeg_renderer_builds_expected_commands(monkeypatch: pytest.MonkeyPatc
     assert len(fake_runner.commands) == 4  # frame, concat, merge, final concat
 
 
-def test_ffmpeg_renderer_propagates_subprocess_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, silence_file: Path) -> None:
-    class DummyConfig:
-        video_backend_settings = {"ffmpeg": {}}
-        video_backend = "ffmpeg"
-
-    monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.get_rendering_config",
-        lambda: DummyConfig(),
-    )
-    monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.cfg.get_runtime_context",
-        lambda _=None: None,
-    )
+def test_ffmpeg_renderer_propagates_subprocess_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, silence_file: Path
+) -> None:
     batch = _make_frame_batch(tmp_path)
     monkeypatch.setattr(
-        "modules.video.backends.ffmpeg.prepare_sentence_frames",
+        "modules.video.backends.ffmpeg_renderer.prepare_sentence_frames",
         lambda *args, **kwargs: batch,
     )
     monkeypatch.setattr(
@@ -141,38 +174,7 @@ def test_ffmpeg_renderer_propagates_subprocess_errors(monkeypatch: pytest.Monkey
         raise CommandExecutionError(command, returncode=1)
 
     renderer = FFmpegVideoRenderer(command_runner=failing_run)
-
-    options = VideoRenderOptions(
-        batch_start=1,
-        batch_end=1,
-        cover_image=None,
-        book_author="Author",
-        book_title="Title",
-        cumulative_word_counts=[0],
-        total_word_count=10,
-        macos_reading_speed=120,
-        input_language="en",
-        total_sentences=1,
-        tempo=1.0,
-        sync_ratio=0.9,
-        word_highlighting=True,
-        highlight_granularity="word",
-    )
     audio = AudioSegment.silent(duration=1000)
 
     with pytest.raises(CommandExecutionError):
-        renderer.render_slides(["Header"], [audio], str(tmp_path / "output.mp4"), options)
-
-
-def test_get_video_renderer_respects_config(monkeypatch: pytest.MonkeyPatch) -> None:
-    class DummyConfig:
-        video_backend = "golang"
-        audio_backend = "polly"
-        video_backend_settings = {}
-
-    monkeypatch.setattr(
-        "modules.render.backends.get_rendering_config", lambda: DummyConfig()
-    )
-
-    renderer = get_video_renderer()
-    assert isinstance(renderer, GolangVideoRenderer)
+        renderer.render_slides(["Header"], [audio], str(tmp_path / "output.mp4"), _video_options())

@@ -18,8 +18,8 @@ from modules.render.backends import (
     AudioSynthesizer,
     VideoRenderer,
     get_audio_synthesizer,
-    get_video_renderer,
 )
+from modules.video.api import VideoService
 from modules.translation_engine import TranslationTask
 from modules.video.backends import VideoRenderOptions
 
@@ -207,12 +207,12 @@ def render_video_slides(
     template_name: Optional[str] = None,
     *,
     video_renderer: VideoRenderer | None = None,
+    video_service: VideoService | None = None,
 ) -> str:
     """Render video slides using the configured renderer backend."""
 
     if video_renderer is None:
         _warn_legacy_video_usage("render_video_slides")
-    renderer = video_renderer or get_video_renderer()
     range_fragment = output_formatter.format_sentence_range(
         batch_start, batch_end, total_sentences
     )
@@ -239,7 +239,14 @@ def render_video_slides(
         bg_color=bg_color,
         template_name=template_name,
     )
-    return renderer.render_slides(text_blocks, audio_segments, output_path, options)
+
+    if video_renderer is not None:
+        return video_renderer.render_slides(
+            text_blocks, audio_segments, output_path, options
+        )
+
+    service = video_service or VideoService()
+    return service.render(text_blocks, audio_segments, output_path, options)
 
 
 def generate_video_slides_ffmpeg(
@@ -323,8 +330,8 @@ def _warn_legacy_audio_usage(entry_point: str) -> None:
 def _warn_legacy_video_usage(entry_point: str) -> None:
     warnings.warn(
         (
-            f"{entry_point} is deprecated; acquire a VideoRenderer from "
-            "modules.render.backends.get_video_renderer() instead."
+            f"{entry_point} is deprecated; acquire a VideoService from "
+            "modules.video.api.VideoService and invoke it directly."
         ),
         DeprecationWarning,
         stacklevel=2,

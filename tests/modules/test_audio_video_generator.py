@@ -98,13 +98,13 @@ def test_generate_audio_for_sentence_emits_deprecation_warning(monkeypatch):
 
 
 def test_render_video_slides_emits_deprecation_warning(monkeypatch, tmp_path):
-    class DummyRenderer:
-        def render_slides(self, *args, **kwargs):
+    class DummyService:
+        def render(self, *args, **kwargs):
             return str(tmp_path / "output.mp4")
 
     monkeypatch.setattr(
-        "modules.audio_video_generator.get_video_renderer",
-        lambda: DummyRenderer(),
+        "modules.audio_video_generator.VideoService",
+        lambda: DummyService(),
     )
 
     audio = [AudioSegment.silent(duration=100)]

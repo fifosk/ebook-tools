@@ -105,6 +105,9 @@ class PipelineConfig:
     slide_render_benchmark: bool = False
     slide_template: Optional[str] = "default"
     video_backend: str = "ffmpeg"
+    video_backend_settings: Mapping[str, Mapping[str, object]] = field(
+        default_factory=dict
+    )
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -303,6 +306,18 @@ def build_pipeline_config(
     else:
         video_backend = "ffmpeg"
 
+    raw_video_backend_settings = _select_value(
+        "video_backend_settings", config, overrides, {}
+    )
+    if isinstance(raw_video_backend_settings, Mapping):
+        video_backend_settings = {
+            str(key): value
+            for key, value in raw_video_backend_settings.items()
+            if isinstance(key, str) and isinstance(value, Mapping)
+        }
+    else:
+        video_backend_settings = {}
+
     forced_alignment_enabled = _coerce_bool(
         _select_value("forced_alignment_enabled", config, overrides, False), False
     )
@@ -411,6 +426,7 @@ def build_pipeline_config(
         slide_render_benchmark=slide_render_benchmark,
         slide_template=slide_template,
         video_backend=video_backend,
+        video_backend_settings=video_backend_settings,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         llm_source=llm_source,
