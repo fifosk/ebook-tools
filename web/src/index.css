@@ -488,6 +488,59 @@ main {
   min-width: 0;
 }
 
+.session-info__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-info__summary:focus-visible {
+  outline: 2px solid var(--color-border-accent);
+  outline-offset: 2px;
+}
+
+.session-info__summary-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-xs);
+}
+
+.session-info__summary-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  transition: transform 0.2s ease;
+}
+
+.session-info--collapsed .session-info__summary-icon {
+  transform: rotate(-90deg);
+}
+
+.session-info--expanded .session-info__summary-icon {
+  transform: rotate(0deg);
+}
+
+.session-info__content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.session-info__content[hidden] {
+  display: none;
+}
+
 .session-info__details {
   display: flex;
   flex-direction: column;
@@ -536,6 +589,8 @@ main {
   font-weight: 600;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   width: 100%;
+  box-shadow: none;
+  transform: none;
 }
 
 .session-info__button:hover,
@@ -543,6 +598,8 @@ main {
   background: var(--color-button-secondary-hover-bg);
   border-color: var(--color-button-secondary-hover-border);
   outline: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .session-info__button--logout {
@@ -1504,6 +1561,25 @@ button.link-button:focus {
   padding: var(--space-sm) var(--space-md);
   background: var(--color-card-bg);
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
+}
+
+.job-card--placeholder {
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xs);
+  color: var(--color-text-secondary);
+}
+
+.job-card--placeholder p {
+  margin: 0;
+}
+
+.job-progress-section,
+.job-media-section {
+  display: grid;
+  gap: var(--space-md);
 }
 
 .metadata-grid {
