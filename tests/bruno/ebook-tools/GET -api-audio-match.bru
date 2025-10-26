@@ -1,0 +1,39 @@
+meta {
+  name: GET /api/audio/match
+  type: http
+  seq: 11
+}
+
+get {
+  url: {{base_url}}/api/audio/match?language=en&preference=any
+  auth: inherit
+}
+
+body:json {
+  {
+    "voice": "",
+    "engine": ""
+  }
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("Status 200", () => {
+    expect(response.status).toBe(200);
+  });
+
+  test("Includes engine and voice fields", () => {
+    const body = JSON.parse(response.body);
+    expect(typeof body.voice).toBe("string");
+    expect(body.voice.length).toBeGreaterThan(0);
+    expect(["macos", "gtts"]).toContain(body.engine);
+  });
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
