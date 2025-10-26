@@ -359,10 +359,6 @@ export function useLiveMedia(
 
     return subscribeToJobEvents(jobId, {
       onEvent: (event) => {
-        if (event.event_type !== 'file_chunk_generated') {
-          return;
-        }
-
         const snapshot = extractGeneratedFiles(event.metadata);
         if (!snapshot) {
           return;
