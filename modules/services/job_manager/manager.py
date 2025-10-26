@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import copy
 import threading
-from pathlib import Path, PurePosixPath
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
@@ -31,7 +30,7 @@ from .lifecycle import (
     compute_resume_context,
 )
 from .metadata import PipelineJobMetadata
-from .progress import deserialize_progress_event, serialize_progress_event
+from .persistence import PipelineJobPersistence
 from .job_storage import JobStorageCoordinator
 from .job_tuner import PipelineJobTuner
 from .stores import JobStore
@@ -81,6 +80,7 @@ class PipelineJobManager:
         )
         self._execution = execution_adapter or PipelineExecutionAdapter()
         self._file_locator = file_locator or FileLocator()
+        self._persistence = PipelineJobPersistence(self._file_locator)
         self._request_factory = PipelineRequestFactory(
             tracker_factory=ProgressTracker,
             stop_event_factory=threading.Event,
@@ -96,10 +96,10 @@ class PipelineJobManager:
         updates: list[PipelineJobMetadata] = []
         with self._lock:
             for job_id, metadata in stored_jobs.items():
-                job = self._build_job_from_metadata(metadata)
+                job = self._persistence.build_job(metadata)
                 if job.status == PipelineJobStatus.RUNNING:
                     job.status = PipelineJobStatus.PAUSED
-                    updates.append(self._snapshot(job))
+                    updates.append(self._persistence.snapshot(job))
                 if job.status in (
                     PipelineJobStatus.PENDING,
                     PipelineJobStatus.PAUSED,
@@ -107,49 +107,6 @@ class PipelineJobManager:
                     self._jobs[job_id] = job
 
         self._storage.persist_reconciliation(updates)
-
-    def _snapshot(self, job: PipelineJob) -> PipelineJobMetadata:
-        last_event = serialize_progress_event(job.last_event) if job.last_event else None
-        result_payload = (
-            copy.deepcopy(job.result_payload) if job.result_payload is not None else None
-        )
-        if result_payload is None and job.result is not None:
-            result_payload = serialize_pipeline_response(job.result)
-        if job.request is not None:
-            request_payload = serialize_pipeline_request(job.request)
-        else:
-            request_payload = (
-                copy.deepcopy(job.request_payload) if job.request_payload else None
-            )
-        resume_context = (
-            copy.deepcopy(job.resume_context) if job.resume_context is not None else None
-        )
-        if resume_context is None and request_payload is not None:
-            resume_context = copy.deepcopy(request_payload)
-        normalized_files = self._normalize_generated_files(job)
-        job.generated_files = (
-            copy.deepcopy(normalized_files) if normalized_files is not None else None
-        )
-        return PipelineJobMetadata(
-            job_id=job.job_id,
-            status=job.status,
-            created_at=job.created_at,
-            started_at=job.started_at,
-            completed_at=job.completed_at,
-            error_message=job.error_message,
-            last_event=last_event,
-            result=result_payload,
-            request_payload=request_payload,
-            resume_context=resume_context,
-            tuning_summary=copy.deepcopy(job.tuning_summary)
-            if job.tuning_summary is not None
-            else None,
-            user_id=job.user_id,
-            user_role=job.user_role,
-            generated_files=copy.deepcopy(normalized_files)
-            if normalized_files is not None
-            else None,
-        )
 
     def submit(
         self,
@@ -210,7 +167,7 @@ class PipelineJobManager:
 
         with self._lock:
             self._jobs[job_id] = job
-            self._store.save(self._snapshot(job))
+            self._store.save(self._persistence.snapshot(job))
 
         if tuning_summary:
             tracker.publish_progress({"stage": "configuration", **tuning_summary})
@@ -238,16 +195,12 @@ class PipelineJobManager:
             job = self._jobs.get(job_id)
             if job is None:
                 return
-            job.last_event = event
             if job.status == PipelineJobStatus.RUNNING:
                 resume_context = compute_resume_context(job)
                 if resume_context is not None:
                     job.resume_context = resume_context
-            if event.event_type == "file_chunk_generated":
-                generated = metadata.get("generated_files")
-                if generated is not None:
-                    job.generated_files = copy.deepcopy(generated)
-            self._store.update(self._snapshot(job))
+            snapshot = self._persistence.apply_event(job, event)
+            self._store.update(snapshot)
         stage = metadata.get("stage")
         correlation_id = None
         if job and job.request is not None:
@@ -277,7 +230,7 @@ class PipelineJobManager:
         with self._lock:
             job.status = PipelineJobStatus.RUNNING
             job.started_at = datetime.now(timezone.utc)
-            self._store.update(self._snapshot(job))
+            self._store.update(self._persistence.snapshot(job))
 
         correlation_id = job.request.correlation_id if job.request else None
         try:
@@ -298,7 +251,7 @@ class PipelineJobManager:
                 pool, owns_pool = self._tuner.acquire_worker_pool(job)
                 if job.tuning_summary is not None:
                     with self._lock:
-                        self._store.update(self._snapshot(job))
+                        self._store.update(self._persistence.snapshot(job))
                 job.owns_translation_pool = owns_pool
                 response = self._execution.execute(job.request)
             with self._lock:
@@ -377,7 +330,7 @@ class PipelineJobManager:
                 }
                 if status in terminal_states:
                     job.completed_at = job.completed_at or datetime.now(timezone.utc)
-                snapshot = self._snapshot(job)
+                snapshot = self._persistence.snapshot(job)
             self._store.update(snapshot)
             if pool_to_shutdown is not None:
                 try:
@@ -458,7 +411,7 @@ class PipelineJobManager:
                 self._assert_job_access(job, user_id=user_id, user_role=user_role)
                 return job
         metadata = self._store.get(job_id)
-        job = self._build_job_from_metadata(metadata)
+        job = self._persistence.build_job(metadata)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
         return job
 
@@ -476,7 +429,7 @@ class PipelineJobManager:
             job = self._jobs.get(job_id)
             if job is None:
                 metadata = self._store.get(job_id)
-                job = self._build_job_from_metadata(metadata)
+                job = self._persistence.build_job(metadata)
             self._assert_job_access(job, user_id=user_id, user_role=user_role)
             try:
                 mutator(job)
@@ -490,7 +443,7 @@ class PipelineJobManager:
                 self._jobs[job_id] = job
             else:
                 self._jobs.pop(job_id, None)
-            snapshot = self._snapshot(job)
+            snapshot = self._persistence.snapshot(job)
 
         self._store.update(snapshot)
         return job
@@ -617,10 +570,10 @@ class PipelineJobManager:
 
         if job is None:
             metadata = self._store.get(job_id)
-            job = self._build_job_from_metadata(metadata)
+            job = self._persistence.build_job(metadata)
         else:
             # ensure persistence has the latest snapshot before deletion
-            snapshot = self._snapshot(job)
+            snapshot = self._persistence.snapshot(job)
             try:
                 self._store.update(snapshot)
             except Exception:
@@ -657,144 +610,6 @@ class PipelineJobManager:
 
         return self._mutate_job(job_id, _finish)
 
-    def _build_job_from_metadata(self, metadata: PipelineJobMetadata) -> PipelineJob:
-        request_payload = (
-            copy.deepcopy(metadata.request_payload)
-            if metadata.request_payload is not None
-            else None
-        )
-        resume_context = (
-            copy.deepcopy(metadata.resume_context)
-            if metadata.resume_context is not None
-            else (copy.deepcopy(request_payload) if request_payload is not None else None)
-        )
-        result_payload = (
-            copy.deepcopy(metadata.result) if metadata.result is not None else None
-        )
-        job = PipelineJob(
-            job_id=metadata.job_id,
-            status=metadata.status,
-            created_at=metadata.created_at,
-            started_at=metadata.started_at,
-            completed_at=metadata.completed_at,
-            error_message=metadata.error_message,
-            result_payload=result_payload,
-            request_payload=request_payload,
-            resume_context=resume_context,
-            tuning_summary=copy.deepcopy(metadata.tuning_summary)
-            if metadata.tuning_summary is not None
-            else None,
-            user_id=metadata.user_id,
-            user_role=metadata.user_role,
-        )
-        if metadata.last_event is not None:
-            job.last_event = deserialize_progress_event(metadata.last_event)
-        if metadata.generated_files is not None:
-            job.generated_files = copy.deepcopy(metadata.generated_files)
-            normalized_files = self._normalize_generated_files(job)
-            job.generated_files = (
-                copy.deepcopy(normalized_files) if normalized_files is not None else None
-            )
-        return job
-
-    def _normalize_generated_files(
-        self, job: PipelineJob
-    ) -> Optional[Dict[str, Any]]:
-        raw = job.generated_files
-        if not raw:
-            return None
-        if not isinstance(raw, Mapping):
-            return copy.deepcopy(raw)  # type: ignore[return-value]
-
-        chunks_raw = raw.get("chunks", [])
-        if not isinstance(chunks_raw, list):
-            return None
-
-        job_root = self._file_locator.resolve_path(job.job_id)
-        normalized_chunks: list[Dict[str, Any]] = []
-        for chunk in chunks_raw:
-            if not isinstance(chunk, Mapping):
-                continue
-            chunk_entry: Dict[str, Any] = {
-                "chunk_id": chunk.get("chunk_id"),
-                "range_fragment": chunk.get("range_fragment"),
-                "start_sentence": chunk.get("start_sentence"),
-                "end_sentence": chunk.get("end_sentence"),
-                "files": [],
-            }
-            files_raw = chunk.get("files", [])
-            if not isinstance(files_raw, list):
-                files_raw = []
-            for file_entry in files_raw:
-                if not isinstance(file_entry, Mapping):
-                    continue
-                normalized_entry: Dict[str, Any] = {}
-                file_type = file_entry.get("type")
-                if file_type is not None:
-                    normalized_entry["type"] = file_type
-
-                relative_path_value = file_entry.get("relative_path")
-                relative_path: Optional[str] = None
-                path_candidate: Optional[Path] = None
-
-                if relative_path_value:
-                    relative_candidate = PurePosixPath(str(relative_path_value).replace("\\", "/"))
-                    if not relative_candidate.is_absolute() and ".." not in relative_candidate.parts:
-                        relative_path = relative_candidate.as_posix()
-                        path_candidate = job_root.joinpath(*relative_candidate.parts)
-
-                path_value = file_entry.get("path")
-                if path_candidate is None and path_value:
-                    path_candidate = Path(str(path_value))
-                    if not path_candidate.is_absolute():
-                        path_candidate = job_root / path_candidate
-
-                if path_candidate is not None:
-                    normalized_entry["path"] = path_candidate.as_posix()
-                    if relative_path is None:
-                        try:
-                            relative_candidate = path_candidate.relative_to(job_root)
-                        except ValueError:
-                            relative_candidate = None
-                        else:
-                            relative_path = relative_candidate.as_posix()
-
-                url: Optional[str] = None
-                if relative_path:
-                    normalized_entry["relative_path"] = relative_path
-                    try:
-                        url = self._file_locator.resolve_url(job.job_id, relative_path)
-                    except ValueError:
-                        url = None
-                if url:
-                    normalized_entry["url"] = url
-                chunk_entry.setdefault("files", []).append(normalized_entry)
-            normalized_chunks.append(chunk_entry)
-
-        files_index: list[Dict[str, Any]] = []
-        seen: set[tuple] = set()
-        for chunk in normalized_chunks:
-            chunk_id = chunk.get("chunk_id")
-            range_fragment = chunk.get("range_fragment")
-            for entry in chunk.get("files", []):
-                path_value = entry.get("path")
-                file_type = entry.get("type")
-                if not path_value:
-                    continue
-                key = (str(path_value), str(file_type))
-                if key in seen:
-                    continue
-                seen.add(key)
-                record = dict(entry)
-                record["chunk_id"] = chunk_id
-                if range_fragment is not None and "range_fragment" not in record:
-                    record["range_fragment"] = range_fragment
-                files_index.append(record)
-
-        if not normalized_chunks and not files_index:
-            return None
-        return {"chunks": normalized_chunks, "files": files_index}
-
     def list(
         self,
         *,
@@ -807,7 +622,7 @@ class PipelineJobManager:
             active_jobs = dict(self._jobs)
         stored = self._store.list()
         for job_id, metadata in stored.items():
-            active_jobs.setdefault(job_id, self._build_job_from_metadata(metadata))
+            active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
 
         if self._is_admin(user_role):
             return active_jobs
@@ -833,7 +648,7 @@ class PipelineJobManager:
 
         if job is None:
             metadata = self._store.get(job_id)
-            job = self._build_job_from_metadata(metadata)
+            job = self._persistence.build_job(metadata)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
 
         if job.request is not None:
@@ -901,6 +716,6 @@ class PipelineJobManager:
         with self._lock:
             if job_id in self._jobs:
                 self._jobs[job_id] = job
-            self._store.update(self._snapshot(job))
+            self._store.update(self._persistence.snapshot(job))
 
         return job
