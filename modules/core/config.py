@@ -8,6 +8,7 @@ from typing import Any, Mapping, Optional
 from pydub import AudioSegment
 
 from .. import config_manager as cfg
+from ..audio.backends import get_default_backend_name
 from ..config.loader import get_rendering_config
 from ..config_manager import RuntimeContext
 from .. import llm_client_manager, translation_engine
@@ -80,7 +81,7 @@ class PipelineConfig:
     generate_audio: bool = True
     audio_mode: str = "1"
     selected_voice: str = "gTTS"
-    tts_backend: str = "auto"
+    tts_backend: str = field(default_factory=get_default_backend_name)
     tts_executable_path: Optional[str] = None
     tempo: float = 1.0
     macos_reading_speed: int = 100
@@ -217,11 +218,18 @@ def build_pipeline_config(
     selected_voice = (
         str(_select_value("selected_voice", config, overrides, "gTTS") or "gTTS")
     )
-    raw_tts_backend = _select_value("tts_backend", config, overrides, "auto")
+    default_tts_backend = get_default_backend_name()
+    raw_tts_backend = _select_value("tts_backend", config, overrides, default_tts_backend)
     if isinstance(raw_tts_backend, str):
-        tts_backend = raw_tts_backend.strip() or "auto"
+        candidate_tts_backend = raw_tts_backend.strip()
+        if not candidate_tts_backend:
+            tts_backend = default_tts_backend
+        elif candidate_tts_backend.lower() == "auto":
+            tts_backend = get_default_backend_name()
+        else:
+            tts_backend = candidate_tts_backend
     else:
-        tts_backend = "auto"
+        tts_backend = default_tts_backend
     raw_tts_executable = _select_value("tts_executable_path", config, overrides, None)
     if isinstance(raw_tts_executable, str):
         stripped_executable = raw_tts_executable.strip()

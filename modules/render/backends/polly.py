@@ -8,6 +8,7 @@ from pydub import AudioSegment
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules.audio.backends import get_default_backend_name
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
 from modules.audio.tts import generate_audio
 from modules.core.translation import split_translation_and_transliteration
@@ -15,6 +16,8 @@ from modules.core.translation import split_translation_and_transliteration
 from .base import AudioSynthesizer
 
 logger = log_mgr.logger
+
+_DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 
 class PollyAudioSynthesizer(AudioSynthesizer):
@@ -34,7 +37,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         tempo: float,
         macos_reading_speed: int,
         *,
-        tts_backend: str = "auto",
+        tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
     ) -> AudioSegment:
         def _lang_code(lang: str) -> str:

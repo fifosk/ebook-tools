@@ -22,7 +22,9 @@ names to `BaseTTSBackend` implementations. The default registry contains the
 Google Translate (gTTS) HTTP client and a macOS bridge that shells out to the
 `say` binary. `get_tts_backend()` inspects the pipeline config, CLI arguments,
 and environment-backed defaults (via `config_manager`) to decide which backend
-to instantiate and forwards any configured executable override. Custom backends
+to instantiate and forwards any configured executable override. When callers do
+not specify a backend, the resolver chooses `macos_say` on Darwin systems and
+`gtts` elsewhere before instantiating the engine. Custom backends
 can be registered at import time using `register_backend()` before the pipeline
 spins up workers.【F:modules/audio/backends/__init__.py†L10-L95】
 

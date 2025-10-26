@@ -30,6 +30,21 @@ def test_get_tts_backend_respects_executable_override():
     assert backend.executable_path == "/custom/say"
 
 
+def test_get_tts_backend_accepts_new_backend_name():
+    backend = get_tts_backend({"tts_backend": "macos_say"})
+    assert isinstance(backend, MacOSTTSBackend)
+
+
+def test_get_tts_backend_defaults_when_unset(monkeypatch):
+    monkeypatch.setattr("modules.audio.backends.sys.platform", "linux")
+
+    settings = types.SimpleNamespace(tts_backend=None, tts_executable_path=None)
+    monkeypatch.setattr("modules.audio.backends.cfg.get_settings", lambda: settings)
+
+    backend = get_tts_backend({})
+    assert isinstance(backend, GTTSBackend)
+
+
 def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_path):
     invoked_commands: list[list[str]] = []
 

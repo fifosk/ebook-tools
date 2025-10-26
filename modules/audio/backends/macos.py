@@ -18,7 +18,7 @@ from .base import BaseTTSBackend, TTSBackendError
 class MacOSTTSBackend(BaseTTSBackend):
     """Backend using the macOS ``say`` command line utility."""
 
-    name = "macos"
+    name = "macos_say"
 
     def __init__(self, *, executable_path: Optional[str] = None) -> None:
         super().__init__(executable_path=executable_path)

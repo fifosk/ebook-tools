@@ -6,6 +6,10 @@ from typing import Mapping, Optional, Protocol, Sequence, runtime_checkable
 from pydub import AudioSegment
 
 from modules.video.backends import BaseVideoRenderer as VideoRenderer
+from modules.audio.backends import get_default_backend_name
+
+
+_DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 
 @runtime_checkable
@@ -26,7 +30,7 @@ class AudioSynthesizer(Protocol):
         tempo: float,
         macos_reading_speed: int,
         *,
-        tts_backend: str = "auto",
+        tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
     ) -> AudioSegment:
         """Render audio for a single translated sentence."""
@@ -62,7 +66,7 @@ class ExternalAudioSynthesizer(AudioSynthesizer):
         tempo: float,
         macos_reading_speed: int,
         *,
-        tts_backend: str = "auto",
+        tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
     ) -> AudioSegment:
         raise NotImplementedError("External audio synthesizer backend has not been implemented yet")

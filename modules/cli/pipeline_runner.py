@@ -18,6 +18,7 @@ except ImportError:  # pragma: no cover - Windows fallback
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import metadata_manager
+from ..audio.backends import get_default_backend_name
 from ..core import ingestion
 from ..core.config import PipelineConfig, build_pipeline_config
 from ..epub_parser import DEFAULT_MAX_WORDS
@@ -42,6 +43,7 @@ load_configuration = cfg.load_configuration
 logger = log_mgr.logger
 
 DEFAULT_MODEL = cfg.DEFAULT_MODEL
+DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 
 def _format_limit_value(value: int) -> str:
@@ -457,7 +459,7 @@ def prepare_non_interactive_run(
     config.setdefault("audio_mode", assets.DEFAULT_ASSET_VALUES.get("audio_mode", "1"))
     config.setdefault("written_mode", assets.DEFAULT_ASSET_VALUES.get("written_mode", "4"))
     config.setdefault("selected_voice", "gTTS")
-    config.setdefault("tts_backend", "auto")
+    config.setdefault("tts_backend", DEFAULT_TTS_BACKEND)
     config.setdefault("tts_executable_path", None)
     config.setdefault("output_html", True)
     config.setdefault("output_pdf", False)
@@ -576,7 +578,7 @@ def run_pipeline_from_args(
             return None
 
         config.setdefault("selected_voice", pipeline_input.selected_voice)
-        config.setdefault("tts_backend", "auto")
+        config.setdefault("tts_backend", DEFAULT_TTS_BACKEND)
         config.setdefault("tts_executable_path", None)
         config.setdefault("tempo", pipeline_input.tempo)
         config.setdefault("generate_audio", pipeline_input.generate_audio)
