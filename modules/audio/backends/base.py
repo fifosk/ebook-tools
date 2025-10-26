@@ -15,7 +15,13 @@ class TTSBackendError(MediaBackendError):
 
 
 class BaseTTSBackend(ABC):
-    """Abstract base class for concrete TTS backends."""
+    """Abstract base class for concrete TTS backends.
+
+    Implementations should surface all operational failures as
+    :class:`TTSBackendError` (or a subclass). This ensures callers can handle
+    issues consistently irrespective of the underlying mechanism (e.g. command
+    execution via :func:`modules.media.command_runner.run_command`).
+    """
 
     name: str = "base"
 
@@ -41,7 +47,9 @@ class BaseTTSBackend(ABC):
         """Generate speech audio for ``text``.
 
         Concrete backends must return a :class:`~pydub.AudioSegment` or raise
-        :class:`TTSBackendError` when synthesis fails.
+        :class:`TTSBackendError`. Any unexpected exception should be wrapped in
+        :class:`TTSBackendError` so the audio pipeline can handle failure
+        uniformly.
         """
 
 

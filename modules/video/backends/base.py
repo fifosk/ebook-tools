@@ -40,7 +40,12 @@ class VideoRenderOptions:
 
 @runtime_checkable
 class BaseVideoRenderer(Protocol):
-    """Protocol implemented by video rendering backends."""
+    """Protocol implemented by video rendering backends.
+
+    Implementations should raise :class:`modules.media.exceptions.MediaBackendError`
+    (or a subclass) for all operational errors to keep error handling consistent
+    across different renderer implementations.
+    """
 
     def render_slides(
         self,
@@ -49,10 +54,18 @@ class BaseVideoRenderer(Protocol):
         output_path: str,
         options: VideoRenderOptions,
     ) -> str:
-        """Render ``slides`` and ``audio_tracks`` into ``output_path``."""
+        """Render ``slides`` and ``audio_tracks`` into ``output_path``.
+
+        Should raise :class:`modules.media.exceptions.MediaBackendError` if the
+        rendering pipeline fails.
+        """
 
     def concatenate(self, video_paths: Sequence[str], output_path: str) -> str:
-        """Concatenate ``video_paths`` into ``output_path``."""
+        """Concatenate ``video_paths`` into ``output_path``.
+
+        Should raise :class:`modules.media.exceptions.MediaBackendError` if the
+        concatenation process fails.
+        """
 
 
 __all__ = ["BaseVideoRenderer", "VideoRenderOptions"]
