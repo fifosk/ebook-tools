@@ -670,24 +670,12 @@ main {
 @media (min-width: var(--bp-md)) {
   .dashboard {
     gap: var(--space-lg);
-  }
-
-  .dashboard__sidebar {
-    padding: var(--space-lg);
-  }
-
-  .dashboard__main {
-    padding: var(--space-xl);
-  }
-}
-
-@media (min-width: var(--bp-lg)) {
-  .dashboard {
     flex-direction: row;
     height: 100vh;
   }
 
   .dashboard__sidebar {
+    padding: var(--space-lg);
     flex: 0 0 20rem;
     max-width: 20rem;
     height: 100vh;
@@ -724,6 +712,12 @@ main {
     flex-direction: row;
   }
 
+  .dashboard__main {
+    padding: var(--space-xl);
+  }
+}
+
+@media (min-width: var(--bp-lg)) {
   .dashboard__main {
     padding: var(--space-xl) clamp(2.5rem, 2rem + 2vw, 4rem);
   }
