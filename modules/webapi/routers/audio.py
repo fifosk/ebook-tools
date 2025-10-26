@@ -15,7 +15,8 @@ from gtts.lang import tts_langs
 from starlette.background import BackgroundTask
 
 from modules import config_manager as cfg
-from modules.audio.tts import select_voice
+from modules import logging_manager as log_mgr
+from modules.audio.tts import macos_voice_inventory, select_voice
 from modules.webapi.audio_utils import resolve_language, resolve_speed, resolve_voice
 from modules.webapi.audio import get_say_voices
 from modules.webapi.schemas import (
@@ -28,6 +29,7 @@ from modules.webapi.schemas import (
 
 
 router = APIRouter(prefix="/api/audio", tags=["audio"])
+logger = log_mgr.logger
 
 
 def _cleanup_file(path: Path) -> None:
@@ -86,6 +88,50 @@ def _voice_name_for_say(identifier: str) -> str:
     if " - " in identifier:
         return identifier.split(" - ", 1)[0].strip()
     return identifier.strip()
+
+
+def _normalize_locale_for_compare(locale: str) -> str:
+    return locale.replace("_", "-").lower()
+
+
+def _parse_voice_identifier(identifier: str) -> Tuple[str, Optional[str]]:
+    parts = [segment.strip() for segment in identifier.split(" - ") if segment.strip()]
+    if not parts:
+        return identifier.strip(), None
+
+    name = parts[0]
+    locale: Optional[str] = None
+    for segment in parts[1:]:
+        lowered = segment.lower()
+        if lowered in {"male", "female", "unknown"}:
+            continue
+        if segment.startswith("(") and segment.endswith(")"):
+            continue
+        locale = segment
+        break
+    return name, locale
+
+
+def _lookup_macos_voice_details(identifier: str) -> Optional[Dict[str, Optional[str]]]:
+    name, locale = _parse_voice_identifier(identifier)
+    if not name:
+        return None
+
+    voices = macos_voice_inventory()
+    target_locale = _normalize_locale_for_compare(locale) if locale else None
+
+    for voice_name, voice_locale, quality, gender in voices:
+        if voice_name.lower() != name.lower():
+            continue
+        if target_locale and _normalize_locale_for_compare(voice_locale) != target_locale:
+            continue
+        return {
+            "name": voice_name,
+            "lang": voice_locale,
+            "quality": quality or None,
+            "gender": gender.capitalize() if gender else None,
+        }
+    return None
 
 
 def _synthesize_with_say(text: str, voice_identifier: str, speed: int, destination: Path) -> None:
@@ -198,7 +244,8 @@ def match_voice(
 
     voice = select_voice(language, preference)
     engine = "gtts" if voice.lower().startswith("gtts") else "macos"
-    return VoiceMatchResponse(voice=voice, engine=engine)
+    metadata = _lookup_macos_voice_details(voice) if engine == "macos" else None
+    return VoiceMatchResponse(voice=voice, engine=engine, macos_voice=metadata)
 
 
 @router.post("", response_class=FileResponse)
@@ -212,6 +259,30 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
     speed = resolve_speed(payload.speed, config)
 
     selected_voice, engine = _resolve_voice(language, requested_voice)
+    metadata = _lookup_macos_voice_details(selected_voice) if engine == "macos" else None
+
+    if engine == "macos":
+        if metadata:
+            log_mgr.console_info(
+                "macOS voice selected: %s (%s, %s, %s)",
+                metadata["name"],
+                metadata["lang"],
+                metadata.get("quality") or "Default",
+                metadata.get("gender") or "Unknown",
+                logger_obj=logger,
+            )
+        else:
+            log_mgr.console_info(
+                "macOS voice selected: %s (metadata unavailable)",
+                selected_voice,
+                logger_obj=logger,
+            )
+    else:
+        log_mgr.console_info(
+            "gTTS voice selected: %s",
+            selected_voice,
+            logger_obj=logger,
+        )
 
     with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as handle:
         mp3_path = Path(handle.name)
@@ -229,11 +300,26 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
         raise HTTPException(status_code=500, detail="Audio synthesis failed") from exc
 
     background = BackgroundTask(_cleanup_file, mp3_path)
+    headers = {
+        "X-Synthesis-Engine": engine,
+        "X-Selected-Voice": selected_voice,
+    }
+    if metadata:
+        headers["X-MacOS-Voice-Name"] = metadata["name"]
+        headers["X-MacOS-Voice-Lang"] = metadata["lang"]
+        quality = metadata.get("quality")
+        gender = metadata.get("gender")
+        if quality:
+            headers["X-MacOS-Voice-Quality"] = quality
+        if gender:
+            headers["X-MacOS-Voice-Gender"] = gender
+
     return FileResponse(
         path=mp3_path,
         media_type="audio/mpeg",
         filename="synthesis.mp3",
         background=background,
+        headers=headers,
     )
 
 

@@ -16,6 +16,10 @@ class MacOSVoice(BaseModel):
         default=None,
         description="Quality tier reported by macOS, when available",
     )
+    gender: Optional[str] = Field(
+        default=None,
+        description="Gender reported for the voice when available",
+    )
 
 
 class GTTSLanguage(BaseModel):
@@ -45,3 +49,7 @@ class VoiceMatchResponse(BaseModel):
         description="Synthesis engine responsible for the matched voice",
     )
     voice: str = Field(description="Identifier returned by the voice selection logic")
+    macos_voice: Optional[MacOSVoice] = Field(
+        default=None,
+        description="Resolved macOS voice metadata when the engine is macOS",
+    )
