@@ -382,11 +382,137 @@ function findGeneratedFiles(
   return null;
 }
 
-function extractGeneratedFiles(metadata: ProgressEventPayload['metadata']): unknown {
+function normaliseMetadata(metadata: unknown): Record<string, unknown> | null {
+  if (!metadata) {
+    return null;
+  }
+
+  if (typeof metadata === 'string') {
+    try {
+      const parsed = JSON.parse(metadata);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, unknown>;
+      }
+      return null;
+    } catch (error) {
+      console.warn('Unable to parse progress event metadata JSON', error);
+      return null;
+    }
+  }
+
+  if (typeof metadata === 'object') {
+    return metadata as Record<string, unknown>;
+  }
+
+  return null;
+}
+
+function extractGeneratedFiles(metadata: Record<string, unknown> | null): unknown {
   if (!metadata) {
     return null;
   }
   return findGeneratedFiles(metadata, 0);
+}
+
+function includesDeferredWrite(value: string | null | undefined): boolean {
+  const normalised = toStringOrNull(value)?.toLowerCase();
+  if (!normalised) {
+    return false;
+  }
+  if (normalised.includes('deferred_write') || normalised.includes('deferred write')) {
+    return true;
+  }
+  return normalised.includes('deferred') && normalised.includes('write');
+}
+
+function findStage(candidate: unknown, depth: number): string | null {
+  if (!candidate || depth > 4) {
+    return null;
+  }
+
+  if (Array.isArray(candidate)) {
+    for (const value of candidate) {
+      const nested = findStage(value, depth + 1);
+      if (nested) {
+        return nested;
+      }
+    }
+    return null;
+  }
+
+  if (typeof candidate !== 'object') {
+    return null;
+  }
+
+  const record = candidate as Record<string, unknown>;
+  const directStage = toStringOrNull(record.stage);
+  if (directStage) {
+    return directStage;
+  }
+
+  for (const value of Object.values(record)) {
+    const nested = findStage(value, depth + 1);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+function containsDeferredWrite(candidate: unknown, depth: number): boolean {
+  if (!candidate || depth > 4) {
+    return false;
+  }
+
+  if (typeof candidate === 'string') {
+    return includesDeferredWrite(candidate);
+  }
+
+  if (Array.isArray(candidate)) {
+    return candidate.some((value) => containsDeferredWrite(value, depth + 1));
+  }
+
+  if (typeof candidate === 'object') {
+    const record = candidate as Record<string, unknown>;
+    for (const [key, value] of Object.entries(record)) {
+      if (includesDeferredWrite(key) || containsDeferredWrite(value, depth + 1)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+function shouldRefreshForEvent(
+  event: ProgressEventPayload,
+  metadata: Record<string, unknown> | null,
+): boolean {
+  const eventType = toStringOrNull(event.event_type)?.toLowerCase();
+  if (eventType) {
+    if (eventType.includes('file_chunk')) {
+      return true;
+    }
+    if (eventType.includes('deferred') && eventType.includes('write')) {
+      return true;
+    }
+  }
+
+  if (!metadata) {
+    return false;
+  }
+
+  const stage = findStage(metadata, 0);
+  if (includesDeferredWrite(stage)) {
+    return true;
+  }
+
+  if (containsDeferredWrite(metadata, 0)) {
+    return true;
+  }
+
+  return false;
 }
 
 export function useLiveMedia(
@@ -471,11 +597,10 @@ export function useLiveMedia(
 
     const unsubscribe = subscribeToJobEvents(jobId, {
       onEvent: (event) => {
-        const snapshot = extractGeneratedFiles(event.metadata);
+        const metadataRecord = normaliseMetadata(event.metadata);
+        const snapshot = extractGeneratedFiles(metadataRecord);
         if (!snapshot) {
-          const metadata = event.metadata as Record<string, unknown> | undefined;
-          const stage = metadata && typeof metadata.stage === 'string' ? metadata.stage : null;
-          if (event.event_type === 'file_chunk_generated' || stage === 'deferred_write') {
+          if (shouldRefreshForEvent(event, metadataRecord)) {
             void refreshFromServer();
           }
           return;
@@ -484,6 +609,9 @@ export function useLiveMedia(
         const nextMedia = normaliseGeneratedSnapshot(snapshot, jobId);
         if (hasMediaEntries(nextMedia)) {
           setMedia((current) => mergeMediaBuckets(current, nextMedia));
+          if (shouldRefreshForEvent(event, metadataRecord)) {
+            void refreshFromServer();
+          }
         } else {
           void refreshFromServer();
         }
