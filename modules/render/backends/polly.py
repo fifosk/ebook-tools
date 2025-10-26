@@ -2,13 +2,14 @@
 from __future__ import annotations
 
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
 
 from pydub import AudioSegment
 
 from modules import config_manager as cfg
-from modules import logging_manager as log_mgr
+from modules import logging_manager as log_mgr, observability
 from modules.audio.backends import get_default_backend_name
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
 from modules.audio.tts import generate_audio
@@ -168,11 +169,59 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         else:
             def _synth(task: tuple[str, str, str]) -> tuple[str, AudioSegment]:
                 key, text, lang_code = task
-                segment = client.synthesize(
-                    text=text,
-                    voice=selected_voice or None,
-                    speed=macos_reading_speed or None,
-                    language=lang_code,
+                attributes = {
+                    "segment": key,
+                    "language": lang_code,
+                    "voice": selected_voice,
+                    "has_speed": macos_reading_speed is not None,
+                }
+                logger.info(
+                    "Dispatching audio API synthesis",
+                    extra={
+                        "event": "audio.api.synthesize.start",
+                        "attributes": attributes,
+                        "console_suppress": True,
+                    },
+                )
+                start = time.perf_counter()
+                try:
+                    segment = client.synthesize(
+                        text=text,
+                        voice=selected_voice or None,
+                        speed=macos_reading_speed or None,
+                        language=lang_code,
+                    )
+                except Exception:
+                    duration_ms = (time.perf_counter() - start) * 1000.0
+                    observability.record_metric(
+                        "audio.api.synthesize.duration",
+                        duration_ms,
+                        {**attributes, "status": "error"},
+                    )
+                    logger.error(
+                        "Audio API synthesis failed",
+                        extra={
+                            "event": "audio.api.synthesize.error",
+                            "attributes": attributes,
+                            "console_suppress": True,
+                        },
+                        exc_info=True,
+                    )
+                    raise
+
+                duration_ms = (time.perf_counter() - start) * 1000.0
+                observability.record_metric(
+                    "audio.api.synthesize.duration",
+                    duration_ms,
+                    {**attributes, "status": "success"},
+                )
+                logger.info(
+                    "Audio API synthesis completed",
+                    extra={
+                        "event": "audio.api.synthesize.complete",
+                        "attributes": {**attributes, "duration_ms": round(duration_ms, 2)},
+                        "console_suppress": True,
+                    },
                 )
                 return key, segment
 
