@@ -69,6 +69,13 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
+  const combinedMedia = useMemo(
+    () =>
+      (['text', 'audio', 'video'] as MediaCategory[]).flatMap((category) =>
+        media[category].map((item) => ({ ...item, type: category })),
+      ),
+    [media],
+  );
   const filteredAudioFiles = useMemo(
     () => (selectedMediaType === 'audio' ? audioFiles : []),
     [audioFiles, selectedMediaType],
@@ -76,6 +83,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
   const filteredVideoFiles = useMemo(
     () => (selectedMediaType === 'video' ? videoFiles : []),
     [selectedMediaType, videoFiles],
+  );
+  const filteredMedia = useMemo(
+    () => combinedMedia.filter((item) => item.type === selectedMediaType),
+    [combinedMedia, selectedMediaType],
   );
 
   if (!jobId) {
@@ -129,7 +140,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
           </TabsList>
         </header>
         {TAB_DEFINITIONS.map((tab) => {
-          const items = media[tab.key];
+          const isActive = tab.key === selectedMediaType;
+          const items = isActive
+            ? filteredMedia
+            : combinedMedia.filter((item) => item.type === tab.key);
           return (
             <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
               {!hasAnyMedia && !isLoading ? (
