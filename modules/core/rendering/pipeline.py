@@ -384,6 +384,10 @@ class RenderPipeline:
     ) -> None:
         if not metadata:
             return
+        role_labels = {
+            "source": "Source voice",
+            "translation": "Translation voice",
+        }
         for role, languages in metadata.items():
             if not isinstance(languages, Mapping):
                 continue
@@ -394,8 +398,27 @@ class RenderPipeline:
                 if not normalized_voice:
                     continue
                 normalized_language = (language or "Unknown").strip() or "Unknown"
-                aggregate.setdefault(normalized_language, set()).add(normalized_voice)
+                aggregate_set = aggregate.setdefault(normalized_language, set())
+                is_new_voice = normalized_voice not in aggregate_set
+                aggregate_set.add(normalized_voice)
                 current.setdefault(normalized_language, set()).add(normalized_voice)
+                label = role_labels.get(role)
+                if is_new_voice and label:
+                    console_info(
+                        "%s (%s): %s",
+                        label,
+                        normalized_language,
+                        normalized_voice,
+                        logger_obj=logger,
+                        extra={
+                            "event": "render.voice.detected",
+                            "attributes": {
+                                "role": role,
+                                "language": normalized_language,
+                                "voice": normalized_voice,
+                            },
+                        },
+                    )
 
     def _drain_current_voice_metadata(
         self, state: PipelineState

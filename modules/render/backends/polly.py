@@ -161,7 +161,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 return lang_code
             return "Unknown"
 
-        def _record_voice(key: str, voice_identifier: Optional[str]) -> None:
+        def _record_voice(key: str, voice_identifier: Optional[str]) -> Optional[str]:
             language_label, lang_code = segment_languages.get(key, ("", ""))
             resolved_voice = (voice_identifier or "").strip()
             if not resolved_voice or resolved_voice == "0":
@@ -169,7 +169,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
             label = language_label or _language_label(key, lang_code)
             display_name = get_voice_display_name(resolved_voice, label, language_codes)
             if not display_name:
-                return
+                return None
             if key == "translation":
                 role = "translation"
             elif key == "input":
@@ -178,6 +178,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 role = key
             role_map = voice_map.setdefault(role, {})
             role_map[label] = display_name
+            return display_name
 
         def enqueue(
             key: str, text: str, lang_code: str, language_label: str | None = None
@@ -352,6 +353,14 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                     raise
 
                 duration_ms = (time.perf_counter() - start) * 1000.0
+                resolved_voice = (
+                    _extract_voice(response_headers) or api_voice or selected_voice
+                )
+                voice_name = _record_voice(key, resolved_voice)
+                if resolved_voice:
+                    attributes["resolved_voice"] = resolved_voice
+                if voice_name:
+                    attributes["voice_name"] = voice_name
                 observability.record_metric(
                     "audio.api.synthesize.duration",
                     duration_ms,
@@ -365,8 +374,6 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                         "console_suppress": True,
                     },
                 )
-                resolved_voice = _extract_voice(response_headers) or api_voice or selected_voice
-                _record_voice(key, resolved_voice)
                 return key, segment
 
             if worker_count == 1:
