@@ -153,6 +153,7 @@ class SlideImageRenderer:
         header_font_size = (
             int(font_cfg.get("size_title", 24)) if isinstance(font_cfg, Mapping) else 24
         )
+        header_font_size = max(int(round(header_font_size * 0.5)), 1)
         body_font_size = (
             int(font_cfg.get("size_body", initial_font_size)) if isinstance(font_cfg, Mapping) else initial_font_size
         )
@@ -198,8 +199,12 @@ class SlideImageRenderer:
 
         if cover_img:
             cover_thumb = cover_img.copy()
-            new_width = max(left_area_width - 20, 1)
-            new_height = max(header_height - 20, 1)
+            base_width = max(left_area_width - 20, 1)
+            base_height = max(header_height - 20, 1)
+            scale_width = max(int(round(base_width * 1.1)), 1)
+            scale_height = max(int(round(base_height * 1.1)), 1)
+            new_width = min(scale_width, max(left_area_width - 10, 1))
+            new_height = min(scale_height, max(header_height - 10, 1))
             cover_thumb.thumbnail((new_width, new_height))
             img.paste(cover_thumb, (10, max((header_height - cover_thumb.height) // 2, 0)))
             cover_thumb.close()
