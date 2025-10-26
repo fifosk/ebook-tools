@@ -2,14 +2,14 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Mapping
+from typing import Dict, Mapping, Optional
 
 from pydub import AudioSegment
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
-from modules.audio.tts import synthesize_segment
+from modules.audio.tts import generate_audio
 from modules.core.translation import split_translation_and_transliteration
 
 from .base import AudioSynthesizer
@@ -33,6 +33,9 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         selected_voice: str,
         tempo: float,
         macos_reading_speed: int,
+        *,
+        tts_backend: str = "auto",
+        tts_executable_path: Optional[str] = None,
     ) -> AudioSegment:
         def _lang_code(lang: str) -> str:
             return language_codes.get(lang, "en")
@@ -84,14 +87,30 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
         segments: Dict[str, AudioSegment] = {}
 
+        backend_config = {
+            "tts_backend": tts_backend,
+            "tts_executable_path": tts_executable_path,
+        }
+
         if worker_count == 1:
             for key, text, lang_code in tasks:
-                segments[key] = synthesize_segment(text, lang_code, selected_voice, macos_reading_speed)
+                segments[key] = generate_audio(
+                    text,
+                    lang_code,
+                    selected_voice,
+                    macos_reading_speed,
+                    config=backend_config,
+                )
         else:
             with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 future_map = {
                     executor.submit(
-                        synthesize_segment, text, lang_code, selected_voice, macos_reading_speed
+                        generate_audio,
+                        text,
+                        lang_code,
+                        selected_voice,
+                        macos_reading_speed,
+                        config=backend_config,
                     ): key
                     for key, text, lang_code in tasks
                 }

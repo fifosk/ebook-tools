@@ -23,6 +23,8 @@
     "output_pdf": false,
     "stitch_full": false,
     "selected_voice": "macOS-auto-male",
+    "tts_backend": "auto",
+    "tts_executable_path": null,
     "auto_metadata": true,
     "macos_reading_speed": 100,
     "tempo": 1.0,

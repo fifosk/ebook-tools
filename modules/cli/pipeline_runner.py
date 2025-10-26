@@ -457,6 +457,8 @@ def prepare_non_interactive_run(
     config.setdefault("audio_mode", assets.DEFAULT_ASSET_VALUES.get("audio_mode", "1"))
     config.setdefault("written_mode", assets.DEFAULT_ASSET_VALUES.get("written_mode", "4"))
     config.setdefault("selected_voice", "gTTS")
+    config.setdefault("tts_backend", "auto")
+    config.setdefault("tts_executable_path", None)
     config.setdefault("output_html", True)
     config.setdefault("output_pdf", False)
     config.setdefault("generate_video", False)
@@ -483,6 +485,10 @@ def prepare_non_interactive_run(
         config["slide_render_benchmark"] = True
     if getattr(args, "template", None):
         config["slide_template"] = args.template
+    if getattr(args, "tts_backend", None):
+        config["tts_backend"] = args.tts_backend
+    if getattr(args, "tts_executable", None):
+        config["tts_executable_path"] = args.tts_executable
 
     pipeline_input = _build_pipeline_input(
         config,
@@ -512,6 +518,8 @@ def prepare_non_interactive_run(
         "generate_audio": config.get("generate_audio"),
         "audio_mode": config.get("audio_mode"),
         "selected_voice": config.get("selected_voice"),
+        "tts_backend": config.get("tts_backend"),
+        "tts_executable_path": config.get("tts_executable_path"),
         "tempo": config.get("tempo"),
         "macos_reading_speed": config.get("macos_reading_speed"),
         "sync_ratio": config.get("sync_ratio"),
@@ -568,6 +576,8 @@ def run_pipeline_from_args(
             return None
 
         config.setdefault("selected_voice", pipeline_input.selected_voice)
+        config.setdefault("tts_backend", "auto")
+        config.setdefault("tts_executable_path", None)
         config.setdefault("tempo", pipeline_input.tempo)
         config.setdefault("generate_audio", pipeline_input.generate_audio)
         config.setdefault("audio_mode", pipeline_input.audio_mode)
@@ -622,6 +632,8 @@ def run_pipeline_from_args(
             "generate_audio": config.get("generate_audio"),
             "audio_mode": config.get("audio_mode"),
             "selected_voice": config.get("selected_voice"),
+            "tts_backend": config.get("tts_backend"),
+            "tts_executable_path": config.get("tts_executable_path"),
             "tempo": config.get("tempo"),
             "macos_reading_speed": config.get("macos_reading_speed", 100),
             "sync_ratio": config.get("sync_ratio", 0.9),

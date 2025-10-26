@@ -78,6 +78,8 @@ class PipelineConfig:
     generate_audio: bool = True
     audio_mode: str = "1"
     selected_voice: str = "gTTS"
+    tts_backend: str = "auto"
+    tts_executable_path: Optional[str] = None
     tempo: float = 1.0
     macos_reading_speed: int = 100
     sync_ratio: float = 0.9
@@ -209,6 +211,17 @@ def build_pipeline_config(
     selected_voice = (
         str(_select_value("selected_voice", config, overrides, "gTTS") or "gTTS")
     )
+    raw_tts_backend = _select_value("tts_backend", config, overrides, "auto")
+    if isinstance(raw_tts_backend, str):
+        tts_backend = raw_tts_backend.strip() or "auto"
+    else:
+        tts_backend = "auto"
+    raw_tts_executable = _select_value("tts_executable_path", config, overrides, None)
+    if isinstance(raw_tts_executable, str):
+        stripped_executable = raw_tts_executable.strip()
+        tts_executable_path = stripped_executable or None
+    else:
+        tts_executable_path = None
     tempo = _coerce_float(_select_value("tempo", config, overrides, 1.0), 1.0)
     macos_reading_speed = _coerce_int(
         _select_value("macos_reading_speed", config, overrides, 100),
@@ -351,6 +364,8 @@ def build_pipeline_config(
         generate_audio=generate_audio,
         audio_mode=audio_mode,
         selected_voice=selected_voice,
+        tts_backend=tts_backend,
+        tts_executable_path=tts_executable_path,
         tempo=tempo,
         macos_reading_speed=macos_reading_speed,
         sync_ratio=sync_ratio,

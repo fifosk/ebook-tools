@@ -60,6 +60,8 @@ def generate_audio_for_sentence(
     selected_voice: str,
     tempo: float,
     macos_reading_speed: int,
+    tts_backend: str = "auto",
+    tts_executable_path: Optional[str] = None,
     *,
     audio_synthesizer: AudioSynthesizer | None = None,
 ) -> AudioSegment:
@@ -78,6 +80,8 @@ def generate_audio_for_sentence(
         selected_voice,
         tempo,
         macos_reading_speed,
+        tts_backend=tts_backend,
+        tts_executable_path=tts_executable_path,
     )
 
 
@@ -137,6 +141,8 @@ def start_media_pipeline(
     stop_event: Optional[threading.Event] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
     audio_synthesizer: AudioSynthesizer | None = None,
+    tts_backend: str = "auto",
+    tts_executable_path: Optional[str] = None,
 ) -> Tuple[Queue[Optional[MediaPipelineResult]], List[threading.Thread]]:
     """Start consumer threads that transform translations into media artifacts."""
 
@@ -156,6 +162,8 @@ def start_media_pipeline(
         progress_tracker=progress_tracker,
         audio_synthesizer=audio_synthesizer,
         media_result_factory=MediaPipelineResult,
+        tts_backend=tts_backend,
+        tts_executable_path=tts_executable_path,
     )
     return orchestrator.start()
 

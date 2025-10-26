@@ -176,7 +176,9 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         translation_text: 500,
     }
 
-    def fake_synthesize(text: str, lang_code: str, selected_voice: str, macos_reading_speed: int) -> AudioSegment:
+    def fake_synthesize(
+        text: str, lang_code: str, selected_voice: str, macos_reading_speed: int, **_: object
+    ) -> AudioSegment:
         duration = durations[text]
         segment = AudioSegment.silent(duration=duration)
         timings = []
@@ -189,7 +191,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         setattr(segment, "character_timing", timings)
         return segment
 
-    monkeypatch.setattr("modules.render.backends.polly.synthesize_segment", fake_synthesize)
+    monkeypatch.setattr("modules.render.backends.polly.generate_audio", fake_synthesize)
 
     synthesizer = PollyAudioSynthesizer()
 
@@ -301,7 +303,9 @@ def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
 
     recorded_texts: list[str] = []
 
-    def fake_synthesize(text: str, lang_code: str, selected_voice: str, macos_reading_speed: int) -> AudioSegment:
+    def fake_synthesize(
+        text: str, lang_code: str, selected_voice: str, macos_reading_speed: int, **_: object
+    ) -> AudioSegment:
         recorded_texts.append(text)
         duration = max(len(text), 1) * 40
         segment = AudioSegment.silent(duration=duration)
@@ -315,7 +319,7 @@ def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
         setattr(segment, "character_timing", timings)
         return segment
 
-    monkeypatch.setattr("modules.audio_video_generator.synthesize_segment", fake_synthesize)
+    monkeypatch.setattr("modules.render.backends.polly.generate_audio", fake_synthesize)
 
     audio = generate_audio_for_sentence(
         sentence_number=1,

@@ -24,6 +24,9 @@ class AudioSynthesizer(Protocol):
         selected_voice: str,
         tempo: float,
         macos_reading_speed: int,
+        *,
+        tts_backend: str = "auto",
+        tts_executable_path: Optional[str] = None,
     ) -> AudioSegment:
         """Render audio for a single translated sentence."""
 
@@ -111,6 +114,9 @@ class ExternalAudioSynthesizer(AudioSynthesizer):
         selected_voice: str,
         tempo: float,
         macos_reading_speed: int,
+        *,
+        tts_backend: str = "auto",
+        tts_executable_path: Optional[str] = None,
     ) -> AudioSegment:
         raise NotImplementedError("External audio synthesizer backend has not been implemented yet")
 

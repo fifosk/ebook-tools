@@ -57,6 +57,8 @@ class EbookToolsSettings(BaseModel):
     output_pdf: bool = False
     stitch_full: bool = False
     selected_voice: str = "gTTS"
+    tts_backend: str = "auto"
+    tts_executable_path: Optional[str] = None
     book_title: str = "Unknown Title"
     book_author: str = "Unknown Author"
     book_year: str = "Unknown Year"
@@ -160,6 +162,12 @@ class EnvironmentOverrides(BaseSettings):
     )
     storage_base_url: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_STORAGE_BASE_URL")
+    )
+    tts_backend: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_TTS_BACKEND")
+    )
+    tts_executable_path: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("EBOOK_TTS_EXECUTABLE")
     )
 
 

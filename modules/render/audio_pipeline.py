@@ -150,6 +150,20 @@ def audio_worker_body(
     generate_audio = bool(
         audio_context.get("generate_audio", manifest_context.get("generate_audio", True))
     )
+    raw_tts_backend = audio_context.get("tts_backend") or manifest_context.get("tts_backend")
+    if isinstance(raw_tts_backend, str):
+        tts_backend = raw_tts_backend.strip() or "auto"
+    else:
+        tts_backend = "auto"
+    raw_tts_executable = (
+        audio_context.get("tts_executable_path")
+        or manifest_context.get("tts_executable_path")
+    )
+    if isinstance(raw_tts_executable, str):
+        stripped_executable = raw_tts_executable.strip()
+        tts_executable_path = stripped_executable or None
+    else:
+        tts_executable_path = None
 
     while True:
         if audio_stop_event and audio_stop_event.is_set():
@@ -178,6 +192,8 @@ def audio_worker_body(
                     selected_voice,
                     tempo,
                     macos_reading_speed,
+                    tts_backend=tts_backend,
+                    tts_executable_path=tts_executable_path,
                 )
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.error(

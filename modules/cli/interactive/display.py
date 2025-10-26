@@ -42,8 +42,13 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     console_info("6. Generate audio output: %s", config.get("generate_audio", True))
     console_info("7. Generate video slides: %s", config.get("generate_video", False))
     console_info(
-        "8. Selected voice for audio generation: %s",
+        "8. Selected voice for audio generation: %s (backend: %s)",
         format_selected_voice(config.get("selected_voice", "gTTS")),
+        config.get("tts_backend", "auto"),
+    )
+    console_info(
+        "   TTS executable override: %s",
+        config.get("tts_executable_path") or "None",
     )
     console_info(
         "9. macOS TTS reading speed (words per minute): %s",
