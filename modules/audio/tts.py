@@ -16,13 +16,8 @@ from pydub import AudioSegment
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
-from modules.audio.backends import (
-    GTTSBackend,
-    MacOSTTSBackend,
-    TTSBackendError,
-    create_backend,
-    get_tts_backend,
-)
+from modules.audio.api import AudioService
+from modules.audio.backends import GTTSBackend, MacOSSayBackend, TTSBackendError
 
 logger = log_mgr.logger
 
@@ -197,8 +192,8 @@ def select_voice(lang_code: str, gender_preference: str) -> Optional[Tuple[str, 
 
 
 def _synthesize_with_gtts(text: str, lang_code: str, speed: int) -> AudioSegment:
-    backend = create_backend(GTTSBackend.name)
-    return backend.synthesize(
+    service = AudioService(backend_name=GTTSBackend.name)
+    return service.synthesize(
         text=text,
         voice="gTTS",
         speed=speed,
@@ -253,13 +248,14 @@ def generate_audio(
     if selected_voice == "gTTS":
         return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
 
-    backend = get_tts_backend(config)
+    service = AudioService(config=config)
+    backend = service.get_backend()
 
-    if isinstance(backend, MacOSTTSBackend):
+    if isinstance(backend, MacOSSayBackend):
         voice_name = _resolve_macos_voice_name(selected_voice, lang_code)
         if voice_name:
             try:
-                return backend.synthesize(
+                return service.synthesize(
                     text=text,
                     voice=voice_name,
                     speed=macos_reading_speed,

@@ -391,7 +391,7 @@ class RenderPipeline:
             self._config.tempo,
             self._config.macos_reading_speed,
             self._config.tts_backend,
-            self._config.tts_executable_path,
+            self._config.tts_executable_path or self._config.say_path,
         )
 
     def _handle_sentence(
@@ -616,7 +616,9 @@ class RenderPipeline:
             macos_reading_speed=self._config.macos_reading_speed,
             generate_audio=generate_audio,
             tts_backend=self._config.tts_backend,
-            tts_executable_path=self._config.tts_executable_path,
+            tts_executable_path=(
+                self._config.tts_executable_path or self._config.say_path
+            ),
             queue_size=self._config.queue_size,
             audio_stop_event=pipeline_stop_event,
             progress_tracker=self._progress,

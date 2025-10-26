@@ -3,7 +3,16 @@ import types
 import pytest
 from pydub import AudioSegment
 
-from modules.audio.backends import GTTSBackend, MacOSTTSBackend, TTSBackendError, get_tts_backend
+import modules.audio.backends as backend_registry
+from modules.audio.api import AudioService
+from modules.audio.backends import (
+    GTTSBackend,
+    MacOSSayBackend,
+    MacOSTTSBackend,
+    TTSBackendError,
+    create_backend,
+    get_tts_backend,
+)
 from modules.media.exceptions import CommandExecutionError
 
 
@@ -23,26 +32,39 @@ def test_get_tts_backend_auto_uses_platform_default(monkeypatch):
 
 
 def test_get_tts_backend_respects_executable_override():
-    backend = get_tts_backend(
-        {"tts_backend": "macos", "tts_executable_path": "/custom/say"}
-    )
+    backend = get_tts_backend({"tts_backend": "macos", "say_path": "/custom/say"})
     assert isinstance(backend, MacOSTTSBackend)
     assert backend.executable_path == "/custom/say"
 
 
-def test_get_tts_backend_accepts_new_backend_name():
-    backend = get_tts_backend({"tts_backend": "macos_say"})
-    assert isinstance(backend, MacOSTTSBackend)
+def test_create_backend_uses_media_config_defaults(monkeypatch):
+    monkeypatch.setattr(
+        "modules.audio.backends._BACKEND_EXECUTABLE_DEFAULTS",
+        {MacOSSayBackend.name: "/usr/bin/say"},
+    )
+    backend = create_backend(MacOSSayBackend.name)
+    assert backend.executable_path == "/usr/bin/say"
 
 
-def test_get_tts_backend_defaults_when_unset(monkeypatch):
-    monkeypatch.setattr("modules.audio.backends.sys.platform", "linux")
+def test_audio_service_respects_backend_override(monkeypatch):
+    dummy_audio = AudioSegment.silent(duration=42)
 
-    settings = types.SimpleNamespace(tts_backend=None, tts_executable_path=None)
-    monkeypatch.setattr("modules.audio.backends.cfg.get_settings", lambda: settings)
+    class DummyBackend(GTTSBackend):
+        name = "dummy"
 
-    backend = get_tts_backend({})
-    assert isinstance(backend, GTTSBackend)
+        def synthesize(self, *, text, voice, speed, lang_code, output_path=None):
+            return dummy_audio
+
+    monkeypatch.setitem(backend_registry._BACKENDS, DummyBackend.name, DummyBackend)
+
+    service = AudioService(backend_name=DummyBackend.name)
+    result = service.synthesize(
+        text="hello",
+        voice="dummy",
+        speed=120,
+        lang_code="en",
+    )
+    assert result == dummy_audio
 
 
 def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_path):
@@ -58,9 +80,13 @@ def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_
         assert format == "aiff"
         return dummy_audio
 
-    monkeypatch.setattr("modules.audio.backends.macos.run_command", fake_run_command)
     monkeypatch.setattr(
-        "modules.audio.backends.macos.AudioSegment.from_file", fake_from_file
+        "modules.audio.backends.macos_say.run_command",
+        fake_run_command,
+    )
+    monkeypatch.setattr(
+        "modules.audio.backends.macos_say.AudioSegment.from_file",
+        fake_from_file,
     )
 
     backend = MacOSTTSBackend(executable_path="/usr/bin/say")
@@ -84,10 +110,13 @@ def test_macos_backend_wraps_command_errors(monkeypatch, tmp_path):
     def failing_run_command(command, **kwargs):
         raise CommandExecutionError(command, returncode=1)
 
-    monkeypatch.setattr("modules.audio.backends.macos.run_command", failing_run_command)
+    monkeypatch.setattr(
+        "modules.audio.backends.macos_say.run_command",
+        failing_run_command,
+    )
     dummy_audio = AudioSegment.silent(duration=100)
     monkeypatch.setattr(
-        "modules.audio.backends.macos.AudioSegment.from_file",
+        "modules.audio.backends.macos_say.AudioSegment.from_file",
         lambda path, format: dummy_audio,
     )
 
@@ -101,4 +130,3 @@ def test_macos_backend_wraps_command_errors(monkeypatch, tmp_path):
             lang_code="en",
             output_path=str(tmp_path / "output.aiff"),
         )
-

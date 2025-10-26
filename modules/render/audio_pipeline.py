@@ -163,7 +163,9 @@ def audio_worker_body(
         tts_backend = default_tts_backend
     raw_tts_executable = (
         audio_context.get("tts_executable_path")
+        or audio_context.get("say_path")
         or manifest_context.get("tts_executable_path")
+        or manifest_context.get("say_path")
     )
     if isinstance(raw_tts_executable, str):
         stripped_executable = raw_tts_executable.strip()

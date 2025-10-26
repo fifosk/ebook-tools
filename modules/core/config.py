@@ -50,6 +50,14 @@ def _coerce_float(value: Any, default: float) -> float:
         return default
 
 
+def _normalize_optional_str(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped:
+            return stripped
+    return None
+
+
 @dataclass(slots=True)
 class PipelineConfig:
     """Container describing all runtime options for the ebook pipeline."""
@@ -83,6 +91,7 @@ class PipelineConfig:
     selected_voice: str = "gTTS"
     tts_backend: str = field(default_factory=get_default_backend_name)
     tts_executable_path: Optional[str] = None
+    say_path: Optional[str] = None
     tempo: float = 1.0
     macos_reading_speed: int = 100
     sync_ratio: float = 0.9
@@ -230,12 +239,14 @@ def build_pipeline_config(
             tts_backend = candidate_tts_backend
     else:
         tts_backend = default_tts_backend
-    raw_tts_executable = _select_value("tts_executable_path", config, overrides, None)
-    if isinstance(raw_tts_executable, str):
-        stripped_executable = raw_tts_executable.strip()
-        tts_executable_path = stripped_executable or None
-    else:
-        tts_executable_path = None
+    raw_tts_executable = _normalize_optional_str(
+        _select_value("tts_executable_path", config, overrides, None)
+    )
+    raw_say_path = _normalize_optional_str(
+        _select_value("say_path", config, overrides, None)
+    )
+    tts_executable_path = raw_tts_executable or raw_say_path
+    say_path = raw_say_path or tts_executable_path
     tempo = _coerce_float(_select_value("tempo", config, overrides, 1.0), 1.0)
     macos_reading_speed = _coerce_int(
         _select_value("macos_reading_speed", config, overrides, 100),
@@ -386,6 +397,7 @@ def build_pipeline_config(
         selected_voice=selected_voice,
         tts_backend=tts_backend,
         tts_executable_path=tts_executable_path,
+        say_path=say_path,
         tempo=tempo,
         macos_reading_speed=macos_reading_speed,
         sync_ratio=sync_ratio,

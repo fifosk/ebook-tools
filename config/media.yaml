@@ -1,0 +1,11 @@
+tts:
+  default_backend: auto
+  backends:
+    macos_say:
+      executable: say
+      aliases:
+        - macos
+        - macos_say
+    gtts:
+      aliases:
+        - gtts

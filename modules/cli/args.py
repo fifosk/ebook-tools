@@ -78,6 +78,10 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         help="Override the executable path used by the configured TTS backend.",
     )
     parser.add_argument(
+        "--say-path",
+        help="Explicit path to the macOS 'say' binary when using the macOS backend.",
+    )
+    parser.add_argument(
         "--slide-parallel-workers",
         type=int,
         help="Explicit number of workers to use when slide parallelism is enabled.",
