@@ -1,8 +1,9 @@
 """Amazon Polly-based implementation of :class:`AudioSynthesizer`."""
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
 
 from pydub import AudioSegment
 
@@ -19,9 +20,43 @@ logger = log_mgr.logger
 
 _DEFAULT_TTS_BACKEND = get_default_backend_name()
 
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from modules.integrations.audio_client import AudioAPIClient
+else:  # pragma: no cover - runtime fallback when integrations are unavailable
+    AudioAPIClient = Any  # type: ignore[assignment]
+
 
 class PollyAudioSynthesizer(AudioSynthesizer):
-    """Synthesize audio using the built-in Amazon Polly helper."""
+    """Synthesize audio using the configured audio API or legacy helpers."""
+
+    def __init__(
+        self,
+        *,
+        audio_client: AudioAPIClient | None = None,
+        base_url: str | None = None,
+        timeout: float = 60.0,
+    ) -> None:
+        self._client = audio_client
+        self._client_base_url = base_url
+        self._client_timeout = timeout
+
+    def _resolve_client(self) -> AudioAPIClient | None:
+        if self._client is not None:
+            return self._client
+        base_url = self._client_base_url or os.environ.get("EBOOK_AUDIO_API_BASE_URL")
+        if not base_url:
+            return None
+        try:
+            from modules.integrations.audio_client import AudioAPIClient as RuntimeAudioClient
+        except ImportError as exc:  # pragma: no cover - optional dependency safeguard
+            logger.warning(
+                "Audio API client dependencies missing; using legacy synthesizer.",
+                extra={"event": "audio.api.client_unavailable"},
+                exc_info=exc,
+            )
+            return None
+        self._client = RuntimeAudioClient(base_url, timeout=self._client_timeout)
+        return self._client
 
     def synthesize_sentence(
         self,
@@ -90,41 +125,74 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
         segments: Dict[str, AudioSegment] = {}
 
-        backend_config = {
-            "tts_backend": tts_backend,
-            "tts_executable_path": tts_executable_path,
-            "say_path": tts_executable_path,
-        }
+        client = self._resolve_client()
 
-        if worker_count == 1:
-            for key, text, lang_code in tasks:
-                segments[key] = generate_audio(
-                    text,
-                    lang_code,
-                    selected_voice,
-                    macos_reading_speed,
-                    config=backend_config,
-                )
-        else:
-            with ThreadPoolExecutor(max_workers=worker_count) as executor:
-                future_map = {
-                    executor.submit(
-                        generate_audio,
+        if client is None:
+            backend_config = {
+                "tts_backend": tts_backend,
+                "tts_executable_path": tts_executable_path,
+                "say_path": tts_executable_path,
+            }
+
+            if worker_count == 1:
+                for key, text, lang_code in tasks:
+                    segments[key] = generate_audio(
                         text,
                         lang_code,
                         selected_voice,
                         macos_reading_speed,
                         config=backend_config,
-                    ): key
-                    for key, text, lang_code in tasks
-                }
-                for future in as_completed(future_map):
-                    key = future_map[future]
-                    try:
-                        segments[key] = future.result()
-                    except Exception as exc:  # pragma: no cover - defensive
-                        logger.error("Audio synthesis failed for segment '%s': %s", key, exc)
-                        segments[key] = AudioSegment.silent(duration=0)
+                    )
+            else:
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    future_map = {
+                        executor.submit(
+                            generate_audio,
+                            text,
+                            lang_code,
+                            selected_voice,
+                            macos_reading_speed,
+                            config=backend_config,
+                        ): key
+                        for key, text, lang_code in tasks
+                    }
+                    for future in as_completed(future_map):
+                        key = future_map[future]
+                        try:
+                            segments[key] = future.result()
+                        except Exception as exc:  # pragma: no cover - defensive
+                            logger.error(
+                                "Audio synthesis failed for segment '%s': %s", key, exc
+                            )
+                            segments[key] = AudioSegment.silent(duration=0)
+        else:
+            def _synth(task: tuple[str, str, str]) -> tuple[str, AudioSegment]:
+                key, text, lang_code = task
+                segment = client.synthesize(
+                    text=text,
+                    voice=selected_voice or None,
+                    speed=macos_reading_speed or None,
+                    language=lang_code,
+                )
+                return key, segment
+
+            if worker_count == 1:
+                for task in tasks:
+                    key, segment = _synth(task)
+                    segments[key] = segment
+            else:
+                with ThreadPoolExecutor(max_workers=worker_count) as executor:
+                    future_map = {executor.submit(_synth, task): task[0] for task in tasks}
+                    for future in as_completed(future_map):
+                        key = future_map[future]
+                        try:
+                            _, segment = future.result()
+                            segments[key] = segment
+                        except Exception as exc:  # pragma: no cover - defensive
+                            logger.error(
+                                "Audio API synthesis failed for segment '%s': %s", key, exc
+                            )
+                            segments[key] = AudioSegment.silent(duration=0)
 
         audio = AudioSegment.silent(duration=0)
         for key in sequence:

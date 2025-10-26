@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import Annotated, Iterable, Mapping
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
@@ -42,6 +42,13 @@ router = APIRouter(prefix="/api/media", tags=["media"])
 logger = log_mgr.get_logger().getChild("webapi.media")
 
 _MEDIA_ALLOWED_ROLES: frozenset[str] = frozenset({"admin", "media_producer"})
+
+AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+AudioServiceDep = Annotated[AudioService, Depends(get_audio_service)]
+VideoServiceDep = Annotated[VideoService, Depends(get_video_service)]
+VideoJobManagerDep = Annotated[VideoJobManager, Depends(get_video_job_manager)]
+FileLocatorDep = Annotated[FileLocator, Depends(get_file_locator)]
 
 
 class MediaHTTPException(HTTPException):
@@ -281,7 +288,8 @@ def _submit_video_job(
     *,
     job_manager: VideoJobManager,
     video_service: VideoService,
-) -> tuple[str, dict[str, object]]:
+    requested_by: str,
+) -> MediaGenerationResponse:
     parameters = _prepare_video_parameters(payload)
     try:
         request_payload = VideoRenderRequestPayload.model_validate(parameters)
@@ -308,7 +316,16 @@ def _submit_video_job(
     )
 
     normalized_params = request_payload.model_dump()
-    return job.job_id, normalized_params
+    return MediaGenerationResponse(
+        request_id=job.job_id,
+        status="queued",
+        job_id=payload.job_id,
+        media_type="video",
+        requested_by=requested_by,
+        parameters=normalized_params,
+        notes=payload.notes,
+        message="Video rendering job submitted.",
+    )
 
 
 async def _handle_media_http_exception(
@@ -336,13 +353,13 @@ def register_exception_handlers(app: FastAPI) -> None:
 )
 def request_media_generation(
     payload: MediaGenerationRequestPayload,
-    authorization: str | None = Header(default=None, alias="Authorization"),
-    request: Request | None = None,
-    auth_service: AuthService = Depends(get_auth_service),
-    audio_service: AudioService = Depends(get_audio_service),
-    video_service: VideoService = Depends(get_video_service),
-    video_job_manager: VideoJobManager = Depends(get_video_job_manager),
-    locator: FileLocator = Depends(get_file_locator),
+    auth_service: AuthServiceDep,
+    audio_service: AudioServiceDep,
+    video_service: VideoServiceDep,
+    video_job_manager: VideoJobManagerDep,
+    locator: FileLocatorDep,
+    request: Request,
+    authorization: AuthorizationHeader = None,
 ) -> MediaGenerationResponse:
     """Queue an on-demand media generation job for an existing pipeline run."""
 
@@ -352,7 +369,7 @@ def request_media_generation(
     job_root = locator.resolve_path(payload.job_id)
     job_root.mkdir(parents=True, exist_ok=True)
 
-    correlation_id = request.headers.get("x-request-id") if request else None
+    correlation_id = request.headers.get("x-request-id")
     with log_mgr.log_context(
         correlation_id=correlation_id or uuid4().hex,
         job_id=payload.job_id,
@@ -382,20 +399,11 @@ def request_media_generation(
             )
 
         if media_type == "video":
-            job_id, normalized_params = _submit_video_job(
+            return _submit_video_job(
                 payload,
                 job_manager=video_job_manager,
                 video_service=video_service,
-            )
-            return MediaGenerationResponse(
-                request_id=job_id,
-                status="queued",
-                job_id=payload.job_id,
-                media_type="video",
                 requested_by=user.username,
-                parameters=normalized_params,
-                notes=payload.notes,
-                message="Video rendering job submitted.",
             )
 
         raise MediaHTTPException(
