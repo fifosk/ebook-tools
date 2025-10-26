@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "ebook-tools",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}
