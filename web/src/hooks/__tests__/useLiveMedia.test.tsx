@@ -308,4 +308,70 @@ describe('useLiveMedia', () => {
       type: 'text'
     });
   });
+
+  it('falls back to refreshing media when generated file snapshot cannot be normalised', async () => {
+    fetchLiveJobMediaMock.mockResolvedValueOnce({ media: {} });
+    fetchLiveJobMediaMock.mockResolvedValueOnce({
+      media: {
+        html: [
+          {
+            name: null,
+            relative_path: 'html/0005-0010_output.html',
+            path: '/var/tmp/jobs/job-5/html/0005-0010_output.html',
+            source: 'live'
+          }
+        ]
+      }
+    });
+
+    const listeners: Array<(event: ProgressEventPayload) => void> = [];
+    subscribeToJobEventsMock.mockImplementation(
+      (_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {
+        if (options?.onEvent) {
+          listeners.push(options.onEvent);
+        }
+        return () => {};
+      }
+    );
+
+    resolveStorageMock.mockImplementation((jobId, fileName) => `https://storage.example/${jobId}/${fileName}`);
+
+    const { result } = renderHook(() => useLiveMedia('job-5'));
+
+    await waitFor(() => {
+      expect(result.current.media.text).toHaveLength(0);
+    });
+
+    const payload: ProgressEventPayload = {
+      event_type: 'progress',
+      timestamp: Date.now(),
+      metadata: {
+        generated_files: {
+          files: [
+            {
+              path: '/var/tmp/jobs/job-5/html/0005-0010_output.html'
+            }
+          ]
+        }
+      },
+      snapshot: { completed: 5, total: null, elapsed: 0, speed: 0, eta: null },
+      error: null
+    };
+
+    await act(async () => {
+      listeners[0](payload);
+    });
+
+    await waitFor(() => {
+      expect(fetchLiveJobMediaMock).toHaveBeenCalledTimes(2);
+      expect(result.current.media.text).toHaveLength(1);
+    });
+
+    expect(result.current.media.text[0]).toMatchObject({
+      name: '0005-0010_output.html',
+      url: 'https://storage.example/job-5/html/0005-0010_output.html',
+      source: 'live',
+      type: 'text'
+    });
+  });
 });

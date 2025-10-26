@@ -341,6 +341,10 @@ function mergeMediaBuckets(base: LiveMediaState, incoming: LiveMediaState): Live
   return merged;
 }
 
+function hasMediaEntries(state: LiveMediaState): boolean {
+  return state.text.length > 0 || state.audio.length > 0 || state.video.length > 0;
+}
+
 function findGeneratedFiles(
   candidate: unknown,
   depth: number,
@@ -438,17 +442,59 @@ export function useLiveMedia(
       return;
     }
 
-    return subscribeToJobEvents(jobId, {
+    let cancelled = false;
+    let pendingRefresh: Promise<void> | null = null;
+
+    const refreshFromServer = () => {
+      if (pendingRefresh) {
+        return pendingRefresh;
+      }
+
+      pendingRefresh = fetchLiveJobMedia(jobId)
+        .then((response: PipelineMediaResponse) => {
+          if (cancelled) {
+            return;
+          }
+          setMedia((current) => mergeMediaBuckets(current, normaliseFetchedMedia(response, jobId)));
+        })
+        .catch((refreshError: unknown) => {
+          if (!cancelled) {
+            console.warn('Failed to refresh live media after event', refreshError);
+          }
+        })
+        .finally(() => {
+          pendingRefresh = null;
+        });
+
+      return pendingRefresh;
+    };
+
+    const unsubscribe = subscribeToJobEvents(jobId, {
       onEvent: (event) => {
         const snapshot = extractGeneratedFiles(event.metadata);
         if (!snapshot) {
+          const metadata = event.metadata as Record<string, unknown> | undefined;
+          const stage = metadata && typeof metadata.stage === 'string' ? metadata.stage : null;
+          if (event.event_type === 'file_chunk_generated' || stage === 'deferred_write') {
+            void refreshFromServer();
+          }
           return;
         }
 
         const nextMedia = normaliseGeneratedSnapshot(snapshot, jobId);
-        setMedia((current) => mergeMediaBuckets(current, nextMedia));
+        if (hasMediaEntries(nextMedia)) {
+          setMedia((current) => mergeMediaBuckets(current, nextMedia));
+        } else {
+          void refreshFromServer();
+        }
       }
     });
+    return () => {
+      cancelled = true;
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
   }, [enabled, jobId]);
 
   return useMemo(
