@@ -127,6 +127,15 @@ single-page application:
 - **`JOB_STORAGE_DIR`** – Filesystem directory used by the fallback persistence
   layer. Defaults to `storage/jobs` relative to the working directory. The
   server creates the directory automatically when the first job is persisted.
+- **`EBOOK_AUDIO_BACKEND`** – Override the text-to-speech backend used by the
+  API (`macos_say` or `gtts`). When unset the resolver mirrors the configuration
+  defaults and platform auto-detection.
+- **`EBOOK_AUDIO_EXECUTABLE`** – Absolute path to the binary backing the active
+  TTS backend (for example, a Homebrew-installed `say`). If omitted the
+  configured path or bundled defaults are used.
+- **`EBOOK_VIDEO_EXECUTABLE`** – Absolute path to the video rendering command
+  (FFmpeg by default). Leaving this blank keeps the renderer pointed at the
+  configured executable or system `ffmpeg`.
 
 ### Authenticate with the API
 

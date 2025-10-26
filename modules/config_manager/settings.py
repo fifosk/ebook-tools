@@ -119,7 +119,10 @@ class EnvironmentOverrides(BaseSettings):
         default=None, validation_alias=AliasChoices("EBOOKS_DIR", "EBOOK_EBOOKS_DIR")
     )
     ffmpeg_path: Optional[str] = Field(
-        default=None, validation_alias=AliasChoices("FFMPEG_PATH", "EBOOK_FFMPEG_PATH")
+        default=None,
+        validation_alias=AliasChoices(
+            "FFMPEG_PATH", "EBOOK_FFMPEG_PATH", "EBOOK_VIDEO_EXECUTABLE"
+        ),
     )
     ollama_url: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("OLLAMA_URL", "EBOOK_OLLAMA_URL")
@@ -172,13 +175,20 @@ class EnvironmentOverrides(BaseSettings):
         default=None, validation_alias=AliasChoices("EBOOK_STORAGE_BASE_URL")
     )
     tts_backend: Optional[str] = Field(
-        default=None, validation_alias=AliasChoices("EBOOK_TTS_BACKEND")
+        default=None,
+        validation_alias=AliasChoices("EBOOK_TTS_BACKEND", "EBOOK_AUDIO_BACKEND"),
     )
     tts_executable_path: Optional[str] = Field(
-        default=None, validation_alias=AliasChoices("EBOOK_TTS_EXECUTABLE")
+        default=None,
+        validation_alias=AliasChoices(
+            "EBOOK_TTS_EXECUTABLE", "EBOOK_AUDIO_EXECUTABLE"
+        ),
     )
     say_path: Optional[str] = Field(
-        default=None, validation_alias=AliasChoices("SAY_PATH", "EBOOK_SAY_PATH")
+        default=None,
+        validation_alias=AliasChoices(
+            "SAY_PATH", "EBOOK_SAY_PATH", "EBOOK_AUDIO_SAY_PATH"
+        ),
     )
 
 

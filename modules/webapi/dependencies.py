@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from contextlib import contextmanager
 from copy import deepcopy
 from functools import lru_cache
@@ -20,6 +21,110 @@ from .jobs import PipelineJobManager
 
 
 logger = log_mgr.logger
+
+
+_BOOTSTRAPPED_MEDIA_CONFIG: Dict[str, Any] | None = None
+
+
+def configure_media_services(*, config: Mapping[str, Any] | None = None) -> None:
+    """Cache the bootstrap configuration used by media service dependencies."""
+
+    global _BOOTSTRAPPED_MEDIA_CONFIG
+    _BOOTSTRAPPED_MEDIA_CONFIG = dict(config or {})
+    get_audio_service.cache_clear()
+    get_video_service.cache_clear()
+
+
+def _get_bootstrapped_media_config() -> Dict[str, Any]:
+    if _BOOTSTRAPPED_MEDIA_CONFIG is not None:
+        return dict(_BOOTSTRAPPED_MEDIA_CONFIG)
+    try:
+        return cfg.load_configuration(verbose=False)
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning(
+            "Falling back to empty configuration after load failure.",
+            exc_info=exc,
+            extra={"event": "config.media.load_failed", "console_suppress": True},
+        )
+        return {}
+
+
+def _env_audio_backend_override() -> str | None:
+    for key in ("EBOOK_AUDIO_BACKEND", "EBOOK_TTS_BACKEND"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _env_audio_executable_override() -> str | None:
+    for key in (
+        "EBOOK_AUDIO_EXECUTABLE",
+        "EBOOK_TTS_EXECUTABLE",
+        "EBOOK_SAY_PATH",
+        "SAY_PATH",
+    ):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _env_video_backend_override() -> str | None:
+    for key in ("EBOOK_VIDEO_BACKEND", "VIDEO_BACKEND"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _env_video_executable_override() -> str | None:
+    for key in ("EBOOK_VIDEO_EXECUTABLE", "EBOOK_FFMPEG_PATH", "FFMPEG_PATH"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _coerce_backend_settings(payload: Any) -> Dict[str, Dict[str, Any]]:
+    if not isinstance(payload, Mapping):
+        return {}
+    result: Dict[str, Dict[str, Any]] = {}
+    for key, value in payload.items():
+        if isinstance(key, str) and isinstance(value, Mapping):
+            result[key] = dict(value)
+    return result
+
+
+def _resolve_video_configuration(
+    config: Mapping[str, Any]
+) -> tuple[str | None, Dict[str, Dict[str, Any]]]:
+    backend_name = None
+    config_backend = config.get("video_backend")
+    if isinstance(config_backend, str) and config_backend.strip():
+        backend_name = config_backend.strip()
+
+    backend_settings = _coerce_backend_settings(config.get("video_backend_settings"))
+
+    ffmpeg_path = config.get("ffmpeg_path")
+    if isinstance(ffmpeg_path, str) and ffmpeg_path.strip():
+        ffmpeg_cfg = dict(backend_settings.get("ffmpeg", {}))
+        ffmpeg_cfg.setdefault("executable", ffmpeg_path.strip())
+        backend_settings["ffmpeg"] = ffmpeg_cfg
+
+    backend_override = _env_video_backend_override()
+    executable_override = _env_video_executable_override()
+
+    active_backend = (backend_override or backend_name or "ffmpeg").strip()
+    if executable_override:
+        backend_cfg = dict(backend_settings.get(active_backend, {}))
+        backend_cfg["executable"] = executable_override
+        backend_settings[active_backend] = backend_cfg
+
+    if backend_override:
+        backend_name = backend_override
+
+    return backend_name, backend_settings
 
 
 def _deep_merge(base: Mapping[str, Any], overrides: Mapping[str, Any]) -> Dict[str, Any]:
@@ -128,15 +233,23 @@ def get_file_locator() -> FileLocator:
 def get_audio_service() -> AudioService:
     """Return a configured :class:`AudioService` instance."""
 
-    config = cfg.load_configuration(verbose=False)
-    return AudioService(config=config)
+    config = _get_bootstrapped_media_config()
+    backend_override = _env_audio_backend_override()
+    executable_override = _env_audio_executable_override()
+    return AudioService(
+        config=config,
+        backend_name=backend_override,
+        executable_path=executable_override,
+    )
 
 
 @lru_cache
 def get_video_service() -> VideoService:
     """Return a configured :class:`VideoService` instance."""
 
-    return VideoService()
+    config = _get_bootstrapped_media_config()
+    backend_name, backend_settings = _resolve_video_configuration(config)
+    return VideoService(backend=backend_name, backend_settings=backend_settings)
 
 
 @lru_cache
