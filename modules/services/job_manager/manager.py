@@ -7,7 +7,8 @@ import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Mapping, Optional
+from contextlib import contextmanager
+from typing import Any, Callable, ContextManager, Dict, Mapping, Optional
 from uuid import uuid4
 
 from ... import config_manager as cfg
@@ -35,6 +36,7 @@ from .job_storage import JobStorageCoordinator
 from .job_tuner import PipelineJobTuner
 from .stores import JobStore
 from .execution_adapter import PipelineExecutionAdapter
+from .executor import PipelineJobExecutor, PipelineJobExecutorHooks
 from .request_factory import PipelineRequestFactory
 
 logger = log_mgr.logger
@@ -85,6 +87,23 @@ class PipelineJobManager:
             tracker_factory=ProgressTracker,
             stop_event_factory=threading.Event,
             observer_factory=lambda job: lambda event: self._store_event(job.job_id, event),
+        )
+        hooks = PipelineJobExecutorHooks(
+            on_start=self._log_job_started,
+            on_finish=self._log_job_finished,
+            on_failure=self._log_job_error,
+            on_interrupted=self._log_job_interrupted,
+            pipeline_context_factory=self._pipeline_operation_context,
+            record_metric=self._record_job_metric,
+        )
+        self._job_executor = PipelineJobExecutor(
+            job_getter=self.get,
+            lock=self._lock,
+            store=self._store,
+            persistence=self._persistence,
+            tuner=self._tuner,
+            execution=self._execution,
+            hooks=hooks,
         )
         self._restore_persisted_jobs()
 
@@ -222,161 +241,91 @@ class PipelineJobManager:
             )
 
     def _execute(self, job_id: str) -> None:
-        try:
-            job = self.get(job_id)
-        except KeyError:
-            return
+        self._job_executor.execute(job_id)
 
-        with self._lock:
-            job.status = PipelineJobStatus.RUNNING
-            job.started_at = datetime.now(timezone.utc)
-            self._store.update(self._persistence.snapshot(job))
+    def _job_correlation_id(self, job: PipelineJob) -> Optional[str]:
+        request = job.request
+        if request is None:
+            return None
+        return request.correlation_id
 
-        correlation_id = job.request.correlation_id if job.request else None
-        try:
-            assert job.request is not None  # noqa: S101
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
+    @contextmanager
+    def _log_context(self, job: PipelineJob):
+        with log_mgr.log_context(
+            job_id=job.job_id,
+            correlation_id=self._job_correlation_id(job),
+        ):
+            yield
+
+    def _log_job_started(self, job: PipelineJob) -> None:
+        with self._log_context(job):
+            logger.info(
+                "Pipeline job started",
+                extra={
+                    "event": "pipeline.job.started",
+                    "status": PipelineJobStatus.RUNNING.value,
+                    "console_suppress": True,
+                },
+            )
+
+    def _log_job_finished(self, job: PipelineJob, status: PipelineJobStatus) -> None:
+        with self._log_context(job):
+            if status == PipelineJobStatus.PAUSED:
                 logger.info(
-                    "Pipeline job started",
+                    "Pipeline job paused",
                     extra={
-                        "event": "pipeline.job.started",
-                        "status": PipelineJobStatus.RUNNING.value,
+                        "event": "pipeline.job.paused",
+                        "status": status.value,
                         "console_suppress": True,
                     },
                 )
-            with observability.pipeline_operation(
-                "job",
-                attributes={"job_id": job_id, "correlation_id": correlation_id},
-            ):
-                pool, owns_pool = self._tuner.acquire_worker_pool(job)
-                if job.tuning_summary is not None:
-                    with self._lock:
-                        self._store.update(self._persistence.snapshot(job))
-                job.owns_translation_pool = owns_pool
-                response = self._execution.execute(job.request)
-            with self._lock:
-                current_status = job.status
-                if current_status == PipelineJobStatus.PAUSED:
-                    job.result = None
-                    job.result_payload = None
-                    job.error_message = None
-                elif current_status == PipelineJobStatus.CANCELLED:
-                    job.result = None
-                    job.result_payload = None
-                    job.error_message = None
-                else:
-                    job.result = response
-                    job.result_payload = serialize_pipeline_response(response)
-                    job.generated_files = copy.deepcopy(response.generated_files)
-                    job.status = (
-                        PipelineJobStatus.COMPLETED
-                        if response.success
-                        else PipelineJobStatus.FAILED
-                    )
-                    job.error_message = (
-                        None if response.success else "Pipeline execution reported failure."
-                    )
-        except Exception as exc:  # pragma: no cover - defensive logging
-            with self._lock:
-                interruption = job.status in (
-                    PipelineJobStatus.PAUSED,
-                    PipelineJobStatus.CANCELLED,
-                ) and (job.stop_event is None or job.stop_event.is_set())
-                if interruption:
-                    job.result = None
-                    job.result_payload = None
-                    job.error_message = None
-                    status_after_error = job.status
-                else:
-                    job.result = None
-                    job.result_payload = None
-                    job.status = PipelineJobStatus.FAILED
-                    job.error_message = str(exc)
-                    status_after_error = job.status
-            if status_after_error == PipelineJobStatus.FAILED:
-                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                    logger.error(
-                        "Pipeline job encountered an error",
-                        extra={
-                            "event": "pipeline.job.error",
-                            "status": PipelineJobStatus.FAILED.value,
-                            "attributes": {"error": str(exc)},
-                        },
-                    )
-                if job.tracker is not None:
-                    job.tracker.record_error(exc, {"stage": "pipeline"})
             else:
-                with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                    logger.info(
-                        "Pipeline job interrupted",
-                        extra={
-                            "event": "pipeline.job.interrupted",
-                            "status": status_after_error.value,
-                            "console_suppress": True,
-                        },
-                    )
-        finally:
-            pool_to_shutdown: Optional[ThreadWorkerPool] = None
-            with self._lock:
-                status = job.status
-                if job.owns_translation_pool and job.request is not None:
-                    pool_to_shutdown = job.request.translation_pool
-                    job.request.translation_pool = None
-                job.owns_translation_pool = False
-                terminal_states = {
-                    PipelineJobStatus.COMPLETED,
-                    PipelineJobStatus.FAILED,
-                    PipelineJobStatus.CANCELLED,
-                }
-                if status in terminal_states:
-                    job.completed_at = job.completed_at or datetime.now(timezone.utc)
-                snapshot = self._persistence.snapshot(job)
-            self._store.update(snapshot)
-            if pool_to_shutdown is not None:
-                try:
-                    pool_to_shutdown.shutdown()
-                except Exception:  # pragma: no cover - defensive logging
-                    logger.debug(
-                        "Translation worker pool shutdown raised an exception",
-                        exc_info=True,
-                    )
-            if job.tracker is not None:
-                if status == PipelineJobStatus.COMPLETED:
-                    job.tracker.mark_finished(reason="completed", forced=False)
-                elif status == PipelineJobStatus.FAILED:
-                    job.tracker.mark_finished(reason="failed", forced=True)
-                elif status == PipelineJobStatus.CANCELLED:
-                    job.tracker.mark_finished(reason="cancelled", forced=True)
-            with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
-                if status == PipelineJobStatus.PAUSED:
-                    logger.info(
-                        "Pipeline job paused",
-                        extra={
-                            "event": "pipeline.job.paused",
-                            "status": status.value,
-                            "console_suppress": True,
-                        },
-                    )
-                else:
-                    logger.info(
-                        "Pipeline job finished",
-                        extra={
-                            "event": "pipeline.job.finished",
-                            "status": status.value,
-                            "console_suppress": True,
-                        },
-                    )
-                    if status in terminal_states:
-                        duration_ms = 0.0
-                        if job.started_at and job.completed_at:
-                            duration_ms = (
-                                job.completed_at - job.started_at
-                            ).total_seconds() * 1000.0
-                        observability.record_metric(
-                            "pipeline.job.duration",
-                            duration_ms,
-                            {"job_id": job_id, "status": status.value},
-                        )
+                logger.info(
+                    "Pipeline job finished",
+                    extra={
+                        "event": "pipeline.job.finished",
+                        "status": status.value,
+                        "console_suppress": True,
+                    },
+                )
+
+    def _log_job_error(self, job: PipelineJob, exc: Exception) -> None:
+        with self._log_context(job):
+            logger.error(
+                "Pipeline job encountered an error",
+                extra={
+                    "event": "pipeline.job.error",
+                    "status": PipelineJobStatus.FAILED.value,
+                    "attributes": {"error": str(exc)},
+                },
+            )
+
+    def _log_job_interrupted(self, job: PipelineJob, status: PipelineJobStatus) -> None:
+        with self._log_context(job):
+            logger.info(
+                "Pipeline job interrupted",
+                extra={
+                    "event": "pipeline.job.interrupted",
+                    "status": status.value,
+                    "console_suppress": True,
+                },
+            )
+
+    def _pipeline_operation_context(
+        self, job: PipelineJob
+    ) -> ContextManager[object]:
+        return observability.pipeline_operation(
+            "job",
+            attributes={
+                "job_id": job.job_id,
+                "correlation_id": self._job_correlation_id(job),
+            },
+        )
+
+    def _record_job_metric(
+        self, name: str, value: float, attributes: Mapping[str, str]
+    ) -> None:
+        observability.record_metric(name, value, attributes)
 
     @staticmethod
     def _is_admin(user_role: Optional[str]) -> bool:
