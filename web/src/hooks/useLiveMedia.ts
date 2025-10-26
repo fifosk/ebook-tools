@@ -230,6 +230,54 @@ function normaliseFetchedMedia(
   return result;
 }
 
+function collectSnapshotEntries(snapshot: Record<string, unknown>): Record<string, unknown>[] {
+  const directEntries = snapshot.files;
+  const entries: Record<string, unknown>[] = [];
+
+  if (Array.isArray(directEntries) && directEntries.length > 0) {
+    directEntries.forEach((value) => {
+      if (value && typeof value === 'object') {
+        entries.push(value as Record<string, unknown>);
+      }
+    });
+    if (entries.length > 0) {
+      return entries;
+    }
+  }
+
+  const chunkEntries = snapshot.chunks;
+  if (!Array.isArray(chunkEntries)) {
+    return entries;
+  }
+
+  chunkEntries.forEach((chunk) => {
+    if (!chunk || typeof chunk !== 'object') {
+      return;
+    }
+
+    const chunkRecord = chunk as Record<string, unknown>;
+    const chunkFiles = chunkRecord.files;
+    if (!Array.isArray(chunkFiles) || chunkFiles.length === 0) {
+      return;
+    }
+
+    chunkFiles.forEach((fileEntry) => {
+      if (!fileEntry || typeof fileEntry !== 'object') {
+        return;
+      }
+
+      const fileRecord = fileEntry as Record<string, unknown>;
+      entries.push({
+        range_fragment: chunkRecord.range_fragment,
+        chunk_id: chunkRecord.chunk_id,
+        ...fileRecord
+      });
+    });
+  });
+
+  return entries;
+}
+
 function normaliseGeneratedSnapshot(
   snapshot: unknown,
   jobId: string | null | undefined,
@@ -238,24 +286,20 @@ function normaliseGeneratedSnapshot(
     return createEmptyState();
   }
 
-  const files = (snapshot as Record<string, unknown>).files;
-  if (!Array.isArray(files)) {
+  const entries = collectSnapshotEntries(snapshot as Record<string, unknown>);
+  if (entries.length === 0) {
     return createEmptyState();
   }
 
   const result = createEmptyState();
 
-  files.forEach((entry) => {
-    if (!entry || typeof entry !== 'object') {
-      return;
-    }
-
-    const category = normaliseCategory((entry as Record<string, unknown>).type);
+  entries.forEach((entry) => {
+    const category = normaliseCategory(entry.type);
     if (!category) {
       return;
     }
 
-    const item = buildLiveMediaItem(entry as Record<string, unknown>, category, jobId);
+    const item = buildLiveMediaItem(entry, category, jobId);
     if (item) {
       result[category].push(item);
     }
@@ -297,11 +341,48 @@ function mergeMediaBuckets(base: LiveMediaState, incoming: LiveMediaState): Live
   return merged;
 }
 
-function extractGeneratedFiles(metadata: ProgressEventPayload['metadata']): unknown {
-  if (!metadata || typeof metadata !== 'object') {
+function findGeneratedFiles(
+  candidate: unknown,
+  depth: number,
+): unknown {
+  if (!candidate || depth > 4) {
     return null;
   }
-  return (metadata as Record<string, unknown>).generated_files;
+
+  if (Array.isArray(candidate)) {
+    for (const value of candidate) {
+      const nested = findGeneratedFiles(value, depth + 1);
+      if (nested) {
+        return nested;
+      }
+    }
+    return null;
+  }
+
+  if (typeof candidate !== 'object') {
+    return null;
+  }
+
+  const record = candidate as Record<string, unknown>;
+  if (record.generated_files) {
+    return record.generated_files;
+  }
+
+  for (const value of Object.values(record)) {
+    const nested = findGeneratedFiles(value, depth + 1);
+    if (nested) {
+      return nested;
+    }
+  }
+
+  return null;
+}
+
+function extractGeneratedFiles(metadata: ProgressEventPayload['metadata']): unknown {
+  if (!metadata) {
+    return null;
+  }
+  return findGeneratedFiles(metadata, 0);
 }
 
 export function useLiveMedia(

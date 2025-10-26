@@ -192,4 +192,120 @@ describe('useLiveMedia', () => {
       type: 'text'
     });
   });
+
+  it('extracts generated files nested within metadata containers', async () => {
+    fetchLiveJobMediaMock.mockResolvedValue({ media: {} });
+
+    const listeners: Array<(event: ProgressEventPayload) => void> = [];
+    subscribeToJobEventsMock.mockImplementation(
+      (_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {
+        if (options?.onEvent) {
+          listeners.push(options.onEvent);
+        }
+        return () => {};
+      }
+    );
+
+    resolveStorageMock.mockImplementation((jobId, fileName) => `https://storage.example/${jobId}/${fileName}`);
+
+    const { result } = renderHook(() => useLiveMedia('job-3'));
+
+    await waitFor(() => {
+      expect(result.current.media.audio).toHaveLength(0);
+    });
+
+    const payload: ProgressEventPayload = {
+      event_type: 'progress',
+      timestamp: Date.now(),
+      metadata: {
+        stage: 'deferred_write',
+        payload: {
+          generated_files: {
+            files: [
+              {
+                type: 'audio',
+                path: '/var/tmp/jobs/job-3/audio/001-010_output.mp3'
+              }
+            ]
+          }
+        }
+      },
+      snapshot: { completed: 2, total: null, elapsed: 0, speed: 0, eta: null },
+      error: null
+    };
+
+    await act(async () => {
+      listeners[0](payload);
+    });
+
+    await waitFor(() => {
+      expect(result.current.media.audio).toHaveLength(1);
+    });
+
+    expect(result.current.media.audio[0]).toMatchObject({
+      name: '001-010_output.mp3',
+      url: 'https://storage.example/job-3/audio/001-010_output.mp3',
+      type: 'audio'
+    });
+  });
+
+  it('derives media entries from chunk snapshots when file index is empty', async () => {
+    fetchLiveJobMediaMock.mockResolvedValue({ media: {} });
+
+    const listeners: Array<(event: ProgressEventPayload) => void> = [];
+    subscribeToJobEventsMock.mockImplementation(
+      (_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {
+        if (options?.onEvent) {
+          listeners.push(options.onEvent);
+        }
+        return () => {};
+      }
+    );
+
+    resolveStorageMock.mockImplementation((jobId, fileName) => `https://storage.example/${jobId}/${fileName}`);
+
+    const { result } = renderHook(() => useLiveMedia('job-4'));
+
+    await waitFor(() => {
+      expect(result.current.media.text).toHaveLength(0);
+    });
+
+    const payload: ProgressEventPayload = {
+      event_type: 'file_chunk_generated',
+      timestamp: Date.now(),
+      metadata: {
+        generated_files: {
+          chunks: [
+            {
+              chunk_id: 'chunk-1',
+              range_fragment: '0001-0002',
+              files: [
+                {
+                  type: 'html',
+                  path: '/var/tmp/jobs/job-4/html/0001-0002_output.html'
+                }
+              ]
+            }
+          ],
+          files: []
+        }
+      },
+      snapshot: { completed: 2, total: null, elapsed: 0, speed: 0, eta: null },
+      error: null
+    };
+
+    await act(async () => {
+      listeners[0](payload);
+    });
+
+    await waitFor(() => {
+      expect(result.current.media.text).toHaveLength(1);
+    });
+
+    expect(result.current.media.text[0]).toMatchObject({
+      name: '0001-0002_output.html',
+      url: 'https://storage.example/job-4/html/0001-0002_output.html',
+      type: 'text'
+    });
+  });
 });
