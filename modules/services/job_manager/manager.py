@@ -19,7 +19,6 @@ from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import ThreadWorkerPool
 from ..file_locator import FileLocator
 from ..pipeline_service import (
-    PipelineInput,
     PipelineRequest,
     serialize_pipeline_request,
     serialize_pipeline_response,
@@ -37,6 +36,7 @@ from .job_storage import JobStorageCoordinator
 from .job_tuner import PipelineJobTuner
 from .stores import JobStore
 from .execution_adapter import PipelineExecutionAdapter
+from .request_factory import PipelineRequestFactory
 
 logger = log_mgr.logger
 
@@ -81,6 +81,11 @@ class PipelineJobManager:
         )
         self._execution = execution_adapter or PipelineExecutionAdapter()
         self._file_locator = file_locator or FileLocator()
+        self._request_factory = PipelineRequestFactory(
+            tracker_factory=ProgressTracker,
+            stop_event_factory=threading.Event,
+            observer_factory=lambda job: lambda event: self._store_event(job.job_id, event),
+        )
         self._restore_persisted_jobs()
 
     def _restore_persisted_jobs(self) -> None:
@@ -102,116 +107,6 @@ class PipelineJobManager:
                     self._jobs[job_id] = job
 
         self._storage.persist_reconciliation(updates)
-
-    @staticmethod
-    def _coerce_bool(value: Any, default: bool = False) -> bool:
-        if isinstance(value, bool):
-            return value
-        if value is None:
-            return default
-        if isinstance(value, str):
-            normalized = value.strip().lower()
-            if normalized in {"true", "1", "yes", "y", "on"}:
-                return True
-            if normalized in {"false", "0", "no", "n", "off"}:
-                return False
-        return bool(value)
-
-    @staticmethod
-    def _coerce_int(value: Any, default: int = 0) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
-
-    @staticmethod
-    def _coerce_float(value: Any, default: float = 0.0) -> float:
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return default
-
-    def _build_pipeline_input(self, payload: Mapping[str, Any]) -> PipelineInput:
-        data = dict(payload or {})
-        raw_targets = data.get("target_languages") or []
-        if isinstance(raw_targets, list):
-            target_languages = [str(item) for item in raw_targets]
-        elif isinstance(raw_targets, (tuple, set)):
-            target_languages = [str(item) for item in raw_targets]
-        elif raw_targets is None:
-            target_languages = []
-        else:
-            target_languages = [str(raw_targets)]
-
-        end_sentence_value = data.get("end_sentence")
-        end_sentence = None
-        if end_sentence_value is not None:
-            try:
-                end_sentence = int(end_sentence_value)
-            except (TypeError, ValueError):
-                end_sentence = None
-
-        book_metadata = data.get("book_metadata")
-        if not isinstance(book_metadata, Mapping):
-            book_metadata = {}
-
-        return PipelineInput(
-            input_file=str(data.get("input_file") or ""),
-            base_output_file=str(data.get("base_output_file") or ""),
-            input_language=str(data.get("input_language") or ""),
-            target_languages=target_languages,
-            sentences_per_output_file=self._coerce_int(data.get("sentences_per_output_file"), 1),
-            start_sentence=self._coerce_int(data.get("start_sentence"), 1),
-            end_sentence=end_sentence,
-            stitch_full=self._coerce_bool(data.get("stitch_full")),
-            generate_audio=self._coerce_bool(data.get("generate_audio")),
-            audio_mode=str(data.get("audio_mode") or ""),
-            written_mode=str(data.get("written_mode") or ""),
-            selected_voice=str(data.get("selected_voice") or ""),
-            output_html=self._coerce_bool(data.get("output_html")),
-            output_pdf=self._coerce_bool(data.get("output_pdf")),
-            generate_video=self._coerce_bool(data.get("generate_video")),
-            include_transliteration=self._coerce_bool(data.get("include_transliteration")),
-            tempo=self._coerce_float(data.get("tempo"), 1.0),
-            book_metadata=PipelineMetadata.from_mapping(book_metadata),
-        )
-
-    def _hydrate_request_from_payload(
-        self,
-        job: PipelineJob,
-        payload: Mapping[str, Any],
-        stop_event: threading.Event,
-    ) -> PipelineRequest:
-        config = dict(payload.get("config") or {})
-        environment_overrides = dict(payload.get("environment_overrides") or {})
-        pipeline_overrides = dict(payload.get("pipeline_overrides") or {})
-        inputs_payload = payload.get("inputs")
-        if not isinstance(inputs_payload, Mapping):
-            inputs_payload = {}
-
-        tracker = job.tracker or ProgressTracker()
-        if job.tracker is None:
-            tracker.register_observer(lambda event: self._store_event(job.job_id, event))
-            job.tracker = tracker
-
-        correlation_id = payload.get("correlation_id")
-        if correlation_id is None and job.request is not None:
-            correlation_id = job.request.correlation_id
-
-        request = PipelineRequest(
-            config=config,
-            context=job.request.context if job.request is not None else None,
-            environment_overrides=environment_overrides,
-            pipeline_overrides=pipeline_overrides,
-            inputs=self._build_pipeline_input(inputs_payload),
-            progress_tracker=tracker,
-            stop_event=stop_event,
-            translation_pool=None,
-            correlation_id=correlation_id,
-            job_id=job.job_id,
-        )
-
-        return request
 
     def _snapshot(self, job: PipelineJob) -> PipelineJobMetadata:
         last_event = serialize_progress_event(job.last_event) if job.last_event else None
@@ -645,7 +540,11 @@ class PipelineJobManager:
                     f"Job {job.job_id} is missing resume context and cannot be resumed"
                 )
             stop_event = threading.Event()
-            request = self._hydrate_request_from_payload(job, payload, stop_event)
+            request = self._request_factory.hydrate_request(
+                job,
+                payload,
+                stop_event=stop_event,
+            )
             job.request = request
             job.stop_event = stop_event
             job.request.stop_event = stop_event
