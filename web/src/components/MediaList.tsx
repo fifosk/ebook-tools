@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LiveMediaItem } from '../hooks/useLiveMedia';
+import { formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 
 type MediaCategory = LiveMediaItem['type'];
 
@@ -8,41 +9,8 @@ export interface MediaListProps {
   category: MediaCategory;
   emptyMessage?: string;
   id?: string;
-}
-
-function formatFileSize(size: number | null | undefined): string | null {
-  if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) {
-    return null;
-  }
-
-  if (size < 1024) {
-    return `${size} B`;
-  }
-
-  const units = ['KB', 'MB', 'GB'];
-  let value = size;
-  let unitIndex = -1;
-  while (value >= 1024 && unitIndex + 1 < units.length) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  const formatted = value < 10 ? value.toFixed(1) : Math.round(value).toString();
-  const unit = units[Math.max(unitIndex, 0)];
-  return `${formatted} ${unit}`;
-}
-
-function formatTimestamp(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toLocaleString();
+  selectedKey?: string | null;
+  onSelectItem?: (item: LiveMediaItem) => void;
 }
 
 function deriveEmptyMessage(category: MediaCategory): string {
@@ -57,49 +25,65 @@ function deriveEmptyMessage(category: MediaCategory): string {
   }
 }
 
-export default function MediaList({ items, category, emptyMessage, id }: MediaListProps) {
+interface MediaListEntry extends LiveMediaItem {
+  key: string;
+  sizeLabel: string | null;
+  updatedAtLabel: string | null;
+}
+
+export default function MediaList({
+  items,
+  category,
+  emptyMessage,
+  id,
+  selectedKey,
+  onSelectItem,
+}: MediaListProps) {
   const resolvedEmptyMessage = emptyMessage ?? deriveEmptyMessage(category);
 
   const entries = useMemo(
     () =>
       items.map((item, index) => {
         const key = item.url ?? `${item.type}:${item.name ?? 'media'}:${index}`;
-        const size = formatFileSize(item.size ?? null);
-        const updatedAt = formatTimestamp(item.updated_at ?? null);
-        return { ...item, key, size, updatedAt };
+        const sizeLabel = formatFileSize(item.size ?? null);
+        const updatedAtLabel = formatTimestamp(item.updated_at ?? null);
+        return { ...item, key, sizeLabel, updatedAtLabel } satisfies MediaListEntry;
       }),
     [items],
   );
 
-  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [internalSelectedKey, setInternalSelectedKey] = useState<string | null>(null);
+  const isControlled = selectedKey !== undefined;
+  const resolvedSelectedKey = isControlled ? selectedKey ?? null : internalSelectedKey;
 
   useEffect(() => {
+    if (isControlled) {
+      return;
+    }
+
     if (entries.length === 0) {
-      if (selectedKey !== null) {
-        setSelectedKey(null);
+      if (internalSelectedKey !== null) {
+        setInternalSelectedKey(null);
       }
       return;
     }
 
-    const hasSelected = selectedKey !== null && entries.some((entry) => entry.key === selectedKey);
+    const hasSelected =
+      internalSelectedKey !== null && entries.some((entry) => entry.key === internalSelectedKey);
 
     if (!hasSelected) {
-      setSelectedKey(entries[entries.length - 1].key);
+      setInternalSelectedKey(entries[entries.length - 1].key);
     }
-  }, [entries, selectedKey]);
+  }, [entries, internalSelectedKey, isControlled]);
 
-  const handleSelect = useCallback((key: string) => {
-    setSelectedKey(key);
-  }, []);
-
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>, key: string) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleSelect(key);
+  const handleSelect = useCallback(
+    (entry: MediaListEntry) => {
+      if (!isControlled) {
+        setInternalSelectedKey(entry.key);
       }
+      onSelectItem?.(entry);
     },
-    [handleSelect],
+    [isControlled, onSelectItem],
   );
 
   if (entries.length === 0) {
@@ -113,46 +97,32 @@ export default function MediaList({ items, category, emptyMessage, id }: MediaLi
   return (
     <ul className="media-list" id={id} data-testid={`media-list-${category}`} aria-live="polite">
       {entries.map((item) => {
-        const isSelected = item.key === selectedKey;
+        const isSelected = item.key === resolvedSelectedKey;
         const actionLabel = item.type === 'text' ? 'Open' : 'Download';
         const actionTarget = item.type === 'text' ? '_blank' : undefined;
         const actionRel = item.type === 'text' ? 'noreferrer' : undefined;
         const actionDownload = item.type !== 'text' ? item.name ?? true : undefined;
         return (
           <li key={item.key} className="media-list__item" data-selected={isSelected ? 'true' : 'false'}>
-            <div
+            <button
+              type="button"
               className="media-list__details"
-              role="button"
-              tabIndex={0}
               aria-pressed={isSelected}
-              onClick={() => handleSelect(item.key)}
-              onKeyDown={(event) => handleKeyDown(event, item.key)}
+              onClick={() => handleSelect(item)}
             >
-              {item.url ? (
-                <a
-                  className="media-list__name"
-                  href={item.url}
-                  target={actionTarget}
-                  rel={actionRel}
-                  download={actionDownload}
-                >
-                  {item.name}
-                </a>
-              ) : (
-                <span className="media-list__name">{item.name}</span>
-              )}
+              <span className="media-list__name">{item.name}</span>
               <div className="media-list__meta">
-                {item.updatedAt ? (
+                {item.updatedAtLabel ? (
                   <time className="media-list__timestamp" dateTime={item.updated_at ?? undefined}>
-                    {item.updatedAt}
+                    {item.updatedAtLabel}
                   </time>
                 ) : null}
-                {item.size ? <span className="media-list__size">{item.size}</span> : null}
+                {item.sizeLabel ? <span className="media-list__size">{item.sizeLabel}</span> : null}
                 <span className="media-list__source" data-source={item.source}>
                   {item.source === 'completed' ? 'Completed' : 'Live'}
                 </span>
               </div>
-            </div>
+            </button>
             {item.url ? (
               <a
                 className="media-list__action"

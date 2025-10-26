@@ -12,7 +12,7 @@ export interface ActiveFileState<T extends IdentifiableFile> {
 
 export function useActiveFile<T extends IdentifiableFile>(files: T[]): ActiveFileState<T> {
   const [activeId, setActiveId] = useState<string | null>(() =>
-    files.length > 0 ? files[files.length - 1].id : null
+    files.length > 0 ? files[0].id : null
   );
 
   useEffect(() => {
@@ -26,7 +26,7 @@ export function useActiveFile<T extends IdentifiableFile>(files: T[]): ActiveFil
     const hasActive = activeId !== null && files.some((file) => file.id === activeId);
 
     if (!hasActive) {
-      setActiveId(files[files.length - 1].id);
+      setActiveId(files[0].id);
     }
   }, [files, activeId]);
 

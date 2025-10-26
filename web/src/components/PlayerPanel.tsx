@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import MediaList from './MediaList';
-import type { LiveMediaState } from '../hooks/useLiveMedia';
+import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
+import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 
 type MediaCategory = keyof LiveMediaState;
+type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 
 interface PlayerPanelProps {
   jobId: string;
@@ -54,6 +56,20 @@ function toVideoFiles(media: LiveMediaState['video']) {
 export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
   const [expandedLists, setExpandedLists] = useState<Set<MediaCategory>>(() => new Set());
+  const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
+    const initial: Record<MediaCategory, string | null> = {
+      text: null,
+      audio: null,
+      video: null,
+    };
+
+    (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+      const firstItem = media[category][0];
+      initial[category] = firstItem?.url ?? null;
+    });
+
+    return initial;
+  });
 
   useEffect(() => {
     setSelectedMediaType((current) => {
@@ -61,6 +77,37 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
         return current;
       }
       return selectInitialTab(media);
+    });
+  }, [media]);
+
+  useEffect(() => {
+    setSelectedItemIds((current) => {
+      let changed = false;
+      const next: Record<MediaCategory, string | null> = { ...current };
+
+      (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+        const items = media[category];
+        const currentId = current[category];
+
+        if (items.length === 0) {
+          if (currentId !== null) {
+            next[category] = null;
+            changed = true;
+          }
+          return;
+        }
+
+        const hasCurrent = currentId !== null && items.some((item) => item.url === currentId);
+
+        if (!hasCurrent) {
+          next[category] = items[0].url ?? null;
+          if (next[category] !== currentId) {
+            changed = true;
+          }
+        }
+      });
+
+      return changed ? next : current;
     });
   }, [media]);
 
@@ -80,8 +127,86 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     });
   }, []);
 
+  const handleSelectMedia = useCallback((category: MediaCategory, fileId: string) => {
+    setSelectedItemIds((current) => {
+      if (current[category] === fileId) {
+        return current;
+      }
+
+      return { ...current, [category]: fileId };
+    });
+  }, []);
+
+  const updateSelection = useCallback(
+    (category: MediaCategory, intent: NavigationIntent) => {
+      setSelectedItemIds((current) => {
+        const navigableItems = media[category].filter(
+          (item) => typeof item.url === 'string' && item.url.length > 0,
+        );
+        if (navigableItems.length === 0) {
+          return current;
+        }
+
+        const currentId = current[category];
+        const currentIndex = currentId
+          ? navigableItems.findIndex((item) => item.url === currentId)
+          : -1;
+
+        let nextIndex = currentIndex;
+        switch (intent) {
+          case 'first':
+            nextIndex = 0;
+            break;
+          case 'last':
+            nextIndex = navigableItems.length - 1;
+            break;
+          case 'previous':
+            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
+            break;
+          case 'next':
+            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, navigableItems.length - 1);
+            break;
+          default:
+            nextIndex = currentIndex;
+        }
+
+        if (nextIndex === currentIndex && currentId !== null) {
+          return current;
+        }
+
+        const nextItem = navigableItems[nextIndex];
+        if (!nextItem?.url) {
+          return current;
+        }
+
+        if (nextItem.url === currentId) {
+          return current;
+        }
+
+        return { ...current, [category]: nextItem.url };
+      });
+    },
+    [media],
+  );
+
+  const handleSelectFromList = useCallback(
+    (category: MediaCategory, item: LiveMediaItem) => {
+      if (!item.url) {
+        return;
+      }
+
+      handleSelectMedia(category, item.url);
+      setSelectedMediaType((current) => (current === category ? current : category));
+    },
+    [handleSelectMedia],
+  );
+
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
+  const textContentCache = useRef(new Map<string, string>());
+  const [textPreview, setTextPreview] = useState<{ url: string; content: string } | null>(null);
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
   const combinedMedia = useMemo(
     () =>
       (['text', 'audio', 'video'] as MediaCategory[]).flatMap((category) =>
@@ -89,18 +214,137 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
       ),
     [media],
   );
-  const filteredAudioFiles = useMemo(
-    () => (selectedMediaType === 'audio' ? audioFiles : []),
-    [audioFiles, selectedMediaType],
-  );
-  const filteredVideoFiles = useMemo(
-    () => (selectedMediaType === 'video' ? videoFiles : []),
-    [selectedMediaType, videoFiles],
-  );
   const filteredMedia = useMemo(
     () => combinedMedia.filter((item) => item.type === selectedMediaType),
     [combinedMedia, selectedMediaType],
   );
+  const selectedItemId = selectedItemIds[selectedMediaType];
+  const selectedItem = useMemo(() => {
+    if (filteredMedia.length === 0) {
+      return null;
+    }
+
+    if (!selectedItemId) {
+      return filteredMedia[0];
+    }
+
+    return filteredMedia.find((item) => item.url === selectedItemId) ?? filteredMedia[0];
+  }, [filteredMedia, selectedItemId]);
+  const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
+  const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
+  const navigableItems = useMemo(
+    () =>
+      media[selectedMediaType].filter((item) => typeof item.url === 'string' && item.url.length > 0),
+    [media, selectedMediaType],
+  );
+  const activeNavigableIndex = useMemo(() => {
+    const currentId = selectedItemIds[selectedMediaType];
+    if (!currentId) {
+      return navigableItems.length > 0 ? 0 : -1;
+    }
+
+    const matchIndex = navigableItems.findIndex((item) => item.url === currentId);
+    if (matchIndex >= 0) {
+      return matchIndex;
+    }
+
+    return navigableItems.length > 0 ? 0 : -1;
+  }, [navigableItems, selectedItemIds, selectedMediaType]);
+  const isFirstDisabled =
+    navigableItems.length === 0 || (activeNavigableIndex === 0 && navigableItems.length > 0);
+  const isPreviousDisabled = navigableItems.length === 0 || activeNavigableIndex <= 0;
+  const isNextDisabled =
+    navigableItems.length === 0 ||
+    (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
+  const isLastDisabled =
+    navigableItems.length === 0 ||
+    (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
+
+  const handleAdvanceMedia = useCallback(
+    (category: MediaCategory) => {
+      updateSelection(category, 'next');
+    },
+    [updateSelection],
+  );
+
+  const handleNavigate = useCallback(
+    (intent: NavigationIntent) => {
+      updateSelection(selectedMediaType, intent);
+    },
+    [selectedMediaType, updateSelection],
+  );
+
+  useEffect(() => {
+    if (selectedMediaType !== 'text') {
+      return;
+    }
+
+    const url = selectedItem?.url;
+    if (!url) {
+      setTextPreview(null);
+      setTextError(null);
+      setTextLoading(false);
+      return;
+    }
+
+    if (textContentCache.current.has(url)) {
+      const cached = textContentCache.current.get(url) ?? '';
+      setTextPreview({ url, content: cached });
+      setTextError(null);
+      setTextLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setTextLoading(true);
+    setTextError(null);
+    setTextPreview(null);
+
+    if (typeof fetch !== 'function') {
+      setTextLoading(false);
+      setTextPreview(null);
+      setTextError('Document preview is unavailable in this environment.');
+      return;
+    }
+
+    fetch(url, { credentials: 'include' })
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load document (status ${response.status})`);
+        }
+        return response.text();
+      })
+      .then((raw) => {
+        if (cancelled) {
+          return;
+        }
+
+        const normalised = extractTextFromHtml(raw);
+        textContentCache.current.set(url, normalised);
+        setTextPreview({ url, content: normalised });
+        setTextError(null);
+      })
+      .catch((requestError) => {
+        if (cancelled) {
+          return;
+        }
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : 'Failed to load document.';
+        setTextError(message);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTextLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMediaType, selectedItem?.url]);
 
   if (!jobId) {
     return (
@@ -136,21 +380,61 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
             <h2>Generated media</h2>
             <span className="player-panel__job">Job {jobId}</span>
           </div>
-          <TabsList className="player-panel__tabs" aria-label="Media categories">
-            {TAB_DEFINITIONS.map((tab) => {
-              const count = media[tab.key].length;
-              return (
-                <TabsTrigger
-                  key={tab.key}
-                  className="player-panel__tab"
-                  value={tab.key}
-                  data-testid={`media-tab-${tab.key}`}
-                >
-                  {tab.label} ({count})
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+          <div className="player-panel__tabs-row">
+            <div className="player-panel__navigation" role="group" aria-label="Navigate media items">
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('first')}
+                disabled={isFirstDisabled}
+                aria-label="Go to first item"
+              >
+                <span aria-hidden="true">⏮</span>
+              </button>
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('previous')}
+                disabled={isPreviousDisabled}
+                aria-label="Go to previous item"
+              >
+                <span aria-hidden="true">⏪</span>
+              </button>
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('next')}
+                disabled={isNextDisabled}
+                aria-label="Go to next item"
+              >
+                <span aria-hidden="true">⏩</span>
+              </button>
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('last')}
+                disabled={isLastDisabled}
+                aria-label="Go to last item"
+              >
+                <span aria-hidden="true">⏭</span>
+              </button>
+            </div>
+            <TabsList className="player-panel__tabs" aria-label="Media categories">
+              {TAB_DEFINITIONS.map((tab) => {
+                const count = media[tab.key].length;
+                return (
+                  <TabsTrigger
+                    key={tab.key}
+                    className="player-panel__tab"
+                    value={tab.key}
+                    data-testid={`media-tab-${tab.key}`}
+                  >
+                    {tab.label} ({count})
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
         </header>
         {TAB_DEFINITIONS.map((tab) => {
           const isActive = tab.key === selectedMediaType;
@@ -164,25 +448,120 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
               {!hasAnyMedia && !isLoading ? (
                 <p role="status">No generated media yet.</p>
               ) : items.length === 0 ? (
-                <MediaList id={listId} items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                <MediaList
+                  id={listId}
+                  items={items}
+                  category={tab.key}
+                  emptyMessage={tab.emptyMessage}
+                  selectedKey={selectedItemIds[tab.key] ?? null}
+                  onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
+                />
               ) : (
                 <>
-                  {tab.key === 'audio' ? <AudioPlayer files={filteredAudioFiles} /> : null}
-                  {tab.key === 'video' ? <VideoPlayer files={filteredVideoFiles} /> : null}
+                  {isActive ? (
+                    <div className="player-panel__stage">
+                      <div className="player-panel__selection-header" data-testid="player-panel-selection">
+                        <div
+                          className="player-panel__selection-name"
+                          title={selectedItem?.name ?? 'No media selected'}
+                        >
+                          {selectedItem ? `Selected media: ${selectedItem.name}` : 'No media selected'}
+                        </div>
+                        <dl className="player-panel__selection-meta">
+                          <div className="player-panel__selection-meta-item">
+                            <dt>Created</dt>
+                            <dd>{selectedTimestamp ?? '—'}</dd>
+                          </div>
+                          <div className="player-panel__selection-meta-item">
+                            <dt>File size</dt>
+                            <dd>{selectedSize ?? '—'}</dd>
+                          </div>
+                        </dl>
+                      </div>
+                      <div className="player-panel__viewer">
+                        {tab.key === 'audio' ? (
+                          <AudioPlayer
+                            files={audioFiles}
+                            activeId={selectedItemIds.audio}
+                            onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
+                            autoPlay
+                            onPlaybackEnded={() => handleAdvanceMedia('audio')}
+                          />
+                        ) : null}
+                        {tab.key === 'video' ? (
+                          <VideoPlayer
+                            files={videoFiles}
+                            activeId={selectedItemIds.video}
+                            onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
+                            autoPlay
+                            onPlaybackEnded={() => handleAdvanceMedia('video')}
+                          />
+                        ) : null}
+                        {tab.key === 'text' ? (
+                          <div className="player-panel__document">
+                            {selectedItem ? (
+                              textLoading ? (
+                                <div className="player-panel__document-status" role="status">
+                                  Loading document…
+                                </div>
+                              ) : textError ? (
+                                <div className="player-panel__document-error" role="alert">
+                                  {textError}
+                                </div>
+                              ) : textPreview ? (
+                                textPreview.content ? (
+                                  <article
+                                    className="player-panel__document-body"
+                                    data-testid="player-panel-document"
+                                  >
+                                    <pre className="player-panel__document-text">{textPreview.content}</pre>
+                                  </article>
+                                ) : (
+                                  <div className="player-panel__document-status" role="status">
+                                    Document preview is empty.
+                                  </div>
+                                )
+                              ) : (
+                                <div className="player-panel__document-status" role="status">
+                                  Preparing document preview…
+                                </div>
+                              )
+                            ) : (
+                              <div className="player-panel__empty-viewer" role="status">
+                                Select a file to preview.
+                              </div>
+                            )}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
                   <div className="player-panel__list-toggle">
                     <button
                       type="button"
                       className="player-panel__list-toggle-button"
                       aria-expanded={isExpanded}
-                      aria-controls={isExpanded ? listId : undefined}
+                      aria-controls={listId}
                       onClick={() => toggleListVisibility(tab.key)}
                     >
                       {isExpanded ? 'Hide detailed file list' : 'Show detailed file list'}
                     </button>
                   </div>
-                  {isExpanded ? (
-                    <MediaList id={listId} items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
-                  ) : null}
+                  <div
+                    className="player-panel__media-list"
+                    id={`${listId}-container`}
+                    hidden={!isExpanded}
+                    aria-hidden={!isExpanded}
+                  >
+                    <MediaList
+                      id={listId}
+                      items={items}
+                      category={tab.key}
+                      emptyMessage={tab.emptyMessage}
+                      selectedKey={selectedItemIds[tab.key] ?? null}
+                      onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
+                    />
+                  </div>
                 </>
               )}
             </TabsContent>

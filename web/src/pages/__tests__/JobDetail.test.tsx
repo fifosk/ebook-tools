@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import JobDetail from '../JobDetail';
 import type { PipelineMediaResponse, ProgressEventPayload } from '../../api/dtos';
 
@@ -27,10 +27,33 @@ vi.mock('../../utils/storageResolver', async () => {
 });
 
 describe('JobDetail', () => {
+  let playSpy: ReturnType<typeof vi.spyOn>;
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const originalFetch = globalThis.fetch;
+
   beforeEach(() => {
+    playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+    fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Preview</p></body></html>'),
+      } as Response);
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
     fetchLiveJobMediaMock.mockReset();
     subscribeToJobEventsMock.mockReset();
     resolveStorageMock.mockReset();
+  });
+
+  afterEach(() => {
+    playSpy.mockRestore();
+    if (originalFetch) {
+      globalThis.fetch = originalFetch;
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch;
+    }
   });
 
   it('renders fetched media and updates tab counts when live media arrives', async () => {
@@ -59,6 +82,14 @@ describe('JobDetail', () => {
     resolveStorageMock.mockImplementation((jobId, path) => `https://storage.example/${jobId}/${path}`);
 
     render(<JobDetail jobId="job-1" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
 
     await waitFor(() => {
       expect(screen.getByText('001-010_output.html')).toBeInTheDocument();
@@ -124,9 +155,15 @@ describe('JobDetail', () => {
 
     render(<JobDetail jobId="job-2" />);
 
+    await act(async () => {
+      await Promise.resolve();
+    });
+
     await waitFor(() => {
       expect(screen.getByTestId('audio-player')).toBeInTheDocument();
     });
+
+    expect(fetchMock).not.toHaveBeenCalled();
 
     expect(screen.getByRole('tab', { name: /Audio \(1\)/i })).toHaveAttribute('aria-selected', 'true');
 

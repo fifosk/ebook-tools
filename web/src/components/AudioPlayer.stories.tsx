@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import AudioPlayer, { AudioFile } from './AudioPlayer';
 
 const sampleTracks: AudioFile[] = [
@@ -26,6 +26,18 @@ export default {
 
 export const ProgressiveUpdates = () => {
   const [files, setFiles] = useState<AudioFile[]>(sampleTracks.slice(0, 1));
+  const [activeId, setActiveId] = useState<string | null>(sampleTracks[0]?.id ?? null);
+
+  useEffect(() => {
+    setActiveId((current) => {
+      if (files.length === 0) {
+        return null;
+      }
+
+      const hasCurrent = current !== null && files.some((file) => file.id === current);
+      return hasCurrent ? current : files[0].id;
+    });
+  }, [files]);
 
   const addNextTrack = () => {
     setFiles((previous) => {
@@ -42,7 +54,7 @@ export const ProgressiveUpdates = () => {
       <button type="button" onClick={addNextTrack} disabled={files.length >= sampleTracks.length}>
         Add next audio track
       </button>
-      <AudioPlayer files={files} />
+      <AudioPlayer files={files} activeId={activeId} onSelectFile={setActiveId} autoPlay />
     </div>
   );
 };

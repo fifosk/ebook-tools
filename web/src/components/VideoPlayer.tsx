@@ -1,6 +1,3 @@
-import { useMemo } from 'react';
-import { useActiveFile } from './useActiveFile';
-
 export interface VideoFile {
   id: string;
   url: string;
@@ -10,19 +7,54 @@ export interface VideoFile {
 
 interface VideoPlayerProps {
   files: VideoFile[];
+  activeId: string | null;
+  onSelectFile: (fileId: string) => void;
+  autoPlay?: boolean;
+  onPlaybackEnded?: () => void;
 }
 
-export default function VideoPlayer({ files }: VideoPlayerProps) {
-  const { activeFile, activeId, selectFile } = useActiveFile(files);
+import { useCallback, useEffect, useRef } from 'react';
 
-  const labels = useMemo(
-    () =>
-      files.map((file, index) => ({
-        id: file.id,
-        label: file.name ?? `Video ${index + 1}`
-      })),
-    [files]
-  );
+export default function VideoPlayer({
+  files,
+  activeId,
+  onSelectFile,
+  autoPlay = false,
+  onPlaybackEnded,
+}: VideoPlayerProps) {
+  const elementRef = useRef<HTMLVideoElement | null>(null);
+  const labels = files.map((file, index) => ({
+    id: file.id,
+    label: file.name ?? `Video ${index + 1}`
+  }));
+
+  const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+
+  const attemptAutoplay = useCallback(() => {
+    if (!autoPlay) {
+      return;
+    }
+
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+
+    try {
+      const playResult = element.play();
+      if (playResult && typeof playResult.then === 'function') {
+        playResult.catch(() => {
+          // Ignore autoplay rejections triggered by browser or test environments.
+        });
+      }
+    } catch (error) {
+      // Ignore autoplay errors that stem from user gesture requirements.
+    }
+  }, [autoPlay]);
+
+  useEffect(() => {
+    attemptAutoplay();
+  }, [attemptAutoplay, activeFile?.id]);
 
   if (files.length === 0) {
     return (
@@ -44,11 +76,16 @@ export default function VideoPlayer({ files }: VideoPlayerProps) {
     <div className="video-player">
       <video
         key={activeFile.id}
+        ref={elementRef}
         className="video-player__element"
         data-testid="video-player"
         controls
         src={activeFile.url}
         poster={activeFile.poster}
+        autoPlay={autoPlay}
+        playsInline
+        onEnded={onPlaybackEnded}
+        onLoadedData={attemptAutoplay}
       >
         Your browser does not support the video element.
       </video>
@@ -59,7 +96,7 @@ export default function VideoPlayer({ files }: VideoPlayerProps) {
             type="button"
             className="video-player__item"
             aria-pressed={file.id === activeId}
-            onClick={() => selectFile(file.id)}
+            onClick={() => onSelectFile(file.id)}
           >
             {file.label}
           </button>
