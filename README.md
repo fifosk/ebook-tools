@@ -16,6 +16,35 @@ worker services collaborate.
 
 ## Backend setup
 
+### Audio and video backend architecture
+
+The synthesis stack is now modular. Text-to-speech is routed through the
+`modules.audio.backends` registry, which ships with the Google Translate (gTTS)
+and macOS `say` integrations but can be extended at runtime. Each backend
+implements the `BaseTTSBackend` contract and is discovered via
+`get_tts_backend()` using the values supplied in your configuration or
+environment. Video rendering follows a similar pattern: a configurable backend
+name is resolved and the concrete implementation (FFmpeg by default) can read
+backend-specific knobs from `video_backend_settings`.【F:modules/audio/backends/__init__.py†L10-L95】【F:modules/video/backends/ffmpeg.py†L32-L74】
+
+Key configuration switches now live alongside the rest of the pipeline
+settings:
+
+- `tts_backend` – Selects the TTS engine (`auto`, `gtts`, or `macos`). When set
+  to `auto`, the resolver picks `macos` on Darwin hosts and `gtts` everywhere
+  else.
+- `tts_executable_path` – Optional override for the backend binary (e.g., point
+  at a Homebrew installation of `say`).
+- `macos_reading_speed` – Words per minute forwarded to the macOS backend.
+- `video_backend` – Chooses the slide renderer (`ffmpeg` out of the box).
+- `video_backend_settings` – Free-form dictionary keyed by backend name used to
+  pass flags like `executable`, `loglevel`, or encoder presets to the selected
+  renderer.
+
+See `conf/config.json` for the canonical defaults and `modules/conf/config.local.json`
+for a macOS-centric example config that pins the `say` binary and a Homebrew
+FFmpeg install.【F:conf/config.json†L70-L111】【F:modules/conf/config.local.json†L1-L66】
+
 ### Install dependencies
 
 1. Ensure Python 3.10 or newer is available on your system (the project is
@@ -191,6 +220,55 @@ cleaned up via the endpoints above.
 When static hosting is disabled the JSON healthcheck remains available at `/`.
 If the frontend bundle is served, the healthcheck can always be reached at
 `/_health`.
+
+### Usage examples
+
+- **macOS narration with a specific voice** – Pin the platform backend and
+  binary, and speed up narration:
+
+  ```bash
+  python main.py --tts-backend macos --selected-voice "Samantha" \
+    --tts-executable /usr/bin/say --macos-reading-speed 180
+  ```
+
+- **Override the FFmpeg binary** – Point the renderer at a custom build via the
+  config file or environment:
+
+  ```json
+  {
+    "video_backend": "ffmpeg",
+    "video_backend_settings": {
+      "ffmpeg": {
+        "executable": "/opt/homebrew/bin/ffmpeg",
+        "loglevel": "info"
+      }
+    }
+  }
+  ```
+
+  or set `EBOOK_VIDEO_BACKEND=ffmpeg` and `FFMPEG_PATH=/opt/homebrew/bin/ffmpeg`
+  before launching the pipeline.【F:modules/config_manager/settings.py†L60-L110】
+
+- **Plug a custom backend** – Register an implementation before invoking the
+  pipeline. Any class inheriting `BaseTTSBackend` can be named and added to the
+  registry:
+
+  ```python
+  from modules.audio.backends import BaseTTSBackend, register_backend
+
+
+  class MyCloudBackend(BaseTTSBackend):
+      name = "mycloud"
+
+      def synthesize(self, *, text, voice, speed, lang_code, output_path=None):
+          ...  # call your API and return an AudioSegment
+
+
+  register_backend(MyCloudBackend.name, MyCloudBackend)
+  ```
+
+  Set `tts_backend` to `mycloud` and optionally expose custom keyword arguments
+  via your own config loader if needed.【F:modules/audio/backends/__init__.py†L18-L43】【F:modules/audio/backends/base.py†L16-L44】
 
 ## Web UI workspace
 

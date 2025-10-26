@@ -24,7 +24,7 @@
     "stitch_full": false,
     "selected_voice": "macOS-auto-male",
     "tts_backend": "auto",
-    "tts_executable_path": null,
+    "tts_executable_path": "/usr/bin/say",
     "auto_metadata": true,
     "macos_reading_speed": 100,
     "tempo": 1.0,
@@ -44,7 +44,14 @@
     "llm_source": "local",
     "ollama_local_url": "http://192.168.1.9:11434/api/chat",
     "ollama_cloud_url": "https://api.ollama.com/v1/chat/completions",
-    "ffmpeg_path": null,
+    "ffmpeg_path": "/opt/homebrew/bin/ffmpeg",
+    "video_backend": "ffmpeg",
+    "video_backend_settings": {
+        "ffmpeg": {
+            "executable": "/opt/homebrew/bin/ffmpeg",
+            "loglevel": "info"
+        }
+    },
     "thread_count": 5,
     "queue_size": 20,
     "pipeline_mode": false,
