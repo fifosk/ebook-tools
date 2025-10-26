@@ -8,6 +8,7 @@ from .job_storage import JobStorageCoordinator
 from .job_tuner import PipelineJobTuner
 from .manager import PipelineJobManager
 from .metadata import PipelineJobMetadata
+from .metadata_refresher import PipelineJobMetadataRefresher
 from .persistence import PipelineJobPersistence
 from .stores import FileJobStore, InMemoryJobStore, JobStore, RedisJobStore
 
@@ -22,6 +23,7 @@ __all__ = [
     "PipelineJobStatus",
     "PipelineJobTransitionError",
     "PipelineJobMetadata",
+    "PipelineJobMetadataRefresher",
     "PipelineJobPersistence",
     "JobStore",
     "InMemoryJobStore",

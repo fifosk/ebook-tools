@@ -13,7 +13,6 @@ from uuid import uuid4
 
 from ... import config_manager as cfg
 from ... import logging_manager as log_mgr
-from ... import metadata_manager
 from ... import observability
 from ...progress_tracker import ProgressEvent, ProgressTracker
 from ...translation_engine import ThreadWorkerPool
@@ -21,12 +20,11 @@ from ..file_locator import FileLocator
 from ..pipeline_service import (
     PipelineRequest,
     serialize_pipeline_request,
-    serialize_pipeline_response,
 )
-from ..pipeline_types import PipelineMetadata
 from .job import PipelineJob, PipelineJobStatus
 from .lifecycle import compute_resume_context
 from .metadata import PipelineJobMetadata
+from .metadata_refresher import PipelineJobMetadataRefresher
 from .persistence import PipelineJobPersistence
 from .job_storage import JobStorageCoordinator
 from .job_tuner import PipelineJobTuner
@@ -80,6 +78,7 @@ class PipelineJobManager:
         self._execution = execution_adapter or PipelineExecutionAdapter()
         self._file_locator = file_locator or FileLocator()
         self._persistence = PipelineJobPersistence(self._file_locator)
+        self._metadata_refresher = PipelineJobMetadataRefresher()
         self._request_factory = PipelineRequestFactory(
             tracker_factory=ProgressTracker,
             stop_event_factory=threading.Event,
@@ -492,62 +491,11 @@ class PipelineJobManager:
             job = self._jobs.get(job_id)
 
         if job is None:
-            metadata = self._store.get(job_id)
-            job = self._persistence.build_job(metadata)
+            stored_metadata = self._store.get(job_id)
+            job = self._persistence.build_job(stored_metadata)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
 
-        if job.request is not None:
-            request_payload = serialize_pipeline_request(job.request)
-        elif job.request_payload is not None:
-            request_payload = dict(job.request_payload)
-        else:
-            raise KeyError(job_id)
-
-        inputs_payload = dict(request_payload.get("inputs", {}))
-        input_file = str(inputs_payload.get("input_file") or "").strip()
-        if not input_file:
-            raise ValueError(f"Job {job_id} does not include an input file for metadata refresh")
-
-        existing_metadata = inputs_payload.get("book_metadata")
-        if not isinstance(existing_metadata, dict):
-            existing_metadata = {}
-
-        config_payload = request_payload.get("config")
-        if not isinstance(config_payload, dict):
-            config_payload = {}
-        environment_overrides = request_payload.get("environment_overrides")
-        if not isinstance(environment_overrides, dict):
-            environment_overrides = {}
-
-        context = cfg.build_runtime_context(dict(config_payload), dict(environment_overrides))
-        cfg.set_runtime_context(context)
-        try:
-            metadata = metadata_manager.infer_metadata(
-                input_file,
-                existing_metadata=dict(existing_metadata),
-                force_refresh=True,
-            )
-        finally:
-            try:
-                cfg.cleanup_environment(context)
-            finally:
-                cfg.clear_runtime_context()
-
-        inputs_payload["book_metadata"] = dict(metadata)
-        request_payload["inputs"] = inputs_payload
-
-        if job.request is not None:
-            job.request.inputs.book_metadata = PipelineMetadata.from_mapping(metadata)
-        job.request_payload = request_payload
-        job.resume_context = copy.deepcopy(request_payload)
-
-        if job.result is not None:
-            job.result.metadata = PipelineMetadata.from_mapping(metadata)
-            job.result_payload = serialize_pipeline_response(job.result)
-        else:
-            result_payload = dict(job.result_payload or {})
-            result_payload["book_metadata"] = dict(metadata)
-            job.result_payload = result_payload
+        self._metadata_refresher.refresh(job)
 
         with log_mgr.log_context(job_id=job_id):
             logger.info(
