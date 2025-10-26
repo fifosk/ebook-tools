@@ -288,7 +288,8 @@ def _submit_video_job(
     *,
     job_manager: VideoJobManager,
     video_service: VideoService,
-) -> tuple[str, dict[str, object]]:
+    requested_by: str,
+) -> MediaGenerationResponse:
     parameters = _prepare_video_parameters(payload)
     try:
         request_payload = VideoRenderRequestPayload.model_validate(parameters)
@@ -315,7 +316,16 @@ def _submit_video_job(
     )
 
     normalized_params = request_payload.model_dump()
-    return job.job_id, normalized_params
+    return MediaGenerationResponse(
+        request_id=job.job_id,
+        status="queued",
+        job_id=payload.job_id,
+        media_type="video",
+        requested_by=requested_by,
+        parameters=normalized_params,
+        notes=payload.notes,
+        message="Video rendering job submitted.",
+    )
 
 
 async def _handle_media_http_exception(
@@ -389,20 +399,11 @@ def request_media_generation(
             )
 
         if media_type == "video":
-            job_id, normalized_params = _submit_video_job(
+            return _submit_video_job(
                 payload,
                 job_manager=video_job_manager,
                 video_service=video_service,
-            )
-            return MediaGenerationResponse(
-                request_id=job_id,
-                status="queued",
-                job_id=payload.job_id,
-                media_type="video",
                 requested_by=user.username,
-                parameters=normalized_params,
-                notes=payload.notes,
-                message="Video rendering job submitted.",
             )
 
         raise MediaHTTPException(
