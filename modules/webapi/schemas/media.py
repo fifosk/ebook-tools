@@ -2,26 +2,96 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Dict, Optional, TYPE_CHECKING
 
-from pydantic import BaseModel, Field
+from typing_extensions import Literal
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+if TYPE_CHECKING:  # pragma: no cover - type-checking aid
+    from . import AudioSynthesisRequest, VideoRenderRequestPayload
+
+
+class MediaAPISettings(BaseModel):
+    """Optional override values used when dispatching to external media APIs."""
+
+    base_url: Optional[str] = Field(
+        default=None,
+        description="Explicit API base URL that should override the configured endpoint.",
+    )
+    headers: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Additional HTTP headers forwarded to the downstream API.",
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class AudioGenerationParameters(BaseModel):
+    """Audio-specific options supplied when requesting media generation."""
+
+    request: "AudioSynthesisRequest" = Field(
+        ..., description="Normalised synthesis request for the audio backend."
+    )
+    output_filename: Optional[str] = Field(
+        default=None,
+        description="Desired filename for the generated audio artifact.",
+    )
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Optional correlation identifier propagated to downstream services.",
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class VideoGenerationParameters(BaseModel):
+    """Video-specific options supplied when requesting media generation."""
+
+    request: "VideoRenderRequestPayload" = Field(
+        ..., description="Rendering request passed through to the video job manager."
+    )
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Optional correlation identifier propagated to downstream services.",
+    )
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class MediaGenerationRequestPayload(BaseModel):
     """Request payload describing a media generation request."""
 
     job_id: str = Field(..., description="Identifier of the pipeline job to enrich with media.")
-    media_type: str = Field(
-        ..., description="Type of media that should be generated (e.g. 'audio' or 'video')."
+    media_type: Literal["audio", "video"] = Field(
+        ..., description="Type of media that should be generated (either 'audio' or 'video')."
     )
-    parameters: Dict[str, Any] = Field(
-        default_factory=dict,
-        description="Optional backend-specific parameters forwarded to the renderer.",
+    audio: Optional[AudioGenerationParameters] = Field(
+        default=None,
+        description="Audio-specific request settings when ``media_type`` is 'audio'.",
+    )
+    video: Optional[VideoGenerationParameters] = Field(
+        default=None,
+        description="Video-specific request settings when ``media_type`` is 'video'.",
     )
     notes: Optional[str] = Field(
         default=None,
         description="Optional free-form context describing why the media was requested.",
     )
+    api: Optional[MediaAPISettings] = Field(
+        default=None,
+        description="Optional overrides applied when calling remote media APIs.",
+    )
+
+    model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="after")
+    def _validate_parameters(self) -> "MediaGenerationRequestPayload":
+        if self.media_type == "audio" and self.audio is None:
+            raise ValueError("Audio parameters must be supplied when media_type is 'audio'.")
+        if self.media_type == "video" and self.video is None:
+            raise ValueError("Video parameters must be supplied when media_type is 'video'.")
+        return self
 
 
 class MediaGenerationResponse(BaseModel):
@@ -32,7 +102,7 @@ class MediaGenerationResponse(BaseModel):
     job_id: str = Field(..., description="Identifier of the job targeted by the request.")
     media_type: str = Field(..., description="Type of media that will be generated.")
     requested_by: str = Field(..., description="Username that initiated the request.")
-    parameters: Dict[str, Any] = Field(
+    parameters: Dict[str, object] = Field(
         default_factory=dict,
         description="Normalised parameters that will be applied during generation.",
     )
@@ -52,6 +122,10 @@ class MediaGenerationResponse(BaseModel):
         default=None,
         description="Public URL for downloading the generated artifact, when configured.",
     )
+    correlation_id: Optional[str] = Field(
+        default=None,
+        description="Correlation identifier propagated to downstream media services, when used.",
+    )
 
 
 class MediaErrorResponse(BaseModel):
@@ -59,3 +133,9 @@ class MediaErrorResponse(BaseModel):
 
     error: str = Field(..., description="Stable error identifier for programmatic handling.")
     message: str = Field(..., description="Human readable explanation of the failure.")
+
+
+# Resolve forward references now that dependent models are defined.
+AudioGenerationParameters.model_rebuild()
+VideoGenerationParameters.model_rebuild()
+MediaGenerationRequestPayload.model_rebuild()
