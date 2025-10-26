@@ -23,6 +23,8 @@ from modules.render.backends import (
 from modules.translation_engine import TranslationTask
 from modules.video.backends import VideoRenderOptions
 
+DEFAULT_TTS_BACKEND = get_default_backend_name()
+
 if TYPE_CHECKING:
     from modules.progress_tracker import ProgressTracker
 
@@ -305,7 +307,6 @@ __all__ = [
     "render_video_slides",
     "generate_video_slides_ffmpeg",
 ]
-DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 
 def _warn_legacy_audio_usage(entry_point: str) -> None:
