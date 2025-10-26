@@ -38,7 +38,9 @@ describe('useLiveMedia', () => {
         html: [
           {
             name: '001-010_output.html',
-            url: 'https://storage.example/jobs/job-1/001-010_output.html',
+            url: null,
+            relative_path: 'html/001-010_output.html',
+            path: '/var/tmp/jobs/job-1/html/001-010_output.html',
             source: 'live'
           }
         ]
@@ -65,7 +67,7 @@ describe('useLiveMedia', () => {
 
     expect(result.current.media.text[0]).toMatchObject({
       name: '001-010_output.html',
-      url: 'https://storage.example/jobs/job-1/001-010_output.html',
+      url: 'https://storage.example/job-1/html/001-010_output.html',
       source: 'live',
       type: 'text'
     });
@@ -99,6 +101,7 @@ describe('useLiveMedia', () => {
       expect(result.current.media.audio).toHaveLength(1);
     });
 
+    expect(resolveStorageMock).toHaveBeenCalledWith('job-1', 'html/001-010_output.html');
     expect(resolveStorageMock).toHaveBeenCalledWith('job-1', 'audio/001-010_output.mp3');
     expect(result.current.media.audio[0]).toMatchObject({
       name: '001-010_output.mp3',

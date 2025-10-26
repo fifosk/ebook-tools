@@ -372,6 +372,8 @@ class PipelineMediaFile(BaseModel):
     size: Optional[int] = None
     updated_at: Optional[datetime] = None
     source: Literal["completed", "live"]
+    relative_path: Optional[str] = None
+    path: Optional[str] = None
 
 
 class PipelineMediaResponse(BaseModel):

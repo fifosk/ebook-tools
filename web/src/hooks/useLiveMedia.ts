@@ -199,6 +199,7 @@ function buildLiveMediaItem(
 
 function normaliseFetchedMedia(
   response: PipelineMediaResponse | null | undefined,
+  jobId: string | null | undefined,
 ): LiveMediaState {
   if (!response || typeof response !== 'object') {
     return createEmptyState();
@@ -218,16 +219,11 @@ function normaliseFetchedMedia(
         return;
       }
 
-      const url = toStringOrNull(file.url);
-      if (!url) {
-        return;
+      const record = file as Record<string, unknown>;
+      const item = buildLiveMediaItem(record, category, jobId);
+      if (item) {
+        result[category].push(item);
       }
-
-      result[category].push({
-        ...file,
-        url,
-        type: category
-      });
     });
   });
 
@@ -334,7 +330,7 @@ export function useLiveMedia(
         if (cancelled) {
           return;
         }
-        setMedia(normaliseFetchedMedia(response));
+        setMedia(normaliseFetchedMedia(response, jobId));
       })
       .catch((fetchError: unknown) => {
         if (cancelled) {
