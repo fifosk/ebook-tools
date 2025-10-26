@@ -33,7 +33,6 @@ type PipelineMenuView =
   | 'pipeline:language'
   | 'pipeline:output'
   | 'pipeline:performance'
-  | 'pipeline:advanced'
   | 'pipeline:submit';
 
 const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
@@ -45,7 +44,6 @@ const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:language': 'language',
   'pipeline:output': 'output',
   'pipeline:performance': 'performance',
-  'pipeline:advanced': 'advanced',
   'pipeline:submit': 'submit'
 };
 
@@ -53,8 +51,7 @@ const PIPELINE_SETTINGS: Array<{ key: PipelineMenuView; label: string }> = [
   { key: 'pipeline:source', label: 'Source material' },
   { key: 'pipeline:language', label: 'Language & scope' },
   { key: 'pipeline:output', label: 'Output & narration' },
-  { key: 'pipeline:performance', label: 'Performance tuning' },
-  { key: 'pipeline:advanced', label: 'Advanced options' }
+  { key: 'pipeline:performance', label: 'Performance tuning' }
 ];
 
 export function App() {
