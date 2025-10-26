@@ -44,6 +44,14 @@ class MediaGenerationResponse(BaseModel):
         default=None,
         description="Optional human readable confirmation message returned by the server.",
     )
+    artifact_path: Optional[str] = Field(
+        default=None,
+        description="Relative path to the generated artifact inside the job directory, when available.",
+    )
+    artifact_url: Optional[str] = Field(
+        default=None,
+        description="Public URL for downloading the generated artifact, when configured.",
+    )
 
 
 class MediaErrorResponse(BaseModel):
