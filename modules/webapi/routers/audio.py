@@ -197,7 +197,8 @@ def match_voice(
     """Return the identifier produced by :func:`modules.audio.tts.select_voice`."""
 
     voice = select_voice(language, preference)
-    return VoiceMatchResponse(voice=voice)
+    engine = "gtts" if voice.lower().startswith("gtts") else "macos"
+    return VoiceMatchResponse(voice=voice, engine=engine)
 
 
 @router.post("", response_class=FileResponse)

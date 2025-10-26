@@ -268,7 +268,10 @@ def test_match_returns_macos_voice(audio_client: TestClient) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json() == {"voice": _SELECT_VOICE_MAP[("en", "male")]}
+    assert response.json() == {
+        "engine": "macos",
+        "voice": _SELECT_VOICE_MAP[("en", "male")],
+    }
 
 
 def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
@@ -278,4 +281,7 @@ def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
     )
 
     assert response.status_code == 200
-    assert response.json() == {"voice": _SELECT_VOICE_MAP[("es", "any")]}
+    assert response.json() == {
+        "engine": "gtts",
+        "voice": _SELECT_VOICE_MAP[("es", "any")],
+    }

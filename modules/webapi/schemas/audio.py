@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -41,4 +41,7 @@ class VoiceInventoryResponse(BaseModel):
 class VoiceMatchResponse(BaseModel):
     """Response describing the matched voice identifier."""
 
+    engine: Literal["macos", "gtts"] = Field(
+        description="Synthesis engine responsible for the matched voice",
+    )
     voice: str = Field(description="Identifier returned by the voice selection logic")
