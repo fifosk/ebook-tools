@@ -37,7 +37,14 @@ type PipelineMenuView =
 
 const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
 
-type SelectedView = PipelineMenuView | typeof ADMIN_USER_MANAGEMENT_VIEW | string;
+const JOB_PROGRESS_VIEW = 'job:progress' as const;
+const JOB_MEDIA_VIEW = 'job:media' as const;
+
+type SelectedView =
+  | PipelineMenuView
+  | typeof ADMIN_USER_MANAGEMENT_VIEW
+  | typeof JOB_PROGRESS_VIEW
+  | typeof JOB_MEDIA_VIEW;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -62,6 +69,7 @@ export function App() {
   const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
+  const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -177,6 +185,7 @@ export function App() {
       setJobs({});
       setReloadingJobs({});
       setMutatingJobs({});
+      setActiveJobId(null);
       setSelectedView('pipeline:source');
       return;
     }
@@ -197,10 +206,23 @@ export function App() {
     if (selectedView === ADMIN_USER_MANAGEMENT_VIEW) {
       return;
     }
-    if (!jobs[selectedView]) {
+    if (selectedView === JOB_PROGRESS_VIEW || selectedView === JOB_MEDIA_VIEW) {
+      if (!activeJobId || !jobs[activeJobId]) {
+        setActiveJobId(null);
+        setSelectedView('pipeline:submit');
+      }
+      return;
+    }
+  }, [activeJobId, jobs, selectedView]);
+
+  useEffect(() => {
+    if (selectedView !== JOB_PROGRESS_VIEW && selectedView !== JOB_MEDIA_VIEW) {
+      return;
+    }
+    if (!activeJobId) {
       setSelectedView('pipeline:submit');
     }
-  }, [jobs, selectedView]);
+  }, [activeJobId, selectedView]);
 
   useEffect(() => {
     if (session) {
@@ -456,15 +478,15 @@ export function App() {
   }, [isPipelineView, selectedView]);
 
   const selectedJob = useMemo(() => {
-    if (isPipelineView || isAdminView) {
+    if (!activeJobId) {
       return undefined;
     }
-    const job = jobList.find((entry) => entry.jobId === selectedView);
+    const job = jobList.find((entry) => entry.jobId === activeJobId);
     if (job && !job.canManage) {
       return undefined;
     }
     return job;
-  }, [isAdminView, isPipelineView, jobList, selectedView]);
+  }, [activeJobId, jobList]);
 
   const displayName = useMemo(() => {
     if (!sessionUser) {
@@ -636,6 +658,17 @@ export function App() {
             </details>
           </details>
           <details className="sidebar__section" open>
+            <summary>Generated media</summary>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === JOB_MEDIA_VIEW ? 'is-active' : ''}`}
+              onClick={() => setSelectedView(JOB_MEDIA_VIEW)}
+              disabled={!activeJobId}
+            >
+              {activeJobId ? `View media for job ${activeJobId}` : 'Select a job to view media'}
+            </button>
+          </details>
+          <details className="sidebar__section" open>
             <summary>Tracked jobs</summary>
             {sidebarJobs.length > 0 ? (
               <ul className="sidebar__list">
@@ -646,9 +679,12 @@ export function App() {
                       <button
                         type="button"
                         className={`sidebar__link sidebar__link--job ${
-                          selectedView === job.jobId ? 'is-active' : ''
+                          activeJobId === job.jobId ? 'is-active' : ''
                         }`}
-                        onClick={() => setSelectedView(job.jobId)}
+                        onClick={() => {
+                          setActiveJobId(job.jobId);
+                          setSelectedView(JOB_PROGRESS_VIEW);
+                        }}
                       >
                         <span className="sidebar__job-label">Job {job.jobId}</span>
                         <span className="job-status" data-state={statusValue}>
@@ -741,9 +777,9 @@ export function App() {
                   <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
                 </section>
               ) : null}
-              {selectedJob ? (
-                <section className="job-detail-layout">
-                  <div className="job-detail-layout__progress">
+              {selectedView === JOB_PROGRESS_VIEW ? (
+                <section className="job-progress-section">
+                  {selectedJob ? (
                     <JobProgress
                       jobId={selectedJob.jobId}
                       status={selectedJob.status}
@@ -758,10 +794,17 @@ export function App() {
                       isMutating={selectedJob.isMutating}
                       canManage={selectedJob.canManage}
                     />
-                  </div>
-                  <div className="job-detail-layout__media">
-                    <JobDetail jobId={selectedJob.jobId} />
-                  </div>
+                  ) : (
+                    <div className="job-card job-card--placeholder" aria-live="polite">
+                      <h3 style={{ marginTop: 0 }}>No job selected</h3>
+                      <p>Select a tracked job to monitor its pipeline progress and live status updates.</p>
+                    </div>
+                  )}
+                </section>
+              ) : null}
+              {selectedView === JOB_MEDIA_VIEW ? (
+                <section className="job-media-section">
+                  <JobDetail jobId={selectedJob?.jobId ?? null} />
                 </section>
               ) : null}
             </>

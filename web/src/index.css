@@ -1506,6 +1506,25 @@ button.link-button:focus {
   box-shadow: 0 12px 24px rgba(15, 23, 42, 0.1);
 }
 
+.job-card--placeholder {
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--space-xs);
+  color: var(--color-text-secondary);
+}
+
+.job-card--placeholder p {
+  margin: 0;
+}
+
+.job-progress-section,
+.job-media-section {
+  display: grid;
+  gap: var(--space-md);
+}
+
 .metadata-grid {
   display: grid;
   grid-template-columns: 1fr;
