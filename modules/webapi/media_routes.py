@@ -31,10 +31,12 @@ from .dependencies import (
     get_video_service,
 )
 from .schemas import (
+    AudioGenerationParameters,
     AudioSynthesisRequest,
     MediaErrorResponse,
     MediaGenerationRequestPayload,
     MediaGenerationResponse,
+    VideoGenerationParameters,
     VideoRenderRequestPayload,
 )
 
@@ -124,20 +126,13 @@ def _select_audio_filename(candidate: str | None) -> str:
     return name
 
 
-def _prepare_audio_request(parameters: Mapping[str, object]) -> tuple[str | None, AudioSynthesisRequest]:
-    payload = dict(parameters)
-    output_name = None
-    raw_name = payload.pop("output_filename", None)
-    if isinstance(raw_name, str):
-        output_name = raw_name.strip() or None
-    try:
-        request = AudioSynthesisRequest.model_validate(payload)
-    except ValidationError as exc:
-        raise MediaHTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_format_error("invalid_parameters", exc.errors()[0]["msg"]),
-        ) from exc
-    return output_name, request
+def _prepare_audio_request(
+    audio: AudioGenerationParameters,
+) -> tuple[str | None, AudioSynthesisRequest, str | None]:
+    """Return the synthesized request metadata for audio generation."""
+
+    output_name = audio.output_filename.strip() if audio.output_filename else None
+    return output_name or None, audio.request, audio.correlation_id
 
 
 def _resolve_audio_defaults(
@@ -246,15 +241,15 @@ def _export_audio(
     return relative_path, url, normalized_params
 
 
-def _prepare_video_parameters(
-    payload: MediaGenerationRequestPayload,
-) -> Mapping[str, object]:
-    parameters: dict[str, object] = {}
-    for key, value in payload.parameters.items():
-        if isinstance(value, (str, int, float, list, dict, bool)) or value is None:
-            parameters[key] = value
+def _prepare_video_request(
+    job_id: str,
+    parameters: VideoGenerationParameters,
+) -> VideoRenderRequestPayload:
+    """Normalise the inbound video payload for job submission."""
 
-    audio_entries = parameters.get("audio")
+    payload = parameters.request.model_dump()
+
+    audio_entries = payload.get("audio")
     if isinstance(audio_entries, list):
         normalized_audio: list[Mapping[str, object]] = []
         for entry in audio_entries:
@@ -264,11 +259,11 @@ def _prepare_video_parameters(
             normalized = dict(entry)
             rel_path = normalized.get("relative_path")
             if rel_path and "job_id" not in normalized:
-                normalized["job_id"] = payload.job_id
+                normalized["job_id"] = job_id
             normalized_audio.append(normalized)
-        parameters["audio"] = normalized_audio
+        payload["audio"] = normalized_audio
 
-    options = parameters.get("options")
+    options = payload.get("options")
     if isinstance(options, Mapping):
         options = dict(options)
         cover_image = options.get("cover_image")
@@ -276,11 +271,17 @@ def _prepare_video_parameters(
             cover_dict = dict(cover_image)
             rel_path = cover_dict.get("relative_path")
             if rel_path and "job_id" not in cover_dict:
-                cover_dict["job_id"] = payload.job_id
+                cover_dict["job_id"] = job_id
             options["cover_image"] = cover_dict
-        parameters["options"] = options
+        payload["options"] = options
 
-    return parameters
+    try:
+        return VideoRenderRequestPayload.model_validate(payload)
+    except ValidationError as exc:
+        raise MediaHTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=_format_error("invalid_parameters", exc.errors()[0]["msg"]),
+        ) from exc
 
 
 def _submit_video_job(
@@ -289,15 +290,10 @@ def _submit_video_job(
     job_manager: VideoJobManager,
     video_service: VideoService,
     requested_by: str,
+    correlation_id: str | None,
 ) -> MediaGenerationResponse:
-    parameters = _prepare_video_parameters(payload)
-    try:
-        request_payload = VideoRenderRequestPayload.model_validate(parameters)
-    except ValidationError as exc:
-        raise MediaHTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=_format_error("invalid_parameters", exc.errors()[0]["msg"]),
-        ) from exc
+    assert payload.video is not None
+    request_payload = _prepare_video_request(payload.job_id, payload.video)
 
     task = request_payload.to_task(job_manager.locator)
     job = job_manager.submit(task, video_service=video_service)
@@ -325,6 +321,7 @@ def _submit_video_job(
         parameters=normalized_params,
         notes=payload.notes,
         message="Video rendering job submitted.",
+        correlation_id=correlation_id,
     )
 
 
@@ -369,15 +366,26 @@ def request_media_generation(
     job_root = locator.resolve_path(payload.job_id)
     job_root.mkdir(parents=True, exist_ok=True)
 
-    correlation_id = request.headers.get("x-request-id")
+    correlation_override = None
+    if payload.media_type == "audio" and payload.audio is not None:
+        correlation_override = payload.audio.correlation_id
+    elif payload.media_type == "video" and payload.video is not None:
+        correlation_override = payload.video.correlation_id
+
+    header_correlation = request.headers.get("x-request-id")
+    correlation_id = correlation_override or header_correlation or uuid4().hex
     with log_mgr.log_context(
-        correlation_id=correlation_id or uuid4().hex,
+        correlation_id=correlation_id,
         job_id=payload.job_id,
         stage="api.media.generate",
     ):
         media_type = payload.media_type.lower().strip()
         if media_type == "audio":
-            output_filename, synthesis_request = _prepare_audio_request(payload.parameters)
+            assert payload.audio is not None
+            output_filename, synthesis_request, audio_correlation = _prepare_audio_request(
+                payload.audio
+            )
+            active_correlation = audio_correlation or correlation_id
             relative_path, url, normalized_params = _export_audio(
                 payload.job_id,
                 synthesis_request,
@@ -396,6 +404,7 @@ def request_media_generation(
                 message="Audio generation completed.",
                 artifact_path=relative_path,
                 artifact_url=url,
+                correlation_id=active_correlation,
             )
 
         if media_type == "video":
@@ -404,6 +413,7 @@ def request_media_generation(
                 job_manager=video_job_manager,
                 video_service=video_service,
                 requested_by=user.username,
+                correlation_id=correlation_override or correlation_id,
             )
 
         raise MediaHTTPException(

@@ -759,8 +759,11 @@ class VideoJobStatusResponse(BaseModel):
         )
 
 from .media import (
+    AudioGenerationParameters,
+    MediaAPISettings,
     MediaErrorResponse,
     MediaGenerationRequestPayload,
     MediaGenerationResponse,
+    VideoGenerationParameters,
 )
 

@@ -107,7 +107,11 @@ def test_media_generation_requires_authentication(media_client) -> None:
 
     response = client.post(
         "/api/media/generate",
-        json={"job_id": "job-1", "media_type": "audio"},
+        json={
+            "job_id": "job-1",
+            "media_type": "audio",
+            "audio": {"request": {"text": "sample"}},
+        },
     )
 
     assert response.status_code == 401
@@ -120,7 +124,11 @@ def test_media_generation_requires_elevated_role(media_client) -> None:
 
     response = client.post(
         "/api/media/generate",
-        json={"job_id": "job-1", "media_type": "audio"},
+        json={
+            "job_id": "job-1",
+            "media_type": "audio",
+            "audio": {"request": {"text": "sample"}},
+        },
         headers={"Authorization": f"Bearer {viewer_token}"},
     )
 
@@ -137,12 +145,15 @@ def test_audio_generation_creates_artifact(media_client) -> None:
         json={
             "job_id": "job-123",
             "media_type": "audio",
-            "parameters": {
-                "text": "Hello there",
-                "voice": "SampleVoice",
-                "speed": 180,
-                "language": "en",
+            "audio": {
+                "request": {
+                    "text": "Hello there",
+                    "voice": "SampleVoice",
+                    "speed": 180,
+                    "language": "en",
+                },
                 "output_filename": "greeting.mp3",
+                "correlation_id": "corr-audio",
             },
         },
         headers={"Authorization": f"Bearer {producer_token}"},
@@ -163,6 +174,7 @@ def test_audio_generation_creates_artifact(media_client) -> None:
     assert params["speed"] == 180
     assert params["language"] == "en"
     assert audio_service.calls
+    assert payload["correlation_id"] == "corr-audio"
 
 
 def test_audio_generation_reports_backend_failure(media_client) -> None:
@@ -174,7 +186,7 @@ def test_audio_generation_reports_backend_failure(media_client) -> None:
         json={
             "job_id": "job-500",
             "media_type": "audio",
-            "parameters": {"text": "Failure expected"},
+            "audio": {"request": {"text": "Failure expected"}},
         },
         headers={"Authorization": f"Bearer {producer_token}"},
     )
@@ -199,10 +211,12 @@ def test_video_generation_submits_job(media_client) -> None:
         json={
             "job_id": job_id,
             "media_type": "video",
-            "parameters": {
-                "slides": ["Slide 1"],
-                "audio": [{"relative_path": "audio/clip.mp3"}],
-                "options": {"book_author": "Author"},
+            "video": {
+                "request": {
+                    "slides": ["Slide 1"],
+                    "audio": [{"relative_path": "audio/clip.mp3"}],
+                    "options": {"book_author": "Author"},
+                },
             },
         },
         headers={"Authorization": f"Bearer {producer_token}"},
