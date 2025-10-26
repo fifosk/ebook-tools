@@ -588,6 +588,7 @@ class VideoRenderOptionsPayload(BaseModel):
     word_highlighting: bool = True
     highlight_granularity: str = "word"
     voice_name: str = ""
+    voice_lines: List[str] = Field(default_factory=list)
     slide_render_options: Dict[str, Any] | None = None
     cleanup: bool = True
     slide_size: List[int] = Field(default_factory=lambda: [1280, 720])
@@ -643,6 +644,7 @@ class VideoRenderOptionsPayload(BaseModel):
             word_highlighting=self.word_highlighting,
             highlight_granularity=self.highlight_granularity,
             voice_name=self.voice_name,
+            voice_lines=list(self.voice_lines),
             slide_render_options=slide_options,
             cleanup=self.cleanup,
             slide_size=slide_size,

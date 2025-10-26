@@ -12,11 +12,11 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr, observability
 from modules.audio.backends import get_default_backend_name
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
-from modules.audio.tts import generate_audio
+from modules.audio.tts import generate_audio, get_voice_display_name
 from modules.media.exceptions import MediaBackendError
 from modules.core.translation import split_translation_and_transliteration
 
-from .base import AudioSynthesizer
+from .base import AudioSynthesizer, SynthesisResult
 
 logger = log_mgr.logger
 
@@ -148,10 +148,46 @@ class PollyAudioSynthesizer(AudioSynthesizer):
 
         tasks = []
         segment_texts: Dict[str, str] = {}
+        segment_languages: Dict[str, tuple[str, str]] = {}
+        voice_map: Dict[str, Dict[str, str]] = {}
 
-        def enqueue(key: str, text: str, lang_code: str) -> None:
+        def _language_label(role: str, lang_code: str, explicit: str | None = None) -> str:
+            candidate = (explicit or "").strip()
+            if candidate:
+                return candidate
+            if lang_code:
+                if len(lang_code) == 2:
+                    return lang_code.upper()
+                return lang_code
+            return "Unknown"
+
+        def _record_voice(key: str, voice_identifier: Optional[str]) -> None:
+            language_label, lang_code = segment_languages.get(key, ("", ""))
+            resolved_voice = (voice_identifier or "").strip()
+            if not resolved_voice or resolved_voice == "0":
+                resolved_voice = selected_voice
+            label = language_label or _language_label(key, lang_code)
+            display_name = get_voice_display_name(resolved_voice, label, language_codes)
+            if not display_name:
+                return
+            if key == "translation":
+                role = "translation"
+            elif key == "input":
+                role = "source"
+            else:
+                role = key
+            role_map = voice_map.setdefault(role, {})
+            role_map[label] = display_name
+
+        def enqueue(
+            key: str, text: str, lang_code: str, language_label: str | None = None
+        ) -> None:
             tasks.append((key, text, lang_code))
             segment_texts[key] = text
+            segment_languages[key] = (
+                _language_label(key, lang_code, language_label),
+                lang_code,
+            )
 
         target_lang_code = _lang_code(target_language)
         source_lang_code = _lang_code(input_language)
@@ -159,31 +195,34 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
 
         if audio_mode == "1":
-            enqueue("translation", translation_audio_text, target_lang_code)
+            enqueue("translation", translation_audio_text, target_lang_code, target_language)
             sequence = ["translation"]
         elif audio_mode == "2":
-            enqueue("number", numbering_str, "en")
-            enqueue("translation", translation_audio_text, target_lang_code)
+            enqueue("number", numbering_str, "en", "English")
+            enqueue("translation", translation_audio_text, target_lang_code, target_language)
             sequence = ["number", "translation"]
         elif audio_mode == "3":
-            enqueue("number", numbering_str, "en")
-            enqueue("input", input_sentence, source_lang_code)
-            enqueue("translation", translation_audio_text, target_lang_code)
+            enqueue("number", numbering_str, "en", "English")
+            enqueue("input", input_sentence, source_lang_code, input_language)
+            enqueue("translation", translation_audio_text, target_lang_code, target_language)
             sequence = ["number", "input", "translation"]
         elif audio_mode == "4":
-            enqueue("input", input_sentence, source_lang_code)
-            enqueue("translation", translation_audio_text, target_lang_code)
+            enqueue("input", input_sentence, source_lang_code, input_language)
+            enqueue("translation", translation_audio_text, target_lang_code, target_language)
             sequence = ["input", "translation"]
         elif audio_mode == "5":
-            enqueue("input", input_sentence, source_lang_code)
+            enqueue("input", input_sentence, source_lang_code, input_language)
             sequence = ["input"]
         else:
-            enqueue("input", input_sentence, source_lang_code)
-            enqueue("translation", translation_audio_text, target_lang_code)
+            enqueue("input", input_sentence, source_lang_code, input_language)
+            enqueue("translation", translation_audio_text, target_lang_code, target_language)
             sequence = ["input", "translation"]
 
         if not tasks:
-            return self._change_audio_tempo(AudioSegment.silent(duration=0), tempo)
+            silent_audio = self._change_audio_tempo(
+                AudioSegment.silent(duration=0), tempo
+            )
+            return SynthesisResult(audio=silent_audio, voice_metadata={})
 
         worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
         segments: Dict[str, AudioSegment] = {}
@@ -196,25 +235,37 @@ class PollyAudioSynthesizer(AudioSynthesizer):
             "say_path": tts_executable_path,
         }
 
-        def _generate_with_legacy(text: str, lang_code: str) -> AudioSegment:
-            return generate_audio(
+        def _generate_with_legacy(key: str, text: str, lang_code: str) -> AudioSegment:
+            segment = generate_audio(
                 text,
                 lang_code,
                 selected_voice,
                 macos_reading_speed,
                 config=backend_config,
             )
+            _record_voice(key, selected_voice)
+            return segment
+
+        def _extract_voice(headers: Mapping[str, str] | None) -> Optional[str]:
+            if not headers:
+                return None
+            for header in ("X-Selected-Voice", "x-selected-voice"):
+                value = headers.get(header)
+                if value:
+                    return str(value)
+            return None
 
         if client is None:
 
             if worker_count == 1:
                 for key, text, lang_code in tasks:
-                    segments[key] = _generate_with_legacy(text, lang_code)
+                    segments[key] = _generate_with_legacy(key, text, lang_code)
             else:
                 with ThreadPoolExecutor(max_workers=worker_count) as executor:
                     future_map = {
                         executor.submit(
                             _generate_with_legacy,
+                            key,
                             text,
                             lang_code,
                         ): key
@@ -253,12 +304,18 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 )
                 start = time.perf_counter()
                 try:
-                    segment = client.synthesize(
+                    synth_response = client.synthesize(
                         text=text,
                         voice=api_voice,
                         speed=macos_reading_speed or None,
                         language=lang_code,
+                        return_metadata=True,
                     )
+                    if isinstance(synth_response, tuple):
+                        segment, response_headers = synth_response
+                    else:  # pragma: no cover - defensive safeguard
+                        segment = synth_response
+                        response_headers = {}
                 except MediaBackendError:
                     duration_ms = (time.perf_counter() - start) * 1000.0
                     observability.record_metric(
@@ -275,7 +332,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                         },
                         exc_info=True,
                     )
-                    return key, _generate_with_legacy(text, lang_code)
+                    return key, _generate_with_legacy(key, text, lang_code)
                 except Exception:
                     duration_ms = (time.perf_counter() - start) * 1000.0
                     observability.record_metric(
@@ -308,6 +365,8 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                         "console_suppress": True,
                     },
                 )
+                resolved_voice = _extract_voice(response_headers) or api_voice or selected_voice
+                _record_voice(key, resolved_voice)
                 return key, segment
 
             if worker_count == 1:
@@ -341,7 +400,16 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         except Exception:  # pragma: no cover - metadata attachment best effort
             logger.debug("Failed to compute audio metadata for sentence %s", sentence_number)
 
-        return tempo_adjusted
+        normalized_voice_map = {
+            role: dict(language_map)
+            for role, language_map in voice_map.items()
+            if language_map
+        }
+
+        return SynthesisResult(
+            audio=tempo_adjusted,
+            voice_metadata=normalized_voice_map,
+        )
 
     @staticmethod
     def _change_audio_tempo(sound: AudioSegment, tempo: float = 1.0) -> AudioSegment:

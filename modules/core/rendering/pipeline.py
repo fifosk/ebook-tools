@@ -6,7 +6,7 @@ import concurrent.futures
 import queue
 import threading
 from dataclasses import dataclass, field
-from typing import List, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from PIL import Image
 from pydub import AudioSegment
@@ -50,6 +50,10 @@ class PipelineState:
     current_batch_start: int = 0
     last_target_language: str = ""
     processed: int = 0
+    voice_metadata: Dict[str, Dict[str, Set[str]]] = field(default_factory=dict)
+    current_voice_metadata: Dict[str, Dict[str, Set[str]]] = field(
+        default_factory=dict
+    )
 
 
 class RenderPipeline:
@@ -258,6 +262,7 @@ class RenderPipeline:
                 audio_segments=list(state.current_audio_segments or []),
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
+                voice_metadata=self._drain_current_voice_metadata(state),
             )
             export_result = exporter.export(request)
             self._register_export_result(state, export_result)
@@ -372,6 +377,40 @@ class RenderPipeline:
     def _should_stop(self) -> bool:
         return bool(self._stop_event and self._stop_event.is_set())
 
+    def _update_voice_metadata(
+        self,
+        state: PipelineState,
+        metadata: Optional[Mapping[str, Mapping[str, str]]],
+    ) -> None:
+        if not metadata:
+            return
+        for role, languages in metadata.items():
+            if not isinstance(languages, Mapping):
+                continue
+            aggregate = state.voice_metadata.setdefault(role, {})
+            current = state.current_voice_metadata.setdefault(role, {})
+            for language, voice in languages.items():
+                normalized_voice = (voice or "").strip()
+                if not normalized_voice:
+                    continue
+                normalized_language = (language or "Unknown").strip() or "Unknown"
+                aggregate.setdefault(normalized_language, set()).add(normalized_voice)
+                current.setdefault(normalized_language, set()).add(normalized_voice)
+
+    def _drain_current_voice_metadata(
+        self, state: PipelineState
+    ) -> Dict[str, Dict[str, List[str]]]:
+        payload: Dict[str, Dict[str, List[str]]] = {}
+        for role, languages in state.current_voice_metadata.items():
+            role_payload: Dict[str, List[str]] = {}
+            for language, voices in languages.items():
+                if voices:
+                    role_payload[language] = sorted(voices)
+            if role_payload:
+                payload[role] = role_payload
+        state.current_voice_metadata = {}
+        return payload
+
     def _maybe_generate_audio(
         self,
         *,
@@ -382,7 +421,7 @@ class RenderPipeline:
         target_language: str,
         audio_mode: str,
         total_sentences: int,
-    ) -> Optional[AudioSegment]:
+    ) -> Optional[SynthesisResult]:
         return av_gen.generate_audio_for_sentence(
             sentence_number,
             sentence,
@@ -418,6 +457,7 @@ class RenderPipeline:
         generate_audio: bool,
         generate_video: bool,
         audio_segment: Optional[AudioSegment],
+        voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
     ) -> None:
         written_block, video_block = build_written_and_video_blocks(
             sentence_number=sentence_number,
@@ -429,6 +469,7 @@ class RenderPipeline:
             total_sentences=total_sentences,
             include_transliteration=include_transliteration,
         )
+        self._update_voice_metadata(state, voice_metadata)
         state.written_blocks.append(written_block)
         if generate_video:
             state.video_blocks.append(video_block)
@@ -453,6 +494,7 @@ class RenderPipeline:
                 audio_segments=list(state.current_audio_segments or []),
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
+                voice_metadata=self._drain_current_voice_metadata(state),
             )
             export_result = exporter.export(request)
             self._register_export_result(state, export_result)
@@ -550,9 +592,10 @@ class RenderPipeline:
                         candidate = remove_quotes(candidate or "").strip()
                     if candidate:
                         transliteration_result = candidate
-                audio_segment = None
+                audio_segment: Optional[AudioSegment] = None
+                voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None
                 if generate_audio:
-                    audio_segment = self._maybe_generate_audio(
+                    audio_result = self._maybe_generate_audio(
                         sentence_number=sentence_number,
                         sentence=sentence,
                         fluent=fluent,
@@ -561,6 +604,9 @@ class RenderPipeline:
                         audio_mode=audio_mode,
                         total_sentences=total_fully,
                     )
+                    if audio_result is not None:
+                        audio_segment = audio_result.audio
+                        voice_metadata = audio_result.voice_metadata
                 self._handle_sentence(
                     state=state,
                     exporter=exporter,
@@ -580,6 +626,7 @@ class RenderPipeline:
                     generate_audio=generate_audio,
                     generate_video=generate_video,
                     audio_segment=audio_segment,
+                    voice_metadata=voice_metadata,
                 )
                 processed += 1
 
@@ -711,6 +758,7 @@ class RenderPipeline:
                             state.current_audio_segments.append(audio_segment)
                         if state.all_audio_segments is not None:
                             state.all_audio_segments.append(audio_segment)
+                    self._update_voice_metadata(state, getattr(item, "voice_metadata", None))
                     written_block, video_block = build_written_and_video_blocks(
                         sentence_number=item.sentence_number,
                         sentence=item.sentence,
@@ -744,6 +792,7 @@ class RenderPipeline:
                             audio_segments=list(state.current_audio_segments or []),
                             generate_video=generate_video,
                             video_blocks=list(state.video_blocks),
+                            voice_metadata=self._drain_current_voice_metadata(state),
                         )
                         future = finalize_executor.submit(exporter.export, request)
                         export_futures.append(future)

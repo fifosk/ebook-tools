@@ -61,6 +61,9 @@ class BatchExportRequest:
     audio_segments: Sequence[AudioSegment]
     generate_video: bool
     video_blocks: Sequence[str]
+    voice_metadata: Mapping[str, Mapping[str, Sequence[str]]] = field(
+        default_factory=dict
+    )
 
 
 @dataclass(frozen=True)
@@ -84,6 +87,35 @@ class BatchExporter:
             backend_settings=context.video_backend_settings,
         )
 
+    @staticmethod
+    def _format_voice_lines(
+        metadata: Mapping[str, Mapping[str, Sequence[str]]]
+    ) -> list[str]:
+        lines: list[str] = []
+        role_labels = {
+            "source": "Source Voice",
+            "translation": "Translation Voice",
+        }
+        for role, languages in metadata.items():
+            if not isinstance(languages, Mapping):
+                continue
+            label = role_labels.get(role)
+            if label is None:
+                continue
+            for language, voices in languages.items():
+                if isinstance(voices, Sequence):
+                    ordered = list(dict.fromkeys(str(voice).strip() for voice in voices if voice))
+                    if not ordered:
+                        continue
+                    voice_list = ", ".join(ordered)
+                else:
+                    voice_list = str(voices).strip()
+                    if not voice_list:
+                        continue
+                suffix = f" ({language})" if language else ""
+                lines.append(f"{label}{suffix}: {voice_list}")
+        return lines
+
     def export(self, request: BatchExportRequest) -> BatchExportResult:
         """Write batch outputs and return a description of created files."""
 
@@ -94,6 +126,9 @@ class BatchExporter:
         )
 
         chunk_id = f"{range_fragment}_{self._context.base_name}"
+
+        voice_lines = self._format_voice_lines(request.voice_metadata)
+        voice_display = "\n".join(voice_lines) if voice_lines else self._context.voice_name
 
         config = get_rendering_config()
         runtime_context = cfg.get_runtime_context(None)
@@ -113,7 +148,11 @@ class BatchExporter:
         media_context = {
             "text": {"range_fragment": range_fragment},
             "audio": {"range_fragment": range_fragment},
-            "video": {"range_fragment": range_fragment, "voice_name": self._context.voice_name},
+            "video": {
+                "range_fragment": range_fragment,
+                "voice_name": voice_display,
+                "voice_lines": voice_lines,
+            },
         }
         batch_context = RenderBatchContext(manifest=manifest_context, media=media_context)
         writer = DeferredBatchWriter(Path(self._context.base_dir), batch_context)
@@ -168,10 +207,11 @@ class BatchExporter:
                     self._context.sync_ratio,
                     self._context.word_highlighting,
                     self._context.highlight_granularity,
-                    self._context.voice_name,
+                    voice_display,
                     slide_render_options=self._context.slide_render_options,
                     template_name=self._context.template_name,
                     video_service=self._video_service,
+                    voice_lines=voice_lines,
                 )
                 video_path = Path(video_output)
                 video_path = writer.stage(video_path)

@@ -41,7 +41,8 @@ class AudioAPIClient:
         language: Optional[str] = None,
         headers: Optional[Mapping[str, str]] = None,
         correlation_id: Optional[str] = None,
-    ) -> AudioSegment:
+        return_metadata: bool = False,
+    ) -> AudioSegment | tuple[AudioSegment, Mapping[str, str]]:
         """Send a synthesis request and return the resulting audio segment."""
 
         payload: MutableMapping[str, object] = {"text": text}
@@ -122,7 +123,7 @@ class AudioAPIClient:
 
         try:
             buffer = BytesIO(response.content)
-            return AudioSegment.from_file(buffer, format="mp3")
+            segment = AudioSegment.from_file(buffer, format="mp3")
         except Exception as exc:
             self._logger.error(
                 "Failed to decode audio payload",
@@ -130,3 +131,7 @@ class AudioAPIClient:
                 exc_info=True,
             )
             raise MediaBackendError("Failed to decode audio payload") from exc
+
+        if return_metadata:
+            return segment, dict(response.headers)
+        return segment

@@ -195,7 +195,7 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
 
     synthesizer = PollyAudioSynthesizer()
 
-    audio = generate_audio_for_sentence(
+    audio_result = generate_audio_for_sentence(
         sentence_number=1,
         input_sentence=input_text,
         fluent_translation=translation_text,
@@ -210,10 +210,10 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         audio_synthesizer=synthesizer,
     )
 
-    metadata = highlight._get_audio_metadata(audio)
+    metadata = highlight._get_audio_metadata(audio_result.audio)
     assert metadata is not None
 
-    total_seconds = len(audio) / 1000.0
+    total_seconds = len(audio_result.audio) / 1000.0
     assert metadata.total_duration == pytest.approx(total_seconds, rel=1e-6)
 
     expected_kinds = [
@@ -321,7 +321,7 @@ def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
 
     monkeypatch.setattr("modules.render.backends.polly.generate_audio", fake_synthesize)
 
-    audio = generate_audio_for_sentence(
+    _ = generate_audio_for_sentence(
         sentence_number=1,
         input_sentence=input_text,
         fluent_translation=translation_with_translit,
