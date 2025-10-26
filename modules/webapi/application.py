@@ -23,6 +23,7 @@ from .admin_routes import router as admin_router
 from .audio_routes import router as audio_router
 from .auth_routes import router as auth_router
 from .dependencies import get_runtime_context_provider
+from .media_routes import register_exception_handlers as register_media_exception_handlers
 from .media_routes import router as media_router
 from .routes import router, storage_router
 from .video_routes import router as video_router
@@ -215,6 +216,8 @@ def create_app() -> FastAPI:
     """Instantiate and configure the FastAPI application."""
 
     app = FastAPI(title="ebook-tools API", version="0.1.0")
+
+    register_media_exception_handlers(app)
 
     @app.on_event("startup")
     async def _prepare_runtime() -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from uuid import uuid4
 from typing import Iterable
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
 from fastapi.responses import JSONResponse
 
 from modules.user_management import AuthService
@@ -21,6 +21,11 @@ from .schemas import (
 router = APIRouter(prefix="/api/media", tags=["media"])
 
 _MEDIA_ALLOWED_ROLES: frozenset[str] = frozenset({"admin", "media_producer"})
+
+
+class MediaHTTPException(HTTPException):
+    """HTTP error tailored for media routes."""
+
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:
@@ -42,13 +47,13 @@ def _require_authenticated_user(
 ) -> tuple[str, UserRecord]:
     token = _extract_bearer_token(authorization)
     if not token:
-        raise HTTPException(
+        raise MediaHTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_format_error("missing_token", "Missing session token"),
         )
     user = auth_service.authenticate(token)
     if user is None:
-        raise HTTPException(
+        raise MediaHTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_format_error("invalid_token", "Invalid session token"),
         )
@@ -65,7 +70,7 @@ def _enforce_media_permissions(user: UserRecord) -> None:
         return
     if _user_has_role(user, _MEDIA_ALLOWED_ROLES):
         return
-    raise HTTPException(
+    raise MediaHTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
         detail=_format_error(
             "insufficient_permissions",
@@ -75,14 +80,17 @@ def _enforce_media_permissions(user: UserRecord) -> None:
 
 
 async def _handle_media_http_exception(
-    _request: Request, exc: HTTPException
+    _request: Request, exc: MediaHTTPException
 ) -> JSONResponse:
     if isinstance(exc.detail, dict) and {"error", "message"} <= set(exc.detail):
         return JSONResponse(status_code=exc.status_code, content=exc.detail)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
-router.add_exception_handler(HTTPException, _handle_media_http_exception)
+def register_exception_handlers(app: FastAPI) -> None:
+    """Register exception handlers required by the media router."""
+
+    app.add_exception_handler(MediaHTTPException, _handle_media_http_exception)
 
 
 @router.post(
@@ -119,4 +127,4 @@ def request_media_generation(
     )
 
 
-__all__ = ["router"]
+__all__ = ["router", "register_exception_handlers", "MediaHTTPException"]
