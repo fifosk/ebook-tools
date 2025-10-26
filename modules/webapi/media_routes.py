@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Iterable, Mapping
+from typing import Annotated, Iterable, Mapping
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
@@ -42,6 +42,15 @@ router = APIRouter(prefix="/api/media", tags=["media"])
 logger = log_mgr.get_logger().getChild("webapi.media")
 
 _MEDIA_ALLOWED_ROLES: frozenset[str] = frozenset({"admin", "media_producer"})
+
+AuthorizationHeader = Annotated[
+    str | None, Header(default=None, alias="Authorization")
+]
+AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
+AudioServiceDep = Annotated[AudioService, Depends(get_audio_service)]
+VideoServiceDep = Annotated[VideoService, Depends(get_video_service)]
+VideoJobManagerDep = Annotated[VideoJobManager, Depends(get_video_job_manager)]
+FileLocatorDep = Annotated[FileLocator, Depends(get_file_locator)]
 
 
 class MediaHTTPException(HTTPException):
@@ -336,13 +345,13 @@ def register_exception_handlers(app: FastAPI) -> None:
 )
 def request_media_generation(
     payload: MediaGenerationRequestPayload,
-    authorization: str | None = Header(default=None, alias="Authorization"),
+    auth_service: AuthServiceDep,
+    audio_service: AudioServiceDep,
+    video_service: VideoServiceDep,
+    video_job_manager: VideoJobManagerDep,
+    locator: FileLocatorDep,
+    authorization: AuthorizationHeader = None,
     request: Request | None = None,
-    auth_service: AuthService = Depends(get_auth_service),
-    audio_service: AudioService = Depends(get_audio_service),
-    video_service: VideoService = Depends(get_video_service),
-    video_job_manager: VideoJobManager = Depends(get_video_job_manager),
-    locator: FileLocator = Depends(get_file_locator),
 ) -> MediaGenerationResponse:
     """Queue an on-demand media generation job for an existing pipeline run."""
 
