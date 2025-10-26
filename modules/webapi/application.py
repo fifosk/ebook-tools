@@ -20,6 +20,7 @@ from modules import config_manager as cfg
 from modules import load_environment
 
 from .admin_routes import router as admin_router
+from .audio_routes import router as audio_router
 from .auth_routes import router as auth_router
 from .dependencies import get_runtime_context_provider
 from .routes import router, storage_router
@@ -237,6 +238,7 @@ def create_app() -> FastAPI:
 
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
+    app.include_router(audio_router)
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
 
