@@ -182,6 +182,31 @@ The responses surface normalised status flags (`status`, `is_active`,
 `is_suspended`) and audit metadata (`created_at`, `updated_at`, `last_login`) for
 use in the dashboard.【F:modules/webapi/admin_routes.py†L37-L288】
 
+### Media generation API
+
+Authenticated users with the `admin` or `media_producer` roles can request
+on-demand media generation for existing pipeline jobs through the
+`/api/media/generate` endpoint. The handler verifies the bearer token via the
+standard auth middleware and rejects unauthorised (401) or insufficiently
+privileged (403) callers with structured error payloads.
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/media/generate \
+  -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{
+        "job_id": "job-123",
+        "media_type": "audio",
+        "parameters": {"voice": "demo"},
+        "notes": "Regenerate narration with updated script"
+      }'
+# {"request_id":"…","status":"accepted","job_id":"job-123","media_type":"audio","requested_by":"admin"}
+```
+
+Responses follow the reusable `MediaGenerationResponse` and `MediaErrorResponse`
+schemas defined in `modules/webapi/schemas/media.py`, making it easy for clients
+to provide clear feedback to end users.【F:modules/webapi/media_routes.py†L1-L106】【F:modules/webapi/schemas/media.py†L1-L49】
+
 ### Pipeline job persistence cheatsheet
 
 The API keeps a JSON snapshot of each job in `JOB_STORAGE_DIR` when Redis is

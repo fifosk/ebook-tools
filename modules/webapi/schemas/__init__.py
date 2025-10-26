@@ -757,3 +757,10 @@ class VideoJobStatusResponse(BaseModel):
             result=result_payload,
             generated_files=generated_files,
         )
+
+from .media import (
+    MediaErrorResponse,
+    MediaGenerationRequestPayload,
+    MediaGenerationResponse,
+)
+
