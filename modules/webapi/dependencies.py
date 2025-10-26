@@ -10,6 +10,7 @@ from typing import Any, Dict, Iterator, Mapping, Optional, cast
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
+from ..audio.api import AudioService
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..user_management import AuthService, LocalUserStore, SessionManager
@@ -119,6 +120,14 @@ def get_file_locator() -> FileLocator:
     """Return a cached :class:`FileLocator` instance for route handlers."""
 
     return FileLocator()
+
+
+@lru_cache
+def get_audio_service() -> AudioService:
+    """Return a configured :class:`AudioService` instance."""
+
+    config = cfg.load_configuration(verbose=False)
+    return AudioService(config=config)
 
 
 def _expand_path(path_value: Optional[str]) -> Optional[Path]:
