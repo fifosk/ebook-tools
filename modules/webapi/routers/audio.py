@@ -6,17 +6,25 @@ import os
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Dict, Optional, Tuple
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
 from gtts import gTTS
+from gtts.lang import tts_langs
 from starlette.background import BackgroundTask
 
 from modules import config_manager as cfg
 from modules.audio.tts import select_voice
 from modules.webapi.audio_utils import resolve_language, resolve_speed, resolve_voice
-from modules.webapi.schemas import AudioSynthesisRequest
+from modules.webapi.audio import get_say_voices
+from modules.webapi.schemas import (
+    AudioSynthesisRequest,
+    GTTSLanguage,
+    MacOSVoice,
+    VoiceInventoryResponse,
+    VoiceMatchResponse,
+)
 
 
 router = APIRouter(prefix="/api/audio", tags=["audio"])
@@ -150,6 +158,48 @@ def _resolve_voice(language: str, requested_voice: Optional[str]) -> Tuple[str, 
     return selected_voice, engine
 
 
+def _load_gtts_languages() -> Tuple[Dict[str, str], ...]:
+    """Return a cached tuple of available gTTS language entries."""
+
+    try:
+        languages = tts_langs()
+    except Exception:  # pragma: no cover - defensive fallback
+        languages = {}
+
+    entries = tuple(
+        {"code": code, "name": name}
+        for code, name in sorted(languages.items(), key=lambda item: item[0])
+    )
+    return entries
+
+
+_GTTS_LANGUAGES: Tuple[Dict[str, str], ...] = _load_gtts_languages()
+
+
+@router.get("/voices", response_model=VoiceInventoryResponse)
+def list_available_voices() -> VoiceInventoryResponse:  # noqa: D401 - FastAPI signature
+    """Return cached macOS ``say`` voices and gTTS language entries."""
+
+    macos_voices = [MacOSVoice.model_validate(voice) for voice in get_say_voices()]
+    gtts_languages = [GTTSLanguage.model_validate(entry) for entry in _GTTS_LANGUAGES]
+    return VoiceInventoryResponse(macos=macos_voices, gtts=gtts_languages)
+
+
+@router.get("/match", response_model=VoiceMatchResponse)
+def match_voice(
+    language: str = Query(..., min_length=1, description="Language code to match"),
+    preference: str = Query(
+        "any",
+        min_length=1,
+        description="Voice preference (any, male, or female)",
+    ),
+) -> VoiceMatchResponse:
+    """Return the identifier produced by :func:`modules.audio.tts.select_voice`."""
+
+    voice = select_voice(language, preference)
+    return VoiceMatchResponse(voice=voice)
+
+
 @router.post("", response_class=FileResponse)
 def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI signature
     """Generate synthesized speech for the supplied ``payload``."""
@@ -186,4 +236,9 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
     )
 
 
-__all__ = ["router", "synthesize_audio"]
+__all__ = [
+    "list_available_voices",
+    "match_voice",
+    "router",
+    "synthesize_audio",
+]

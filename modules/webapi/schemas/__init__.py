@@ -24,6 +24,7 @@ from ...video.jobs import (
 )
 from ...video.slide_renderer import SlideRenderOptions
 from ..jobs import PipelineJob, PipelineJobStatus
+from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchResponse
 
 
 class SessionUserPayload(BaseModel):
