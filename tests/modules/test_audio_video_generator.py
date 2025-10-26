@@ -1,9 +1,14 @@
 import threading
 from queue import Queue
 
+import pytest
 from pydub import AudioSegment
 
-from modules.audio_video_generator import _media_worker
+from modules.audio_video_generator import (
+    _media_worker,
+    generate_audio_for_sentence,
+    render_video_slides,
+)
 from modules.progress_tracker import ProgressTracker
 from modules.translation_engine import TranslationTask
 
@@ -63,3 +68,66 @@ def test_media_worker_does_not_increment_tracker_when_queueing_results():
 
     snapshot = tracker.snapshot()
     assert snapshot.completed == 0
+
+
+def test_generate_audio_for_sentence_emits_deprecation_warning(monkeypatch):
+    class DummySynthesizer:
+        def synthesize_sentence(self, *args, **kwargs):
+            return AudioSegment.silent(duration=0)
+
+    dummy = DummySynthesizer()
+    monkeypatch.setattr(
+        "modules.audio_video_generator.get_audio_synthesizer",
+        lambda: dummy,
+    )
+
+    with pytest.deprecated_call():
+        generate_audio_for_sentence(
+            sentence_number=1,
+            input_sentence="Hello",
+            fluent_translation="Bonjour",
+            input_language="English",
+            target_language="French",
+            audio_mode="1",
+            total_sentences=1,
+            language_codes={"English": "en", "French": "fr"},
+            selected_voice="gTTS",
+            tempo=1.0,
+            macos_reading_speed=100,
+        )
+
+
+def test_render_video_slides_emits_deprecation_warning(monkeypatch, tmp_path):
+    class DummyRenderer:
+        def render_slides(self, *args, **kwargs):
+            return str(tmp_path / "output.mp4")
+
+    monkeypatch.setattr(
+        "modules.audio_video_generator.get_video_renderer",
+        lambda: DummyRenderer(),
+    )
+
+    audio = [AudioSegment.silent(duration=100)]
+    with pytest.deprecated_call():
+        result = render_video_slides(
+            text_blocks=["Hello"],
+            audio_segments=audio,
+            output_dir=str(tmp_path),
+            batch_start=1,
+            batch_end=1,
+            base_no_ext="base",
+            cover_img=None,
+            book_author="Author",
+            book_title="Title",
+            cumulative_word_counts=[1],
+            total_word_count=1,
+            macos_reading_speed=100,
+            input_language="English",
+            total_sentences=1,
+            tempo=1.0,
+            sync_ratio=1.0,
+            word_highlighting=False,
+            highlight_granularity="word",
+        )
+
+    assert result.endswith("output.mp4")

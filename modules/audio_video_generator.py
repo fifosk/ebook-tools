@@ -3,6 +3,7 @@
 import os
 import threading
 import time
+import warnings
 from dataclasses import dataclass
 from queue import Queue
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
@@ -11,6 +12,7 @@ from pydub import AudioSegment
 from PIL import Image
 
 from modules import output_formatter
+from modules.audio.backends import get_default_backend_name
 from modules.render import AudioWorker, MediaBatchOrchestrator
 from modules.render.backends import (
     AudioSynthesizer,
@@ -20,6 +22,8 @@ from modules.render.backends import (
 )
 from modules.translation_engine import TranslationTask
 from modules.video.backends import VideoRenderOptions
+
+DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 if TYPE_CHECKING:
     from modules.progress_tracker import ProgressTracker
@@ -63,13 +67,15 @@ def generate_audio_for_sentence(
     selected_voice: str,
     tempo: float,
     macos_reading_speed: int,
-    tts_backend: str = "auto",
+    tts_backend: str = DEFAULT_TTS_BACKEND,
     tts_executable_path: Optional[str] = None,
     *,
     audio_synthesizer: AudioSynthesizer | None = None,
 ) -> AudioSegment:
     """Generate audio for a sentence using the configured synthesizer."""
 
+    if audio_synthesizer is None:
+        _warn_legacy_audio_usage("generate_audio_for_sentence")
     synthesizer = audio_synthesizer or get_audio_synthesizer()
     return synthesizer.synthesize_sentence(
         sentence_number,
@@ -144,10 +150,13 @@ def start_media_pipeline(
     stop_event: Optional[threading.Event] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
     audio_synthesizer: AudioSynthesizer | None = None,
-    tts_backend: str = "auto",
+    tts_backend: str = DEFAULT_TTS_BACKEND,
     tts_executable_path: Optional[str] = None,
 ) -> Tuple[Queue[Optional[MediaPipelineResult]], List[threading.Thread]]:
     """Start consumer threads that transform translations into media artifacts."""
+
+    if audio_synthesizer is None:
+        _warn_legacy_audio_usage("start_media_pipeline")
 
     orchestrator = MediaBatchOrchestrator(
         task_queue,
@@ -201,6 +210,8 @@ def render_video_slides(
 ) -> str:
     """Render video slides using the configured renderer backend."""
 
+    if video_renderer is None:
+        _warn_legacy_video_usage("render_video_slides")
     renderer = video_renderer or get_video_renderer()
     range_fragment = output_formatter.format_sentence_range(
         batch_start, batch_end, total_sentences
@@ -296,3 +307,26 @@ __all__ = [
     "render_video_slides",
     "generate_video_slides_ffmpeg",
 ]
+
+
+def _warn_legacy_audio_usage(entry_point: str) -> None:
+    warnings.warn(
+        (
+            f"{entry_point} is deprecated; construct an AudioSynthesizer via "
+            "modules.render.backends.get_audio_synthesizer() and call it directly."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
+
+def _warn_legacy_video_usage(entry_point: str) -> None:
+    warnings.warn(
+        (
+            f"{entry_point} is deprecated; acquire a VideoRenderer from "
+            "modules.render.backends.get_video_renderer() instead."
+        ),
+        DeprecationWarning,
+        stacklevel=2,
+    )
+

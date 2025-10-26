@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 
 from ... import config_manager as cfg
+from ...audio.backends import get_default_backend_name
 from ...shared import assets
 from .. import context
 from .common import (
@@ -44,7 +45,7 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     console_info(
         "8. Selected voice for audio generation: %s (backend: %s)",
         format_selected_voice(config.get("selected_voice", "gTTS")),
-        config.get("tts_backend", "auto"),
+        config.get("tts_backend", get_default_backend_name()),
     )
     console_info(
         "   TTS executable override: %s",

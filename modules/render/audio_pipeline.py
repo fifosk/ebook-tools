@@ -11,6 +11,7 @@ from typing import Callable, Mapping, Optional, Protocol, TYPE_CHECKING
 from pydub import AudioSegment
 
 from modules import logging_manager as log_mgr
+from modules.audio.backends import get_default_backend_name
 from .context import RenderBatchContext
 
 if TYPE_CHECKING:  # pragma: no cover - imports for static analysis only
@@ -151,10 +152,15 @@ def audio_worker_body(
         audio_context.get("generate_audio", manifest_context.get("generate_audio", True))
     )
     raw_tts_backend = audio_context.get("tts_backend") or manifest_context.get("tts_backend")
+    default_tts_backend = get_default_backend_name()
     if isinstance(raw_tts_backend, str):
-        tts_backend = raw_tts_backend.strip() or "auto"
+        stripped_backend = raw_tts_backend.strip()
+        if not stripped_backend or stripped_backend.lower() == "auto":
+            tts_backend = default_tts_backend
+        else:
+            tts_backend = stripped_backend
     else:
-        tts_backend = "auto"
+        tts_backend = default_tts_backend
     raw_tts_executable = (
         audio_context.get("tts_executable_path")
         or manifest_context.get("tts_executable_path")

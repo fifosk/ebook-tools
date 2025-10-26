@@ -17,6 +17,18 @@ _BACKENDS: MutableMapping[str, Type[BaseTTSBackend]] = {
     MacOSTTSBackend.name: MacOSTTSBackend,
 }
 
+_BACKEND_ALIASES = {
+    "macos": MacOSTTSBackend.name,
+    "macos_say": MacOSTTSBackend.name,
+    "gtts": GTTSBackend.name,
+}
+
+
+def get_default_backend_name() -> str:
+    """Return the platform default backend identifier."""
+
+    return MacOSTTSBackend.name if sys.platform == "darwin" else GTTSBackend.name
+
 
 def register_backend(name: str, backend_cls: Type[BaseTTSBackend]) -> None:
     """Register ``backend_cls`` under ``name``."""
@@ -40,15 +52,22 @@ def create_backend(
 
 
 def _coerce_backend_name(value: Optional[str]) -> str:
-    if not value:
-        return "auto"
-    return value.strip().lower()
+    if value is None:
+        return get_default_backend_name()
+
+    normalized = value.strip().lower()
+    if not normalized:
+        return get_default_backend_name()
+    if normalized == "auto":
+        return get_default_backend_name()
+    return normalized
 
 
 def _resolve_backend_name(config_backend: str) -> str:
-    if config_backend == "auto":
-        return "macos" if sys.platform == "darwin" else "gtts"
-    return config_backend
+    normalized = config_backend.strip().lower()
+    if not normalized:
+        return get_default_backend_name()
+    return _BACKEND_ALIASES.get(normalized, normalized)
 
 
 def _extract_value(source: Mapping[str, Any], key: str) -> Optional[str]:
@@ -103,6 +122,7 @@ __all__ = [
     "MacOSTTSBackend",
     "TTSBackendError",
     "create_backend",
+    "get_default_backend_name",
     "get_tts_backend",
     "register_backend",
 ]

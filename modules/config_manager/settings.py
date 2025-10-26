@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -57,7 +58,9 @@ class EbookToolsSettings(BaseModel):
     output_pdf: bool = False
     stitch_full: bool = False
     selected_voice: str = "gTTS"
-    tts_backend: str = "auto"
+    tts_backend: str = Field(
+        default_factory=lambda: "macos_say" if sys.platform == "darwin" else "gtts"
+    )
     tts_executable_path: Optional[str] = None
     book_title: str = "Unknown Title"
     book_author: str = "Unknown Author"

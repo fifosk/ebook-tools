@@ -23,7 +23,7 @@
     "output_pdf": false,
     "stitch_full": false,
     "selected_voice": "macOS-auto-male",
-    "tts_backend": "auto",
+    "tts_backend": "macos_say",
     "tts_executable_path": "/usr/bin/say",
     "auto_metadata": true,
     "macos_reading_speed": 100,

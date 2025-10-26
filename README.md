@@ -30,9 +30,9 @@ backend-specific knobs from `video_backend_settings`.【F:modules/audio/backends
 Key configuration switches now live alongside the rest of the pipeline
 settings:
 
-- `tts_backend` – Selects the TTS engine (`auto`, `gtts`, or `macos`). When set
-  to `auto`, the resolver picks `macos` on Darwin hosts and `gtts` everywhere
-  else.
+- `tts_backend` – Selects the TTS engine (`macos_say` or `gtts`). When omitted
+  or set to `auto`, the resolver picks `macos_say` on Darwin hosts and `gtts`
+  everywhere else.
 - `tts_executable_path` – Optional override for the backend binary (e.g., point
   at a Homebrew installation of `say`).
 - `macos_reading_speed` – Words per minute forwarded to the macOS backend.

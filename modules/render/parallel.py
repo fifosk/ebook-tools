@@ -19,7 +19,11 @@ from typing import (
 )
 
 from modules import config_manager as cfg
+from modules.audio.backends import get_default_backend_name
 from modules.config.loader import RenderingConfig, get_rendering_config
+
+
+DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 from .audio_pipeline import AudioGenerator, AudioWorker
 from .backends import AudioSynthesizer, get_audio_synthesizer
@@ -107,7 +111,7 @@ class MediaBatchOrchestrator:
         tempo: float,
         macos_reading_speed: int,
         generate_audio: bool,
-        tts_backend: str = "auto",
+        tts_backend: str = DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
         queue_size: Optional[int] = None,
         audio_stop_event: Optional[threading.Event] = None,
