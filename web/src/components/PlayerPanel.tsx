@@ -53,6 +53,7 @@ function toVideoFiles(media: LiveMediaState['video']) {
 
 export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
+  const [expandedLists, setExpandedLists] = useState<Set<MediaCategory>>(() => new Set());
 
   useEffect(() => {
     setSelectedMediaType((current) => {
@@ -65,6 +66,18 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
   const handleTabChange = useCallback((nextValue: string) => {
     setSelectedMediaType(nextValue as MediaCategory);
+  }, []);
+
+  const toggleListVisibility = useCallback((category: MediaCategory) => {
+    setExpandedLists((current) => {
+      const next = new Set(current);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
   }, []);
 
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
@@ -144,17 +157,32 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
           const items = isActive
             ? filteredMedia
             : combinedMedia.filter((item) => item.type === tab.key);
+          const isExpanded = expandedLists.has(tab.key);
+          const listId = `player-panel-${tab.key}-list`;
           return (
             <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
               {!hasAnyMedia && !isLoading ? (
                 <p role="status">No generated media yet.</p>
               ) : items.length === 0 ? (
-                <MediaList items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                <MediaList id={listId} items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
               ) : (
                 <>
                   {tab.key === 'audio' ? <AudioPlayer files={filteredAudioFiles} /> : null}
                   {tab.key === 'video' ? <VideoPlayer files={filteredVideoFiles} /> : null}
-                  <MediaList items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                  <div className="player-panel__list-toggle">
+                    <button
+                      type="button"
+                      className="player-panel__list-toggle-button"
+                      aria-expanded={isExpanded}
+                      aria-controls={isExpanded ? listId : undefined}
+                      onClick={() => toggleListVisibility(tab.key)}
+                    >
+                      {isExpanded ? 'Hide detailed file list' : 'Show detailed file list'}
+                    </button>
+                  </div>
+                  {isExpanded ? (
+                    <MediaList id={listId} items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                  ) : null}
                 </>
               )}
             </TabsContent>

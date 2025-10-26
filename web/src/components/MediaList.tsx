@@ -7,6 +7,7 @@ export interface MediaListProps {
   items: LiveMediaItem[];
   category: MediaCategory;
   emptyMessage?: string;
+  id?: string;
 }
 
 function formatFileSize(size: number | null | undefined): string | null {
@@ -56,7 +57,7 @@ function deriveEmptyMessage(category: MediaCategory): string {
   }
 }
 
-export default function MediaList({ items, category, emptyMessage }: MediaListProps) {
+export default function MediaList({ items, category, emptyMessage, id }: MediaListProps) {
   const resolvedEmptyMessage = emptyMessage ?? deriveEmptyMessage(category);
 
   const entries = useMemo(
@@ -103,14 +104,14 @@ export default function MediaList({ items, category, emptyMessage }: MediaListPr
 
   if (entries.length === 0) {
     return (
-      <div className="media-list" role="status" data-testid={`media-list-${category}`}>
+      <div className="media-list" id={id} role="status" data-testid={`media-list-${category}`}>
         {resolvedEmptyMessage}
       </div>
     );
   }
 
   return (
-    <ul className="media-list" data-testid={`media-list-${category}`} aria-live="polite">
+    <ul className="media-list" id={id} data-testid={`media-list-${category}`} aria-live="polite">
       {entries.map((item) => {
         const isSelected = item.key === selectedKey;
         const actionLabel = item.type === 'text' ? 'Open' : 'Download';
