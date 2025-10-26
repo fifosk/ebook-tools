@@ -1414,8 +1414,7 @@ button.link-button:focus {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  height: clamp(320px, 60vh, 560px);
-  overflow: hidden;
+  min-height: clamp(22rem, 55vh, 34rem);
 }
 
 .player-panel__panel[hidden] {
@@ -1501,6 +1500,7 @@ button.link-button:focus {
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  min-height: clamp(16rem, 45vh, 24rem);
 }
 
 .player-panel__viewer > .audio-player,
@@ -1668,6 +1668,12 @@ button.link-button:focus {
   flex: 1;
   min-width: 0;
   cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  text-align: left;
+  color: inherit;
+  font: inherit;
 }
 
 .media-list__details:focus-visible {
@@ -1678,16 +1684,10 @@ button.link-button:focus {
 .media-list__name {
   font-weight: 600;
   color: var(--color-text-heading);
-  text-decoration: none;
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
   word-break: break-word;
-}
-
-.media-list__name:hover,
-.media-list__name:focus {
-  text-decoration: underline;
 }
 
 .media-list__meta {

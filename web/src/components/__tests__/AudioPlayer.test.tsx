@@ -4,6 +4,16 @@ import { vi } from 'vitest';
 import AudioPlayer, { AudioFile } from '../AudioPlayer';
 
 describe('AudioPlayer', () => {
+  let playSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+  });
+
+  afterEach(() => {
+    playSpy.mockRestore();
+  });
+
   it('shows loading message until tracks are available', () => {
     render(<AudioPlayer files={[]} activeId={null} onSelectFile={() => {}} />);
 
@@ -51,6 +61,7 @@ describe('AudioPlayer', () => {
 
     expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
+    expect(playSpy).toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Chapter 1' }));
 
@@ -68,6 +79,7 @@ describe('AudioPlayer', () => {
 
     expect(screen.getByRole('button', { name: 'Chapter 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', chapter.url);
+    expect(playSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 
     fireEvent.ended(screen.getByTestId('audio-player'));
 

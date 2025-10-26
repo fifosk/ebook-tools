@@ -4,6 +4,16 @@ import { vi } from 'vitest';
 import VideoPlayer, { VideoFile } from '../VideoPlayer';
 
 describe('VideoPlayer', () => {
+  let playSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+  });
+
+  afterEach(() => {
+    playSpy.mockRestore();
+  });
+
   it('shows loading message until videos are available', () => {
     render(<VideoPlayer files={[]} activeId={null} onSelectFile={() => {}} />);
 
@@ -52,6 +62,7 @@ describe('VideoPlayer', () => {
 
     expect(screen.getByRole('button', { name: 'Trailer' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('video-player')).toHaveAttribute('src', trailer.url);
+    expect(playSpy).toHaveBeenCalled();
 
     await user.click(screen.getByRole('button', { name: 'Full Video' }));
 
@@ -69,6 +80,7 @@ describe('VideoPlayer', () => {
 
     expect(screen.getByRole('button', { name: 'Full Video' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('video-player')).toHaveAttribute('src', fullVideo.url);
+    expect(playSpy.mock.calls.length).toBeGreaterThanOrEqual(2);
 
     fireEvent.ended(screen.getByTestId('video-player'));
 

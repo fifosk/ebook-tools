@@ -12,6 +12,8 @@ interface AudioPlayerProps {
   onPlaybackEnded?: () => void;
 }
 
+import { useCallback, useEffect, useRef } from 'react';
+
 export default function AudioPlayer({
   files,
   activeId,
@@ -19,12 +21,39 @@ export default function AudioPlayer({
   autoPlay = false,
   onPlaybackEnded,
 }: AudioPlayerProps) {
+  const elementRef = useRef<HTMLAudioElement | null>(null);
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Track ${index + 1}`
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+
+  const attemptAutoplay = useCallback(() => {
+    if (!autoPlay) {
+      return;
+    }
+
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+
+    try {
+      const playResult = element.play();
+      if (playResult && typeof playResult.then === 'function') {
+        playResult.catch(() => {
+          // Ignore autoplay rejections which can happen in tests or restricted environments.
+        });
+      }
+    } catch (error) {
+      // Swallow autoplay errors triggered by browser policies.
+    }
+  }, [autoPlay]);
+
+  useEffect(() => {
+    attemptAutoplay();
+  }, [attemptAutoplay, activeFile?.id]);
 
   if (files.length === 0) {
     return (
@@ -46,12 +75,14 @@ export default function AudioPlayer({
     <div className="audio-player">
       <audio
         key={activeFile.id}
+        ref={elementRef}
         className="audio-player__element"
         data-testid="audio-player"
         controls
         src={activeFile.url}
         autoPlay={autoPlay}
         onEnded={onPlaybackEnded}
+        onLoadedData={attemptAutoplay}
       >
         Your browser does not support the audio element.
       </audio>

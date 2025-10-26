@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import MediaList from './MediaList';
-import type { LiveMediaState } from '../hooks/useLiveMedia';
+import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
-import { formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
+import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 
 type MediaCategory = keyof LiveMediaState;
 
@@ -136,6 +136,18 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     });
   }, []);
 
+  const handleSelectFromList = useCallback(
+    (category: MediaCategory, item: LiveMediaItem) => {
+      if (!item.url) {
+        return;
+      }
+
+      handleSelectMedia(category, item.url);
+      setSelectedMediaType((current) => (current === category ? current : category));
+    },
+    [handleSelectMedia],
+  );
+
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
   const textContentCache = useRef(new Map<string, string>());
@@ -232,7 +244,7 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
       return;
     }
 
-    fetch(url)
+    fetch(url, { credentials: 'include' })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to load document (status ${response.status})`);
@@ -244,28 +256,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
           return;
         }
 
-        let extracted = raw;
-        try {
-          if (typeof window !== 'undefined' && 'DOMParser' in window) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(raw, 'text/html');
-            const text = doc.body?.textContent;
-            if (text && text.trim().length > 0) {
-              extracted = text;
-            }
-          }
-        } catch (parseError) {
-          console.warn('Unable to parse text document', parseError);
-        }
-
-        const normalised = extracted
-          .replace(/\u00a0/g, ' ')
-          .replace(/\r\n/g, '\n')
-          .replace(/\n{3,}/g, '\n\n')
-          .trim();
-
+        const normalised = extractTextFromHtml(raw);
         textContentCache.current.set(url, normalised);
         setTextPreview({ url, content: normalised });
+        setTextError(null);
       })
       .catch((requestError) => {
         if (cancelled) {
@@ -350,7 +344,14 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
               {!hasAnyMedia && !isLoading ? (
                 <p role="status">No generated media yet.</p>
               ) : items.length === 0 ? (
-                <MediaList id={listId} items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                <MediaList
+                  id={listId}
+                  items={items}
+                  category={tab.key}
+                  emptyMessage={tab.emptyMessage}
+                  selectedKey={selectedItemIds[tab.key] ?? null}
+                  onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
+                />
               ) : (
                 <>
                   {isActive ? (
@@ -404,9 +405,18 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                                   {textError}
                                 </div>
                               ) : textPreview ? (
-                                <article className="player-panel__document-body" data-testid="player-panel-document">
-                                  <pre className="player-panel__document-text">{textPreview.content}</pre>
-                                </article>
+                                textPreview.content ? (
+                                  <article
+                                    className="player-panel__document-body"
+                                    data-testid="player-panel-document"
+                                  >
+                                    <pre className="player-panel__document-text">{textPreview.content}</pre>
+                                  </article>
+                                ) : (
+                                  <div className="player-panel__document-status" role="status">
+                                    Document preview is empty.
+                                  </div>
+                                )
                               ) : (
                                 <div className="player-panel__document-status" role="status">
                                   Preparing document preview…
@@ -439,7 +449,14 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                     hidden={!isExpanded}
                     aria-hidden={!isExpanded}
                   >
-                    <MediaList id={listId} items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                    <MediaList
+                      id={listId}
+                      items={items}
+                      category={tab.key}
+                      emptyMessage={tab.emptyMessage}
+                      selectedKey={selectedItemIds[tab.key] ?? null}
+                      onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
+                    />
                   </div>
                 </>
               )}
