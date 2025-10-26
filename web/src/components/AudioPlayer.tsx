@@ -1,6 +1,3 @@
-import { useMemo } from 'react';
-import { useActiveFile } from './useActiveFile';
-
 export interface AudioFile {
   id: string;
   url: string;
@@ -9,19 +6,18 @@ export interface AudioFile {
 
 interface AudioPlayerProps {
   files: AudioFile[];
+  activeId: string | null;
+  onSelectFile: (fileId: string) => void;
+  autoPlay?: boolean;
 }
 
-export default function AudioPlayer({ files }: AudioPlayerProps) {
-  const { activeFile, activeId, selectFile } = useActiveFile(files);
+export default function AudioPlayer({ files, activeId, onSelectFile, autoPlay = false }: AudioPlayerProps) {
+  const labels = files.map((file, index) => ({
+    id: file.id,
+    label: file.name ?? `Track ${index + 1}`
+  }));
 
-  const labels = useMemo(
-    () =>
-      files.map((file, index) => ({
-        id: file.id,
-        label: file.name ?? `Track ${index + 1}`
-      })),
-    [files]
-  );
+  const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
 
   if (files.length === 0) {
     return (
@@ -47,6 +43,7 @@ export default function AudioPlayer({ files }: AudioPlayerProps) {
         data-testid="audio-player"
         controls
         src={activeFile.url}
+        autoPlay={autoPlay}
       >
         Your browser does not support the audio element.
       </audio>
@@ -57,7 +54,7 @@ export default function AudioPlayer({ files }: AudioPlayerProps) {
             type="button"
             className="audio-player__track"
             aria-pressed={file.id === activeId}
-            onClick={() => selectFile(file.id)}
+            onClick={() => onSelectFile(file.id)}
           >
             {file.label}
           </button>

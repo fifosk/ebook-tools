@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import type { LiveMediaItem } from '../hooks/useLiveMedia';
+import { formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 
 type MediaCategory = LiveMediaItem['type'];
 
@@ -8,41 +9,6 @@ export interface MediaListProps {
   category: MediaCategory;
   emptyMessage?: string;
   id?: string;
-}
-
-function formatFileSize(size: number | null | undefined): string | null {
-  if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) {
-    return null;
-  }
-
-  if (size < 1024) {
-    return `${size} B`;
-  }
-
-  const units = ['KB', 'MB', 'GB'];
-  let value = size;
-  let unitIndex = -1;
-  while (value >= 1024 && unitIndex + 1 < units.length) {
-    value /= 1024;
-    unitIndex += 1;
-  }
-
-  const formatted = value < 10 ? value.toFixed(1) : Math.round(value).toString();
-  const unit = units[Math.max(unitIndex, 0)];
-  return `${formatted} ${unit}`;
-}
-
-function formatTimestamp(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-
-  return date.toLocaleString();
 }
 
 function deriveEmptyMessage(category: MediaCategory): string {

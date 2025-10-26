@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import VideoPlayer, { VideoFile } from './VideoPlayer';
 
 const sampleVideos: VideoFile[] = [
@@ -27,6 +27,18 @@ export default {
 
 export const ProgressiveUpdates = () => {
   const [files, setFiles] = useState<VideoFile[]>(sampleVideos.slice(0, 1));
+  const [activeId, setActiveId] = useState<string | null>(sampleVideos[0]?.id ?? null);
+
+  useEffect(() => {
+    setActiveId((current) => {
+      if (files.length === 0) {
+        return null;
+      }
+
+      const hasCurrent = current !== null && files.some((file) => file.id === current);
+      return hasCurrent ? current : files[0].id;
+    });
+  }, [files]);
 
   const addNextVideo = () => {
     setFiles((previous) => {
@@ -43,7 +55,7 @@ export const ProgressiveUpdates = () => {
       <button type="button" onClick={addNextVideo} disabled={files.length >= sampleVideos.length}>
         Add next video
       </button>
-      <VideoPlayer files={files} />
+      <VideoPlayer files={files} activeId={activeId} onSelectFile={setActiveId} autoPlay />
     </div>
   );
 };

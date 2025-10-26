@@ -1,6 +1,3 @@
-import { useMemo } from 'react';
-import { useActiveFile } from './useActiveFile';
-
 export interface VideoFile {
   id: string;
   url: string;
@@ -10,19 +7,18 @@ export interface VideoFile {
 
 interface VideoPlayerProps {
   files: VideoFile[];
+  activeId: string | null;
+  onSelectFile: (fileId: string) => void;
+  autoPlay?: boolean;
 }
 
-export default function VideoPlayer({ files }: VideoPlayerProps) {
-  const { activeFile, activeId, selectFile } = useActiveFile(files);
+export default function VideoPlayer({ files, activeId, onSelectFile, autoPlay = false }: VideoPlayerProps) {
+  const labels = files.map((file, index) => ({
+    id: file.id,
+    label: file.name ?? `Video ${index + 1}`
+  }));
 
-  const labels = useMemo(
-    () =>
-      files.map((file, index) => ({
-        id: file.id,
-        label: file.name ?? `Video ${index + 1}`
-      })),
-    [files]
-  );
+  const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
 
   if (files.length === 0) {
     return (
@@ -49,6 +45,8 @@ export default function VideoPlayer({ files }: VideoPlayerProps) {
         controls
         src={activeFile.url}
         poster={activeFile.poster}
+        autoPlay={autoPlay}
+        playsInline
       >
         Your browser does not support the video element.
       </video>
@@ -59,7 +57,7 @@ export default function VideoPlayer({ files }: VideoPlayerProps) {
             type="button"
             className="video-player__item"
             aria-pressed={file.id === activeId}
-            onClick={() => selectFile(file.id)}
+            onClick={() => onSelectFile(file.id)}
           >
             {file.label}
           </button>
