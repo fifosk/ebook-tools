@@ -667,27 +667,15 @@ main {
   padding: 0.15rem clamp(0.5rem, 0.45rem + 0.2vw, 0.65rem);
 }
 
-@media (min-width: var(--bp-md)) {
+@media (min-width: 48rem) {
   .dashboard {
     gap: var(--space-lg);
-  }
-
-  .dashboard__sidebar {
-    padding: var(--space-lg);
-  }
-
-  .dashboard__main {
-    padding: var(--space-xl);
-  }
-}
-
-@media (min-width: var(--bp-lg)) {
-  .dashboard {
     flex-direction: row;
     height: 100vh;
   }
 
   .dashboard__sidebar {
+    padding: var(--space-lg);
     flex: 0 0 20rem;
     max-width: 20rem;
     height: 100vh;
@@ -724,6 +712,12 @@ main {
     flex-direction: row;
   }
 
+  .dashboard__main {
+    padding: var(--space-xl);
+  }
+}
+
+@media (min-width: 64rem) {
   .dashboard__main {
     padding: var(--space-xl) clamp(2.5rem, 2rem + 2vw, 4rem);
   }
@@ -1638,7 +1632,7 @@ button[data-variant='metadata-action'] {
   margin-top: var(--space-sm);
 }
 
-@media (min-width: var(--bp-md)) {
+@media (min-width: 48rem) {
   .job-card__header-actions {
     justify-content: flex-end;
   }
@@ -1658,7 +1652,7 @@ button[data-variant='metadata-action'] {
   background: var(--color-status-danger-bg);
   color: var(--color-status-danger-text);
 }
-@media (min-width: var(--bp-md)) {
+@media (min-width: 48rem) {
   .job-collapsible > summary {
     grid-template-columns: 1fr auto auto;
     align-items: center;
