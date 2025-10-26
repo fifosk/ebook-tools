@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Dict, Optional, TYPE_CHECKING
+from typing import Dict, Optional
 
 from typing_extensions import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-
-if TYPE_CHECKING:  # pragma: no cover - type-checking aid
-    from . import AudioSynthesisRequest, VideoRenderRequestPayload
+from . import AudioSynthesisRequest, VideoRenderRequestPayload
 
 
 class MediaAPISettings(BaseModel):
