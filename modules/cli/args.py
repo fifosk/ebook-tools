@@ -64,6 +64,15 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         help="Select the backend used for per-frame slide rendering.",
     )
     parser.add_argument(
+        "--tts-backend",
+        choices=["auto", "macos", "gtts"],
+        help="Select the text-to-speech backend (auto, macos, or gtts).",
+    )
+    parser.add_argument(
+        "--tts-executable",
+        help="Override the executable path used by the configured TTS backend.",
+    )
+    parser.add_argument(
         "--slide-parallel-workers",
         type=int,
         help="Explicit number of workers to use when slide parallelism is enabled.",

@@ -107,6 +107,8 @@ class MediaBatchOrchestrator:
         tempo: float,
         macos_reading_speed: int,
         generate_audio: bool,
+        tts_backend: str = "auto",
+        tts_executable_path: Optional[str] = None,
         queue_size: Optional[int] = None,
         audio_stop_event: Optional[threading.Event] = None,
         progress_tracker: Optional["ProgressTracker"] = None,
@@ -145,6 +147,8 @@ class MediaBatchOrchestrator:
             "tempo": tempo,
             "macos_reading_speed": macos_reading_speed,
             "generate_audio": generate_audio,
+            "tts_backend": tts_backend,
+            "tts_executable_path": tts_executable_path,
         }
         audio_payload = {
             "total_sentences": total_sentences,
@@ -155,6 +159,8 @@ class MediaBatchOrchestrator:
             "tempo": tempo,
             "macos_reading_speed": macos_reading_speed,
             "generate_audio": generate_audio,
+            "tts_backend": tts_backend,
+            "tts_executable_path": tts_executable_path,
         }
         context = batch_context or RenderBatchContext(manifest=manifest_payload, media={"audio": audio_payload})
         context = context.merge_manifest(manifest_payload).merge_media("audio", audio_payload)

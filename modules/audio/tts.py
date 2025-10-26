@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import io
 import os
 import plistlib
 import subprocess
@@ -11,13 +10,19 @@ import tempfile
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
-from gtts import gTTS
 from pydub import AudioSegment
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules.audio.backends import (
+    GTTSBackend,
+    MacOSTTSBackend,
+    TTSBackendError,
+    create_backend,
+    get_tts_backend,
+)
 
 logger = log_mgr.logger
 
@@ -191,55 +196,27 @@ def select_voice(lang_code: str, gender_preference: str) -> Optional[Tuple[str, 
     return None
 
 
-def _synthesize_with_gtts(text: str, lang_code: str) -> AudioSegment:
-    tts = gTTS(text=text, lang=lang_code)
-    fp = io.BytesIO()
-    tts.write_to_fp(fp)
-    fp.seek(0)
-    return AudioSegment.from_file(fp, format="mp3")
+def _synthesize_with_gtts(text: str, lang_code: str, speed: int) -> AudioSegment:
+    backend = create_backend(GTTSBackend.name)
+    return backend.synthesize(
+        text=text,
+        voice="gTTS",
+        speed=speed,
+        lang_code=lang_code,
+    )
 
 
-def generate_macos_tts_audio(text: str, voice: str, lang_code: str, macos_reading_speed: int) -> AudioSegment:
-    """Generate audio using the macOS ``say`` command, falling back to gTTS on failure."""
-
-    with tempfile.NamedTemporaryFile(suffix=".aiff", dir=active_tmp_dir(), delete=False) as tmp:
-        tmp_filename = tmp.name
-    try:
-        cmd = ["say", "-v", voice, "-r", str(macos_reading_speed), "-o", tmp_filename, text]
-        subprocess.run(cmd, check=True)
-        audio = AudioSegment.from_file(tmp_filename, format="aiff")
-    except subprocess.CalledProcessError:
-        log_mgr.console_warning(
-            "MacOS TTS command failed for voice '%s'. Falling back to default gTTS voice.",
-            voice,
-            logger_obj=logger,
-        )
-        audio = _synthesize_with_gtts(text, lang_code)
-    finally:
-        if os.path.exists(tmp_filename):
-            os.remove(tmp_filename)
-    return audio
+def _resolve_auto_voice_preference(selected_voice: str) -> str:
+    if selected_voice == AUTO_MACOS_VOICE_FEMALE:
+        return "female"
+    if selected_voice == AUTO_MACOS_VOICE_MALE:
+        return "male"
+    return "any"
 
 
-def synthesize_segment(
-    text: str,
-    lang_code: str,
-    selected_voice: str,
-    macos_reading_speed: int,
-) -> AudioSegment:
-    """Generate a spoken ``AudioSegment`` for ``text`` using the configured voice."""
-
-    if selected_voice == "gTTS":
-        return _synthesize_with_gtts(text, lang_code)
-
+def _resolve_macos_voice_name(selected_voice: str, lang_code: str) -> Optional[str]:
     if selected_voice in {AUTO_MACOS_VOICE, AUTO_MACOS_VOICE_FEMALE, AUTO_MACOS_VOICE_MALE}:
-        if selected_voice == AUTO_MACOS_VOICE_FEMALE:
-            preference = "female"
-        elif selected_voice == AUTO_MACOS_VOICE_MALE:
-            preference = "male"
-        else:
-            preference = "any"
-
+        preference = _resolve_auto_voice_preference(selected_voice)
         cache_key = (lang_code, preference)
         cached_voice = _AUTO_VOICE_CACHE.get(cache_key)
         if cache_key not in _AUTO_VOICE_CACHE:
@@ -247,20 +224,67 @@ def synthesize_segment(
             _AUTO_VOICE_CACHE[cache_key] = cached_voice
         if cached_voice:
             voice_name, _locale, _quality, _gender = cached_voice
-            return generate_macos_tts_audio(text, voice_name, lang_code, macos_reading_speed)
-        return _synthesize_with_gtts(text, lang_code)
+            return voice_name
+        return None
 
-    parts = selected_voice.split(" - ")
-    if len(parts) >= 2:
-        voice_name = parts[0].strip()
-        voice_locale = parts[1].strip()
+    parts = selected_voice.split(" - ", 1)
+    voice_name = parts[0].strip()
+    voice_locale = parts[1].strip() if len(parts) >= 2 else ""
+
+    if not voice_name:
+        return None
+
+    if voice_locale and not _locale_matches(lang_code, voice_locale):
+        return None
+
+    return voice_name
+
+
+def generate_audio(
+    text: str,
+    lang_code: str,
+    selected_voice: str,
+    macos_reading_speed: int,
+    *,
+    config: Optional[Any] = None,
+) -> AudioSegment:
+    """Generate spoken audio for ``text`` using the configured backend."""
+
+    if selected_voice == "gTTS":
+        return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
+
+    backend = get_tts_backend(config)
+
+    if isinstance(backend, MacOSTTSBackend):
+        voice_name = _resolve_macos_voice_name(selected_voice, lang_code)
+        if voice_name:
+            try:
+                return backend.synthesize(
+                    text=text,
+                    voice=voice_name,
+                    speed=macos_reading_speed,
+                    lang_code=lang_code,
+                    output_path=None,
+                )
+            except TTSBackendError:
+                log_mgr.console_warning(
+                    "MacOS TTS command failed for voice '%s'. Falling back to default gTTS voice.",
+                    voice_name,
+                    logger_obj=logger,
+                )
+        else:
+            logger.debug(
+                "Unable to resolve macOS voice '%s' for language '%s'; using gTTS fallback.",
+                selected_voice,
+                lang_code,
+            )
     else:
-        voice_name = selected_voice
-        voice_locale = ""
+        logger.debug(
+            "Configured TTS backend '%s' does not support macOS voices; using gTTS fallback.",
+            backend.name,
+        )
 
-    if voice_locale and _locale_matches(lang_code, voice_locale):
-        return generate_macos_tts_audio(text, voice_name, lang_code, macos_reading_speed)
-    return _synthesize_with_gtts(text, lang_code)
+    return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
 
 
 __all__ = [
@@ -269,9 +293,8 @@ __all__ = [
     "AUTO_MACOS_VOICE_MALE",
     "SILENCE_DURATION_MS",
     "active_tmp_dir",
-    "generate_macos_tts_audio",
+    "generate_audio",
     "macos_voice_inventory",
     "select_voice",
     "silence_audio_path",
-    "synthesize_segment",
 ]

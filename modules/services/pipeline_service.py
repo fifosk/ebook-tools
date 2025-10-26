@@ -338,6 +338,8 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "generate_audio": config.generate_audio,
         "audio_mode": config.audio_mode,
         "selected_voice": config.selected_voice,
+        "tts_backend": config.tts_backend,
+        "tts_executable_path": config.tts_executable_path,
         "tempo": config.tempo,
         "macos_reading_speed": config.macos_reading_speed,
         "sync_ratio": config.sync_ratio,
