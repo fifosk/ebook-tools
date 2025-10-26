@@ -1418,6 +1418,10 @@ button.link-button:focus {
   overflow: hidden;
 }
 
+.player-panel__panel[hidden] {
+  display: none !important;
+}
+
 .player-panel__panel > .audio-player,
 .player-panel__panel > .video-player {
   flex-shrink: 0;
