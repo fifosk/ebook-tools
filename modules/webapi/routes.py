@@ -209,12 +209,16 @@ def _serialize_media_entries(
         if not name:
             name = "media" if file_type == "unknown" else file_type
 
+        path_value = entry.get("path") if isinstance(entry.get("path"), str) else None
+
         record = PipelineMediaFile(
             name=name,
             url=url,
             size=size,
             updated_at=updated_at,
             source=source,
+            relative_path=relative_path,
+            path=path_value,
         )
         media_map.setdefault(file_type, []).append(record)
 

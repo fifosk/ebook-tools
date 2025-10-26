@@ -197,6 +197,8 @@ export interface PipelineMediaFile {
   size?: number | null;
   updated_at?: string | null;
   source: 'completed' | 'live';
+  relative_path?: string | null;
+  path?: string | null;
 }
 
 export interface PipelineMediaResponse {
