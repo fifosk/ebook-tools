@@ -20,7 +20,7 @@ from modules import config_manager as cfg
 from modules import load_environment
 
 from .admin_routes import router as admin_router
-from .audio_routes import router as audio_router
+from .routers.audio import router as audio_router
 from .auth_routes import router as auth_router
 from modules.audio.config import load_media_config
 
