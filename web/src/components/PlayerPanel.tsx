@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 
 type MediaCategory = keyof LiveMediaState;
+type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 
 interface PlayerPanelProps {
   jobId: string;
@@ -136,6 +137,58 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     });
   }, []);
 
+  const updateSelection = useCallback(
+    (category: MediaCategory, intent: NavigationIntent) => {
+      setSelectedItemIds((current) => {
+        const navigableItems = media[category].filter(
+          (item) => typeof item.url === 'string' && item.url.length > 0,
+        );
+        if (navigableItems.length === 0) {
+          return current;
+        }
+
+        const currentId = current[category];
+        const currentIndex = currentId
+          ? navigableItems.findIndex((item) => item.url === currentId)
+          : -1;
+
+        let nextIndex = currentIndex;
+        switch (intent) {
+          case 'first':
+            nextIndex = 0;
+            break;
+          case 'last':
+            nextIndex = navigableItems.length - 1;
+            break;
+          case 'previous':
+            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
+            break;
+          case 'next':
+            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, navigableItems.length - 1);
+            break;
+          default:
+            nextIndex = currentIndex;
+        }
+
+        if (nextIndex === currentIndex && currentId !== null) {
+          return current;
+        }
+
+        const nextItem = navigableItems[nextIndex];
+        if (!nextItem?.url) {
+          return current;
+        }
+
+        if (nextItem.url === currentId) {
+          return current;
+        }
+
+        return { ...current, [category]: nextItem.url };
+      });
+    },
+    [media],
+  );
+
   const handleSelectFromList = useCallback(
     (category: MediaCategory, item: LiveMediaItem) => {
       if (!item.url) {
@@ -179,35 +232,46 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
   }, [filteredMedia, selectedItemId]);
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
+  const navigableItems = useMemo(
+    () =>
+      media[selectedMediaType].filter((item) => typeof item.url === 'string' && item.url.length > 0),
+    [media, selectedMediaType],
+  );
+  const activeNavigableIndex = useMemo(() => {
+    const currentId = selectedItemIds[selectedMediaType];
+    if (!currentId) {
+      return navigableItems.length > 0 ? 0 : -1;
+    }
+
+    const matchIndex = navigableItems.findIndex((item) => item.url === currentId);
+    if (matchIndex >= 0) {
+      return matchIndex;
+    }
+
+    return navigableItems.length > 0 ? 0 : -1;
+  }, [navigableItems, selectedItemIds, selectedMediaType]);
+  const isFirstDisabled =
+    navigableItems.length === 0 || (activeNavigableIndex === 0 && navigableItems.length > 0);
+  const isPreviousDisabled = navigableItems.length === 0 || activeNavigableIndex <= 0;
+  const isNextDisabled =
+    navigableItems.length === 0 ||
+    (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
+  const isLastDisabled =
+    navigableItems.length === 0 ||
+    (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
 
   const handleAdvanceMedia = useCallback(
     (category: MediaCategory) => {
-      setSelectedItemIds((current) => {
-        const playableItems = media[category].filter(
-          (item) => typeof item.url === 'string' && item.url.length > 0,
-        );
-        if (playableItems.length === 0) {
-          return current;
-        }
-
-        const currentId = current[category];
-        const currentIndex = currentId
-          ? playableItems.findIndex((item) => item.url === currentId)
-          : -1;
-        const nextIndex = currentIndex + 1;
-        if (nextIndex >= playableItems.length || nextIndex < 0) {
-          return current;
-        }
-
-        const nextItem = playableItems[nextIndex];
-        if (!nextItem?.url || nextItem.url === currentId) {
-          return current;
-        }
-
-        return { ...current, [category]: nextItem.url };
-      });
+      updateSelection(category, 'next');
     },
-    [media],
+    [updateSelection],
+  );
+
+  const handleNavigate = useCallback(
+    (intent: NavigationIntent) => {
+      updateSelection(selectedMediaType, intent);
+    },
+    [selectedMediaType, updateSelection],
   );
 
   useEffect(() => {
@@ -316,21 +380,61 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
             <h2>Generated media</h2>
             <span className="player-panel__job">Job {jobId}</span>
           </div>
-          <TabsList className="player-panel__tabs" aria-label="Media categories">
-            {TAB_DEFINITIONS.map((tab) => {
-              const count = media[tab.key].length;
-              return (
-                <TabsTrigger
-                  key={tab.key}
-                  className="player-panel__tab"
-                  value={tab.key}
-                  data-testid={`media-tab-${tab.key}`}
-                >
-                  {tab.label} ({count})
-                </TabsTrigger>
-              );
-            })}
-          </TabsList>
+          <div className="player-panel__tabs-row">
+            <div className="player-panel__navigation" role="group" aria-label="Navigate media items">
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('first')}
+                disabled={isFirstDisabled}
+                aria-label="Go to first item"
+              >
+                <span aria-hidden="true">⏮</span>
+              </button>
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('previous')}
+                disabled={isPreviousDisabled}
+                aria-label="Go to previous item"
+              >
+                <span aria-hidden="true">⏪</span>
+              </button>
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('next')}
+                disabled={isNextDisabled}
+                aria-label="Go to next item"
+              >
+                <span aria-hidden="true">⏩</span>
+              </button>
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={() => handleNavigate('last')}
+                disabled={isLastDisabled}
+                aria-label="Go to last item"
+              >
+                <span aria-hidden="true">⏭</span>
+              </button>
+            </div>
+            <TabsList className="player-panel__tabs" aria-label="Media categories">
+              {TAB_DEFINITIONS.map((tab) => {
+                const count = media[tab.key].length;
+                return (
+                  <TabsTrigger
+                    key={tab.key}
+                    className="player-panel__tab"
+                    value={tab.key}
+                    data-testid={`media-tab-${tab.key}`}
+                  >
+                    {tab.label} ({count})
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+          </div>
         </header>
         {TAB_DEFINITIONS.map((tab) => {
           const isActive = tab.key === selectedMediaType;

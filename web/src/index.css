@@ -1364,6 +1364,58 @@ button.link-button:focus {
   flex-wrap: wrap;
 }
 
+.player-panel__tabs-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.player-panel__navigation {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.125rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.player-panel__nav-button {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.player-panel__nav-button:hover,
+.player-panel__nav-button:focus-visible {
+  background: rgba(129, 140, 248, 0.15);
+  color: var(--color-text-heading);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.player-panel__nav-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.player-panel__tabs-row .player-panel__tabs {
+  margin-left: auto;
+}
+
 @media (min-width: 768px) {
   .player-panel__header {
     flex-direction: row;
@@ -1379,6 +1431,16 @@ button.link-button:focus {
 
   .player-panel__tabs {
     justify-content: flex-end;
+  }
+
+  .player-panel__tabs-row {
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+
+  .player-panel__navigation {
+    margin-right: auto;
+    background: rgba(15, 23, 42, 0.55);
   }
 }
 

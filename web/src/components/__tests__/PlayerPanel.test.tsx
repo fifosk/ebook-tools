@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import PlayerPanel from '../PlayerPanel';
@@ -81,16 +81,17 @@ describe('PlayerPanel', () => {
       expect(screen.getByTestId('player-panel-document')).toHaveTextContent('Hello world.');
     });
 
-    const toggleButton = screen.getByRole('button', { name: /show detailed file list/i });
-    await user.click(toggleButton);
+    const firstButton = screen.getByRole('button', { name: /go to first item/i });
+    const previousButton = screen.getByRole('button', { name: /go to previous item/i });
+    const nextButton = screen.getByRole('button', { name: /go to next item/i });
+    const lastButton = screen.getByRole('button', { name: /go to last item/i });
 
-    const list = screen.getByTestId('media-list-text');
-    const secondEntry = within(list).getByText('chapter-two.html');
-    const rowButton = secondEntry.closest('button');
-    expect(rowButton).not.toBeNull();
-    if (rowButton) {
-      await user.click(rowButton);
-    }
+    expect(firstButton).toBeDisabled();
+    expect(previousButton).toBeDisabled();
+    expect(nextButton).not.toBeDisabled();
+    expect(lastButton).not.toBeDisabled();
+
+    await user.click(lastButton);
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenLastCalledWith('https://example.com/text/chapter-two.html', {
@@ -102,5 +103,45 @@ describe('PlayerPanel', () => {
       expect(screen.getByTestId('player-panel-document')).toHaveTextContent('Second chapter content.');
       expect(screen.getByText('Selected media: chapter-two.html')).toBeInTheDocument();
     });
+
+    expect(firstButton).not.toBeDisabled();
+    expect(previousButton).not.toBeDisabled();
+    expect(nextButton).toBeDisabled();
+    expect(lastButton).toBeDisabled();
+
+    await user.click(firstButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('player-panel-document')).toHaveTextContent('Chapter One');
+      expect(screen.getByText('Selected media: chapter-one.html')).toBeInTheDocument();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(firstButton).toBeDisabled();
+    expect(previousButton).toBeDisabled();
+    expect(nextButton).not.toBeDisabled();
+    expect(lastButton).not.toBeDisabled();
+
+    await user.click(nextButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('player-panel-document')).toHaveTextContent('Second chapter content.');
+      expect(screen.getByText('Selected media: chapter-two.html')).toBeInTheDocument();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(firstButton).not.toBeDisabled();
+    expect(previousButton).not.toBeDisabled();
+    expect(nextButton).toBeDisabled();
+    expect(lastButton).toBeDisabled();
+
+    await user.click(previousButton);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('player-panel-document')).toHaveTextContent('Chapter One');
+      expect(screen.getByText('Selected media: chapter-one.html')).toBeInTheDocument();
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
