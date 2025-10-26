@@ -13,83 +13,16 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules.audio.api import AudioService
-from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.media.exceptions import MediaBackendError
 from modules.observability import record_metric
 
 from .dependencies import get_audio_service
 from .schemas import AudioSynthesisError, AudioSynthesisRequest
+from .audio_utils import resolve_language, resolve_speed, resolve_voice
 
 
 router = APIRouter(prefix="/api/audio", tags=["audio"])
 logger = log_mgr.get_logger().getChild("webapi.audio")
-
-
-def _as_mapping(payload: Any) -> Mapping[str, Any]:
-    if isinstance(payload, Mapping):
-        return payload
-    return {}
-
-
-def _looks_like_lang_code(candidate: str) -> bool:
-    stripped = candidate.strip()
-    if not stripped:
-        return False
-    normalized = stripped.replace("-", "_")
-    if len(normalized) > 16:
-        return False
-    return all(part.isalpha() for part in normalized.split("_"))
-
-
-def _resolve_language(requested: str | None, config: Mapping[str, Any]) -> str:
-    if requested:
-        return requested
-
-    language_codes = {}
-    raw_codes = _as_mapping(config.get("language_codes"))
-    if raw_codes:
-        language_codes = {
-            str(key): str(value)
-            for key, value in raw_codes.items()
-            if isinstance(key, str) and isinstance(value, str)
-        }
-
-    preferred_language = config.get("input_language")
-    if isinstance(preferred_language, str):
-        stripped = preferred_language.strip()
-        if stripped:
-            code = language_codes.get(stripped)
-            if code:
-                return code
-            mapped = LANGUAGE_CODES.get(stripped)
-            if mapped:
-                return mapped
-            if _looks_like_lang_code(stripped):
-                return stripped
-
-    return "en"
-
-
-def _resolve_voice(requested: str | None, config: Mapping[str, Any]) -> str:
-    if requested:
-        return requested
-
-    selected_voice = config.get("selected_voice")
-    if isinstance(selected_voice, str) and selected_voice.strip():
-        return selected_voice.strip()
-    return "gTTS"
-
-
-def _resolve_speed(requested: int | None, config: Mapping[str, Any]) -> int:
-    if requested is not None:
-        return requested
-
-    value = config.get("macos_reading_speed")
-    try:
-        speed = int(value)
-    except (TypeError, ValueError):
-        return 150
-    return speed if speed > 0 else 150
 
 
 @router.post(
@@ -108,9 +41,9 @@ def synthesize_audio(
     """Generate speech audio using the configured backend."""
 
     config = cfg.load_configuration(verbose=False)
-    voice = _resolve_voice(payload.voice, config)
-    speed = _resolve_speed(payload.speed, config)
-    language = _resolve_language(payload.language, config)
+    voice = resolve_voice(payload.voice, config)
+    speed = resolve_speed(payload.speed, config)
+    language = resolve_language(payload.language, config)
     correlation_id = (
         request.headers.get("x-request-id")
         or request.headers.get("x-correlation-id")
