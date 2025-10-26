@@ -4,16 +4,24 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Callable, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence, TYPE_CHECKING
 
 from pydub import AudioSegment
 
+from modules import logging_manager as log_mgr
 from modules.config.loader import RenderingConfig, get_rendering_config
-from modules.integrations import VideoAPIClient
 
 from .backends import BaseVideoRenderer, VideoRenderOptions, create_video_renderer
 
 RendererFactory = Callable[[str, Mapping[str, object] | None], BaseVideoRenderer]
+
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from modules.integrations.video_client import VideoAPIClient
+else:  # pragma: no cover - runtime fallback when integrations are unavailable
+    VideoAPIClient = Any  # type: ignore[assignment]
+
+logger = log_mgr.get_logger().getChild("video.api")
 
 
 class VideoService:
@@ -74,7 +82,16 @@ class VideoService:
             base_url = os.environ.get("EBOOK_VIDEO_API_BASE_URL")
         if not base_url:
             return None
-        self._api_client = VideoAPIClient(
+        try:
+            from modules.integrations.video_client import VideoAPIClient as RuntimeVideoClient
+        except ImportError as exc:  # pragma: no cover - optional dependency safeguard
+            logger.warning(
+                "Video API client dependencies missing; using local renderer.",
+                extra={"event": "video.api.client_unavailable"},
+                exc_info=exc,
+            )
+            return None
+        self._api_client = RuntimeVideoClient(
             base_url,
             timeout=timeout or 300.0,
             poll_interval=poll_interval or 2.0,

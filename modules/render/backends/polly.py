@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, TYPE_CHECKING
 
 from pydub import AudioSegment
 
@@ -13,13 +13,17 @@ from modules.audio.backends import get_default_backend_name
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
 from modules.audio.tts import generate_audio
 from modules.core.translation import split_translation_and_transliteration
-from modules.integrations import AudioAPIClient
 
 from .base import AudioSynthesizer
 
 logger = log_mgr.logger
 
 _DEFAULT_TTS_BACKEND = get_default_backend_name()
+
+if TYPE_CHECKING:  # pragma: no cover - typing helper
+    from modules.integrations.audio_client import AudioAPIClient
+else:  # pragma: no cover - runtime fallback when integrations are unavailable
+    AudioAPIClient = Any  # type: ignore[assignment]
 
 
 class PollyAudioSynthesizer(AudioSynthesizer):
@@ -42,7 +46,16 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         base_url = self._client_base_url or os.environ.get("EBOOK_AUDIO_API_BASE_URL")
         if not base_url:
             return None
-        self._client = AudioAPIClient(base_url, timeout=self._client_timeout)
+        try:
+            from modules.integrations.audio_client import AudioAPIClient as RuntimeAudioClient
+        except ImportError as exc:  # pragma: no cover - optional dependency safeguard
+            logger.warning(
+                "Audio API client dependencies missing; using legacy synthesizer.",
+                extra={"event": "audio.api.client_unavailable"},
+                exc_info=exc,
+            )
+            return None
+        self._client = RuntimeAudioClient(base_url, timeout=self._client_timeout)
         return self._client
 
     def synthesize_sentence(
