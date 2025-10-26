@@ -1,0 +1,39 @@
+meta {
+  name: POST /api/audio - macOS auto female (English)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/audio
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+  Accept: audio/mpeg
+}
+
+body:json {
+  {
+    "text": "Hello world, welcome to ebook-tools!",
+    "language": "en",
+    "voice": "macOS-auto-female"
+  }
+}
+
+tests {
+  test("Status 200", () => {
+    expect(response.status).toBe(200);
+  });
+
+  test("MIME type is audio/mpeg", () => {
+    expect(response.headers["content-type"]).toContain("audio/mpeg");
+  });
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}
