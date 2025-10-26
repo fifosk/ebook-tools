@@ -362,6 +362,86 @@ describe('useLiveMedia', () => {
     });
   });
 
+  it('infers media categories when snapshot entries lack explicit type fields', async () => {
+    fetchLiveJobMediaMock.mockResolvedValue({ media: {} });
+
+    const listeners: Array<(event: ProgressEventPayload) => void> = [];
+    subscribeToJobEventsMock.mockImplementation(
+      (_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {
+        if (options?.onEvent) {
+          listeners.push(options.onEvent);
+        }
+        return () => {};
+      }
+    );
+
+    resolveStorageMock.mockImplementation((jobId, fileName) => `https://storage.example/${jobId}/${fileName}`);
+
+    const { result } = renderHook(() => useLiveMedia('job-9'));
+
+    await waitFor(() => {
+      expect(result.current.media.text).toHaveLength(0);
+    });
+
+    const payload: ProgressEventPayload = {
+      event_type: 'progress',
+      timestamp: Date.now(),
+      metadata: {
+        generated_files: {
+          text: [
+            {
+              path: '/var/tmp/jobs/job-9/html/001-010_output.html'
+            }
+          ],
+          audio_files: [
+            {
+              relative_path: 'audio/001-010_output.m4a'
+            }
+          ],
+          nested: {
+            media: {
+              video: [
+                {
+                  path: '/var/tmp/jobs/job-9/video/001-010_output.mp4'
+                }
+              ]
+            }
+          }
+        }
+      },
+      snapshot: { completed: 3, total: null, elapsed: 0, speed: 0, eta: null },
+      error: null
+    };
+
+    await act(async () => {
+      listeners[0](payload);
+    });
+
+    await waitFor(() => {
+      expect(result.current.media.text).toHaveLength(1);
+      expect(result.current.media.audio).toHaveLength(1);
+      expect(result.current.media.video).toHaveLength(1);
+    });
+
+    expect(result.current.media.text[0]).toMatchObject({
+      name: '001-010_output.html',
+      url: 'https://storage.example/job-9/html/001-010_output.html',
+      type: 'text'
+    });
+
+    expect(result.current.media.audio[0]).toMatchObject({
+      name: '001-010_output.m4a',
+      url: 'https://storage.example/job-9/audio/001-010_output.m4a',
+      type: 'audio'
+    });
+
+    expect(result.current.media.video[0]).toMatchObject({
+      name: '001-010_output.mp4',
+      url: 'https://storage.example/job-9/video/001-010_output.mp4',
+      type: 'video'
+    });
+  });
+
   it('falls back to refreshing media when generated file snapshot cannot be normalised', async () => {
     fetchLiveJobMediaMock.mockResolvedValueOnce({ media: {} });
     fetchLiveJobMediaMock.mockResolvedValueOnce({
@@ -402,7 +482,7 @@ describe('useLiveMedia', () => {
         generated_files: {
           files: [
             {
-              path: '/var/tmp/jobs/job-5/html/0005-0010_output.html'
+              type: 'html'
             }
           ]
         }

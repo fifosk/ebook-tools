@@ -171,11 +171,66 @@ function deriveName(entry: Record<string, unknown>, resolvedUrl: string | null):
   return 'media';
 }
 
+const AUDIO_EXTENSIONS = new Set(['.mp3', '.wav', '.aac', '.m4a', '.flac']);
+const VIDEO_EXTENSIONS = new Set(['.mp4', '.mov', '.mkv', '.webm']);
+const TEXT_EXTENSIONS = new Set(['.html', '.htm', '.pdf', '.epub', '.txt', '.doc', '.docx', '.rtf']);
+
+function inferCategoryFromPath(value: string | null | undefined): MediaCategory | null {
+  const candidate = toStringOrNull(value)?.toLowerCase();
+  if (!candidate) {
+    return null;
+  }
+
+  const extensionMatch = candidate.match(/\.([a-z0-9]+)(?:\?|#|$)/i);
+  if (!extensionMatch) {
+    return null;
+  }
+
+  const extension = `.${extensionMatch[1].toLowerCase()}`;
+  if (AUDIO_EXTENSIONS.has(extension)) {
+    return 'audio';
+  }
+  if (VIDEO_EXTENSIONS.has(extension)) {
+    return 'video';
+  }
+  if (TEXT_EXTENSIONS.has(extension)) {
+    return 'text';
+  }
+
+  return null;
+}
+
+function resolveCategory(
+  entry: Record<string, unknown>,
+  hint: MediaCategory | null,
+): MediaCategory | null {
+  const explicit = normaliseCategory(entry.type);
+  if (explicit) {
+    return explicit;
+  }
+
+  if (hint) {
+    return hint;
+  }
+
+  const pathCandidate =
+    toStringOrNull(entry.relative_path) ??
+    toStringOrNull(entry.path) ??
+    toStringOrNull(entry.url);
+
+  return inferCategoryFromPath(pathCandidate);
+}
+
 function buildLiveMediaItem(
   entry: Record<string, unknown>,
-  category: MediaCategory,
   jobId: string | null | undefined,
+  hint: MediaCategory | null = null,
 ): LiveMediaItem | null {
+  const category = resolveCategory(entry, hint);
+  if (!category) {
+    return null;
+  }
+
   const url = resolveFileUrl(jobId, entry);
   if (!url) {
     return null;
@@ -220,9 +275,9 @@ function normaliseFetchedMedia(
       }
 
       const record = file as Record<string, unknown>;
-      const item = buildLiveMediaItem(record, category, jobId);
+      const item = buildLiveMediaItem(record, jobId, category);
       if (item) {
-        result[category].push(item);
+        result[item.type].push(item);
       }
     });
   });
@@ -230,52 +285,102 @@ function normaliseFetchedMedia(
   return result;
 }
 
-function collectSnapshotEntries(snapshot: Record<string, unknown>): Record<string, unknown>[] {
-  const directEntries = snapshot.files;
-  const entries: Record<string, unknown>[] = [];
+function inferCategoryHintFromKey(key: string): MediaCategory | null {
+  const normalised = key.toLowerCase();
+  const direct = normaliseCategory(normalised);
+  if (direct) {
+    return direct;
+  }
 
-  if (Array.isArray(directEntries) && directEntries.length > 0) {
-    directEntries.forEach((value) => {
-      if (value && typeof value === 'object') {
-        entries.push(value as Record<string, unknown>);
+  if (normalised.endsWith('_files')) {
+    return normaliseCategory(normalised.slice(0, -6));
+  }
+
+  if (normalised.endsWith('_media')) {
+    return normaliseCategory(normalised.slice(0, -6));
+  }
+
+  return null;
+}
+
+function collectSnapshotEntries(snapshot: unknown): Array<{
+  entry: Record<string, unknown>;
+  hint: MediaCategory | null;
+}> {
+  const results: Array<{ entry: Record<string, unknown>; hint: MediaCategory | null }> = [];
+
+  function visit(
+    candidate: unknown,
+    context: Record<string, unknown>,
+    hint: MediaCategory | null,
+    depth: number,
+  ): void {
+    if (!candidate || depth > 6) {
+      return;
+    }
+
+    if (Array.isArray(candidate)) {
+      candidate.forEach((value) => {
+        visit(value, context, hint, depth + 1);
+      });
+      return;
+    }
+
+    if (typeof candidate !== 'object') {
+      return;
+    }
+
+    const record = candidate as Record<string, unknown>;
+    const nextContext: Record<string, unknown> = { ...context };
+
+    const chunkId = record.chunk_id;
+    if (chunkId !== undefined) {
+      nextContext.chunk_id = chunkId;
+    }
+
+    const rangeFragment = record.range_fragment;
+    if (rangeFragment !== undefined) {
+      nextContext.range_fragment = rangeFragment;
+    }
+
+    const startSentence = record.start_sentence;
+    if (startSentence !== undefined) {
+      nextContext.start_sentence = startSentence;
+    }
+
+    const endSentence = record.end_sentence;
+    if (endSentence !== undefined) {
+      nextContext.end_sentence = endSentence;
+    }
+
+    const looksLikeFile =
+      toStringOrNull(record.path) !== null ||
+      toStringOrNull(record.relative_path) !== null ||
+      toStringOrNull(record.url) !== null;
+
+    const entryHint = resolveCategory(record, hint);
+    if (looksLikeFile) {
+      const payload: Record<string, unknown> = { ...nextContext, ...record };
+      if (!payload.type && entryHint) {
+        payload.type = entryHint;
       }
-    });
-    if (entries.length > 0) {
-      return entries;
-    }
-  }
-
-  const chunkEntries = snapshot.chunks;
-  if (!Array.isArray(chunkEntries)) {
-    return entries;
-  }
-
-  chunkEntries.forEach((chunk) => {
-    if (!chunk || typeof chunk !== 'object') {
-      return;
+      results.push({ entry: payload, hint: entryHint });
     }
 
-    const chunkRecord = chunk as Record<string, unknown>;
-    const chunkFiles = chunkRecord.files;
-    if (!Array.isArray(chunkFiles) || chunkFiles.length === 0) {
-      return;
-    }
-
-    chunkFiles.forEach((fileEntry) => {
-      if (!fileEntry || typeof fileEntry !== 'object') {
+    Object.entries(record).forEach(([key, value]) => {
+      if (value === null || value === undefined) {
         return;
       }
-
-      const fileRecord = fileEntry as Record<string, unknown>;
-      entries.push({
-        range_fragment: chunkRecord.range_fragment,
-        chunk_id: chunkRecord.chunk_id,
-        ...fileRecord
-      });
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        return;
+      }
+      const keyHint = inferCategoryHintFromKey(key) ?? entryHint ?? hint;
+      visit(value, nextContext, keyHint, depth + 1);
     });
-  });
+  }
 
-  return entries;
+  visit(snapshot, {}, null, 0);
+  return results;
 }
 
 function normaliseGeneratedSnapshot(
@@ -286,22 +391,17 @@ function normaliseGeneratedSnapshot(
     return createEmptyState();
   }
 
-  const entries = collectSnapshotEntries(snapshot as Record<string, unknown>);
-  if (entries.length === 0) {
+  const collected = collectSnapshotEntries(snapshot);
+  if (collected.length === 0) {
     return createEmptyState();
   }
 
   const result = createEmptyState();
 
-  entries.forEach((entry) => {
-    const category = normaliseCategory(entry.type);
-    if (!category) {
-      return;
-    }
-
-    const item = buildLiveMediaItem(entry, category, jobId);
+  collected.forEach(({ entry, hint }) => {
+    const item = buildLiveMediaItem(entry, jobId, hint);
     if (item) {
-      result[category].push(item);
+      result[item.type].push(item);
     }
   });
 
