@@ -13,6 +13,7 @@ from modules import logging_manager as log_mgr, observability
 from modules.audio.backends import get_default_backend_name
 from modules.audio.highlight import _compute_audio_highlight_metadata, _store_audio_metadata
 from modules.audio.tts import generate_audio
+from modules.media.exceptions import MediaBackendError
 from modules.core.translation import split_translation_and_transliteration
 
 from .base import AudioSynthesizer
@@ -142,32 +143,33 @@ class PollyAudioSynthesizer(AudioSynthesizer):
 
         client = self._resolve_client()
 
+        backend_config = {
+            "tts_backend": tts_backend,
+            "tts_executable_path": tts_executable_path,
+            "say_path": tts_executable_path,
+        }
+
+        def _generate_with_legacy(text: str, lang_code: str) -> AudioSegment:
+            return generate_audio(
+                text,
+                lang_code,
+                selected_voice,
+                macos_reading_speed,
+                config=backend_config,
+            )
+
         if client is None:
-            backend_config = {
-                "tts_backend": tts_backend,
-                "tts_executable_path": tts_executable_path,
-                "say_path": tts_executable_path,
-            }
 
             if worker_count == 1:
                 for key, text, lang_code in tasks:
-                    segments[key] = generate_audio(
-                        text,
-                        lang_code,
-                        selected_voice,
-                        macos_reading_speed,
-                        config=backend_config,
-                    )
+                    segments[key] = _generate_with_legacy(text, lang_code)
             else:
                 with ThreadPoolExecutor(max_workers=worker_count) as executor:
                     future_map = {
                         executor.submit(
-                            generate_audio,
+                            _generate_with_legacy,
                             text,
                             lang_code,
-                            selected_voice,
-                            macos_reading_speed,
-                            config=backend_config,
                         ): key
                         for key, text, lang_code in tasks
                     }
@@ -205,6 +207,23 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                         speed=macos_reading_speed or None,
                         language=lang_code,
                     )
+                except MediaBackendError:
+                    duration_ms = (time.perf_counter() - start) * 1000.0
+                    observability.record_metric(
+                        "audio.api.synthesize.duration",
+                        duration_ms,
+                        {**attributes, "status": "error"},
+                    )
+                    logger.warning(
+                        "Audio API synthesis failed; falling back to local backend",
+                        extra={
+                            "event": "audio.api.synthesize.fallback",
+                            "attributes": attributes,
+                            "console_suppress": True,
+                        },
+                        exc_info=True,
+                    )
+                    return key, _generate_with_legacy(text, lang_code)
                 except Exception:
                     duration_ms = (time.perf_counter() - start) * 1000.0
                     observability.record_metric(
