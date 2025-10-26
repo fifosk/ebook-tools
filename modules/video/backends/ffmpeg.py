@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 from typing import Iterable, MutableSequence, Sequence
 
 from pydub import AudioSegment
@@ -14,6 +13,7 @@ from modules import logging_manager as log_mgr
 from modules import output_formatter
 from modules.audio.tts import silence_audio_path
 from modules.config.loader import get_rendering_config
+from modules.media.command_runner import run_command
 from modules.video.slides import prepare_sentence_frames
 
 from .base import BaseVideoRenderer, VideoRenderOptions
@@ -40,10 +40,10 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
         self,
         *,
         frame_builder=prepare_sentence_frames,
-        subprocess_module=subprocess,
+        command_runner=run_command,
     ) -> None:
         self._frame_builder = frame_builder
-        self._subprocess = subprocess_module
+        self._run_external = command_runner
         self._config = get_rendering_config()
         self._backend_settings = (
             self._config.video_backend_settings.get("ffmpeg", {})
@@ -294,16 +294,11 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
 
         return final_video_path
 
-    def _run_command(self, command: Sequence[str]) -> subprocess.CompletedProcess:
+    def _run_command(self, command: Sequence[str]) -> None:
         logger.debug(
             "Executing FFmpeg command", extra={"event": "video.render.ffmpeg", "cmd": command}
         )
-        return self._subprocess.run(
-            command,
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
+        self._run_external(command)
 
     def _preset(self, name: str, fallback: Sequence[str]) -> list[str]:
         preset = self._presets.get(name)

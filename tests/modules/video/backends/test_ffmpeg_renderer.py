@@ -1,26 +1,21 @@
-import subprocess
 from pathlib import Path
 
 import pytest
 from pydub import AudioSegment
 
+from modules.media.exceptions import CommandExecutionError
 from modules.render.backends import get_video_renderer
 from modules.render.backends.base import GolangVideoRenderer
 from modules.video.backends import FFmpegVideoRenderer, VideoRenderOptions
 from modules.video.slide_renderer import SentenceFrameBatch, SlideFrameTask
 
 
-class DummySubprocess:
+class DummyRunner:
     def __init__(self) -> None:
         self.commands: list[list[str]] = []
 
-    def run(self, command, check=True, stdout=None, stderr=None):  # noqa: D401 - signature matches subprocess
+    def __call__(self, command, **_):
         self.commands.append(list(command))
-
-        class Result:
-            returncode = 0
-
-        return Result()
 
 
 def _make_frame_batch(tmp_path: Path) -> SentenceFrameBatch:
@@ -87,8 +82,8 @@ def test_ffmpeg_renderer_builds_expected_commands(monkeypatch: pytest.MonkeyPatc
         raising=False,
     )
 
-    fake_subprocess = DummySubprocess()
-    renderer = FFmpegVideoRenderer(subprocess_module=fake_subprocess)
+    fake_runner = DummyRunner()
+    renderer = FFmpegVideoRenderer(command_runner=fake_runner)
 
     options = VideoRenderOptions(
         batch_start=1,
@@ -112,9 +107,9 @@ def test_ffmpeg_renderer_builds_expected_commands(monkeypatch: pytest.MonkeyPatc
     result_path = renderer.render_slides(["Header"], [audio], str(output_path), options)
 
     assert result_path == str(output_path)
-    assert fake_subprocess.commands[0][0] == "custom_ffmpeg"
-    assert fake_subprocess.commands[-1][-1] == str(output_path)
-    assert len(fake_subprocess.commands) == 4  # frame, concat, merge, final concat
+    assert fake_runner.commands[0][0] == "custom_ffmpeg"
+    assert fake_runner.commands[-1][-1] == str(output_path)
+    assert len(fake_runner.commands) == 4  # frame, concat, merge, final concat
 
 
 def test_ffmpeg_renderer_propagates_subprocess_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, silence_file: Path) -> None:
@@ -143,11 +138,9 @@ def test_ffmpeg_renderer_propagates_subprocess_errors(monkeypatch: pytest.Monkey
     )
 
     def failing_run(command, **_):
-        raise subprocess.CalledProcessError(1, command)
+        raise CommandExecutionError(command, returncode=1)
 
-    renderer = FFmpegVideoRenderer(
-        subprocess_module=type("Failing", (), {"run": failing_run})
-    )
+    renderer = FFmpegVideoRenderer(command_runner=failing_run)
 
     options = VideoRenderOptions(
         batch_start=1,
@@ -167,7 +160,7 @@ def test_ffmpeg_renderer_propagates_subprocess_errors(monkeypatch: pytest.Monkey
     )
     audio = AudioSegment.silent(duration=1000)
 
-    with pytest.raises(subprocess.CalledProcessError):
+    with pytest.raises(CommandExecutionError):
         renderer.render_slides(["Header"], [audio], str(tmp_path / "output.mp4"), options)
 
 
