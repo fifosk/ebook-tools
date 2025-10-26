@@ -15,6 +15,25 @@
 5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, and optional video batches.
 6. **Observability** – `modules/progress_tracker.py` emits structured events that feed CLI logs and the API SSE stream; `modules/observability.py` wraps stages with structured logging/telemetry.
 
+### Audio/video backend architecture
+
+Audio synthesis is handled by a lightweight registry that maps logical backend
+names to `BaseTTSBackend` implementations. The default registry contains the
+Google Translate (gTTS) HTTP client and a macOS bridge that shells out to the
+`say` binary. `get_tts_backend()` inspects the pipeline config, CLI arguments,
+and environment-backed defaults (via `config_manager`) to decide which backend
+to instantiate and forwards any configured executable override. Custom backends
+can be registered at import time using `register_backend()` before the pipeline
+spins up workers.【F:modules/audio/backends/__init__.py†L10-L95】
+
+Video slide rendering uses a comparable pattern. `modules/config/loader.py`
+resolves the selected `video_backend` and optional `video_backend_settings`
+mapping, then the rendering layer instantiates the appropriate renderer through
+`modules/render/backends/__init__.py`. The built-in FFmpeg renderer honours
+settings such as `executable`, `loglevel`, and preset overrides, allowing the
+pipeline to run against system installations or portable builds without code
+changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/ffmpeg.py†L32-L117】
+
 ### Backend input processing diagram
 
 ```mermaid

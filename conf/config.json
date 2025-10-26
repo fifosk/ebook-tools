@@ -33,6 +33,8 @@
         "macos_reading_speed": "Words per minute when using macOS TTS voices.",
         "tempo": "Playback tempo multiplier for audio.",
         "sync_ratio": "Timing ratio for aligning subtitles in videos.",
+        "video_backend": "Video rendering backend identifier (ffmpeg or custom plugin).",
+        "video_backend_settings": "Backend specific options keyed by backend name (e.g., ffmpeg.executable).",
         "debug": "Enable verbose debug logging.",
         "working_dir": "Root directory for runtime artifacts (default ./output).",
         "output_dir": "Directory for generated ebook assets relative to working_dir.",
@@ -82,6 +84,13 @@
     "macos_reading_speed": 100,
     "tempo": 1.0,
     "sync_ratio": 0.9,
+    "video_backend": "ffmpeg",
+    "video_backend_settings": {
+        "ffmpeg": {
+            "executable": "ffmpeg",
+            "loglevel": "quiet"
+        }
+    },
     "debug": false,
     "thread_count": 5,
     "queue_size": 20,
