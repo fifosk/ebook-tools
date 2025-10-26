@@ -26,11 +26,39 @@ logger = log_mgr.logger
 _BOOTSTRAPPED_MEDIA_CONFIG: Dict[str, Any] | None = None
 
 
+def _apply_audio_api_configuration(config: Mapping[str, Any]) -> None:
+    base_url = config.get("audio_api_base_url")
+    if isinstance(base_url, str):
+        base_url = base_url.strip()
+    if base_url:
+        os.environ["EBOOK_AUDIO_API_BASE_URL"] = base_url
+    else:
+        os.environ.pop("EBOOK_AUDIO_API_BASE_URL", None)
+
+    def _apply_numeric(key: str, env_key: str) -> None:
+        value = config.get(key)
+        if value is None:
+            os.environ.pop(env_key, None)
+            return
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            os.environ.pop(env_key, None)
+            return
+        os.environ[env_key] = str(numeric)
+
+    _apply_numeric("audio_api_timeout_seconds", "EBOOK_AUDIO_API_TIMEOUT_SECONDS")
+    _apply_numeric(
+        "audio_api_poll_interval_seconds", "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS"
+    )
+
+
 def configure_media_services(*, config: Mapping[str, Any] | None = None) -> None:
     """Cache the bootstrap configuration used by media service dependencies."""
 
     global _BOOTSTRAPPED_MEDIA_CONFIG
     _BOOTSTRAPPED_MEDIA_CONFIG = dict(config or {})
+    _apply_audio_api_configuration(_BOOTSTRAPPED_MEDIA_CONFIG)
     get_audio_service.cache_clear()
     get_video_service.cache_clear()
 
@@ -39,7 +67,9 @@ def _get_bootstrapped_media_config() -> Dict[str, Any]:
     if _BOOTSTRAPPED_MEDIA_CONFIG is not None:
         return dict(_BOOTSTRAPPED_MEDIA_CONFIG)
     try:
-        return cfg.load_configuration(verbose=False)
+        config = cfg.load_configuration(verbose=False)
+        _apply_audio_api_configuration(config)
+        return config
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.warning(
             "Falling back to empty configuration after load failure.",

@@ -83,3 +83,33 @@ def test_polly_synthesizer_records_error_metrics(monkeypatch):
     metric_name, attributes = metrics[-1]
     assert metric_name == "audio.api.synthesize.duration"
     assert attributes["status"] == "error"
+
+
+def test_polly_synthesizer_builds_client_from_environment(monkeypatch):
+    metrics = []
+    monkeypatch.setattr(
+        "modules.render.backends.polly.observability.record_metric",
+        lambda name, value, attributes=None: metrics.append((name, attributes)),
+    )
+    monkeypatch.setenv("EBOOK_AUDIO_API_BASE_URL", "https://audio.example")
+    monkeypatch.setenv("EBOOK_AUDIO_API_TIMEOUT_SECONDS", "120")
+
+    created: dict[str, tuple[str, float]] = {}
+
+    class _FakeClient:
+        def __init__(self, base_url, timeout):
+            created["args"] = (base_url, timeout)
+
+        def synthesize(self, **kwargs):
+            return AudioSegment.silent(duration=20)
+
+    monkeypatch.setattr(
+        "modules.integrations.audio_client.AudioAPIClient", _FakeClient
+    )
+
+    synth = PollyAudioSynthesizer()
+    segment = _synthesize_sentence(synth)
+
+    assert len(segment) > 0
+    assert created["args"] == ("https://audio.example", 120.0)
+    assert metrics, "Expected API metrics when using the HTTP client"

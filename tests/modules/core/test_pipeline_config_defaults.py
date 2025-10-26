@@ -1,3 +1,4 @@
+import os
 import types
 from pathlib import Path
 
@@ -53,3 +54,73 @@ def test_build_pipeline_config_converts_auto_backend(tmp_path):
     pipeline_config = build_pipeline_config(context, {"tts_backend": "auto"}, {})
 
     assert pipeline_config.tts_backend == get_default_backend_name()
+
+
+def test_apply_runtime_settings_exports_audio_api_env(tmp_path, monkeypatch):
+    context = _build_runtime_context(tmp_path)
+    pipeline_config = build_pipeline_config(
+        context,
+        {
+            "audio_api_base_url": "https://audio.example",
+            "audio_api_timeout_seconds": 30,
+            "audio_api_poll_interval_seconds": 0.5,
+        },
+        {},
+    )
+
+    monkeypatch.setattr(
+        "modules.core.config.llm_client_manager.configure_default_client",
+        lambda **kwargs: None,
+    )
+    sentinel_client = object()
+    monkeypatch.setattr(
+        "modules.core.config.create_client",
+        lambda **kwargs: sentinel_client,
+    )
+    for key in (
+        "EBOOK_AUDIO_API_BASE_URL",
+        "EBOOK_AUDIO_API_TIMEOUT_SECONDS",
+        "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+    pipeline_config.apply_runtime_settings()
+
+    assert os.environ["EBOOK_AUDIO_API_BASE_URL"] == "https://audio.example"
+    assert os.environ["EBOOK_AUDIO_API_TIMEOUT_SECONDS"] == "30.0"
+    assert os.environ["EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS"] == "0.5"
+    assert pipeline_config.translation_client is sentinel_client
+
+    for key in (
+        "EBOOK_AUDIO_API_BASE_URL",
+        "EBOOK_AUDIO_API_TIMEOUT_SECONDS",
+        "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+
+def test_apply_runtime_settings_clears_audio_api_env_when_unset(tmp_path, monkeypatch):
+    context = _build_runtime_context(tmp_path)
+    pipeline_config = build_pipeline_config(context, {}, {})
+    pipeline_config.audio_api_base_url = None
+    pipeline_config.audio_api_timeout_seconds = None
+    pipeline_config.audio_api_poll_interval_seconds = None
+
+    monkeypatch.setattr(
+        "modules.core.config.llm_client_manager.configure_default_client",
+        lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        "modules.core.config.create_client",
+        lambda **kwargs: object(),
+    )
+
+    monkeypatch.setenv("EBOOK_AUDIO_API_BASE_URL", "stale")
+    monkeypatch.setenv("EBOOK_AUDIO_API_TIMEOUT_SECONDS", "15")
+    monkeypatch.setenv("EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS", "1")
+
+    pipeline_config.apply_runtime_settings()
+
+    assert "EBOOK_AUDIO_API_BASE_URL" not in os.environ
+    assert "EBOOK_AUDIO_API_TIMEOUT_SECONDS" not in os.environ
+    assert "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS" not in os.environ

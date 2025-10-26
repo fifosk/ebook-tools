@@ -35,11 +35,13 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         *,
         audio_client: AudioAPIClient | None = None,
         base_url: str | None = None,
-        timeout: float = 60.0,
+        timeout: float | None = None,
+        poll_interval: float | None = None,
     ) -> None:
         self._client = audio_client
         self._client_base_url = base_url
         self._client_timeout = timeout
+        self._client_poll_interval = poll_interval
 
     def _resolve_client(self) -> AudioAPIClient | None:
         if self._client is not None:
@@ -47,6 +49,17 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         base_url = self._client_base_url or os.environ.get("EBOOK_AUDIO_API_BASE_URL")
         if not base_url:
             return None
+        timeout = self._client_timeout if self._client_timeout is not None else 60.0
+        timeout_override = os.environ.get("EBOOK_AUDIO_API_TIMEOUT_SECONDS")
+        if timeout_override:
+            try:
+                timeout = float(timeout_override)
+            except (TypeError, ValueError):  # pragma: no cover - defensive log
+                logger.warning(
+                    "Ignoring invalid EBOOK_AUDIO_API_TIMEOUT_SECONDS value: %r",
+                    timeout_override,
+                    extra={"event": "audio.api.invalid_timeout"},
+                )
         try:
             from modules.integrations.audio_client import AudioAPIClient as RuntimeAudioClient
         except ImportError as exc:  # pragma: no cover - optional dependency safeguard
@@ -56,7 +69,8 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 exc_info=exc,
             )
             return None
-        self._client = RuntimeAudioClient(base_url, timeout=self._client_timeout)
+        self._client = RuntimeAudioClient(base_url, timeout=timeout)
+        self._client_timeout = timeout
         return self._client
 
     def synthesize_sentence(
