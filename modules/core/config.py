@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Mapping, Optional
@@ -7,6 +8,7 @@ from typing import Any, Mapping, Optional
 from pydub import AudioSegment
 
 from .. import config_manager as cfg
+from ..config.loader import get_rendering_config
 from ..config_manager import RuntimeContext
 from .. import llm_client_manager, translation_engine
 from ..llm_client import LLMClient, create_client
@@ -92,6 +94,7 @@ class PipelineConfig:
     prefer_pillow_simd: bool = False
     slide_render_benchmark: bool = False
     slide_template: Optional[str] = "default"
+    video_backend: str = "ffmpeg"
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -145,6 +148,9 @@ class PipelineConfig:
             cloud_api_url=self.cloud_ollama_url,
             cloud_api_key=self.ollama_api_key,
         )
+        if self.video_backend:
+            os.environ["EBOOK_VIDEO_BACKEND"] = self.video_backend
+            get_rendering_config.cache_clear()
         ffmpeg_path = self.ffmpeg_path or self.context.ffmpeg_path
         if ffmpeg_path:
             AudioSegment.converter = ffmpeg_path
@@ -272,6 +278,12 @@ def build_pipeline_config(
     else:
         slide_template = "default"
 
+    raw_video_backend = _select_value("video_backend", config, overrides, "ffmpeg")
+    if isinstance(raw_video_backend, str):
+        video_backend = raw_video_backend.strip() or "ffmpeg"
+    else:
+        video_backend = "ffmpeg"
+
     forced_alignment_enabled = _coerce_bool(
         _select_value("forced_alignment_enabled", config, overrides, False), False
     )
@@ -378,6 +390,7 @@ def build_pipeline_config(
         prefer_pillow_simd=prefer_pillow_simd,
         slide_render_benchmark=slide_render_benchmark,
         slide_template=slide_template,
+        video_backend=video_backend,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         llm_source=llm_source,

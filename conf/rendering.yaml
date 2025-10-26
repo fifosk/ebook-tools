@@ -7,3 +7,24 @@ video_backend: ffmpeg
 audio_backend: polly
 ramdisk_enabled: true
 ramdisk_path: tmp/render
+video_backend_settings:
+  ffmpeg:
+    executable: ffmpeg
+    loglevel: quiet
+    presets:
+      frame:
+        - -c:v
+        - libx264
+        - -pix_fmt
+        - yuv420p
+        - -vf
+        - format=yuv420p
+        - -an
+      concat:
+        - -c
+        - copy
+      merge:
+        - -c:v
+        - copy
+        - -c:a
+        - aac

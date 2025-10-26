@@ -1,5 +1,6 @@
 """Utilities for generating audio and video artifacts."""
 
+import os
 import threading
 import time
 from dataclasses import dataclass
@@ -9,6 +10,7 @@ from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 from pydub import AudioSegment
 from PIL import Image
 
+from modules import output_formatter
 from modules.render import AudioWorker, MediaBatchOrchestrator
 from modules.render.backends import (
     AudioSynthesizer,
@@ -17,6 +19,7 @@ from modules.render.backends import (
     get_video_renderer,
 )
 from modules.translation_engine import TranslationTask
+from modules.video.backends import VideoRenderOptions
 
 if TYPE_CHECKING:
     from modules.progress_tracker import ProgressTracker
@@ -199,25 +202,25 @@ def render_video_slides(
     """Render video slides using the configured renderer backend."""
 
     renderer = video_renderer or get_video_renderer()
-    return renderer.render_slides(
-        text_blocks,
-        audio_segments,
-        output_dir,
-        batch_start,
-        batch_end,
-        base_no_ext,
-        cover_img,
-        book_author,
-        book_title,
-        cumulative_word_counts,
-        total_word_count,
-        macos_reading_speed,
-        input_language,
-        total_sentences,
-        tempo,
-        sync_ratio,
-        word_highlighting,
-        highlight_granularity,
+    range_fragment = output_formatter.format_sentence_range(
+        batch_start, batch_end, total_sentences
+    )
+    output_path = os.path.join(output_dir, f"{range_fragment}_{base_no_ext}.mp4")
+    options = VideoRenderOptions(
+        batch_start=batch_start,
+        batch_end=batch_end,
+        cover_image=cover_img,
+        book_author=book_author,
+        book_title=book_title,
+        cumulative_word_counts=cumulative_word_counts,
+        total_word_count=total_word_count,
+        macos_reading_speed=macos_reading_speed,
+        input_language=input_language,
+        total_sentences=total_sentences,
+        tempo=tempo,
+        sync_ratio=sync_ratio,
+        word_highlighting=word_highlighting,
+        highlight_granularity=highlight_granularity,
         slide_render_options=slide_render_options,
         cleanup=cleanup,
         slide_size=slide_size,
@@ -225,6 +228,7 @@ def render_video_slides(
         bg_color=bg_color,
         template_name=template_name,
     )
+    return renderer.render_slides(text_blocks, audio_segments, output_path, options)
 
 
 def generate_video_slides_ffmpeg(

@@ -11,7 +11,7 @@ from .base import (
     GolangVideoRenderer,
     VideoRenderer,
 )
-from .ffmpeg import FFmpegVideoRenderer
+from modules.video.backends import FFmpegVideoRenderer
 from .polly import PollyAudioSynthesizer
 
 _AUDIO_BACKENDS: Dict[str, Type[AudioSynthesizer]] = {

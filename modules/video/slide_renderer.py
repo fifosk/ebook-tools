@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import time
 from collections import defaultdict
@@ -17,7 +16,7 @@ from pydub import AudioSegment
 
 from modules import logging_manager as log_mgr
 from modules.audio.highlight import HighlightEvent, coalesce_highlight_events, timeline
-from modules.audio.tts import active_tmp_dir, silence_audio_path
+from modules.audio.tts import active_tmp_dir
 
 from .layout_engine import GlyphMetricsCache, LayoutEngine
 from .slide_core import Slide
@@ -126,6 +125,15 @@ class SlideFrameTask:
 _GLYPH_CACHE = GlyphMetricsCache()
 
 
+@dataclass(slots=True)
+class SentenceFrameBatch:
+    """Container describing rendered slide frames for a single sentence."""
+
+    frame_tasks: Sequence[SlideFrameTask]
+    pad_duration: float
+    profiler: Optional[SlideRenderProfiler]
+
+
 class SlideRenderer:
     """Render :class:`Slide` instances using JSON-defined templates."""
 
@@ -220,7 +228,7 @@ class SlideRenderer:
     def _render_slide_frame(self, task: SlideFrameTask) -> str:
         return self._render_slide_frame_local(task, None)
 
-    def build_sentence_video(
+    def prepare_sentence_frames(
         self,
         slide: Slide,
         audio_seg: AudioSegment,
@@ -237,7 +245,7 @@ class SlideRenderer:
         cover_img: Optional[Image.Image] = None,
         header_info: str = "",
         render_options: Optional[SlideRenderOptions] = None,
-    ) -> str:
+    ) -> SentenceFrameBatch:
         if default_font_path is None:
             default_font_path = self.get_default_font_path()
 
@@ -355,134 +363,14 @@ class SlideRenderer:
             profiler=profiler,
         )
 
-        word_video_files: List[str] = []
-        for task in frame_tasks:
-            video_path = os.path.join(tmp_dir, f"word_slide_{sentence_index}_{task.index}.mp4")
-            cmd = [
-                "ffmpeg",
-                "-loglevel",
-                "quiet",
-                "-y",
-                "-loop",
-                "1",
-                "-i",
-                task.output_path,
-                "-i",
-                silence_audio_path(),
-                "-c:v",
-                "libx264",
-                "-t",
-                f"{task.duration:.2f}",
-                "-pix_fmt",
-                "yuv420p",
-                "-vf",
-                "format=yuv420p",
-                "-an",
-                video_path,
-            ]
-            try:
-                subprocess.run(cmd, check=True)
-            except subprocess.CalledProcessError as exc:
-                logger.error("FFmpeg error on word slide %s_%s: %s", sentence_index, task.index, exc)
-            finally:
-                if os.path.exists(task.output_path):
-                    os.remove(task.output_path)
-            word_video_files.append(video_path)
-
-        concat_list_path = os.path.join(tmp_dir, f"concat_word_{sentence_index}.txt")
-        with open(concat_list_path, "w", encoding="utf-8") as handle:
-            for video_file in word_video_files:
-                handle.write(f"file '{video_file}'\n")
-
-        sentence_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}.mp4")
-        cmd_concat = [
-            "ffmpeg",
-            "-loglevel",
-            "quiet",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            concat_list_path,
-            "-c",
-            "copy",
-            sentence_video_path,
-        ]
-        try:
-            result = subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            if result.returncode != 0:
-                logger.error("FFmpeg concat error: %s", result.stderr.decode())
-                raise subprocess.CalledProcessError(result.returncode, cmd_concat)
-        except subprocess.CalledProcessError as exc:
-            logger.error("Error concatenating word slides for sentence %s: %s", sentence_index, exc)
-        finally:
-            if os.path.exists(concat_list_path):
-                os.remove(concat_list_path)
-
-        for vf in word_video_files:
-            if os.path.exists(vf):
-                os.remove(vf)
-
-        audio_temp_path = os.path.join(tmp_dir, f"sentence_audio_{sentence_index}.wav")
-        audio_seg.export(audio_temp_path, format="wav")
-        merged_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}_merged.mp4")
-
-        cmd_merge = [
-            "ffmpeg",
-            "-loglevel",
-            "quiet",
-            "-y",
-            "-i",
-            sentence_video_path,
-            "-i",
-            audio_temp_path,
-            "-c:v",
-            "copy",
-            "-c:a",
-            "aac",
-            merged_video_path,
-        ]
-        try:
-            subprocess.run(cmd_merge, check=True)
-        except subprocess.CalledProcessError as exc:
-            logger.error("FFmpeg error merging audio for sentence %s: %s", sentence_index, exc)
-        finally:
-            if os.path.exists(audio_temp_path):
-                os.remove(audio_temp_path)
-            if os.path.exists(sentence_video_path):
-                os.remove(sentence_video_path)
-
-        final_video_path = os.path.join(tmp_dir, f"sentence_slide_{sentence_index}_final.mp4")
-        if pad_duration > 0:
-            cmd_tpad = [
-                "ffmpeg",
-                "-loglevel",
-                "quiet",
-                "-y",
-                "-i",
-                merged_video_path,
-                "-vf",
-                f"tpad=stop_mode=clone:stop_duration={pad_duration:.2f}",
-                "-af",
-                f"apad=pad_dur={pad_duration:.2f}",
-                final_video_path,
-            ]
-            try:
-                subprocess.run(cmd_tpad, check=True)
-            except subprocess.CalledProcessError as exc:
-                logger.error("FFmpeg error applying padding for sentence %s: %s", sentence_index, exc)
-            finally:
-                if os.path.exists(merged_video_path):
-                    os.remove(merged_video_path)
-        else:
-            final_video_path = merged_video_path
-
         if profiler is not None:
             profiler.log_summary(sentence_index)
 
-        return final_video_path
+        return SentenceFrameBatch(
+            frame_tasks=tuple(frame_tasks),
+            pad_duration=pad_duration,
+            profiler=profiler,
+        )
 
     # Support utilities -------------------------------------------------
     def _render_frames(
@@ -545,6 +433,7 @@ class SlideRenderer:
         return "Arial.ttf"
 
 __all__ = [
+    "SentenceFrameBatch",
     "SlideRenderer",
     "SlideRenderOptions",
     "SlideRenderProfiler",
