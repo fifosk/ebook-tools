@@ -1,0 +1,22 @@
+# Repository Agent Notes
+
+## Purpose
+This repository powers the ebook-tools platform, bundling a FastAPI backend, background job helpers, and a Vite/React frontend for rendering and managing multimedia ebook assets.
+
+## Key Entry Points
+- **Backend:** `modules/webapi/application.py` exposes the FastAPI app factory referenced by `python -m modules.webapi` and the `ebook-tools-api` console script.
+- **CLI / Orchestration:** `ebook-tools.py` and `scripts/` house helper commands for running pipelines locally.
+- **Frontend:** `web/` contains the Vite application. Source files live under `web/src/`, while built assets default to `web/dist/`.
+
+## Common Workflows
+- Create a virtual environment and install dependencies with `pip install -e .[dev]`.
+- Start the API for local development with `uvicorn modules.webapi.application:create_app --factory --reload`.
+- Run the test suite via `pytest` from the repository root.
+
+## Style Reminders
+- Prefer explicit imports and keep module-level side effects minimal.
+- Align with the FastAPI conventions already present: Pydantic models in `modules/webapi/schemas/`, services under `modules/services/`, and routers under `modules/webapi/`.
+- Frontend components follow a co-located CSS Modules pattern (`Component.tsx` with `Component.module.css`).
+
+## Updating These Notes
+Whenever a task introduces new subsystems, moves files, or changes the recommended commands, add or adjust the relevant sections above so future agents land with accurate context.
