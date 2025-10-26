@@ -74,13 +74,15 @@ def _enforce_media_permissions(user: UserRecord) -> None:
     )
 
 
-@router.exception_handler(HTTPException)
 async def _handle_media_http_exception(
     _request: Request, exc: HTTPException
 ) -> JSONResponse:
     if isinstance(exc.detail, dict) and {"error", "message"} <= set(exc.detail):
         return JSONResponse(status_code=exc.status_code, content=exc.detail)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+router.add_exception_handler(HTTPException, _handle_media_http_exception)
 
 
 @router.post(
