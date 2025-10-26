@@ -62,6 +62,7 @@ class EbookToolsSettings(BaseModel):
         default_factory=lambda: "macos_say" if sys.platform == "darwin" else "gtts"
     )
     tts_executable_path: Optional[str] = None
+    say_path: Optional[str] = None
     book_title: str = "Unknown Title"
     book_author: str = "Unknown Author"
     book_year: str = "Unknown Year"
@@ -175,6 +176,9 @@ class EnvironmentOverrides(BaseSettings):
     )
     tts_executable_path: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_TTS_EXECUTABLE")
+    )
+    say_path: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("SAY_PATH", "EBOOK_SAY_PATH")
     )
 
 

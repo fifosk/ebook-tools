@@ -93,6 +93,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         backend_config = {
             "tts_backend": tts_backend,
             "tts_executable_path": tts_executable_path,
+            "say_path": tts_executable_path,
         }
 
         if worker_count == 1:

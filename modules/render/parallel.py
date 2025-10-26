@@ -153,6 +153,7 @@ class MediaBatchOrchestrator:
             "generate_audio": generate_audio,
             "tts_backend": tts_backend,
             "tts_executable_path": tts_executable_path,
+            "say_path": tts_executable_path,
         }
         audio_payload = {
             "total_sentences": total_sentences,
@@ -165,6 +166,7 @@ class MediaBatchOrchestrator:
             "generate_audio": generate_audio,
             "tts_backend": tts_backend,
             "tts_executable_path": tts_executable_path,
+            "say_path": tts_executable_path,
         }
         context = batch_context or RenderBatchContext(manifest=manifest_payload, media={"audio": audio_payload})
         context = context.merge_manifest(manifest_payload).merge_media("audio", audio_payload)

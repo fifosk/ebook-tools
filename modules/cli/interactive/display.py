@@ -49,7 +49,9 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     )
     console_info(
         "   TTS executable override: %s",
-        config.get("tts_executable_path") or "None",
+        config.get("tts_executable_path")
+        or config.get("say_path")
+        or "None",
     )
     console_info(
         "9. macOS TTS reading speed (words per minute): %s",

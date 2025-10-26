@@ -461,6 +461,7 @@ def prepare_non_interactive_run(
     config.setdefault("selected_voice", "gTTS")
     config.setdefault("tts_backend", DEFAULT_TTS_BACKEND)
     config.setdefault("tts_executable_path", None)
+    config.setdefault("say_path", config.get("tts_executable_path"))
     config.setdefault("output_html", True)
     config.setdefault("output_pdf", False)
     config.setdefault("generate_video", False)
@@ -491,6 +492,10 @@ def prepare_non_interactive_run(
         config["tts_backend"] = args.tts_backend
     if getattr(args, "tts_executable", None):
         config["tts_executable_path"] = args.tts_executable
+        config["say_path"] = args.tts_executable
+    if getattr(args, "say_path", None):
+        config["say_path"] = args.say_path
+        config["tts_executable_path"] = args.say_path
 
     pipeline_input = _build_pipeline_input(
         config,
@@ -522,6 +527,7 @@ def prepare_non_interactive_run(
         "selected_voice": config.get("selected_voice"),
         "tts_backend": config.get("tts_backend"),
         "tts_executable_path": config.get("tts_executable_path"),
+        "say_path": config.get("say_path"),
         "tempo": config.get("tempo"),
         "macos_reading_speed": config.get("macos_reading_speed"),
         "sync_ratio": config.get("sync_ratio"),
@@ -580,6 +586,7 @@ def run_pipeline_from_args(
         config.setdefault("selected_voice", pipeline_input.selected_voice)
         config.setdefault("tts_backend", DEFAULT_TTS_BACKEND)
         config.setdefault("tts_executable_path", None)
+        config.setdefault("say_path", config.get("tts_executable_path"))
         config.setdefault("tempo", pipeline_input.tempo)
         config.setdefault("generate_audio", pipeline_input.generate_audio)
         config.setdefault("audio_mode", pipeline_input.audio_mode)
@@ -636,6 +643,7 @@ def run_pipeline_from_args(
             "selected_voice": config.get("selected_voice"),
             "tts_backend": config.get("tts_backend"),
             "tts_executable_path": config.get("tts_executable_path"),
+            "say_path": config.get("say_path"),
             "tempo": config.get("tempo"),
             "macos_reading_speed": config.get("macos_reading_speed", 100),
             "sync_ratio": config.get("sync_ratio", 0.9),

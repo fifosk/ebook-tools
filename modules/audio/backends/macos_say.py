@@ -15,7 +15,10 @@ from modules.media.exceptions import CommandExecutionError
 from .base import BaseTTSBackend, TTSBackendError
 
 
-class MacOSTTSBackend(BaseTTSBackend):
+DEFAULT_EXECUTABLE = "say"
+
+
+class MacOSSayBackend(BaseTTSBackend):
     """Backend using the macOS ``say`` command line utility."""
 
     name = "macos_say"
@@ -26,7 +29,7 @@ class MacOSTTSBackend(BaseTTSBackend):
     def _resolve_executable(self) -> str:
         if self.executable_path:
             return self.executable_path
-        return "say"
+        return DEFAULT_EXECUTABLE
 
     def synthesize(
         self,
@@ -73,5 +76,7 @@ class MacOSTTSBackend(BaseTTSBackend):
                 os.remove(tmp_file)
 
 
-__all__ = ["MacOSTTSBackend"]
+MacOSTTSBackend = MacOSSayBackend
+
+__all__ = ["MacOSSayBackend", "MacOSTTSBackend"]
 
