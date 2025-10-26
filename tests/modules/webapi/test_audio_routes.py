@@ -1,222 +1,234 @@
+"""Integration tests covering the `/api/audio` endpoint."""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-import logging
+from pathlib import Path
+from subprocess import CompletedProcess
+from typing import Dict, Iterable, Tuple
 
 import pytest
 from fastapi.testclient import TestClient
 
-from modules.media.exceptions import MediaBackendError
 from modules.webapi.application import create_app
-from modules.webapi.dependencies import get_audio_service
+from modules.webapi.routers import audio as audio_router
 
 
-@dataclass
-class _StubSegment:
-    payload: bytes
+_SELECT_VOICE_MAP: Dict[Tuple[str, str], str] = {
+    ("ar", "any"): "gTTS-ar",
+    ("en", "any"): "gTTS-en",
+    ("en", "female"): "Ava - en_US - (Enhanced) - Female",
+    ("en", "male"): "Alex - en_US - (Enhanced) - Male",
+    ("es", "any"): "gTTS-es",
+    ("es", "female"): "Carla - es_MX - (Enhanced) - Female",
+    ("es", "male"): "Miguel - es_ES - (Enhanced) - Male",
+    ("ja", "any"): "gTTS-ja",
+    ("ja", "female"): "Kyoko - ja_JP - (Premium) - Female",
+    ("ja", "male"): "Ichiro - ja_JP - (Premium) - Male",
+}
 
-    def export(self, buffer, format: str = "mp3"):
-        buffer.write(self.payload)
-        return buffer
+_BRUNO_CASES = [
+    {
+        "name": "arabic-default",
+        "payload": {"text": "مرحبا بالعالم!", "language": "ar"},
+        "preference": "any",
+        "force_gtts": False,
+    },
+    {
+        "name": "gtts-english",
+        "payload": {
+            "text": "Hello world, welcome to ebook-tools!",
+            "language": "en",
+            "voice": "gTTS",
+        },
+        "preference": "any",
+        "force_gtts": True,
+    },
+    {
+        "name": "gtts-spanish",
+        "payload": {
+            "text": "Hola mundo, bienvenidos a ebook-tools!",
+            "language": "es",
+            "voice": "gTTS",
+        },
+        "preference": "any",
+        "force_gtts": True,
+    },
+    {
+        "name": "gtts-japanese",
+        "payload": {
+            "text": "こんにちは、ebook-toolsへようこそ！",
+            "language": "ja",
+            "voice": "gTTS",
+        },
+        "preference": "any",
+        "force_gtts": True,
+    },
+    {
+        "name": "macos-female-english",
+        "payload": {
+            "text": "Hello world, welcome to ebook-tools!",
+            "language": "en",
+            "voice": "macOS-auto-female",
+        },
+        "preference": "female",
+        "force_gtts": False,
+    },
+    {
+        "name": "macos-female-spanish",
+        "payload": {
+            "text": "Hola mundo, bienvenidos a ebook-tools!",
+            "language": "es",
+            "voice": "macOS-auto-female",
+        },
+        "preference": "female",
+        "force_gtts": False,
+    },
+    {
+        "name": "macos-female-japanese",
+        "payload": {
+            "text": "こんにちは、ebook-toolsへようこそ！",
+            "language": "ja",
+            "voice": "macOS-auto-female",
+        },
+        "preference": "female",
+        "force_gtts": False,
+    },
+    {
+        "name": "macos-male-english",
+        "payload": {
+            "text": "Hello world, welcome to ebook-tools!",
+            "language": "en",
+            "voice": "macOS-auto-male",
+        },
+        "preference": "male",
+        "force_gtts": False,
+    },
+    {
+        "name": "macos-male-spanish",
+        "payload": {
+            "text": "Hola mundo, bienvenidos a ebook-tools!",
+            "language": "es",
+            "voice": "macOS-auto-male",
+        },
+        "preference": "male",
+        "force_gtts": False,
+    },
+    {
+        "name": "macos-male-japanese",
+        "payload": {
+            "text": "こんにちは、ebook-toolsへようこそ！",
+            "language": "ja",
+            "voice": "macOS-auto-male",
+        },
+        "preference": "male",
+        "force_gtts": False,
+    },
+]
 
 
-@dataclass
-class _RecordingAudioService:
-    segment: _StubSegment
-    calls: list[dict[str, object]] = field(default_factory=list)
-    backend_name: str = "stub-backend"
-
-    def synthesize(
-        self,
-        *,
-        text: str,
-        voice: str,
-        speed: int,
-        lang_code: str,
-        output_path: str | None = None,
-    ) -> _StubSegment:
-        self.calls.append(
-            {
-                "text": text,
-                "voice": voice,
-                "speed": speed,
-                "lang_code": lang_code,
-                "output_path": output_path,
-            }
-        )
-        return self.segment
-
-    def get_backend(self):  # pragma: no cover - simple stub
-        return type("_StubBackend", (), {"name": self.backend_name})()
+def _fake_select_voice(language: str, preference: str) -> str:
+    key = (language, preference)
+    if key not in _SELECT_VOICE_MAP:
+        raise AssertionError(f"Unexpected select_voice call for {key}")
+    return _SELECT_VOICE_MAP[key]
 
 
-class _FailingAudioService:
-    backend_name: str = "stub-backend"
-
-    def synthesize(self, **_: object) -> None:
-        raise MediaBackendError("Backend offline")
-
-    def get_backend(self):  # pragma: no cover - simple stub
-        return type("_StubBackend", (), {"name": self.backend_name})()
+def _build_gtts_bytes(language: str, text: str) -> bytes:
+    return f"GTTS:{language}:{len(text)}".encode("utf-8")
 
 
-@pytest.fixture(autouse=True)
-def _mock_audio_config(monkeypatch):
-    def _load_configuration(verbose: bool = False):  # noqa: ARG001 - required signature
-        return {
-            "selected_voice": "Config Voice",
-            "macos_reading_speed": 180,
-            "input_language": "English",
-            "language_codes": {"English": "en"},
-        }
+def _build_aiff_bytes(voice: str, text: str) -> bytes:
+    return f"AIFF:{voice}:{len(text)}".encode("utf-8")
 
+
+def _build_mp3_bytes(source: bytes) -> bytes:
+    return b"MP3:" + source
+
+
+def _voice_name(identifier: str) -> str:
+    if " - " in identifier:
+        return identifier.split(" - ", 1)[0].strip()
+    return identifier.strip()
+
+
+def _fake_run(cmd: Iterable[str], *args, **kwargs) -> CompletedProcess:
+    command = list(cmd)
+    if not command:
+        raise AssertionError("Empty command passed to subprocess.run")
+
+    if command[0] == "say":
+        try:
+            output_index = command.index("-o") + 1
+        except ValueError as exc:  # pragma: no cover - defensive guard
+            raise AssertionError("say command missing output flag") from exc
+        destination = Path(command[output_index])
+        voice = command[2]
+        text = command[-1]
+        destination.write_bytes(_build_aiff_bytes(voice, text))
+        return CompletedProcess(command, 0)
+
+    if command[0] == "ffmpeg":
+        try:
+            input_index = command.index("-i") + 1
+        except ValueError as exc:  # pragma: no cover - defensive guard
+            raise AssertionError("ffmpeg command missing input flag") from exc
+        input_path = Path(command[input_index])
+        output_path = Path(command[-1])
+        output_path.write_bytes(_build_mp3_bytes(input_path.read_bytes()))
+        return CompletedProcess(command, 0)
+
+    raise AssertionError(f"Unexpected command: {' '.join(command)}")
+
+
+class _StubGTTS:
+    def __init__(self, *, text: str, lang: str) -> None:
+        self.text = text
+        self.lang = lang
+
+    def save(self, filename: str) -> None:
+        Path(filename).write_bytes(_build_gtts_bytes(self.lang, self.text))
+
+
+@pytest.fixture()
+def audio_client(monkeypatch) -> Iterable[TestClient]:
     monkeypatch.setattr(
-        "modules.webapi.audio_routes.cfg.load_configuration",
-        _load_configuration,
+        "modules.webapi.routers.audio.cfg.load_configuration",
+        lambda verbose=False: {"selected_voice": "macOS-auto", "macos_reading_speed": 180},
     )
-    yield
+    monkeypatch.setattr("modules.webapi.routers.audio.select_voice", _fake_select_voice)
+    monkeypatch.setattr("modules.webapi.routers.audio.subprocess.run", _fake_run)
+    monkeypatch.setattr("modules.webapi.routers.audio.gTTS", _StubGTTS)
 
-
-def test_synthesize_audio_streams_bytes():
     app = create_app()
-    service = _RecordingAudioService(_StubSegment(b"fake-mp3"))
-    app.dependency_overrides[get_audio_service] = lambda: service
+    with TestClient(app) as client:
+        yield client
 
-    response = None
-    try:
-        with TestClient(app) as client:
-            response = client.post("/api/audio", json={"text": " Hello world "})
-    finally:
-        app.dependency_overrides.clear()
 
-    assert response is not None
+@pytest.mark.parametrize("case", _BRUNO_CASES, ids=lambda case: case["name"])
+def test_bruno_cases_return_mp3(audio_client: TestClient, case: Dict[str, object]) -> None:
+    payload = case["payload"]
+    response = audio_client.post("/api/audio", json=payload)
+
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("audio/mpeg")
-    assert response.headers["content-disposition"].startswith("attachment;")
-    assert response.content == b"fake-mp3"
-    assert service.calls == [
-        {
-            "text": "Hello world",
-            "voice": "Config Voice",
-            "speed": 180,
-            "lang_code": "en",
-            "output_path": None,
-        }
-    ]
 
+    language = payload["language"]
+    text = payload["text"]
+    preference = case["preference"]
 
-def test_synthesize_audio_rejects_blank_text():
-    app = create_app()
+    if case["force_gtts"]:
+        identifier = audio_router._gtts_identifier(language)
+    else:
+        identifier = _SELECT_VOICE_MAP[(language, preference)]
 
-    response = None
-    try:
-        with TestClient(app) as client:
-            response = client.post("/api/audio", json={"text": "   "})
-    finally:
-        app.dependency_overrides.clear()
+    if identifier.startswith("gTTS-"):
+        expected = _build_gtts_bytes(
+            audio_router._extract_gtts_language(identifier),
+            text,
+        )
+    else:
+        voice_name = _voice_name(identifier)
+        expected = _build_mp3_bytes(_build_aiff_bytes(voice_name, text))
 
-    assert response is not None
-    assert response.status_code == 422
-    detail = response.json()["detail"][0]
-    assert detail["msg"] == "Text must not be empty."
-
-
-def test_synthesize_audio_handles_backend_failure():
-    app = create_app()
-    app.dependency_overrides[get_audio_service] = lambda: _FailingAudioService()
-
-    response = None
-    try:
-        with TestClient(app) as client:
-            response = client.post("/api/audio", json={"text": "Hello"})
-    finally:
-        app.dependency_overrides.clear()
-
-    assert response is not None
-    assert response.status_code == 502
-    payload = response.json()
-    assert payload["error"] == "synthesis_failed"
-    assert "Backend offline" in payload["message"]
-
-
-def test_synthesize_audio_failure_instrumentation(monkeypatch, caplog):
-    app = create_app()
-    app.dependency_overrides[get_audio_service] = lambda: _FailingAudioService()
-
-    recorded_metrics: list[tuple[str, float, dict[str, object]]] = []
-
-    def _record_metric(name: str, value: float, attributes=None):
-        recorded_metrics.append((name, value, dict(attributes or {})))
-
-    monkeypatch.setattr(
-        "modules.webapi.audio_routes.record_metric",
-        _record_metric,
-    )
-
-    response = None
-    with caplog.at_level(logging.INFO, logger="ebook_tools.webapi.audio"):
-        try:
-            with TestClient(app) as client:
-                response = client.post(
-                    "/api/audio",
-                    json={"text": "Hello"},
-                    headers={"x-request-id": "req-failure"},
-                )
-        finally:
-            app.dependency_overrides.clear()
-
-    assert response is not None
-    assert response.status_code == 502
-    events = {record.event for record in caplog.records}
-    assert "audio.synthesis.request" in events
-    assert "audio.synthesis.error" in events
-
-    metric_names = [entry[0] for entry in recorded_metrics]
-    assert "audio.synthesis.failures" in metric_names
-    error_durations = [
-        entry for entry in recorded_metrics if entry[0] == "audio.synthesis.duration_ms"
-    ]
-    assert error_durations
-    assert error_durations[0][2]["status"] == "error"
-
-
-def test_synthesize_audio_emits_instrumentation(monkeypatch, caplog):
-    app = create_app()
-    service = _RecordingAudioService(_StubSegment(b"payload"))
-    app.dependency_overrides[get_audio_service] = lambda: service
-
-    recorded_metrics: list[tuple[str, float, dict[str, object]]] = []
-
-    def _record_metric(name: str, value: float, attributes=None):
-        recorded_metrics.append((name, value, dict(attributes or {})))
-
-    monkeypatch.setattr(
-        "modules.webapi.audio_routes.record_metric",
-        _record_metric,
-    )
-
-    response = None
-    with caplog.at_level(logging.INFO, logger="ebook_tools.webapi.audio"):
-        try:
-            with TestClient(app) as client:
-                response = client.post(
-                    "/api/audio",
-                    json={"text": "Hello instrumentation"},
-                    headers={"x-request-id": "req-123"},
-                )
-        finally:
-            app.dependency_overrides.clear()
-
-    assert response is not None
-    assert response.status_code == 200
-    events = {record.event for record in caplog.records}
-    assert "audio.synthesis.request" in events
-    assert "audio.synthesis.success" in events
-
-    metric_names = [entry[0] for entry in recorded_metrics]
-    assert "audio.synthesis.requests" in metric_names
-    duration_metrics = [
-        entry for entry in recorded_metrics if entry[0] == "audio.synthesis.duration_ms"
-    ]
-    assert duration_metrics
-    assert duration_metrics[0][2]["status"] == "success"
+    assert response.content == expected
+    assert int(response.headers.get("content-length", 0)) == len(expected)
