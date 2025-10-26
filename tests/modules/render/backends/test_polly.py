@@ -33,10 +33,26 @@ class _DummyAudioClient:
 def test_normalize_api_voice_handles_auto_identifiers() -> None:
     assert _normalize_api_voice(None) is None
     assert _normalize_api_voice("", language="en") is None
-    assert _normalize_api_voice("macOS-auto", language="en") == "0"
-    assert _normalize_api_voice("macOS-auto-male", language="en") == "0"
-    assert _normalize_api_voice("macOS-auto", language="ar") is None
-    assert _normalize_api_voice("macOS-auto-male", language="ar") is None
+    assert (
+        _normalize_api_voice("macOS-auto", language="en", sample_text="Hello there")
+        == "0"
+    )
+    assert (
+        _normalize_api_voice("macOS-auto-male", language="en", sample_text="Numbers 123")
+        == "0"
+    )
+    assert (
+        _normalize_api_voice(
+            "macOS-auto", language="en", sample_text="مرحبا بالعالم"
+        )
+        is None
+    )
+    assert (
+        _normalize_api_voice(
+            "macOS-auto-male", language="ar", sample_text="مرحبا بالعالم"
+        )
+        is None
+    )
     assert _normalize_api_voice("gTTS", language="en") is None
     assert _normalize_api_voice("Alloy", language="en") == "Alloy"
 
