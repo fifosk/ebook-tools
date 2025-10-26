@@ -7,10 +7,26 @@ import subprocess
 import sys
 from typing import Dict, List, Optional
 
+from modules.audio.tts import macos_voice_inventory
+
 
 _VOICE_PATTERN = re.compile(
     r"^(?P<name>.+?)\s{2,}(?:\((?P<quality>[^)]+)\)\s+)?(?P<lang>[A-Za-z0-9_\-]+)\s*$"
 )
+
+
+def _normalize_quality(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _normalize_gender(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    stripped = value.strip()
+    return stripped.capitalize() if stripped else None
 
 
 def parse_say_voice_line(line: str) -> Optional[Dict[str, Optional[str]]]:
@@ -33,10 +49,28 @@ def parse_say_voice_line(line: str) -> Optional[Dict[str, Optional[str]]]:
     if not name or not lang:
         return None
 
-    return {"name": name, "lang": lang, "quality": quality}
+    return {"name": name, "lang": lang, "quality": quality, "gender": None}
 
 
-def _collect_say_voices() -> List[Dict[str, Optional[str]]]:
+def _collect_say_voices_from_inventory() -> List[Dict[str, Optional[str]]]:
+    """Return voice metadata using :mod:`modules.audio.tts` inventory helpers."""
+
+    voices = macos_voice_inventory()
+    if not voices:
+        return []
+
+    return [
+        {
+            "name": name,
+            "lang": locale,
+            "quality": _normalize_quality(quality),
+            "gender": _normalize_gender(gender),
+        }
+        for name, locale, quality, gender in voices
+    ]
+
+
+def _collect_say_voices_via_command() -> List[Dict[str, Optional[str]]]:
     """Return available macOS voices using the ``say`` command."""
 
     if sys.platform != "darwin":  # pragma: no cover - platform specific
@@ -53,6 +87,13 @@ def _collect_say_voices() -> List[Dict[str, Optional[str]]]:
         if parsed:
             voices.append(parsed)
     return voices
+
+
+def _collect_say_voices() -> List[Dict[str, Optional[str]]]:
+    inventory = _collect_say_voices_from_inventory()
+    if inventory:
+        return inventory
+    return _collect_say_voices_via_command()
 
 
 _SAY_VOICE_CACHE: tuple[Dict[str, Optional[str]], ...] = tuple(_collect_say_voices())

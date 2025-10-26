@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import json
 import os
 import plistlib
 import subprocess
 import sys
 import tempfile
+import textwrap
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
@@ -107,11 +109,99 @@ def _macos_voice_gender_map() -> Dict[str, Optional[str]]:
 
 
 @lru_cache(maxsize=1)
+def _query_macos_voice_inventory_via_avfoundation() -> List[Tuple[str, str, str, Optional[str]]]:
+    """Return macOS voice metadata using ``AVFoundation`` if available."""
+
+    if sys.platform != "darwin":  # pragma: no cover - platform specific
+        return []
+
+    script = textwrap.dedent(
+        """
+        import json
+        from AVFoundation import AVSpeechSynthesisVoice
+
+        QUALITY_MAP = {
+            0: "Default",
+            1: "Default",
+            2: "Enhanced",
+            3: "Premium",
+        }
+        GENDER_MAP = {
+            1: "male",
+            2: "female",
+        }
+
+        voices = []
+        for voice in AVSpeechSynthesisVoice.speechVoices():
+            voices.append(
+                {
+                    "name": voice.name(),
+                    "language": voice.language(),
+                    "quality": QUALITY_MAP.get(voice.quality()),
+                    "gender": GENDER_MAP.get(voice.gender()),
+                }
+            )
+
+        print(json.dumps(voices))
+        """
+    )
+
+    executable = sys.executable or "python3"
+    try:
+        output = subprocess.check_output(
+            [executable, "-c", script], universal_newlines=True
+        )
+    except Exception as exc:  # pragma: no cover - platform specific
+        logger.debug("Unable to query macOS voices via AVFoundation: %s", exc)
+        return []
+
+    try:
+        data = json.loads(output)
+    except json.JSONDecodeError as exc:  # pragma: no cover - defensive parsing
+        logger.debug("Unable to parse AVFoundation voice data: %s", exc)
+        return []
+
+    voices: List[Tuple[str, str, str, Optional[str]]] = []
+    for entry in data:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name")
+        language = entry.get("language")
+        if not name or not language:
+            continue
+        quality_value = entry.get("quality") or ""
+        if isinstance(quality_value, str):
+            lowered_quality = quality_value.strip().lower()
+            if lowered_quality == "premium":
+                quality = "Premium"
+            elif lowered_quality == "enhanced":
+                quality = "Enhanced"
+            elif lowered_quality == "default":
+                quality = ""
+            else:
+                quality = quality_value.strip()
+        else:
+            quality = ""
+        gender_value = entry.get("gender")
+        gender: Optional[str]
+        if isinstance(gender_value, str):
+            gender = gender_value.strip().lower() or None
+        else:
+            gender = None
+        voices.append((name, language, quality, gender))
+    return voices
+
+
+@lru_cache(maxsize=1)
 def _cached_macos_voice_inventory() -> Tuple[Tuple[str, str, str, Optional[str]], ...]:
     """Return macOS voice inventory as tuples of (voice, locale, quality, gender)."""
 
     if sys.platform != "darwin":  # pragma: no cover - platform specific
         return tuple()
+
+    avfoundation_voices = _query_macos_voice_inventory_via_avfoundation()
+    if avfoundation_voices:
+        return tuple(avfoundation_voices)
     try:
         output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
     except Exception as exc:  # pragma: no cover - platform specific
@@ -143,7 +233,7 @@ def macos_voice_inventory(*, debug_enabled: bool = False) -> List[Tuple[str, str
 
     voices = list(_cached_macos_voice_inventory())
     if debug_enabled and sys.platform == "darwin" and not voices:  # pragma: no cover - platform specific
-        logger.debug("No macOS voices discovered via `say -v ?`.")
+        logger.debug("No macOS voices discovered via AVFoundation or `say -v ?`.")
     return voices
 
 

@@ -26,6 +26,15 @@ _SELECT_VOICE_MAP: Dict[Tuple[str, str], str] = {
     ("ja", "male"): "Ichiro - ja_JP - (Premium) - Male",
 }
 
+_MACOS_INVENTORY: Tuple[Tuple[str, str, str, str], ...] = (
+    ("Ava", "en_US", "Enhanced", "female"),
+    ("Alex", "en_US", "Enhanced", "male"),
+    ("Carla", "es_MX", "Enhanced", "female"),
+    ("Miguel", "es_ES", "Enhanced", "male"),
+    ("Kyoko", "ja_JP", "Premium", "female"),
+    ("Ichiro", "ja_JP", "Premium", "male"),
+)
+
 _BRUNO_CASES = [
     {
         "name": "arabic-default",
@@ -151,6 +160,19 @@ def _voice_name(identifier: str) -> str:
     return identifier.strip()
 
 
+def _expected_metadata(identifier: str) -> Dict[str, str]:
+    name = _voice_name(identifier)
+    for voice_name, locale, quality, gender in _MACOS_INVENTORY:
+        if voice_name == name:
+            return {
+                "name": voice_name,
+                "lang": locale,
+                "quality": quality,
+                "gender": gender.capitalize(),
+            }
+    raise AssertionError(f"No metadata for identifier {identifier}")
+
+
 def _fake_run(cmd: Iterable[str], *args, **kwargs) -> CompletedProcess:
     command = list(cmd)
     if not command:
@@ -198,6 +220,11 @@ def audio_client(monkeypatch) -> Iterable[TestClient]:
     monkeypatch.setattr("modules.webapi.routers.audio.select_voice", _fake_select_voice)
     monkeypatch.setattr("modules.webapi.routers.audio.subprocess.run", _fake_run)
     monkeypatch.setattr("modules.webapi.routers.audio.gTTS", _StubGTTS)
+    monkeypatch.setattr(
+        "modules.webapi.routers.audio.macos_voice_inventory",
+        lambda: list(_MACOS_INVENTORY),
+    )
+    monkeypatch.setattr("modules.webapi.routers.audio.log_mgr.console_info", lambda *_, **__: None)
 
     app = create_app()
     with TestClient(app) as client:
@@ -221,14 +248,25 @@ def test_bruno_cases_return_mp3(audio_client: TestClient, case: Dict[str, object
     else:
         identifier = _SELECT_VOICE_MAP[(language, preference)]
 
+    assert response.headers["x-selected-voice"] == identifier
+    assert response.headers["x-synthesis-engine"] == (
+        "gtts" if identifier.startswith("gTTS-") else "macos"
+    )
+
     if identifier.startswith("gTTS-"):
         expected = _build_gtts_bytes(
             audio_router._extract_gtts_language(identifier),
             text,
         )
+        assert "x-macos-voice-name" not in response.headers
     else:
         voice_name = _voice_name(identifier)
         expected = _build_mp3_bytes(_build_aiff_bytes(voice_name, text))
+        metadata = _expected_metadata(identifier)
+        assert response.headers["x-macos-voice-name"] == metadata["name"]
+        assert response.headers["x-macos-voice-lang"] == metadata["lang"]
+        assert response.headers["x-macos-voice-quality"] == metadata["quality"]
+        assert response.headers["x-macos-voice-gender"] == metadata["gender"]
 
     assert response.content == expected
     assert int(response.headers.get("content-length", 0)) == len(expected)
@@ -236,8 +274,8 @@ def test_bruno_cases_return_mp3(audio_client: TestClient, case: Dict[str, object
 
 def test_list_voices_returns_cached_inventory(audio_client: TestClient, monkeypatch) -> None:
     macos_voices = [
-        {"name": "Alex", "lang": "en_US", "quality": "Enhanced"},
-        {"name": "Sofia", "lang": "es_ES", "quality": None},
+        {"name": "Alex", "lang": "en_US", "quality": "Enhanced", "gender": "Male"},
+        {"name": "Sofia", "lang": "es_ES", "quality": None, "gender": None},
     ]
     gtts_languages = (
         {"code": "en", "name": "English"},
@@ -268,9 +306,11 @@ def test_match_returns_macos_voice(audio_client: TestClient) -> None:
     )
 
     assert response.status_code == 200
+    expected_voice = _SELECT_VOICE_MAP[("en", "male")]
     assert response.json() == {
         "engine": "macos",
-        "voice": _SELECT_VOICE_MAP[("en", "male")],
+        "voice": expected_voice,
+        "macos_voice": _expected_metadata(expected_voice),
     }
 
 
@@ -284,4 +324,5 @@ def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
     assert response.json() == {
         "engine": "gtts",
         "voice": _SELECT_VOICE_MAP[("es", "any")],
+        "macos_voice": None,
     }
