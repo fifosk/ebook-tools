@@ -589,6 +589,8 @@ main {
   font-weight: 600;
   transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   width: 100%;
+  box-shadow: none;
+  transform: none;
 }
 
 .session-info__button:hover,
@@ -596,6 +598,8 @@ main {
   background: var(--color-button-secondary-hover-bg);
   border-color: var(--color-button-secondary-hover-border);
   outline: none;
+  box-shadow: none;
+  transform: none;
 }
 
 .session-info__button--logout {
