@@ -3,6 +3,7 @@
 from ..file_locator import FileLocator
 from .job import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
 from .execution_adapter import PipelineExecutionAdapter
+from .executor import PipelineJobExecutor, PipelineJobExecutorHooks
 from .job_storage import JobStorageCoordinator
 from .job_tuner import PipelineJobTuner
 from .manager import PipelineJobManager
@@ -12,6 +13,8 @@ from .stores import FileJobStore, InMemoryJobStore, JobStore, RedisJobStore
 
 __all__ = [
     "PipelineJobManager",
+    "PipelineJobExecutor",
+    "PipelineJobExecutorHooks",
     "JobStorageCoordinator",
     "PipelineJobTuner",
     "PipelineExecutionAdapter",
