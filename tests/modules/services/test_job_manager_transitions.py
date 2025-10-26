@@ -129,6 +129,41 @@ def test_cancel_job_requires_authorized_non_terminal_state(manager: PipelineJobM
         manager.cancel_job(terminal.job_id, user_id="alice", user_role="editor")
 
 
+def test_cancel_job_preserves_generated_files(manager: PipelineJobManager) -> None:
+    job = manager.submit(_build_request(), user_id="alice", user_role="editor")
+    job.status = PipelineJobStatus.RUNNING
+    manager._jobs[job.job_id] = job
+
+    generated_payload = {
+        "chunks": [
+            {
+                "chunk_id": "chunk-1",
+                "files": [
+                    {
+                        "type": "audio",
+                        "path": "audio/chunk-1.mp3",
+                    }
+                ],
+            }
+        ],
+        "files": [
+            {
+                "chunk_id": "chunk-1",
+                "type": "audio",
+                "path": "audio/chunk-1.mp3",
+            }
+        ],
+    }
+
+    assert job.tracker is not None
+    job.tracker.get_generated_files = lambda: generated_payload  # type: ignore[assignment]
+
+    manager.cancel_job(job.job_id, user_id="alice", user_role="editor")
+
+    restored = manager.get(job.job_id, user_id="alice", user_role="editor")
+    assert restored.generated_files == generated_payload
+
+
 def test_delete_job_requires_authorized_terminal_state(manager: PipelineJobManager) -> None:
     job = manager.submit(_build_request(), user_id="alice", user_role="editor")
     job.status = PipelineJobStatus.RUNNING

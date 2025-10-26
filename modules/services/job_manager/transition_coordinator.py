@@ -163,6 +163,11 @@ class PipelineJobTransitionCoordinator:
                 raise ValueError(
                     f"Cannot cancel job {job.job_id} in terminal state {job.status.value}"
                 )
+            tracker = job.tracker
+            if tracker is not None:
+                generated_snapshot = tracker.get_generated_files()
+                if generated_snapshot:
+                    job.generated_files = copy.deepcopy(generated_snapshot)
             event = job.stop_event
             if event is None and job.request is not None:
                 event = job.request.stop_event
