@@ -10,20 +10,20 @@ from typing import Any, Dict, List, Literal, Optional
 from PIL import Image
 from pydantic import Base64Bytes, BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from ..core.config import PipelineConfig
-from ..progress_tracker import ProgressEvent, ProgressSnapshot
-from ..services.file_locator import FileLocator
-from ..services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
-from ..video.backends import VideoRenderOptions
-from ..video.jobs import (
+from ...core.config import PipelineConfig
+from ...progress_tracker import ProgressEvent, ProgressSnapshot
+from ...services.file_locator import FileLocator
+from ...services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
+from ...video.backends import VideoRenderOptions
+from ...video.jobs import (
     VideoAudioSource,
     VideoJob,
     VideoJobResult,
     VideoJobStatus,
     VideoRenderTask,
 )
-from ..video.slide_renderer import SlideRenderOptions
-from .jobs import PipelineJob, PipelineJobStatus
+from ...video.slide_renderer import SlideRenderOptions
+from ..jobs import PipelineJob, PipelineJobStatus
 
 
 class SessionUserPayload(BaseModel):
@@ -757,3 +757,10 @@ class VideoJobStatusResponse(BaseModel):
             result=result_payload,
             generated_files=generated_files,
         )
+
+from .media import (
+    MediaErrorResponse,
+    MediaGenerationRequestPayload,
+    MediaGenerationResponse,
+)
+

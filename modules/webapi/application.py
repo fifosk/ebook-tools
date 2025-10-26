@@ -23,6 +23,8 @@ from .admin_routes import router as admin_router
 from .audio_routes import router as audio_router
 from .auth_routes import router as auth_router
 from .dependencies import get_runtime_context_provider
+from .media_routes import register_exception_handlers as register_media_exception_handlers
+from .media_routes import router as media_router
 from .routes import router, storage_router
 from .video_routes import router as video_router
 
@@ -215,6 +217,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="ebook-tools API", version="0.1.0")
 
+    register_media_exception_handlers(app)
+
     @app.on_event("startup")
     async def _prepare_runtime() -> None:
         try:
@@ -240,6 +244,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
     app.include_router(audio_router)
+    app.include_router(media_router)
     app.include_router(video_router)
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
