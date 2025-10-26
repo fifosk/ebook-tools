@@ -23,7 +23,7 @@ from ...video.jobs import (
     VideoRenderTask,
 )
 from ...video.slide_renderer import SlideRenderOptions
-from .jobs import PipelineJob, PipelineJobStatus
+from ..jobs import PipelineJob, PipelineJobStatus
 
 
 class SessionUserPayload(BaseModel):
