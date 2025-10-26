@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import MediaList from './MediaList';
@@ -138,6 +138,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
+  const textContentCache = useRef(new Map<string, string>());
+  const [textPreview, setTextPreview] = useState<{ url: string; content: string } | null>(null);
+  const [textLoading, setTextLoading] = useState(false);
+  const [textError, setTextError] = useState<string | null>(null);
   const combinedMedia = useMemo(
     () =>
       (['text', 'audio', 'video'] as MediaCategory[]).flatMap((category) =>
@@ -163,6 +167,126 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
   }, [filteredMedia, selectedItemId]);
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
+
+  const handleAdvanceMedia = useCallback(
+    (category: MediaCategory) => {
+      setSelectedItemIds((current) => {
+        const playableItems = media[category].filter(
+          (item) => typeof item.url === 'string' && item.url.length > 0,
+        );
+        if (playableItems.length === 0) {
+          return current;
+        }
+
+        const currentId = current[category];
+        const currentIndex = currentId
+          ? playableItems.findIndex((item) => item.url === currentId)
+          : -1;
+        const nextIndex = currentIndex + 1;
+        if (nextIndex >= playableItems.length || nextIndex < 0) {
+          return current;
+        }
+
+        const nextItem = playableItems[nextIndex];
+        if (!nextItem?.url || nextItem.url === currentId) {
+          return current;
+        }
+
+        return { ...current, [category]: nextItem.url };
+      });
+    },
+    [media],
+  );
+
+  useEffect(() => {
+    if (selectedMediaType !== 'text') {
+      return;
+    }
+
+    const url = selectedItem?.url;
+    if (!url) {
+      setTextPreview(null);
+      setTextError(null);
+      setTextLoading(false);
+      return;
+    }
+
+    if (textContentCache.current.has(url)) {
+      const cached = textContentCache.current.get(url) ?? '';
+      setTextPreview({ url, content: cached });
+      setTextError(null);
+      setTextLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    setTextLoading(true);
+    setTextError(null);
+    setTextPreview(null);
+
+    if (typeof fetch !== 'function') {
+      setTextLoading(false);
+      setTextPreview(null);
+      setTextError('Document preview is unavailable in this environment.');
+      return;
+    }
+
+    fetch(url)
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`Failed to load document (status ${response.status})`);
+        }
+        return response.text();
+      })
+      .then((raw) => {
+        if (cancelled) {
+          return;
+        }
+
+        let extracted = raw;
+        try {
+          if (typeof window !== 'undefined' && 'DOMParser' in window) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(raw, 'text/html');
+            const text = doc.body?.textContent;
+            if (text && text.trim().length > 0) {
+              extracted = text;
+            }
+          }
+        } catch (parseError) {
+          console.warn('Unable to parse text document', parseError);
+        }
+
+        const normalised = extracted
+          .replace(/\u00a0/g, ' ')
+          .replace(/\r\n/g, '\n')
+          .replace(/\n{3,}/g, '\n\n')
+          .trim();
+
+        textContentCache.current.set(url, normalised);
+        setTextPreview({ url, content: normalised });
+      })
+      .catch((requestError) => {
+        if (cancelled) {
+          return;
+        }
+        const message =
+          requestError instanceof Error
+            ? requestError.message
+            : 'Failed to load document.';
+        setTextError(message);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTextLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedMediaType, selectedItem?.url]);
 
   if (!jobId) {
     return (
@@ -256,6 +380,7 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                             activeId={selectedItemIds.audio}
                             onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
                             autoPlay
+                            onPlaybackEnded={() => handleAdvanceMedia('audio')}
                           />
                         ) : null}
                         {tab.key === 'video' ? (
@@ -264,19 +389,29 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                             activeId={selectedItemIds.video}
                             onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
                             autoPlay
+                            onPlaybackEnded={() => handleAdvanceMedia('video')}
                           />
                         ) : null}
                         {tab.key === 'text' ? (
                           <div className="player-panel__document">
                             {selectedItem ? (
-                              <iframe
-                                key={selectedItem.url}
-                                src={selectedItem.url}
-                                title={selectedItem.name ?? 'Document preview'}
-                                className="player-panel__iframe"
-                                loading="lazy"
-                                allowFullScreen
-                              />
+                              textLoading ? (
+                                <div className="player-panel__document-status" role="status">
+                                  Loading document…
+                                </div>
+                              ) : textError ? (
+                                <div className="player-panel__document-error" role="alert">
+                                  {textError}
+                                </div>
+                              ) : textPreview ? (
+                                <article className="player-panel__document-body" data-testid="player-panel-document">
+                                  <pre className="player-panel__document-text">{textPreview.content}</pre>
+                                </article>
+                              ) : (
+                                <div className="player-panel__document-status" role="status">
+                                  Preparing document preview…
+                                </div>
+                              )
                             ) : (
                               <div className="player-panel__empty-viewer" role="status">
                                 Select a file to preview.

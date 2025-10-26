@@ -1516,12 +1516,45 @@ button.link-button:focus {
   flex-direction: column;
 }
 
-.player-panel__iframe {
+.player-panel__document-body {
   flex: 1;
   min-height: 0;
   border: 1px solid rgba(148, 163, 184, 0.25);
   border-radius: 0.75rem;
   background: rgba(15, 23, 42, 0.65);
+  padding: 1.5rem;
+  overflow: auto;
+}
+
+.player-panel__document-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+}
+
+.player-panel__document-status,
+.player-panel__document-error {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  padding: 1.25rem;
+  text-align: center;
+}
+
+.player-panel__document-status {
+  border: 1px dashed var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  background: rgba(15, 23, 42, 0.35);
+}
+
+.player-panel__document-error {
+  border: 1px solid var(--color-alert-border);
+  color: var(--color-alert-text);
+  background: var(--color-alert-bg);
 }
 
 .player-panel__empty-viewer {

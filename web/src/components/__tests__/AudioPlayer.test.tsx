@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
 import AudioPlayer, { AudioFile } from '../AudioPlayer';
@@ -24,14 +24,30 @@ describe('AudioPlayer', () => {
     };
     const onSelect = vi.fn();
 
+    const onEnded = vi.fn();
+
     const { rerender } = render(
-      <AudioPlayer files={[intro]} activeId={intro.id} onSelectFile={onSelect} autoPlay />,
+      <AudioPlayer
+        files={[intro]}
+        activeId={intro.id}
+        onSelectFile={onSelect}
+        autoPlay
+        onPlaybackEnded={onEnded}
+      />,
     );
 
     expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
 
-    rerender(<AudioPlayer files={[intro, chapter]} activeId={intro.id} onSelectFile={onSelect} autoPlay />);
+    rerender(
+      <AudioPlayer
+        files={[intro, chapter]}
+        activeId={intro.id}
+        onSelectFile={onSelect}
+        autoPlay
+        onPlaybackEnded={onEnded}
+      />,
+    );
 
     expect(screen.getByRole('button', { name: 'Introduction' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', intro.url);
@@ -40,9 +56,21 @@ describe('AudioPlayer', () => {
 
     expect(onSelect).toHaveBeenCalledWith('chapter-1');
 
-    rerender(<AudioPlayer files={[chapter]} activeId={chapter.id} onSelectFile={onSelect} autoPlay />);
+    rerender(
+      <AudioPlayer
+        files={[chapter]}
+        activeId={chapter.id}
+        onSelectFile={onSelect}
+        autoPlay
+        onPlaybackEnded={onEnded}
+      />,
+    );
 
     expect(screen.getByRole('button', { name: 'Chapter 1' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('audio-player')).toHaveAttribute('src', chapter.url);
+
+    fireEvent.ended(screen.getByTestId('audio-player'));
+
+    expect(onEnded).toHaveBeenCalledTimes(1);
   });
 });

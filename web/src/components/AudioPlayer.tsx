@@ -9,9 +9,16 @@ interface AudioPlayerProps {
   activeId: string | null;
   onSelectFile: (fileId: string) => void;
   autoPlay?: boolean;
+  onPlaybackEnded?: () => void;
 }
 
-export default function AudioPlayer({ files, activeId, onSelectFile, autoPlay = false }: AudioPlayerProps) {
+export default function AudioPlayer({
+  files,
+  activeId,
+  onSelectFile,
+  autoPlay = false,
+  onPlaybackEnded,
+}: AudioPlayerProps) {
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Track ${index + 1}`
@@ -44,6 +51,7 @@ export default function AudioPlayer({ files, activeId, onSelectFile, autoPlay = 
         controls
         src={activeFile.url}
         autoPlay={autoPlay}
+        onEnded={onPlaybackEnded}
       >
         Your browser does not support the audio element.
       </audio>

@@ -10,9 +10,16 @@ interface VideoPlayerProps {
   activeId: string | null;
   onSelectFile: (fileId: string) => void;
   autoPlay?: boolean;
+  onPlaybackEnded?: () => void;
 }
 
-export default function VideoPlayer({ files, activeId, onSelectFile, autoPlay = false }: VideoPlayerProps) {
+export default function VideoPlayer({
+  files,
+  activeId,
+  onSelectFile,
+  autoPlay = false,
+  onPlaybackEnded,
+}: VideoPlayerProps) {
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Video ${index + 1}`
@@ -47,6 +54,7 @@ export default function VideoPlayer({ files, activeId, onSelectFile, autoPlay = 
         poster={activeFile.poster}
         autoPlay={autoPlay}
         playsInline
+        onEnded={onPlaybackEnded}
       >
         Your browser does not support the video element.
       </video>
