@@ -14,6 +14,8 @@ from ..audio.api import AudioService
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..user_management import AuthService, LocalUserStore, SessionManager
+from ..video.api import VideoService
+from ..video.jobs import VideoJobManager
 from .jobs import PipelineJobManager
 
 
@@ -128,6 +130,20 @@ def get_audio_service() -> AudioService:
 
     config = cfg.load_configuration(verbose=False)
     return AudioService(config=config)
+
+
+@lru_cache
+def get_video_service() -> VideoService:
+    """Return a configured :class:`VideoService` instance."""
+
+    return VideoService()
+
+
+@lru_cache
+def get_video_job_manager() -> VideoJobManager:
+    """Return the process-wide :class:`VideoJobManager` instance."""
+
+    return VideoJobManager()
 
 
 def _expand_path(path_value: Optional[str]) -> Optional[Path]:
