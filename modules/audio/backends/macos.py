@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import tempfile
 from typing import Optional
 
 from pydub import AudioSegment
 
 from modules import config_manager as cfg
+from modules.media.command_runner import run_command
+from modules.media.exceptions import CommandExecutionError
 
 from .base import BaseTTSBackend, TTSBackendError
 
@@ -49,19 +50,20 @@ class MacOSTTSBackend(BaseTTSBackend):
             handle.close()
             destination = tmp_file
 
+        cmd = [
+            self._resolve_executable(),
+            "-v",
+            voice,
+            "-r",
+            str(speed),
+            "-o",
+            destination,
+            text,
+        ]
+
         try:
-            cmd = [
-                self._resolve_executable(),
-                "-v",
-                voice,
-                "-r",
-                str(speed),
-                "-o",
-                destination,
-                text,
-            ]
-            subprocess.run(cmd, check=True)
-        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            run_command(cmd)
+        except CommandExecutionError as exc:
             raise TTSBackendError("macOS TTS synthesis failed") from exc
 
         try:

@@ -7,8 +7,10 @@ from typing import Optional
 
 from pydub import AudioSegment
 
+from modules.media.exceptions import MediaBackendError
 
-class TTSBackendError(RuntimeError):
+
+class TTSBackendError(MediaBackendError):
     """Raised when a backend fails to synthesize audio."""
 
 

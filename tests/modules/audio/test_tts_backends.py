@@ -1,8 +1,10 @@
 import types
 
+import pytest
 from pydub import AudioSegment
 
-from modules.audio.backends import GTTSBackend, MacOSTTSBackend, get_tts_backend
+from modules.audio.backends import GTTSBackend, MacOSTTSBackend, TTSBackendError, get_tts_backend
+from modules.media.exceptions import CommandExecutionError
 
 
 def test_get_tts_backend_prefers_config_override():
@@ -31,9 +33,9 @@ def test_get_tts_backend_respects_executable_override():
 def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_path):
     invoked_commands: list[list[str]] = []
 
-    def fake_run(cmd, check):
-        invoked_commands.append(cmd)
-        assert check is True
+    def fake_run_command(command, **kwargs):
+        invoked_commands.append(list(command))
+        assert kwargs.get("check", True) is True
 
     dummy_audio = AudioSegment.silent(duration=100)
 
@@ -41,7 +43,7 @@ def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_
         assert format == "aiff"
         return dummy_audio
 
-    monkeypatch.setattr("modules.audio.backends.macos.subprocess.run", fake_run)
+    monkeypatch.setattr("modules.audio.backends.macos.run_command", fake_run_command)
     monkeypatch.setattr(
         "modules.audio.backends.macos.AudioSegment.from_file", fake_from_file
     )
@@ -61,4 +63,27 @@ def test_macos_backend_invokes_command_with_expected_arguments(monkeypatch, tmp_
         ["/usr/bin/say", "-v", "Samantha", "-r", "180", "-o", str(output_file), "Hello world"]
     ]
     assert result == dummy_audio
+
+
+def test_macos_backend_wraps_command_errors(monkeypatch, tmp_path):
+    def failing_run_command(command, **kwargs):
+        raise CommandExecutionError(command, returncode=1)
+
+    monkeypatch.setattr("modules.audio.backends.macos.run_command", failing_run_command)
+    dummy_audio = AudioSegment.silent(duration=100)
+    monkeypatch.setattr(
+        "modules.audio.backends.macos.AudioSegment.from_file",
+        lambda path, format: dummy_audio,
+    )
+
+    backend = MacOSTTSBackend(executable_path="/usr/bin/say")
+
+    with pytest.raises(TTSBackendError):
+        backend.synthesize(
+            text="Hello world",
+            voice="Samantha",
+            speed=180,
+            lang_code="en",
+            output_path=str(tmp_path / "output.aiff"),
+        )
 
