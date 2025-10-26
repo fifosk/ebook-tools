@@ -43,9 +43,7 @@ logger = log_mgr.get_logger().getChild("webapi.media")
 
 _MEDIA_ALLOWED_ROLES: frozenset[str] = frozenset({"admin", "media_producer"})
 
-AuthorizationHeader = Annotated[
-    str | None, Header(default=None, alias="Authorization")
-]
+AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 AudioServiceDep = Annotated[AudioService, Depends(get_audio_service)]
 VideoServiceDep = Annotated[VideoService, Depends(get_video_service)]
