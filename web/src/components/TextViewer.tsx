@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useActiveFile } from './useActiveFile';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 export interface TextFile {
   id: string;
@@ -42,38 +43,37 @@ export default function TextViewer({ files }: TextViewerProps) {
 
   return (
     <div className="text-viewer">
-      <div className="text-viewer__tabs" role="tablist" aria-label="Text files">
-        {labels.map((file) => (
-          <button
-            key={file.id}
-            type="button"
-            role="tab"
-            className="text-viewer__tab"
-            aria-selected={file.id === activeId}
-            aria-controls={`text-viewer-panel-${file.id}`}
-            onClick={() => selectFile(file.id)}
-          >
-            {file.label}
-          </button>
-        ))}
-      </div>
-      <div
-        className="text-viewer__content"
-        role="tabpanel"
-        id={`text-viewer-panel-${activeFile.id}`}
-        aria-live="polite"
-        data-testid="text-viewer-content"
-      >
-        {activeFile.content ? (
-          <pre>{activeFile.content}</pre>
-        ) : activeFile.url ? (
-          <a href={activeFile.url} target="_blank" rel="noreferrer">
-            Open {activeFile.name ?? 'document'}
-          </a>
-        ) : (
-          <p>No preview available.</p>
-        )}
-      </div>
+      <Tabs value={activeId ?? undefined} onValueChange={selectFile} className="text-viewer__tabs-container">
+        <TabsList className="text-viewer__tabs" aria-label="Text files">
+          {labels.map((file) => (
+            <TabsTrigger key={file.id} value={file.id} className="text-viewer__tab">
+              {file.label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {files.map((file) => {
+          const isActive = file.id === activeFile.id;
+          return (
+            <TabsContent
+              key={file.id}
+              value={file.id}
+              className="text-viewer__content"
+              aria-live={isActive ? 'polite' : undefined}
+              data-testid={isActive ? 'text-viewer-content' : undefined}
+            >
+              {file.content ? (
+                <pre>{file.content}</pre>
+              ) : file.url ? (
+                <a href={file.url} target="_blank" rel="noreferrer">
+                  Open {file.name ?? 'document'}
+                </a>
+              ) : (
+                <p>No preview available.</p>
+              )}
+            </TabsContent>
+          );
+        })}
+      </Tabs>
     </div>
   );
 }

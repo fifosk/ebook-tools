@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import MediaList from './MediaList';
 import type { LiveMediaState } from '../hooks/useLiveMedia';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 type MediaCategory = keyof LiveMediaState;
 
@@ -51,19 +52,31 @@ function toVideoFiles(media: LiveMediaState['video']) {
 }
 
 export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPanelProps) {
-  const [activeTab, setActiveTab] = useState<MediaCategory>(() => selectInitialTab(media));
+  const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
 
   useEffect(() => {
-    setActiveTab((current) => {
-      if (media[current].length > 0) {
+    setSelectedMediaType((current) => {
+      if (current && media[current].length > 0) {
         return current;
       }
       return selectInitialTab(media);
     });
   }, [media]);
 
+  const handleTabChange = useCallback((nextValue: string) => {
+    setSelectedMediaType(nextValue as MediaCategory);
+  }, []);
+
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
+  const filteredAudioFiles = useMemo(
+    () => (selectedMediaType === 'audio' ? audioFiles : []),
+    [audioFiles, selectedMediaType],
+  );
+  const filteredVideoFiles = useMemo(
+    () => (selectedMediaType === 'video' ? videoFiles : []),
+    [selectedMediaType, videoFiles],
+  );
 
   if (!jobId) {
     return (
@@ -93,59 +106,47 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
   return (
     <section className="player-panel" aria-label="Generated media">
-      <header className="player-panel__header">
-        <div className="player-panel__heading">
-          <h2>Generated media</h2>
-          <span className="player-panel__job">Job {jobId}</span>
-        </div>
-        <div className="player-panel__tabs" role="tablist" aria-label="Media categories">
-          {TAB_DEFINITIONS.map((tab) => {
-            const count = media[tab.key].length;
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                id={`media-tab-${tab.key}`}
-                role="tab"
-                type="button"
-                className="player-panel__tab"
-                aria-selected={isActive}
-                aria-controls={`media-panel-${tab.key}`}
-                onClick={() => setActiveTab(tab.key)}
-                data-testid={`media-tab-${tab.key}`}
-              >
-                {tab.label} ({count})
-              </button>
-            );
-          })}
-        </div>
-      </header>
-      {TAB_DEFINITIONS.map((tab) => {
-        const isActive = activeTab === tab.key;
-        const items = media[tab.key];
-        return (
-          <div
-            key={tab.key}
-            role="tabpanel"
-            id={`media-panel-${tab.key}`}
-            aria-labelledby={`media-tab-${tab.key}`}
-            hidden={!isActive}
-            className="player-panel__panel"
-          >
-            {!hasAnyMedia && !isLoading ? (
-              <p role="status">No generated media yet.</p>
-            ) : items.length === 0 ? (
-              <MediaList items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
-            ) : (
-              <>
-                {tab.key === 'audio' ? <AudioPlayer files={audioFiles} /> : null}
-                {tab.key === 'video' ? <VideoPlayer files={videoFiles} /> : null}
-                <MediaList items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
-              </>
-            )}
+      <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
+        <header className="player-panel__header">
+          <div className="player-panel__heading">
+            <h2>Generated media</h2>
+            <span className="player-panel__job">Job {jobId}</span>
           </div>
-        );
-      })}
+          <TabsList className="player-panel__tabs" aria-label="Media categories">
+            {TAB_DEFINITIONS.map((tab) => {
+              const count = media[tab.key].length;
+              return (
+                <TabsTrigger
+                  key={tab.key}
+                  className="player-panel__tab"
+                  value={tab.key}
+                  data-testid={`media-tab-${tab.key}`}
+                >
+                  {tab.label} ({count})
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </header>
+        {TAB_DEFINITIONS.map((tab) => {
+          const items = media[tab.key];
+          return (
+            <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
+              {!hasAnyMedia && !isLoading ? (
+                <p role="status">No generated media yet.</p>
+              ) : items.length === 0 ? (
+                <MediaList items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+              ) : (
+                <>
+                  {tab.key === 'audio' ? <AudioPlayer files={filteredAudioFiles} /> : null}
+                  {tab.key === 'video' ? <VideoPlayer files={filteredVideoFiles} /> : null}
+                  <MediaList items={items} category={tab.key} emptyMessage={tab.emptyMessage} />
+                </>
+              )}
+            </TabsContent>
+          );
+        })}
+      </Tabs>
     </section>
   );
 }
