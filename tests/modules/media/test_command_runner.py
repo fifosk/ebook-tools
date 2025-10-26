@@ -52,3 +52,19 @@ def test_run_command_propagates_after_retry_exhaustion(monkeypatch):
 
     with pytest.raises(CommandExecutionError):
         run_command(["dummy"], retries=1)
+
+
+def test_run_command_respects_text_mode():
+    result = run_command(
+        [sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'bin')"],
+        text=False,
+    )
+    assert isinstance(result.stdout, (bytes, bytearray))
+    assert result.stdout == b"bin"
+
+
+def test_run_command_maps_file_not_found():
+    with pytest.raises(CommandExecutionError) as excinfo:
+        run_command(["__definitely_missing_executable__"])
+    assert isinstance(excinfo.value, CommandExecutionError)
+    assert excinfo.value.cause is not None

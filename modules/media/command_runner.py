@@ -67,6 +67,7 @@ def run_command(
 
     attempts = max(0, int(retries)) + 1
     env_vars = _prepare_environment(env)
+    coerced_command = _coerce_command(command)
 
     run_kwargs: dict[str, Any] = dict(kwargs)
     run_kwargs.setdefault("cwd", cwd)
@@ -77,10 +78,10 @@ def run_command(
     if capture_output:
         run_kwargs.setdefault("stdout", subprocess.PIPE)
         run_kwargs.setdefault("stderr", subprocess.PIPE)
-        if text:
-            run_kwargs.setdefault("text", True)
+        run_kwargs.setdefault("text", bool(text))
     else:
-        run_kwargs.setdefault("text", False)
+        if "text" not in run_kwargs:
+            run_kwargs["text"] = bool(text)
 
     last_exception: BaseException | None = None
 
@@ -91,13 +92,13 @@ def run_command(
                 "Executing command (attempt %s/%s)",
                 attempt,
                 attempts,
-                extra={"event": "media.command.execute", "command": command},
+                extra={"event": "media.command.execute", "command": coerced_command},
             )
         try:
             completed = subprocess.run(command, **run_kwargs)
             duration = time.monotonic() - start
             result = CommandResult(
-                command=_coerce_command(command),
+                command=coerced_command,
                 returncode=completed.returncode,
                 stdout=getattr(completed, "stdout", None),
                 stderr=getattr(completed, "stderr", None),
@@ -121,7 +122,7 @@ def run_command(
                         completed.returncode,
                         extra={
                             "event": "media.command.failed",
-                            "command": command,
+                            "command": coerced_command,
                             "attempt": attempt,
                             "returncode": completed.returncode,
                         },
@@ -136,7 +137,7 @@ def run_command(
                     duration,
                     extra={
                         "event": "media.command.success",
-                        "command": command,
+                        "command": coerced_command,
                         "returncode": completed.returncode,
                     },
                 )
@@ -144,7 +145,7 @@ def run_command(
         except subprocess.TimeoutExpired as exc:
             duration = time.monotonic() - start
             result = CommandResult(
-                command=_coerce_command(command),
+                command=coerced_command,
                 returncode=-1,
                 stdout=exc.stdout,
                 stderr=exc.stderr,
@@ -160,7 +161,12 @@ def run_command(
             last_exception = error
             if logger_obj:
                 logger_obj.warning(
-                    "Command timed out after %.3fs", duration, extra={"event": "media.command.timeout", "command": command}
+                    "Command timed out after %.3fs",
+                    duration,
+                    extra={
+                        "event": "media.command.timeout",
+                        "command": coerced_command,
+                    },
                 )
             should_retry = attempt < attempts and (
                 retry_check(result, error) if retry_check else True
@@ -170,27 +176,57 @@ def run_command(
             raise error from exc
         except FileNotFoundError as exc:
             duration = time.monotonic() - start
-            last_exception = CommandExecutionError(command, cause=exc)
+            error = CommandExecutionError(command, cause=exc)
+            last_exception = error
             if logger_obj:
                 logger_obj.error(
-                    "Command executable not found", extra={"event": "media.command.not_found", "command": command}
+                    "Command executable not found",
+                    extra={
+                        "event": "media.command.not_found",
+                        "command": coerced_command,
+                    },
                 )
+            should_retry = attempt < attempts and (
+                retry_check(None, error) if retry_check else False
+            )
+            if should_retry:
+                continue
             raise last_exception from exc
         except OSError as exc:  # pragma: no cover - defensive (e.g. permission errors)
             duration = time.monotonic() - start
-            last_exception = CommandExecutionError(command, cause=exc)
+            error = CommandExecutionError(command, cause=exc)
+            last_exception = error
             if logger_obj:
                 logger_obj.error(
-                    "Command execution failed due to OS error", extra={"event": "media.command.os_error", "command": command}
+                    "Command execution failed due to OS error",
+                    extra={
+                        "event": "media.command.os_error",
+                        "command": coerced_command,
+                    },
                 )
+            should_retry = attempt < attempts and (
+                retry_check(None, error) if retry_check else False
+            )
+            if should_retry:
+                continue
             raise last_exception from exc
         except Exception as exc:  # pragma: no cover - unexpected failures
             duration = time.monotonic() - start
-            last_exception = CommandExecutionError(command, cause=exc)
+            error = CommandExecutionError(command, cause=exc)
+            last_exception = error
             if logger_obj:
                 logger_obj.error(
-                    "Unexpected error running command", extra={"event": "media.command.error", "command": command}
+                    "Unexpected error running command",
+                    extra={
+                        "event": "media.command.error",
+                        "command": coerced_command,
+                    },
                 )
+            should_retry = attempt < attempts and (
+                retry_check(None, error) if retry_check else False
+            )
+            if should_retry:
+                continue
             raise last_exception from exc
 
     assert last_exception is not None  # pragma: no cover - logically unreachable
