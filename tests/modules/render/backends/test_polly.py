@@ -32,14 +32,16 @@ class _DummyAudioClient:
 
 def test_normalize_api_voice_handles_auto_identifiers() -> None:
     assert _normalize_api_voice(None) is None
-    assert _normalize_api_voice("") is None
-    assert _normalize_api_voice("macOS-auto") == "0"
-    assert _normalize_api_voice("macOS-auto-male") == "0"
-    assert _normalize_api_voice("gTTS") is None
-    assert _normalize_api_voice("Alloy") == "Alloy"
+    assert _normalize_api_voice("", language="en") is None
+    assert _normalize_api_voice("macOS-auto", language="en") == "0"
+    assert _normalize_api_voice("macOS-auto-male", language="en") == "0"
+    assert _normalize_api_voice("macOS-auto", language="ar") is None
+    assert _normalize_api_voice("macOS-auto-male", language="ar") is None
+    assert _normalize_api_voice("gTTS", language="en") is None
+    assert _normalize_api_voice("Alloy", language="en") == "Alloy"
 
 
-def test_polly_synthesizer_omits_auto_voice_for_api_calls() -> None:
+def test_polly_synthesizer_omits_auto_voice_for_non_english_segments() -> None:
     client = _DummyAudioClient()
     synthesizer = PollyAudioSynthesizer(audio_client=client)
 
@@ -61,7 +63,7 @@ def test_polly_synthesizer_omits_auto_voice_for_api_calls() -> None:
     assert len(client.calls) == 1
     call = client.calls[0]
     assert call["language"] == "ar"
-    assert call["voice"] == "0"
+    assert call["voice"] is None
     assert call["text"] == "مرحبا بالعالم"
 
 
@@ -88,3 +90,28 @@ def test_polly_synthesizer_passes_explicit_voice_to_api() -> None:
     assert call["language"] == "es"
     assert call["voice"] == "alloy"
     assert call["text"] == "Hola mundo"
+
+
+def test_polly_synthesizer_uses_api_default_for_english_auto_voice() -> None:
+    client = _DummyAudioClient()
+    synthesizer = PollyAudioSynthesizer(audio_client=client)
+
+    synthesizer.synthesize_sentence(
+        sentence_number=1,
+        input_sentence="مرحبا",  # ignored in audio_mode 1
+        fluent_translation="Hello world",
+        input_language="ar",
+        target_language="en",
+        audio_mode="1",
+        total_sentences=1,
+        language_codes={"en": "en", "ar": "ar"},
+        selected_voice="macOS-auto-female",
+        tempo=1.0,
+        macos_reading_speed=180,
+    )
+
+    assert len(client.calls) == 1
+    call = client.calls[0]
+    assert call["language"] == "en"
+    assert call["voice"] == "0"
+    assert call["text"] == "Hello world"

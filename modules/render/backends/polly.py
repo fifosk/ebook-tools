@@ -22,7 +22,9 @@ logger = log_mgr.logger
 _DEFAULT_TTS_BACKEND = get_default_backend_name()
 
 
-def _normalize_api_voice(selected_voice: Optional[str]) -> Optional[str]:
+def _normalize_api_voice(
+    selected_voice: Optional[str], *, language: Optional[str] = None
+) -> Optional[str]:
     """Return a voice identifier that the remote API can understand."""
 
     if not selected_voice:
@@ -34,7 +36,9 @@ def _normalize_api_voice(selected_voice: Optional[str]) -> Optional[str]:
 
     lowered = voice.lower()
     if lowered.startswith("macos-auto"):
-        return "0"
+        if language and language.lower().startswith("en"):
+            return "0"
+        return None
     if lowered == "gtts":
         return None
     return voice
@@ -188,7 +192,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         else:
             def _synth(task: tuple[str, str, str]) -> tuple[str, AudioSegment]:
                 key, text, lang_code = task
-                api_voice = _normalize_api_voice(selected_voice)
+                api_voice = _normalize_api_voice(selected_voice, language=lang_code)
                 attributes = {
                     "segment": key,
                     "language": lang_code,
