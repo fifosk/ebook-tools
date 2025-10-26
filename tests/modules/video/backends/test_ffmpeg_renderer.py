@@ -74,6 +74,7 @@ def _video_options() -> VideoRenderOptions:
         sync_ratio=0.9,
         word_highlighting=True,
         highlight_granularity="word",
+        voice_name="",
     )
 
 
@@ -178,3 +179,18 @@ def test_ffmpeg_renderer_propagates_subprocess_errors(
 
     with pytest.raises(CommandExecutionError):
         renderer.render_slides(["Header"], [audio], str(tmp_path / "output.mp4"), _video_options())
+
+
+def test_header_info_includes_voice_name() -> None:
+    renderer = FFmpegVideoRenderer()
+    options = _video_options()
+    options.voice_name = "Alloy"
+
+    header = renderer._build_header_info(
+        "Hindi - 1 - 0.00%\nSentence text",
+        1,
+        options,
+    )
+
+    assert "Voice: Alloy" in header
+    assert header.splitlines()[2] == "Voice: Alloy"

@@ -12,7 +12,7 @@ import textwrap
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pydub import AudioSegment
 
@@ -471,6 +471,41 @@ def generate_audio(
     return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
 
 
+def get_voice_display_name(
+    selected_voice: str,
+    language: str,
+    language_codes: Mapping[str, str] | None = None,
+) -> str:
+    """Return a human-readable voice label for ``selected_voice``."""
+
+    voice_identifier = (selected_voice or "").strip()
+    if not voice_identifier:
+        return ""
+
+    language_key = (language or "").strip()
+    if language_codes:
+        lang_code = language_codes.get(language_key, language_key)
+    else:
+        lang_code = language_key
+
+    if voice_identifier.lower().startswith("gtts"):
+        if voice_identifier == "gTTS":
+            fallback_lang = lang_code or language_key or "en"
+            return _gtts_fallback(fallback_lang)
+        return voice_identifier
+
+    resolved = _resolve_macos_voice_name(voice_identifier, lang_code)
+    if resolved:
+        return resolved
+
+    if " - " in voice_identifier:
+        primary_name = voice_identifier.split(" - ", 1)[0].strip()
+        if primary_name:
+            return primary_name
+
+    return voice_identifier
+
+
 __all__ = [
     "AUTO_MACOS_VOICE",
     "AUTO_MACOS_VOICE_FEMALE",
@@ -478,6 +513,7 @@ __all__ = [
     "SILENCE_DURATION_MS",
     "active_tmp_dir",
     "generate_audio",
+    "get_voice_display_name",
     "macos_voice_inventory",
     "select_voice",
     "silence_audio_path",

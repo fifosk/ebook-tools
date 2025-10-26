@@ -172,6 +172,8 @@ class RenderPipeline:
             sync_ratio=self._config.sync_ratio,
             word_highlighting=self._config.word_highlighting,
             highlight_granularity=self._config.highlight_granularity,
+            selected_voice=self._config.selected_voice,
+            primary_target_language=target_languages[0] if target_languages else "",
             slide_render_options=slide_render_options,
             template_name=self._config.slide_template,
             video_backend=self._config.video_backend,
