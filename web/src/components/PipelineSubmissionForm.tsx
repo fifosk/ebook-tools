@@ -15,7 +15,6 @@ export type PipelineFormSection =
   | 'language'
   | 'output'
   | 'performance'
-  | 'advanced'
   | 'submit';
 
 type Props = {
@@ -96,7 +95,6 @@ const SECTION_ORDER: PipelineFormSection[] = [
   'language',
   'output',
   'performance',
-  'advanced',
   'submit'
 ];
 
@@ -116,10 +114,6 @@ const SECTION_META: Record<PipelineFormSection, { title: string; description: st
   performance: {
     title: 'Performance tuning',
     description: 'Adjust concurrency and orchestration parameters to fit your environment.'
-  },
-  advanced: {
-    title: 'Advanced options',
-    description: 'Fine-tune JSON overrides and experimental controls before submission.'
   },
   submit: {
     title: 'Submit pipeline job',
@@ -1027,69 +1021,6 @@ export function PipelineSubmissionForm({
                   </label>
                 </details>
               </div>
-            </div>
-          </section>
-        );
-      case 'advanced':
-        return (
-          <section
-            key="advanced"
-            className="pipeline-card"
-            aria-labelledby="pipeline-card-advanced"
-          >
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-advanced">{SECTION_META.advanced.title}</h3>
-              <p>{SECTION_META.advanced.description}</p>
-            </header>
-            <div className="pipeline-card__body">
-              <details>
-                <summary>Config overrides (JSON)</summary>
-                <label className="visually-hidden" htmlFor="config">
-                  Config overrides JSON
-                </label>
-                <textarea
-                  id="config"
-                  name="config"
-                  value={formState.config}
-                  onChange={(event) => handleChange('config', event.target.value)}
-                />
-              </details>
-              <details>
-                <summary>Environment overrides (JSON)</summary>
-                <label className="visually-hidden" htmlFor="environment_overrides">
-                  Environment overrides JSON
-                </label>
-                <textarea
-                  id="environment_overrides"
-                  name="environment_overrides"
-                  value={formState.environment_overrides}
-                  onChange={(event) => handleChange('environment_overrides', event.target.value)}
-                />
-              </details>
-              <details>
-                <summary>Pipeline overrides (JSON)</summary>
-                <label className="visually-hidden" htmlFor="pipeline_overrides">
-                  Pipeline overrides JSON
-                </label>
-                <textarea
-                  id="pipeline_overrides"
-                  name="pipeline_overrides"
-                  value={formState.pipeline_overrides}
-                  onChange={(event) => handleChange('pipeline_overrides', event.target.value)}
-                />
-              </details>
-              <details>
-                <summary>Book metadata (JSON)</summary>
-                <label className="visually-hidden" htmlFor="book_metadata">
-                  Book metadata JSON
-                </label>
-                <textarea
-                  id="book_metadata"
-                  name="book_metadata"
-                  value={formState.book_metadata}
-                  onChange={(event) => handleChange('book_metadata', event.target.value)}
-                />
-              </details>
             </div>
           </section>
         );
