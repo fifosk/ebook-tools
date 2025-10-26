@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Dict, Optional, Sequence
+from typing import Dict, Mapping, Optional, Sequence
 
 from PIL import Image
 from pydub import AudioSegment
@@ -15,6 +15,7 @@ from modules import output_formatter
 from modules.config.loader import get_rendering_config
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
+from modules.video.api import VideoService
 from modules.video.slides import SlideRenderOptions
 
 
@@ -38,6 +39,8 @@ class BatchExportContext:
     highlight_granularity: str
     slide_render_options: Optional[SlideRenderOptions]
     template_name: Optional[str]
+    video_backend: str
+    video_backend_settings: Mapping[str, Mapping[str, object]]
 
 
 @dataclass(frozen=True)
@@ -72,6 +75,10 @@ class BatchExporter:
 
     def __init__(self, context: BatchExportContext) -> None:
         self._context = context
+        self._video_service = VideoService(
+            backend=context.video_backend,
+            backend_settings=context.video_backend_settings,
+        )
 
     def export(self, request: BatchExportRequest) -> BatchExportResult:
         """Write batch outputs and return a description of created files."""
@@ -159,6 +166,7 @@ class BatchExporter:
                     self._context.highlight_granularity,
                     slide_render_options=self._context.slide_render_options,
                     template_name=self._context.template_name,
+                    video_service=self._video_service,
                 )
                 video_path = Path(video_output)
                 video_path = writer.stage(video_path)
@@ -196,6 +204,8 @@ def build_exporter(
     highlight_granularity: str,
     slide_render_options: Optional[SlideRenderOptions],
     template_name: Optional[str],
+    video_backend: str,
+    video_backend_settings: Mapping[str, Mapping[str, object]],
 ) -> BatchExporter:
     """Construct a :class:`BatchExporter` for the provided pipeline context."""
 
@@ -216,5 +226,7 @@ def build_exporter(
         highlight_granularity=highlight_granularity,
         slide_render_options=slide_render_options,
         template_name=template_name,
+        video_backend=video_backend,
+        video_backend_settings=video_backend_settings,
     )
     return BatchExporter(context)

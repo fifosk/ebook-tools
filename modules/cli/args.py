@@ -69,6 +69,23 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         help="Select the backend used for video assembly.",
     )
     parser.add_argument(
+        "--video-backend-executable",
+        help="Override the executable used by the selected video backend.",
+    )
+    parser.add_argument(
+        "--video-backend-loglevel",
+        help="Override the log level passed to the video backend executable.",
+    )
+    parser.add_argument(
+        "--video-backend-preset",
+        action="append",
+        metavar="NAME=VALUES",
+        help=(
+            "Override a video backend preset (repeatable). "
+            "Values are comma-separated command arguments."
+        ),
+    )
+    parser.add_argument(
         "--tts-backend",
         choices=["auto", "macos", "gtts"],
         help="Select the text-to-speech backend (auto, macos, or gtts).",

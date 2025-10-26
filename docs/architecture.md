@@ -34,7 +34,7 @@ mapping, then the rendering layer instantiates the appropriate renderer through
 `modules/render/backends/__init__.py`. The built-in FFmpeg renderer honours
 settings such as `executable`, `loglevel`, and preset overrides, allowing the
 pipeline to run against system installations or portable builds without code
-changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/ffmpeg.py†L32-L117】
+changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/ffmpeg_renderer.py†L1-L185】
 
 ### Backend input processing diagram
 

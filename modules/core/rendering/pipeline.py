@@ -173,6 +173,8 @@ class RenderPipeline:
             highlight_granularity=self._config.highlight_granularity,
             slide_render_options=slide_render_options,
             template_name=self._config.slide_template,
+            video_backend=self._config.video_backend,
+            video_backend_settings=self._config.video_backend_settings,
         )
 
         state = self._initial_state(

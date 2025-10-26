@@ -477,6 +477,8 @@ def prepare_non_interactive_run(
     config.setdefault("prefer_pillow_simd", False)
     config.setdefault("slide_render_benchmark", False)
     config.setdefault("slide_template", "default")
+    config.setdefault("video_backend", "ffmpeg")
+    config.setdefault("video_backend_settings", {})
 
     if getattr(args, "slide_parallelism", None):
         config["slide_parallelism"] = args.slide_parallelism
@@ -488,6 +490,32 @@ def prepare_non_interactive_run(
         config["slide_render_benchmark"] = True
     if getattr(args, "template", None):
         config["slide_template"] = args.template
+    if getattr(args, "video_backend", None):
+        config["video_backend"] = args.video_backend
+    video_backend_settings = dict(config.get("video_backend_settings") or {})
+    backend_key = config.get("video_backend", "ffmpeg")
+    backend_overrides = dict(video_backend_settings.get(backend_key, {}))
+    if getattr(args, "video_backend_executable", None):
+        backend_overrides["executable"] = args.video_backend_executable
+    if getattr(args, "video_backend_loglevel", None):
+        backend_overrides["loglevel"] = args.video_backend_loglevel
+    presets_arg = getattr(args, "video_backend_preset", None)
+    if presets_arg:
+        presets = dict(backend_overrides.get("presets", {}))
+        for raw_entry in presets_arg:
+            if not isinstance(raw_entry, str):
+                continue
+            name, _, value = raw_entry.partition("=")
+            name = name.strip()
+            if not name:
+                continue
+            parts = [part.strip() for part in value.split(",") if part.strip()]
+            presets[name] = parts
+        if presets:
+            backend_overrides["presets"] = presets
+    if backend_overrides:
+        video_backend_settings[backend_key] = backend_overrides
+    config["video_backend_settings"] = video_backend_settings
     if getattr(args, "tts_backend", None):
         config["tts_backend"] = args.tts_backend
     if getattr(args, "tts_executable", None):
@@ -537,6 +565,8 @@ def prepare_non_interactive_run(
         "debug": config.get("debug"),
         "ollama_model": config.get("ollama_model"),
         "ollama_url": config.get("ollama_url"),
+        "video_backend": config.get("video_backend"),
+        "video_backend_settings": config.get("video_backend_settings"),
         "ffmpeg_path": overrides.get("ffmpeg_path") or config.get("ffmpeg_path"),
         "thread_count": config.get("thread_count") or overrides.get("thread_count"),
         "queue_size": config.get("queue_size"),
@@ -607,9 +637,37 @@ def run_pipeline_from_args(
         config.setdefault("prefer_pillow_simd", False)
         config.setdefault("slide_render_benchmark", False)
         config.setdefault("slide_template", "default")
+        config.setdefault("video_backend", "ffmpeg")
+        config.setdefault("video_backend_settings", {})
 
         if getattr(args, "template", None):
             config["slide_template"] = args.template
+        if getattr(args, "video_backend", None):
+            config["video_backend"] = args.video_backend
+        video_backend_settings = dict(config.get("video_backend_settings") or {})
+        backend_key = config.get("video_backend", "ffmpeg")
+        backend_overrides = dict(video_backend_settings.get(backend_key, {}))
+        if getattr(args, "video_backend_executable", None):
+            backend_overrides["executable"] = args.video_backend_executable
+        if getattr(args, "video_backend_loglevel", None):
+            backend_overrides["loglevel"] = args.video_backend_loglevel
+        presets_arg = getattr(args, "video_backend_preset", None)
+        if presets_arg:
+            presets = dict(backend_overrides.get("presets", {}))
+            for raw_entry in presets_arg:
+                if not isinstance(raw_entry, str):
+                    continue
+                name, _, value = raw_entry.partition("=")
+                name = name.strip()
+                if not name:
+                    continue
+                parts = [part.strip() for part in value.split(",") if part.strip()]
+                presets[name] = parts
+            if presets:
+                backend_overrides["presets"] = presets
+        if backend_overrides:
+            video_backend_settings[backend_key] = backend_overrides
+        config["video_backend_settings"] = video_backend_settings
 
         if config.get("auto_metadata", True) and pipeline_input.input_file:
             metadata_manager.populate_config_metadata(
@@ -653,6 +711,8 @@ def run_pipeline_from_args(
             "debug": config.get("debug"),
             "ollama_model": config.get("ollama_model", DEFAULT_MODEL),
             "ollama_url": config.get("ollama_url"),
+            "video_backend": config.get("video_backend"),
+            "video_backend_settings": config.get("video_backend_settings"),
             "ffmpeg_path": overrides.get("ffmpeg_path") or config.get("ffmpeg_path"),
             "thread_count": config.get("thread_count") or overrides.get("thread_count"),
             "queue_size": config.get("queue_size"),

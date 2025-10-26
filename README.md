@@ -25,7 +25,7 @@ implements the `BaseTTSBackend` contract and is discovered via
 `get_tts_backend()` using the values supplied in your configuration or
 environment. Video rendering follows a similar pattern: a configurable backend
 name is resolved and the concrete implementation (FFmpeg by default) can read
-backend-specific knobs from `video_backend_settings`.【F:modules/audio/backends/__init__.py†L10-L95】【F:modules/video/backends/ffmpeg.py†L32-L74】
+backend-specific knobs from `video_backend_settings`.【F:modules/audio/backends/__init__.py†L10-L95】【F:modules/video/backends/ffmpeg_renderer.py†L1-L185】
 
 Key configuration switches now live alongside the rest of the pipeline
 settings:

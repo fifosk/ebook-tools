@@ -44,6 +44,7 @@ def test_build_pipeline_config_defaults_missing_backends(tmp_path, monkeypatch):
 
     assert pipeline_config.tts_backend == get_default_backend_name()
     assert pipeline_config.video_backend == "ffmpeg"
+    assert pipeline_config.video_backend_settings == {}
 
 
 def test_build_pipeline_config_converts_auto_backend(tmp_path):
