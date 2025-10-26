@@ -358,8 +358,8 @@ def request_media_generation(
     video_service: VideoServiceDep,
     video_job_manager: VideoJobManagerDep,
     locator: FileLocatorDep,
+    request: Request,
     authorization: AuthorizationHeader = None,
-    request: Request | None = None,
 ) -> MediaGenerationResponse:
     """Queue an on-demand media generation job for an existing pipeline run."""
 
@@ -369,7 +369,7 @@ def request_media_generation(
     job_root = locator.resolve_path(payload.job_id)
     job_root.mkdir(parents=True, exist_ok=True)
 
-    correlation_id = request.headers.get("x-request-id") if request else None
+    correlation_id = request.headers.get("x-request-id")
     with log_mgr.log_context(
         correlation_id=correlation_id or uuid4().hex,
         job_id=payload.job_id,
