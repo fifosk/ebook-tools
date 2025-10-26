@@ -24,12 +24,8 @@ from ..pipeline_service import (
     serialize_pipeline_response,
 )
 from ..pipeline_types import PipelineMetadata
-from .job import PipelineJob, PipelineJobStatus, PipelineJobTransitionError
-from .lifecycle import (
-    apply_pause_transition,
-    apply_resume_transition,
-    compute_resume_context,
-)
+from .job import PipelineJob, PipelineJobStatus
+from .lifecycle import compute_resume_context
 from .metadata import PipelineJobMetadata
 from .persistence import PipelineJobPersistence
 from .job_storage import JobStorageCoordinator
@@ -38,6 +34,7 @@ from .stores import JobStore
 from .execution_adapter import PipelineExecutionAdapter
 from .executor import PipelineJobExecutor, PipelineJobExecutorHooks
 from .request_factory import PipelineRequestFactory
+from .transition_coordinator import PipelineJobTransitionCoordinator
 
 logger = log_mgr.logger
 
@@ -87,6 +84,14 @@ class PipelineJobManager:
             tracker_factory=ProgressTracker,
             stop_event_factory=threading.Event,
             observer_factory=lambda job: lambda event: self._store_event(job.job_id, event),
+        )
+        self._transitions = PipelineJobTransitionCoordinator(
+            lock=self._lock,
+            jobs=self._jobs,
+            store=self._store,
+            persistence=self._persistence,
+            request_factory=self._request_factory,
+            authorize=self._assert_job_access,
         )
         hooks = PipelineJobExecutorHooks(
             on_start=self._log_job_started,
@@ -364,39 +369,6 @@ class PipelineJobManager:
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
         return job
 
-    def _mutate_job(
-        self,
-        job_id: str,
-        mutator: Callable[[PipelineJob], None],
-        *,
-        user_id: Optional[str] = None,
-        user_role: Optional[str] = None,
-    ) -> PipelineJob:
-        """Apply ``mutator`` to ``job_id`` and persist the resulting state."""
-
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is None:
-                metadata = self._store.get(job_id)
-                job = self._persistence.build_job(metadata)
-            self._assert_job_access(job, user_id=user_id, user_role=user_role)
-            try:
-                mutator(job)
-            except ValueError as exc:
-                raise PipelineJobTransitionError(job_id, job, str(exc)) from exc
-            if job.status in (
-                PipelineJobStatus.PENDING,
-                PipelineJobStatus.RUNNING,
-                PipelineJobStatus.PAUSED,
-            ):
-                self._jobs[job_id] = job
-            else:
-                self._jobs.pop(job_id, None)
-            snapshot = self._persistence.snapshot(job)
-
-        self._store.update(snapshot)
-        return job
-
     def pause_job(
         self,
         job_id: str,
@@ -406,21 +378,8 @@ class PipelineJobManager:
     ) -> PipelineJob:
         """Mark ``job_id`` as paused and persist the updated status."""
 
-        def _pause(job: PipelineJob) -> None:
-            apply_pause_transition(job)
-            event = job.stop_event
-            if event is None and job.request is not None:
-                event = job.request.stop_event
-            if event is None:
-                event = threading.Event()
-            event.set()
-            job.stop_event = event
-            if job.request is not None:
-                job.request.stop_event = event
-
-        return self._mutate_job(
+        return self._transitions.pause_job(
             job_id,
-            _pause,
             user_id=user_id,
             user_role=user_role,
         )
@@ -434,34 +393,8 @@ class PipelineJobManager:
     ) -> PipelineJob:
         """Resume ``job_id`` from a paused state and persist the change."""
 
-        def _resume(job: PipelineJob) -> None:
-            apply_resume_transition(job)
-            payload = job.resume_context or job.request_payload
-            if payload is None:
-                raise ValueError(
-                    f"Job {job.job_id} is missing resume context and cannot be resumed"
-                )
-            stop_event = threading.Event()
-            request = self._request_factory.hydrate_request(
-                job,
-                payload,
-                stop_event=stop_event,
-            )
-            job.request = request
-            job.stop_event = stop_event
-            job.request.stop_event = stop_event
-            job.result = None
-            job.result_payload = None
-            job.error_message = None
-            job.started_at = None
-            job.completed_at = None
-            job.owns_translation_pool = False
-            if job.request is not None:
-                job.request.translation_pool = None
-
-        job = self._mutate_job(
+        job = self._transitions.resume_job(
             job_id,
-            _resume,
             user_id=user_id,
             user_role=user_role,
         )
@@ -477,30 +410,8 @@ class PipelineJobManager:
     ) -> PipelineJob:
         """Cancel ``job_id`` and persist the terminal state."""
 
-        def _cancel(job: PipelineJob) -> None:
-            if job.status in (
-                PipelineJobStatus.COMPLETED,
-                PipelineJobStatus.FAILED,
-                PipelineJobStatus.CANCELLED,
-            ):
-                raise ValueError(
-                    f"Cannot cancel job {job.job_id} in terminal state {job.status.value}"
-                )
-            event = job.stop_event
-            if event is None and job.request is not None:
-                event = job.request.stop_event
-            if event is None:
-                event = threading.Event()
-            event.set()
-            job.stop_event = event
-            if job.request is not None:
-                job.request.stop_event = event
-            job.status = PipelineJobStatus.CANCELLED
-            job.completed_at = job.completed_at or datetime.now(timezone.utc)
-
-        return self._mutate_job(
+        return self._transitions.cancel_job(
             job_id,
-            _cancel,
             user_id=user_id,
             user_role=user_role,
         )
@@ -514,24 +425,11 @@ class PipelineJobManager:
     ) -> PipelineJob:
         """Remove ``job_id`` from in-memory tracking and persistence."""
 
-        with self._lock:
-            job = self._jobs.pop(job_id, None)
-
-        if job is None:
-            metadata = self._store.get(job_id)
-            job = self._persistence.build_job(metadata)
-        else:
-            # ensure persistence has the latest snapshot before deletion
-            snapshot = self._persistence.snapshot(job)
-            try:
-                self._store.update(snapshot)
-            except Exception:
-                # if persistence update fails, continue with delete attempt
-                pass
-
-        self._assert_job_access(job, user_id=user_id, user_role=user_role)
-        self._store.delete(job_id)
-        return job
+        return self._transitions.delete_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
 
     def finish_job(
         self,
@@ -550,14 +448,12 @@ class PipelineJobManager:
         ):
             raise ValueError(f"Unsupported terminal status: {status}")
 
-        def _finish(job: PipelineJob) -> None:
-            job.status = status
-            job.error_message = error_message
-            if result_payload is not None:
-                job.result_payload = copy.deepcopy(dict(result_payload))
-            job.completed_at = job.completed_at or datetime.now(timezone.utc)
-
-        return self._mutate_job(job_id, _finish)
+        return self._transitions.finish_job(
+            job_id,
+            status=status,
+            error_message=error_message,
+            result_payload=result_payload,
+        )
 
     def list(
         self,
