@@ -343,9 +343,14 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
         )
         remaining_time_str = self._estimate_remaining_time(sentence_number, options)
         tempo = options.tempo if options.tempo is not None else 1.0
+        voice_lines = list(options.voice_lines)
+        if not voice_lines and options.voice_name:
+            voice_lines.append(f"Voice: {options.voice_name}")
+        voice_block = "".join(f"{line}\n" for line in voice_lines)
         return (
             f"Book: {options.book_title} | Author: {options.book_author}\n"
             f"Source Language: {options.input_language} | Target: {target_lang} | Speed: {tempo}\n"
+            f"{voice_block}"
             f"Sentence: {sentence_number}/{total_sentences or '?'} | Progress: {progress_percentage:.2f}% | Remaining: {remaining_time_str}"
         )
 

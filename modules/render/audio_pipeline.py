@@ -12,6 +12,7 @@ from pydub import AudioSegment
 
 from modules import logging_manager as log_mgr
 from modules.audio.backends import get_default_backend_name
+from modules.render.backends.base import SynthesisResult
 from .context import RenderBatchContext
 
 if TYPE_CHECKING:  # pragma: no cover - imports for static analysis only
@@ -186,9 +187,10 @@ def audio_worker_body(
 
         start_time = time.perf_counter()
         audio_segment: Optional[AudioSegment] = None
+        voice_metadata: Mapping[str, Mapping[str, str]] = {}
         try:
             if generate_audio and audio_generator is not None:
-                audio_segment = audio_generator(
+                audio_output = audio_generator(
                     translation_task.sentence_number,
                     translation_task.sentence,
                     translation_task.translation,
@@ -203,6 +205,11 @@ def audio_worker_body(
                     tts_backend=tts_backend,
                     tts_executable_path=tts_executable_path,
                 )
+                if isinstance(audio_output, SynthesisResult):
+                    audio_segment = audio_output.audio
+                    voice_metadata = audio_output.voice_metadata
+                else:
+                    audio_segment = audio_output
         except Exception as exc:  # pragma: no cover - defensive logging
             logger.error(
                 "Consumer %s failed for sentence %s: %s",
@@ -231,6 +238,7 @@ def audio_worker_body(
             translation=translation_task.translation,
             transliteration=translation_task.transliteration,
             audio_segment=audio_segment,
+            voice_metadata=voice_metadata,
         )
 
         while True:

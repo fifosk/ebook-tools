@@ -1,6 +1,7 @@
 """Base protocol definitions for media rendering backends."""
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from typing import Mapping, Optional, Protocol, Sequence, runtime_checkable
 
 from pydub import AudioSegment
@@ -10,6 +11,19 @@ from modules.audio.backends import get_default_backend_name
 
 
 _DEFAULT_TTS_BACKEND = get_default_backend_name()
+
+
+@dataclass(slots=True)
+class SynthesisResult:
+    """Container describing synthesized audio and associated metadata."""
+
+    audio: AudioSegment
+    voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+
+    def as_tuple(self) -> tuple[AudioSegment, Mapping[str, Mapping[str, str]]]:
+        """Return the synthesized audio and metadata as a tuple."""
+
+        return self.audio, dict(self.voice_metadata)
 
 
 @runtime_checkable
@@ -32,7 +46,7 @@ class AudioSynthesizer(Protocol):
         *,
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
-    ) -> AudioSegment:
+    ) -> SynthesisResult:
         """Render audio for a single translated sentence."""
 
 
@@ -68,7 +82,7 @@ class ExternalAudioSynthesizer(AudioSynthesizer):
         *,
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
-    ) -> AudioSegment:
+    ) -> SynthesisResult:
         raise NotImplementedError("External audio synthesizer backend has not been implemented yet")
 
 
@@ -76,5 +90,6 @@ __all__ = [
     "AudioSynthesizer",
     "ExternalAudioSynthesizer",
     "GolangVideoRenderer",
+    "SynthesisResult",
     "VideoRenderer",
 ]

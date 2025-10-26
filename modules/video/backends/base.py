@@ -29,6 +29,8 @@ class VideoRenderOptions:
     sync_ratio: float = 1.0
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    voice_name: str = ""
+    voice_lines: Sequence[str] = field(default_factory=list)
     slide_render_options: SlideRenderOptions | None = None
     cleanup: bool = True
     slide_size: Sequence[int] = field(default_factory=lambda: (1280, 720))

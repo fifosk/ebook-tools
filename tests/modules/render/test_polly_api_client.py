@@ -16,7 +16,10 @@ class _StubAudioClient:
         self.calls.append(kwargs)
         if self._error:
             raise self._error
-        return AudioSegment.silent(duration=10)
+        segment = AudioSegment.silent(duration=10)
+        if kwargs.get("return_metadata"):
+            return segment, {}
+        return segment
 
 
 @pytest.fixture(autouse=True)
@@ -55,9 +58,9 @@ def _synthesize_sentence(synth):
 def test_polly_synthesizer_uses_audio_api_client(synthesizer):
     synth, client, metrics = synthesizer
 
-    segment = _synthesize_sentence(synth)
+    result = _synthesize_sentence(synth)
 
-    assert len(segment) > 0
+    assert len(result.audio) > 0
     assert client.calls, "Audio API client should be invoked"
     assert metrics, "Telemetry metric should be recorded"
     metric_name, attributes = metrics[-1]
@@ -86,9 +89,9 @@ def test_polly_synthesizer_falls_back_on_media_backend_error(monkeypatch):
     client = _StubAudioClient(error=error)
     synth = PollyAudioSynthesizer(audio_client=client)
 
-    segment = _synthesize_sentence(synth)
+    result = _synthesize_sentence(synth)
 
-    assert len(segment) > 0, "Synthesizer should fall back to legacy backend"
+    assert len(result.audio) > 0, "Synthesizer should fall back to legacy backend"
     assert client.calls, "Audio API client should be invoked"
     assert fallback_calls, "Legacy backend should be used after API failure"
     assert metrics, "Telemetry metric should be recorded"
@@ -113,15 +116,18 @@ def test_polly_synthesizer_builds_client_from_environment(monkeypatch):
             created["args"] = (base_url, timeout)
 
         def synthesize(self, **kwargs):
-            return AudioSegment.silent(duration=20)
+            segment = AudioSegment.silent(duration=20)
+            if kwargs.get("return_metadata"):
+                return segment, {}
+            return segment
 
     monkeypatch.setattr(
         "modules.integrations.audio_client.AudioAPIClient", _FakeClient
     )
 
     synth = PollyAudioSynthesizer()
-    segment = _synthesize_sentence(synth)
+    result = _synthesize_sentence(synth)
 
-    assert len(segment) > 0
+    assert len(result.audio) > 0
     assert created["args"] == ("https://audio.example", 120.0)
     assert metrics, "Expected API metrics when using the HTTP client"

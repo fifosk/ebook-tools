@@ -109,6 +109,8 @@ class VideoService:
             "batch_end": options.batch_end,
             "book_author": options.book_author,
             "book_title": options.book_title,
+            "voice_name": options.voice_name,
+            "voice_lines": list(options.voice_lines),
             "macos_reading_speed": options.macos_reading_speed,
             "input_language": options.input_language,
             "total_sentences": options.total_sentences,
@@ -127,6 +129,10 @@ class VideoService:
             payload["cumulative_word_counts"] = list(options.cumulative_word_counts)
         if options.total_word_count is not None:
             payload["total_word_count"] = options.total_word_count
+        if not options.voice_name:
+            payload.pop("voice_name")
+        if not options.voice_lines:
+            payload.pop("voice_lines")
         return payload
 
     def render(

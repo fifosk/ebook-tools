@@ -4,7 +4,7 @@ import os
 import threading
 import time
 import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from queue import Queue
 from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
@@ -19,6 +19,7 @@ from modules.render.backends import (
     VideoRenderer,
     get_audio_synthesizer,
 )
+from modules.render.backends.base import SynthesisResult
 from modules.video.api import VideoService
 from modules.translation_engine import TranslationTask
 from modules.video.backends import VideoRenderOptions
@@ -39,6 +40,7 @@ class MediaPipelineResult:
     translation: str
     transliteration: str
     audio_segment: Optional[AudioSegment]
+    voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
 # ---------------------------------------------------------------------------
 # Audio helpers
 # ---------------------------------------------------------------------------
@@ -71,7 +73,7 @@ def generate_audio_for_sentence(
     tts_executable_path: Optional[str] = None,
     *,
     audio_synthesizer: AudioSynthesizer | None = None,
-) -> AudioSegment:
+) -> SynthesisResult:
     """Generate audio for a sentence using the configured synthesizer."""
 
     if audio_synthesizer is None:
@@ -199,6 +201,8 @@ def render_video_slides(
     sync_ratio: float,
     word_highlighting: bool,
     highlight_granularity: str,
+    voice_name: str = "",
+    voice_lines: Optional[Sequence[str]] = None,
     slide_render_options: Optional[object] = None,
     cleanup: bool = True,
     slide_size: Sequence[int] = (1280, 720),
@@ -232,6 +236,8 @@ def render_video_slides(
         sync_ratio=sync_ratio,
         word_highlighting=word_highlighting,
         highlight_granularity=highlight_granularity,
+        voice_name=voice_name,
+        voice_lines=list(voice_lines) if voice_lines is not None else [],
         slide_render_options=slide_render_options,
         cleanup=cleanup,
         slide_size=slide_size,
@@ -268,6 +274,8 @@ def generate_video_slides_ffmpeg(
     sync_ratio: float,
     word_highlighting: bool,
     highlight_granularity: str,
+    voice_name: str = "",
+    voice_lines: Optional[Sequence[str]] = None,
     slide_render_options: Optional[object] = None,
     cleanup: bool = True,
     slide_size: Sequence[int] = (1280, 720),
@@ -298,6 +306,8 @@ def generate_video_slides_ffmpeg(
         sync_ratio,
         word_highlighting,
         highlight_granularity,
+        voice_name=voice_name,
+        voice_lines=voice_lines,
         slide_render_options=slide_render_options,
         cleanup=cleanup,
         slide_size=slide_size,
