@@ -22,7 +22,9 @@ from modules import load_environment
 from .admin_routes import router as admin_router
 from .audio_routes import router as audio_router
 from .auth_routes import router as auth_router
-from .dependencies import get_runtime_context_provider
+from modules.audio.config import load_media_config
+
+from .dependencies import configure_media_services, get_runtime_context_provider
 from .media_routes import register_exception_handlers as register_media_exception_handlers
 from .media_routes import router as media_router
 from .routes import router, storage_router
@@ -225,6 +227,19 @@ def create_app() -> FastAPI:
             _initialise_tmp_workspace()
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to initialize temporary workspace")
+
+        try:
+            media_config = cfg.load_configuration(verbose=False)
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to load media configuration; using defaults")
+            configure_media_services(config=None)
+        else:
+            configure_media_services(config=media_config)
+
+        try:
+            load_media_config()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to parse supplemental media configuration")
 
     @app.on_event("shutdown")
     async def _cleanup_runtime() -> None:
