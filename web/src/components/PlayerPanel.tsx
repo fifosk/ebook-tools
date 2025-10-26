@@ -94,30 +94,32 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
   return (
     <section className="player-panel" aria-label="Generated media">
       <header className="player-panel__header">
-        <h2>Generated media</h2>
-        <span className="player-panel__job">Job {jobId}</span>
+        <div className="player-panel__heading">
+          <h2>Generated media</h2>
+          <span className="player-panel__job">Job {jobId}</span>
+        </div>
+        <div className="player-panel__tabs" role="tablist" aria-label="Media categories">
+          {TAB_DEFINITIONS.map((tab) => {
+            const count = media[tab.key].length;
+            const isActive = activeTab === tab.key;
+            return (
+              <button
+                key={tab.key}
+                id={`media-tab-${tab.key}`}
+                role="tab"
+                type="button"
+                className="player-panel__tab"
+                aria-selected={isActive}
+                aria-controls={`media-panel-${tab.key}`}
+                onClick={() => setActiveTab(tab.key)}
+                data-testid={`media-tab-${tab.key}`}
+              >
+                {tab.label} ({count})
+              </button>
+            );
+          })}
+        </div>
       </header>
-      <div className="player-panel__tabs" role="tablist" aria-label="Media categories">
-        {TAB_DEFINITIONS.map((tab) => {
-          const count = media[tab.key].length;
-          const isActive = activeTab === tab.key;
-          return (
-            <button
-              key={tab.key}
-              id={`media-tab-${tab.key}`}
-              role="tab"
-              type="button"
-              className="player-panel__tab"
-              aria-selected={isActive}
-              aria-controls={`media-panel-${tab.key}`}
-              onClick={() => setActiveTab(tab.key)}
-              data-testid={`media-tab-${tab.key}`}
-            >
-              {tab.label} ({count})
-            </button>
-          );
-        })}
-      </div>
       {TAB_DEFINITIONS.map((tab) => {
         const isActive = activeTab === tab.key;
         const items = media[tab.key];
