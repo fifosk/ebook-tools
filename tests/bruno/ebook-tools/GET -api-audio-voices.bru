@@ -1,0 +1,45 @@
+meta {
+  name: GET /api/audio/voices
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{base_url}}/api/audio/voices
+  auth: inherit
+}
+
+body:json {
+  {
+    "macos": [
+      {
+        "name": "Ava (Enhanced)",
+        "lang": "en_US",
+        "gender": "female",
+        "quality": "Enhanced"
+      }
+    ],
+    "gtts": []
+  }
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("Status 200", () => {
+    expect(response.status).toBe(200);
+  });
+
+  test("Returns macOS and gTTS listings", () => {
+    const body = JSON.parse(response.body);
+    expect(Array.isArray(body.macos)).toBe(true);
+    expect(Array.isArray(body.gtts)).toBe(true);
+  });
+}
+
+settings {
+  encodeUrl: true
+  timeout: 0
+}

@@ -232,3 +232,56 @@ def test_bruno_cases_return_mp3(audio_client: TestClient, case: Dict[str, object
 
     assert response.content == expected
     assert int(response.headers.get("content-length", 0)) == len(expected)
+
+
+def test_list_voices_returns_cached_inventory(audio_client: TestClient, monkeypatch) -> None:
+    macos_voices = [
+        {"name": "Alex", "lang": "en_US", "quality": "Enhanced", "gender": "male"},
+        {"name": "Sofia", "lang": "es_ES", "quality": None, "gender": "female"},
+    ]
+    gtts_languages = (
+        {"code": "en", "name": "English"},
+        {"code": "es", "name": "Spanish"},
+    )
+
+    monkeypatch.setattr(audio_router, "get_say_voices", lambda: macos_voices)
+    monkeypatch.setattr(audio_router, "_GTTS_LANGUAGES", gtts_languages)
+
+    response = audio_client.get("/api/audio/voices")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["macos"] == macos_voices
+    assert payload["gtts"] == list(gtts_languages)
+
+
+def test_match_requires_language(audio_client: TestClient) -> None:
+    response = audio_client.get("/api/audio/match", params={"preference": "any"})
+
+    assert response.status_code == 422
+
+
+def test_match_returns_macos_voice(audio_client: TestClient) -> None:
+    response = audio_client.get(
+        "/api/audio/match",
+        params={"language": "en", "preference": "male"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "engine": "macos",
+        "voice": _SELECT_VOICE_MAP[("en", "male")],
+    }
+
+
+def test_match_returns_gtts_voice(audio_client: TestClient) -> None:
+    response = audio_client.get(
+        "/api/audio/match",
+        params={"language": "es", "preference": "any"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "engine": "gtts",
+        "voice": _SELECT_VOICE_MAP[("es", "any")],
+    }

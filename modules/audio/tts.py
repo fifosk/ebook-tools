@@ -25,6 +25,32 @@ AUTO_MACOS_VOICE = "macOS-auto"
 AUTO_MACOS_VOICE_FEMALE = "macOS-auto-female"
 AUTO_MACOS_VOICE_MALE = "macOS-auto-male"
 _VOICE_QUALITIES = ("Premium", "Enhanced")
+_AVFOUNDATION_SCRIPT = """
+from AVFoundation import AVSpeechSynthesisVoice
+
+def _quality_label(value: int) -> str:
+    if value == 3:
+        return "Premium"
+    if value == 2:
+        return "Enhanced"
+    if value == 1:
+        return "High"
+    return "Default"
+
+
+def _gender_label(value: int) -> str:
+    if value == 2:
+        return "female"
+    if value == 1:
+        return "male"
+    return "unknown"
+
+
+for voice in AVSpeechSynthesisVoice.speechVoices():
+    quality = _quality_label(voice.quality())
+    gender = _gender_label(voice.gender())
+    print(f"{voice.name()} - {voice.language()} - {gender} - {quality}")
+"""
 _AUTO_VOICE_CACHE: Dict[Tuple[str, str], Optional[Tuple[str, str, str, Optional[str]]]] = {}
 
 _LANGUAGE_TO_MACOS_LOCALES: Dict[str, Tuple[str, ...]] = {
@@ -107,16 +133,55 @@ def _macos_voice_gender_map() -> Dict[str, Optional[str]]:
 
 
 @lru_cache(maxsize=1)
-def _cached_macos_voice_inventory() -> Tuple[Tuple[str, str, str, Optional[str]], ...]:
-    """Return macOS voice inventory as tuples of (voice, locale, quality, gender)."""
+def _parse_avfoundation_line(line: str) -> Optional[Tuple[str, str, str, Optional[str]]]:
+    candidate = line.strip()
+    if not candidate:
+        return None
 
+    parts = [segment.strip() for segment in candidate.split(" - ")]
+    if len(parts) < 4:
+        return None
+
+    name, locale, gender, quality = parts[0], parts[1], parts[2], parts[3]
+    if not name or not locale:
+        return None
+
+    normalized_gender: Optional[str] = gender.lower() if gender else None
+    if normalized_gender == "unknown":
+        normalized_gender = None
+
+    normalized_quality = quality.strip() if quality else ""
+
+    return (name, locale, normalized_quality, normalized_gender)
+
+
+def _collect_avfoundation_inventory() -> List[Tuple[str, str, str, Optional[str]]]:
     if sys.platform != "darwin":  # pragma: no cover - platform specific
-        return tuple()
+        return []
+
+    executable = sys.executable or "python3"
+    try:
+        output = subprocess.check_output([executable, "-c", _AVFOUNDATION_SCRIPT], text=True)
+    except Exception as exc:  # pragma: no cover - platform specific
+        logger.debug("Unable to query AVFoundation voices: %s", exc)
+        return []
+
+    voices: List[Tuple[str, str, str, Optional[str]]] = []
+    for line in output.splitlines():
+        parsed = _parse_avfoundation_line(line)
+        if parsed:
+            voices.append(parsed)
+    return voices
+
+
+def _collect_say_inventory() -> List[Tuple[str, str, str, Optional[str]]]:
+    if sys.platform != "darwin":  # pragma: no cover - platform specific
+        return []
     try:
         output = subprocess.check_output(["say", "-v", "?"], universal_newlines=True)
     except Exception as exc:  # pragma: no cover - platform specific
         logger.debug("Unable to query macOS voices: %s", exc)
-        return tuple()
+        return []
 
     gender_map = _macos_voice_gender_map()
     voices: List[Tuple[str, str, str, Optional[str]]] = []
@@ -135,6 +200,20 @@ def _cached_macos_voice_inventory() -> Tuple[Tuple[str, str, str, Optional[str]]
         voice_name = details[0]
         gender = gender_map.get(voice_name)
         voices.append((voice_name, locale, quality, gender))
+    return voices
+
+
+@lru_cache(maxsize=1)
+def _cached_macos_voice_inventory() -> Tuple[Tuple[str, str, str, Optional[str]], ...]:
+    """Return macOS voice inventory as tuples of (voice, locale, quality, gender)."""
+
+    if sys.platform != "darwin":  # pragma: no cover - platform specific
+        return tuple()
+
+    voices = _collect_avfoundation_inventory()
+    if not voices:
+        voices = _collect_say_inventory()
+
     return tuple(voices)
 
 
