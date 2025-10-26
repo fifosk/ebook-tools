@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import base64
+import logging
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Tuple
 
 import pytest
 from fastapi.testclient import TestClient
@@ -42,6 +43,15 @@ class _RecordingVideoJobManager:
         return self.jobs.get(job_id)
 
 
+@dataclass
+class _StubVideoService:
+    backend_name: str = "stub-backend"
+
+    @property
+    def renderer(self):  # pragma: no cover - simple stub
+        return type("_StubRenderer", (), {"name": self.backend_name})()
+
+
 def _build_payload(audio_bytes: bytes) -> dict[str, object]:
     encoded_audio = base64.b64encode(audio_bytes).decode("ascii")
     return {
@@ -60,7 +70,7 @@ def _build_payload(audio_bytes: bytes) -> dict[str, object]:
 def _video_dependencies(tmp_path):
     locator = FileLocator(storage_dir=tmp_path / "jobs")
     manager = _RecordingVideoJobManager(locator)
-    service = object()
+    service = _StubVideoService()
 
     app = create_app()
     app.dependency_overrides[get_video_job_manager] = lambda: manager
@@ -151,3 +161,128 @@ def test_get_video_job_status_returns_404(_video_dependencies):
         response = client.get("/api/video/missing-job")
 
     assert response.status_code == 404
+
+
+def test_submit_video_job_instrumentation(_video_dependencies, monkeypatch, caplog):
+    app, _ = _video_dependencies
+
+    recorded_metrics: List[Tuple[str, float, dict[str, object]]] = []
+
+    def _record_metric(name: str, value: float, attributes=None):
+        recorded_metrics.append((name, value, dict(attributes or {})))
+
+    monkeypatch.setattr(
+        "modules.webapi.video_routes.record_metric",
+        _record_metric,
+    )
+
+    response = None
+    with caplog.at_level(logging.INFO, logger="ebook_tools.webapi.video"):
+        try:
+            with TestClient(app) as client:
+                response = client.post(
+                    "/api/video",
+                    json=_build_payload(b"stub-audio"),
+                    headers={"x-request-id": "video-submit"},
+                )
+        finally:
+            app.dependency_overrides.clear()
+
+    assert response is not None
+    assert response.status_code == 202
+    events = {record.event for record in caplog.records}
+    assert "video.job.submit.request" in events
+    assert "video.job.submit.success" in events
+
+    metric_names = [entry[0] for entry in recorded_metrics]
+    assert "video.job.submit.requests" in metric_names
+    assert "video.job.submit.success" in metric_names
+    duration_metrics = [
+        entry for entry in recorded_metrics if entry[0] == "video.job.submit.duration_ms"
+    ]
+    assert duration_metrics
+    assert duration_metrics[0][2]["status"] == "success"
+
+
+def test_get_video_job_status_instrumentation(_video_dependencies, monkeypatch, caplog):
+    app, manager = _video_dependencies
+
+    recorded_metrics: List[Tuple[str, float, dict[str, object]]] = []
+
+    def _record_metric(name: str, value: float, attributes=None):
+        recorded_metrics.append((name, value, dict(attributes or {})))
+
+    monkeypatch.setattr(
+        "modules.webapi.video_routes.record_metric",
+        _record_metric,
+    )
+
+    with TestClient(app) as client:
+        submit_response = client.post(
+            "/api/video",
+            json=_build_payload(b"stub"),
+            headers={"x-request-id": "video-submit-2"},
+        )
+        assert submit_response.status_code == 202
+
+        job = manager.get("job-123")
+        assert job is not None
+        job.status = VideoJobStatus.RUNNING
+
+        caplog.clear()
+        with caplog.at_level(logging.INFO, logger="ebook_tools.webapi.video"):
+            status_response = client.get(
+                "/api/video/job-123",
+                headers={"x-request-id": "video-status"},
+            )
+
+    assert status_response.status_code == 200
+    events = {record.event for record in caplog.records}
+    assert "video.job.status.request" in events
+    assert "video.job.status.success" in events
+
+    status_metrics = [
+        entry for entry in recorded_metrics if entry[0].startswith("video.job.status")
+    ]
+    assert status_metrics
+    duration_metrics = [
+        entry for entry in status_metrics if entry[0] == "video.job.status.duration_ms"
+    ]
+    assert duration_metrics
+    assert duration_metrics[0][2]["status"] == VideoJobStatus.RUNNING.value
+
+
+def test_get_video_job_status_not_found_instrumentation(
+    _video_dependencies, monkeypatch, caplog
+):
+    app, _ = _video_dependencies
+
+    recorded_metrics: List[Tuple[str, float, dict[str, object]]] = []
+
+    def _record_metric(name: str, value: float, attributes=None):
+        recorded_metrics.append((name, value, dict(attributes or {})))
+
+    monkeypatch.setattr(
+        "modules.webapi.video_routes.record_metric",
+        _record_metric,
+    )
+
+    with caplog.at_level(logging.INFO, logger="ebook_tools.webapi.video"):
+        with TestClient(app) as client:
+            response = client.get(
+                "/api/video/missing-job",
+                headers={"x-request-id": "video-status-miss"},
+            )
+
+    assert response.status_code == 404
+    events = {record.event for record in caplog.records}
+    assert "video.job.status.request" in events
+    assert "video.job.status.not_found" in events
+
+    metric_names = [entry[0] for entry in recorded_metrics]
+    assert "video.job.status.not_found" in metric_names
+    not_found_durations = [
+        entry for entry in recorded_metrics if entry[0] == "video.job.status.duration_ms"
+    ]
+    assert not_found_durations
+    assert not_found_durations[0][2]["status"] == "not_found"
