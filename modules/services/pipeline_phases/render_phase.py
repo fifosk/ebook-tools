@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from typing import TYPE_CHECKING
 
 from pydub import AudioSegment
@@ -11,6 +10,7 @@ from pydub import AudioSegment
 from ... import logging_manager as log_mgr
 from ... import output_formatter
 from ...core.rendering import RenderPhaseRequest, process_epub
+from ...render.backends import get_video_renderer
 from ..pipeline_types import (
     ConfigPhaseResult,
     MetadataPhaseResult,
@@ -140,33 +140,12 @@ def build_stitching_artifacts(
                 "console_suppress": True,
             },
         )
-        concat_list_path = os.path.join(
-            render_result.base_dir, f"concat_full_{stitched_basename}.txt"
-        )
-        with open(concat_list_path, "w", encoding="utf-8") as file_obj:
-            for video_file in render_result.batch_video_files:
-                file_obj.write(f"file '{video_file}'\n")
         video_path_result = os.path.join(
             render_result.base_dir,
             f"{range_fragment}_{stitched_basename}_stitched.mp4",
         )
-        cmd_concat = [
-            "ffmpeg",
-            "-loglevel",
-            "quiet",
-            "-y",
-            "-f",
-            "concat",
-            "-safe",
-            "0",
-            "-i",
-            concat_list_path,
-            "-c",
-            "copy",
-            video_path_result,
-        ]
-        subprocess.run(cmd_concat, check=True)
-        os.remove(concat_list_path)
+        renderer = get_video_renderer()
+        renderer.concatenate(render_result.batch_video_files, video_path_result)
         logger.info(
             "Stitched video slide output saved",
             extra={

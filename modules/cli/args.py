@@ -64,6 +64,11 @@ def _add_run_arguments(parser: argparse.ArgumentParser) -> argparse.ArgumentPars
         help="Select the backend used for per-frame slide rendering.",
     )
     parser.add_argument(
+        "--video-backend",
+        choices=["ffmpeg", "golang"],
+        help="Select the backend used for video assembly.",
+    )
+    parser.add_argument(
         "--tts-backend",
         choices=["auto", "macos", "gtts"],
         help="Select the text-to-speech backend (auto, macos, or gtts).",

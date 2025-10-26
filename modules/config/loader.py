@@ -1,6 +1,7 @@
 """Rendering configuration loader and validation utilities."""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -20,6 +21,7 @@ _DEFAULT_CONFIG = {
     "audio_backend": "polly",
     "ramdisk_enabled": True,
     "ramdisk_path": "tmp/render",
+    "video_backend_settings": {},
 }
 
 
@@ -63,6 +65,24 @@ def _coerce_path_string(name: str, value: Any) -> str:
     raise ValueError(f"{name} must be a non-empty path string")
 
 
+def _coerce_settings_mapping(name: str, value: Any) -> MutableMapping[str, Any]:
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{name} must be a mapping of backend settings")
+    result: MutableMapping[str, Any] = {}
+    for key, payload in value.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError(f"{name} keys must be non-empty strings")
+        if payload is None:
+            result[key.strip()] = {}
+            continue
+        if not isinstance(payload, Mapping):
+            raise ValueError(f"{name}.{key} must be a mapping of settings")
+        result[key.strip()] = dict(payload)
+    return result
+
+
 def _normalise_payload(data: Mapping[str, Any] | None) -> MutableMapping[str, Any]:
     payload: MutableMapping[str, Any] = dict(_DEFAULT_CONFIG)
     if not data:
@@ -85,6 +105,7 @@ class RenderingConfig:
     audio_backend: str
     ramdisk_enabled: bool
     ramdisk_path: str
+    video_backend_settings: Mapping[str, Any]
 
     @classmethod
     def from_mapping(cls, payload: Mapping[str, Any] | None) -> "RenderingConfig":
@@ -92,10 +113,17 @@ class RenderingConfig:
         video = _coerce_positive_int("video_concurrency", normalised["video_concurrency"])
         audio = _coerce_positive_int("audio_concurrency", normalised["audio_concurrency"])
         text = _coerce_positive_int("text_concurrency", normalised["text_concurrency"])
-        video_backend = _coerce_backend_name("video_backend", normalised["video_backend"])
+        env_video_backend = os.environ.get("EBOOK_VIDEO_BACKEND")
+        selected_video_backend = (
+            env_video_backend if env_video_backend else normalised["video_backend"]
+        )
+        video_backend = _coerce_backend_name("video_backend", selected_video_backend)
         audio_backend = _coerce_backend_name("audio_backend", normalised["audio_backend"])
         ramdisk_enabled = _coerce_bool("ramdisk_enabled", normalised["ramdisk_enabled"])
         ramdisk_path = _coerce_path_string("ramdisk_path", normalised["ramdisk_path"])
+        backend_settings = _coerce_settings_mapping(
+            "video_backend_settings", normalised.get("video_backend_settings")
+        )
         return cls(
             video_concurrency=video,
             audio_concurrency=audio,
@@ -104,6 +132,7 @@ class RenderingConfig:
             audio_backend=audio_backend,
             ramdisk_enabled=ramdisk_enabled,
             ramdisk_path=ramdisk_path,
+            video_backend_settings=backend_settings,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -115,6 +144,7 @@ class RenderingConfig:
             "audio_backend": self.audio_backend,
             "ramdisk_enabled": self.ramdisk_enabled,
             "ramdisk_path": self.ramdisk_path,
+            "video_backend_settings": dict(self.video_backend_settings),
         }
 
 

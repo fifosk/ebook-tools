@@ -11,15 +11,16 @@ from modules.audio.highlight import HighlightEvent
 
 from .slide_core import HighlightSpec, Slide
 from .slide_renderer import (
+    SentenceFrameBatch,
     SlideRenderOptions,
     SlideRenderProfiler,
     SlideRenderer,
 )
 
 __all__ = [
-    "build_sentence_video",
     "generate_sentence_slide_image",
     "get_default_font_path",
+    "prepare_sentence_frames",
     "SlideRenderOptions",
     "SlideRenderProfiler",
 ]
@@ -95,7 +96,7 @@ def generate_sentence_slide_image(
     )
 
 
-def build_sentence_video(
+def prepare_sentence_frames(
     block: str,
     audio_seg: AudioSegment,
     sentence_index: int,
@@ -112,11 +113,11 @@ def build_sentence_video(
     header_info: str = "",
     render_options: Optional[SlideRenderOptions] = None,
     template_name: Optional[str] = None,
-) -> str:
-    """Generate a word-synchronised video for a single sentence."""
+) -> SentenceFrameBatch:
+    """Prepare rendered slide frames for a single sentence."""
 
     slide = _build_slide(block, template_name)
-    return _DEFAULT_RENDERER.build_sentence_video(
+    return _DEFAULT_RENDERER.prepare_sentence_frames(
         slide,
         audio_seg,
         sentence_index,

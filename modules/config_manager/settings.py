@@ -84,6 +84,7 @@ class EbookToolsSettings(BaseModel):
     ollama_local_url: str = DEFAULT_OLLAMA_URL
     ollama_cloud_url: str = DEFAULT_OLLAMA_CLOUD_URL
     ffmpeg_path: Optional[str] = None
+    video_backend: str = "ffmpeg"
     thread_count: int = 5
     queue_size: int = 20
     pipeline_mode: bool = False
@@ -144,6 +145,9 @@ class EnvironmentOverrides(BaseSettings):
     )
     use_ramdisk: Optional[bool] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_USE_RAMDISK")
+    )
+    video_backend: Optional[str] = Field(
+        default=None, validation_alias=AliasChoices("VIDEO_BACKEND", "EBOOK_VIDEO_BACKEND")
     )
     ollama_api_key: Optional[SecretStr] = Field(
         default=None, validation_alias=AliasChoices("OLLAMA_API_KEY", "EBOOK_OLLAMA_API_KEY")

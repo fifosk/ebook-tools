@@ -11,6 +11,7 @@ from functools import lru_cache
 from typing import Any, Dict, Optional, cast, overload
 
 from modules import logging_manager, ramdisk_manager
+from modules.config.loader import get_rendering_config
 
 from .constants import (
     DEFAULT_BOOKS_RELATIVE,
@@ -420,6 +421,16 @@ def build_runtime_context(
     ffmpeg_path = os.path.expanduser(
         str(ffmpeg_override or config.get("ffmpeg_path") or DEFAULT_FFMPEG_PATH)
     )
+
+    video_backend_override = overrides.get("video_backend") if overrides else None
+    video_backend_value = (
+        video_backend_override
+        if video_backend_override not in [None, ""]
+        else config.get("video_backend")
+    )
+    if isinstance(video_backend_value, str) and video_backend_value.strip():
+        os.environ["EBOOK_VIDEO_BACKEND"] = video_backend_value.strip()
+        get_rendering_config.cache_clear()
 
     config_primary_url = config.get("ollama_url")
     default_primary_url = cloud_ollama_url if llm_source == "cloud" else local_ollama_url
