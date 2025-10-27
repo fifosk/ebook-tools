@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { UIEvent } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import MediaList from './MediaList';
 import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
+import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 
@@ -70,6 +72,38 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
     return initial;
   });
+  const mediaMemory = useMediaMemory({ jobId });
+  const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
+  const textScrollRef = useRef<HTMLElement | null>(null);
+  const mediaIndex = useMemo(() => {
+    const map: Record<MediaCategory, Map<string, LiveMediaItem>> = {
+      text: new Map(),
+      audio: new Map(),
+      video: new Map(),
+    };
+
+    (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+      media[category].forEach((item) => {
+        if (item.url) {
+          map[category].set(item.url, item);
+        }
+      });
+    });
+
+    return map;
+  }, [media]);
+
+  const getMediaItem = useCallback(
+    (category: MediaCategory, id: string | null | undefined) => {
+      if (!id) {
+        return null;
+      }
+      return mediaIndex[category].get(id) ?? null;
+    },
+    [mediaIndex],
+  );
+
+  const activeItemId = selectedItemIds[selectedMediaType];
 
   useEffect(() => {
     setSelectedMediaType((current) => {
@@ -79,6 +113,27 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
       return selectInitialTab(media);
     });
   }, [media]);
+
+  useEffect(() => {
+    const rememberedType = memoryState.currentMediaType;
+    const rememberedId = memoryState.currentMediaId;
+    if (!rememberedType || !rememberedId) {
+      return;
+    }
+
+    if (!mediaIndex[rememberedType].has(rememberedId)) {
+      return;
+    }
+
+    setSelectedItemIds((current) => {
+      if (current[rememberedType] === rememberedId) {
+        return current;
+      }
+      return { ...current, [rememberedType]: rememberedId };
+    });
+
+    setSelectedMediaType((current) => (current === rememberedType ? current : rememberedType));
+  }, [memoryState.currentMediaId, memoryState.currentMediaType, mediaIndex]);
 
   useEffect(() => {
     setSelectedItemIds((current) => {
@@ -111,9 +166,39 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     });
   }, [media]);
 
-  const handleTabChange = useCallback((nextValue: string) => {
-    setSelectedMediaType(nextValue as MediaCategory);
-  }, []);
+  useEffect(() => {
+    if (!activeItemId) {
+      return;
+    }
+
+    const currentItem = getMediaItem(selectedMediaType, activeItemId);
+    if (!currentItem) {
+      return;
+    }
+
+    rememberSelection({ media: currentItem });
+  }, [activeItemId, selectedMediaType, getMediaItem, rememberSelection]);
+
+  const handleTabChange = useCallback(
+    (nextValue: string) => {
+      const nextType = nextValue as MediaCategory;
+      setSelectedMediaType(nextType);
+      setSelectedItemIds((current) => {
+        const baseId = memoryState.baseId;
+        if (!baseId) {
+          return current;
+        }
+
+        const match = findMatchingMediaId(baseId, nextType, media[nextType]);
+        if (!match || current[nextType] === match) {
+          return current;
+        }
+
+        return { ...current, [nextType]: match };
+      });
+    },
+    [findMatchingMediaId, media, memoryState.baseId],
+  );
 
   const toggleListVisibility = useCallback((category: MediaCategory) => {
     setExpandedLists((current) => {
@@ -219,6 +304,9 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     [combinedMedia, selectedMediaType],
   );
   const selectedItemId = selectedItemIds[selectedMediaType];
+  const audioPlaybackPosition = getPosition(selectedItemIds.audio);
+  const videoPlaybackPosition = getPosition(selectedItemIds.video);
+  const textPlaybackPosition = getPosition(selectedItemIds.text);
   const selectedItem = useMemo(() => {
     if (filteredMedia.length === 0) {
       return null;
@@ -273,6 +361,79 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     },
     [selectedMediaType, updateSelection],
   );
+
+  const handleTextScroll = useCallback(
+    (event: UIEvent<HTMLElement>) => {
+      const mediaId = selectedItemIds.text;
+      if (!mediaId) {
+        return;
+      }
+
+      const current = getMediaItem('text', mediaId);
+      const baseId = current ? deriveBaseId(current) : null;
+      const target = event.currentTarget as HTMLElement;
+      rememberPosition({ mediaId, mediaType: 'text', baseId, position: target.scrollTop ?? 0 });
+    },
+    [selectedItemIds.text, getMediaItem, deriveBaseId, rememberPosition],
+  );
+
+  const handleAudioProgress = useCallback(
+    (position: number) => {
+      const mediaId = selectedItemIds.audio;
+      if (!mediaId) {
+        return;
+      }
+
+      const current = getMediaItem('audio', mediaId);
+      const baseId = current ? deriveBaseId(current) : null;
+      rememberPosition({ mediaId, mediaType: 'audio', baseId, position });
+    },
+    [selectedItemIds.audio, getMediaItem, deriveBaseId, rememberPosition],
+  );
+
+  const handleVideoProgress = useCallback(
+    (position: number) => {
+      const mediaId = selectedItemIds.video;
+      if (!mediaId) {
+        return;
+      }
+
+      const current = getMediaItem('video', mediaId);
+      const baseId = current ? deriveBaseId(current) : null;
+      rememberPosition({ mediaId, mediaType: 'video', baseId, position });
+    },
+    [selectedItemIds.video, getMediaItem, deriveBaseId, rememberPosition],
+  );
+
+  useEffect(() => {
+    if (selectedMediaType !== 'text') {
+      return;
+    }
+
+    const mediaId = selectedItemIds.text;
+    if (!mediaId) {
+      return;
+    }
+
+    const element = textScrollRef.current;
+    if (!element) {
+      return;
+    }
+
+    const storedPosition = textPlaybackPosition;
+    if (Math.abs(element.scrollTop - storedPosition) < 1) {
+      return;
+    }
+
+    try {
+      element.scrollTop = storedPosition;
+      if (typeof element.scrollTo === 'function') {
+        element.scrollTo({ top: storedPosition });
+      }
+    } catch (error) {
+      // Swallow assignment errors triggered by unsupported scrolling APIs in tests.
+    }
+  }, [selectedMediaType, selectedItemIds.text, textPlaybackPosition, textPreview?.url]);
 
   useEffect(() => {
     if (selectedMediaType !== 'text') {
@@ -486,6 +647,8 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                             onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
                             autoPlay
                             onPlaybackEnded={() => handleAdvanceMedia('audio')}
+                            playbackPosition={audioPlaybackPosition}
+                            onPlaybackPositionChange={handleAudioProgress}
                           />
                         ) : null}
                         {tab.key === 'video' ? (
@@ -495,6 +658,8 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                             onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
                             autoPlay
                             onPlaybackEnded={() => handleAdvanceMedia('video')}
+                            playbackPosition={videoPlaybackPosition}
+                            onPlaybackPositionChange={handleVideoProgress}
                           />
                         ) : null}
                         {tab.key === 'text' ? (
@@ -511,8 +676,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                               ) : textPreview ? (
                                 textPreview.content ? (
                                   <article
+                                    ref={textScrollRef}
                                     className="player-panel__document-body"
                                     data-testid="player-panel-document"
+                                    onScroll={handleTextScroll}
                                   >
                                     <pre className="player-panel__document-text">{textPreview.content}</pre>
                                   </article>
