@@ -11,6 +11,8 @@ interface VideoPlayerProps {
   onSelectFile: (fileId: string) => void;
   autoPlay?: boolean;
   onPlaybackEnded?: () => void;
+  playbackPosition?: number | null;
+  onPlaybackPositionChange?: (position: number) => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -21,6 +23,8 @@ export default function VideoPlayer({
   onSelectFile,
   autoPlay = false,
   onPlaybackEnded,
+  playbackPosition = null,
+  onPlaybackPositionChange,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const labels = files.map((file, index) => ({
@@ -56,6 +60,34 @@ export default function VideoPlayer({
     attemptAutoplay();
   }, [attemptAutoplay, activeFile?.id]);
 
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || playbackPosition === null || playbackPosition === undefined) {
+      return;
+    }
+
+    const clamped = Number.isFinite(playbackPosition) ? Math.max(playbackPosition, 0) : 0;
+
+    if (Math.abs(element.currentTime - clamped) < 0.25) {
+      return;
+    }
+
+    try {
+      element.currentTime = clamped;
+    } catch (error) {
+      // Ignore assignment failures that can happen in non-media test environments.
+    }
+  }, [playbackPosition, activeFile?.id]);
+
+  const handleTimeUpdate = useCallback(() => {
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+
+    onPlaybackPositionChange?.(element.currentTime ?? 0);
+  }, [onPlaybackPositionChange]);
+
   if (files.length === 0) {
     return (
       <div className="video-player" role="status">
@@ -86,6 +118,7 @@ export default function VideoPlayer({
         playsInline
         onEnded={onPlaybackEnded}
         onLoadedData={attemptAutoplay}
+        onTimeUpdate={handleTimeUpdate}
       >
         Your browser does not support the video element.
       </video>

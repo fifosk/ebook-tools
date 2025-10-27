@@ -10,6 +10,8 @@ interface AudioPlayerProps {
   onSelectFile: (fileId: string) => void;
   autoPlay?: boolean;
   onPlaybackEnded?: () => void;
+  playbackPosition?: number | null;
+  onPlaybackPositionChange?: (position: number) => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -20,6 +22,8 @@ export default function AudioPlayer({
   onSelectFile,
   autoPlay = false,
   onPlaybackEnded,
+  playbackPosition = null,
+  onPlaybackPositionChange,
 }: AudioPlayerProps) {
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const labels = files.map((file, index) => ({
@@ -55,6 +59,34 @@ export default function AudioPlayer({
     attemptAutoplay();
   }, [attemptAutoplay, activeFile?.id]);
 
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || playbackPosition === null || playbackPosition === undefined) {
+      return;
+    }
+
+    const clamped = Number.isFinite(playbackPosition) ? Math.max(playbackPosition, 0) : 0;
+
+    if (Math.abs(element.currentTime - clamped) < 0.25) {
+      return;
+    }
+
+    try {
+      element.currentTime = clamped;
+    } catch (error) {
+      // Setting currentTime may fail in certain mocked environments; ignore silently.
+    }
+  }, [playbackPosition, activeFile?.id]);
+
+  const handleTimeUpdate = useCallback(() => {
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+
+    onPlaybackPositionChange?.(element.currentTime ?? 0);
+  }, [onPlaybackPositionChange]);
+
   if (files.length === 0) {
     return (
       <div className="audio-player" role="status">
@@ -83,6 +115,7 @@ export default function AudioPlayer({
         autoPlay={autoPlay}
         onEnded={onPlaybackEnded}
         onLoadedData={attemptAutoplay}
+        onTimeUpdate={handleTimeUpdate}
       >
         Your browser does not support the audio element.
       </audio>
