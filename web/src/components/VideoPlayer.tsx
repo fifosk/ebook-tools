@@ -33,6 +33,78 @@ export default function VideoPlayer({
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+  const shouldRestoreFullscreenRef = useRef(false);
+
+  const getFullscreenElement = useCallback(() => {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+
+    const standardElement = document.fullscreenElement;
+    if (standardElement) {
+      return standardElement;
+    }
+
+    const webkitElement = (document as unknown as { webkitFullscreenElement?: Element | null })
+      .webkitFullscreenElement;
+    if (webkitElement) {
+      return webkitElement;
+    }
+
+    const mozElement = (document as unknown as { mozFullScreenElement?: Element | null }).mozFullScreenElement;
+    if (mozElement) {
+      return mozElement;
+    }
+
+    const msElement = (document as unknown as { msFullscreenElement?: Element | null }).msFullscreenElement;
+    if (msElement) {
+      return msElement;
+    }
+
+    return null;
+  }, []);
+
+  const markFullscreenRestoreIfNeeded = useCallback(() => {
+    const element = elementRef.current;
+    if (!element) {
+      shouldRestoreFullscreenRef.current = false;
+      return;
+    }
+
+    const fullscreenElement = getFullscreenElement();
+
+    shouldRestoreFullscreenRef.current = fullscreenElement === element;
+  }, [getFullscreenElement]);
+
+  const restoreFullscreenIfNeeded = useCallback(() => {
+    const element = elementRef.current;
+    if (!element || !shouldRestoreFullscreenRef.current) {
+      return;
+    }
+
+    shouldRestoreFullscreenRef.current = false;
+
+    const requestFullscreen =
+      element.requestFullscreen?.bind(element) ??
+      (element as unknown as { webkitRequestFullscreen?: () => Promise<void> | void }).webkitRequestFullscreen?.bind(element) ??
+      (element as unknown as { mozRequestFullScreen?: () => Promise<void> | void }).mozRequestFullScreen?.bind(element) ??
+      (element as unknown as { msRequestFullscreen?: () => Promise<void> | void }).msRequestFullscreen?.bind(element);
+
+    if (!requestFullscreen) {
+      return;
+    }
+
+    try {
+      const result = requestFullscreen();
+      if (result && typeof (result as Promise<void>).then === 'function') {
+        (result as Promise<void>).catch(() => {
+          // Ignore fullscreen restoration rejections that stem from browser policies.
+        });
+      }
+    } catch (error) {
+      // Ignore fullscreen restoration failures triggered by browser restrictions.
+    }
+  }, []);
 
   const attemptAutoplay = useCallback(() => {
     if (!autoPlay) {
@@ -59,6 +131,10 @@ export default function VideoPlayer({
   useEffect(() => {
     attemptAutoplay();
   }, [attemptAutoplay, activeFile?.id]);
+
+  useEffect(() => {
+    restoreFullscreenIfNeeded();
+  }, [restoreFullscreenIfNeeded, activeFile?.id]);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -88,6 +164,19 @@ export default function VideoPlayer({
     onPlaybackPositionChange?.(element.currentTime ?? 0);
   }, [onPlaybackPositionChange]);
 
+  const handleSelectPlaylistItem = useCallback(
+    (fileId: string) => {
+      markFullscreenRestoreIfNeeded();
+      onSelectFile(fileId);
+    },
+    [markFullscreenRestoreIfNeeded, onSelectFile]
+  );
+
+  const handlePlaybackEnded = useCallback(() => {
+    markFullscreenRestoreIfNeeded();
+    onPlaybackEnded?.();
+  }, [markFullscreenRestoreIfNeeded, onPlaybackEnded]);
+
   if (files.length === 0) {
     return (
       <div className="video-player" role="status">
@@ -116,7 +205,7 @@ export default function VideoPlayer({
         poster={activeFile.poster}
         autoPlay={autoPlay}
         playsInline
-        onEnded={onPlaybackEnded}
+        onEnded={handlePlaybackEnded}
         onLoadedData={attemptAutoplay}
         onTimeUpdate={handleTimeUpdate}
       >
@@ -129,7 +218,7 @@ export default function VideoPlayer({
             type="button"
             className="video-player__item"
             aria-pressed={file.id === activeId}
-            onClick={() => onSelectFile(file.id)}
+            onClick={() => handleSelectPlaylistItem(file.id)}
           >
             {file.label}
           </button>
