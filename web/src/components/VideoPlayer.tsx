@@ -13,6 +13,7 @@ interface VideoPlayerProps {
   onPlaybackEnded?: () => void;
   playbackPosition?: number | null;
   onPlaybackPositionChange?: (position: number) => void;
+  onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -25,6 +26,7 @@ export default function VideoPlayer({
   onPlaybackEnded,
   playbackPosition = null,
   onPlaybackPositionChange,
+  onPlaybackStateChange,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const labels = files.map((file, index) => ({
@@ -88,6 +90,19 @@ export default function VideoPlayer({
     onPlaybackPositionChange?.(element.currentTime ?? 0);
   }, [onPlaybackPositionChange]);
 
+  const handlePlay = useCallback(() => {
+    onPlaybackStateChange?.('playing');
+  }, [onPlaybackStateChange]);
+
+  const handlePause = useCallback(() => {
+    onPlaybackStateChange?.('paused');
+  }, [onPlaybackStateChange]);
+
+  const handleEnded = useCallback(() => {
+    onPlaybackStateChange?.('paused');
+    onPlaybackEnded?.();
+  }, [onPlaybackEnded, onPlaybackStateChange]);
+
   if (files.length === 0) {
     return (
       <div className="video-player" role="status">
@@ -116,7 +131,9 @@ export default function VideoPlayer({
         poster={activeFile.poster}
         autoPlay={autoPlay}
         playsInline
-        onEnded={onPlaybackEnded}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onEnded={handleEnded}
         onLoadedData={attemptAutoplay}
         onTimeUpdate={handleTimeUpdate}
       >

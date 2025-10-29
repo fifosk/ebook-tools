@@ -16,6 +16,7 @@ interface PlayerPanelProps {
   media: LiveMediaState;
   isLoading: boolean;
   error: Error | null;
+  onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
 }
 
 interface TabDefinition {
@@ -55,7 +56,13 @@ function toVideoFiles(media: LiveMediaState['video']) {
     }));
 }
 
-export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPanelProps) {
+export default function PlayerPanel({
+  jobId,
+  media,
+  isLoading,
+  error,
+  onVideoPlaybackStateChange,
+}: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
   const [expandedLists, setExpandedLists] = useState<Set<MediaCategory>>(() => new Set());
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
@@ -72,6 +79,8 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
     return initial;
   });
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const isVideoTabActive = selectedMediaType === 'video';
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
   const textScrollRef = useRef<HTMLElement | null>(null);
@@ -288,10 +297,25 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
+  useEffect(() => {
+    if (videoFiles.length === 0 && isVideoPlaying) {
+      setIsVideoPlaying(false);
+    }
+  }, [videoFiles.length, isVideoPlaying]);
   const textContentCache = useRef(new Map<string, string>());
   const [textPreview, setTextPreview] = useState<{ url: string; content: string } | null>(null);
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onVideoPlaybackStateChange?.(isVideoPlaying);
+  }, [isVideoPlaying, onVideoPlaybackStateChange]);
+
+  useEffect(() => {
+    if (!isVideoTabActive && isVideoPlaying) {
+      setIsVideoPlaying(false);
+    }
+  }, [isVideoPlaying, isVideoTabActive]);
   const combinedMedia = useMemo(
     () =>
       (['text', 'audio', 'video'] as MediaCategory[]).flatMap((category) =>
@@ -318,6 +342,8 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
 
     return filteredMedia.find((item) => item.url === selectedItemId) ?? filteredMedia[0];
   }, [filteredMedia, selectedItemId]);
+  const isImmersiveMode = isVideoTabActive && isVideoPlaying;
+  const panelClassName = isImmersiveMode ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
   const navigableItems = useMemo(
@@ -404,6 +430,10 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
     },
     [selectedItemIds.video, getMediaItem, deriveBaseId, rememberPosition],
   );
+
+  const handleVideoPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
+    setIsVideoPlaying(state === 'playing');
+  }, []);
 
   useEffect(() => {
     if (selectedMediaType !== 'text') {
@@ -534,7 +564,7 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
 
   return (
-    <section className="player-panel" aria-label="Generated media">
+    <section className={panelClassName} aria-label="Generated media">
       <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
         <header className="player-panel__header">
           <div className="player-panel__heading">
@@ -602,7 +632,8 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
           const items = isActive
             ? filteredMedia
             : combinedMedia.filter((item) => item.type === tab.key);
-          const isExpanded = expandedLists.has(tab.key);
+          const shouldHideList = tab.key === 'video' && isImmersiveMode;
+          const isExpanded = shouldHideList ? false : expandedLists.has(tab.key);
           const listId = `player-panel-${tab.key}-list`;
           return (
             <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
@@ -660,6 +691,7 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                             onPlaybackEnded={() => handleAdvanceMedia('video')}
                             playbackPosition={videoPlaybackPosition}
                             onPlaybackPositionChange={handleVideoProgress}
+                            onPlaybackStateChange={handleVideoPlaybackStateChange}
                           />
                         ) : null}
                         {tab.key === 'text' ? (
@@ -703,32 +735,36 @@ export default function PlayerPanel({ jobId, media, isLoading, error }: PlayerPa
                       </div>
                     </div>
                   ) : null}
-                  <div className="player-panel__list-toggle">
-                    <button
-                      type="button"
-                      className="player-panel__list-toggle-button"
-                      aria-expanded={isExpanded}
-                      aria-controls={listId}
-                      onClick={() => toggleListVisibility(tab.key)}
-                    >
-                      {isExpanded ? 'Hide detailed file list' : 'Show detailed file list'}
-                    </button>
-                  </div>
-                  <div
-                    className="player-panel__media-list"
-                    id={`${listId}-container`}
-                    hidden={!isExpanded}
-                    aria-hidden={!isExpanded}
-                  >
-                    <MediaList
-                      id={listId}
-                      items={items}
-                      category={tab.key}
-                      emptyMessage={tab.emptyMessage}
-                      selectedKey={selectedItemIds[tab.key] ?? null}
-                      onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
-                    />
-                  </div>
+                  {shouldHideList ? null : (
+                    <>
+                      <div className="player-panel__list-toggle">
+                        <button
+                          type="button"
+                          className="player-panel__list-toggle-button"
+                          aria-expanded={isExpanded}
+                          aria-controls={listId}
+                          onClick={() => toggleListVisibility(tab.key)}
+                        >
+                          {isExpanded ? 'Hide detailed file list' : 'Show detailed file list'}
+                        </button>
+                      </div>
+                      <div
+                        className="player-panel__media-list"
+                        id={`${listId}-container`}
+                        hidden={!isExpanded}
+                        aria-hidden={!isExpanded}
+                      >
+                        <MediaList
+                          id={listId}
+                          items={items}
+                          category={tab.key}
+                          emptyMessage={tab.emptyMessage}
+                          selectedKey={selectedItemIds[tab.key] ?? null}
+                          onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
+                        />
+                      </div>
+                    </>
+                  )}
                 </>
               )}
             </TabsContent>
