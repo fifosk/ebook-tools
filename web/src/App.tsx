@@ -71,6 +71,7 @@ export function App() {
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isAccountExpanded, setIsAccountExpanded] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -230,6 +231,12 @@ export function App() {
       setSelectedView('pipeline:submit');
     }
   }, [activeJobId, selectedView]);
+
+  useEffect(() => {
+    if (selectedView !== JOB_MEDIA_VIEW) {
+      setIsImmersiveMode(false);
+    }
+  }, [selectedView]);
 
   useEffect(() => {
     if (session) {
@@ -410,6 +417,15 @@ export function App() {
     [isAdmin, jobs, refreshJobs, sessionUsername]
   );
 
+  const handleVideoPlaybackStateChange = useCallback((isPlaying: boolean) => {
+    setIsImmersiveMode((previous) => {
+      if (previous === isPlaying) {
+        return previous;
+      }
+      return isPlaying;
+    });
+  }, []);
+
   const handlePauseJob = useCallback(
     async (jobId: string) => {
       await performJobAction(jobId, 'pause');
@@ -495,6 +511,12 @@ export function App() {
     return job;
   }, [activeJobId, jobList]);
 
+  useEffect(() => {
+    if (!selectedJob) {
+      setIsImmersiveMode(false);
+    }
+  }, [selectedJob]);
+
   const displayName = useMemo(() => {
     if (!sessionUser) {
       return { label: '', showUsernameTag: false };
@@ -528,6 +550,14 @@ export function App() {
     }
   }, [sessionUser]);
 
+  const dashboardClassNames = ['dashboard'];
+  if (!isSidebarOpen) {
+    dashboardClassNames.push('dashboard--collapsed');
+  }
+  if (isImmersiveMode) {
+    dashboardClassNames.push('dashboard--immersive');
+  }
+
   if (isAuthLoading) {
     return (
       <div className="auth-screen">
@@ -556,7 +586,7 @@ export function App() {
   }
 
   return (
-    <div className={`dashboard ${isSidebarOpen ? '' : 'dashboard--collapsed'}`}>
+    <div className={dashboardClassNames.join(' ')}>
       <aside
         id="dashboard-sidebar"
         className={`dashboard__sidebar ${isSidebarOpen ? '' : 'dashboard__sidebar--collapsed'}`}
@@ -834,7 +864,10 @@ export function App() {
               ) : null}
               {selectedView === JOB_MEDIA_VIEW ? (
                 <section className="job-media-section">
-                  <JobDetail jobId={selectedJob?.jobId ?? null} />
+                  <JobDetail
+                    jobId={selectedJob?.jobId ?? null}
+                    onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
+                  />
                 </section>
               ) : null}
             </>
