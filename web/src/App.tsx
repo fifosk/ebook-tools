@@ -594,9 +594,9 @@ export function App() {
         <div className="sidebar__header">
           <div className="sidebar__brand">
             <span className="sidebar__logo-mark" aria-hidden="true">
-              et
+              lt
             </span>
-            <span className="sidebar__title">ebook-tools</span>
+            <span className="sidebar__title">Language tools</span>
             <span className="sidebar__subtitle">Pipeline dashboard</span>
           </div>
           <button
