@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import copy
+import json
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Mapping, Optional
 
 from ..file_locator import FileLocator
+from ... import logging_manager
 from ..pipeline_service import (
     serialize_pipeline_request,
     serialize_pipeline_response,
@@ -15,6 +17,8 @@ from .job import PipelineJob
 from .metadata import PipelineJobMetadata
 from .progress import deserialize_progress_event, serialize_progress_event
 from ...progress_tracker import ProgressEvent
+
+_LOGGER = logging_manager.get_logger().getChild("job_manager.persistence")
 
 
 class PipelineJobPersistence:
@@ -55,7 +59,7 @@ class PipelineJobPersistence:
         normalized_files = self._normalize_generated_files(job.job_id, job.generated_files)
         job.generated_files = copy.deepcopy(normalized_files) if normalized_files is not None else None
 
-        return PipelineJobMetadata(
+        snapshot = PipelineJobMetadata(
             job_id=job.job_id,
             status=job.status,
             created_at=job.created_at,
@@ -75,6 +79,8 @@ class PipelineJobPersistence:
             if normalized_files is not None
             else None,
         )
+        self._persist_metadata_files(job, snapshot)
+        return snapshot
 
     def build_job(self, metadata: PipelineJobMetadata) -> PipelineJob:
         """Return a :class:`PipelineJob` hydrated from ``metadata``."""
@@ -121,6 +127,35 @@ class PipelineJobPersistence:
             job.last_event = deserialize_progress_event(metadata.last_event)
 
         return job
+
+    def _persist_metadata_files(self, job: PipelineJob, snapshot: PipelineJobMetadata) -> None:
+        try:
+            metadata_root = self._file_locator.metadata_root(job.job_id)
+            metadata_root.mkdir(parents=True, exist_ok=True)
+        except Exception:  # pragma: no cover - defensive logging
+            _LOGGER.debug("Unable to prepare metadata directory", exc_info=True)
+            return
+
+        result_payload = snapshot.result or {}
+        book_metadata = result_payload.get("book_metadata") or {}
+        if isinstance(book_metadata, Mapping):
+            try:
+                (metadata_root / "book.json").write_text(
+                    json.dumps(dict(book_metadata), indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
+            except Exception:  # pragma: no cover - defensive logging
+                _LOGGER.debug("Unable to persist book metadata", exc_info=True)
+
+        sentences = result_payload.get("refined_sentences")
+        if isinstance(sentences, list) and sentences:
+            try:
+                (metadata_root / "sentences.json").write_text(
+                    json.dumps(sentences, indent=2),
+                    encoding="utf-8",
+                )
+            except Exception:  # pragma: no cover - defensive logging
+                _LOGGER.debug("Unable to persist refined sentences", exc_info=True)
 
     def apply_event(self, job: PipelineJob, event: ProgressEvent) -> PipelineJobMetadata:
         """Update ``job`` using ``event`` and return the persisted metadata."""
@@ -235,4 +270,3 @@ class PipelineJobPersistence:
 
 
 __all__ = ["PipelineJobPersistence"]
-
