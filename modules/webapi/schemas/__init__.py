@@ -398,6 +398,35 @@ class PipelineMediaResponse(BaseModel):
     media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
 
 
+class MediaSearchHit(BaseModel):
+    """Single search match across generated ebook media."""
+
+    job_id: str
+    job_label: Optional[str] = None
+    base_id: Optional[str] = None
+    chunk_id: Optional[str] = None
+    range_fragment: Optional[str] = None
+    start_sentence: Optional[int] = None
+    end_sentence: Optional[int] = None
+    snippet: str
+    occurrence_count: int = Field(default=0, ge=0)
+    match_start: Optional[int] = None
+    match_end: Optional[int] = None
+    text_length: Optional[int] = None
+    offset_ratio: Optional[float] = None
+    approximate_time_seconds: Optional[float] = None
+    media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
+
+
+class MediaSearchResponse(BaseModel):
+    """Response payload for media search queries."""
+
+    query: str
+    limit: int
+    count: int
+    results: List[MediaSearchHit] = Field(default_factory=list)
+
+
 class AudioSynthesisRequest(BaseModel):
     """Payload describing a text-to-speech synthesis request."""
 
@@ -774,4 +803,3 @@ from .media import (
     MediaGenerationResponse,
     VideoGenerationParameters,
 )
-

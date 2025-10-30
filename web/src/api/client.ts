@@ -12,6 +12,7 @@ import {
   PipelineSubmissionResponse,
   SessionStatusResponse,
   PipelineMediaResponse,
+  MediaSearchResponse,
   UserAccountResponse,
   UserCreateRequestPayload,
   UserListResponse,
@@ -298,6 +299,26 @@ export async function fetchJobMedia(jobId: string): Promise<PipelineMediaRespons
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
   const response = await apiFetch(`/pipelines/jobs/${jobId}/media/live`);
   return handleResponse<PipelineMediaResponse>(response);
+}
+
+export async function searchMedia(jobId: string | null | undefined, query: string, limit?: number): Promise<MediaSearchResponse> {
+  const trimmed = query.trim();
+  const resolvedLimit =
+    typeof limit === 'number' && Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 20;
+  if (!trimmed || !jobId) {
+    return Promise.resolve({
+      query: '',
+      limit: resolvedLimit,
+      count: 0,
+      results: [],
+    });
+  }
+  const params = new URLSearchParams();
+  params.set('query', trimmed);
+  params.set('limit', String(resolvedLimit));
+  params.set('job_id', jobId);
+  const response = await apiFetch(`/pipelines/search?${params.toString()}`);
+  return handleResponse<MediaSearchResponse>(response);
 }
 
 export function buildEventStreamUrl(jobId: string): string {

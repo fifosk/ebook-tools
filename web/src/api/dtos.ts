@@ -204,3 +204,28 @@ export interface PipelineMediaFile {
 export interface PipelineMediaResponse {
   media: Record<string, PipelineMediaFile[] | undefined>;
 }
+
+export interface MediaSearchResult {
+  job_id: string;
+  job_label: string | null;
+  base_id: string | null;
+  chunk_id: string | null;
+  range_fragment: string | null;
+  start_sentence: number | null;
+  end_sentence: number | null;
+  snippet: string;
+  occurrence_count: number;
+  match_start: number | null;
+  match_end: number | null;
+  text_length: number | null;
+  offset_ratio: number | null;
+  approximate_time_seconds: number | null;
+  media: Record<string, PipelineMediaFile[] | undefined>;
+}
+
+export interface MediaSearchResponse {
+  query: string;
+  limit: number;
+  count: number;
+  results: MediaSearchResult[];
+}

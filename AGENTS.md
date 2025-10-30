@@ -7,6 +7,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - **Backend:** `modules/webapi/application.py` exposes the FastAPI app factory referenced by `python -m modules.webapi` and the `ebook-tools-api` console script.
 - **CLI / Orchestration:** `ebook-tools.py` and `scripts/` house helper commands for running pipelines locally.
 - **Frontend:** `web/` contains the Vite application. Source files live under `web/src/`, while built assets default to `web/dist/`.
+- **Search:** `modules/webapi/routes.py` exposes `/api/pipelines/search`, which now requires a `job_id` query parameter and scans that job's persisted chunks for snippets surfaced in the frontend `MediaSearchPanel`.
 
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.

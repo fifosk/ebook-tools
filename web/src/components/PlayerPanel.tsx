@@ -2,14 +2,23 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIEvent } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
-import MediaList from './MediaList';
 import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
+import MediaSearchPanel from './MediaSearchPanel';
+import type { MediaSearchResult } from '../api/dtos';
 
 type MediaCategory = keyof LiveMediaState;
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
+
+interface MediaSelectionRequest {
+  baseId: string | null;
+  preferredType?: MediaCategory | null;
+  offsetRatio?: number | null;
+  approximateTime?: number | null;
+  token?: number;
+}
 
 interface PlayerPanelProps {
   jobId: string;
@@ -56,6 +65,55 @@ function toVideoFiles(media: LiveMediaState['video']) {
     }));
 }
 
+function deriveBaseIdFromReference(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalised = value.replace(/^[\\/]+/, '').split(/[\\/]/).pop();
+  if (!normalised) {
+    return null;
+  }
+  const withoutQuery = normalised.replace(/[?#].*$/, '');
+  const dotIndex = withoutQuery.lastIndexOf('.');
+  const base = dotIndex > 0 ? withoutQuery.slice(0, dotIndex) : withoutQuery;
+  const trimmed = base.trim();
+  return trimmed ? trimmed.toLowerCase() : null;
+}
+
+function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCategory | null): string | null {
+  if (result.base_id) {
+    return result.base_id;
+  }
+
+  const categories: MediaCategory[] = [];
+  if (preferred) {
+    categories.push(preferred);
+  }
+  (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+    if (!categories.includes(category)) {
+      categories.push(category);
+    }
+  });
+
+  for (const category of categories) {
+    const entries = result.media?.[category];
+    if (!entries || entries.length === 0) {
+      continue;
+    }
+    const primary = entries[0];
+    const baseId =
+      deriveBaseIdFromReference(primary.relative_path ?? null) ??
+      deriveBaseIdFromReference(primary.name ?? null) ??
+      deriveBaseIdFromReference(primary.url ?? null) ??
+      deriveBaseIdFromReference(primary.path ?? null);
+    if (baseId) {
+      return baseId;
+    }
+  }
+
+  return null;
+}
+
 export default function PlayerPanel({
   jobId,
   media,
@@ -64,7 +122,6 @@ export default function PlayerPanel({
   onVideoPlaybackStateChange,
 }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
-  const [expandedLists, setExpandedLists] = useState<Set<MediaCategory>>(() => new Set());
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
     const initial: Record<MediaCategory, string | null> = {
       text: null,
@@ -79,6 +136,8 @@ export default function PlayerPanel({
 
     return initial;
   });
+  const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
+  const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const isVideoTabActive = selectedMediaType === 'video';
   const mediaMemory = useMediaMemory({ jobId });
@@ -101,6 +160,27 @@ export default function PlayerPanel({
 
     return map;
   }, [media]);
+
+  const handleSearchSelection = useCallback(
+    (result: MediaSearchResult, category: MediaCategory) => {
+      if (result.job_id && result.job_id !== jobId) {
+        return;
+      }
+
+      const baseId = resolveBaseIdFromResult(result, category);
+      const offsetRatio = typeof result.offset_ratio === 'number' ? result.offset_ratio : null;
+      const approximateTime = typeof result.approximate_time_seconds === 'number' ? result.approximate_time_seconds : null;
+      setPendingSelection({
+        baseId,
+        preferredType: category,
+        offsetRatio,
+        approximateTime,
+        token: Date.now(),
+      });
+
+    },
+    [jobId],
+  );
 
   const getMediaItem = useCallback(
     (category: MediaCategory, id: string | null | undefined) => {
@@ -176,6 +256,103 @@ export default function PlayerPanel({
   }, [media]);
 
   useEffect(() => {
+    if (!pendingSelection) {
+      return;
+    }
+
+    const { baseId, preferredType, offsetRatio = null, approximateTime = null } = pendingSelection;
+
+    const candidates: MediaCategory[] = [];
+    if (preferredType) {
+      candidates.push(preferredType);
+    }
+    (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+      if (!candidates.includes(category)) {
+        candidates.push(category);
+      }
+    });
+
+    const matchByCategory: Record<MediaCategory, string | null> = {
+      text: baseId ? findMatchingMediaId(baseId, 'text', media.text) : null,
+      audio: baseId ? findMatchingMediaId(baseId, 'audio', media.audio) : null,
+      video: baseId ? findMatchingMediaId(baseId, 'video', media.video) : null,
+    };
+
+    let appliedCategory: MediaCategory | null = null;
+
+    for (const category of candidates) {
+      const matchId = matchByCategory[category] ?? null;
+      if (!matchId) {
+        continue;
+      }
+
+      setSelectedItemIds((current) => {
+        if (current[category] === matchId) {
+          return current;
+        }
+        return { ...current, [category]: matchId };
+      });
+      setSelectedMediaType((current) => (current === category ? current : category));
+      appliedCategory = category;
+      break;
+    }
+
+    if (!appliedCategory && preferredType) {
+      const category = preferredType;
+    setSelectedMediaType((current) => (current === category ? current : category));
+      setSelectedItemIds((current) => {
+        const hasCurrent = current[category] !== null;
+        if (hasCurrent) {
+          return current;
+        }
+        const firstItem = media[category].find((item) => item.url);
+        if (!firstItem?.url) {
+          return current;
+        }
+        return { ...current, [category]: firstItem.url };
+      });
+      appliedCategory = media[category].length > 0 ? category : null;
+    }
+
+    if (matchByCategory.audio && approximateTime != null && Number.isFinite(approximateTime)) {
+      const audioItem = getMediaItem('audio', matchByCategory.audio);
+      const audioBaseId = audioItem ? deriveBaseId(audioItem) : null;
+      rememberPosition({
+        mediaId: matchByCategory.audio,
+        mediaType: 'audio',
+        baseId: audioBaseId,
+        position: Math.max(approximateTime, 0),
+      });
+    }
+
+    if (matchByCategory.video && approximateTime != null && Number.isFinite(approximateTime)) {
+      const videoItem = getMediaItem('video', matchByCategory.video);
+      const videoBaseId = videoItem ? deriveBaseId(videoItem) : null;
+      rememberPosition({
+        mediaId: matchByCategory.video,
+        mediaType: 'video',
+        baseId: videoBaseId,
+        position: Math.max(approximateTime, 0),
+      });
+    }
+
+    if (matchByCategory.text && offsetRatio != null && Number.isFinite(offsetRatio)) {
+      setPendingTextScrollRatio(Math.max(Math.min(offsetRatio, 1), 0));
+    } else {
+      setPendingTextScrollRatio(null);
+    }
+
+    setPendingSelection(null);
+  }, [
+    pendingSelection,
+    findMatchingMediaId,
+    media,
+    getMediaItem,
+    deriveBaseId,
+    rememberPosition,
+  ]);
+
+  useEffect(() => {
     if (!activeItemId) {
       return;
     }
@@ -208,18 +385,6 @@ export default function PlayerPanel({
     },
     [findMatchingMediaId, media, memoryState.baseId],
   );
-
-  const toggleListVisibility = useCallback((category: MediaCategory) => {
-    setExpandedLists((current) => {
-      const next = new Set(current);
-      if (next.has(category)) {
-        next.delete(category);
-      } else {
-        next.add(category);
-      }
-      return next;
-    });
-  }, []);
 
   const handleSelectMedia = useCallback((category: MediaCategory, fileId: string) => {
     setSelectedItemIds((current) => {
@@ -281,18 +446,6 @@ export default function PlayerPanel({
       });
     },
     [media],
-  );
-
-  const handleSelectFromList = useCallback(
-    (category: MediaCategory, item: LiveMediaItem) => {
-      if (!item.url) {
-        return;
-      }
-
-      handleSelectMedia(category, item.url);
-      setSelectedMediaType((current) => (current === category ? current : category));
-    },
-    [handleSelectMedia],
   );
 
   const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
@@ -450,6 +603,25 @@ export default function PlayerPanel({
       return;
     }
 
+    if (pendingTextScrollRatio !== null) {
+      const maxScroll = Math.max(element.scrollHeight - element.clientHeight, 0);
+      const target = Math.min(Math.max(pendingTextScrollRatio, 0), 1) * maxScroll;
+      try {
+        element.scrollTop = target;
+        if (typeof element.scrollTo === 'function') {
+          element.scrollTo({ top: target });
+        }
+      } catch (error) {
+        // Ignore scroll assignment failures in non-browser environments.
+      }
+
+      const current = getMediaItem('text', mediaId);
+      const baseId = current ? deriveBaseId(current) : null;
+      rememberPosition({ mediaId, mediaType: 'text', baseId, position: target });
+      setPendingTextScrollRatio(null);
+      return;
+    }
+
     const storedPosition = textPlaybackPosition;
     if (Math.abs(element.scrollTop - storedPosition) < 1) {
       return;
@@ -463,7 +635,16 @@ export default function PlayerPanel({
     } catch (error) {
       // Swallow assignment errors triggered by unsupported scrolling APIs in tests.
     }
-  }, [selectedMediaType, selectedItemIds.text, textPlaybackPosition, textPreview?.url]);
+  }, [
+    selectedMediaType,
+    selectedItemIds.text,
+    textPlaybackPosition,
+    textPreview?.url,
+    pendingTextScrollRatio,
+    getMediaItem,
+    deriveBaseId,
+    rememberPosition,
+  ]);
 
   useEffect(() => {
     if (selectedMediaType !== 'text') {
@@ -565,6 +746,9 @@ export default function PlayerPanel({
 
   return (
     <section className={panelClassName} aria-label="Generated media">
+      <div className="player-panel__search">
+        <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
+      </div>
       <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
         <header className="player-panel__header">
           <div className="player-panel__heading">
@@ -629,143 +813,99 @@ export default function PlayerPanel({
         </header>
         {TAB_DEFINITIONS.map((tab) => {
           const isActive = tab.key === selectedMediaType;
-          const items = isActive
-            ? filteredMedia
-            : combinedMedia.filter((item) => item.type === tab.key);
-          const shouldHideList = tab.key === 'video' && isImmersiveMode;
-          const isExpanded = shouldHideList ? false : expandedLists.has(tab.key);
-          const listId = `player-panel-${tab.key}-list`;
+          const tabItems = media[tab.key];
           return (
             <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
               {!hasAnyMedia && !isLoading ? (
                 <p role="status">No generated media yet.</p>
-              ) : items.length === 0 ? (
-                <MediaList
-                  id={listId}
-                  items={items}
-                  category={tab.key}
-                  emptyMessage={tab.emptyMessage}
-                  selectedKey={selectedItemIds[tab.key] ?? null}
-                  onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
-                />
+              ) : tabItems.length === 0 ? (
+                <p role="status">{tab.emptyMessage}</p>
               ) : (
-                <>
-                  {isActive ? (
-                    <div className="player-panel__stage">
-                      <div className="player-panel__selection-header" data-testid="player-panel-selection">
-                        <div
-                          className="player-panel__selection-name"
-                          title={selectedItem?.name ?? 'No media selected'}
-                        >
-                          {selectedItem ? `Selected media: ${selectedItem.name}` : 'No media selected'}
-                        </div>
-                        <dl className="player-panel__selection-meta">
-                          <div className="player-panel__selection-meta-item">
-                            <dt>Created</dt>
-                            <dd>{selectedTimestamp ?? '—'}</dd>
-                          </div>
-                          <div className="player-panel__selection-meta-item">
-                            <dt>File size</dt>
-                            <dd>{selectedSize ?? '—'}</dd>
-                          </div>
-                        </dl>
+                isActive ? (
+                  <div className="player-panel__stage">
+                    <div className="player-panel__selection-header" data-testid="player-panel-selection">
+                      <div
+                        className="player-panel__selection-name"
+                        title={selectedItem?.name ?? 'No media selected'}
+                      >
+                        {selectedItem ? `Selected media: ${selectedItem.name}` : 'No media selected'}
                       </div>
-                      <div className="player-panel__viewer">
-                        {tab.key === 'audio' ? (
-                          <AudioPlayer
-                            files={audioFiles}
-                            activeId={selectedItemIds.audio}
-                            onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
-                            autoPlay
-                            onPlaybackEnded={() => handleAdvanceMedia('audio')}
-                            playbackPosition={audioPlaybackPosition}
-                            onPlaybackPositionChange={handleAudioProgress}
-                          />
-                        ) : null}
-                        {tab.key === 'video' ? (
-                          <VideoPlayer
-                            files={videoFiles}
-                            activeId={selectedItemIds.video}
-                            onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
-                            autoPlay
-                            onPlaybackEnded={() => handleAdvanceMedia('video')}
-                            playbackPosition={videoPlaybackPosition}
-                            onPlaybackPositionChange={handleVideoProgress}
-                            onPlaybackStateChange={handleVideoPlaybackStateChange}
-                          />
-                        ) : null}
-                        {tab.key === 'text' ? (
-                          <div className="player-panel__document">
-                            {selectedItem ? (
-                              textLoading ? (
-                                <div className="player-panel__document-status" role="status">
-                                  Loading document…
-                                </div>
-                              ) : textError ? (
-                                <div className="player-panel__document-error" role="alert">
-                                  {textError}
-                                </div>
-                              ) : textPreview ? (
-                                textPreview.content ? (
-                                  <article
-                                    ref={textScrollRef}
-                                    className="player-panel__document-body"
-                                    data-testid="player-panel-document"
-                                    onScroll={handleTextScroll}
-                                  >
-                                    <pre className="player-panel__document-text">{textPreview.content}</pre>
-                                  </article>
-                                ) : (
-                                  <div className="player-panel__document-status" role="status">
-                                    Document preview is empty.
-                                  </div>
-                                )
+                      <dl className="player-panel__selection-meta">
+                        <div className="player-panel__selection-meta-item">
+                          <dt>Created</dt>
+                          <dd>{selectedTimestamp ?? '—'}</dd>
+                        </div>
+                        <div className="player-panel__selection-meta-item">
+                          <dt>File size</dt>
+                          <dd>{selectedSize ?? '—'}</dd>
+                        </div>
+                      </dl>
+                    </div>
+                    <div className="player-panel__viewer">
+                      {tab.key === 'audio' ? (
+                        <AudioPlayer
+                          files={audioFiles}
+                          activeId={selectedItemIds.audio}
+                          onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
+                          autoPlay
+                          onPlaybackEnded={() => handleAdvanceMedia('audio')}
+                          playbackPosition={audioPlaybackPosition}
+                          onPlaybackPositionChange={handleAudioProgress}
+                        />
+                      ) : null}
+                      {tab.key === 'video' ? (
+                        <VideoPlayer
+                          files={videoFiles}
+                          activeId={selectedItemIds.video}
+                          onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
+                          autoPlay
+                          onPlaybackEnded={() => handleAdvanceMedia('video')}
+                          playbackPosition={videoPlaybackPosition}
+                          onPlaybackPositionChange={handleVideoProgress}
+                          onPlaybackStateChange={handleVideoPlaybackStateChange}
+                        />
+                      ) : null}
+                      {tab.key === 'text' ? (
+                        <div className="player-panel__document">
+                          {selectedItem ? (
+                            textLoading ? (
+                              <div className="player-panel__document-status" role="status">
+                                Loading document…
+                              </div>
+                            ) : textError ? (
+                              <div className="player-panel__document-error" role="alert">
+                                {textError}
+                              </div>
+                            ) : textPreview ? (
+                              textPreview.content ? (
+                                <article
+                                  ref={textScrollRef}
+                                  className="player-panel__document-body"
+                                  data-testid="player-panel-document"
+                                  onScroll={handleTextScroll}
+                                >
+                                  <pre className="player-panel__document-text">{textPreview.content}</pre>
+                                </article>
                               ) : (
                                 <div className="player-panel__document-status" role="status">
-                                  Preparing document preview…
+                                  Document preview is empty.
                                 </div>
                               )
                             ) : (
-                              <div className="player-panel__empty-viewer" role="status">
-                                Select a file to preview.
+                              <div className="player-panel__document-status" role="status">
+                                Preparing document preview…
                               </div>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
+                            )
+                          ) : (
+                            <div className="player-panel__empty-viewer" role="status">
+                              Select a file to preview.
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                  {shouldHideList ? null : (
-                    <>
-                      <div className="player-panel__list-toggle">
-                        <button
-                          type="button"
-                          className="player-panel__list-toggle-button"
-                          aria-expanded={isExpanded}
-                          aria-controls={listId}
-                          onClick={() => toggleListVisibility(tab.key)}
-                        >
-                          {isExpanded ? 'Hide detailed file list' : 'Show detailed file list'}
-                        </button>
-                      </div>
-                      <div
-                        className="player-panel__media-list"
-                        id={`${listId}-container`}
-                        hidden={!isExpanded}
-                        aria-hidden={!isExpanded}
-                      >
-                        <MediaList
-                          id={listId}
-                          items={items}
-                          category={tab.key}
-                          emptyMessage={tab.emptyMessage}
-                          selectedKey={selectedItemIds[tab.key] ?? null}
-                          onSelectItem={(entry) => handleSelectFromList(tab.key, entry)}
-                        />
-                      </div>
-                    </>
-                  )}
-                </>
+                  </div>
+                ) : null
               )}
             </TabsContent>
           );

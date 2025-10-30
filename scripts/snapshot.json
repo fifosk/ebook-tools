@@ -1,0 +1,42 @@
+{
+  "api_version": "0.1.0",
+  "build": {
+    "dist_dir": "/Users/fifo/Projects/ebook-tools/web/dist",
+    "manifest_hash": null
+  },
+  "env_files": [
+    {
+      "filename": ".env",
+      "variables": {}
+    },
+    {
+      "filename": ".env.local",
+      "variables": {}
+    }
+  ],
+  "git": {
+    "branch": "main",
+    "commit": "d12ad40e4822191e0666f09575651647798e31a0",
+    "dirty": true,
+    "status_summary": [
+      "M AGENTS.md",
+      " M config/users/users.json",
+      " M modules/webapi/routes.py",
+      " M modules/webapi/schemas/__init__.py",
+      " M web/src/api/client.ts",
+      " M web/src/api/dtos.ts",
+      " M web/src/components/PlayerPanel.tsx",
+      " M web/src/index.css",
+      " M web/src/pages/JobDetail.tsx",
+      " M web/src/pages/__tests__/JobDetail.test.tsx",
+      "?? modules/search/",
+      "?? modules/tmp",
+      "?? tests/modules/webapi/test_search_routes.py",
+      "?? web/src/components/MediaSearchPanel.module.css",
+      "?? web/src/components/MediaSearchPanel.tsx",
+      "?? web/vite.config.d.ts",
+      "?? web/vitest.config.d.ts"
+    ]
+  },
+  "repo_path": "/Users/fifo/Projects/ebook-tools"
+}

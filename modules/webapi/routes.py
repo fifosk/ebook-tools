@@ -6,7 +6,7 @@ from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Tuple
 
-from fastapi import APIRouter, Depends, File, HTTPException, Header, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Header, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from .dependencies import (
@@ -19,7 +19,10 @@ from .jobs import PipelineJob, PipelineJobTransitionError
 from .. import config_manager as cfg
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
+from ..search import search_generated_media
 from .schemas import (
+    MediaSearchHit,
+    MediaSearchResponse,
     PipelineJobActionResponse,
     PipelineJobListResponse,
     PipelineMediaFile,
@@ -316,6 +319,93 @@ async def get_pipeline_defaults(
     resolved = context_provider.resolve_config()
     stripped = cfg.strip_derived_config(resolved)
     return PipelineDefaultsResponse(config=stripped)
+
+
+@router.get("/search", response_model=MediaSearchResponse)
+async def search_pipeline_media(
+    query: str = Query(..., min_length=1),
+    limit: int = Query(20, ge=1, le=100),
+    job_id: str = Query(..., alias="job_id"),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    file_locator: FileLocator = Depends(get_file_locator),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    """Search across generated ebook media for the provided query."""
+
+    normalized_query = query.strip()
+    if not normalized_query:
+        return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    hits = search_generated_media(
+        query=normalized_query,
+        jobs=(job,),
+        locator=file_locator,
+        limit=limit,
+    )
+
+    serialized_hits: list[MediaSearchHit] = []
+    for hit in hits:
+        media_payload: dict[str, list[PipelineMediaFile]] = {}
+        for category, entries in hit.media.items():
+            if not entries:
+                continue
+            files: list[PipelineMediaFile] = []
+            for entry in entries:
+                size_value = entry.get("size")
+                if isinstance(size_value, (int, float)):
+                    file_size = int(size_value)
+                else:
+                    file_size = None
+                media_file = PipelineMediaFile(
+                    name=str(entry.get("name") or "media"),
+                    url=entry.get("url"),
+                    size=file_size,
+                    updated_at=entry.get("updated_at"),
+                    source=str(entry.get("source") or "completed"),
+                    relative_path=entry.get("relative_path"),
+                    path=entry.get("path"),
+                )
+                files.append(media_file)
+            if files:
+                media_payload[category] = files
+        serialized_hits.append(
+            MediaSearchHit(
+                job_id=hit.job_id,
+                job_label=hit.job_label,
+                base_id=hit.base_id,
+                chunk_id=hit.chunk_id,
+                range_fragment=hit.range_fragment,
+                start_sentence=hit.start_sentence,
+                end_sentence=hit.end_sentence,
+                snippet=hit.snippet,
+                occurrence_count=hit.occurrence_count,
+                match_start=hit.match_start,
+                match_end=hit.match_end,
+                text_length=hit.text_length,
+                offset_ratio=hit.offset_ratio,
+                approximate_time_seconds=hit.approximate_time_seconds,
+                media=media_payload,
+            )
+        )
+
+    return MediaSearchResponse(
+        query=normalized_query,
+        limit=limit,
+        count=len(serialized_hits),
+        results=serialized_hits,
+    )
 
 
 @router.post("/", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
