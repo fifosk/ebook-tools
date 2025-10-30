@@ -5,9 +5,10 @@ import { useLiveMedia } from '../hooks/useLiveMedia';
 export interface JobDetailProps {
   jobId: string | null | undefined;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  bookMetadata?: Record<string, unknown> | null;
 }
 
-export default function JobDetail({ jobId, onVideoPlaybackStateChange }: JobDetailProps) {
+export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null }: JobDetailProps) {
   const normalisedJobId = jobId ?? null;
   const { media, isLoading, error } = useLiveMedia(normalisedJobId, {
     enabled: Boolean(normalisedJobId),
@@ -40,9 +41,9 @@ export default function JobDetail({ jobId, onVideoPlaybackStateChange }: JobDeta
         media={media}
         isLoading={isLoading}
         error={error}
+        bookMetadata={bookMetadata}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
       />
     </section>
   );
 }
-

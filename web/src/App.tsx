@@ -866,6 +866,7 @@ export function App() {
                 <section className="job-media-section">
                   <JobDetail
                     jobId={selectedJob?.jobId ?? null}
+                    bookMetadata={selectedJob?.status?.result?.book_metadata ?? null}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
                   />
                 </section>

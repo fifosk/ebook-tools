@@ -25,6 +25,7 @@ interface PlayerPanelProps {
   media: LiveMediaState;
   isLoading: boolean;
   error: Error | null;
+  bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
 }
 
@@ -114,11 +115,44 @@ function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCate
   return null;
 }
 
+function normaliseMetadataText(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString();
+  }
+
+  return null;
+}
+
+function extractMetadataText(
+  metadata: Record<string, unknown> | null | undefined,
+  keys: string[],
+): string | null {
+  if (!metadata) {
+    return null;
+  }
+
+  for (const key of keys) {
+    const raw = metadata[key];
+    const normalised = normaliseMetadataText(raw);
+    if (normalised) {
+      return normalised;
+    }
+  }
+
+  return null;
+}
+
 export default function PlayerPanel({
   jobId,
   media,
   isLoading,
   error,
+  bookMetadata = null,
   onVideoPlaybackStateChange,
 }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
@@ -726,9 +760,15 @@ export default function PlayerPanel({
     );
   }
 
+  const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
+  const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
+  const sectionLabel = bookTitle ? `Generated media for ${bookTitle}` : 'Generated media';
+  const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
+  const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
+
   if (error) {
     return (
-      <section className="player-panel" aria-label="Generated media">
+      <section className="player-panel" aria-label={sectionLabel}>
         <p role="alert">Unable to load generated media: {error.message}</p>
       </section>
     );
@@ -736,24 +776,31 @@ export default function PlayerPanel({
 
   if (isLoading && media.text.length === 0 && media.audio.length === 0 && media.video.length === 0) {
     return (
-      <section className="player-panel" aria-label="Generated media">
-        <p role="status">Loading generated media…</p>
+      <section className="player-panel" aria-label={sectionLabel}>
+        <p role="status">{loadingMessage}</p>
       </section>
     );
   }
 
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
+  const headingLabel = bookTitle ?? 'Generated media';
+  const jobLabelParts: string[] = [];
+  if (bookAuthor) {
+    jobLabelParts.push(`By ${bookAuthor}`);
+  }
+  jobLabelParts.push(`Job ${jobId}`);
+  const jobLabel = jobLabelParts.join(' • ');
 
   return (
-    <section className={panelClassName} aria-label="Generated media">
+    <section className={panelClassName} aria-label={sectionLabel}>
       <div className="player-panel__search">
         <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
       </div>
       <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
         <header className="player-panel__header">
           <div className="player-panel__heading">
-            <h2>Generated media</h2>
-            <span className="player-panel__job">Job {jobId}</span>
+            <h2>{headingLabel}</h2>
+            <span className="player-panel__job">{jobLabel}</span>
           </div>
           <div className="player-panel__tabs-row">
             <div className="player-panel__navigation" role="group" aria-label="Navigate media items">
@@ -817,7 +864,7 @@ export default function PlayerPanel({
           return (
             <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
               {!hasAnyMedia && !isLoading ? (
-                <p role="status">No generated media yet.</p>
+                <p role="status">{emptyMediaMessage}</p>
               ) : tabItems.length === 0 ? (
                 <p role="status">{tab.emptyMessage}</p>
               ) : (
