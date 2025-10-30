@@ -50,6 +50,7 @@ def test_media_worker_does_not_increment_tracker_when_queueing_results():
             "audio_mode": "1",
             "language_codes": {"en": "en"},
             "selected_voice": "test",
+            "voice_overrides": None,
             "tempo": 1.0,
             "macos_reading_speed": 100,
             "generate_audio": True,
@@ -92,6 +93,7 @@ def test_generate_audio_for_sentence_emits_deprecation_warning(monkeypatch):
             total_sentences=1,
             language_codes={"English": "en", "French": "fr"},
             selected_voice="gTTS",
+            voice_overrides=None,
             tempo=1.0,
             macos_reading_speed=100,
         )

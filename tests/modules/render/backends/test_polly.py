@@ -18,16 +18,21 @@ class _DummyAudioClient:
         voice: str | None = None,
         speed: int | None = None,
         language: str,
-    ) -> AudioSegment:
+        return_metadata: bool | None = None,
+    ) -> AudioSegment | tuple[AudioSegment, Dict[str, str]]:
         self.calls.append(
             {
                 "text": text,
                 "voice": voice,
                 "speed": speed,
                 "language": language,
+                "return_metadata": return_metadata,
             }
         )
-        return AudioSegment.silent(duration=1000)
+        segment = AudioSegment.silent(duration=1000)
+        if return_metadata:
+            return segment, {}
+        return segment
 
 
 def test_normalize_api_voice_handles_auto_identifiers() -> None:
@@ -61,7 +66,7 @@ def test_polly_synthesizer_omits_auto_voice_for_non_english_segments() -> None:
     client = _DummyAudioClient()
     synthesizer = PollyAudioSynthesizer(audio_client=client)
 
-    audio = synthesizer.synthesize_sentence(
+    result = synthesizer.synthesize_sentence(
         sentence_number=1,
         input_sentence="Hello",
         fluent_translation="مرحبا بالعالم",
@@ -71,11 +76,12 @@ def test_polly_synthesizer_omits_auto_voice_for_non_english_segments() -> None:
         total_sentences=1,
         language_codes={"en": "en", "ar": "ar"},
         selected_voice="macOS-auto-male",
+        voice_overrides=None,
         tempo=1.0,
         macos_reading_speed=200,
     )
 
-    assert isinstance(audio, AudioSegment)
+    assert isinstance(result.audio, AudioSegment)
     assert len(client.calls) == 1
     call = client.calls[0]
     assert call["language"] == "ar"
@@ -97,6 +103,7 @@ def test_polly_synthesizer_passes_explicit_voice_to_api() -> None:
         total_sentences=1,
         language_codes={"en": "en", "es": "es"},
         selected_voice="alloy",
+        voice_overrides=None,
         tempo=1.0,
         macos_reading_speed=200,
     )
@@ -122,6 +129,7 @@ def test_polly_synthesizer_uses_api_default_for_english_auto_voice() -> None:
         total_sentences=1,
         language_codes={"en": "en", "ar": "ar"},
         selected_voice="macOS-auto-female",
+        voice_overrides=None,
         tempo=1.0,
         macos_reading_speed=180,
     )
@@ -131,3 +139,28 @@ def test_polly_synthesizer_uses_api_default_for_english_auto_voice() -> None:
     assert call["language"] == "en"
     assert call["voice"] == "0"
     assert call["text"] == "Hello world"
+
+
+def test_voice_overrides_apply_per_language_segment() -> None:
+    client = _DummyAudioClient()
+    synthesizer = PollyAudioSynthesizer(audio_client=client)
+
+    synthesizer.synthesize_sentence(
+        sentence_number=1,
+        input_sentence="Hello",
+        fluent_translation="Hola mundo",
+        input_language="en",
+        target_language="es",
+        audio_mode="1",
+        total_sentences=1,
+        language_codes={"en": "en", "es": "es"},
+        selected_voice="macOS-auto",
+        voice_overrides={"es": "alloy"},
+        tempo=1.0,
+        macos_reading_speed=160,
+    )
+
+    assert len(client.calls) == 1
+    call = client.calls[0]
+    assert call["language"] == "es"
+    assert call["voice"] == "alloy"

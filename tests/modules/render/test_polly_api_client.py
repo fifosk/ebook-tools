@@ -50,6 +50,7 @@ def _synthesize_sentence(synth):
         total_sentences=1,
         language_codes={"English": "en", "French": "fr"},
         selected_voice="test",
+        voice_overrides=None,
         tempo=1.0,
         macos_reading_speed=180,
     )

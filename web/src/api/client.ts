@@ -17,7 +17,8 @@ import {
   UserCreateRequestPayload,
   UserListResponse,
   UserPasswordResetRequestPayload,
-  UserUpdateRequestPayload
+  UserUpdateRequestPayload,
+  VoiceInventoryResponse
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -364,6 +365,47 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
   const response = await apiFetch('/pipelines/defaults');
   return handleResponse<PipelineDefaultsResponse>(response);
+}
+
+export async function fetchVoiceInventory(): Promise<VoiceInventoryResponse> {
+  const response = await apiFetch('/api/audio/voices');
+  return handleResponse<VoiceInventoryResponse>(response);
+}
+
+export interface VoicePreviewRequest {
+  text: string;
+  language: string;
+  voice?: string | null;
+  speed?: number | null;
+}
+
+export async function synthesizeVoicePreview(payload: VoicePreviewRequest): Promise<Blob> {
+  const body: Record<string, unknown> = {
+    text: payload.text,
+    language: payload.language
+  };
+  if (payload.voice) {
+    body.voice = payload.voice;
+  }
+  if (typeof payload.speed === 'number') {
+    body.speed = payload.speed;
+  }
+
+  const response = await apiFetch('/api/audio', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'audio/mpeg'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'Unable to generate voice preview');
+  }
+
+  return await response.blob();
 }
 
 export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {

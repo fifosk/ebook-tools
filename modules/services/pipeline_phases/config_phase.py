@@ -25,6 +25,9 @@ def prepare_configuration(
     selected_voice = request.inputs.selected_voice
     if selected_voice and "selected_voice" not in overrides:
         overrides["selected_voice"] = selected_voice
+    voice_overrides = request.inputs.voice_overrides
+    if voice_overrides and "voice_overrides" not in overrides:
+        overrides["voice_overrides"] = dict(voice_overrides)
 
     pipeline_config: PipelineConfig = build_pipeline_config(
         context, request.config, overrides=overrides

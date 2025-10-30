@@ -8,6 +8,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - **CLI / Orchestration:** `ebook-tools.py` and `scripts/` house helper commands for running pipelines locally.
 - **Frontend:** `web/` contains the Vite application. Source files live under `web/src/`, while built assets default to `web/dist/`.
 - **Search:** `modules/webapi/routes.py` exposes `/api/pipelines/search`, which now requires a `job_id` query parameter and scans that job's persisted chunks for snippets surfaced in the frontend `MediaSearchPanel`.
+- **Audio Voices:** `modules/webapi/routers/audio.py` serves `/api/audio/voices` for language-specific voice inventories and `/api/audio` for preview synthesis consumed by the `PipelineSubmissionForm` voice picker.
 
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.

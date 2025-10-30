@@ -133,6 +133,7 @@ class PipelineInputPayload(BaseModel):
     generate_video: bool = False
     include_transliteration: bool = False
     tempo: float = 1.0
+    voice_overrides: Dict[str, str] = Field(default_factory=dict)
     book_metadata: Dict[str, Any] = Field(default_factory=dict)
 
     def to_dataclass(self) -> PipelineInput:

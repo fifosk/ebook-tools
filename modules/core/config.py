@@ -89,6 +89,7 @@ class PipelineConfig:
     generate_audio: bool = True
     audio_mode: str = "1"
     selected_voice: str = "gTTS"
+    voice_overrides: Mapping[str, str] = field(default_factory=dict)
     tts_backend: str = field(default_factory=get_default_backend_name)
     tts_executable_path: Optional[str] = None
     say_path: Optional[str] = None
@@ -249,6 +250,18 @@ def build_pipeline_config(
     selected_voice = (
         str(_select_value("selected_voice", config, overrides, "gTTS") or "gTTS")
     )
+    raw_voice_overrides = _select_value("voice_overrides", config, overrides, {})
+    if isinstance(raw_voice_overrides, Mapping):
+        voice_overrides = {
+            str(key).strip(): str(value).strip()
+            for key, value in raw_voice_overrides.items()
+            if isinstance(key, str)
+            and isinstance(value, str)
+            and str(key).strip()
+            and str(value).strip()
+        }
+    else:
+        voice_overrides = {}
     default_tts_backend = get_default_backend_name()
     raw_tts_backend = _select_value("tts_backend", config, overrides, default_tts_backend)
     if isinstance(raw_tts_backend, str):
@@ -446,6 +459,7 @@ def build_pipeline_config(
         generate_audio=generate_audio,
         audio_mode=audio_mode,
         selected_voice=selected_voice,
+        voice_overrides=voice_overrides,
         tts_backend=tts_backend,
         tts_executable_path=tts_executable_path,
         say_path=say_path,

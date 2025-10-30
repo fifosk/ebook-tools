@@ -11,6 +11,7 @@ from .core import (
     _build_legacy_highlight_events,
     _compute_audio_highlight_metadata,
     _get_audio_metadata,
+    _segment_highlight_steps,
     _store_audio_metadata,
 )
 from .timeline import TimelineBuildOptions, TimelineBuildResult
@@ -30,5 +31,6 @@ __all__ = [
     "_build_legacy_highlight_events",
     "_compute_audio_highlight_metadata",
     "_get_audio_metadata",
+    "_segment_highlight_steps",
     "_store_audio_metadata",
 ]

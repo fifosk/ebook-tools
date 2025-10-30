@@ -13,7 +13,8 @@ from PIL import Image
 
 from modules import output_formatter
 from modules.audio.backends import get_default_backend_name
-from modules.render import AudioWorker, MediaBatchOrchestrator
+from modules.render import MediaBatchOrchestrator, RenderBatchContext
+from modules.render.audio_pipeline import audio_worker_body
 from modules.render.backends import (
     AudioSynthesizer,
     VideoRenderer,
@@ -69,6 +70,7 @@ def generate_audio_for_sentence(
     selected_voice: str,
     tempo: float,
     macos_reading_speed: int,
+    voice_overrides: Mapping[str, str] | None = None,
     tts_backend: str = DEFAULT_TTS_BACKEND,
     tts_executable_path: Optional[str] = None,
     *,
@@ -80,17 +82,18 @@ def generate_audio_for_sentence(
         _warn_legacy_audio_usage("generate_audio_for_sentence")
     synthesizer = audio_synthesizer or get_audio_synthesizer()
     return synthesizer.synthesize_sentence(
-        sentence_number,
-        input_sentence,
-        fluent_translation,
-        input_language,
-        target_language,
-        audio_mode,
-        total_sentences,
-        language_codes,
-        selected_voice,
-        tempo,
-        macos_reading_speed,
+        sentence_number=sentence_number,
+        input_sentence=input_sentence,
+        fluent_translation=fluent_translation,
+        input_language=input_language,
+        target_language=target_language,
+        audio_mode=audio_mode,
+        total_sentences=total_sentences,
+        language_codes=language_codes,
+        selected_voice=selected_voice,
+        voice_overrides=voice_overrides,
+        tempo=tempo,
+        macos_reading_speed=macos_reading_speed,
         tts_backend=tts_backend,
         tts_executable_path=tts_executable_path,
     )
@@ -108,6 +111,7 @@ def _media_worker(
     selected_voice: str,
     tempo: float,
     macos_reading_speed: int,
+    voice_overrides: Mapping[str, str] | None = None,
     generate_audio: bool,
     stop_event: Optional[threading.Event] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
@@ -116,24 +120,41 @@ def _media_worker(
     """Delegate media processing to the shared :class:`AudioWorker`."""
 
     synthesizer = audio_synthesizer or get_audio_synthesizer()
-    worker = AudioWorker(
+    batch_context = RenderBatchContext(
+        manifest={
+            "total_sentences": total_sentences,
+            "input_language": input_language,
+            "audio_mode": audio_mode,
+            "selected_voice": selected_voice,
+            "voice_overrides": dict(voice_overrides or {}),
+            "tempo": tempo,
+            "macos_reading_speed": macos_reading_speed,
+            "generate_audio": generate_audio,
+        },
+        media={
+            "audio": {
+                "total_sentences": total_sentences,
+                "input_language": input_language,
+                "audio_mode": audio_mode,
+                "language_codes": dict(language_codes),
+                "selected_voice": selected_voice,
+                "voice_overrides": dict(voice_overrides or {}),
+                "tempo": tempo,
+                "macos_reading_speed": macos_reading_speed,
+                "generate_audio": generate_audio,
+            }
+        },
+    )
+    audio_worker_body(
         name,
         task_queue,
         result_queue,
-        total_sentences=total_sentences,
-        input_language=input_language,
-        audio_mode=audio_mode,
-        language_codes=language_codes,
-        selected_voice=selected_voice,
-        tempo=tempo,
-        macos_reading_speed=macos_reading_speed,
-        generate_audio=generate_audio,
+        batch_context=batch_context,
+        media_result_factory=MediaPipelineResult,
         audio_stop_event=stop_event,
         progress_tracker=progress_tracker,
         audio_generator=synthesizer.synthesize_sentence,
-        media_result_factory=MediaPipelineResult,
     )
-    worker.run()
 
 
 def start_media_pipeline(
@@ -147,6 +168,7 @@ def start_media_pipeline(
     selected_voice: str,
     tempo: float,
     macos_reading_speed: int,
+    voice_overrides: Mapping[str, str] | None = None,
     generate_audio: bool,
     queue_size: Optional[int] = None,
     stop_event: Optional[threading.Event] = None,
@@ -168,6 +190,7 @@ def start_media_pipeline(
         audio_mode=audio_mode,
         language_codes=language_codes,
         selected_voice=selected_voice,
+        voice_overrides=voice_overrides,
         tempo=tempo,
         macos_reading_speed=macos_reading_speed,
         generate_audio=generate_audio,
@@ -346,4 +369,3 @@ def _warn_legacy_video_usage(entry_point: str) -> None:
         DeprecationWarning,
         stacklevel=2,
     )
-

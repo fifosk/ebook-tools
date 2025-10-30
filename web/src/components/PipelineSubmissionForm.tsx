@@ -1,6 +1,17 @@
-import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { PipelineFileBrowserResponse, PipelineRequestPayload } from '../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../api/client';
+import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  MacOSVoice,
+  PipelineFileBrowserResponse,
+  PipelineRequestPayload,
+  VoiceInventoryResponse
+} from '../api/dtos';
+import {
+  fetchPipelineDefaults,
+  fetchPipelineFiles,
+  fetchVoiceInventory,
+  synthesizeVoicePreview,
+  uploadEpubFile
+} from '../api/client';
 import LanguageSelector from './LanguageSelector';
 import {
   AUDIO_MODE_OPTIONS,
@@ -8,6 +19,56 @@ import {
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
 } from '../constants/menuOptions';
+import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
+
+const SAMPLE_SENTENCES: Record<string, string> = {
+  en: 'Hello from ebook-tools! This is a sample narration.',
+  es: 'Hola desde ebook-tools. Esta es una frase de ejemplo.',
+  fr: 'Bonjour de ebook-tools. Ceci est une phrase exemple.',
+  ar: 'مرحبا من منصة ebook-tools.',
+  ja: 'ebook-tools からのサンプル文です。'
+};
+
+type VoiceSelectOption = {
+  value: string;
+  label: string;
+  description?: string;
+};
+
+function capitalize(value: string): string {
+  if (!value) {
+    return value;
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
+  const quality = voice.quality ? voice.quality : 'Default';
+  const genderSuffix = voice.gender ? ` - ${capitalize(voice.gender)}` : '';
+  return `${voice.name} - ${voice.lang} - (${quality})${genderSuffix}`;
+}
+
+function formatMacOSVoiceLabel(voice: MacOSVoice): string {
+  const segments: string[] = [voice.lang];
+  if (voice.gender) {
+    segments.push(capitalize(voice.gender));
+  }
+  if (voice.quality) {
+    segments.push(voice.quality);
+  }
+  const meta = segments.length > 0 ? ` (${segments.join(', ')})` : '';
+  return `${voice.name}${meta}`;
+}
+
+function sampleSentenceFor(languageCode: string, fallbackLabel: string): string {
+  const normalized = languageCode.trim().toLowerCase();
+  if (normalized && SAMPLE_SENTENCES[normalized]) {
+    return SAMPLE_SENTENCES[normalized];
+  }
+  const resolvedName = resolveLanguageName(languageCode) ?? fallbackLabel;
+  const displayName = resolvedName || 'this language';
+  return `Sample narration for ${displayName}.`;
+}
 import FileSelectionDialog from './FileSelectionDialog';
 
 export type PipelineFormSection =
@@ -44,6 +105,7 @@ type FormState = {
   audio_mode: string;
   written_mode: string;
   selected_voice: string;
+  voice_overrides: Record<string, string>;
   output_html: boolean;
   output_pdf: boolean;
   generate_video: boolean;
@@ -74,6 +136,7 @@ const DEFAULT_FORM_STATE: FormState = {
   audio_mode: '1',
   written_mode: '4',
   selected_voice: 'gTTS',
+  voice_overrides: {},
   output_html: true,
   output_pdf: false,
   generate_video: false,
@@ -248,6 +311,23 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
     next.selected_voice = selectedVoice;
   }
 
+  const voiceOverrides = config['voice_overrides'];
+  if (isRecord(voiceOverrides)) {
+    const sanitized: Record<string, string> = {};
+    for (const [key, value] of Object.entries(voiceOverrides)) {
+      if (typeof key !== 'string' || typeof value !== 'string') {
+        continue;
+      }
+      const normalizedKey = key.trim();
+      const normalizedValue = value.trim();
+      if (!normalizedKey || !normalizedValue) {
+        continue;
+      }
+      sanitized[normalizedKey] = normalizedValue;
+    }
+    next.voice_overrides = sanitized;
+  }
+
   const outputHtml = config['output_html'];
   if (typeof outputHtml === 'boolean') {
     next.output_html = outputHtml;
@@ -365,6 +445,27 @@ export function PipelineSubmissionForm({
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recentUploadName, setRecentUploadName] = useState<string | null>(null);
+  const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
+  const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
+  const [isLoadingVoiceInventory, setIsLoadingVoiceInventory] = useState<boolean>(false);
+  const [voicePreviewStatus, setVoicePreviewStatus] = useState<Record<string, 'idle' | 'loading' | 'playing'>>({});
+  const [voicePreviewError, setVoicePreviewError] = useState<Record<string, string>>({});
+  const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string; code: string } | null>(null);
+  const cleanupPreviewAudio = useCallback(() => {
+    const current = previewAudioRef.current;
+    if (current) {
+      current.audio.pause();
+      current.audio.src = '';
+      URL.revokeObjectURL(current.url);
+      previewAudioRef.current = null;
+      setVoicePreviewStatus((previous) => {
+        if (previous[current.code] === 'idle') {
+          return previous;
+        }
+        return { ...previous, [current.code]: 'idle' };
+      });
+    }
+  }, [setVoicePreviewStatus]);
 
   const isSubmitSection = !activeSection || activeSection === 'submit';
   const visibleSections = activeSection ? [activeSection] : SECTION_ORDER;
@@ -375,6 +476,35 @@ export function PipelineSubmissionForm({
       [key]: value
     }));
   };
+
+  const updateVoiceOverride = useCallback((languageCode: string, voiceValue: string) => {
+    const trimmedCode = languageCode.trim();
+    if (!trimmedCode) {
+      return;
+    }
+    setFormState((previous) => {
+      const normalizedVoice = voiceValue.trim();
+      const overrides = previous.voice_overrides;
+      if (!normalizedVoice) {
+        if (!(trimmedCode in overrides)) {
+          return previous;
+        }
+        const nextOverrides = { ...overrides };
+        delete nextOverrides[trimmedCode];
+        return { ...previous, voice_overrides: nextOverrides };
+      }
+      if (overrides[trimmedCode] === normalizedVoice) {
+        return previous;
+      }
+      return {
+        ...previous,
+        voice_overrides: {
+          ...overrides,
+          [trimmedCode]: normalizedVoice
+        }
+      };
+    });
+  }, []);
 
   const handleInputFileChange = (value: string) => {
     setRecentUploadName(null);
@@ -401,6 +531,149 @@ export function PipelineSubmissionForm({
       .filter(Boolean);
     return Array.from(new Set([...formState.target_languages, ...manualTargets]));
   }, [formState.custom_target_languages, formState.target_languages]);
+
+  const languagesForOverride = useMemo(() => {
+    const seen = new Set<string>();
+    const entries: Array<{ label: string; code: string | null }> = [];
+
+    const addLanguage = (label: string) => {
+      const trimmed = label.trim();
+      if (!trimmed) {
+        return;
+      }
+      const code = resolveLanguageCode(trimmed);
+      const key = (code ?? trimmed).toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      entries.push({ label: trimmed, code: code ?? null });
+    };
+
+    addLanguage(formState.input_language);
+    normalizedTargetLanguages.forEach(addLanguage);
+    return entries;
+  }, [formState.input_language, normalizedTargetLanguages]);
+
+  const playVoicePreview = useCallback(
+    async (languageCode: string, languageLabel: string) => {
+      const trimmedCode = languageCode.trim();
+      if (!trimmedCode) {
+        return;
+      }
+
+      const effectiveVoice = formState.voice_overrides[trimmedCode] ?? formState.selected_voice;
+      const sampleText = sampleSentenceFor(trimmedCode, languageLabel);
+
+      setVoicePreviewError((previous) => {
+        const next = { ...previous };
+        delete next[trimmedCode];
+        return next;
+      });
+      cleanupPreviewAudio();
+      setVoicePreviewStatus((previous) => ({ ...previous, [trimmedCode]: 'loading' }));
+
+      try {
+        const previewBlob = await synthesizeVoicePreview({
+          text: sampleText,
+          language: trimmedCode,
+          voice: effectiveVoice
+        });
+        const previewUrl = URL.createObjectURL(previewBlob);
+        const audio = new Audio(previewUrl);
+        previewAudioRef.current = { audio, url: previewUrl, code: trimmedCode };
+        audio.onended = () => {
+          setVoicePreviewStatus((previous) => ({ ...previous, [trimmedCode]: 'idle' }));
+          cleanupPreviewAudio();
+        };
+        audio.onerror = () => {
+          setVoicePreviewStatus((previous) => ({ ...previous, [trimmedCode]: 'idle' }));
+          setVoicePreviewError((previous) => ({
+            ...previous,
+            [trimmedCode]: 'Audio playback failed.'
+          }));
+          cleanupPreviewAudio();
+        };
+        await audio.play();
+        setVoicePreviewStatus((previous) => ({ ...previous, [trimmedCode]: 'playing' }));
+      } catch (previewError) {
+        cleanupPreviewAudio();
+        setVoicePreviewStatus((previous) => ({ ...previous, [trimmedCode]: 'idle' }));
+        const message =
+          previewError instanceof Error
+            ? previewError.message
+            : 'Unable to generate voice preview.';
+        setVoicePreviewError((previous) => ({ ...previous, [trimmedCode]: message }));
+      }
+    },
+    [cleanupPreviewAudio, formState.selected_voice, formState.voice_overrides]
+  );
+
+  const buildVoiceOptions = useCallback(
+    (languageLabel: string, languageCode: string | null): VoiceSelectOption[] => {
+      const baseOptions: VoiceSelectOption[] = VOICE_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description
+      }));
+
+      if (!voiceInventory || !languageCode) {
+        return baseOptions;
+      }
+
+      const extras: VoiceSelectOption[] = [];
+      const normalizedCode = languageCode.toLowerCase();
+
+      const gttsMatches = voiceInventory.gtts.filter((entry) => {
+        const entryCode = entry.code.toLowerCase();
+        if (entryCode === normalizedCode) {
+          return true;
+        }
+        return entryCode.startsWith(`${normalizedCode}-`) || entryCode.startsWith(`${normalizedCode}_`);
+      });
+      const seenGtts = new Set<string>();
+      for (const entry of gttsMatches) {
+        const shortCode = entry.code.split(/[-_]/)[0].toLowerCase();
+        if (!shortCode || seenGtts.has(shortCode)) {
+          continue;
+        }
+        seenGtts.add(shortCode);
+        const identifier = `gTTS-${shortCode}`;
+        extras.push({ value: identifier, label: `gTTS (${entry.name})` });
+      }
+
+      const macVoices = voiceInventory.macos.filter((voice) => {
+        const voiceLang = voice.lang.toLowerCase();
+        return (
+          voiceLang === normalizedCode ||
+          voiceLang.startsWith(`${normalizedCode}-`) ||
+          voiceLang.startsWith(`${normalizedCode}_`)
+        );
+      });
+      macVoices
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .forEach((voice) => {
+          extras.push({
+            value: formatMacOSVoiceIdentifier(voice),
+            label: formatMacOSVoiceLabel(voice),
+            description: 'macOS system voice'
+          });
+        });
+
+      const merged = new Map<string, VoiceSelectOption>();
+      for (const option of [...baseOptions, ...extras]) {
+        if (!option.value) {
+          continue;
+        }
+        if (!merged.has(option.value)) {
+          merged.set(option.value, option);
+        }
+      }
+      return Array.from(merged.values());
+    },
+    [voiceInventory]
+  );
 
   const refreshFiles = useCallback(async () => {
     setIsLoadingFiles(true);
@@ -499,6 +772,45 @@ export function PipelineSubmissionForm({
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    setIsLoadingVoiceInventory(true);
+    fetchVoiceInventory()
+      .then((inventory) => {
+        if (cancelled) {
+          return;
+        }
+        setVoiceInventory(inventory);
+        setVoiceInventoryError(null);
+      })
+      .catch((inventoryError) => {
+        if (cancelled) {
+          return;
+        }
+        const message =
+          inventoryError instanceof Error
+            ? inventoryError.message
+            : 'Unable to load voice inventory.';
+        setVoiceInventory(null);
+        setVoiceInventoryError(message);
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingVoiceInventory(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      cleanupPreviewAudio();
+    };
+  }, [cleanupPreviewAudio]);
+
+  useEffect(() => {
     void refreshFiles();
   }, [refreshFiles]);
 
@@ -551,6 +863,22 @@ export function PipelineSubmissionForm({
         pipelineOverrides.slide_parallel_workers = slideParallelWorkers;
       }
 
+      const sanitizedVoiceOverrides: Record<string, string> = {};
+      for (const [code, value] of Object.entries(formState.voice_overrides)) {
+        if (typeof code !== 'string' || typeof value !== 'string') {
+          continue;
+        }
+        const trimmedCode = code.trim();
+        const trimmedValue = value.trim();
+        if (!trimmedCode || !trimmedValue) {
+          continue;
+        }
+        sanitizedVoiceOverrides[trimmedCode] = trimmedValue;
+      }
+      if (Object.keys(sanitizedVoiceOverrides).length > 0) {
+        pipelineOverrides.voice_overrides = sanitizedVoiceOverrides;
+      }
+
       const payload: PipelineRequestPayload = {
         config: json.config,
         environment_overrides: json.environment_overrides,
@@ -568,6 +896,7 @@ export function PipelineSubmissionForm({
           audio_mode: formState.audio_mode,
           written_mode: formState.written_mode,
           selected_voice: formState.selected_voice,
+          voice_overrides: sanitizedVoiceOverrides,
           output_html: formState.output_html,
           output_pdf: formState.output_pdf,
           generate_video: formState.generate_video,
@@ -850,6 +1179,78 @@ export function PipelineSubmissionForm({
                     </div>
                   </label>
                 ))}
+              </div>
+              <div className="voice-overrides">
+                <h4>Language-specific voices</h4>
+                <p className="form-help-text">
+                  Override the narration voice for individual languages. Leave as default to use the
+                  selection above.
+                </p>
+                {isLoadingVoiceInventory ? (
+                  <p className="form-help-text" role="status">
+                    Loading voice inventory…
+                  </p>
+                ) : null}
+                {voiceInventoryError ? (
+                  <p className="form-help-text form-help-text--error" role="alert">
+                    {voiceInventoryError}
+                  </p>
+                ) : null}
+                <div className="voice-override-list">
+                  {languagesForOverride.map(({ label, code }) => {
+                    const effectiveCode = code ?? '';
+                    const options = buildVoiceOptions(label, code);
+                    const overrideValue = code ? formState.voice_overrides[code] ?? '' : '';
+                    const status = voicePreviewStatus[effectiveCode] ?? 'idle';
+                    const previewError = voicePreviewError[effectiveCode];
+                    const defaultVoiceLabel =
+                      availableVoices.find((option) => option.value === formState.selected_voice)?.label ||
+                      formState.selected_voice;
+                    return (
+                      <div key={effectiveCode || label} className="voice-override-row">
+                        <div className="voice-override-info">
+                          <strong>{label}</strong>
+                          <span className="voice-override-code">{code ?? 'Unknown code'}</span>
+                        </div>
+                        {code && options.length > 0 ? (
+                          <div className="voice-override-controls">
+                            <select
+                              aria-label={`Voice override for ${label}`}
+                              value={overrideValue}
+                              onChange={(event) => updateVoiceOverride(code, event.target.value)}
+                            >
+                              <option value="">{`Default (${defaultVoiceLabel})`}</option>
+                              {options.map((option) => (
+                                <option key={option.value} value={option.value} title={option.description}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="link-button"
+                              onClick={() => void playVoicePreview(code, label)}
+                              disabled={status === 'loading' || isLoadingVoiceInventory}
+                            >
+                              {status === 'loading'
+                                ? 'Loading preview…'
+                                : status === 'playing'
+                                ? 'Playing preview…'
+                                : 'Play sample'}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="form-help-text">No voice inventory available for this language.</p>
+                        )}
+                        {previewError ? (
+                          <p className="form-help-text form-help-text--error" role="status">
+                            {previewError}
+                          </p>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
               <div className="option-grid">
                 {availableWrittenModes.map((option) => (

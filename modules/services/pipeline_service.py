@@ -57,11 +57,25 @@ class PipelineInput:
     generate_video: bool
     include_transliteration: bool
     tempo: float
-    book_metadata: PipelineMetadata
+    book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
+    voice_overrides: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not isinstance(self.book_metadata, PipelineMetadata):
             self.book_metadata = PipelineMetadata.from_mapping(self.book_metadata)
+        if not isinstance(self.voice_overrides, dict):
+            self.voice_overrides = {}
+        else:
+            sanitized: Dict[str, str] = {}
+            for key, value in self.voice_overrides.items():
+                if not isinstance(key, str) or not isinstance(value, str):
+                    continue
+                normalized_key = key.strip()
+                normalized_value = value.strip()
+                if not normalized_key or not normalized_value:
+                    continue
+                sanitized[normalized_key] = normalized_value
+            self.voice_overrides = sanitized
 
 
 @dataclass(slots=True)
