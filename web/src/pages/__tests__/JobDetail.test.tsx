@@ -92,7 +92,7 @@ describe('JobDetail', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText('001-010_output.html')).toBeInTheDocument();
+      expect(screen.getByText(/Selected media: 001-010_output\.html/i)).toBeInTheDocument();
     });
 
     expect(screen.getByRole('tab', { name: /Text \(1\)/i })).toHaveAttribute('aria-selected', 'true');
@@ -134,8 +134,7 @@ describe('JobDetail', () => {
       expect(screen.getByTestId('audio-player')).toBeInTheDocument();
     });
 
-    const audioList = screen.getByTestId('media-list-audio');
-    expect(within(audioList).getByText('001-010_output.mp3')).toBeInTheDocument();
+    expect(screen.getByText(/Selected media: 001-010_output\.mp3/i)).toBeInTheDocument();
   });
 
   it('defaults to populated media tab and shows empty messages for empty categories', async () => {
@@ -170,6 +169,6 @@ describe('JobDetail', () => {
     const user = userEvent.setup();
     await user.click(screen.getByRole('tab', { name: /Text \(0\)/i }));
 
-    expect(screen.getByTestId('media-list-text')).toHaveTextContent('No text media yet.');
+    expect(screen.getByText('No text media yet.')).toBeInTheDocument();
   });
 });

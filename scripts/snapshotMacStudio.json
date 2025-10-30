@@ -1,0 +1,28 @@
+{
+  "api_version": "0.1.0",
+  "build": {
+    "dist_dir": "/Users/fifo/Projects/ebook-tools/web/dist",
+    "manifest_hash": null
+  },
+  "env_files": [
+    {
+      "filename": ".env",
+      "variables": {}
+    },
+    {
+      "filename": ".env.local",
+      "variables": {}
+    }
+  ],
+  "git": {
+    "branch": "main",
+    "commit": "d12ad40e4822191e0666f09575651647798e31a0",
+    "dirty": true,
+    "status_summary": [
+      "M config/users/users.json",
+      "?? web/vite.config.d.ts",
+      "?? web/vitest.config.d.ts"
+    ]
+  },
+  "repo_path": "/Users/fifo/Projects/ebook-tools"
+}
