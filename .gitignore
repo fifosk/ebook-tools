@@ -22,3 +22,4 @@ conf/config.local.json
 storage/jobs/
 books/*
 !books/.gitkeep
+config/users/users.json

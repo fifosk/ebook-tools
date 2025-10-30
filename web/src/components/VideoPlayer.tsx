@@ -16,7 +16,7 @@ interface VideoPlayerProps {
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
 }
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export default function VideoPlayer({
   files,
@@ -29,6 +29,7 @@ export default function VideoPlayer({
   onPlaybackStateChange,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Video ${index + 1}`
@@ -103,6 +104,31 @@ export default function VideoPlayer({
     onPlaybackEnded?.();
   }, [onPlaybackEnded, onPlaybackStateChange]);
 
+  const toggleTheaterMode = useCallback(() => {
+    setIsTheaterMode((current) => !current);
+  }, []);
+
+  const exitTheaterMode = useCallback(() => {
+    setIsTheaterMode(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isTheaterMode) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        exitTheaterMode();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [exitTheaterMode, isTheaterMode]);
+
   if (files.length === 0) {
     return (
       <div className="video-player" role="status">
@@ -119,39 +145,64 @@ export default function VideoPlayer({
     );
   }
 
+  const theaterToggleLabel = isTheaterMode ? 'Exit theater mode' : 'Enter theater mode';
+
   return (
-    <div className="video-player">
-      <video
-        key={activeFile.id}
-        ref={elementRef}
-        className="video-player__element"
-        data-testid="video-player"
-        controls
-        src={activeFile.url}
-        poster={activeFile.poster}
-        autoPlay={autoPlay}
-        playsInline
-        onPlay={handlePlay}
-        onPause={handlePause}
-        onEnded={handleEnded}
-        onLoadedData={attemptAutoplay}
-        onTimeUpdate={handleTimeUpdate}
-      >
-        Your browser does not support the video element.
-      </video>
-      <div className="video-player__playlist" role="group" aria-label="Video playlist">
-        {labels.map((file) => (
-          <button
-            key={file.id}
-            type="button"
-            className="video-player__item"
-            aria-pressed={file.id === activeId}
-            onClick={() => onSelectFile(file.id)}
+    <>
+      {isTheaterMode ? (
+        <button
+          type="button"
+          className="video-player__backdrop"
+          aria-label="Exit theater mode"
+          onClick={exitTheaterMode}
+        />
+      ) : null}
+      <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
+        <div className="video-player__stage">
+          <video
+            key={activeFile.id}
+            ref={elementRef}
+            className="video-player__element"
+            data-testid="video-player"
+            controls
+            src={activeFile.url}
+            poster={activeFile.poster}
+            autoPlay={autoPlay}
+            playsInline
+            onPlay={handlePlay}
+            onPause={handlePause}
+            onEnded={handleEnded}
+            onLoadedData={attemptAutoplay}
+            onTimeUpdate={handleTimeUpdate}
           >
-            {file.label}
-          </button>
-        ))}
+            Your browser does not support the video element.
+          </video>
+          <div className="video-player__controls">
+            <button
+              type="button"
+              className="video-player__mode-toggle"
+              onClick={toggleTheaterMode}
+              aria-pressed={isTheaterMode}
+              data-testid="video-player-mode-toggle"
+            >
+              {theaterToggleLabel}
+            </button>
+          </div>
+        </div>
+        <div className="video-player__playlist" role="group" aria-label="Video playlist">
+          {labels.map((file) => (
+            <button
+              key={file.id}
+              type="button"
+              className="video-player__item"
+              aria-pressed={file.id === activeId}
+              onClick={() => onSelectFile(file.id)}
+            >
+              {file.label}
+            </button>
+          ))}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

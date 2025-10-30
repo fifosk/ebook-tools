@@ -1878,6 +1878,41 @@ button.link-button:focus {
   align-items: start;
 }
 
+.video-player__stage {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.video-player__controls {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.video-player__mode-toggle {
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--color-text-secondary);
+  border-radius: 999px;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  transition: border-color 0.2s ease, color 0.2s ease, background-color 0.2s ease;
+}
+
+.video-player__mode-toggle:hover,
+.video-player__mode-toggle:focus {
+  border-color: var(--color-border-accent);
+  color: var(--color-text-heading);
+  outline: none;
+}
+
+.video-player__mode-toggle[aria-pressed='true'] {
+  background: rgba(129, 140, 248, 0.25);
+  color: var(--color-text-heading);
+}
+
 .audio-player__element,
 .video-player__element {
   width: 100%;
@@ -1894,6 +1929,60 @@ button.link-button:focus {
   max-height: clamp(12rem, 40vh, 22rem);
   overflow-y: auto;
   padding-right: 0.25rem;
+}
+
+.video-player__backdrop {
+  position: fixed;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: rgba(15, 23, 42, 0.65);
+  cursor: pointer;
+  z-index: 999;
+}
+
+.video-player__backdrop:focus {
+  outline: none;
+}
+
+.video-player--enlarged {
+  position: fixed;
+  top: 5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 2rem));
+  max-height: calc(100vh - 7rem);
+  padding: 1.25rem;
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.65);
+  overflow: auto;
+  z-index: 1000;
+}
+
+.video-player--enlarged .video-player__element {
+  max-height: calc(100vh - 12rem);
+}
+
+.video-player--enlarged .video-player__playlist {
+  max-height: calc(100vh - 12rem);
+}
+
+@media (max-width: 960px) {
+  .video-player--enlarged {
+    top: 4.5rem;
+    width: min(100vw - 1.5rem, 720px);
+    padding: 1rem;
+  }
+
+  .video-player--enlarged .video-player__playlist {
+    max-height: clamp(10rem, 35vh, 16rem);
+  }
 }
 
 @media (max-width: 767px) {

@@ -572,7 +572,7 @@ export function App() {
     return (
       <div className="auth-screen">
         <div className="auth-card">
-          <h1>ebook-tools pipeline dashboard</h1>
+          <h1>Language tools</h1>
           <p>Sign in to submit jobs and manage pipeline activity.</p>
           <LoginForm
             onSubmit={handleLogin}
@@ -594,10 +594,10 @@ export function App() {
         <div className="sidebar__header">
           <div className="sidebar__brand">
             <span className="sidebar__logo-mark" aria-hidden="true">
-              et
+              LT
             </span>
-            <span className="sidebar__title">ebook-tools</span>
-            <span className="sidebar__subtitle">Pipeline dashboard</span>
+            <span className="sidebar__title">Language tools</span>
+            <span className="sidebar__subtitle">Language tools</span>
           </div>
           <button
             type="button"
@@ -692,16 +692,16 @@ export function App() {
         </div>
         <nav className="sidebar__nav" aria-label="Dashboard menu">
           <details className="sidebar__section" open>
-            <summary>Pipeline</summary>
+            <summary>Books</summary>
             <button
               type="button"
               className={`sidebar__link ${selectedView === 'pipeline:submit' ? 'is-active' : ''}`}
               onClick={() => setSelectedView('pipeline:submit')}
             >
-              Submit pipeline job
+              Submit book for processing
             </button>
             <details className="sidebar__section sidebar__section--nested">
-              <summary>Pipeline settings</summary>
+              <summary>Book processing settings</summary>
               <ul className="sidebar__list sidebar__list--nested">
                 {PIPELINE_SETTINGS.map((entry) => (
                   <li key={entry.key}>
@@ -801,7 +801,7 @@ export function App() {
               </>
             ) : (
               <>
-                <h1>ebook-tools pipeline dashboard</h1>
+                <h1>Language tools</h1>
                 <p>
                   Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
                   directly from the FastAPI backend.
@@ -866,6 +866,7 @@ export function App() {
                 <section className="job-media-section">
                   <JobDetail
                     jobId={selectedJob?.jobId ?? null}
+                    bookMetadata={selectedJob?.status?.result?.book_metadata ?? null}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
                   />
                 </section>

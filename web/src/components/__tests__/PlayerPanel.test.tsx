@@ -357,4 +357,22 @@ describe('PlayerPanel', () => {
       expect((restoredVideo as HTMLMediaElement).currentTime).toBeCloseTo(28, 0);
     });
   });
+
+  it('shows book metadata in the player header when provided', () => {
+    const media = createMediaState({});
+
+    render(
+      <PlayerPanel
+        jobId="job-789"
+        media={media}
+        isLoading={false}
+        error={null}
+        bookMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Example Title');
+    expect(screen.getByText('By Jane Doe • Job job-789')).toBeInTheDocument();
+    expect(screen.getByText('No generated media yet for Example Title.')).toBeInTheDocument();
+  });
 });
