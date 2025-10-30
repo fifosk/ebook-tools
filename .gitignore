@@ -27,3 +27,4 @@ storage/covers/*
 books/*
 !books/.gitkeep
 config/users/users.json
+config/default/users.json
