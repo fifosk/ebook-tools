@@ -62,6 +62,26 @@ def _needs_metadata(metadata: Dict[str, Optional[str]]) -> bool:
     return any(_is_placeholder(key, metadata.get(key)) for key in _DEFAULT_PLACEHOLDERS)
 
 
+def _apply_metadata(
+    metadata: Dict[str, Optional[str]],
+    key: str,
+    value: Optional[str],
+    *,
+    force: bool = False,
+) -> None:
+    if value is None:
+        return
+    if force:
+        metadata[key] = value
+        return
+    current = metadata.get(key)
+    if _is_placeholder(key, current):
+        metadata[key] = value
+        return
+    if not _is_placeholder(key, value) and current != value:
+        metadata[key] = value
+
+
 def _parse_filename_metadata(epub_path: Path) -> Dict[str, Optional[str]]:
     base = epub_path.stem
     base = base.replace("_", " ").replace(".", " ")
@@ -534,8 +554,7 @@ def infer_metadata(
     for key, value in metadata_seed.items():
         if not value:
             continue
-        if force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value:
-            metadata[key] = value
+        _apply_metadata(metadata, key, value, force=force_refresh)
 
     need_llm = any(
         _is_placeholder(field, metadata.get(field)) for field in ("book_title", "book_author", "book_year")
@@ -546,8 +565,9 @@ def infer_metadata(
         for key, value in llm_results.items():
             if not value:
                 continue
-            if force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value:
-                metadata[key] = value
+            previous = metadata.get(key)
+            _apply_metadata(metadata, key, value, force=force_refresh)
+            if metadata.get(key) != previous:
                 logger.info("LLM inferred %s: %s", key, value)
 
     title = metadata.get("book_title")
@@ -556,9 +576,11 @@ def infer_metadata(
 
     for key in ("book_year", "book_summary"):
         value = openlibrary_data.get(key)
-        if value and (force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value):
-            metadata[key] = value
-            logger.info("OpenLibrary provided %s", key)
+        if value:
+            previous = metadata.get(key)
+            _apply_metadata(metadata, key, value, force=force_refresh)
+            if metadata.get(key) != previous:
+                logger.info("OpenLibrary provided %s", key)
 
     cover_url = openlibrary_data.get("cover_url")
     cover_path = _ensure_cover_image(metadata, epub_path, preferred_url=cover_url)
