@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
+from .. import metadata_manager
 from .. import observability
 from ..core import ingestion
 from ..core.config import PipelineConfig
@@ -530,26 +531,43 @@ class PipelineService:
         if context is None:
             return None
 
+        input_file = request.inputs.input_file
         try:
-            config_result = config_phase.prepare_configuration(request, context)
-            metadata = metadata_phase.prepare_metadata(request, context)
-            metadata_result = metadata_phase.run_ingestion(
-                request,
-                config_result,
-                metadata,
-                tracker=None,
+            inferred_metadata = metadata_manager.infer_metadata(
+                input_file,
+                existing_metadata=request.inputs.book_metadata.as_dict(),
+                force_refresh=False,
             )
         except Exception:
-            logger.debug("Unable to prepare submission metadata", exc_info=True)
+            logger.debug("Unable to infer book metadata during submission", exc_info=True)
+            inferred_metadata = request.inputs.book_metadata.as_dict()
+
+        request.inputs.book_metadata = PipelineMetadata.from_mapping(inferred_metadata)
+
+        refined_sentences: List[str] = []
+        try:
+            config_result = config_phase.prepare_configuration(request, context)
+            pipeline_config = config_result.pipeline_config
+            refined, _ = ingestion.get_refined_sentences(
+                input_file,
+                pipeline_config,
+                force_refresh=False,
+                metadata={
+                    "mode": "api",
+                    "target_languages": request.inputs.target_languages,
+                    "max_words": pipeline_config.max_words,
+                },
+            )
+            refined_sentences = list(refined)
+        except Exception:
+            logger.debug("Unable to generate refined sentences during submission", exc_info=True)
+
+        if not inferred_metadata and not refined_sentences:
             return None
 
-        request.inputs.book_metadata = metadata_result.metadata
-
-        ingestion_result = metadata_result.ingestion
-
         return InitialMetadataSnapshot(
-            book_metadata=metadata_result.metadata.as_dict(),
-            refined_sentences=list(ingestion_result.refined_sentences),
+            book_metadata=inferred_metadata,
+            refined_sentences=refined_sentences,
         )
 
     def _persist_initial_metadata(

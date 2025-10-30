@@ -40,6 +40,12 @@ def _patch_executor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(manager_module, "ThreadPoolExecutor", _DummyExecutor)
 
 
+@pytest.fixture(autouse=True)
+def _skip_submission_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(PipelineService, "_prepare_submission_metadata", lambda *_, **__: None)
+    monkeypatch.setattr(PipelineService, "_persist_initial_metadata", lambda *_, **__: None)
+
+
 def _build_request() -> PipelineRequest:
     base = PipelineRequest(
         config={"auto_metadata": False},
