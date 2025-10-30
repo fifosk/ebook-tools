@@ -25,10 +25,14 @@ python scripts/frontend_sync.py compare device-a.json device-b.json
 
 The comparison reports:
 
-- Git branch/commit alignment and uncommitted changes.
+- Git branch/commit alignment, tracked changes, and untracked files.
 - Differences between `.env` files (highlighting API base URL mismatches).
 - Whether the bundled Vite build manifests match.
 - Backend API version discrepancies.
+
+`dirty` in the JSON snapshot only flips to `true` when tracked files differ from
+`HEAD`; untracked files are captured separately under `untracked_files` so you
+can ignore generated artifacts without masking relevant source changes.
 
 Follow the suggested remediations to restore parity:
 

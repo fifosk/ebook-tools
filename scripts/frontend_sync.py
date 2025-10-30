@@ -20,7 +20,8 @@ class GitSnapshot:
     branch: str | None
     commit: str | None
     dirty: bool
-    status_summary: list[str]
+    tracked_changes: list[str]
+    untracked_files: list[str]
 
     @classmethod
     def capture(cls, repo_root: Path) -> "GitSnapshot":
@@ -28,8 +29,18 @@ class GitSnapshot:
         commit = _run_git_command(("rev-parse", "HEAD"), repo_root)
         status_output = _run_git_command(("status", "--short"), repo_root)
         status_lines = status_output.splitlines() if status_output else []
-        dirty = bool(status_lines)
-        return cls(branch or None, commit or None, dirty, status_lines)
+
+        tracked_changes: list[str] = []
+        untracked_files: list[str] = []
+        for line in status_lines:
+            stripped = line.strip()
+            if stripped.startswith("?? "):
+                untracked_files.append(stripped[3:])
+            else:
+                tracked_changes.append(stripped)
+
+        dirty = bool(tracked_changes)
+        return cls(branch or None, commit or None, dirty, tracked_changes, untracked_files)
 
 
 @dataclass(slots=True)
@@ -65,7 +76,8 @@ class RepositorySnapshot:
                 "branch": self.git.branch,
                 "commit": self.git.commit,
                 "dirty": self.git.dirty,
-                "status_summary": self.git.status_summary,
+                "tracked_changes": self.git.tracked_changes,
+                "untracked_files": self.git.untracked_files,
             },
             "env_files": [
                 {"filename": env.filename, "variables": env.variables}
@@ -214,14 +226,27 @@ def _compare_git(git_a: dict[str, object], git_b: dict[str, object]) -> None:
         print("⚠️ Git mismatch detected:")
         print(f"  Device A -> branch: {branch_a}, commit: {commit_a}")
         print(f"  Device B -> branch: {branch_b}, commit: {commit_b}")
-    if git_a.get("dirty"):
-        print("  Device A has uncommitted changes:")
-        for line in git_a.get("status_summary", []):
+    tracked_a = list(git_a.get("tracked_changes") or git_a.get("status_summary") or [])
+    tracked_b = list(git_b.get("tracked_changes") or git_b.get("status_summary") or [])
+    untracked_a = list(git_a.get("untracked_files") or [])
+    untracked_b = list(git_b.get("untracked_files") or [])
+
+    if git_a.get("dirty") and tracked_a:
+        print("  Device A has tracked changes:")
+        for line in tracked_a:
             print(f"    {line}")
-    if git_b.get("dirty"):
-        print("  Device B has uncommitted changes:")
-        for line in git_b.get("status_summary", []):
+    if git_b.get("dirty") and tracked_b:
+        print("  Device B has tracked changes:")
+        for line in tracked_b:
             print(f"    {line}")
+    if untracked_a:
+        print("  Device A has untracked files:")
+        for path in untracked_a:
+            print(f"    {path}")
+    if untracked_b:
+        print("  Device B has untracked files:")
+        for path in untracked_b:
+            print(f"    {path}")
 
 
 def _compare_env(env_a: list[dict[str, object]], env_b: list[dict[str, object]]) -> None:
