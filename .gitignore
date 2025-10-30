@@ -19,13 +19,13 @@ output/
 tmp/
 log/
 conf/config.local.json
-storage/jobs/
+storage/*
+!storage/ebooks/
+!storage/covers/
 storage/ebooks/*
 !storage/ebooks/.gitkeep
 storage/covers/*
 !storage/covers/.gitkeep
-storage/metadata/*
-!storage/metadata/.gitkeep
 books/*
 !books/.gitkeep
 config/users/users.json

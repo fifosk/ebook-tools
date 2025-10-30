@@ -52,3 +52,14 @@ def test_resolve_url_without_base_returns_none(tmp_path):
     locator = FileLocator(settings_provider=lambda: settings)
 
     assert locator.resolve_url("job") is None
+
+
+def test_metadata_paths_use_metadata_subdirectory(tmp_path):
+    settings = _settings_stub(str(tmp_path / "jobs"))
+    locator = FileLocator(settings_provider=lambda: settings)
+
+    metadata_dir = locator.resolve_metadata_path("job-1")
+    metadata_file = locator.resolve_metadata_path("job-1", "book.json")
+
+    assert metadata_dir == tmp_path / "jobs" / "job-1" / "metadata"
+    assert metadata_file == tmp_path / "jobs" / "job-1" / "metadata" / "book.json"

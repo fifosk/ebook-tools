@@ -16,7 +16,7 @@ def test_settings_provide_storage_defaults(monkeypatch):
 
     settings = cfg_loader.get_settings()
 
-    assert settings.job_storage_dir == str(Path("storage") / "jobs")
+    assert settings.job_storage_dir == str(Path("storage"))
     assert settings.storage_base_url == ""
 
 

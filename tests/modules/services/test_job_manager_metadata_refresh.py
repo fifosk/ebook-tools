@@ -25,7 +25,7 @@ from modules.services.pipeline_types import PipelineMetadata
 
 @pytest.fixture
 def job_manager(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> PipelineJobManager:
-    storage_root = tmp_path / "jobs"
+    storage_root = tmp_path / "storage"
     storage_root.mkdir(parents=True, exist_ok=True)
     settings = SimpleNamespace(
         job_max_workers=1,

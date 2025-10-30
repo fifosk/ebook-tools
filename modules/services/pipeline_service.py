@@ -576,13 +576,14 @@ class PipelineService:
         snapshot: InitialMetadataSnapshot,
         request: PipelineRequest,
     ) -> None:
-        root = cfg.resolve_directory(None, cfg.DEFAULT_METADATA_RELATIVE) / job_id
+        locator = self._job_manager.file_locator
+        root = locator.resolve_metadata_path(job_id)
         root.mkdir(parents=True, exist_ok=True)
 
-        metadata_path = root / "metadata.json"
-        sentences_path = root / "sentences.json"
-        request_path = root / "request.json"
-        config_path = root / "config.json"
+        metadata_path = locator.resolve_metadata_path(job_id, "book.json")
+        sentences_path = locator.resolve_metadata_path(job_id, "sentences.json")
+        request_path = locator.resolve_metadata_path(job_id, "request.json")
+        config_path = locator.resolve_metadata_path(job_id, "config.json")
 
         metadata_path.write_text(
             json.dumps(snapshot.book_metadata, indent=2, sort_keys=True),

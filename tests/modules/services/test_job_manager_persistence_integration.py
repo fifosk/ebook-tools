@@ -50,7 +50,7 @@ class _DummyWorkerPool:
 
 @pytest.fixture
 def storage_dir(tmp_path, monkeypatch) -> Path:
-    path = tmp_path / "jobs"
+    path = tmp_path / "storage"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(path))
     return path
 
@@ -147,7 +147,7 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
 
 
 def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypatch):
-    original_storage = tmp_path / "jobs-original"
+    original_storage = tmp_path / "storage-original"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(original_storage))
     original_base_url = "https://cdn.example.invalid/original"
     monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", original_base_url)
@@ -165,7 +165,7 @@ def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypa
         job.status = PipelineJobStatus.RUNNING
 
         job_root = manager._file_locator.resolve_path(job.job_id)
-        media_path = job_root / "chunk-001" / "sample.mp3"
+        media_path = job_root / "media" / "chunk-001" / "sample.mp3"
         media_path.parent.mkdir(parents=True, exist_ok=True)
         media_path.write_bytes(b"hello world")
 
@@ -210,7 +210,7 @@ def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypa
     finally:
         manager._executor.shutdown(wait=False)
 
-    migrated_storage = tmp_path / "jobs-migrated"
+    migrated_storage = tmp_path / "storage-migrated"
     new_base_url = "https://cdn.example.invalid/new"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(migrated_storage))
     monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", new_base_url)

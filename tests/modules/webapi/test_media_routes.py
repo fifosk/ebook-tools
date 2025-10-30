@@ -71,7 +71,7 @@ class _StubVideoJobManager:
 def media_client(tmp_path) -> Iterator[Tuple[TestClient, str, str, _StubAudioService, _StubVideoJobManager, FileLocator]]:
     user_store_path = tmp_path / "users.json"
     session_file = tmp_path / "sessions.json"
-    job_storage = tmp_path / "jobs"
+    job_storage = tmp_path / "storage"
 
     service = AuthService(
         LocalUserStore(storage_path=user_store_path),
@@ -201,7 +201,7 @@ def test_video_generation_submits_job(media_client) -> None:
 
     job_id = "job-555"
     job_dir = locator.resolve_path(job_id)
-    audio_dir = job_dir / "audio"
+    audio_dir = job_dir / "media" / "audio"
     audio_dir.mkdir(parents=True, exist_ok=True)
     audio_file = audio_dir / "clip.mp3"
     audio_file.write_bytes(b"fake")
@@ -214,7 +214,7 @@ def test_video_generation_submits_job(media_client) -> None:
             "video": {
                 "request": {
                     "slides": ["Slide 1"],
-                    "audio": [{"relative_path": "audio/clip.mp3"}],
+                    "audio": [{"relative_path": "media/audio/clip.mp3"}],
                     "options": {"book_author": "Author"},
                 },
             },

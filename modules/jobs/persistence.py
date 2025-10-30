@@ -14,7 +14,7 @@ if TYPE_CHECKING:  # pragma: no cover - for static analysis only
 
 _LOGGER = logging_manager.get_logger().getChild("jobs.persistence")
 _STORAGE_ENV_VAR = "JOB_STORAGE_DIR"
-_DEFAULT_STORAGE_RELATIVE = Path("storage") / "jobs"
+_DEFAULT_STORAGE_RELATIVE = Path("storage")
 
 
 def _resolve_storage_dir() -> Path:
@@ -36,8 +36,18 @@ def _sanitize_job_id(job_id: str) -> str:
     return "".join(ch if ch in allowed else "_" for ch in job_id)
 
 
+def _job_root(job_id: str) -> Path:
+    return _resolve_storage_dir() / _sanitize_job_id(job_id)
+
+
+def _job_metadata_dir(job_id: str) -> Path:
+    metadata_dir = _job_root(job_id) / "metadata"
+    metadata_dir.mkdir(parents=True, exist_ok=True)
+    return metadata_dir
+
+
 def _job_path(job_id: str) -> Path:
-    return _resolve_storage_dir() / f"{_sanitize_job_id(job_id)}.json"
+    return _job_metadata_dir(job_id) / "job.json"
 
 
 def _coerce_metadata(job: "PipelineJobMetadata" | Mapping[str, object]) -> "PipelineJobMetadata":
@@ -96,13 +106,19 @@ def load_all_jobs() -> Dict[str, "PipelineJobMetadata"]:
 
     storage_dir = _resolve_storage_dir()
     records: Dict[str, "PipelineJobMetadata"] = {}
-    for entry in sorted(storage_dir.glob("*.json")):
-        job_id = entry.stem
+    for job_dir in sorted(storage_dir.iterdir()):
+        if not job_dir.is_dir():
+            continue
+        job_id = job_dir.name
+        metadata_file = job_dir / "metadata" / "job.json"
+        if not metadata_file.exists():
+            continue
         try:
             records[job_id] = load_job(job_id)
         except Exception as exc:  # pragma: no cover - defensive logging
             _LOGGER.warning(
-                "Failed to load job metadata", extra={"job_id": job_id, "error": str(exc)}
+                "Failed to load job metadata",
+                extra={"job_id": job_id, "error": str(exc)},
             )
     return records
 
@@ -117,4 +133,3 @@ def delete_job(job_id: str) -> None:
         return
     else:
         _LOGGER.debug("Job %s removed from persistence", job_id)
-

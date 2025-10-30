@@ -149,25 +149,31 @@ class PipelineJobManager:
         request.correlation_id = request.correlation_id or job_id
         request.job_id = job_id
 
-        job_output_dir = self._file_locator.resolve_path(job_id)
-        job_output_dir.mkdir(parents=True, exist_ok=True)
+        job_root = self._file_locator.resolve_path(job_id)
+        job_root.mkdir(parents=True, exist_ok=True)
+
+        media_root = self._file_locator.media_root(job_id)
+        media_root.mkdir(parents=True, exist_ok=True)
+
+        metadata_root = self._file_locator.metadata_root(job_id)
+        metadata_root.mkdir(parents=True, exist_ok=True)
 
         environment_overrides = dict(request.environment_overrides)
-        environment_overrides.setdefault("output_dir", str(job_output_dir))
-        job_storage_url = self._file_locator.resolve_url(job_id)
+        environment_overrides.setdefault("output_dir", str(media_root))
+        job_storage_url = self._file_locator.resolve_url(job_id, "media")
         if job_storage_url:
             environment_overrides.setdefault("job_storage_url", job_storage_url)
         request.environment_overrides = environment_overrides
 
         context = request.context
         if context is not None:
-            context = dataclass_replace(context, output_dir=job_output_dir)
+            context = dataclass_replace(context, output_dir=media_root)
         else:
             context = cfg.build_runtime_context(
                 dict(request.config),
                 dict(environment_overrides),
             )
-            context = dataclass_replace(context, output_dir=job_output_dir)
+            context = dataclass_replace(context, output_dir=media_root)
         request.context = context
 
         request_payload = serialize_pipeline_request(request)
@@ -211,6 +217,10 @@ class PipelineJobManager:
 
         self._executor.submit(self._execute, job_id)
         return job
+
+    @property
+    def file_locator(self) -> FileLocator:
+        return self._file_locator
 
     def apply_initial_metadata(
         self,
