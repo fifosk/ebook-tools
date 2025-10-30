@@ -572,7 +572,7 @@ export function App() {
     return (
       <div className="auth-screen">
         <div className="auth-card">
-          <h1>ebook-tools pipeline dashboard</h1>
+          <h1>Language tools</h1>
           <p>Sign in to submit jobs and manage pipeline activity.</p>
           <LoginForm
             onSubmit={handleLogin}
@@ -801,7 +801,7 @@ export function App() {
               </>
             ) : (
               <>
-                <h1>ebook-tools pipeline dashboard</h1>
+                <h1>Language tools</h1>
                 <p>
                   Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
                   directly from the FastAPI backend.
