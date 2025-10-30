@@ -594,10 +594,10 @@ export function App() {
         <div className="sidebar__header">
           <div className="sidebar__brand">
             <span className="sidebar__logo-mark" aria-hidden="true">
-              lt
+              LT
             </span>
             <span className="sidebar__title">Language tools</span>
-            <span className="sidebar__subtitle">Pipeline dashboard</span>
+            <span className="sidebar__subtitle">Language tools</span>
           </div>
           <button
             type="button"
