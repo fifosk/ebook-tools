@@ -7,7 +7,7 @@ import json
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 from uuid import uuid4
 
 from .. import config_manager as cfg
@@ -532,6 +532,56 @@ class PipelineService:
             return None
 
         input_file = request.inputs.input_file
+        placeholder_checker = getattr(metadata_manager, "_is_placeholder", None)
+
+        def is_placeholder(key: str, value: object) -> bool:
+            if callable(placeholder_checker):
+                try:
+                    return bool(placeholder_checker(key, value))  # type: ignore[misc]
+                except Exception:  # pragma: no cover - defensive guard
+                    pass
+            if value is None:
+                return True
+            if isinstance(value, str):
+                cleaned = value.strip()
+                if not cleaned:
+                    return True
+                return cleaned.casefold() in {"unknown", "unknown title", "book"}
+            return False
+
+        base_metadata = request.inputs.book_metadata.as_dict()
+
+        config_metadata: Dict[str, Any] = {}
+        config = request.config or {}
+        config_book_metadata = config.get("book_metadata")
+        if isinstance(config_book_metadata, Mapping):
+            config_metadata.update(
+                {
+                    key: value
+                    for key, value in config_book_metadata.items()
+                    if value not in (None, "")
+                }
+            )
+
+        for key in (
+            "book_title",
+            "book_author",
+            "book_year",
+            "book_summary",
+            "book_cover_file",
+            "book_cover_title",
+        ):
+            value = config.get(key)
+            if value not in (None, ""):
+                config_metadata.setdefault(key, value)
+
+        merged_metadata = dict(base_metadata)
+        for key, value in config_metadata.items():
+            if is_placeholder(key, merged_metadata.get(key)) and not is_placeholder(key, value):
+                merged_metadata[key] = value
+
+        request.inputs.book_metadata = PipelineMetadata.from_mapping(merged_metadata)
+
         try:
             inferred_metadata = metadata_manager.infer_metadata(
                 input_file,
