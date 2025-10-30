@@ -177,6 +177,8 @@ export default function PlayerPanel({
   const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
+  const hasJobId = Boolean(jobId);
+  const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
@@ -198,6 +200,102 @@ export default function PlayerPanel({
 
     return map;
   }, [media]);
+
+  const jobCoverAsset = useMemo(() => {
+    const value = bookMetadata?.['job_cover_asset'];
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [bookMetadata]);
+
+  const legacyCoverFile = useMemo(() => {
+    const value = bookMetadata?.['book_cover_file'];
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [bookMetadata]);
+
+  const apiCoverUrl = useMemo(() => {
+    if (!hasJobId) {
+      return null;
+    }
+    return resolveJobCoverUrl(normalisedJobId);
+  }, [hasJobId, normalisedJobId]);
+
+  const coverCandidates = useMemo(() => {
+    const candidates: string[] = [];
+    const unique = new Set<string>();
+
+    const push = (candidate: string | null | undefined) => {
+      const trimmed = candidate?.trim();
+      if (!trimmed || unique.has(trimmed)) {
+        return;
+      }
+      unique.add(trimmed);
+      candidates.push(trimmed);
+    };
+
+    if (apiCoverUrl) {
+      push(apiCoverUrl);
+    }
+
+    const pushStorageVariants = (raw: string | null) => {
+      if (!raw) {
+        return;
+      }
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (/^https?:\/\//i.test(trimmed)) {
+        push(trimmed);
+        return;
+      }
+      const stripped = trimmed.replace(/^\/+/, '');
+      if (!stripped) {
+        return;
+      }
+      try {
+        push(buildStorageUrl(stripped));
+      } catch (error) {
+        console.warn('Unable to build storage URL for cover image', error);
+      }
+      push(`/storage/${stripped}`);
+      push(`/${stripped}`);
+    };
+
+    pushStorageVariants(jobCoverAsset);
+    if (legacyCoverFile && legacyCoverFile !== jobCoverAsset) {
+      pushStorageVariants(legacyCoverFile);
+    }
+
+    push(DEFAULT_COVER_URL);
+
+    return candidates;
+  }, [apiCoverUrl, jobCoverAsset, legacyCoverFile]);
+
+  useEffect(() => {
+    if (coverSourceIndex !== 0) {
+      setCoverSourceIndex(0);
+    }
+  }, [coverCandidates, coverSourceIndex]);
+
+  const displayCoverUrl = coverCandidates[coverSourceIndex] ?? DEFAULT_COVER_URL;
+  const handleCoverError = useCallback(() => {
+    setCoverSourceIndex((currentIndex) => {
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= coverCandidates.length) {
+        return currentIndex;
+      }
+      return nextIndex;
+    });
+  }, [coverCandidates]);
+  const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
+  const coverErrorHandler = shouldHandleCoverError ? handleCoverError : undefined;
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: MediaCategory) => {
@@ -794,91 +892,6 @@ export default function PlayerPanel({
   }
   jobLabelParts.push(`Job ${jobId}`);
   const jobLabel = jobLabelParts.join(' • ');
-  const jobCoverAsset = useMemo(() => {
-    const value = bookMetadata?.['job_cover_asset'];
-    if (typeof value !== 'string') {
-      return null;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }, [bookMetadata]);
-  const legacyCoverFile = useMemo(() => {
-    const value = bookMetadata?.['book_cover_file'];
-    if (typeof value !== 'string') {
-      return null;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }, [bookMetadata]);
-  const coverCandidates = useMemo(() => {
-    const candidates: string[] = [];
-    const unique = new Set<string>();
-    const push = (candidate: string | null | undefined) => {
-      const trimmed = candidate?.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (unique.has(trimmed)) {
-        return;
-      }
-      unique.add(trimmed);
-      candidates.push(trimmed);
-    };
-
-    const apiUrl = jobId ? resolveJobCoverUrl(jobId) : '';
-    push(apiUrl);
-
-    const pushStorageVariants = (raw: string | null) => {
-      if (!raw) {
-        return;
-      }
-      const trimmed = raw.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (/^https?:\/\//i.test(trimmed)) {
-        push(trimmed);
-        return;
-      }
-      const stripped = trimmed.replace(/^\/+/, '');
-      if (!stripped) {
-        return;
-      }
-      try {
-        push(buildStorageUrl(stripped));
-      } catch (error) {
-        console.warn('Unable to build storage URL for cover image', error);
-      }
-      push(`/storage/${stripped}`);
-      push(`/${stripped}`);
-    };
-
-    pushStorageVariants(jobCoverAsset);
-    if (legacyCoverFile && legacyCoverFile !== jobCoverAsset) {
-      pushStorageVariants(legacyCoverFile);
-    }
-
-    push(DEFAULT_COVER_URL);
-
-    return candidates;
-  }, [jobCoverAsset, jobId, legacyCoverFile]);
-  useEffect(() => {
-    if (coverSourceIndex !== 0) {
-      setCoverSourceIndex(0);
-    }
-  }, [coverCandidates, coverSourceIndex]);
-  const displayCoverUrl = coverCandidates[coverSourceIndex] ?? DEFAULT_COVER_URL;
-  const handleCoverError = useCallback(() => {
-    setCoverSourceIndex((currentIndex) => {
-      const nextIndex = currentIndex + 1;
-      if (nextIndex >= coverCandidates.length) {
-        return currentIndex;
-      }
-      return nextIndex;
-    });
-  }, [coverCandidates]);
-  const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
-  const coverErrorHandler = shouldHandleCoverError ? handleCoverError : undefined;
   const coverAltText = useMemo(() => {
     if (bookTitle && bookAuthor) {
       return `Cover of ${bookTitle} by ${bookAuthor}`;

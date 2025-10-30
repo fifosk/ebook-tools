@@ -259,8 +259,7 @@ export function JobProgress({
     if (!jobId) {
       return null;
     }
-    const url = resolveJobCoverUrl(jobId);
-    return url || null;
+    return resolveJobCoverUrl(jobId);
   }, [jobId]);
   const coverSources = useMemo(() => {
     if (!coverAsset) {
