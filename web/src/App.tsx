@@ -692,16 +692,16 @@ export function App() {
         </div>
         <nav className="sidebar__nav" aria-label="Dashboard menu">
           <details className="sidebar__section" open>
-            <summary>Pipeline</summary>
+            <summary>Books</summary>
             <button
               type="button"
               className={`sidebar__link ${selectedView === 'pipeline:submit' ? 'is-active' : ''}`}
               onClick={() => setSelectedView('pipeline:submit')}
             >
-              Submit pipeline job
+              Submit book for processing
             </button>
             <details className="sidebar__section sidebar__section--nested">
-              <summary>Pipeline settings</summary>
+              <summary>Book processing settings</summary>
               <ul className="sidebar__list sidebar__list--nested">
                 {PIPELINE_SETTINGS.map((entry) => (
                   <li key={entry.key}>
