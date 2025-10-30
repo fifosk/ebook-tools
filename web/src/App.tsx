@@ -207,6 +207,15 @@ export function App() {
     };
   }, [refreshJobs, session]);
 
+  const activeJobMetadata = useMemo(() => {
+    if (!activeJobId) {
+      return null;
+    }
+    const jobEntry = jobs[activeJobId];
+    const metadata = jobEntry?.status?.result?.book_metadata;
+    return metadata && typeof metadata === 'object' ? metadata : null;
+  }, [activeJobId, jobs]);
+
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
       return;
@@ -510,15 +519,6 @@ export function App() {
     }
     return job;
   }, [activeJobId, jobList]);
-
-  const activeJobMetadata = useMemo(() => {
-    if (!activeJobId) {
-      return null;
-    }
-    const jobEntry = jobs[activeJobId];
-    const metadata = jobEntry?.status?.result?.book_metadata;
-    return metadata && typeof metadata === 'object' ? metadata : null;
-  }, [activeJobId, jobs]);
 
   const lastFetchedJobRef = useRef<string | null>(null);
   const lastFetchedAtRef = useRef<number>(0);
