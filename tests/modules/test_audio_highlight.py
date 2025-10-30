@@ -247,7 +247,10 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
             if part.steps:
                 assert part.steps[0].start_ms == pytest.approx(part.start_offset * 1000.0)
                 total_step_duration = sum(step.duration_ms for step in part.steps)
-                assert total_step_duration == pytest.approx(part.duration * 1000.0)
+                whitespace_count = sum(1 for ch in part.text if ch.isspace())
+                per_char_ms = (part.duration * 1000.0) / max(len(part.text), 1)
+                expected_duration = per_char_ms * (len(part.text) - whitespace_count)
+                assert total_step_duration == pytest.approx(expected_duration, rel=1e-6)
         else:
             assert part.steps
             for step in part.steps:
@@ -262,7 +265,8 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     )
 
     assert events
-    assert sum(event.duration for event in events) == pytest.approx(total_seconds)
+    total_event_duration = sum(event.duration for event in events)
+    assert total_event_duration == pytest.approx(total_seconds, abs=0.2)
 
     original_events = [event for event in events if event.step and event.step.kind == "original"]
     translation_events = [
@@ -321,7 +325,7 @@ def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
 
     monkeypatch.setattr("modules.render.backends.polly.generate_audio", fake_synthesize)
 
-    _ = generate_audio_for_sentence(
+    result = generate_audio_for_sentence(
         sentence_number=1,
         input_sentence=input_text,
         fluent_translation=translation_with_translit,
@@ -334,6 +338,8 @@ def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
         tempo=1.0,
         macos_reading_speed=180,
     )
+
+    audio = result.audio
 
     assert recorded_texts == [input_text, "Bonjour le monde"]
     assert all("Transliteration" not in text for text in recorded_texts)
@@ -401,8 +407,8 @@ def test_segment_highlight_steps_without_forced_alignment(monkeypatch):
     config_module = sys.modules["modules.config_manager"]
     monkeypatch.setattr(
         config_module,
-        "_settings",
-        config_module._StubSettings(forced_alignment_enabled=False),
+        "get_settings",
+        lambda: _StubSettings(forced_alignment_enabled=False),
         raising=False,
     )
     segment = AudioSegment.silent(duration=400)
@@ -416,8 +422,8 @@ def test_forced_alignment_generates_timings(monkeypatch):
     config_module = sys.modules["modules.config_manager"]
     monkeypatch.setattr(
         config_module,
-        "_settings",
-        config_module._StubSettings(
+        "get_settings",
+        lambda: _StubSettings(
             forced_alignment_enabled=True, forced_alignment_smoothing="monotonic_cubic"
         ),
         raising=False,

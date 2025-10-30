@@ -847,6 +847,61 @@ section {
   gap: var(--space-sm);
 }
 
+.voice-overrides {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.voice-overrides h4 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.voice-override-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.voice-override-row {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.voice-override-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+}
+
+.voice-override-code {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.voice-override-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.voice-override-controls select {
+  min-width: 14rem;
+}
+
+.voice-override-controls button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .pipeline-card__actions {
   margin-top: 0.5rem;
 }

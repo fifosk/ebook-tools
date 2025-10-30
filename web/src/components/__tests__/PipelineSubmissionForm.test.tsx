@@ -6,12 +6,20 @@ import {
   PipelineFileBrowserResponse,
   PipelineRequestPayload
 } from '../../api/dtos';
-import { fetchPipelineDefaults, fetchPipelineFiles, uploadEpubFile } from '../../api/client';
+import {
+  fetchPipelineDefaults,
+  fetchPipelineFiles,
+  fetchVoiceInventory,
+  synthesizeVoicePreview,
+  uploadEpubFile
+} from '../../api/client';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
   fetchPipelineDefaults: vi.fn(),
+  fetchVoiceInventory: vi.fn(),
+  synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
 }));
 
@@ -58,6 +66,8 @@ beforeEach(() => {
         resolveDefaults = resolve;
       })
   );
+  vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [] });
+  vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
 });
 
 afterEach(() => {
@@ -89,6 +99,9 @@ describe('PipelineSubmissionForm', () => {
     await user.click(screen.getByRole('checkbox', { name: 'French' }));
     await user.click(screen.getByRole('checkbox', { name: 'German' }));
 
+    const overrideSelect = await screen.findByLabelText(/Voice override for English/i);
+    await user.selectOptions(overrideSelect, 'macOS-auto');
+
     fireEvent.change(screen.getByLabelText(/Config overrides JSON/i), {
       target: { value: '{"debug":true}' }
     });
@@ -105,6 +118,8 @@ describe('PipelineSubmissionForm', () => {
     expect(payload.inputs.target_languages).toEqual(['French', 'German']);
     expect(payload.config).toEqual({ debug: true });
     expect(payload.inputs.generate_audio).toBe(true);
+    expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });
+    expect(payload.pipeline_overrides.voice_overrides).toEqual({ en: 'macOS-auto' });
   }, 10000);
 
   it('shows an error when JSON input cannot be parsed', async () => {

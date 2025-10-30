@@ -132,12 +132,13 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         total_sentences: int,
         language_codes: Mapping[str, str],
         selected_voice: str,
+        voice_overrides: Mapping[str, str] | None,
         tempo: float,
         macos_reading_speed: int,
         *,
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
-    ) -> AudioSegment:
+    ) -> SynthesisResult:
         def _lang_code(lang: str) -> str:
             return language_codes.get(lang, "en")
 
@@ -150,6 +151,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         segment_texts: Dict[str, str] = {}
         segment_languages: Dict[str, tuple[str, str]] = {}
         voice_map: Dict[str, Dict[str, str]] = {}
+        segment_voice_cache: Dict[str, str] = {}
 
         def _language_label(role: str, lang_code: str, explicit: str | None = None) -> str:
             candidate = (explicit or "").strip()
@@ -165,7 +167,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
             language_label, lang_code = segment_languages.get(key, ("", ""))
             resolved_voice = (voice_identifier or "").strip()
             if not resolved_voice or resolved_voice == "0":
-                resolved_voice = selected_voice
+                resolved_voice = segment_voice_cache.get(key, selected_voice)
             label = language_label or _language_label(key, lang_code)
             display_name = get_voice_display_name(resolved_voice, label, language_codes)
             if not display_name:
@@ -189,6 +191,51 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 _language_label(key, lang_code, language_label),
                 lang_code,
             )
+
+        def _normalize_token(value: str) -> str:
+            return value.strip().lower()
+
+        def _token_variants(value: str) -> set[str]:
+            base = _normalize_token(value)
+            variants = {base}
+            variants.add(base.replace(" ", "_"))
+            variants.add(base.replace(" ", "-"))
+            final: set[str] = set()
+            for variant in variants:
+                if not variant:
+                    continue
+                final.add(variant)
+                final.add(variant.replace("-", "_"))
+                final.add(variant.replace("_", "-"))
+            return {item for item in final if item}
+
+        language_aliases: Dict[str, str] = {}
+        for name, code in language_codes.items():
+            if not isinstance(name, str) or not isinstance(code, str):
+                continue
+            normalized_code = code.strip().lower()
+            if not normalized_code:
+                continue
+            for variant in _token_variants(name):
+                language_aliases.setdefault(variant, normalized_code)
+            for variant in _token_variants(code):
+                language_aliases.setdefault(variant, normalized_code)
+
+        normalized_voice_overrides: Dict[str, str] = {}
+        if voice_overrides:
+            for raw_key, raw_value in voice_overrides.items():
+                if not isinstance(raw_key, str) or not isinstance(raw_value, str):
+                    continue
+                normalized_value = raw_value.strip()
+                if not normalized_value:
+                    continue
+                variants = _token_variants(raw_key)
+                for variant in list(variants):
+                    mapped = language_aliases.get(variant)
+                    if mapped:
+                        variants.update(_token_variants(mapped))
+                for variant in variants:
+                    normalized_voice_overrides[variant] = normalized_value
 
         target_lang_code = _lang_code(target_language)
         source_lang_code = _lang_code(input_language)
@@ -236,15 +283,56 @@ class PollyAudioSynthesizer(AudioSynthesizer):
             "say_path": tts_executable_path,
         }
 
+        selected_voice = (selected_voice or "").strip() or "gTTS"
+
+        def _resolve_override(language_label: str, lang_code: str) -> Optional[str]:
+            candidates: set[str] = set()
+            for raw in (lang_code, language_label):
+                if not isinstance(raw, str):
+                    continue
+                tokens = _token_variants(raw)
+                candidates.update(tokens)
+                for token in tokens:
+                    mapped = language_aliases.get(token)
+                    if mapped:
+                        candidates.update(_token_variants(mapped))
+            for candidate in candidates:
+                override = normalized_voice_overrides.get(candidate)
+                if override:
+                    return override
+            return None
+
+        def _segment_voice(key: str, lang_code: str) -> str:
+            if key in segment_voice_cache:
+                return segment_voice_cache[key]
+            language_label, recorded_lang_code = segment_languages.get(key, ("", lang_code))
+            override = _resolve_override(language_label, recorded_lang_code)
+            if override:
+                segment_voice_cache[key] = override
+                return override
+            if key == "translation":
+                fallback = _resolve_override(target_language, target_lang_code)
+                if fallback:
+                    segment_voice_cache[key] = fallback
+                    return fallback
+            elif key == "input":
+                fallback = _resolve_override(input_language, source_lang_code)
+                if fallback:
+                    segment_voice_cache[key] = fallback
+                    return fallback
+            segment_voice_cache[key] = selected_voice
+            return selected_voice
+
         def _generate_with_legacy(key: str, text: str, lang_code: str) -> AudioSegment:
+            segment_voice = _segment_voice(key, lang_code)
             segment = generate_audio(
                 text,
                 lang_code,
-                selected_voice,
+                segment_voice,
                 macos_reading_speed,
                 config=backend_config,
             )
-            _record_voice(key, selected_voice)
+            _record_voice(key, segment_voice)
             return segment
 
         def _extract_voice(headers: Mapping[str, str] | None) -> Optional[str]:
@@ -284,16 +372,17 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         else:
             def _synth(task: tuple[str, str, str]) -> tuple[str, AudioSegment]:
                 key, text, lang_code = task
+                segment_voice = _segment_voice(key, lang_code)
                 api_voice = _normalize_api_voice(
-                    selected_voice, language=lang_code, sample_text=text
+                    segment_voice, language=lang_code, sample_text=text
                 )
                 attributes = {
                     "segment": key,
                     "language": lang_code,
-                    "voice": selected_voice,
+                    "voice": segment_voice,
                     "has_speed": macos_reading_speed is not None,
                 }
-                if api_voice and api_voice != selected_voice:
+                if api_voice and api_voice != segment_voice:
                     attributes["resolved_voice"] = api_voice
                 logger.info(
                     "Dispatching audio API synthesis",

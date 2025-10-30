@@ -25,6 +25,23 @@ export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }
 
+export interface MacOSVoice {
+  name: string;
+  lang: string;
+  quality?: string | null;
+  gender?: string | null;
+}
+
+export interface GTTSLanguage {
+  code: string;
+  name: string;
+}
+
+export interface VoiceInventoryResponse {
+  macos: MacOSVoice[];
+  gtts: GTTSLanguage[];
+}
+
 export interface PipelineInputPayload {
   input_file: string;
   base_output_file: string;

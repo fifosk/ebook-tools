@@ -37,9 +37,10 @@ class AudioGenerator(Protocol):
         total_sentences: int,
         language_codes: Mapping[str, str],
         selected_voice: str,
+        voice_overrides: Mapping[str, str] | None,
         tempo: float,
         macos_reading_speed: int,
-    ) -> AudioSegment:
+    ) -> AudioSegment | SynthesisResult:
         """Render audio for a single translated sentence."""
 
 
@@ -143,6 +144,21 @@ def audio_worker_body(
         or manifest_context.get("selected_voice")
         or ""
     )
+    raw_voice_overrides = (
+        audio_context.get("voice_overrides")
+        or manifest_context.get("voice_overrides")
+        or {}
+    )
+    if not isinstance(raw_voice_overrides, Mapping):
+        raw_voice_overrides = {}
+    voice_overrides = {
+        str(key).strip(): str(value).strip()
+        for key, value in raw_voice_overrides.items()
+        if isinstance(key, str)
+        and isinstance(value, str)
+        and str(key).strip()
+        and str(value).strip()
+    }
     tempo = float(audio_context.get("tempo") or manifest_context.get("tempo") or 1.0)
     macos_reading_speed = int(
         audio_context.get("macos_reading_speed")
@@ -191,17 +207,18 @@ def audio_worker_body(
         try:
             if generate_audio and audio_generator is not None:
                 audio_output = audio_generator(
-                    translation_task.sentence_number,
-                    translation_task.sentence,
-                    translation_task.translation,
-                    input_language,
-                    translation_task.target_language,
-                    audio_mode,
-                    total_sentences,
-                    language_codes,
-                    selected_voice,
-                    tempo,
-                    macos_reading_speed,
+                    sentence_number=translation_task.sentence_number,
+                    input_sentence=translation_task.sentence,
+                    fluent_translation=translation_task.translation,
+                    input_language=input_language,
+                    target_language=translation_task.target_language,
+                    audio_mode=audio_mode,
+                    total_sentences=total_sentences,
+                    language_codes=language_codes,
+                    selected_voice=selected_voice,
+                    tempo=tempo,
+                    macos_reading_speed=macos_reading_speed,
+                    voice_overrides=voice_overrides,
                     tts_backend=tts_backend,
                     tts_executable_path=tts_executable_path,
                 )

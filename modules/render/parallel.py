@@ -110,6 +110,7 @@ class MediaBatchOrchestrator:
         selected_voice: str,
         tempo: float,
         macos_reading_speed: int,
+        voice_overrides: Mapping[str, str] | None = None,
         generate_audio: bool,
         tts_backend: str = DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
@@ -127,6 +128,17 @@ class MediaBatchOrchestrator:
         self.queue_size = queue_size
         self.audio_stop_event = audio_stop_event or threading.Event()
         self.progress_tracker = progress_tracker
+        if voice_overrides:
+            resolved_voice_overrides = {
+                str(key).strip(): str(value).strip()
+                for key, value in voice_overrides.items()
+                if isinstance(key, str)
+                and isinstance(value, str)
+                and str(key).strip()
+                and str(value).strip()
+            }
+        else:
+            resolved_voice_overrides = {}
         if audio_generator and audio_synthesizer:
             raise ValueError("Provide either audio_generator or audio_synthesizer, not both")
         if audio_generator is not None:
@@ -148,6 +160,7 @@ class MediaBatchOrchestrator:
             "input_language": input_language,
             "audio_mode": audio_mode,
             "selected_voice": selected_voice,
+            "voice_overrides": dict(resolved_voice_overrides),
             "tempo": tempo,
             "macos_reading_speed": macos_reading_speed,
             "generate_audio": generate_audio,
@@ -161,6 +174,7 @@ class MediaBatchOrchestrator:
             "audio_mode": audio_mode,
             "language_codes": dict(language_codes),
             "selected_voice": selected_voice,
+            "voice_overrides": dict(resolved_voice_overrides),
             "tempo": tempo,
             "macos_reading_speed": macos_reading_speed,
             "generate_audio": generate_audio,
@@ -172,6 +186,7 @@ class MediaBatchOrchestrator:
         context = context.merge_manifest(manifest_payload).merge_media("audio", audio_payload)
         self.batch_context = context
         self._active_context = cfg.get_runtime_context(None)
+        self.voice_overrides = resolved_voice_overrides
 
     def start(self) -> Tuple["Queue[Optional[MediaPipelineResult]]", Sequence[threading.Thread]]:
         """Start the configured audio workers and return the result queue."""
