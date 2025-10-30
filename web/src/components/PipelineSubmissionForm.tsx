@@ -453,19 +453,22 @@ export function PipelineSubmissionForm({
   const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string; code: string } | null>(null);
   const cleanupPreviewAudio = useCallback(() => {
     const current = previewAudioRef.current;
-    if (current) {
-      current.audio.pause();
-      current.audio.src = '';
-      URL.revokeObjectURL(current.url);
-      previewAudioRef.current = null;
-      setVoicePreviewStatus((previous) => {
-        if (previous[current.code] === 'idle') {
-          return previous;
-        }
-        return { ...previous, [current.code]: 'idle' };
-      });
+    if (!current) {
+      return;
     }
-  }, [setVoicePreviewStatus]);
+
+    current.audio.onended = null;
+    current.audio.onerror = null;
+    current.audio.pause();
+    previewAudioRef.current = null;
+    URL.revokeObjectURL(current.url);
+    setVoicePreviewStatus((previous) => {
+      if (previous[current.code] === 'idle') {
+        return previous;
+      }
+      return { ...previous, [current.code]: 'idle' };
+    });
+  }, []);
 
   const isSubmitSection = !activeSection || activeSection === 'submit';
   const visibleSections = activeSection ? [activeSection] : SECTION_ORDER;
