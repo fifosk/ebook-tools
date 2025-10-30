@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import textwrap
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -433,22 +434,15 @@ def _create_placeholder_cover(title: str, destination: Path) -> bool:
         return False
 
 
-def _get_runtime_output_dir() -> Path:
-    context = cfg.get_runtime_context(None)
-    if context is not None:
-        base_path = context.working_dir
-    else:
-        base_candidate = cfg.DEFAULT_WORKING_RELATIVE
-        base_path = cfg.resolve_directory(base_candidate, cfg.DEFAULT_WORKING_RELATIVE)
-    runtime_dir = Path(base_path) / cfg.DERIVED_RUNTIME_DIRNAME
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    return runtime_dir
+def _get_cover_storage_root() -> Path:
+    return cfg.resolve_directory(None, cfg.DEFAULT_COVERS_RELATIVE)
 
 
-def _runtime_cover_destination(epub_path: Path) -> Path:
-    runtime_dir = _get_runtime_output_dir()
+def _cover_destination(epub_path: Path) -> Path:
+    root = _get_cover_storage_root()
     safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", epub_path.stem) or "book"
-    return runtime_dir / f"{safe_base}_cover.jpg"
+    digest = hashlib.sha1(epub_path.as_posix().encode("utf-8")).hexdigest()[:8]
+    return root / f"{safe_base}_{digest}.jpg"
 
 
 def _resolve_cover_path(candidate: Optional[str]) -> Optional[Path]:
@@ -472,7 +466,7 @@ def _ensure_cover_image(
     preferred_url: Optional[str] = None,
 ) -> Optional[str]:
     title = metadata.get("book_title") or "Unknown Title"
-    destination = _runtime_cover_destination(epub_path)
+    destination = _cover_destination(epub_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     current_path = _resolve_cover_path(metadata.get("book_cover_file"))
@@ -481,7 +475,7 @@ def _ensure_cover_image(
             try:
                 shutil.copy(current_path, destination)
             except Exception as exc:  # pragma: no cover - filesystem errors
-                logger.debug("Unable to mirror existing cover to runtime directory: %s", exc)
+                logger.debug("Unable to mirror existing cover to cover storage directory: %s", exc)
             else:
                 return str(destination)
         else:

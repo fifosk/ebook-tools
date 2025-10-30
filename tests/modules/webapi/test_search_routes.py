@@ -50,7 +50,7 @@ def test_search_returns_matching_snippet(api_app) -> None:
 
     job.resume_context = {
         "inputs": {
-            "base_output_file": "/books/Example Book.epub",
+            "base_output_file": "/storage/ebooks/Example Book.epub",
         }
     }
 

@@ -2,7 +2,7 @@
     "_notes": {
         "input_file": "Absolute or relative path to the source EPUB file.",
         "base_output_file": "Optional explicit output path; leave blank to auto-create under output/ebook.",
-        "ebooks_dir": "Directory holding source EPUB and cover assets (defaults to ./books).",
+        "ebooks_dir": "Directory holding source EPUB and cover assets (defaults to ./storage/ebooks).",
         "input_language": "Source language label used for metadata.",
         "target_languages": "List of target languages to generate outputs for.",
         "sentences_per_output_file": "Number of processed sentences per output batch.",
@@ -52,7 +52,7 @@
         "api_keys": "Holds API keys for external services (store overrides in config.local.json)."
     },
     "input_file": "book.epub",
-    "ebooks_dir": "books",
+    "ebooks_dir": "storage/ebooks",
     "base_output_file": "",
     "input_language": "English",
     "target_languages": [

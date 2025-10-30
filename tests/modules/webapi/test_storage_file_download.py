@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from modules import config_manager as cfg
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
 from modules.webapi.dependencies import get_file_locator
@@ -101,3 +102,25 @@ def test_download_missing_file_returns_404(storage_app) -> None:
         response = client.get(f"/storage/jobs/{job_id}/files/result.txt")
 
     assert response.status_code == 404
+
+
+def test_download_cover_file(tmp_path: Path) -> None:
+    app = create_app()
+
+    cover_root = cfg.resolve_directory(None, cfg.DEFAULT_COVERS_RELATIVE)
+    cover_root.mkdir(parents=True, exist_ok=True)
+    cover_path = cover_root / "test-cover.jpg"
+    cover_path.write_bytes(b"cover-bytes")
+
+    try:
+        with TestClient(app) as client:
+            response = client.get("/storage/covers/test-cover.jpg")
+
+        assert response.status_code == 200
+        assert response.content == b"cover-bytes"
+        assert response.headers["Content-Disposition"].endswith('"test-cover.jpg"')
+    finally:
+        try:
+            cover_path.unlink()
+        except FileNotFoundError:
+            pass
