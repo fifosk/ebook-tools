@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { MediaSearchResult } from '../api/dtos';
+import { buildStorageUrl, resolveJobCoverUrl } from '../api/client';
 
 type MediaCategory = keyof LiveMediaState;
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
@@ -40,6 +41,8 @@ const TAB_DEFINITIONS: TabDefinition[] = [
   { key: 'audio', label: 'Audio', emptyMessage: 'No audio media yet.' },
   { key: 'video', label: 'Video', emptyMessage: 'No video media yet.' },
 ];
+
+const DEFAULT_COVER_URL = '/assets/default-cover.png';
 
 function selectInitialTab(media: LiveMediaState): MediaCategory {
   const populated = TAB_DEFINITIONS.find((tab) => media[tab.key].length > 0);
@@ -173,6 +176,7 @@ export default function PlayerPanel({
   const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
   const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const isVideoTabActive = selectedMediaType === 'video';
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
@@ -790,6 +794,103 @@ export default function PlayerPanel({
   }
   jobLabelParts.push(`Job ${jobId}`);
   const jobLabel = jobLabelParts.join(' • ');
+  const jobCoverAsset = useMemo(() => {
+    const value = bookMetadata?.['job_cover_asset'];
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [bookMetadata]);
+  const legacyCoverFile = useMemo(() => {
+    const value = bookMetadata?.['book_cover_file'];
+    if (typeof value !== 'string') {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }, [bookMetadata]);
+  const coverCandidates = useMemo(() => {
+    const candidates: string[] = [];
+    const unique = new Set<string>();
+    const push = (candidate: string | null | undefined) => {
+      const trimmed = candidate?.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (unique.has(trimmed)) {
+        return;
+      }
+      unique.add(trimmed);
+      candidates.push(trimmed);
+    };
+
+    const apiUrl = jobId ? resolveJobCoverUrl(jobId) : '';
+    push(apiUrl);
+
+    const pushStorageVariants = (raw: string | null) => {
+      if (!raw) {
+        return;
+      }
+      const trimmed = raw.trim();
+      if (!trimmed) {
+        return;
+      }
+      if (/^https?:\/\//i.test(trimmed)) {
+        push(trimmed);
+        return;
+      }
+      const stripped = trimmed.replace(/^\/+/, '');
+      if (!stripped) {
+        return;
+      }
+      try {
+        push(buildStorageUrl(stripped));
+      } catch (error) {
+        console.warn('Unable to build storage URL for cover image', error);
+      }
+      push(`/storage/${stripped}`);
+      push(`/${stripped}`);
+    };
+
+    pushStorageVariants(jobCoverAsset);
+    if (legacyCoverFile && legacyCoverFile !== jobCoverAsset) {
+      pushStorageVariants(legacyCoverFile);
+    }
+
+    push(DEFAULT_COVER_URL);
+
+    return candidates;
+  }, [jobCoverAsset, jobId, legacyCoverFile]);
+  useEffect(() => {
+    if (coverSourceIndex !== 0) {
+      setCoverSourceIndex(0);
+    }
+  }, [coverCandidates, coverSourceIndex]);
+  const displayCoverUrl = coverCandidates[coverSourceIndex] ?? DEFAULT_COVER_URL;
+  const handleCoverError = useCallback(() => {
+    setCoverSourceIndex((currentIndex) => {
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= coverCandidates.length) {
+        return currentIndex;
+      }
+      return nextIndex;
+    });
+  }, [coverCandidates]);
+  const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
+  const coverErrorHandler = shouldHandleCoverError ? handleCoverError : undefined;
+  const coverAltText = useMemo(() => {
+    if (bookTitle && bookAuthor) {
+      return `Cover of ${bookTitle} by ${bookAuthor}`;
+    }
+    if (bookTitle) {
+      return `Cover of ${bookTitle}`;
+    }
+    if (bookAuthor) {
+      return `Book cover for ${bookAuthor}`;
+    }
+    return 'Book cover preview';
+  }, [bookAuthor, bookTitle]);
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
@@ -799,8 +900,18 @@ export default function PlayerPanel({
       <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
         <header className="player-panel__header">
           <div className="player-panel__heading">
-            <h2>{headingLabel}</h2>
-            <span className="player-panel__job">{jobLabel}</span>
+            <div className="player-panel__cover" aria-hidden={false}>
+              <img
+                src={displayCoverUrl}
+                alt={coverAltText}
+                data-testid="player-cover-image"
+                onError={coverErrorHandler}
+              />
+            </div>
+            <div className="player-panel__heading-text">
+              <h2>{headingLabel}</h2>
+              <span className="player-panel__job">{jobLabel}</span>
+            </div>
           </div>
           <div className="player-panel__tabs-row">
             <div className="player-panel__navigation" role="group" aria-label="Navigate media items">

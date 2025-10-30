@@ -374,5 +374,9 @@ describe('PlayerPanel', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Example Title');
     expect(screen.getByText('By Jane Doe • Job job-789')).toBeInTheDocument();
     expect(screen.getByText('No generated media yet for Example Title.')).toBeInTheDocument();
+    const coverImage = screen.getByTestId('player-cover-image') as HTMLImageElement;
+    expect(coverImage).toBeInTheDocument();
+    expect(coverImage.src).toContain('/pipelines/job-789/cover');
+    expect(coverImage.alt).toBe('Cover of Example Title by Jane Doe');
   });
 });

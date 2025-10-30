@@ -121,6 +121,44 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert restored.last_event == job.last_event
 
 
+def test_snapshot_mirrors_cover_asset(tmp_path: Path) -> None:
+    locator = FileLocator(storage_dir=tmp_path, base_url="https://cdn.example.invalid")
+    persistence = PipelineJobPersistence(locator)
+
+    job_id = "job-cover"
+    cover_source = tmp_path / "covers" / "original-cover.jpg"
+    cover_source.parent.mkdir(parents=True, exist_ok=True)
+    cover_source.write_bytes(b"cover-bytes")
+
+    request = _build_request()
+    response = PipelineResponse(
+        success=True,
+        metadata=PipelineMetadata.from_mapping({"book_cover_file": str(cover_source)}),
+    )
+
+    job = PipelineJob(
+        job_id=job_id,
+        status=PipelineJobStatus.COMPLETED,
+        created_at=datetime.now(timezone.utc),
+        request=request,
+        result=response,
+    )
+
+    metadata = persistence.snapshot(job)
+
+    metadata_root = locator.metadata_root(job_id)
+    stored_cover = metadata_root / "cover.jpg"
+    assert stored_cover.is_file()
+    assert stored_cover.read_bytes() == b"cover-bytes"
+
+    assert metadata.result is not None
+    book_metadata = metadata.result.get("book_metadata")
+    assert isinstance(book_metadata, dict)
+    assert book_metadata.get("job_cover_asset") == "metadata/cover.jpg"
+    assert job.result is not None
+    assert job.result.metadata.get("job_cover_asset") == "metadata/cover.jpg"
+
+
 def test_apply_event_updates_generated_files(tmp_path: Path) -> None:
     locator = FileLocator(storage_dir=tmp_path, base_url="https://cdn.example.invalid")
     persistence = PipelineJobPersistence(locator)

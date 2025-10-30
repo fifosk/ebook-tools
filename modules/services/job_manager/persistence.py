@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, Mapping, Optional
 
 from ..file_locator import FileLocator
+from ... import config_manager as cfg
 from ... import logging_manager
 from ..pipeline_service import (
     serialize_pipeline_request,
@@ -136,16 +138,43 @@ class PipelineJobPersistence:
             _LOGGER.debug("Unable to prepare metadata directory", exc_info=True)
             return
 
-        result_payload = snapshot.result or {}
-        book_metadata = result_payload.get("book_metadata") or {}
-        if isinstance(book_metadata, Mapping):
-            try:
-                (metadata_root / "book.json").write_text(
-                    json.dumps(dict(book_metadata), indent=2, sort_keys=True),
-                    encoding="utf-8",
-                )
-            except Exception:  # pragma: no cover - defensive logging
-                _LOGGER.debug("Unable to persist book metadata", exc_info=True)
+        result_payload_raw = snapshot.result or {}
+        if isinstance(result_payload_raw, Mapping):
+            result_payload = dict(result_payload_raw)
+        else:
+            result_payload = {}
+
+        raw_book_metadata = result_payload.get("book_metadata")
+        book_metadata: Dict[str, Any]
+        if isinstance(raw_book_metadata, Mapping):
+            book_metadata = dict(raw_book_metadata)
+        else:
+            book_metadata = {}
+
+        cover_asset = self._mirror_cover_asset(job.job_id, metadata_root, book_metadata)
+        if cover_asset:
+            book_metadata["job_cover_asset"] = cover_asset
+        else:
+            book_metadata.pop("job_cover_asset", None)
+        result_payload["book_metadata"] = book_metadata
+        snapshot.result = result_payload
+
+        if job.result_payload is not None:
+            job.result_payload = dict(job.result_payload)
+            job.result_payload["book_metadata"] = copy.deepcopy(book_metadata)
+        if job.result is not None:
+            if cover_asset:
+                job.result.metadata.update({"job_cover_asset": cover_asset})
+            else:
+                job.result.metadata.values.pop("job_cover_asset", None)
+
+        try:
+            (metadata_root / "book.json").write_text(
+                json.dumps(dict(book_metadata), indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+        except Exception:  # pragma: no cover - defensive logging
+            _LOGGER.debug("Unable to persist book metadata", exc_info=True)
 
         sentences = result_payload.get("refined_sentences")
         if isinstance(sentences, list) and sentences:
@@ -168,6 +197,132 @@ class PipelineJobPersistence:
                 job.generated_files = copy.deepcopy(generated)
 
         return self.snapshot(job)
+
+    def _mirror_cover_asset(
+        self,
+        job_id: str,
+        metadata_root: Path,
+        book_metadata: Mapping[str, Any],
+    ) -> Optional[str]:
+        raw_value = book_metadata.get("book_cover_file")
+        if not isinstance(raw_value, str) or not raw_value.strip():
+            self._cleanup_cover_assets(metadata_root)
+            return None
+
+        source = self._resolve_cover_source(job_id, metadata_root, raw_value)
+        if source is None:
+            self._cleanup_cover_assets(metadata_root)
+            return None
+
+        try:
+            return self._copy_cover_asset(metadata_root, source)
+        except Exception:  # pragma: no cover - defensive logging
+            _LOGGER.debug("Unable to mirror cover asset for job %s", job_id, exc_info=True)
+            return None
+
+    def _resolve_cover_source(
+        self,
+        job_id: str,
+        metadata_root: Path,
+        raw_value: str,
+    ) -> Optional[Path]:
+        candidate = Path(raw_value.strip())
+        search_paths: list[Path] = []
+
+        if candidate.is_absolute():
+            search_paths.append(candidate)
+        else:
+            normalised = raw_value.strip().lstrip("/\\")
+            relative_candidate = Path(normalised)
+            relative_variants = [relative_candidate]
+
+            parts = [part.lower() for part in relative_candidate.parts]
+            if parts and parts[0] in {"storage", "metadata"} and len(parts) > 1:
+                relative_variants.append(Path(*relative_candidate.parts[1:]))
+            if parts and parts[0] == "covers" and len(parts) > 1:
+                relative_variants.append(Path(*relative_candidate.parts[1:]))
+
+            for relative in relative_variants:
+                search_paths.append(metadata_root / relative)
+                try:
+                    search_paths.append(self._file_locator.resolve_path(job_id, relative))
+                except ValueError:
+                    pass
+                search_paths.append(self._file_locator.storage_root / relative)
+
+                covers_root = cfg.resolve_directory(None, cfg.DEFAULT_COVERS_RELATIVE)
+                search_paths.append(covers_root / relative)
+
+                resolved_script = cfg.resolve_file_path(relative)
+                if resolved_script is not None:
+                    search_paths.append(resolved_script)
+
+        seen: set[Path] = set()
+        for path in search_paths:
+            try:
+                resolved = path.resolve()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                continue
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            if resolved.is_file():
+                return resolved
+        return None
+
+    def _copy_cover_asset(self, metadata_root: Path, source: Path) -> str:
+        metadata_root.mkdir(parents=True, exist_ok=True)
+        try:
+            resolved_source = source.resolve()
+        except OSError:
+            resolved_source = source
+
+        suffix = resolved_source.suffix.lower() or ".jpg"
+        if not suffix.startswith("."):
+            suffix = f".{suffix}"
+        destination_name = f"cover{suffix}"
+        destination_path = metadata_root / destination_name
+        destination_abs = destination_path.parent.resolve() / destination_path.name
+
+        if destination_abs != resolved_source:
+            should_copy = True
+            if destination_path.exists():
+                try:
+                    src_stat = resolved_source.stat()
+                    dest_stat = destination_path.stat()
+                    if (
+                        src_stat.st_size == dest_stat.st_size
+                        and int(src_stat.st_mtime) == int(dest_stat.st_mtime)
+                    ):
+                        should_copy = False
+                except OSError:
+                    pass
+            if should_copy:
+                shutil.copy2(resolved_source, destination_path)
+
+        for existing in metadata_root.glob("cover.*"):
+            if existing.name == destination_name:
+                continue
+            try:
+                existing.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                _LOGGER.debug("Unable to remove stale cover asset %s", existing, exc_info=True)
+
+        relative_path = Path("metadata") / destination_name
+        return relative_path.as_posix()
+
+    def _cleanup_cover_assets(self, metadata_root: Path) -> None:
+        for existing in metadata_root.glob("cover.*"):
+            try:
+                existing.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                _LOGGER.debug("Unable to remove cover asset %s", existing, exc_info=True)
 
     def _normalize_generated_files(
         self, job_id: str, raw: Optional[Any]
