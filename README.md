@@ -561,10 +561,12 @@ directory.
 
 ### Directory settings
 - **`ebooks_dir`**: Directory for source EPUB files and optional cover images.
-  Defaults to `books/`, which lives next to `conf/`. The script resolves
+  Defaults to `storage/ebooks/`, which lives next to `conf/`. The script resolves
   `input_file` and `book_cover_file` relative to this folder.
-- **`working_dir`**: Root directory for downloaded covers and other
-  long-lived artifacts. Defaults to `output/`.
+- **`working_dir`**: Root directory for generated artifacts such as stitched
+  outputs. Cover images are mirrored under `storage/covers/` and each job keeps
+  its metadata snapshot under `storage/<job_id>/metadata/`. Defaults to
+  `output/`.
 - **`output_dir`**: Location for generated HTML/PDF/EPUB/audio/video files.
   Defaults to `output/ebook/` inside the working directory.
 - **`tmp_dir`**: Scratch space for intermediate assets such as slide images
@@ -574,10 +576,11 @@ You can override any of these via the matching CLI flags (`--ebooks-dir`,
 `--working-dir`, `--output-dir`, `--tmp-dir`) or environment variables
 (`EBOOKS_DIR`, `EBOOK_WORKING_DIR`, `EBOOK_OUTPUT_DIR`, `EBOOK_TMP_DIR`).
 
-The default `books/` directory is ignored by Git so you can drop
+The default `storage/ebooks/` directory is ignored by Git so you can drop
 `book.epub`, `book_cover.jpg`, and other local assets there without
-accidentally committing them. Create the folder manually if it does not
-already exist.
+accidentally committing them. Cover previews copied into `storage/covers/`
+and job metadata stored under `storage/<job_id>/metadata/` follow the same
+rule. Create the folders manually if they do not already exist.
 
 ### External tool settings
 - **`ffmpeg_path`**: Path to the FFmpeg binary used by `pydub` and the video

@@ -6,6 +6,7 @@ import json
 import re
 import shutil
 import textwrap
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -59,6 +60,26 @@ def _is_placeholder(key: str, value: Optional[str]) -> bool:
 
 def _needs_metadata(metadata: Dict[str, Optional[str]]) -> bool:
     return any(_is_placeholder(key, metadata.get(key)) for key in _DEFAULT_PLACEHOLDERS)
+
+
+def _apply_metadata(
+    metadata: Dict[str, Optional[str]],
+    key: str,
+    value: Optional[str],
+    *,
+    force: bool = False,
+) -> None:
+    if value is None:
+        return
+    if force:
+        metadata[key] = value
+        return
+    current = metadata.get(key)
+    if _is_placeholder(key, current):
+        metadata[key] = value
+        return
+    if not _is_placeholder(key, value) and current != value:
+        metadata[key] = value
 
 
 def _parse_filename_metadata(epub_path: Path) -> Dict[str, Optional[str]]:
@@ -433,22 +454,15 @@ def _create_placeholder_cover(title: str, destination: Path) -> bool:
         return False
 
 
-def _get_runtime_output_dir() -> Path:
-    context = cfg.get_runtime_context(None)
-    if context is not None:
-        base_path = context.working_dir
-    else:
-        base_candidate = cfg.DEFAULT_WORKING_RELATIVE
-        base_path = cfg.resolve_directory(base_candidate, cfg.DEFAULT_WORKING_RELATIVE)
-    runtime_dir = Path(base_path) / cfg.DERIVED_RUNTIME_DIRNAME
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-    return runtime_dir
+def _get_cover_storage_root() -> Path:
+    return cfg.resolve_directory(None, cfg.DEFAULT_COVERS_RELATIVE)
 
 
-def _runtime_cover_destination(epub_path: Path) -> Path:
-    runtime_dir = _get_runtime_output_dir()
+def _cover_destination(epub_path: Path) -> Path:
+    root = _get_cover_storage_root()
     safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", epub_path.stem) or "book"
-    return runtime_dir / f"{safe_base}_cover.jpg"
+    digest = hashlib.sha1(epub_path.as_posix().encode("utf-8")).hexdigest()[:8]
+    return root / f"{safe_base}_{digest}.jpg"
 
 
 def _resolve_cover_path(candidate: Optional[str]) -> Optional[Path]:
@@ -472,7 +486,7 @@ def _ensure_cover_image(
     preferred_url: Optional[str] = None,
 ) -> Optional[str]:
     title = metadata.get("book_title") or "Unknown Title"
-    destination = _runtime_cover_destination(epub_path)
+    destination = _cover_destination(epub_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     current_path = _resolve_cover_path(metadata.get("book_cover_file"))
@@ -481,7 +495,7 @@ def _ensure_cover_image(
             try:
                 shutil.copy(current_path, destination)
             except Exception as exc:  # pragma: no cover - filesystem errors
-                logger.debug("Unable to mirror existing cover to runtime directory: %s", exc)
+                logger.debug("Unable to mirror existing cover to cover storage directory: %s", exc)
             else:
                 return str(destination)
         else:
@@ -540,8 +554,7 @@ def infer_metadata(
     for key, value in metadata_seed.items():
         if not value:
             continue
-        if force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value:
-            metadata[key] = value
+        _apply_metadata(metadata, key, value, force=force_refresh)
 
     need_llm = any(
         _is_placeholder(field, metadata.get(field)) for field in ("book_title", "book_author", "book_year")
@@ -552,8 +565,9 @@ def infer_metadata(
         for key, value in llm_results.items():
             if not value:
                 continue
-            if force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value:
-                metadata[key] = value
+            previous = metadata.get(key)
+            _apply_metadata(metadata, key, value, force=force_refresh)
+            if metadata.get(key) != previous:
                 logger.info("LLM inferred %s: %s", key, value)
 
     title = metadata.get("book_title")
@@ -562,9 +576,11 @@ def infer_metadata(
 
     for key in ("book_year", "book_summary"):
         value = openlibrary_data.get(key)
-        if value and (force_refresh or _is_placeholder(key, metadata.get(key)) or metadata.get(key) != value):
-            metadata[key] = value
-            logger.info("OpenLibrary provided %s", key)
+        if value:
+            previous = metadata.get(key)
+            _apply_metadata(metadata, key, value, force=force_refresh)
+            if metadata.get(key) != previous:
+                logger.info("OpenLibrary provided %s", key)
 
     cover_url = openlibrary_data.get("cover_url")
     cover_path = _ensure_cover_image(metadata, epub_path, preferred_url=cover_url)

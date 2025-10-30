@@ -639,7 +639,7 @@ export function PipelineSubmissionForm({
                 type="text"
                 value={formState.input_file}
                 onChange={(event) => handleInputFileChange(event.target.value)}
-                placeholder="/books/source.epub"
+                placeholder="/storage/ebooks/source.epub"
                 required
               />
               <div className="pipeline-card__actions">

@@ -8,6 +8,7 @@ import {
 import { buildStorageUrl } from '../api/client';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
+const FALLBACK_COVER_URL = '/assets/default-cover.png';
 
 type Props = {
   jobId: string;
@@ -265,21 +266,31 @@ export function JobProgress({
 
     const normalisedPath = coverAsset.path.trim();
     if (normalisedPath) {
-      try {
-        push(buildStorageUrl(normalisedPath));
-      } catch (error) {
-        console.warn('Unable to build storage URL for cover image', error);
-      }
-
       const stripped = normalisedPath.replace(/^\/+/, '');
-      push(`/storage/${stripped}`);
-      push(`/${stripped}`);
+      const isGlobalCover = stripped.startsWith('covers/');
+      if (isGlobalCover) {
+        push(`/storage/${stripped}`);
+      } else {
+        try {
+          push(buildStorageUrl(stripped));
+        } catch (error) {
+          console.warn('Unable to build storage URL for cover image', error);
+        }
+        push(`/storage/${stripped}`);
+        push(`/${stripped}`);
+      }
     }
 
     const rawValue = coverAsset.raw.trim();
     if (rawValue) {
       if (isExternalAsset(rawValue)) {
         push(rawValue);
+      } else if (/storage[\\/]+covers[\\/]+/i.test(rawValue)) {
+        const match = rawValue.replace(/\\/g, '/').split('/storage/').pop();
+        if (match) {
+          const relative = match.replace(/^\/+/, '');
+          push(`/storage/${relative}`);
+        }
       } else if (rawValue.startsWith('/')) {
         push(rawValue);
       } else {
@@ -333,6 +344,10 @@ export function JobProgress({
     }
     return 'Cover image not provided yet.';
   }, [coverAsset, coverFailed]);
+  const shouldShowFallbackCover = !coverUrl;
+  const displayCoverUrl =
+    coverUrl && !coverFailed ? coverUrl : shouldShowFallbackCover ? FALLBACK_COVER_URL : null;
+  const coverErrorHandler = displayCoverUrl && displayCoverUrl === coverUrl ? handleCoverError : undefined;
   const tuningEntries = useMemo(() => {
     const tuning = status?.tuning ?? null;
     if (!tuning) {
@@ -462,8 +477,8 @@ export function JobProgress({
       <div className="job-card__section">
         <h4>Book metadata</h4>
         <div className="metadata-cover-preview">
-          {coverUrl && !coverFailed ? (
-            <img src={coverUrl} alt={coverAltText} onError={handleCoverError} />
+          {displayCoverUrl ? (
+            <img src={displayCoverUrl} alt={coverAltText} onError={coverErrorHandler} />
           ) : (
             <div className="metadata-cover-preview__placeholder" role="status" aria-live="polite">
               <span>{coverPlaceholderMessage}</span>

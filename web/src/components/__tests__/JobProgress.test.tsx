@@ -217,6 +217,47 @@ describe('JobProgress', () => {
     expect(screen.getByText('storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
   });
 
+  it('resolves shared cover storage paths', () => {
+    const status: PipelineStatusResponse = {
+      job_id: 'job-2b',
+      status: 'completed',
+      created_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      completed_at: new Date().toISOString(),
+      latest_event: null,
+      error: null,
+      tuning: null,
+      result: {
+        success: true,
+        refined_updated: false,
+        stitched_documents: {},
+        book_metadata: {
+          book_title: 'Shared Cover Title',
+          book_author: 'Shared Cover Author',
+          book_cover_file: '/Users/me/ebook-tools/storage/covers/shared-cover.jpg'
+        }
+      }
+    };
+
+    render(
+      <JobProgress
+        jobId='job-2b'
+        status={status}
+        latestEvent={undefined}
+        onEvent={vi.fn()}
+        onPause={vi.fn()}
+        onResume={vi.fn()}
+        onCancel={vi.fn()}
+        onDelete={vi.fn()}
+        onReload={vi.fn()}
+        canManage={true}
+      />
+    );
+
+    const image = screen.getByAltText('Cover of Shared Cover Title by Shared Cover Author') as HTMLImageElement;
+    expect(image.src.endsWith('/storage/covers/shared-cover.jpg')).toBe(true);
+  });
+
   it('renders tuning metrics when provided', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-3',
@@ -530,7 +571,7 @@ describe('JobProgress', () => {
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
   });
 
-  it('shows a placeholder when no cover metadata is available', () => {
+  it('shows a fallback cover when no cover metadata is available', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-5',
       status: 'completed',
@@ -566,6 +607,8 @@ describe('JobProgress', () => {
       />
     );
 
-    expect(screen.getByText(/Cover image not provided yet/i)).toBeInTheDocument();
+    const image = screen.getByAltText('Cover of No Cover Title by No Cover Author') as HTMLImageElement;
+    expect(image).toBeInTheDocument();
+    expect(image.src).toContain('/assets/default-cover.png');
   });
 });

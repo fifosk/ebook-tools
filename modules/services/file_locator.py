@@ -50,7 +50,7 @@ class FileLocator:
         if storage_candidate is None:
             storage_candidate = getattr(settings, "job_storage_dir", None)
         if storage_candidate is None:
-            storage_candidate = Path("storage") / "jobs"
+            storage_candidate = Path("storage")
         self._storage_root = self._normalize_root(storage_candidate)
 
         base_url_candidate = base_url or os.environ.get(_STORAGE_BASE_URL_ENV)
@@ -86,14 +86,35 @@ class FileLocator:
         absolute path or parent directory traversal is requested.
         """
 
-        job_fragment = _sanitize_fragment(job_id)
-        base_path = self._storage_root / job_fragment
+        base_path = self.job_root(job_id)
         if not file_name:
             return base_path
         relative = Path(file_name)
         if relative.is_absolute() or any(part == ".." for part in relative.parts):
             raise ValueError("file_name must be a relative path inside the job directory")
         return base_path / relative
+
+    def resolve_metadata_path(
+        self, job_id: str, file_name: Optional[PathLikeStr] = None
+    ) -> Path:
+        """Return the metadata directory for ``job_id`` or a file within it."""
+
+        base_path = self.metadata_root(job_id)
+        if not file_name:
+            return base_path
+        relative = Path(file_name)
+        if relative.is_absolute() or any(part == ".." for part in relative.parts):
+            raise ValueError("file_name must be a relative path inside the metadata directory")
+        return base_path / relative
+
+    def job_root(self, job_id: str) -> Path:
+        return self._storage_root / _sanitize_fragment(job_id)
+
+    def media_root(self, job_id: str) -> Path:
+        return self.job_root(job_id) / "media"
+
+    def metadata_root(self, job_id: str) -> Path:
+        return self.job_root(job_id) / "metadata"
 
     def resolve_url(
         self, job_id: str, path: Optional[PathLikeStr] = None

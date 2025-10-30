@@ -68,7 +68,7 @@ def _build_payload(audio_bytes: bytes) -> dict[str, object]:
 
 @pytest.fixture
 def _video_dependencies(tmp_path):
-    locator = FileLocator(storage_dir=tmp_path / "jobs")
+    locator = FileLocator(storage_dir=tmp_path / "storage")
     manager = _RecordingVideoJobManager(locator)
     service = _StubVideoService()
 

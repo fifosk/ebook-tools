@@ -32,12 +32,18 @@ class _DummyWorkerPool:
 
 @pytest.fixture(autouse=True)
 def _isolate_job_directories(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(manager_module, "_JOB_OUTPUT_ROOT", tmp_path / "jobs")
+    monkeypatch.setattr(manager_module, "_JOB_OUTPUT_ROOT", tmp_path / "storage")
 
 
 @pytest.fixture(autouse=True)
 def _patch_executor(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(manager_module, "ThreadPoolExecutor", _DummyExecutor)
+
+
+@pytest.fixture(autouse=True)
+def _skip_submission_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(PipelineService, "_prepare_submission_metadata", lambda *_, **__: None)
+    monkeypatch.setattr(PipelineService, "_persist_initial_metadata", lambda *_, **__: None)
 
 
 def _build_request() -> PipelineRequest:

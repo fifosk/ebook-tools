@@ -26,7 +26,7 @@ PipelineJobStatus = job_manager_module.PipelineJobStatus
 
 @pytest.fixture
 def storage_dir(tmp_path, monkeypatch) -> Path:
-    path = tmp_path / "jobs"
+    path = tmp_path / "storage"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(path))
     return path
 
@@ -135,13 +135,14 @@ def test_save_job_cleans_up_temporary_files_on_failure(storage_dir: Path, monkey
     with pytest.raises(RuntimeError):
         persistence.save_job(metadata)
 
-    assert list(storage_dir.iterdir()) == []
+    assert list(storage_dir.rglob("*.json")) == []
 
 
 def test_save_job_sanitizes_filename(storage_dir: Path):
     metadata = _build_metadata("job/with*unsafe?chars")
     path = persistence.save_job(metadata)
 
-    assert path.name == "job_with_unsafe_chars.json"
+    assert path.parent == storage_dir / "job_with_unsafe_chars" / "metadata"
+    assert path.name == "job.json"
     loaded = persistence.load_job(metadata.job_id)
     assert loaded.job_id == metadata.job_id

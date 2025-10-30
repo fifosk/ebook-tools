@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ChangeEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
@@ -207,6 +207,15 @@ export function App() {
     };
   }, [refreshJobs, session]);
 
+  const activeJobMetadata = useMemo(() => {
+    if (!activeJobId) {
+      return null;
+    }
+    const jobEntry = jobs[activeJobId];
+    const metadata = jobEntry?.status?.result?.book_metadata;
+    return metadata && typeof metadata === 'object' ? metadata : null;
+  }, [activeJobId, jobs]);
+
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
       return;
@@ -230,7 +239,7 @@ export function App() {
     if (!activeJobId) {
       setSelectedView('pipeline:submit');
     }
-  }, [activeJobId, selectedView]);
+  }, [activeJobId, selectedView, activeJobMetadata]);
 
   useEffect(() => {
     if (selectedView !== JOB_MEDIA_VIEW) {
@@ -510,6 +519,66 @@ export function App() {
     }
     return job;
   }, [activeJobId, jobList]);
+
+  const lastFetchedJobRef = useRef<string | null>(null);
+  const lastFetchedAtRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (!activeJobId) {
+      return;
+    }
+    if (selectedView !== JOB_MEDIA_VIEW && selectedView !== JOB_PROGRESS_VIEW) {
+      return;
+    }
+
+    const metadataEmpty = !activeJobMetadata || Object.keys(activeJobMetadata).length === 0;
+    const jobChanged = lastFetchedJobRef.current !== activeJobId;
+    const now = Date.now();
+    const elapsed = now - lastFetchedAtRef.current;
+    if (!jobChanged && (!metadataEmpty || elapsed < 5000)) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchSelectedJobStatus = async () => {
+      try {
+        const status = await fetchPipelineStatus(activeJobId);
+        if (cancelled) {
+          return;
+        }
+        setJobs((previous) => {
+          const current = previous[activeJobId];
+          if (!current) {
+            return previous;
+          }
+          return {
+            ...previous,
+            [activeJobId]: {
+              ...current,
+              status,
+              latestEvent: status.latest_event ?? current.latestEvent
+            }
+          };
+        });
+      } catch (error) {
+        if (!cancelled) {
+          console.warn('Unable to refresh job metadata for job detail view', activeJobId, error);
+        }
+      } finally {
+        if (!cancelled) {
+          lastFetchedJobRef.current = activeJobId;
+          lastFetchedAtRef.current = Date.now();
+        }
+      }
+    };
+
+    void fetchSelectedJobStatus();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeJobId, selectedView, activeJobMetadata]);
 
   useEffect(() => {
     if (!selectedJob) {

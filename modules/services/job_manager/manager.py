@@ -5,9 +5,9 @@ from __future__ import annotations
 import copy
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
-from contextlib import contextmanager
 from typing import Any, Callable, ContextManager, Dict, Mapping, Optional
 from uuid import uuid4
 
@@ -149,25 +149,31 @@ class PipelineJobManager:
         request.correlation_id = request.correlation_id or job_id
         request.job_id = job_id
 
-        job_output_dir = self._file_locator.resolve_path(job_id)
-        job_output_dir.mkdir(parents=True, exist_ok=True)
+        job_root = self._file_locator.resolve_path(job_id)
+        job_root.mkdir(parents=True, exist_ok=True)
+
+        media_root = self._file_locator.media_root(job_id)
+        media_root.mkdir(parents=True, exist_ok=True)
+
+        metadata_root = self._file_locator.metadata_root(job_id)
+        metadata_root.mkdir(parents=True, exist_ok=True)
 
         environment_overrides = dict(request.environment_overrides)
-        environment_overrides.setdefault("output_dir", str(job_output_dir))
-        job_storage_url = self._file_locator.resolve_url(job_id)
+        environment_overrides.setdefault("output_dir", str(media_root))
+        job_storage_url = self._file_locator.resolve_url(job_id, "media")
         if job_storage_url:
             environment_overrides.setdefault("job_storage_url", job_storage_url)
         request.environment_overrides = environment_overrides
 
         context = request.context
         if context is not None:
-            context = dataclass_replace(context, output_dir=job_output_dir)
+            context = dataclass_replace(context, output_dir=media_root)
         else:
             context = cfg.build_runtime_context(
                 dict(request.config),
                 dict(environment_overrides),
             )
-            context = dataclass_replace(context, output_dir=job_output_dir)
+            context = dataclass_replace(context, output_dir=media_root)
         request.context = context
 
         request_payload = serialize_pipeline_request(request)
@@ -211,6 +217,37 @@ class PipelineJobManager:
 
         self._executor.submit(self._execute, job_id)
         return job
+
+    @property
+    def file_locator(self) -> FileLocator:
+        return self._file_locator
+
+    def apply_initial_metadata(
+        self,
+        job_id: str,
+        metadata: Mapping[str, Any],
+    ) -> None:
+        """Attach pre-computed metadata to ``job_id`` and persist the update."""
+
+        if not metadata:
+            return
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return
+
+            base_payload = copy.deepcopy(job.result_payload) if job.result_payload else {}
+            book_metadata = base_payload.get("book_metadata")
+            if not isinstance(book_metadata, dict):
+                book_metadata = {}
+            book_metadata.update(metadata)
+            base_payload["book_metadata"] = book_metadata
+            job.result_payload = base_payload
+
+            snapshot = self._persistence.snapshot(job)
+
+        self._store.update(snapshot)
 
     def _store_event(self, job_id: str, event: ProgressEvent) -> None:
         metadata = dict(event.metadata)

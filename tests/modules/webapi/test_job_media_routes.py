@@ -59,7 +59,7 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     )
 
     job_root = file_locator.resolve_path(job_id)
-    file_path = job_root / "chunk-001" / "sample.mp3"
+    file_path = job_root / "media" / "chunk-001" / "sample.mp3"
     file_path.parent.mkdir(parents=True, exist_ok=True)
     file_path.write_bytes(b"hello world")
 
@@ -70,7 +70,7 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
         "files": [
             {
                 "type": "audio",
-                "relative_path": "chunk-001/sample.mp3",
+                "relative_path": "media/chunk-001/sample.mp3",
             }
         ]
     }
@@ -90,7 +90,7 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
     assert entry["name"] == "sample.mp3"
     assert entry["size"] == file_path.stat().st_size
     assert entry["source"] == "completed"
-    assert entry["url"].endswith("chunk-001/sample.mp3")
+    assert entry["url"].endswith("media/chunk-001/sample.mp3")
     assert datetime.fromisoformat(entry["updated_at"]) == expected_mtime
 
 
@@ -104,7 +104,7 @@ def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:
     )
 
     job_root = file_locator.resolve_path(job_id)
-    live_path = job_root / "chunk-002" / "live.html"
+    live_path = job_root / "media" / "chunk-002" / "live.html"
     live_path.parent.mkdir(parents=True, exist_ok=True)
     live_path.write_text("<p>content</p>")
 
@@ -124,7 +124,7 @@ def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:
         "files": [
             {
                 "type": "html",
-                "relative_path": "stale/live.html",
+                "relative_path": "media/stale/live.html",
             }
         ]
     }
@@ -142,5 +142,5 @@ def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:
     entry = payload["media"]["html"][0]
     assert entry["name"] == "live.html"
     assert entry["source"] == "live"
-    assert entry["url"].endswith("chunk-002/live.html")
+    assert entry["url"].endswith("media/chunk-002/live.html")
     assert entry["size"] == live_path.stat().st_size

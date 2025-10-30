@@ -147,7 +147,7 @@ describe('PipelineSubmissionForm', () => {
     await resolveFetches({
       defaults: {
         config: {
-          input_file: '/books/default.epub',
+          input_file: '/storage/ebooks/default.epub',
           base_output_file: '/output/result',
           input_language: 'Spanish',
           target_languages: ['German', 'French'],
@@ -171,7 +171,7 @@ describe('PipelineSubmissionForm', () => {
     });
 
     await waitFor(() =>
-      expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/books/default.epub')
+      expect(screen.getByLabelText(/Input file path/i)).toHaveValue('/storage/ebooks/default.epub')
     );
 
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/result');

@@ -50,12 +50,12 @@ def test_search_returns_matching_snippet(api_app) -> None:
 
     job.resume_context = {
         "inputs": {
-            "base_output_file": "/books/Example Book.epub",
+            "base_output_file": "/storage/ebooks/Example Book.epub",
         }
     }
 
     job_root = file_locator.resolve_path(job_id)
-    text_dir = job_root / "chunk-001"
+    text_dir = job_root / "media" / "chunk-001"
     text_dir.mkdir(parents=True, exist_ok=True)
 
     html_path = text_dir / "sample.html"
@@ -80,17 +80,17 @@ def test_search_returns_matching_snippet(api_app) -> None:
                 "files": [
                     {
                         "type": "html",
-                        "relative_path": "chunk-001/sample.html",
+                        "relative_path": "media/chunk-001/sample.html",
                         "path": str(html_path),
                     },
                     {
                         "type": "audio",
-                        "relative_path": "chunk-001/sample.mp3",
+                        "relative_path": "media/chunk-001/sample.mp3",
                         "path": str(audio_path),
                     },
                     {
                         "type": "video",
-                        "relative_path": "chunk-001/sample.mp4",
+                        "relative_path": "media/chunk-001/sample.mp4",
                         "path": str(video_path),
                     },
                 ],

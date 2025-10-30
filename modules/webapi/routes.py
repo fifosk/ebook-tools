@@ -760,22 +760,7 @@ def _iter_file_chunks(path: Path, start: int, end: int) -> Iterator[bytes]:
             yield chunk
 
 
-async def _download_job_file(
-    job_id: str,
-    filename: str,
-    file_locator: FileLocator,
-    range_header: str | None,
-):
-    """Return a streaming response for the requested job file."""
-
-    try:
-        resolved_path = file_locator.resolve_path(job_id, filename)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
-
-    if not resolved_path.exists() or not resolved_path.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
-
+def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> StreamingResponse:
     try:
         stat_result = resolved_path.stat()
     except OSError as exc:
@@ -808,13 +793,31 @@ async def _download_job_file(
     headers["Content-Disposition"] = f'attachment; filename="{resolved_path.name}"'
 
     body_iterator = _iter_file_chunks(resolved_path, start, end)
-    response = StreamingResponse(
+    return StreamingResponse(
         body_iterator,
         status_code=status_code,
         media_type="application/octet-stream",
         headers=headers,
     )
-    return response
+
+
+async def _download_job_file(
+    job_id: str,
+    filename: str,
+    file_locator: FileLocator,
+    range_header: str | None,
+):
+    """Return a streaming response for the requested job file."""
+
+    try:
+        resolved_path = file_locator.resolve_path(job_id, filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+
+    if not resolved_path.exists() or not resolved_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    return _stream_local_file(resolved_path, range_header)
 
 
 @storage_router.get("/jobs/{job_id}/files/{filename:path}")
@@ -839,6 +842,29 @@ async def download_job_file_without_prefix(
     """Stream job files that were referenced without the legacy ``/files`` prefix."""
 
     return await _download_job_file(job_id, filename, file_locator, range_header)
+
+
+def _resolve_cover_download_path(filename: str) -> Path:
+    root = cfg.resolve_directory(None, cfg.DEFAULT_COVERS_RELATIVE)
+    candidate = (root / filename).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
+    if not candidate.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+    return candidate
+
+
+@storage_router.get("/covers/{filename:path}")
+async def download_cover_file(
+    filename: str,
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Serve cover images stored in the shared covers directory."""
+
+    resolved_path = _resolve_cover_download_path(filename)
+    return _stream_local_file(resolved_path, range_header)
 
 
 __all__ = ["router", "storage_router"]

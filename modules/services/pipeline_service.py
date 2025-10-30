@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import copy
+import json
 import threading
 from dataclasses import asdict, dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
 from uuid import uuid4
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
+from .. import metadata_manager
 from .. import observability
 from ..core import ingestion
 from ..core.config import PipelineConfig
@@ -396,7 +399,15 @@ def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
     if request.correlation_id is not None:
         payload["correlation_id"] = request.correlation_id
 
-    return payload
+        return payload
+
+
+@dataclass(slots=True)
+class InitialMetadataSnapshot:
+    """Captured artefacts created when a job is submitted."""
+
+    book_metadata: Dict[str, Any]
+    refined_sentences: List[str]
 
 
 class PipelineService:
@@ -414,7 +425,21 @@ class PipelineService:
     ) -> "PipelineJob":
         """Submit ``request`` for background execution and return the job handle."""
 
-        return self._job_manager.submit(request, user_id=user_id, user_role=user_role)
+        metadata_snapshot = self._prepare_submission_metadata(request)
+
+        job = self._job_manager.submit(request, user_id=user_id, user_role=user_role)
+
+        if metadata_snapshot is not None:
+            try:
+                self._job_manager.apply_initial_metadata(job.job_id, metadata_snapshot.book_metadata)
+            except Exception:  # pragma: no cover - best-effort update
+                logger.debug("Unable to register initial job metadata", exc_info=True)
+            try:
+                self._persist_initial_metadata(job.job_id, metadata_snapshot, request)
+            except Exception:  # pragma: no cover - filesystem/log noise
+                logger.debug("Unable to persist initial metadata snapshot", exc_info=True)
+
+        return job
 
     def get_job(
         self,
@@ -499,6 +524,140 @@ class PipelineService:
             job_id,
             user_id=user_id,
             user_role=user_role,
+        )
+
+    def _prepare_submission_metadata(self, request: PipelineRequest) -> Optional[InitialMetadataSnapshot]:
+        context = request.context
+        if context is None:
+            return None
+
+        input_file = request.inputs.input_file
+        placeholder_checker = getattr(metadata_manager, "_is_placeholder", None)
+
+        def is_placeholder(key: str, value: object) -> bool:
+            if callable(placeholder_checker):
+                try:
+                    return bool(placeholder_checker(key, value))  # type: ignore[misc]
+                except Exception:  # pragma: no cover - defensive guard
+                    pass
+            if value is None:
+                return True
+            if isinstance(value, str):
+                cleaned = value.strip()
+                if not cleaned:
+                    return True
+                return cleaned.casefold() in {"unknown", "unknown title", "book"}
+            return False
+
+        base_metadata = request.inputs.book_metadata.as_dict()
+
+        config_metadata: Dict[str, Any] = {}
+        config = request.config or {}
+        config_book_metadata = config.get("book_metadata")
+        if isinstance(config_book_metadata, Mapping):
+            config_metadata.update(
+                {
+                    key: value
+                    for key, value in config_book_metadata.items()
+                    if value not in (None, "")
+                }
+            )
+
+        for key in (
+            "book_title",
+            "book_author",
+            "book_year",
+            "book_summary",
+            "book_cover_file",
+            "book_cover_title",
+        ):
+            value = config.get(key)
+            if value not in (None, ""):
+                config_metadata.setdefault(key, value)
+
+        merged_metadata = dict(base_metadata)
+        for key, value in config_metadata.items():
+            if is_placeholder(key, merged_metadata.get(key)) and not is_placeholder(key, value):
+                merged_metadata[key] = value
+
+        request.inputs.book_metadata = PipelineMetadata.from_mapping(merged_metadata)
+
+        try:
+            inferred_metadata = metadata_manager.infer_metadata(
+                input_file,
+                existing_metadata=request.inputs.book_metadata.as_dict(),
+                force_refresh=False,
+            )
+        except Exception:
+            logger.debug("Unable to infer book metadata during submission", exc_info=True)
+            inferred_metadata = request.inputs.book_metadata.as_dict()
+
+        request.inputs.book_metadata = PipelineMetadata.from_mapping(inferred_metadata)
+
+        refined_sentences: List[str] = []
+        try:
+            config_result = config_phase.prepare_configuration(request, context)
+            pipeline_config = config_result.pipeline_config
+            refined, _ = ingestion.get_refined_sentences(
+                input_file,
+                pipeline_config,
+                force_refresh=False,
+                metadata={
+                    "mode": "api",
+                    "target_languages": request.inputs.target_languages,
+                    "max_words": pipeline_config.max_words,
+                },
+            )
+            refined_sentences = list(refined)
+        except Exception:
+            logger.debug("Unable to generate refined sentences during submission", exc_info=True)
+
+        if not inferred_metadata and not refined_sentences:
+            return None
+
+        return InitialMetadataSnapshot(
+            book_metadata=inferred_metadata,
+            refined_sentences=refined_sentences,
+        )
+
+    def _persist_initial_metadata(
+        self,
+        job_id: str,
+        snapshot: InitialMetadataSnapshot,
+        request: PipelineRequest,
+    ) -> None:
+        locator = self._job_manager.file_locator
+        root = locator.resolve_metadata_path(job_id)
+        root.mkdir(parents=True, exist_ok=True)
+
+        metadata_path = locator.resolve_metadata_path(job_id, "book.json")
+        sentences_path = locator.resolve_metadata_path(job_id, "sentences.json")
+        request_path = locator.resolve_metadata_path(job_id, "request.json")
+        config_path = locator.resolve_metadata_path(job_id, "config.json")
+
+        metadata_path.write_text(
+            json.dumps(snapshot.book_metadata, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        sentences_path.write_text(
+            json.dumps(snapshot.refined_sentences, indent=2),
+            encoding="utf-8",
+        )
+
+        serialized_request = serialize_pipeline_request(request)
+        request_path.write_text(
+            json.dumps(serialized_request, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+        config_snapshot = {
+            "config": request.config,
+            "environment_overrides": request.environment_overrides,
+            "pipeline_overrides": request.pipeline_overrides,
+        }
+        config_path.write_text(
+            json.dumps(config_snapshot, indent=2, sort_keys=True),
+            encoding="utf-8",
         )
 
     def run_sync(self, request: PipelineRequest) -> PipelineResponse:
