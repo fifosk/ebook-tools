@@ -86,4 +86,32 @@ describe('VideoPlayer', () => {
 
     expect(onEnded).toHaveBeenCalledTimes(1);
   });
+
+  it('toggles theater mode without interrupting playback element', async () => {
+    const user = userEvent.setup();
+    const sample: VideoFile = {
+      id: 'sample',
+      name: 'Sample',
+      url: 'https://example.com/video/sample.mp4'
+    };
+
+    render(<VideoPlayer files={[sample]} activeId={sample.id} onSelectFile={() => {}} />);
+
+    const videoBeforeToggle = screen.getByTestId('video-player');
+    const toggle = screen.getByTestId('video-player-mode-toggle');
+
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.video-player--enlarged')).toBeNull();
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.video-player--enlarged')).not.toBeNull();
+    expect(screen.getByTestId('video-player')).toBe(videoBeforeToggle);
+
+    await user.click(toggle);
+
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.video-player--enlarged')).toBeNull();
+  });
 });
