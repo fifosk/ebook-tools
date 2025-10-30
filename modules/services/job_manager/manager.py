@@ -5,9 +5,9 @@ from __future__ import annotations
 import copy
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 from dataclasses import replace as dataclass_replace
 from datetime import datetime, timezone
-from contextlib import contextmanager
 from typing import Any, Callable, ContextManager, Dict, Mapping, Optional
 from uuid import uuid4
 
@@ -211,6 +211,33 @@ class PipelineJobManager:
 
         self._executor.submit(self._execute, job_id)
         return job
+
+    def apply_initial_metadata(
+        self,
+        job_id: str,
+        metadata: Mapping[str, Any],
+    ) -> None:
+        """Attach pre-computed metadata to ``job_id`` and persist the update."""
+
+        if not metadata:
+            return
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return
+
+            base_payload = copy.deepcopy(job.result_payload) if job.result_payload else {}
+            book_metadata = base_payload.get("book_metadata")
+            if not isinstance(book_metadata, dict):
+                book_metadata = {}
+            book_metadata.update(metadata)
+            base_payload["book_metadata"] = book_metadata
+            job.result_payload = base_payload
+
+            snapshot = self._persistence.snapshot(job)
+
+        self._store.update(snapshot)
 
     def _store_event(self, job_id: str, event: ProgressEvent) -> None:
         metadata = dict(event.metadata)

@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import copy
+import json
 import threading
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -396,7 +398,15 @@ def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
     if request.correlation_id is not None:
         payload["correlation_id"] = request.correlation_id
 
-    return payload
+        return payload
+
+
+@dataclass(slots=True)
+class InitialMetadataSnapshot:
+    """Captured artefacts created when a job is submitted."""
+
+    book_metadata: Dict[str, Any]
+    refined_sentences: List[str]
 
 
 class PipelineService:
@@ -414,7 +424,21 @@ class PipelineService:
     ) -> "PipelineJob":
         """Submit ``request`` for background execution and return the job handle."""
 
-        return self._job_manager.submit(request, user_id=user_id, user_role=user_role)
+        metadata_snapshot = self._prepare_submission_metadata(request)
+
+        job = self._job_manager.submit(request, user_id=user_id, user_role=user_role)
+
+        if metadata_snapshot is not None:
+            try:
+                self._job_manager.apply_initial_metadata(job.job_id, metadata_snapshot.book_metadata)
+            except Exception:  # pragma: no cover - best-effort update
+                logger.debug("Unable to register initial job metadata", exc_info=True)
+            try:
+                self._persist_initial_metadata(job.job_id, metadata_snapshot, request)
+            except Exception:  # pragma: no cover - filesystem/log noise
+                logger.debug("Unable to persist initial metadata snapshot", exc_info=True)
+
+        return job
 
     def get_job(
         self,
@@ -499,6 +523,72 @@ class PipelineService:
             job_id,
             user_id=user_id,
             user_role=user_role,
+        )
+
+    def _prepare_submission_metadata(self, request: PipelineRequest) -> Optional[InitialMetadataSnapshot]:
+        context = request.context
+        if context is None:
+            return None
+
+        try:
+            config_result = config_phase.prepare_configuration(request, context)
+            metadata = metadata_phase.prepare_metadata(request, context)
+            metadata_result = metadata_phase.run_ingestion(
+                request,
+                config_result,
+                metadata,
+                tracker=None,
+            )
+        except Exception:
+            logger.debug("Unable to prepare submission metadata", exc_info=True)
+            return None
+
+        request.inputs.book_metadata = metadata_result.metadata
+
+        ingestion_result = metadata_result.ingestion
+
+        return InitialMetadataSnapshot(
+            book_metadata=metadata_result.metadata.as_dict(),
+            refined_sentences=list(ingestion_result.refined_sentences),
+        )
+
+    def _persist_initial_metadata(
+        self,
+        job_id: str,
+        snapshot: InitialMetadataSnapshot,
+        request: PipelineRequest,
+    ) -> None:
+        root = cfg.resolve_directory(None, cfg.DEFAULT_METADATA_RELATIVE) / job_id
+        root.mkdir(parents=True, exist_ok=True)
+
+        metadata_path = root / "metadata.json"
+        sentences_path = root / "sentences.json"
+        request_path = root / "request.json"
+        config_path = root / "config.json"
+
+        metadata_path.write_text(
+            json.dumps(snapshot.book_metadata, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        sentences_path.write_text(
+            json.dumps(snapshot.refined_sentences, indent=2),
+            encoding="utf-8",
+        )
+
+        serialized_request = serialize_pipeline_request(request)
+        request_path.write_text(
+            json.dumps(serialized_request, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+        config_snapshot = {
+            "config": request.config,
+            "environment_overrides": request.environment_overrides,
+            "pipeline_overrides": request.pipeline_overrides,
+        }
+        config_path.write_text(
+            json.dumps(config_snapshot, indent=2, sort_keys=True),
+            encoding="utf-8",
         )
 
     def run_sync(self, request: PipelineRequest) -> PipelineResponse:
