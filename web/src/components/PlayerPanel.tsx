@@ -274,12 +274,19 @@ export default function PlayerPanel({
         return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
       }
 
+       if (origin === 'library' && trimmed.startsWith('/') && !trimmed.startsWith('/api/library/')) {
+         return null;
+       }
+
       if (origin === 'library') {
         if (trimmed.includes('/pipelines/')) {
           return null;
         }
         if (trimmed.startsWith('/api/library/')) {
           return appendAccessToken(trimmed);
+        }
+        if (trimmed.startsWith('/')) {
+          return null;
         }
         const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);
         return resolved ? appendAccessToken(resolved) : null;
