@@ -33,6 +33,7 @@ export default function VideoPlayer({
   onExitTheaterMode,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
+  const fullscreenRequestedRef = useRef(false);
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Video ${index + 1}`
@@ -121,6 +122,87 @@ export default function VideoPlayer({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isTheaterMode, onExitTheaterMode]);
+
+  useEffect(() => {
+    const element = elementRef.current;
+    if (typeof document === 'undefined' || !element) {
+      return;
+    }
+
+    const ensureFullscreen = () => {
+      if (!isTheaterMode) {
+        return;
+      }
+      if (document.fullscreenElement === element) {
+        return;
+      }
+      if (typeof element.requestFullscreen === 'function') {
+        const result = element.requestFullscreen();
+        if (result && typeof (result as Promise<unknown>).catch === 'function') {
+          (result as Promise<unknown>).catch(() => {
+            /* Swallow fullscreen request rejections (e.g. user gesture requirements). */
+          });
+        }
+        fullscreenRequestedRef.current = true;
+      }
+    };
+
+    const releaseFullscreen = () => {
+      if (typeof document.exitFullscreen === 'function') {
+        const result = document.exitFullscreen();
+        if (result && typeof (result as Promise<unknown>).catch === 'function') {
+          (result as Promise<unknown>).catch(() => {
+            /* Ignore exit failures in unsupported environments. */
+          });
+        }
+      }
+      fullscreenRequestedRef.current = false;
+    };
+
+    if (isTheaterMode) {
+      ensureFullscreen();
+    } else {
+      if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
+        releaseFullscreen();
+      } else {
+        fullscreenRequestedRef.current = false;
+      }
+    }
+
+    return () => {
+      if (!isTheaterMode) {
+        return;
+      }
+      if (
+        typeof document !== 'undefined' &&
+        (document.fullscreenElement === element || fullscreenRequestedRef.current)
+      ) {
+        releaseFullscreen();
+      }
+    };
+  }, [isTheaterMode, activeFile?.id]);
+
+  useEffect(() => {
+    if (!isTheaterMode || typeof document === 'undefined') {
+      return;
+    }
+
+    const handleFullscreenChange = () => {
+      const element = elementRef.current;
+      if (!element) {
+        return;
+      }
+      if (document.fullscreenElement !== element) {
+        fullscreenRequestedRef.current = false;
+        onExitTheaterMode?.();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
   }, [isTheaterMode, onExitTheaterMode]);
 
