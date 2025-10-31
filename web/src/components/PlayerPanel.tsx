@@ -908,18 +908,14 @@ export default function PlayerPanel({
     jobLabelParts.push(`Job ${jobId}`);
   }
   const jobLabel = jobLabelParts.join(' • ');
-  const coverAltText = useMemo(() => {
-    if (bookTitle && bookAuthor) {
-      return `Cover of ${bookTitle} by ${bookAuthor}`;
-    }
-    if (bookTitle) {
-      return `Cover of ${bookTitle}`;
-    }
-    if (bookAuthor) {
-      return `Book cover for ${bookAuthor}`;
-    }
-    return 'Book cover preview';
-  }, [bookAuthor, bookTitle]);
+  const coverAltText =
+    bookTitle && bookAuthor
+      ? `Cover of ${bookTitle} by ${bookAuthor}`
+      : bookTitle
+      ? `Cover of ${bookTitle}`
+      : bookAuthor
+      ? `Book cover for ${bookAuthor}`
+      : 'Book cover preview';
   const theaterToggleLabel = isTheaterMode ? 'Exit theater mode' : 'Enter theater mode';
 
   return (
