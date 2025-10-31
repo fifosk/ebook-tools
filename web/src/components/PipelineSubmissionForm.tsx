@@ -532,46 +532,6 @@ export function PipelineSubmissionForm({
     prefillAppliedRef.current = normalizedPrefill;
   }, [prefillInputFile]);
 
-  const handleDeleteEbook = useCallback(
-    async (entry: PipelineFileEntry) => {
-      const confirmed =
-        typeof window === 'undefined'
-          ? true
-          : window.confirm(`Delete ${entry.name}? This action cannot be undone.`);
-      if (!confirmed) {
-        return;
-      }
-
-      try {
-        await deletePipelineEbook(entry.path);
-        setFileDialogError(null);
-        setFormState((previous) => {
-          if (previous.input_file !== entry.path) {
-            return previous;
-          }
-          const derivedBase = deriveBaseOutputName(entry.name);
-          const nextBase =
-            previous.base_output_file === derivedBase ? '' : previous.base_output_file;
-          return {
-            ...previous,
-            input_file: '',
-            base_output_file: nextBase,
-            book_metadata: '{}'
-          };
-        });
-        prefillAppliedRef.current = null;
-        await refreshFiles();
-      } catch (deleteError) {
-        const message =
-          deleteError instanceof Error
-            ? deleteError.message
-            : 'Unable to delete selected ebook.';
-        setFileDialogError(message);
-      }
-    },
-    [refreshFiles]
-  );
-
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((previous) => ({
       ...previous,
@@ -798,6 +758,46 @@ export function PipelineSubmissionForm({
       setIsLoadingFiles(false);
     }
   }, []);
+
+  const handleDeleteEbook = useCallback(
+    async (entry: PipelineFileEntry) => {
+      const confirmed =
+        typeof window === 'undefined'
+          ? true
+          : window.confirm(`Delete ${entry.name}? This action cannot be undone.`);
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await deletePipelineEbook(entry.path);
+        setFileDialogError(null);
+        setFormState((previous) => {
+          if (previous.input_file !== entry.path) {
+            return previous;
+          }
+          const derivedBase = deriveBaseOutputName(entry.name);
+          const nextBase =
+            previous.base_output_file === derivedBase ? '' : previous.base_output_file;
+          return {
+            ...previous,
+            input_file: '',
+            base_output_file: nextBase,
+            book_metadata: '{}'
+          };
+        });
+        prefillAppliedRef.current = null;
+        await refreshFiles();
+      } catch (deleteError) {
+        const message =
+          deleteError instanceof Error
+            ? deleteError.message
+            : 'Unable to delete selected ebook.';
+        setFileDialogError(message);
+      }
+    },
+    [refreshFiles]
+  );
 
   const processFileUpload = useCallback(
     async (file: File) => {
