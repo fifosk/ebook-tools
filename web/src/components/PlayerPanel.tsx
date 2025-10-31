@@ -9,6 +9,7 @@ import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/m
 import MediaSearchPanel from './MediaSearchPanel';
 import type { MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
+import InteractiveTextViewer from './InteractiveTextViewer';
 
 type MediaCategory = keyof LiveMediaState;
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
@@ -656,8 +657,8 @@ export default function PlayerPanel({
       setIsVideoPlaying(false);
     }
   }, [videoFiles.length, isVideoPlaying]);
-  const textContentCache = useRef(new Map<string, string>());
-  const [textPreview, setTextPreview] = useState<{ url: string; content: string } | null>(null);
+  const textContentCache = useRef(new Map<string, { raw: string; plain: string }>());
+  const [textPreview, setTextPreview] = useState<{ url: string; content: string; raw: string } | null>(null);
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
 
@@ -715,6 +716,24 @@ export default function PlayerPanel({
       }) ?? null
     );
   }, [chunks, selectedItem]);
+  const chunkAudioItems = useMemo(() => {
+    if (!selectedChunk) {
+      return [];
+    }
+    const seen = new Set<string>();
+    const items: LiveMediaItem[] = [];
+    selectedChunk.files.forEach((file) => {
+      if (file.type !== 'audio' || !file.url) {
+        return;
+      }
+      if (seen.has(file.url)) {
+        return;
+      }
+      seen.add(file.url);
+      items.push(file);
+    });
+    return items;
+  }, [selectedChunk]);
   const isImmersiveMode = isVideoTabActive && isTheaterMode;
   const panelClassName = isImmersiveMode ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
@@ -788,6 +807,23 @@ export default function PlayerPanel({
       rememberPosition({ mediaId, mediaType: 'audio', baseId, position });
     },
     [selectedItemIds.audio, getMediaItem, deriveBaseId, rememberPosition],
+  );
+
+  const handleInlineAudioProgress = useCallback(
+    (audioUrl: string, position: number) => {
+      if (!audioUrl) {
+        return;
+      }
+      const current = getMediaItem('audio', audioUrl);
+      const baseId = current ? deriveBaseId(current) : null;
+      rememberPosition({ mediaId: audioUrl, mediaType: 'audio', baseId, position });
+    },
+    [deriveBaseId, getMediaItem, rememberPosition],
+  );
+
+  const getInlineAudioPosition = useCallback(
+    (audioUrl: string) => getPosition(audioUrl),
+    [getPosition],
   );
 
   const handleVideoProgress = useCallback(
@@ -879,9 +915,9 @@ export default function PlayerPanel({
       return;
     }
 
-    if (textContentCache.current.has(url)) {
-      const cached = textContentCache.current.get(url) ?? '';
-      setTextPreview({ url, content: cached });
+    const cached = textContentCache.current.get(url);
+    if (cached) {
+      setTextPreview({ url, content: cached.plain, raw: cached.raw });
       setTextError(null);
       setTextLoading(false);
       return;
@@ -913,8 +949,8 @@ export default function PlayerPanel({
         }
 
         const normalised = extractTextFromHtml(raw);
-        textContentCache.current.set(url, normalised);
-        setTextPreview({ url, content: normalised });
+        textContentCache.current.set(url, { raw, plain: normalised });
+        setTextPreview({ url, content: normalised, raw });
         setTextError(null);
       })
       .catch((requestError) => {
@@ -1177,14 +1213,16 @@ export default function PlayerPanel({
                               </div>
                             ) : textPreview ? (
                               textPreview.content ? (
-                                <article
+                                <InteractiveTextViewer
                                   ref={textScrollRef}
-                                  className="player-panel__document-body"
-                                  data-testid="player-panel-document"
+                                  content={textPreview.content}
+                                  rawContent={textPreview.raw}
+                                  chunk={selectedChunk}
+                                  audioItems={chunkAudioItems}
                                   onScroll={handleTextScroll}
-                                >
-                                  <pre className="player-panel__document-text">{textPreview.content}</pre>
-                                </article>
+                                  onAudioProgress={handleInlineAudioProgress}
+                                  getStoredAudioPosition={getInlineAudioPosition}
+                                />
                               ) : (
                                 <div className="player-panel__document-status" role="status">
                                   Document preview is empty.
