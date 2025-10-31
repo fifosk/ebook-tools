@@ -509,13 +509,14 @@ export function appendAccessToken(url: string): string {
     return url;
   }
 
+  const absolute = normaliseApiUrl(url);
   try {
-    const resolved = new URL(url, typeof window !== 'undefined' ? window.location.origin : undefined);
+    const resolved = new URL(absolute);
     resolved.searchParams.set('access_token', token);
     return resolved.toString();
   } catch (error) {
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}access_token=${encodeURIComponent(token)}`;
+    const separator = absolute.includes('?') ? '&' : '?';
+    return `${absolute}${separator}access_token=${encodeURIComponent(token)}`;
   }
 }
 
@@ -538,4 +539,11 @@ export function resolveLibraryMediaUrl(jobId: string, relativePath: string): str
 export async function fetchLibraryMedia(jobId: string): Promise<PipelineMediaResponse> {
   const response = await apiFetch(`/api/library/media/${encodeURIComponent(jobId)}`);
   return handleResponse<PipelineMediaResponse>(response);
+}
+
+function normaliseApiUrl(candidate: string): string {
+  if (/^https?:\/\//i.test(candidate)) {
+    return candidate;
+  }
+  return withBase(candidate);
 }
