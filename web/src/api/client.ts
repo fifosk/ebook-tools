@@ -503,6 +503,38 @@ export async function reindexLibrary(): Promise<LibraryReindexResponse> {
   return handleResponse<LibraryReindexResponse>(response);
 }
 
+export function appendAccessToken(url: string): string {
+  const token = getAuthToken();
+  if (!token) {
+    return url;
+  }
+
+  try {
+    const resolved = new URL(url, typeof window !== 'undefined' ? window.location.origin : undefined);
+    resolved.searchParams.set('access_token', token);
+    return resolved.toString();
+  } catch (error) {
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}access_token=${encodeURIComponent(token)}`;
+  }
+}
+
+export function resolveLibraryMediaUrl(jobId: string, relativePath: string): string | null {
+  const trimmedJobId = (jobId ?? '').trim();
+  const trimmedPath = (relativePath ?? '').trim();
+  if (!trimmedJobId || !trimmedPath) {
+    return null;
+  }
+  const encodedJobId = encodeURIComponent(trimmedJobId);
+  const normalisedPath = trimmedPath.replace(/^\/+/, '');
+  const encodedPath = normalisedPath
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+  const url = withBase(`/api/library/media/${encodedJobId}/file/${encodedPath}`);
+  return appendAccessToken(url);
+}
+
 export async function fetchLibraryMedia(jobId: string): Promise<PipelineMediaResponse> {
   const response = await apiFetch(`/api/library/media/${encodeURIComponent(jobId)}`);
   return handleResponse<PipelineMediaResponse>(response);

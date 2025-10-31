@@ -15,6 +15,7 @@ from urllib.parse import quote
 from modules import logging_manager
 from modules.fsutils import AtomicMoveError, ChecksumMismatchError, DirectoryLock, atomic_move
 from modules.services.file_locator import FileLocator
+from modules.services.job_manager import PipelineJobManager, PipelineJobTransitionError
 
 from .indexer import LibraryIndexer, LibraryItem
 
@@ -148,11 +149,13 @@ class LibraryService:
         library_root: Path,
         file_locator: FileLocator,
         indexer: Optional[LibraryIndexer] = None,
+        job_manager: Optional[PipelineJobManager] = None,
     ) -> None:
         self._library_root = Path(library_root)
         self._library_root.mkdir(parents=True, exist_ok=True)
         self._locator = file_locator
         self._indexer = indexer or LibraryIndexer(self._library_root)
+        self._job_manager = job_manager
         # Prime the database and ensure migrations run up-front.
         with self._indexer.connect():
             pass
@@ -222,7 +225,24 @@ class LibraryService:
 
         library_item = self._build_item(metadata, target_path)
         self._indexer.upsert(library_item)
+        self._remove_from_job_queue(job_id)
         return library_item
+
+    def _remove_from_job_queue(self, job_id: str) -> None:
+        if self._job_manager is None:
+            return
+        try:
+            self._job_manager.delete_job(job_id)
+        except KeyError:
+            LOGGER.debug("Job %s already absent from job queue storage; skipping removal", job_id)
+        except PipelineJobTransitionError as exc:
+            LOGGER.warning(
+                "Failed to remove job %s from queue due to transition error: %s",
+                job_id,
+                exc,
+            )
+        except ValueError as exc:
+            LOGGER.warning("Unable to remove job %s from queue: %s", job_id, exc)
 
     def remove_media(self, job_id: str) -> Tuple[Optional[LibraryItem], int]:
         """Remove generated media files for ``job_id`` without deleting metadata."""

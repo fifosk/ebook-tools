@@ -219,6 +219,7 @@ class PipelineJobTransitionCoordinator:
             PipelineJobStatus.COMPLETED,
             PipelineJobStatus.FAILED,
             PipelineJobStatus.CANCELLED,
+            PipelineJobStatus.PAUSED,
         ):
             raise ValueError(
                 f"Cannot delete job {job.job_id} from state {job.status.value}"

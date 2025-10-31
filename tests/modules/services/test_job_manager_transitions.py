@@ -185,6 +185,15 @@ def test_delete_job_requires_authorized_terminal_state(manager: PipelineJobManag
     assert deleted.status == PipelineJobStatus.CANCELLED
 
 
+def test_delete_paused_job(manager: PipelineJobManager) -> None:
+    job = manager.submit(_build_request(), user_id="alice", user_role="editor")
+    job.status = PipelineJobStatus.PAUSED
+    manager._jobs[job.job_id] = job
+
+    deleted = manager.delete_job(job.job_id, user_id="alice", user_role="editor")
+    assert deleted.status == PipelineJobStatus.PAUSED
+
+
 def test_finish_job_requires_supported_terminal_status(manager: PipelineJobManager) -> None:
     job = manager.submit(_build_request(), user_id="alice", user_role="editor")
 

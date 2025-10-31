@@ -51,10 +51,6 @@
   color: var(--color-text-primary, #101828);
 }
 
-.playerSection {
-  margin-top: 1.5rem;
-}
-
 .errorBanner {
   padding: 0.75rem 1rem;
   border-radius: 0.75rem;
@@ -88,6 +84,58 @@
 .pagination button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.coverWrapper {
+  margin-bottom: 1rem;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-alt, #f9fafb);
+  aspect-ratio: 3 / 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.coverImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.actionBar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.playButton {
+  align-self: flex-start;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: none;
+  background: var(--color-button-primary-bg, #2563eb);
+  color: var(--color-button-primary-text, #ffffff);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.playButton:hover:not(:disabled) {
+  background: var(--color-button-primary-hover-bg, #1d4ed8);
+  transform: translateY(-1px);
+}
+
+.playButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.actionHint {
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #475467);
 }
 
 @media (max-width: 1024px) {

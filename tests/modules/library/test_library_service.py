@@ -9,6 +9,14 @@ from modules.library import LibraryError, LibraryIndexer, LibraryNotFoundError, 
 from modules.services.file_locator import FileLocator
 
 
+class TrackingJobManager:
+    def __init__(self) -> None:
+        self.deleted: list[str] = []
+
+    def delete_job(self, job_id: str) -> None:
+        self.deleted.append(job_id)
+
+
 def build_job_metadata(job_id: str) -> dict:
     return {
         'job_id': job_id,
@@ -32,17 +40,23 @@ def write_metadata(job_root: Path, payload: dict) -> None:
     (metadata_dir / 'job.json').write_text(json.dumps(payload), encoding='utf-8')
 
 
-def create_service(tmp_path: Path) -> tuple[LibraryService, FileLocator, Path]:
+def create_service(tmp_path: Path) -> tuple[LibraryService, FileLocator, Path, TrackingJobManager]:
     queue_root = tmp_path / 'queue'
     library_root = tmp_path / 'library'
     locator = FileLocator(storage_dir=queue_root)
     indexer = LibraryIndexer(library_root)
-    service = LibraryService(library_root=library_root, file_locator=locator, indexer=indexer)
-    return service, locator, library_root
+    job_manager = TrackingJobManager()
+    service = LibraryService(
+        library_root=library_root,
+        file_locator=locator,
+        indexer=indexer,
+        job_manager=job_manager
+    )
+    return service, locator, library_root, job_manager
 
 
 def test_move_to_library_and_index(tmp_path):
-    service, locator, library_root = create_service(tmp_path)
+    service, locator, library_root, job_manager = create_service(tmp_path)
 
     job_id = 'job-42'
     queue_root = locator.job_root(job_id)
@@ -65,10 +79,11 @@ def test_move_to_library_and_index(tmp_path):
     metadata_path = library_path / 'metadata' / 'job.json'
     payload = json.loads(metadata_path.read_text(encoding='utf-8'))
     assert payload['status'] == 'finished'
+    assert job_manager.deleted == [job_id]
 
 
 def test_remove_media_and_entry(tmp_path):
-    service, locator, library_root = create_service(tmp_path)
+    service, locator, library_root, _job_manager = create_service(tmp_path)
 
     job_id = 'job-7'
     queue_root = locator.job_root(job_id)
@@ -100,7 +115,7 @@ def test_remove_media_and_entry(tmp_path):
 
 
 def test_move_paused_job_requires_completed_media(tmp_path):
-    service, locator, library_root = create_service(tmp_path)
+    service, locator, library_root, job_manager = create_service(tmp_path)
 
     job_id = 'job-paused'
     queue_root = locator.job_root(job_id)
@@ -113,6 +128,7 @@ def test_move_paused_job_requires_completed_media(tmp_path):
 
     with pytest.raises(LibraryError):
         service.move_to_library(job_id)
+    assert job_manager.deleted == []
 
     metadata['media_completed'] = True
     metadata['generated_files'] = {'chunks': [], 'files': [], 'complete': True}
@@ -121,10 +137,11 @@ def test_move_paused_job_requires_completed_media(tmp_path):
 
     item = service.move_to_library(job_id)
     assert item.status == 'paused'
+    assert job_manager.deleted == [job_id]
 
 
 def test_move_paused_job_with_partial_media(tmp_path):
-    service, locator, library_root = create_service(tmp_path)
+    service, locator, library_root, job_manager = create_service(tmp_path)
 
     job_id = 'job-paused-partial'
     queue_root = locator.job_root(job_id)
@@ -154,10 +171,11 @@ def test_move_paused_job_with_partial_media(tmp_path):
     assert stored is not None
     payload = json.loads((library_root / 'Jane Doe' / 'Sample Book' / 'en' / job_id / 'metadata' / 'job.json').read_text(encoding='utf-8'))
     assert payload.get('media_completed') is True
+    assert job_manager.deleted == [job_id]
 
 
 def test_move_paused_job_with_filesystem_media(tmp_path):
-    service, locator, library_root = create_service(tmp_path)
+    service, locator, library_root, job_manager = create_service(tmp_path)
 
     job_id = 'job-paused-fs'
     queue_root = locator.job_root(job_id)
@@ -176,10 +194,11 @@ def test_move_paused_job_with_filesystem_media(tmp_path):
     assert item.status == 'paused'
     snapshot = json.loads((library_root / 'Jane Doe' / 'Sample Book' / 'en' / job_id / 'metadata' / 'job.json').read_text(encoding='utf-8'))
     assert snapshot.get('media_completed') is True
+    assert job_manager.deleted == [job_id]
 
 
 def test_generated_file_paths_retargeted_on_move(tmp_path):
-    service, locator, library_root = create_service(tmp_path)
+    service, locator, library_root, _job_manager = create_service(tmp_path)
 
     job_id = 'job-retarget'
     queue_root = locator.job_root(job_id)
@@ -225,7 +244,7 @@ def test_generated_file_paths_retargeted_on_move(tmp_path):
 
 
 def test_reindex_from_filesystem(tmp_path):
-    service, _locator, library_root = create_service(tmp_path)
+    service, _locator, library_root, _job_manager = create_service(tmp_path)
 
     job_root = library_root / 'Manual Author' / 'Manual Title' / 'en' / 'job-900'
     job_root.mkdir(parents=True)

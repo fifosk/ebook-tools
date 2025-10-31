@@ -275,7 +275,13 @@ def get_library_service() -> LibraryService:
     library_root = cfg.get_library_root(create=True)
     locator = get_file_locator()
     indexer = get_library_indexer()
-    return LibraryService(library_root=library_root, file_locator=locator, indexer=indexer)
+    job_manager = get_pipeline_job_manager()
+    return LibraryService(
+        library_root=library_root,
+        file_locator=locator,
+        indexer=indexer,
+        job_manager=job_manager,
+    )
 
 
 @lru_cache

@@ -2,9 +2,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
-import JobDetail from './pages/JobDetail';
 import LibraryPage from './pages/LibraryPage';
-import { PipelineRequestPayload, PipelineStatusResponse, ProgressEventPayload } from './api/dtos';
+import PlayerView, { type PlayerContext } from './pages/PlayerView';
+import {
+  LibraryItem,
+  PipelineRequestPayload,
+  PipelineStatusResponse,
+  ProgressEventPayload
+} from './api/dtos';
 import {
   cancelJob,
   deleteJob,
@@ -23,6 +28,7 @@ import LoginForm from './components/LoginForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
 import UserManagementPanel from './components/admin/UserManagementPanel';
 import { resolveMediaCompletion } from './utils/mediaFormatters';
+import { buildLibraryBookMetadata } from './utils/libraryMetadata';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
@@ -75,6 +81,7 @@ export function App() {
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isAccountExpanded, setIsAccountExpanded] = useState(false);
@@ -204,6 +211,7 @@ export function App() {
       setReloadingJobs({});
       setMutatingJobs({});
       setActiveJobId(null);
+      setPlayerContext(null);
       setSelectedView('pipeline:source');
       return;
     }
@@ -226,6 +234,18 @@ export function App() {
     return metadata && typeof metadata === 'object' ? metadata : null;
   }, [activeJobId, jobs]);
 
+  const playerJobMetadata = useMemo(() => {
+    if (playerContext?.type !== 'job') {
+      return null;
+    }
+    if (playerContext.jobId === activeJobId) {
+      return activeJobMetadata;
+    }
+    const entry = jobs[playerContext.jobId];
+    const metadata = entry?.status?.result?.book_metadata;
+    return metadata && typeof metadata === 'object' ? metadata : null;
+  }, [activeJobId, activeJobMetadata, jobs, playerContext]);
+
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
       return;
@@ -233,23 +253,47 @@ export function App() {
     if (selectedView === ADMIN_USER_MANAGEMENT_VIEW) {
       return;
     }
-    if (selectedView === JOB_PROGRESS_VIEW || selectedView === JOB_MEDIA_VIEW) {
+    if (selectedView === JOB_PROGRESS_VIEW) {
       if (!activeJobId || !jobs[activeJobId]) {
         setActiveJobId(null);
         setSelectedView('pipeline:submit');
       }
       return;
     }
-  }, [activeJobId, jobs, selectedView]);
+    if (selectedView === JOB_MEDIA_VIEW) {
+      if (!playerContext) {
+        setSelectedView('pipeline:submit');
+        return;
+      }
+      if (playerContext.type === 'job' && !jobs[playerContext.jobId]) {
+        setPlayerContext(null);
+        setSelectedView('pipeline:submit');
+      }
+    }
+  }, [activeJobId, jobs, playerContext, selectedView]);
 
   useEffect(() => {
-    if (selectedView !== JOB_PROGRESS_VIEW && selectedView !== JOB_MEDIA_VIEW) {
+    if (selectedView === JOB_PROGRESS_VIEW && !activeJobId) {
+      setSelectedView('pipeline:submit');
       return;
     }
-    if (!activeJobId) {
+    if (selectedView === JOB_MEDIA_VIEW && playerContext?.type === 'job' && !activeJobId) {
+      setPlayerContext(null);
       setSelectedView('pipeline:submit');
     }
-  }, [activeJobId, selectedView, activeJobMetadata]);
+  }, [activeJobId, playerContext, selectedView]);
+
+  useEffect(() => {
+    if (selectedView !== JOB_MEDIA_VIEW) {
+      return;
+    }
+    if (playerContext?.type !== 'job') {
+      return;
+    }
+    if (activeJobId && playerContext.jobId !== activeJobId) {
+      setPlayerContext({ type: 'job', jobId: activeJobId });
+    }
+  }, [activeJobId, playerContext, selectedView]);
 
   useEffect(() => {
     if (selectedView !== JOB_MEDIA_VIEW) {
@@ -558,6 +602,30 @@ export function App() {
       }
     },
     [jobs, refreshJobs]
+  );
+
+  const handleOpenPlayerForJob = useCallback(() => {
+    if (!activeJobId) {
+      return;
+    }
+    setPlayerContext({ type: 'job', jobId: activeJobId });
+    setSelectedView(JOB_MEDIA_VIEW);
+    setIsImmersiveMode(false);
+  }, [activeJobId]);
+
+  const handlePlayLibraryItem = useCallback(
+    (item: LibraryItem) => {
+      const metadata = buildLibraryBookMetadata(item);
+      setPlayerContext({
+        type: 'library',
+        jobId: item.jobId,
+        bookMetadata: metadata
+      });
+      setActiveJobId(null);
+      setSelectedView(JOB_MEDIA_VIEW);
+      setIsImmersiveMode(false);
+    },
+    []
   );
 
   const jobList: JobState[] = useMemo(() => {
@@ -894,14 +962,14 @@ export function App() {
             </button>
           </details>
           <details className="sidebar__section">
-            <summary>Generated media</summary>
+            <summary>Player</summary>
             <button
               type="button"
               className={`sidebar__link ${selectedView === JOB_MEDIA_VIEW ? 'is-active' : ''}`}
-              onClick={() => setSelectedView(JOB_MEDIA_VIEW)}
+              onClick={handleOpenPlayerForJob}
               disabled={!activeJobId}
             >
-              {activeJobId ? `View media for job ${activeJobId}` : 'Select a job to view media'}
+              {activeJobId ? `Open player for job ${activeJobId}` : 'Select a job to open the player'}
             </button>
           </details>
           <details className="sidebar__section">
@@ -995,7 +1063,7 @@ export function App() {
               <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
             </section>
           ) : isLibraryView ? (
-            <LibraryPage />
+            <LibraryPage onPlay={handlePlayLibraryItem} />
           ) : (
             <>
               {activePipelineSection ? (
@@ -1048,9 +1116,9 @@ export function App() {
               ) : null}
               {selectedView === JOB_MEDIA_VIEW ? (
                 <section className="job-media-section">
-                  <JobDetail
-                    jobId={selectedJob?.jobId ?? null}
-                    bookMetadata={selectedJob?.status?.result?.book_metadata ?? null}
+                  <PlayerView
+                    context={playerContext}
+                    jobBookMetadata={playerJobMetadata}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
                   />
                 </section>

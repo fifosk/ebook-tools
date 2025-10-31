@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { MediaSearchResult } from '../api/dtos';
-import { buildStorageUrl, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 
 type MediaCategory = keyof LiveMediaState;
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
@@ -30,6 +30,7 @@ interface PlayerPanelProps {
   error: Error | null;
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  origin?: 'job' | 'library';
 }
 
 interface TabDefinition {
@@ -174,6 +175,7 @@ export default function PlayerPanel({
   error,
   bookMetadata = null,
   onVideoPlaybackStateChange,
+  origin = 'job',
 }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
@@ -238,63 +240,101 @@ export default function PlayerPanel({
   }, [bookMetadata]);
 
   const apiCoverUrl = useMemo(() => {
-    if (!hasJobId) {
+    if (!hasJobId || origin === 'library') {
       return null;
     }
     return resolveJobCoverUrl(normalisedJobId);
-  }, [hasJobId, normalisedJobId]);
+  }, [hasJobId, normalisedJobId, origin]);
 
   const coverCandidates = useMemo(() => {
     const candidates: string[] = [];
     const unique = new Set<string>();
 
+    const convertCandidate = (value: string | null | undefined): string | null => {
+      if (typeof value !== 'string') {
+        return null;
+      }
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      if (origin === 'library' && trimmed.includes('/pipelines/')) {
+        return null;
+      }
+
+      if (/^https?:\/\//i.test(trimmed)) {
+        if (origin === 'library' && trimmed.includes('/pipelines/')) {
+          return null;
+        }
+        return appendAccessToken(trimmed);
+      }
+
+      if (/^\/?assets\//i.test(trimmed)) {
+        return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+      }
+
+      if (origin === 'library') {
+        if (trimmed.includes('/pipelines/')) {
+          return null;
+        }
+        if (trimmed.startsWith('/api/library/')) {
+          return appendAccessToken(trimmed);
+        }
+        const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);
+        return resolved ? appendAccessToken(resolved) : null;
+      }
+
+      if (trimmed.startsWith('/api/library/')) {
+        return appendAccessToken(trimmed);
+      }
+      if (trimmed.startsWith('/pipelines/')) {
+        return appendAccessToken(trimmed);
+      }
+
+      const stripped = trimmed.replace(/^\/+/, '');
+      if (!stripped) {
+        return null;
+      }
+      try {
+        return buildStorageUrl(stripped);
+      } catch (error) {
+        console.warn('Unable to build storage URL for cover image', error);
+        return `/${stripped}`;
+      }
+    };
+
     const push = (candidate: string | null | undefined) => {
-      const trimmed = candidate?.trim();
-      if (!trimmed || unique.has(trimmed)) {
+      const resolved = convertCandidate(candidate);
+      if (!resolved || unique.has(resolved)) {
         return;
       }
-      unique.add(trimmed);
-      candidates.push(trimmed);
+      unique.add(resolved);
+      candidates.push(resolved);
     };
 
     if (apiCoverUrl) {
       push(apiCoverUrl);
     }
 
-    const pushStorageVariants = (raw: string | null) => {
-      if (!raw) {
-        return;
-      }
-      const trimmed = raw.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (/^https?:\/\//i.test(trimmed)) {
-        push(trimmed);
-        return;
-      }
-      const stripped = trimmed.replace(/^\/+/, '');
-      if (!stripped) {
-        return;
-      }
-      try {
-        push(buildStorageUrl(stripped));
-      } catch (error) {
-        console.warn('Unable to build storage URL for cover image', error);
-      }
-      push(`/storage/${stripped}`);
-      push(`/${stripped}`);
-    };
+    const metadataCoverUrl = (() => {
+      const value = bookMetadata?.['job_cover_asset_url'];
+      return typeof value === 'string' ? value : null;
+    })();
 
-    pushStorageVariants(jobCoverAsset);
+    if (metadataCoverUrl && !(origin === 'library' && /\/pipelines\//.test(metadataCoverUrl))) {
+      push(metadataCoverUrl);
+    }
+
+    push(jobCoverAsset);
     if (legacyCoverFile && legacyCoverFile !== jobCoverAsset) {
-      pushStorageVariants(legacyCoverFile);
+      push(legacyCoverFile);
     }
 
     push(DEFAULT_COVER_URL);
 
     return candidates;
-  }, [apiCoverUrl, jobCoverAsset, legacyCoverFile]);
+  }, [apiCoverUrl, bookMetadata, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
 
   useEffect(() => {
     if (coverSourceIndex !== 0) {
@@ -914,7 +954,7 @@ export default function PlayerPanel({
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
-  const sectionLabel = bookTitle ? `Generated media for ${bookTitle}` : 'Generated media';
+  const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
   const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
   const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
 
@@ -935,7 +975,7 @@ export default function PlayerPanel({
   }
 
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
-  const headingLabel = bookTitle ?? 'Generated media';
+  const headingLabel = bookTitle ?? 'Player';
   const jobLabelParts: string[] = [];
   if (bookAuthor) {
     jobLabelParts.push(`By ${bookAuthor}`);

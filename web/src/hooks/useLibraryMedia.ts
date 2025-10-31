@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchLibraryMedia } from '../api/client';
+import { appendAccessToken, fetchLibraryMedia } from '../api/client';
 import type { PipelineMediaResponse } from '../api/dtos';
 import {
   LiveMediaChunk,
@@ -46,8 +46,8 @@ export function useLibraryMedia(jobId: string | null | undefined): UseLibraryMed
           response,
           jobId,
         );
-        setMedia(nextMedia);
-        setChunks(nextChunks);
+        setMedia(applyAccessTokens(nextMedia));
+        setChunks(tokeniseChunks(nextChunks));
         setIsComplete(complete);
       })
       .catch((loadError: unknown) => {
@@ -80,4 +80,30 @@ export function useLibraryMedia(jobId: string | null | undefined): UseLibraryMed
     }),
     [chunks, error, isComplete, isLoading, media],
   );
+}
+
+function applyAccessTokens(state: LiveMediaState): LiveMediaState {
+  const withTokens: LiveMediaState = {
+    text: state.text.map((item) => ({ ...item, url: tokeniseUrl(item.url) })),
+    audio: state.audio.map((item) => ({ ...item, url: tokeniseUrl(item.url) })),
+    video: state.video.map((item) => ({ ...item, url: tokeniseUrl(item.url) })),
+  };
+  return withTokens;
+}
+
+function tokeniseChunks(chunks: LiveMediaChunk[]): LiveMediaChunk[] {
+  return chunks.map((chunk) => ({
+    ...chunk,
+    files: chunk.files.map((file) => ({ ...file, url: tokeniseUrl(file.url) })),
+  }));
+}
+
+function tokeniseUrl(url: string | null | undefined): string | null {
+  if (!url) {
+    return null;
+  }
+  if (url.includes('access_token=')) {
+    return url;
+  }
+  return appendAccessToken(url);
 }

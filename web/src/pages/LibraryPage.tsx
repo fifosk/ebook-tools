@@ -9,13 +9,16 @@ import {
 } from '../api/client';
 import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
-import PlayerPanel from '../components/PlayerPanel';
-import { useLibraryMedia } from '../hooks/useLibraryMedia';
 import styles from './LibraryPage.module.css';
+import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 
 const PAGE_SIZE = 25;
 
-function LibraryPage() {
+type LibraryPageProps = {
+  onPlay?: (item: LibraryItem) => void;
+};
+
+function LibraryPage({ onPlay }: LibraryPageProps) {
   const [query, setQuery] = useState('');
   const [effectiveQuery, setEffectiveQuery] = useState('');
   const [view, setView] = useState<LibraryViewMode>('flat');
@@ -28,11 +31,6 @@ function LibraryPage() {
   const [mutating, setMutating] = useState<Record<string, boolean>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [isReindexing, setIsReindexing] = useState(false);
-  const { media, chunks, isComplete: mediaComplete, isLoading: isMediaLoading, error: mediaError } =
-    useLibraryMedia(selectedItem?.jobId ?? null);
-  const handleVideoPlaybackStateChange = useCallback((_: boolean) => {
-    // Library playback does not affect global UI state yet.
-  }, []);
 
   useEffect(() => {
     const handle = window.setTimeout(() => setEffectiveQuery(query), 250);
@@ -183,6 +181,25 @@ function LibraryPage() {
     return `Showing ${start}–${end} of ${total}`;
   }, [items.length, page, total]);
 
+  const selectedBookMetadata = useMemo(
+    () => extractLibraryBookMetadata(selectedItem),
+    [selectedItem]
+  );
+
+  const coverUrl = useMemo(() => {
+    if (!selectedItem) {
+      return null;
+    }
+    return resolveLibraryCoverUrl(selectedItem, selectedBookMetadata);
+  }, [selectedBookMetadata, selectedItem]);
+
+  const handlePlay = useCallback(() => {
+    if (!selectedItem || !onPlay) {
+      return;
+    }
+    onPlay(selectedItem);
+  }, [onPlay, selectedItem]);
+
   return (
     <div className={styles.page}>
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
@@ -225,6 +242,29 @@ function LibraryPage() {
           {selectedItem ? (
             <>
               <h2>{selectedItem.bookTitle || 'Untitled Book'}</h2>
+              {coverUrl ? (
+                <div className={styles.coverWrapper}>
+                  <img
+                    src={coverUrl}
+                    alt={`Cover art for ${selectedItem.bookTitle || 'selected book'}`}
+                    className={styles.coverImage}
+                  />
+                </div>
+              ) : null}
+              <div className={styles.actionBar}>
+                <button
+                  type="button"
+                  className={styles.playButton}
+                  onClick={handlePlay}
+                >
+                  Open in Player
+                </button>
+                {!selectedItem.mediaCompleted ? (
+                  <span className={styles.actionHint}>
+                    Media is still finalizing or was previously removed for this entry.
+                  </span>
+                ) : null}
+              </div>
               <ul className={styles.detailList}>
                 <li className={styles.detailItem}>
                   <strong>Job ID:</strong> {selectedItem.jobId}
@@ -259,18 +299,6 @@ function LibraryPage() {
                 <pre className={styles.metadataBlock}>
 {JSON.stringify(selectedItem.metadata, null, 2)}
                 </pre>
-              </div>
-              <div className={styles.playerSection}>
-                <PlayerPanel
-                  jobId={selectedItem.jobId}
-                  media={media}
-                  chunks={chunks}
-                  mediaComplete={mediaComplete}
-                  isLoading={isMediaLoading}
-                  error={mediaError}
-                  bookMetadata={selectedItem.metadata ?? null}
-                  onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
-                />
               </div>
             </>
           ) : (
