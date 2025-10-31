@@ -379,4 +379,32 @@ describe('PlayerPanel', () => {
     expect(coverImage.src).toContain('/pipelines/job-789/cover');
     expect(coverImage.alt).toBe('Cover of Example Title by Jane Doe');
   });
+
+  it('toggles theater mode from the header controls', async () => {
+    const user = userEvent.setup();
+    const media = createMediaState({
+      video: [
+        {
+          type: 'video',
+          name: 'Clip',
+          url: 'https://example.com/video/clip.mp4',
+          source: 'completed'
+        }
+      ]
+    });
+
+    render(<PlayerPanel jobId="job-900" media={media} isLoading={false} error={null} />);
+
+    const toggle = screen.getByTestId('player-panel-theater-toggle');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.player-panel--immersive')).toBeNull();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(document.querySelector('.player-panel--immersive')).not.toBeNull();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.player-panel--immersive')).toBeNull();
+  });
 });

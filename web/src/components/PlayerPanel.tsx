@@ -177,6 +177,7 @@ export default function PlayerPanel({
   const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
+  const [isTheaterMode, setIsTheaterMode] = useState(false);
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
@@ -631,7 +632,7 @@ export default function PlayerPanel({
 
     return filteredMedia.find((item) => item.url === selectedItemId) ?? filteredMedia[0];
   }, [filteredMedia, selectedItemId]);
-  const isImmersiveMode = isVideoTabActive && isVideoPlaying;
+  const isImmersiveMode = isVideoTabActive && isTheaterMode;
   const panelClassName = isImmersiveMode ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
@@ -854,7 +855,28 @@ export default function PlayerPanel({
     };
   }, [selectedMediaType, selectedItem?.url]);
 
-  if (!jobId) {
+  const handleTheaterToggle = useCallback(() => {
+    if (!isVideoTabActive || media.video.length === 0) {
+      return;
+    }
+    setIsTheaterMode((current) => !current);
+  }, [isVideoTabActive, media.video.length]);
+
+  const handleExitTheaterMode = useCallback(() => {
+    setIsTheaterMode(false);
+  }, []);
+
+  useEffect(() => {
+    if (!isVideoTabActive) {
+      setIsTheaterMode(false);
+    }
+  }, [isVideoTabActive]);
+
+  useEffect(() => {
+    setIsTheaterMode(false);
+  }, [normalisedJobId]);
+
+  if (!hasJobId) {
     return (
       <section className="player-panel" aria-label="Generated media">
         <p>No job selected.</p>
@@ -904,6 +926,7 @@ export default function PlayerPanel({
     }
     return 'Book cover preview';
   }, [bookAuthor, bookTitle]);
+  const theaterToggleLabel = isTheaterMode ? 'Exit theater mode' : 'Enter theater mode';
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
@@ -965,6 +988,17 @@ export default function PlayerPanel({
                 <span aria-hidden="true">⏭</span>
               </button>
             </div>
+            <button
+              type="button"
+              className="player-panel__theater-toggle"
+              onClick={handleTheaterToggle}
+              disabled={!isVideoTabActive || media.video.length === 0}
+              aria-pressed={isTheaterMode}
+              aria-label={theaterToggleLabel}
+              data-testid="player-panel-theater-toggle"
+            >
+              {theaterToggleLabel}
+            </button>
             <TabsList className="player-panel__tabs" aria-label="Media categories">
               {TAB_DEFINITIONS.map((tab) => {
                 const count = media[tab.key].length;
@@ -1034,6 +1068,8 @@ export default function PlayerPanel({
                           playbackPosition={videoPlaybackPosition}
                           onPlaybackPositionChange={handleVideoProgress}
                           onPlaybackStateChange={handleVideoPlaybackStateChange}
+                          isTheaterMode={isTheaterMode}
+                          onExitTheaterMode={handleExitTheaterMode}
                         />
                       ) : null}
                       {tab.key === 'text' ? (

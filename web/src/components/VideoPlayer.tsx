@@ -14,9 +14,11 @@ interface VideoPlayerProps {
   playbackPosition?: number | null;
   onPlaybackPositionChange?: (position: number) => void;
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
+  isTheaterMode?: boolean;
+  onExitTheaterMode?: () => void;
 }
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 export default function VideoPlayer({
   files,
@@ -27,9 +29,10 @@ export default function VideoPlayer({
   playbackPosition = null,
   onPlaybackPositionChange,
   onPlaybackStateChange,
+  isTheaterMode = false,
+  onExitTheaterMode,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
-  const [isTheaterMode, setIsTheaterMode] = useState(false);
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Video ${index + 1}`
@@ -104,14 +107,6 @@ export default function VideoPlayer({
     onPlaybackEnded?.();
   }, [onPlaybackEnded, onPlaybackStateChange]);
 
-  const toggleTheaterMode = useCallback(() => {
-    setIsTheaterMode((current) => !current);
-  }, []);
-
-  const exitTheaterMode = useCallback(() => {
-    setIsTheaterMode(false);
-  }, []);
-
   useEffect(() => {
     if (!isTheaterMode) {
       return;
@@ -119,7 +114,7 @@ export default function VideoPlayer({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        exitTheaterMode();
+        onExitTheaterMode?.();
       }
     };
 
@@ -127,7 +122,7 @@ export default function VideoPlayer({
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [exitTheaterMode, isTheaterMode]);
+  }, [isTheaterMode, onExitTheaterMode]);
 
   if (files.length === 0) {
     return (
@@ -145,8 +140,6 @@ export default function VideoPlayer({
     );
   }
 
-  const theaterToggleLabel = isTheaterMode ? 'Exit theater mode' : 'Enter theater mode';
-
   return (
     <>
       {isTheaterMode ? (
@@ -154,39 +147,30 @@ export default function VideoPlayer({
           type="button"
           className="video-player__backdrop"
           aria-label="Exit theater mode"
-          onClick={exitTheaterMode}
+          onClick={onExitTheaterMode}
         />
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage">
-          <video
-            key={activeFile.id}
-            ref={elementRef}
-            className="video-player__element"
-            data-testid="video-player"
-            controls
-            src={activeFile.url}
-            poster={activeFile.poster}
-            autoPlay={autoPlay}
-            playsInline
-            onPlay={handlePlay}
-            onPause={handlePause}
-            onEnded={handleEnded}
-            onLoadedData={attemptAutoplay}
-            onTimeUpdate={handleTimeUpdate}
-          >
-            Your browser does not support the video element.
-          </video>
-          <div className="video-player__controls">
-            <button
-              type="button"
-              className="video-player__mode-toggle"
-              onClick={toggleTheaterMode}
-              aria-pressed={isTheaterMode}
-              data-testid="video-player-mode-toggle"
+          <div className="video-player__canvas">
+            <video
+              key={activeFile.id}
+              ref={elementRef}
+              className="video-player__element"
+              data-testid="video-player"
+              controls
+              src={activeFile.url}
+              poster={activeFile.poster}
+              autoPlay={autoPlay}
+              playsInline
+              onPlay={handlePlay}
+              onPause={handlePause}
+              onEnded={handleEnded}
+              onLoadedData={attemptAutoplay}
+              onTimeUpdate={handleTimeUpdate}
             >
-              {theaterToggleLabel}
-            </button>
+              Your browser does not support the video element.
+            </video>
           </div>
         </div>
         <div className="video-player__playlist" role="group" aria-label="Video playlist">
