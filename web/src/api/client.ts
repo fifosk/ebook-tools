@@ -340,6 +340,15 @@ export function buildEventStreamUrl(jobId: string): string {
   }
 }
 
+export function resolveJobCoverUrl(jobId: string): string | null {
+  const trimmed = (jobId ?? '').trim();
+  if (!trimmed) {
+    return null;
+  }
+  const encoded = encodeURIComponent(trimmed);
+  return withBase(`/pipelines/${encoded}/cover`);
+}
+
 export function buildStorageUrl(path: string): string {
   const trimmed = (path ?? '').trim();
   if (!trimmed) {

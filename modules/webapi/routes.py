@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+import mimetypes
 from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Header, Query, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 from .dependencies import (
     RuntimeContextProvider,
@@ -226,6 +227,20 @@ def _serialize_media_entries(
         media_map.setdefault(file_type, []).append(record)
 
     return media_map
+
+
+def _find_job_cover_path(metadata_root: Path) -> Optional[Path]:
+    if not metadata_root.exists():
+        return None
+    for candidate in sorted(metadata_root.glob("cover.*")):
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def _guess_cover_media_type(path: Path) -> str:
+    media_type, _ = mimetypes.guess_type(path.name)
+    return media_type or "image/jpeg"
 
 
 @router.get("/jobs", response_model=PipelineJobListResponse)
@@ -483,6 +498,42 @@ async def get_pipeline_status(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return PipelineStatusResponse.from_job(job)
+
+
+@router.get("/{job_id}/cover")
+async def fetch_job_cover(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    file_locator: FileLocator = Depends(get_file_locator),
+    user_id: str | None = Header(default=None, alias="X-User-Id"),
+    user_role: str | None = Header(default=None, alias="X-User-Role"),
+):
+    """Return the stored cover image for ``job_id`` if available."""
+
+    try:
+        pipeline_service.get_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    metadata_root = file_locator.metadata_root(job_id)
+    cover_path = _find_job_cover_path(metadata_root)
+    if cover_path is None or not cover_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
+
+    media_type = _guess_cover_media_type(cover_path)
+    response = FileResponse(
+        cover_path,
+        media_type=media_type,
+        filename=cover_path.name,
+    )
+    response.headers["Content-Disposition"] = f'inline; filename="{cover_path.name}"'
+    return response
 
 
 @router.get("/jobs/{job_id}/media", response_model=PipelineMediaResponse)

@@ -17,6 +17,17 @@ const mediaPrototype = HTMLMediaElement.prototype;
 const originalCurrentTimeDescriptor = Object.getOwnPropertyDescriptor(mediaPrototype, 'currentTime');
 const elementPrototype = HTMLElement.prototype;
 const originalScrollDescriptor = Object.getOwnPropertyDescriptor(elementPrototype, 'scrollTop');
+const videoPrototype = HTMLVideoElement.prototype as HTMLVideoElement & {
+  requestFullscreen?: () => Promise<void>;
+};
+const documentPrototype = Document.prototype as Document & {
+  exitFullscreen?: () => Promise<void>;
+};
+const originalRequestFullscreen = videoPrototype.requestFullscreen;
+const originalExitFullscreen = documentPrototype.exitFullscreen;
+
+let requestFullscreenMock: ReturnType<typeof vi.fn>;
+let exitFullscreenMock: ReturnType<typeof vi.fn>;
 
 beforeAll(() => {
   Object.defineProperty(mediaPrototype, 'currentTime', {
@@ -52,21 +63,35 @@ afterAll(() => {
 describe('PlayerPanel', () => {
   const originalFetch = globalThis.fetch;
 
-  beforeEach(() => {
-    window.sessionStorage.clear();
-    vi.spyOn(mediaPrototype, 'play').mockImplementation(() => Promise.resolve());
-    vi.spyOn(mediaPrototype, 'pause').mockImplementation(() => {});
-  });
+beforeEach(() => {
+  window.sessionStorage.clear();
+  vi.spyOn(mediaPrototype, 'play').mockImplementation(() => Promise.resolve());
+  vi.spyOn(mediaPrototype, 'pause').mockImplementation(() => {});
+  requestFullscreenMock = vi.fn().mockResolvedValue(undefined);
+  videoPrototype.requestFullscreen = requestFullscreenMock;
+  exitFullscreenMock = vi.fn().mockResolvedValue(undefined);
+  documentPrototype.exitFullscreen = exitFullscreenMock;
+});
 
-  afterEach(() => {
-    if (originalFetch) {
-      globalThis.fetch = originalFetch;
+afterEach(() => {
+  if (originalFetch) {
+    globalThis.fetch = originalFetch;
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch;
-    }
-    vi.restoreAllMocks();
-  });
+    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+    delete (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch;
+  }
+  vi.restoreAllMocks();
+  if (originalRequestFullscreen) {
+    videoPrototype.requestFullscreen = originalRequestFullscreen;
+  } else {
+    delete videoPrototype.requestFullscreen;
+  }
+  if (originalExitFullscreen) {
+    documentPrototype.exitFullscreen = originalExitFullscreen;
+  } else {
+    delete documentPrototype.exitFullscreen;
+  }
+});
 
   it('loads text previews and updates when selecting items from the list', async () => {
     const fetchMock = vi
@@ -374,5 +399,45 @@ describe('PlayerPanel', () => {
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Example Title');
     expect(screen.getByText('By Jane Doe • Job job-789')).toBeInTheDocument();
     expect(screen.getByText('No generated media yet for Example Title.')).toBeInTheDocument();
+    const coverImage = screen.getByTestId('player-cover-image') as HTMLImageElement;
+    expect(coverImage).toBeInTheDocument();
+    expect(coverImage.src).toContain('/pipelines/job-789/cover');
+    expect(coverImage.alt).toBe('Cover of Example Title by Jane Doe');
+  });
+
+  it('toggles theater mode from the header controls', async () => {
+    const user = userEvent.setup();
+    const media = createMediaState({
+      video: [
+        {
+          type: 'video',
+          name: 'Clip',
+          url: 'https://example.com/video/clip.mp4',
+          source: 'completed'
+        }
+      ]
+    });
+
+    render(<PlayerPanel jobId="job-900" media={media} isLoading={false} error={null} />);
+
+    const toggle = screen.getByTestId('player-panel-theater-toggle');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    expect(document.querySelector('.player-panel--immersive')).toBeNull();
+
+    await user.click(toggle);
+    await waitFor(() => {
+      expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    });
+    await waitFor(() => {
+      expect(requestFullscreenMock).toHaveBeenCalled();
+    });
+    expect(document.querySelector('.player-panel--immersive')).not.toBeNull();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+    await waitFor(() => {
+      expect(exitFullscreenMock).toHaveBeenCalled();
+    });
+    expect(document.querySelector('.player-panel--immersive')).toBeNull();
   });
 });

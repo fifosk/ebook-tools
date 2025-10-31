@@ -5,7 +5,7 @@ import {
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { buildStorageUrl } from '../api/client';
+import { buildStorageUrl, resolveJobCoverUrl } from '../api/client';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 const FALLBACK_COVER_URL = '/assets/default-cover.png';
@@ -159,6 +159,17 @@ function normaliseStoragePath(path: string): string {
 }
 
 function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
+  const jobAssetValue = metadata['job_cover_asset'];
+  if (typeof jobAssetValue === 'string') {
+    const trimmedJobAsset = jobAssetValue.trim();
+    if (trimmedJobAsset) {
+      const jobRelative = normaliseStoragePath(trimmedJobAsset);
+      if (jobRelative) {
+        return { type: 'storage', path: jobRelative, raw: trimmedJobAsset };
+      }
+    }
+  }
+
   const rawValue = metadata['book_cover_file'];
   if (typeof rawValue !== 'string') {
     return null;
@@ -236,17 +247,36 @@ export function JobProgress({
   const event = latestEvent ?? status?.latest_event ?? undefined;
   const bookMetadata = status?.result?.book_metadata ?? null;
   const metadata = bookMetadata ?? {};
-  const metadataEntries = Object.entries(metadata).filter(([, value]) => {
+  const metadataEntries = Object.entries(metadata).filter(([key, value]) => {
+    if (key === 'job_cover_asset') {
+      return false;
+    }
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
   });
   const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
+  const apiCoverUrl = useMemo(() => {
+    if (!jobId) {
+      return null;
+    }
+    return resolveJobCoverUrl(jobId);
+  }, [jobId]);
   const coverSources = useMemo(() => {
     if (!coverAsset) {
-      return [] as string[];
+      const sources: string[] = [];
+      if (apiCoverUrl) {
+        sources.push(apiCoverUrl);
+      }
+      sources.push(FALLBACK_COVER_URL);
+      return sources;
     }
     if (coverAsset.type === 'external') {
-      return [coverAsset.url];
+      const sources = [] as string[];
+      if (apiCoverUrl) {
+        sources.push(apiCoverUrl);
+      }
+      sources.push(coverAsset.url);
+      return sources;
     }
 
     const sources: string[] = [];
@@ -263,6 +293,10 @@ export function JobProgress({
       unique.add(trimmed);
       sources.push(trimmed);
     };
+
+    if (apiCoverUrl) {
+      push(apiCoverUrl);
+    }
 
     const normalisedPath = coverAsset.path.trim();
     if (normalisedPath) {

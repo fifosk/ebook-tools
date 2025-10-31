@@ -167,6 +167,8 @@ describe('JobProgress', () => {
     expect(screen.getByText('Example Title')).toBeInTheDocument();
     const image = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
     expect(image).toBeInTheDocument();
+    expect(image.src).toContain('/pipelines/job-2/cover');
+    fireEvent.error(image);
     expect(image.src).toBe('https://storage.example/runtime/example-cover.jpg');
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
@@ -212,6 +214,8 @@ describe('JobProgress', () => {
     const image = screen.getByAltText(
       'Cover of Storage Rooted Title by Storage Rooted Author'
     ) as HTMLImageElement;
+    expect(image.src).toContain('/pipelines/job-2a/cover');
+    fireEvent.error(image);
     expect(image.src).toBe('https://storage.example/runtime/storage-rooted-cover.jpg');
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/storage-rooted-cover.jpg');
     expect(screen.getByText('storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
@@ -255,6 +259,8 @@ describe('JobProgress', () => {
     );
 
     const image = screen.getByAltText('Cover of Shared Cover Title by Shared Cover Author') as HTMLImageElement;
+    expect(image.src).toContain('/pipelines/job-2b/cover');
+    fireEvent.error(image);
     expect(image.src.endsWith('/storage/covers/shared-cover.jpg')).toBe(true);
   });
 
@@ -335,6 +341,10 @@ describe('JobProgress', () => {
     );
 
     let image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
+    expect(image.src).toContain('/pipelines/job-4/cover');
+
+    fireEvent.error(image);
+    image = screen.getByAltText('Cover of Broken Cover by Author Name') as HTMLImageElement;
     expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
 
     fireEvent.error(image);
@@ -389,18 +399,20 @@ describe('JobProgress', () => {
       />
     );
 
-    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    const altText = 'Cover of Broken Cover by Author Name';
+    let image = screen.getByAltText(altText);
+    for (let index = 0; index < 3; index += 1) {
+      fireEvent.error(image);
+      image = screen.getByAltText(altText);
+    }
     fireEvent.error(image);
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByAltText(altText)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /retry preview/i }));
 
-    expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
+    expect(screen.getByAltText(altText)).toBeInTheDocument();
   });
 
   it('retries the cover preview when metadata refreshes without changing the path', () => {
@@ -440,14 +452,16 @@ describe('JobProgress', () => {
       />
     );
 
-    let image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    fireEvent.error(image);
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
+    const altText = 'Cover of Broken Cover by Author Name';
+    let image = screen.getByAltText(altText);
+    for (let index = 0; index < 3; index += 1) {
+      fireEvent.error(image);
+      image = screen.getByAltText(altText);
+    }
     fireEvent.error(image);
 
     expect(screen.getByText(/Cover preview could not be loaded/i)).toBeInTheDocument();
+    expect(screen.queryByAltText(altText)).not.toBeInTheDocument();
 
     const refreshedStatus: PipelineStatusResponse = {
       ...status,
@@ -476,10 +490,8 @@ describe('JobProgress', () => {
     );
 
     expect(screen.queryByText(/Cover preview could not be loaded/i)).not.toBeInTheDocument();
-    expect(screen.getByAltText('Cover of Broken Cover by Author Name')).toBeInTheDocument();
-
-    image = screen.getByAltText('Cover of Broken Cover by Author Name');
-    expect(image.src).toBe('https://storage.example/runtime/broken-cover.jpg');
+    const refreshedImage = screen.getByAltText(altText) as HTMLImageElement;
+    expect(refreshedImage.src).toContain('/pipelines/job-6/cover');
   });
 
   it('normalises cover metadata rooted in the output directory to storage paths', () => {
@@ -520,7 +532,10 @@ describe('JobProgress', () => {
     );
 
     const image = screen.getByAltText('Cover of Output Rooted Cover by Author Name') as HTMLImageElement;
-    expect(image.src).toBe('https://storage.example/runtime/output-cover.jpg');
+    expect(image.src).toContain('/pipelines/job-7/cover');
+    fireEvent.error(image);
+    const fallbackImage = screen.getByAltText('Cover of Output Rooted Cover by Author Name') as HTMLImageElement;
+    expect(fallbackImage.src).toBe('https://storage.example/runtime/output-cover.jpg');
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/output-cover.jpg');
     expect(screen.getByText('storage/runtime/output-cover.jpg')).toBeInTheDocument();
   });
@@ -567,7 +582,10 @@ describe('JobProgress', () => {
     );
 
     const image = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
-    expect(image.src.endsWith('/storage/runtime/example-cover.jpg')).toBe(true);
+    expect(image.src).toContain('/pipelines/job-7/cover');
+    fireEvent.error(image);
+    const fallbackImage = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
+    expect(fallbackImage.src.endsWith('/storage/runtime/example-cover.jpg')).toBe(true);
     expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
   });
 
@@ -609,6 +627,9 @@ describe('JobProgress', () => {
 
     const image = screen.getByAltText('Cover of No Cover Title by No Cover Author') as HTMLImageElement;
     expect(image).toBeInTheDocument();
-    expect(image.src).toContain('/assets/default-cover.png');
+    expect(image.src).toContain('/pipelines/job-5/cover');
+    fireEvent.error(image);
+    const fallbackImage = screen.getByAltText('Cover of No Cover Title by No Cover Author') as HTMLImageElement;
+    expect(fallbackImage.src).toContain('/assets/default-cover.png');
   });
 });

@@ -413,7 +413,7 @@ def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
     if request.correlation_id is not None:
         payload["correlation_id"] = request.correlation_id
 
-        return payload
+    return payload
 
 
 @dataclass(slots=True)

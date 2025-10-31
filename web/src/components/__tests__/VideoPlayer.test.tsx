@@ -5,13 +5,59 @@ import VideoPlayer, { VideoFile } from '../VideoPlayer';
 
 describe('VideoPlayer', () => {
   let playSpy: ReturnType<typeof vi.spyOn>;
+  const videoPrototype = HTMLVideoElement.prototype as HTMLVideoElement & {
+    requestFullscreen?: () => Promise<void>;
+  };
+  const documentPrototype = Document.prototype as Document & {
+    exitFullscreen?: () => Promise<void>;
+  };
+  const originalRequestFullscreen = videoPrototype.requestFullscreen;
+  const originalExitFullscreen = documentPrototype.exitFullscreen;
+  const originalFullscreenDescriptor = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
+  let requestFullscreenMock: ReturnType<typeof vi.fn>;
+  let exitFullscreenMock: ReturnType<typeof vi.fn>;
+  let fullscreenElementSlot: Element | null = null;
 
   beforeEach(() => {
     playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
+    requestFullscreenMock = vi.fn(function (this: HTMLVideoElement) {
+      fullscreenElementSlot = this;
+      return Promise.resolve();
+    });
+    exitFullscreenMock = vi.fn(() => {
+      fullscreenElementSlot = null;
+      return Promise.resolve();
+    });
+    videoPrototype.requestFullscreen = requestFullscreenMock;
+    documentPrototype.exitFullscreen = exitFullscreenMock;
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get() {
+        return fullscreenElementSlot;
+      },
+      set(value) {
+        fullscreenElementSlot = value as Element | null;
+      },
+    });
   });
 
   afterEach(() => {
     playSpy.mockRestore();
+    if (originalRequestFullscreen) {
+      videoPrototype.requestFullscreen = originalRequestFullscreen;
+    } else {
+      delete videoPrototype.requestFullscreen;
+    }
+    if (originalExitFullscreen) {
+      documentPrototype.exitFullscreen = originalExitFullscreen;
+    } else {
+      delete documentPrototype.exitFullscreen;
+    }
+    if (originalFullscreenDescriptor) {
+      Object.defineProperty(document, 'fullscreenElement', originalFullscreenDescriptor);
+    } else {
+      delete (document as Document & { fullscreenElement?: Element | null }).fullscreenElement;
+    }
   });
 
   it('shows loading message until videos are available', () => {
@@ -87,31 +133,86 @@ describe('VideoPlayer', () => {
     expect(onEnded).toHaveBeenCalledTimes(1);
   });
 
-  it('toggles theater mode without interrupting playback element', async () => {
+  it('requests theater exit when backdrop or Escape is used', async () => {
     const user = userEvent.setup();
     const sample: VideoFile = {
       id: 'sample',
       name: 'Sample',
       url: 'https://example.com/video/sample.mp4'
     };
+    const onExit = vi.fn();
 
-    render(<VideoPlayer files={[sample]} activeId={sample.id} onSelectFile={() => {}} />);
+    render(
+      <VideoPlayer
+        files={[sample]}
+        activeId={sample.id}
+        onSelectFile={() => {}}
+        isTheaterMode
+        onExitTheaterMode={onExit}
+      />,
+    );
 
-    const videoBeforeToggle = screen.getByTestId('video-player');
-    const toggle = screen.getByTestId('video-player-mode-toggle');
+    await user.click(screen.getByRole('button', { name: /Exit theater mode/i }));
+    expect(onExit).toHaveBeenCalledTimes(1);
 
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    expect(document.querySelector('.video-player--enlarged')).toBeNull();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onExit).toHaveBeenCalledTimes(2);
+  });
 
-    await user.click(toggle);
+  it('requests fullscreen while theater mode is active and exits when disabled', () => {
+    const sample: VideoFile = {
+      id: 'sample',
+      name: 'Sample',
+      url: 'https://example.com/video/sample.mp4'
+    };
 
-    expect(toggle).toHaveAttribute('aria-pressed', 'true');
-    expect(document.querySelector('.video-player--enlarged')).not.toBeNull();
-    expect(screen.getByTestId('video-player')).toBe(videoBeforeToggle);
+    const { rerender } = render(
+      <VideoPlayer
+        files={[sample]}
+        activeId={sample.id}
+        onSelectFile={() => {}}
+        isTheaterMode
+      />,
+    );
 
-    await user.click(toggle);
+    expect(requestFullscreenMock).toHaveBeenCalled();
+    expect(document.fullscreenElement).toBe(screen.getByTestId('video-player'));
 
-    expect(toggle).toHaveAttribute('aria-pressed', 'false');
-    expect(document.querySelector('.video-player--enlarged')).toBeNull();
+    rerender(
+      <VideoPlayer
+        files={[sample]}
+        activeId={sample.id}
+        onSelectFile={() => {}}
+        isTheaterMode={false}
+      />,
+    );
+
+    expect(exitFullscreenMock).toHaveBeenCalled();
+  });
+
+  it('invokes exit handler if fullscreen is closed externally', () => {
+    const sample: VideoFile = {
+      id: 'sample',
+      name: 'Sample',
+      url: 'https://example.com/video/sample.mp4'
+    };
+    const onExit = vi.fn();
+
+    render(
+      <VideoPlayer
+        files={[sample]}
+        activeId={sample.id}
+        onSelectFile={() => {}}
+        isTheaterMode
+        onExitTheaterMode={onExit}
+      />,
+    );
+
+    const element = screen.getByTestId('video-player');
+    fullscreenElementSlot = element;
+    fullscreenElementSlot = null;
+    document.dispatchEvent(new Event('fullscreenchange'));
+
+    expect(onExit).toHaveBeenCalledTimes(1);
   });
 });
