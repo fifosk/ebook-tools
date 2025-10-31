@@ -40,6 +40,17 @@
   --color-button-primary-gradient: linear-gradient(135deg, #38bdf8, #818cf8);
   --color-button-primary-text: #f8fafc;
   --color-button-link-text: #38bdf8;
+  --color-library-toggle-bg: rgba(30, 41, 59, 0.85);
+  --color-library-toggle-border: rgba(148, 163, 184, 0.45);
+  --color-library-toggle-text: #e2e8f0;
+  --color-library-toggle-hover-bg: rgba(51, 65, 85, 0.9);
+  --color-library-toggle-hover-border: rgba(148, 163, 184, 0.65);
+  --color-library-toggle-hover-text: #f8fafc;
+  --color-library-toggle-active-bg: #38bdf8;
+  --color-library-toggle-active-border: rgba(56, 189, 248, 0.85);
+  --color-library-toggle-active-text: #031b2c;
+  --color-library-toggle-shadow: 0 0 0 1px rgba(30, 41, 59, 0.45);
+  --color-library-toggle-active-shadow: 0 0 0 1px rgba(56, 189, 248, 0.35);
   --color-accent: #38bdf8;
   --color-progress-bg: rgba(15, 23, 42, 0.65);
   --color-progress-border: rgba(148, 163, 184, 0.2);
@@ -202,6 +213,17 @@
   --color-button-primary-gradient: linear-gradient(135deg, #ec4899, #c026d3);
   --color-button-primary-text: #ffffff;
   --color-button-link-text: #c026d3;
+  --color-library-toggle-bg: rgba(249, 238, 255, 0.95);
+  --color-library-toggle-border: rgba(216, 180, 254, 0.65);
+  --color-library-toggle-text: #341137;
+  --color-library-toggle-hover-bg: rgba(233, 176, 248, 0.9);
+  --color-library-toggle-hover-border: rgba(192, 132, 252, 0.75);
+  --color-library-toggle-hover-text: #341137;
+  --color-library-toggle-active-bg: #ec4899;
+  --color-library-toggle-active-border: rgba(236, 72, 153, 0.85);
+  --color-library-toggle-active-text: #ffffff;
+  --color-library-toggle-shadow: 0 0 0 1px rgba(216, 180, 254, 0.35);
+  --color-library-toggle-active-shadow: 0 0 0 1px rgba(236, 72, 153, 0.45);
   --color-accent: #c026d3;
   --color-progress-bg: rgba(243, 232, 255, 0.9);
   --color-progress-border: rgba(216, 180, 254, 0.55);
@@ -276,6 +298,17 @@
   --color-button-primary-gradient: linear-gradient(135deg, #0ea5e9, #6366f1);
   --color-button-primary-text: #f8fafc;
   --color-button-link-text: #2563eb;
+  --color-library-toggle-bg: rgba(226, 232, 240, 0.95);
+  --color-library-toggle-border: rgba(148, 163, 184, 0.45);
+  --color-library-toggle-text: #0f172a;
+  --color-library-toggle-hover-bg: rgba(203, 213, 225, 0.95);
+  --color-library-toggle-hover-border: rgba(148, 163, 184, 0.6);
+  --color-library-toggle-hover-text: #0f172a;
+  --color-library-toggle-active-bg: #2563eb;
+  --color-library-toggle-active-border: rgba(37, 99, 235, 0.85);
+  --color-library-toggle-active-text: #f8fafc;
+  --color-library-toggle-shadow: 0 0 0 1px rgba(148, 163, 184, 0.25);
+  --color-library-toggle-active-shadow: 0 0 0 1px rgba(37, 99, 235, 0.35);
   --color-accent: #2563eb;
   --color-progress-bg: rgba(241, 245, 249, 0.9);
   --color-progress-border: rgba(148, 163, 184, 0.35);
@@ -1656,6 +1689,15 @@ button.link-button:focus {
   color: var(--color-text-secondary);
 }
 
+.player-panel__notice {
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.75rem;
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
+  border: 1px solid var(--color-border-subtle);
+  font-size: 0.9rem;
+}
+
 .player-panel__stage {
   display: flex;
   flex-direction: column;
@@ -2325,6 +2367,17 @@ button[data-variant='metadata-action'] {
   color: var(--color-status-info-text);
 }
 
+.job-status[data-state='pausing'] {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.job-status[data-state='paused'] {
+  background: var(--color-status-neutral-bg);
+  color: var(--color-status-neutral-text);
+}
+
 .job-status[data-state='failed'] {
   background: var(--color-status-danger-bg);
   color: var(--color-status-danger-text);
@@ -2390,6 +2443,29 @@ button[data-variant='metadata-action'] {
   background: var(--color-alert-bg);
   color: var(--color-alert-text);
   margin-bottom: 1rem;
+}
+
+.notice {
+  padding: 0.75rem 1rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-border-subtle);
+  margin: 0 0 1rem;
+  font-size: 0.9rem;
+}
+
+.notice--info {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
+}
+
+.notice--success {
+  background: var(--color-status-success-bg);
+  color: var(--color-status-success-text);
+}
+
+.notice--warning {
+  background: var(--color-status-warning-bg);
+  color: var(--color-status-warning-text);
 }
 
 .user-management {

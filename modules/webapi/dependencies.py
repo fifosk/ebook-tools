@@ -12,6 +12,8 @@ from typing import Any, Dict, Iterator, Mapping, Optional, cast
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from ..audio.api import AudioService
+from ..library.indexer import LibraryIndexer
+from ..library.library_service import LibraryService
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..user_management import AuthService, LocalUserStore, SessionManager
@@ -257,6 +259,23 @@ def get_file_locator() -> FileLocator:
     """Return a cached :class:`FileLocator` instance for route handlers."""
 
     return FileLocator()
+
+
+@lru_cache
+def get_library_indexer() -> LibraryIndexer:
+    """Return the process-wide :class:`LibraryIndexer`."""
+
+    return LibraryIndexer(cfg.get_library_root(create=True))
+
+
+@lru_cache
+def get_library_service() -> LibraryService:
+    """Return the shared :class:`LibraryService` instance."""
+
+    library_root = cfg.get_library_root(create=True)
+    locator = get_file_locator()
+    indexer = get_library_indexer()
+    return LibraryService(library_root=library_root, file_locator=locator, indexer=indexer)
 
 
 @lru_cache

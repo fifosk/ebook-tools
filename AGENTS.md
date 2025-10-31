@@ -9,11 +9,13 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - **Frontend:** `web/` contains the Vite application. Source files live under `web/src/`, while built assets default to `web/dist/`.
 - **Search:** `modules/webapi/routes.py` exposes `/api/pipelines/search`, which now requires a `job_id` query parameter and scans that job's persisted chunks for snippets surfaced in the frontend `MediaSearchPanel`.
 - **Audio Voices:** `modules/webapi/routers/audio.py` serves `/api/audio/voices` for language-specific voice inventories and `/api/audio` for preview synthesis consumed by the `PipelineSubmissionForm` voice picker.
+- **Library:** `modules/library/` contains the persistent library service, SQLite indexer, and supporting filesystem utilities surfaced through `modules/webapi/routers/library.py`; the frontend experience lives in `web/src/pages/LibraryPage.tsx` and related components.
 
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.
 - Start the API for local development with `uvicorn modules.webapi.application:create_app --factory --reload`.
 - Run the test suite via `pytest` from the repository root.
+- Library storage defaults to `/Volumes/Data/Video/Library`; override via `library_root` in `config/config.local.json` or the `LIBRARY_ROOT` environment variable when running services locally.
 
 ## Style Reminders
 - Prefer explicit imports and keep module-level side effects minimal.

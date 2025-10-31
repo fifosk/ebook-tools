@@ -19,6 +19,7 @@ _SMB_WRITE_PROBE_NAME = ".ebook_tools_smb_write_probe"
 CONF_DIR = SCRIPT_DIR / "conf"
 DEFAULT_CONFIG_PATH = CONF_DIR / "config.json"
 DEFAULT_LOCAL_CONFIG_PATH = CONF_DIR / "config.local.json"
+DEFAULT_LIBRARY_ROOT = Path("/Volumes/Data/Video/Library")
 
 DERIVED_RUNTIME_DIRNAME = "runtime"
 DERIVED_REFINED_FILENAME_TEMPLATE = "{base_name}_refined_list.json"
@@ -50,6 +51,7 @@ __all__ = [
     "DEFAULT_TMP_RELATIVE",
     "DEFAULT_BOOKS_RELATIVE",
     "DEFAULT_COVERS_RELATIVE",
+    "DEFAULT_LIBRARY_ROOT",
     "DEFAULT_SMB_SHARE_ROOT",
     "DEFAULT_SMB_OUTPUT_PATH",
     "DEFAULT_SMB_BOOKS_PATH",

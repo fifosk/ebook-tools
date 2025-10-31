@@ -18,7 +18,13 @@ import {
   UserListResponse,
   UserPasswordResetRequestPayload,
   UserUpdateRequestPayload,
-  VoiceInventoryResponse
+  VoiceInventoryResponse,
+  LibraryItem,
+  LibraryMediaRemovalResponse,
+  LibraryMoveResponse,
+  LibraryReindexResponse,
+  LibrarySearchResponse,
+  LibraryViewMode
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -427,4 +433,77 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
   });
 
   return handleResponse<PipelineFileEntry>(response);
+}
+
+export interface LibrarySearchParams {
+  query?: string;
+  author?: string;
+  book?: string;
+  genre?: string;
+  language?: string;
+  status?: 'finished' | 'paused';
+  view?: LibraryViewMode;
+  page?: number;
+  limit?: number;
+  sort?: 'updated_at_desc' | 'updated_at_asc';
+}
+
+export async function moveJobToLibrary(
+  jobId: string,
+  statusOverride?: 'finished' | 'paused'
+): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/move/${encodeURIComponent(jobId)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: statusOverride ? JSON.stringify({ statusOverride }) : undefined
+  });
+  const payload = await handleResponse<LibraryMoveResponse>(response);
+  return payload.item;
+}
+
+export async function searchLibrary(params: LibrarySearchParams): Promise<LibrarySearchResponse> {
+  const search = new URLSearchParams();
+  if (params.query) search.set('q', params.query);
+  if (params.author) search.set('author', params.author);
+  if (params.book) search.set('book', params.book);
+  if (params.genre) search.set('genre', params.genre);
+  if (params.language) search.set('language', params.language);
+  if (params.status) search.set('status', params.status);
+  if (params.view) search.set('view', params.view);
+  if (typeof params.page === 'number') search.set('page', String(params.page));
+  if (typeof params.limit === 'number') search.set('limit', String(params.limit));
+  if (params.sort) search.set('sort', params.sort);
+
+  const queryString = search.toString();
+  const path = queryString ? `/api/library/items?${queryString}` : '/api/library/items';
+  const response = await apiFetch(path);
+  return handleResponse<LibrarySearchResponse>(response);
+}
+
+export async function removeLibraryMedia(jobId: string): Promise<LibraryMediaRemovalResponse> {
+  const response = await apiFetch(`/api/library/remove-media/${encodeURIComponent(jobId)}`, {
+    method: 'POST'
+  });
+  return handleResponse<LibraryMediaRemovalResponse>(response);
+}
+
+export async function removeLibraryEntry(jobId: string): Promise<void> {
+  const response = await apiFetch(`/api/library/remove/${encodeURIComponent(jobId)}`, {
+    method: 'DELETE'
+  });
+  await handleResponse<unknown>(response);
+}
+
+export async function reindexLibrary(): Promise<LibraryReindexResponse> {
+  const response = await apiFetch('/api/library/reindex', {
+    method: 'POST'
+  });
+  return handleResponse<LibraryReindexResponse>(response);
+}
+
+export async function fetchLibraryMedia(jobId: string): Promise<PipelineMediaResponse> {
+  const response = await apiFetch(`/api/library/media/${encodeURIComponent(jobId)}`);
+  return handleResponse<PipelineMediaResponse>(response);
 }

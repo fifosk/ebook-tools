@@ -27,6 +27,7 @@ from .schemas import (
     PipelineJobActionResponse,
     PipelineJobListResponse,
     PipelineMediaFile,
+    PipelineMediaChunk,
     PipelineMediaResponse,
     PipelineFileBrowserResponse,
     PipelineFileEntry,
@@ -154,79 +155,174 @@ def _resolve_media_path(
     return resolved_path, relative_path
 
 
+def _coerce_int(value: Any) -> Optional[int]:
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return None
+    return number
+
+
+def _build_media_file(
+    job_id: str,
+    entry: Mapping[str, Any],
+    locator: FileLocator,
+    job_root: Path,
+    *,
+    source: str,
+) -> tuple[Optional[PipelineMediaFile], Optional[str], tuple[str, str]]:
+    file_type_raw = entry.get("type") or "unknown"
+    file_type = str(file_type_raw).lower() or "unknown"
+
+    resolved_path, relative_path = _resolve_media_path(job_id, entry, locator, job_root)
+
+    url_value = entry.get("url")
+    url: Optional[str] = url_value if isinstance(url_value, str) else None
+    if not url and relative_path:
+        try:
+            url = locator.resolve_url(job_id, relative_path)
+        except ValueError:
+            url = None
+
+    size: Optional[int] = None
+    updated_at: Optional[datetime] = None
+    if resolved_path is not None and resolved_path.exists():
+        try:
+            stat_result = resolved_path.stat()
+        except OSError:
+            pass
+        else:
+            size = int(stat_result.st_size)
+            updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
+
+    name_value = entry.get("name")
+    name = str(name_value) if name_value else None
+    if not name:
+        if resolved_path is not None:
+            name = resolved_path.name
+        elif relative_path:
+            name = Path(relative_path).name
+        else:
+            path_value = entry.get("path")
+            if path_value:
+                name = Path(str(path_value)).name
+    if not name:
+        name = "media" if file_type == "unknown" else file_type
+
+    path_value = entry.get("path") if isinstance(entry.get("path"), str) else None
+
+    chunk_id_value = entry.get("chunk_id")
+    chunk_id = str(chunk_id_value) if chunk_id_value not in {None, ""} else None
+    range_fragment_value = entry.get("range_fragment")
+    range_fragment = str(range_fragment_value) if range_fragment_value not in {None, ""} else None
+    start_sentence = _coerce_int(entry.get("start_sentence"))
+    end_sentence = _coerce_int(entry.get("end_sentence"))
+
+    record = PipelineMediaFile(
+        name=name,
+        url=url,
+        size=size,
+        updated_at=updated_at,
+        source=source,
+        relative_path=relative_path,
+        path=path_value,
+        chunk_id=chunk_id,
+        range_fragment=range_fragment,
+        start_sentence=start_sentence,
+        end_sentence=end_sentence,
+    )
+    signature_key = path_value or relative_path or url or name
+    signature = (signature_key or name, file_type)
+    return record, file_type, signature
+
+
 def _serialize_media_entries(
     job_id: str,
     generated_files: Optional[Mapping[str, Any]],
     locator: FileLocator,
     *,
     source: str,
-) -> Dict[str, List[PipelineMediaFile]]:
-    """Return a mapping of media types to serialized file metadata."""
+) -> tuple[Dict[str, List[PipelineMediaFile]], List[PipelineMediaChunk], bool]:
+    """Return serialized media metadata grouped by type and chunk."""
 
     media_map: Dict[str, List[PipelineMediaFile]] = {}
-    if not isinstance(generated_files, Mapping):
-        return media_map
+    chunk_records: List[PipelineMediaChunk] = []
+    complete = False
 
-    files_section = generated_files.get("files")
-    if not isinstance(files_section, list):
-        return media_map
+    if not isinstance(generated_files, Mapping):
+        return media_map, chunk_records, complete
 
     job_root = locator.resolve_path(job_id)
+    seen: set[tuple[str, str]] = set()
 
-    for entry in files_section:
-        if not isinstance(entry, Mapping):
-            continue
-        file_type_raw = entry.get("type") or "unknown"
-        file_type = str(file_type_raw).lower() or "unknown"
+    chunks_section = generated_files.get("chunks")
+    if isinstance(chunks_section, list):
+        for chunk in chunks_section:
+            if not isinstance(chunk, Mapping):
+                continue
+            chunk_files: List[PipelineMediaFile] = []
+            files_raw = chunk.get("files")
+            if not isinstance(files_raw, list):
+                files_raw = []
+            for file_entry in files_raw:
+                if not isinstance(file_entry, Mapping):
+                    continue
+                enriched_entry = dict(file_entry)
+                enriched_entry.setdefault("chunk_id", chunk.get("chunk_id"))
+                enriched_entry.setdefault("range_fragment", chunk.get("range_fragment"))
+                enriched_entry.setdefault("start_sentence", chunk.get("start_sentence"))
+                enriched_entry.setdefault("end_sentence", chunk.get("end_sentence"))
+                record, file_type, signature = _build_media_file(
+                    job_id,
+                    enriched_entry,
+                    locator,
+                    job_root,
+                    source=source,
+                )
+                if record is None or file_type is None:
+                    continue
+                if signature in seen:
+                    chunk_files.append(record)
+                    continue
+                seen.add(signature)
+                media_map.setdefault(file_type, []).append(record)
+                chunk_files.append(record)
+            if chunk_files:
+                chunk_records.append(
+                    PipelineMediaChunk(
+                        chunk_id=str(chunk.get("chunk_id")) if chunk.get("chunk_id") else None,
+                        range_fragment=str(chunk.get("range_fragment"))
+                        if chunk.get("range_fragment")
+                        else None,
+                        start_sentence=_coerce_int(chunk.get("start_sentence")),
+                        end_sentence=_coerce_int(chunk.get("end_sentence")),
+                        files=chunk_files,
+                    )
+                )
 
-        resolved_path, relative_path = _resolve_media_path(job_id, entry, locator, job_root)
+    files_section = generated_files.get("files")
+    if isinstance(files_section, list):
+        for entry in files_section:
+            if not isinstance(entry, Mapping):
+                continue
+            record, file_type, signature = _build_media_file(
+                job_id,
+                entry,
+                locator,
+                job_root,
+                source=source,
+            )
+            if record is None or file_type is None:
+                continue
+            if signature in seen:
+                continue
+            seen.add(signature)
+            media_map.setdefault(file_type, []).append(record)
 
-        url: Optional[str] = entry.get("url") if isinstance(entry.get("url"), str) else None
-        if not url and relative_path:
-            try:
-                url = locator.resolve_url(job_id, relative_path)
-            except ValueError:
-                url = None
+    complete_flag = generated_files.get("complete")
+    complete = bool(complete_flag) if isinstance(complete_flag, bool) else False
 
-        size: Optional[int] = None
-        updated_at: Optional[datetime] = None
-        if resolved_path is not None and resolved_path.exists():
-            try:
-                stat_result = resolved_path.stat()
-            except OSError:
-                pass
-            else:
-                size = int(stat_result.st_size)
-                updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
-
-        name_value = entry.get("name")
-        name = str(name_value) if name_value else None
-        if not name:
-            if resolved_path is not None:
-                name = resolved_path.name
-            elif relative_path:
-                name = Path(relative_path).name
-            else:
-                path_value = entry.get("path")
-                if path_value:
-                    name = Path(str(path_value)).name
-        if not name:
-            name = "media" if file_type == "unknown" else file_type
-
-        path_value = entry.get("path") if isinstance(entry.get("path"), str) else None
-
-        record = PipelineMediaFile(
-            name=name,
-            url=url,
-            size=size,
-            updated_at=updated_at,
-            source=source,
-            relative_path=relative_path,
-            path=path_value,
-        )
-        media_map.setdefault(file_type, []).append(record)
-
-    return media_map
+    return media_map, chunk_records, complete
 
 
 def _find_job_cover_path(metadata_root: Path) -> Optional[Path]:
@@ -557,13 +653,13 @@ async def get_job_media(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
-    media_entries = _serialize_media_entries(
+    media_entries, chunk_entries, complete = _serialize_media_entries(
         job.job_id,
         job.generated_files,
         file_locator,
         source="completed",
     )
-    return PipelineMediaResponse(media=media_entries)
+    return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)
 
 
 @router.get("/jobs/{job_id}/media/live", response_model=PipelineMediaResponse)
@@ -593,13 +689,13 @@ async def get_job_media_live(
     elif job.generated_files is not None:
         generated_payload = job.generated_files
 
-    media_entries = _serialize_media_entries(
+    media_entries, chunk_entries, complete = _serialize_media_entries(
         job.job_id,
         generated_payload,
         file_locator,
         source="live",
     )
-    return PipelineMediaResponse(media=media_entries)
+    return PipelineMediaResponse(media=media_entries, chunks=chunk_entries, complete=complete)
 
 
 def _handle_job_action(

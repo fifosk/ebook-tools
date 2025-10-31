@@ -16,24 +16,175 @@ export interface LiveMediaState {
   video: LiveMediaItem[];
 }
 
+export interface LiveMediaChunk {
+  chunkId: string | null;
+  rangeFragment: string | null;
+  startSentence: number | null;
+  endSentence: number | null;
+  files: LiveMediaItem[];
+}
+
 export interface UseLiveMediaOptions {
   enabled?: boolean;
 }
 
 export interface UseLiveMediaResult {
   media: LiveMediaState;
+  chunks: LiveMediaChunk[];
+  isComplete: boolean;
   isLoading: boolean;
   error: Error | null;
 }
 
 const TEXT_TYPES = new Set(['text', 'html', 'pdf', 'epub', 'written', 'doc', 'docx', 'rtf']);
 
-function createEmptyState(): LiveMediaState {
+export function createEmptyState(): LiveMediaState {
   return {
     text: [],
     audio: [],
     video: []
   };
+}
+
+type MediaIndex = Map<string, LiveMediaItem>;
+
+function buildMediaSignature(
+  category: MediaCategory,
+  path?: string | null,
+  relativePath?: string | null,
+  url?: string | null,
+  name?: string | null
+): string {
+  const base = path ?? relativePath ?? url ?? name ?? '';
+  return `${category}|${base}`.toLowerCase();
+}
+
+function buildEntrySignature(entry: Record<string, unknown>, category: MediaCategory): string {
+  const path = toStringOrNull(entry.path);
+  const relativePath = toStringOrNull(entry.relative_path);
+  const url = toStringOrNull(entry.url);
+  const name = toStringOrNull(entry.name);
+  return buildMediaSignature(category, path, relativePath, url, name);
+}
+
+function buildItemSignature(item: LiveMediaItem): string {
+  return buildMediaSignature(item.type, item.path ?? null, item.relative_path ?? null, item.url ?? null, item.name ?? null);
+}
+
+function registerMediaItem(state: LiveMediaState, index: MediaIndex, item: LiveMediaItem): LiveMediaItem {
+  const key = buildItemSignature(item);
+  const existing = index.get(key);
+  if (existing) {
+    Object.assign(existing, { ...existing, ...item });
+    return existing;
+  }
+  index.set(key, item);
+  state[item.type].push(item);
+  return item;
+}
+
+function groupFilesByType(filesSection: unknown): Record<string, unknown[]> {
+  const grouped: Record<string, unknown[]> = {};
+  if (!Array.isArray(filesSection)) {
+    return grouped;
+  }
+
+  filesSection.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const category = normaliseCategory((entry as Record<string, unknown>).type);
+    if (!category) {
+      return;
+    }
+    if (!grouped[category]) {
+      grouped[category] = [];
+    }
+    grouped[category]!.push(entry);
+  });
+
+  return grouped;
+}
+
+function buildStateFromSections(
+  mediaSection: Record<string, unknown[] | undefined>,
+  chunkSection: unknown,
+  jobId: string | null | undefined,
+): { media: LiveMediaState; chunks: LiveMediaChunk[]; index: MediaIndex } {
+  const state = createEmptyState();
+  const index: MediaIndex = new Map();
+
+  Object.entries(mediaSection).forEach(([rawType, files]) => {
+    const category = normaliseCategory(rawType);
+    if (!category || !Array.isArray(files)) {
+      return;
+    }
+    files.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const item = buildLiveMediaItem(entry as Record<string, unknown>, category, jobId);
+      if (item) {
+        registerMediaItem(state, index, item);
+      }
+    });
+  });
+
+  const chunkRecords: LiveMediaChunk[] = [];
+  if (Array.isArray(chunkSection)) {
+    chunkSection.forEach((chunk) => {
+      if (!chunk || typeof chunk !== 'object') {
+        return;
+      }
+      const payload = chunk as Record<string, unknown>;
+      const filesRaw = payload.files;
+      if (!Array.isArray(filesRaw)) {
+        return;
+      }
+      const chunkFiles: LiveMediaItem[] = [];
+      filesRaw.forEach((fileEntry) => {
+        if (!fileEntry || typeof fileEntry !== 'object') {
+          return;
+        }
+        const record = fileEntry as Record<string, unknown>;
+        const category = normaliseCategory(record.type);
+        if (!category) {
+          return;
+        }
+        const key = buildEntrySignature(record, category);
+        let item = index.get(key);
+        if (!item) {
+          const built = buildLiveMediaItem(record, category, jobId);
+          if (!built) {
+            return;
+          }
+          item = registerMediaItem(state, index, built);
+        }
+        chunkFiles.push(item);
+      });
+      if (chunkFiles.length === 0) {
+        return;
+      }
+      chunkRecords.push({
+        chunkId: toStringOrNull(payload.chunk_id),
+        rangeFragment: toStringOrNull(payload.range_fragment),
+        startSentence: toNumberOrNull(payload.start_sentence),
+        endSentence: toNumberOrNull(payload.end_sentence),
+        files: chunkFiles,
+      });
+    });
+  }
+
+  chunkRecords.sort((a, b) => {
+    const left = a.startSentence ?? Number.MAX_SAFE_INTEGER;
+    const right = b.startSentence ?? Number.MAX_SAFE_INTEGER;
+    if (left === right) {
+      return (a.rangeFragment ?? '').localeCompare(b.rangeFragment ?? '');
+    }
+    return left - right;
+  });
+
+  return { media: state, chunks: chunkRecords, index };
 }
 
 function toStringOrNull(value: unknown): string | null {
@@ -136,11 +287,11 @@ function resolveFileUrl(
 
 function deriveName(entry: Record<string, unknown>, resolvedUrl: string | null): string {
   const explicit = toStringOrNull(entry.name);
+  const rangeFragment = toStringOrNull(entry.range_fragment ?? entry.rangeFragment);
   if (explicit) {
-    return explicit;
+    return rangeFragment ? `${rangeFragment} • ${explicit}` : explicit;
   }
 
-  const rangeFragment = toStringOrNull(entry.range_fragment);
   const relative = toStringOrNull(entry.relative_path);
   const pathValue = toStringOrNull(entry.path);
 
@@ -186,6 +337,10 @@ function buildLiveMediaItem(
   const updatedAt = toStringOrNull(entry.updated_at) ?? undefined;
   const sourceRaw = toStringOrNull(entry.source);
   const source: 'completed' | 'live' = sourceRaw === 'completed' ? 'completed' : 'live';
+  const chunkId = toStringOrNull(entry.chunk_id ?? entry.chunkId) ?? undefined;
+  const rangeFragment = toStringOrNull(entry.range_fragment ?? entry.rangeFragment) ?? undefined;
+  const startSentence = toNumberOrNull(entry.start_sentence ?? entry.startSentence) ?? undefined;
+  const endSentence = toNumberOrNull(entry.end_sentence ?? entry.endSentence) ?? undefined;
 
   return {
     name,
@@ -193,75 +348,62 @@ function buildLiveMediaItem(
     size,
     updated_at: updatedAt,
     source,
-    type: category
+    type: category,
+    chunk_id: chunkId ?? null,
+    range_fragment: rangeFragment ?? null,
+    start_sentence: startSentence ?? null,
+    end_sentence: endSentence ?? null
   };
 }
 
-function normaliseFetchedMedia(
+export function normaliseFetchedMedia(
   response: PipelineMediaResponse | null | undefined,
   jobId: string | null | undefined,
-): LiveMediaState {
+): {
+  media: LiveMediaState;
+  chunks: LiveMediaChunk[];
+  complete: boolean;
+  index: MediaIndex;
+} {
   if (!response || typeof response !== 'object') {
-    return createEmptyState();
+    return { media: createEmptyState(), chunks: [], complete: false, index: new Map() };
   }
 
-  const media = response.media ?? {};
-  const result = createEmptyState();
-
-  Object.entries(media).forEach(([rawType, files]) => {
-    const category = normaliseCategory(rawType);
-    if (!category || !Array.isArray(files)) {
-      return;
-    }
-
-    files.forEach((file) => {
-      if (!file) {
-        return;
-      }
-
-      const record = file as Record<string, unknown>;
-      const item = buildLiveMediaItem(record, category, jobId);
-      if (item) {
-        result[category].push(item);
-      }
-    });
-  });
-
-  return result;
+  const { media, chunks, index } = buildStateFromSections(
+    response.media ?? {},
+    response.chunks ?? [],
+    jobId,
+  );
+  return {
+    media,
+    chunks,
+    complete: Boolean(response.complete),
+    index,
+  };
 }
 
 function normaliseGeneratedSnapshot(
   snapshot: unknown,
   jobId: string | null | undefined,
-): LiveMediaState {
+): {
+  media: LiveMediaState;
+  chunks: LiveMediaChunk[];
+  complete: boolean;
+  index: MediaIndex;
+} {
   if (!snapshot || typeof snapshot !== 'object') {
-    return createEmptyState();
+    return { media: createEmptyState(), chunks: [], complete: false, index: new Map() };
   }
 
-  const files = (snapshot as Record<string, unknown>).files;
-  if (!Array.isArray(files)) {
-    return createEmptyState();
-  }
-
-  const result = createEmptyState();
-
-  files.forEach((entry) => {
-    if (!entry || typeof entry !== 'object') {
-      return;
-    }
-
-    const category = normaliseCategory((entry as Record<string, unknown>).type);
-    if (!category) {
-      return;
-    }
-
-    const item = buildLiveMediaItem(entry as Record<string, unknown>, category, jobId);
-    if (item) {
-      result[category].push(item);
-    }
-  });
-
-  return result;
+  const payload = snapshot as Record<string, unknown>;
+  const filesSection = groupFilesByType(payload.files);
+  const { media, chunks, index } = buildStateFromSections(filesSection, payload.chunks, jobId);
+  return {
+    media,
+    chunks,
+    complete: Boolean(payload.complete),
+    index,
+  };
 }
 
 function mergeMediaBuckets(base: LiveMediaState, incoming: LiveMediaState): LiveMediaState {
@@ -304,18 +446,68 @@ function extractGeneratedFiles(metadata: ProgressEventPayload['metadata']): unkn
   return (metadata as Record<string, unknown>).generated_files;
 }
 
+function chunkKey(chunk: LiveMediaChunk): string {
+  return (
+    chunk.chunkId ??
+    chunk.rangeFragment ??
+    `${chunk.startSentence ?? 'na'}-${chunk.endSentence ?? 'na'}`
+  );
+}
+
+function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[]): LiveMediaChunk[] {
+  if (incoming.length === 0) {
+    return base.slice();
+  }
+
+  const baseKeys = new Map<string, LiveMediaChunk>();
+  base.forEach((chunk) => {
+    baseKeys.set(chunkKey(chunk), chunk);
+  });
+
+  const incomingMap = new Map<string, LiveMediaChunk>();
+  incoming.forEach((chunk) => {
+    incomingMap.set(chunkKey(chunk), chunk);
+  });
+
+  const result: LiveMediaChunk[] = base.map((chunk) => {
+    const key = chunkKey(chunk);
+    return incomingMap.get(key) ?? chunk;
+  });
+
+  incomingMap.forEach((chunk, key) => {
+    if (!baseKeys.has(key)) {
+      result.push(chunk);
+    }
+  });
+
+  result.sort((a, b) => {
+    const left = a.startSentence ?? Number.MAX_SAFE_INTEGER;
+    const right = b.startSentence ?? Number.MAX_SAFE_INTEGER;
+    if (left === right) {
+      return (a.rangeFragment ?? '').localeCompare(b.rangeFragment ?? '');
+    }
+    return left - right;
+  });
+
+  return result;
+}
+
 export function useLiveMedia(
   jobId: string | null | undefined,
   options: UseLiveMediaOptions = {},
 ): UseLiveMediaResult {
   const { enabled = true } = options;
   const [media, setMedia] = useState<LiveMediaState>(() => createEmptyState());
+  const [chunks, setChunks] = useState<LiveMediaChunk[]>([]);
+  const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!enabled || !jobId) {
       setMedia(createEmptyState());
+      setChunks([]);
+      setIsComplete(false);
       setIsLoading(false);
       setError(null);
       return;
@@ -330,7 +522,10 @@ export function useLiveMedia(
         if (cancelled) {
           return;
         }
-        setMedia(normaliseFetchedMedia(response, jobId));
+        const { media: initialMedia, chunks: initialChunks, complete } = normaliseFetchedMedia(response, jobId);
+        setMedia(initialMedia);
+        setChunks(initialChunks);
+        setIsComplete(complete);
       })
       .catch((fetchError: unknown) => {
         if (cancelled) {
@@ -340,6 +535,8 @@ export function useLiveMedia(
           fetchError instanceof Error ? fetchError : new Error(String(fetchError));
         setError(errorInstance);
         setMedia(createEmptyState());
+        setChunks([]);
+        setIsComplete(false);
       })
       .finally(() => {
         if (!cancelled) {
@@ -368,8 +565,14 @@ export function useLiveMedia(
           return;
         }
 
-        const nextMedia = normaliseGeneratedSnapshot(snapshot, jobId);
+        const { media: nextMedia, chunks: incomingChunks, complete } = normaliseGeneratedSnapshot(snapshot, jobId);
         setMedia((current) => mergeMediaBuckets(current, nextMedia));
+        if (incomingChunks.length > 0) {
+          setChunks((current) => mergeChunkCollections(current, incomingChunks));
+        }
+        if (complete) {
+          setIsComplete(true);
+        }
       }
     });
   }, [enabled, jobId]);
@@ -377,9 +580,11 @@ export function useLiveMedia(
   return useMemo(
     () => ({
       media,
+      chunks,
+      isComplete,
       isLoading,
       error
     }),
-    [media, isLoading, error]
+    [media, chunks, isComplete, isLoading, error]
   );
 }

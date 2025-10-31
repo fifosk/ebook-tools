@@ -26,6 +26,7 @@ from .constants import (
     DEFAULT_OLLAMA_URL,
     VALID_LLM_SOURCES,
     DEFAULT_JOB_MAX_WORKERS,
+    DEFAULT_LIBRARY_ROOT,
 )
 
 logger = logging_manager.get_logger()
@@ -102,6 +103,7 @@ class EbookToolsSettings(BaseModel):
     job_max_workers: int = DEFAULT_JOB_MAX_WORKERS
     job_storage_dir: str = str(Path("storage"))
     storage_base_url: str = ""
+    library_root: str = str(DEFAULT_LIBRARY_ROOT)
 
 
 class EnvironmentOverrides(BaseSettings):
@@ -176,6 +178,10 @@ class EnvironmentOverrides(BaseSettings):
     )
     storage_base_url: Optional[str] = Field(
         default=None, validation_alias=AliasChoices("EBOOK_STORAGE_BASE_URL")
+    )
+    library_root: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices("LIBRARY_ROOT", "EBOOK_LIBRARY_ROOT"),
     )
     tts_backend: Optional[str] = Field(
         default=None,

@@ -86,6 +86,9 @@ def test_get_job_media_returns_completed_entries(api_app) -> None:
 
     assert response.status_code == 200
     assert "audio" in payload["media"]
+    assert "chunks" in payload
+    assert isinstance(payload["chunks"], list)
+    assert "complete" in payload
     entry = payload["media"]["audio"][0]
     assert entry["name"] == "sample.mp3"
     assert entry["size"] == file_path.stat().st_size
@@ -139,6 +142,9 @@ def test_get_job_media_live_prefers_tracker_snapshot(api_app) -> None:
 
     assert response.status_code == 200
     assert "html" in payload["media"]
+    assert "chunks" in payload
+    assert isinstance(payload["chunks"], list)
+    assert "complete" in payload
     entry = payload["media"]["html"][0]
     assert entry["name"] == "live.html"
     assert entry["source"] == "live"

@@ -60,6 +60,10 @@ class PipelineJobPersistence:
 
         normalized_files = self._normalize_generated_files(job.job_id, job.generated_files)
         job.generated_files = copy.deepcopy(normalized_files) if normalized_files is not None else None
+        if isinstance(normalized_files, Mapping):
+            complete_flag = normalized_files.get("complete")
+            if isinstance(complete_flag, bool):
+                job.media_completed = complete_flag
 
         snapshot = PipelineJobMetadata(
             job_id=job.job_id,
@@ -80,6 +84,7 @@ class PipelineJobPersistence:
             generated_files=copy.deepcopy(normalized_files)
             if normalized_files is not None
             else None,
+            media_completed=job.media_completed,
         )
         self._persist_metadata_files(job, snapshot)
         return snapshot
@@ -124,6 +129,11 @@ class PipelineJobPersistence:
             if normalized_files is not None
             else None,
         )
+        job.media_completed = bool(metadata.media_completed)
+        if isinstance(normalized_files, Mapping):
+            complete_flag = normalized_files.get("complete")
+            if isinstance(complete_flag, bool):
+                job.media_completed = complete_flag
 
         if metadata.last_event is not None:
             job.last_event = deserialize_progress_event(metadata.last_event)
@@ -195,6 +205,8 @@ class PipelineJobPersistence:
             generated = metadata.get("generated_files")
             if generated is not None:
                 job.generated_files = copy.deepcopy(generated)
+                if isinstance(generated, Mapping) and "complete" in generated:
+                    job.media_completed = bool(generated.get("complete"))
 
         return self.snapshot(job)
 
@@ -404,6 +416,8 @@ class PipelineJobPersistence:
         for chunk in normalized_chunks:
             chunk_id = chunk.get("chunk_id")
             range_fragment = chunk.get("range_fragment")
+            start_sentence = chunk.get("start_sentence")
+            end_sentence = chunk.get("end_sentence")
             for entry in chunk.get("files", []):
                 path_value = entry.get("path")
                 file_type = entry.get("type")
@@ -417,11 +431,19 @@ class PipelineJobPersistence:
                 record["chunk_id"] = chunk_id
                 if range_fragment is not None and "range_fragment" not in record:
                     record["range_fragment"] = range_fragment
+                if start_sentence is not None and "start_sentence" not in record:
+                    record["start_sentence"] = start_sentence
+                if end_sentence is not None and "end_sentence" not in record:
+                    record["end_sentence"] = end_sentence
                 files_index.append(record)
 
         if not normalized_chunks and not files_index:
             return None
-        return {"chunks": normalized_chunks, "files": files_index}
+        complete_flag = raw.get("complete")
+        payload: Dict[str, Any] = {"chunks": normalized_chunks, "files": files_index}
+        if isinstance(complete_flag, bool):
+            payload["complete"] = complete_flag
+        return payload
 
 
 __all__ = ["PipelineJobPersistence"]
