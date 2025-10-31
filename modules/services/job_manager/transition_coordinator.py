@@ -65,6 +65,7 @@ class PipelineJobTransitionCoordinator:
             if job.status in (
                 PipelineJobStatus.PENDING,
                 PipelineJobStatus.RUNNING,
+                PipelineJobStatus.PAUSING,
                 PipelineJobStatus.PAUSED,
             ):
                 self._jobs[job_id] = job
@@ -96,6 +97,8 @@ class PipelineJobTransitionCoordinator:
             job.stop_event = event
             if job.request is not None:
                 job.request.stop_event = event
+            if job.tracker is not None:
+                job.media_completed = job.tracker.is_complete()
 
         return self._mutate_job(
             job_id,
@@ -137,6 +140,7 @@ class PipelineJobTransitionCoordinator:
             job.owns_translation_pool = False
             if job.request is not None:
                 job.request.translation_pool = None
+            job.media_completed = False
 
         return self._mutate_job(
             job_id,
@@ -215,6 +219,7 @@ class PipelineJobTransitionCoordinator:
             PipelineJobStatus.COMPLETED,
             PipelineJobStatus.FAILED,
             PipelineJobStatus.CANCELLED,
+            PipelineJobStatus.PAUSED,
         ):
             raise ValueError(
                 f"Cannot delete job {job.job_id} from state {job.status.value}"

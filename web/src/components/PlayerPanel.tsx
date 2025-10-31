@@ -2,13 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIEvent } from 'react';
 import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
-import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
+import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { MediaSearchResult } from '../api/dtos';
-import { buildStorageUrl, resolveJobCoverUrl } from '../api/client';
+import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 
 type MediaCategory = keyof LiveMediaState;
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
@@ -24,10 +24,13 @@ interface MediaSelectionRequest {
 interface PlayerPanelProps {
   jobId: string;
   media: LiveMediaState;
+  chunks: LiveMediaChunk[];
+  mediaComplete: boolean;
   isLoading: boolean;
   error: Error | null;
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  origin?: 'job' | 'library';
 }
 
 interface TabDefinition {
@@ -150,13 +153,29 @@ function extractMetadataText(
   return null;
 }
 
+function formatSentenceRange(start: number | null | undefined, end: number | null | undefined): string {
+  if (typeof start === 'number' && typeof end === 'number') {
+    return start === end ? `${start}` : `${start}–${end}`;
+  }
+  if (typeof start === 'number') {
+    return `${start}`;
+  }
+  if (typeof end === 'number') {
+    return `${end}`;
+  }
+  return '—';
+}
+
 export default function PlayerPanel({
   jobId,
   media,
+  chunks,
+  mediaComplete,
   isLoading,
   error,
   bookMetadata = null,
   onVideoPlaybackStateChange,
+  origin = 'job',
 }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
@@ -221,63 +240,108 @@ export default function PlayerPanel({
   }, [bookMetadata]);
 
   const apiCoverUrl = useMemo(() => {
-    if (!hasJobId) {
+    if (!hasJobId || origin === 'library') {
       return null;
     }
     return resolveJobCoverUrl(normalisedJobId);
-  }, [hasJobId, normalisedJobId]);
+  }, [hasJobId, normalisedJobId, origin]);
 
   const coverCandidates = useMemo(() => {
     const candidates: string[] = [];
     const unique = new Set<string>();
 
+    const convertCandidate = (value: string | null | undefined): string | null => {
+      if (typeof value !== 'string') {
+        return null;
+      }
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+
+      if (origin === 'library' && trimmed.includes('/pipelines/')) {
+        return null;
+      }
+
+      if (/^https?:\/\//i.test(trimmed)) {
+        if (origin === 'library' && trimmed.includes('/pipelines/')) {
+          return null;
+        }
+        return appendAccessToken(trimmed);
+      }
+
+      if (/^\/?assets\//i.test(trimmed)) {
+        return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+      }
+
+       if (origin === 'library' && trimmed.startsWith('/') && !trimmed.startsWith('/api/library/')) {
+         return null;
+       }
+
+      if (origin === 'library') {
+        if (trimmed.includes('/pipelines/')) {
+          return null;
+        }
+        if (trimmed.startsWith('/api/library/')) {
+          return appendAccessToken(trimmed);
+        }
+        if (trimmed.startsWith('/')) {
+          return null;
+        }
+        const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);
+        return resolved ? appendAccessToken(resolved) : null;
+      }
+
+      if (trimmed.startsWith('/api/library/')) {
+        return appendAccessToken(trimmed);
+      }
+      if (trimmed.startsWith('/pipelines/')) {
+        return appendAccessToken(trimmed);
+      }
+
+      const stripped = trimmed.replace(/^\/+/, '');
+      if (!stripped) {
+        return null;
+      }
+      try {
+        return buildStorageUrl(stripped);
+      } catch (error) {
+        console.warn('Unable to build storage URL for cover image', error);
+        return `/${stripped}`;
+      }
+    };
+
     const push = (candidate: string | null | undefined) => {
-      const trimmed = candidate?.trim();
-      if (!trimmed || unique.has(trimmed)) {
+      const resolved = convertCandidate(candidate);
+      if (!resolved || unique.has(resolved)) {
         return;
       }
-      unique.add(trimmed);
-      candidates.push(trimmed);
+      unique.add(resolved);
+      candidates.push(resolved);
     };
 
     if (apiCoverUrl) {
       push(apiCoverUrl);
     }
 
-    const pushStorageVariants = (raw: string | null) => {
-      if (!raw) {
-        return;
-      }
-      const trimmed = raw.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (/^https?:\/\//i.test(trimmed)) {
-        push(trimmed);
-        return;
-      }
-      const stripped = trimmed.replace(/^\/+/, '');
-      if (!stripped) {
-        return;
-      }
-      try {
-        push(buildStorageUrl(stripped));
-      } catch (error) {
-        console.warn('Unable to build storage URL for cover image', error);
-      }
-      push(`/storage/${stripped}`);
-      push(`/${stripped}`);
-    };
+    const metadataCoverUrl = (() => {
+      const value = bookMetadata?.['job_cover_asset_url'];
+      return typeof value === 'string' ? value : null;
+    })();
 
-    pushStorageVariants(jobCoverAsset);
+    if (metadataCoverUrl && !(origin === 'library' && /\/pipelines\//.test(metadataCoverUrl))) {
+      push(metadataCoverUrl);
+    }
+
+    push(jobCoverAsset);
     if (legacyCoverFile && legacyCoverFile !== jobCoverAsset) {
-      pushStorageVariants(legacyCoverFile);
+      push(legacyCoverFile);
     }
 
     push(DEFAULT_COVER_URL);
 
     return candidates;
-  }, [apiCoverUrl, jobCoverAsset, legacyCoverFile]);
+  }, [apiCoverUrl, bookMetadata, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
 
   useEffect(() => {
     if (coverSourceIndex !== 0) {
@@ -632,6 +696,25 @@ export default function PlayerPanel({
 
     return filteredMedia.find((item) => item.url === selectedItemId) ?? filteredMedia[0];
   }, [filteredMedia, selectedItemId]);
+  const selectedChunk = useMemo(() => {
+    if (!selectedItem) {
+      return null;
+    }
+    return (
+      chunks.find((chunk) => {
+        if (selectedItem.chunk_id && chunk.chunkId) {
+          return chunk.chunkId === selectedItem.chunk_id;
+        }
+        if (selectedItem.range_fragment && chunk.rangeFragment) {
+          return chunk.rangeFragment === selectedItem.range_fragment;
+        }
+        if (selectedItem.url) {
+          return chunk.files.some((file) => file.url === selectedItem.url);
+        }
+        return false;
+      }) ?? null
+    );
+  }, [chunks, selectedItem]);
   const isImmersiveMode = isVideoTabActive && isTheaterMode;
   const panelClassName = isImmersiveMode ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
@@ -878,7 +961,7 @@ export default function PlayerPanel({
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
-  const sectionLabel = bookTitle ? `Generated media for ${bookTitle}` : 'Generated media';
+  const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
   const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
   const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
 
@@ -899,7 +982,7 @@ export default function PlayerPanel({
   }
 
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
-  const headingLabel = bookTitle ?? 'Generated media';
+  const headingLabel = bookTitle ?? 'Player';
   const jobLabelParts: string[] = [];
   if (bookAuthor) {
     jobLabelParts.push(`By ${bookAuthor}`);
@@ -1024,6 +1107,11 @@ export default function PlayerPanel({
               ) : (
                 isActive ? (
                   <div className="player-panel__stage">
+                    {!mediaComplete ? (
+                      <div className="player-panel__notice" role="status">
+                        Media generation is still finishing. Newly generated files will appear automatically.
+                      </div>
+                    ) : null}
                     <div className="player-panel__selection-header" data-testid="player-panel-selection">
                       <div
                         className="player-panel__selection-name"
@@ -1039,6 +1127,14 @@ export default function PlayerPanel({
                         <div className="player-panel__selection-meta-item">
                           <dt>File size</dt>
                           <dd>{selectedSize ?? '—'}</dd>
+                        </div>
+                        <div className="player-panel__selection-meta-item">
+                          <dt>Chunk</dt>
+                          <dd>{selectedChunk?.rangeFragment ?? '—'}</dd>
+                        </div>
+                        <div className="player-panel__selection-meta-item">
+                          <dt>Sentences</dt>
+                          <dd>{formatSentenceRange(selectedChunk?.startSentence ?? null, selectedChunk?.endSentence ?? null)}</dd>
                         </div>
                       </dl>
                     </div>

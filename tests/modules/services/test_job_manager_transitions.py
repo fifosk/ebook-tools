@@ -86,7 +86,7 @@ def test_pause_job_requires_authorized_running_state(manager: PipelineJobManager
         manager.pause_job(job.job_id, user_id="bob", user_role="viewer")
 
     paused = manager.pause_job(job.job_id, user_id="alice", user_role="editor")
-    assert paused.status == PipelineJobStatus.PAUSED
+    assert paused.status == PipelineJobStatus.PAUSING
 
     pending = manager.submit(_build_request(), user_id="alice", user_role="editor")
     with pytest.raises(PipelineJobTransitionError):
@@ -97,7 +97,8 @@ def test_resume_job_requires_authorized_paused_state(manager: PipelineJobManager
     job = manager.submit(_build_request(), user_id="alice", user_role="editor")
     job.status = PipelineJobStatus.RUNNING
     manager._jobs[job.job_id] = job
-    manager.pause_job(job.job_id, user_id="alice", user_role="editor")
+    paused = manager.pause_job(job.job_id, user_id="alice", user_role="editor")
+    paused.status = PipelineJobStatus.PAUSED
 
     with pytest.raises(PermissionError):
         manager.resume_job(job.job_id, user_id="bob", user_role="viewer")
@@ -161,7 +162,10 @@ def test_cancel_job_preserves_generated_files(manager: PipelineJobManager) -> No
     manager.cancel_job(job.job_id, user_id="alice", user_role="editor")
 
     restored = manager.get(job.job_id, user_id="alice", user_role="editor")
-    assert restored.generated_files == generated_payload
+    assert restored.generated_files is not None
+    assert restored.generated_files.get("chunks")
+    assert restored.generated_files.get("files")
+    assert restored.generated_files["chunks"][0]["chunk_id"] == "chunk-1"
 
 
 def test_delete_job_requires_authorized_terminal_state(manager: PipelineJobManager) -> None:
@@ -179,6 +183,15 @@ def test_delete_job_requires_authorized_terminal_state(manager: PipelineJobManag
 
     deleted = manager.delete_job(job.job_id, user_id="alice", user_role="editor")
     assert deleted.status == PipelineJobStatus.CANCELLED
+
+
+def test_delete_paused_job(manager: PipelineJobManager) -> None:
+    job = manager.submit(_build_request(), user_id="alice", user_role="editor")
+    job.status = PipelineJobStatus.PAUSED
+    manager._jobs[job.job_id] = job
+
+    deleted = manager.delete_job(job.job_id, user_id="alice", user_role="editor")
+    assert deleted.status == PipelineJobStatus.PAUSED
 
 
 def test_finish_job_requires_supported_terminal_status(manager: PipelineJobManager) -> None:

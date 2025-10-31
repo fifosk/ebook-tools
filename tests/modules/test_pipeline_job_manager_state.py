@@ -129,12 +129,15 @@ def test_pause_resume_and_cancel_persist_updates(job_manager_factory):
         user_id="user",
         user_role="user",
     )
-    assert paused.status == PipelineJobStatus.PAUSED
-    assert store.get(metadata.job_id).status == PipelineJobStatus.PAUSED
+    assert paused.status == PipelineJobStatus.PAUSING
+    assert store.get(metadata.job_id).status == PipelineJobStatus.PAUSING
     paused_inputs = paused.resume_context["inputs"]
     assert paused_inputs["start_sentence"] == 11
     assert paused_inputs["resume_block_start"] == 11
     assert paused_inputs["resume_last_sentence"] == 12
+
+    paused.status = PipelineJobStatus.PAUSED
+    store.update(manager._persistence.snapshot(paused))
 
     resumed = manager.resume_job(
         metadata.job_id,
@@ -224,10 +227,10 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
 
     previous_event = job.stop_event
     paused = manager.pause_job(job.job_id)
-    assert paused.status == PipelineJobStatus.PAUSED
+    assert paused.status == PipelineJobStatus.PAUSING
     assert paused.stop_event is not None and paused.stop_event.is_set()
     assert paused.stop_event is previous_event
-    assert store.get(job.job_id).status == PipelineJobStatus.PAUSED
+    assert store.get(job.job_id).status == PipelineJobStatus.PAUSING
 
     assert first_run_released.wait(1.0)
 
@@ -239,6 +242,8 @@ def test_pause_resume_execution_flow(monkeypatch, job_manager_factory):
         time.sleep(0.02)
     else:  # pragma: no cover - defensive guard
         pytest.fail("Job did not enter paused state")
+
+    assert store.get(job.job_id).status == PipelineJobStatus.PAUSED
 
     paused_metadata = store.get(job.job_id)
     paused_inputs = paused_metadata.resume_context["inputs"]

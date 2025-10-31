@@ -40,6 +40,7 @@ class PipelineJobMetadata:
     user_id: Optional[str] = None
     user_role: Optional[str] = None
     generated_files: Optional[Dict[str, Any]] = None
+    media_completed: Optional[bool] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -69,6 +70,8 @@ class PipelineJobMetadata:
             payload["user_role"] = self.user_role
         if self.generated_files is not None:
             payload["generated_files"] = _stable_copy(self.generated_files)
+        if self.media_completed is not None:
+            payload["media_completed"] = bool(self.media_completed)
         return payload
 
     def to_json(self) -> str:
@@ -99,6 +102,7 @@ class PipelineJobMetadata:
             user_id=data.get("user_id"),
             user_role=data.get("user_role"),
             generated_files=data.get("generated_files"),
+            media_completed=data.get("media_completed"),
         )
 
     @classmethod

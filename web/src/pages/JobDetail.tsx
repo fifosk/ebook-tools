@@ -10,7 +10,7 @@ export interface JobDetailProps {
 
 export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null }: JobDetailProps) {
   const normalisedJobId = jobId ?? null;
-  const { media, isLoading, error } = useLiveMedia(normalisedJobId, {
+  const { media, chunks, isComplete, isLoading, error } = useLiveMedia(normalisedJobId, {
     enabled: Boolean(normalisedJobId),
   });
 
@@ -39,6 +39,8 @@ export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetad
       <PlayerPanel
         jobId={normalisedJobId}
         media={media}
+        chunks={chunks}
+        mediaComplete={isComplete}
         isLoading={isLoading}
         error={error}
         bookMetadata={bookMetadata}

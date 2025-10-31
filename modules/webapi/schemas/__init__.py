@@ -25,6 +25,14 @@ from ...video.jobs import (
 from ...video.slide_renderer import SlideRenderOptions
 from ..jobs import PipelineJob, PipelineJobStatus
 from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchResponse
+from .library import (
+    LibraryItemPayload,
+    LibraryMediaRemovalResponse,
+    LibraryMoveRequest,
+    LibraryMoveResponse,
+    LibraryReindexResponse,
+    LibrarySearchResponse,
+)
 
 
 class SessionUserPayload(BaseModel):
@@ -318,6 +326,7 @@ class PipelineStatusResponse(BaseModel):
     user_id: Optional[str] = None
     user_role: Optional[str] = None
     generated_files: Optional[Dict[str, Any]] = None
+    media_completed: Optional[bool] = None
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -348,6 +357,7 @@ class PipelineStatusResponse(BaseModel):
             user_id=job.user_id,
             user_role=job.user_role,
             generated_files=generated_files,
+            media_completed=job.media_completed,
         )
 
 
@@ -391,12 +401,28 @@ class PipelineMediaFile(BaseModel):
     source: Literal["completed", "live"]
     relative_path: Optional[str] = None
     path: Optional[str] = None
+    chunk_id: Optional[str] = None
+    range_fragment: Optional[str] = None
+    start_sentence: Optional[int] = None
+    end_sentence: Optional[int] = None
+
+
+class PipelineMediaChunk(BaseModel):
+    """Groups media files produced for a specific chunk."""
+
+    chunk_id: Optional[str] = None
+    range_fragment: Optional[str] = None
+    start_sentence: Optional[int] = None
+    end_sentence: Optional[int] = None
+    files: List[PipelineMediaFile] = Field(default_factory=list)
 
 
 class PipelineMediaResponse(BaseModel):
     """Response payload grouping generated media by type."""
 
     media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
+    chunks: List[PipelineMediaChunk] = Field(default_factory=list)
+    complete: bool = False
 
 
 class MediaSearchHit(BaseModel):

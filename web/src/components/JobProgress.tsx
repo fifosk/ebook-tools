@@ -5,7 +5,8 @@ import {
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { buildStorageUrl, resolveJobCoverUrl } from '../api/client';
+import { buildStorageUrl } from '../api/client';
+import { resolveMediaCompletion } from '../utils/mediaFormatters';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 const FALLBACK_COVER_URL = '/assets/default-cover.png';
@@ -20,6 +21,7 @@ type Props = {
   onCancel: () => void;
   onDelete: () => void;
   onReload: () => void;
+  onMoveToLibrary?: () => void;
   isReloading?: boolean;
   isMutating?: boolean;
   canManage: boolean;
@@ -230,6 +232,7 @@ export function JobProgress({
   onCancel,
   onDelete,
   onReload,
+  onMoveToLibrary,
   isReloading = false,
   isMutating = false,
   canManage
@@ -255,26 +258,14 @@ export function JobProgress({
     return normalized.length > 0;
   });
   const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
-  const apiCoverUrl = useMemo(() => {
-    if (!jobId) {
-      return null;
-    }
-    return resolveJobCoverUrl(jobId);
-  }, [jobId]);
   const coverSources = useMemo(() => {
     if (!coverAsset) {
       const sources: string[] = [];
-      if (apiCoverUrl) {
-        sources.push(apiCoverUrl);
-      }
       sources.push(FALLBACK_COVER_URL);
       return sources;
     }
     if (coverAsset.type === 'external') {
       const sources = [] as string[];
-      if (apiCoverUrl) {
-        sources.push(apiCoverUrl);
-      }
       sources.push(coverAsset.url);
       return sources;
     }
@@ -293,10 +284,6 @@ export function JobProgress({
       unique.add(trimmed);
       sources.push(trimmed);
     };
-
-    if (apiCoverUrl) {
-      push(apiCoverUrl);
-    }
 
     const normalisedPath = coverAsset.path.trim();
     if (normalisedPath) {
@@ -407,10 +394,20 @@ export function JobProgress({
       })
     : false;
 
-  const canPause = canManage && !isTerminal && statusValue !== 'paused';
+  const canPause = canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
   const canResume = canManage && statusValue === 'paused';
   const canCancel = canManage && !isTerminal;
   const canDelete = canManage && isTerminal;
+  const mediaCompleted = useMemo(() => resolveMediaCompletion(status), [status]);
+  const isLibraryCandidate =
+    statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true);
+  const shouldRenderLibraryButton = Boolean(onMoveToLibrary) && canManage;
+  const canMoveToLibrary = shouldRenderLibraryButton && isLibraryCandidate;
+  const libraryButtonTitle =
+    shouldRenderLibraryButton && !isLibraryCandidate
+      ? 'Media generation is still finalizing.'
+      : undefined;
+  const showLibraryReadyNotice = canManage && isLibraryCandidate;
 
   return (
     <div className="job-card" aria-live="polite">
@@ -438,6 +435,17 @@ export function JobProgress({
                 Cancel
               </button>
             ) : null}
+            {shouldRenderLibraryButton ? (
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => onMoveToLibrary?.()}
+                disabled={isMutating || !canMoveToLibrary}
+                title={libraryButtonTitle}
+              >
+                Move to library
+              </button>
+            ) : null}
             {canDelete ? (
               <button type="button" className="link-button" onClick={onDelete} disabled={isMutating}>
                 Delete
@@ -452,8 +460,29 @@ export function JobProgress({
         <strong>Started:</strong> {formatDate(status?.started_at)}
         <br />
         <strong>Completed:</strong> {formatDate(status?.completed_at)}
+        {mediaCompleted !== null ? (
+          <>
+            <br />
+            <strong>Media finalized:</strong> {mediaCompleted ? 'Yes' : 'In progress'}
+          </>
+        ) : null}
       </p>
       {status?.error ? <div className="alert">{status.error}</div> : null}
+      {showLibraryReadyNotice ? (
+        <div className="notice notice--success" role="status">
+          Media generation finished. Move this job into the library when you're ready.
+        </div>
+      ) : null}
+      {statusValue === 'pausing' ? (
+        <div className="notice notice--info" role="status">
+          Pause requested. Completing in-flight media generation before the job fully pauses.
+        </div>
+      ) : null}
+      {statusValue === 'paused' && mediaCompleted === false ? (
+        <div className="notice notice--warning" role="status">
+          Some media is still finalizing. Generated files shown below reflect the latest available output.
+        </div>
+      ) : null}
       {tuningEntries.length > 0 ? (
         <div>
           <h4>Performance tuning</h4>

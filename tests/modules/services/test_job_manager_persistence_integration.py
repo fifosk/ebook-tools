@@ -122,8 +122,11 @@ def test_restart_and_control_flow_persists_updates(storage_dir: Path):
         user_id="integration",
         user_role="user",
     )
-    assert paused.status == PipelineJobStatus.PAUSED
-    assert persistence.load_job(job.job_id).status == PipelineJobStatus.PAUSED
+    assert paused.status == PipelineJobStatus.PAUSING
+    assert persistence.load_job(job.job_id).status == PipelineJobStatus.PAUSING
+    paused.status = PipelineJobStatus.PAUSED
+    restarted_manager._jobs[job.job_id] = paused
+    restarted_manager._store.update(persistence.snapshot(paused))
 
     resumed = restarted_manager.resume_job(
         job.job_id,

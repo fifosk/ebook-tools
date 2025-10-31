@@ -21,6 +21,7 @@ from modules import load_environment
 
 from .admin_routes import router as admin_router
 from .routers.audio import router as audio_router
+from .routers.library import router as library_router
 from .auth_routes import router as auth_router
 from modules.audio.config import load_media_config
 
@@ -259,6 +260,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/auth", tags=["auth"])
     app.include_router(admin_router, prefix="/admin", tags=["admin"])
     app.include_router(audio_router)
+    app.include_router(library_router)
     app.include_router(media_router)
     app.include_router(video_router)
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])

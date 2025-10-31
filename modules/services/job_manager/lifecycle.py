@@ -142,7 +142,7 @@ def apply_pause_transition(job: PipelineJob) -> None:
     context = compute_resume_context(job)
     if context is not None:
         job.resume_context = context
-    job.status = PipelineJobStatus.PAUSED
+    job.status = PipelineJobStatus.PAUSING
 
 
 def apply_resume_transition(job: PipelineJob) -> None:

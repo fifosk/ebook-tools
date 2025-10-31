@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from modules.config_manager import loader as cfg_loader
+from modules.config_manager.constants import DEFAULT_LIBRARY_ROOT
 
 
 def _reset_settings(monkeypatch):
@@ -13,11 +14,13 @@ def test_settings_provide_storage_defaults(monkeypatch):
     _reset_settings(monkeypatch)
     monkeypatch.delenv("JOB_STORAGE_DIR", raising=False)
     monkeypatch.delenv("EBOOK_STORAGE_BASE_URL", raising=False)
+    monkeypatch.delenv("LIBRARY_ROOT", raising=False)
 
     settings = cfg_loader.get_settings()
 
     assert settings.job_storage_dir == str(Path("storage"))
     assert settings.storage_base_url == ""
+    assert settings.library_root == str(DEFAULT_LIBRARY_ROOT)
 
 
 def test_settings_respect_storage_env(monkeypatch, tmp_path):
@@ -25,8 +28,11 @@ def test_settings_respect_storage_env(monkeypatch, tmp_path):
     custom_dir = tmp_path / "custom"
     monkeypatch.setenv("JOB_STORAGE_DIR", str(custom_dir))
     monkeypatch.setenv("EBOOK_STORAGE_BASE_URL", "https://example.com/jobs")
+    custom_library = tmp_path / "library"
+    monkeypatch.setenv("LIBRARY_ROOT", str(custom_library))
 
     settings = cfg_loader.get_settings()
 
     assert settings.job_storage_dir == str(custom_dir)
     assert settings.storage_base_url == "https://example.com/jobs"
+    assert settings.library_root == str(custom_library)

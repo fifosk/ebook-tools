@@ -92,13 +92,26 @@ class PipelineJobExecutor:
                 response = self._execution.execute(job.request)
             with self._lock:
                 current_status = job.status
-                if current_status in {
-                    PipelineJobStatus.PAUSED,
-                    PipelineJobStatus.CANCELLED,
-                }:
+                if current_status == PipelineJobStatus.CANCELLED:
                     job.result = None
                     job.result_payload = None
                     job.error_message = None
+                    job.media_completed = False
+                elif current_status == PipelineJobStatus.PAUSING:
+                    job.generated_files = copy.deepcopy(response.generated_files)
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                    tracker = job.tracker
+                    job.media_completed = bool(tracker.is_complete()) if tracker is not None else False
+                    job.status = PipelineJobStatus.PAUSED
+                elif current_status == PipelineJobStatus.PAUSED:
+                    job.result = None
+                    job.result_payload = None
+                    job.error_message = None
+                    tracker = job.tracker
+                    if tracker is not None:
+                        job.media_completed = tracker.is_complete()
                 else:
                     job.result = response
                     job.result_payload = serialize_pipeline_response(response)
@@ -113,10 +126,12 @@ class PipelineJobExecutor:
                         if response.success
                         else "Pipeline execution reported failure."
                     )
+                    job.media_completed = bool(response.success)
         except Exception as exc:  # pragma: no cover - defensive logging
             with self._lock:
                 interruption = job.status in (
                     PipelineJobStatus.PAUSED,
+                    PipelineJobStatus.PAUSING,
                     PipelineJobStatus.CANCELLED,
                 ) and (job.stop_event is None or job.stop_event.is_set())
                 if interruption:
@@ -212,4 +227,3 @@ __all__ = [
     "PipelineJobExecutor",
     "PipelineJobExecutorHooks",
 ]
-

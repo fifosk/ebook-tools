@@ -2,13 +2,20 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
-import JobDetail from './pages/JobDetail';
-import { PipelineRequestPayload, PipelineStatusResponse, ProgressEventPayload } from './api/dtos';
+import LibraryPage from './pages/LibraryPage';
+import PlayerView, { type PlayerContext } from './pages/PlayerView';
+import {
+  LibraryItem,
+  PipelineRequestPayload,
+  PipelineStatusResponse,
+  ProgressEventPayload
+} from './api/dtos';
 import {
   cancelJob,
   deleteJob,
   fetchJobs,
   fetchPipelineStatus,
+  moveJobToLibrary,
   pauseJob,
   refreshPipelineMetadata,
   resumeJob,
@@ -20,6 +27,8 @@ import { useAuth } from './components/AuthProvider';
 import LoginForm from './components/LoginForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
 import UserManagementPanel from './components/admin/UserManagementPanel';
+import { resolveMediaCompletion } from './utils/mediaFormatters';
+import { buildLibraryBookMetadata } from './utils/libraryMetadata';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
@@ -39,12 +48,14 @@ const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
 
 const JOB_PROGRESS_VIEW = 'job:progress' as const;
 const JOB_MEDIA_VIEW = 'job:media' as const;
+const LIBRARY_VIEW = 'library:list' as const;
 
 type SelectedView =
   | PipelineMenuView
   | typeof ADMIN_USER_MANAGEMENT_VIEW
   | typeof JOB_PROGRESS_VIEW
-  | typeof JOB_MEDIA_VIEW;
+  | typeof JOB_MEDIA_VIEW
+  | typeof LIBRARY_VIEW;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -70,6 +81,7 @@ export function App() {
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
+  const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isAccountExpanded, setIsAccountExpanded] = useState(false);
@@ -156,8 +168,13 @@ export function App() {
         const next: Record<string, JobRegistryEntry> = {};
         for (const status of statuses) {
           const current = previous[status.job_id];
+          const resolvedCompletion = resolveMediaCompletion(status);
+          const normalizedStatus =
+            resolvedCompletion !== null
+              ? { ...status, media_completed: resolvedCompletion }
+              : status;
           next[status.job_id] = {
-            status,
+            status: normalizedStatus,
             latestEvent: status.latest_event ?? current?.latestEvent
           };
         }
@@ -194,6 +211,7 @@ export function App() {
       setReloadingJobs({});
       setMutatingJobs({});
       setActiveJobId(null);
+      setPlayerContext(null);
       setSelectedView('pipeline:source');
       return;
     }
@@ -216,6 +234,18 @@ export function App() {
     return metadata && typeof metadata === 'object' ? metadata : null;
   }, [activeJobId, jobs]);
 
+  const playerJobMetadata = useMemo(() => {
+    if (playerContext?.type !== 'job') {
+      return null;
+    }
+    if (playerContext.jobId === activeJobId) {
+      return activeJobMetadata;
+    }
+    const entry = jobs[playerContext.jobId];
+    const metadata = entry?.status?.result?.book_metadata;
+    return metadata && typeof metadata === 'object' ? metadata : null;
+  }, [activeJobId, activeJobMetadata, jobs, playerContext]);
+
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
       return;
@@ -223,23 +253,47 @@ export function App() {
     if (selectedView === ADMIN_USER_MANAGEMENT_VIEW) {
       return;
     }
-    if (selectedView === JOB_PROGRESS_VIEW || selectedView === JOB_MEDIA_VIEW) {
+    if (selectedView === JOB_PROGRESS_VIEW) {
       if (!activeJobId || !jobs[activeJobId]) {
         setActiveJobId(null);
         setSelectedView('pipeline:submit');
       }
       return;
     }
-  }, [activeJobId, jobs, selectedView]);
+    if (selectedView === JOB_MEDIA_VIEW) {
+      if (!playerContext) {
+        setSelectedView('pipeline:submit');
+        return;
+      }
+      if (playerContext.type === 'job' && !jobs[playerContext.jobId]) {
+        setPlayerContext(null);
+        setSelectedView('pipeline:submit');
+      }
+    }
+  }, [activeJobId, jobs, playerContext, selectedView]);
 
   useEffect(() => {
-    if (selectedView !== JOB_PROGRESS_VIEW && selectedView !== JOB_MEDIA_VIEW) {
+    if (selectedView === JOB_PROGRESS_VIEW && !activeJobId) {
+      setSelectedView('pipeline:submit');
       return;
     }
-    if (!activeJobId) {
+    if (selectedView === JOB_MEDIA_VIEW && playerContext?.type === 'job' && !activeJobId) {
+      setPlayerContext(null);
       setSelectedView('pipeline:submit');
     }
-  }, [activeJobId, selectedView, activeJobMetadata]);
+  }, [activeJobId, playerContext, selectedView]);
+
+  useEffect(() => {
+    if (selectedView !== JOB_MEDIA_VIEW) {
+      return;
+    }
+    if (playerContext?.type !== 'job') {
+      return;
+    }
+    if (activeJobId && playerContext.jobId !== activeJobId) {
+      setPlayerContext({ type: 'job', jobId: activeJobId });
+    }
+  }, [activeJobId, playerContext, selectedView]);
 
   useEffect(() => {
     if (selectedView !== JOB_MEDIA_VIEW) {
@@ -298,10 +352,34 @@ export function App() {
       if (!current) {
         return previous;
       }
+
+      const nextStatus = current.status ? { ...current.status } : undefined;
+      const metadata = event.metadata;
+
+      if (nextStatus && metadata && typeof metadata === 'object') {
+        const generated = (metadata as Record<string, unknown>).generated_files;
+        if (generated && typeof generated === 'object') {
+          nextStatus.generated_files = generated as Record<string, unknown>;
+        }
+
+        const mediaCompletedMeta = (metadata as Record<string, unknown>).media_completed;
+        if (typeof mediaCompletedMeta === 'boolean') {
+          nextStatus.media_completed = mediaCompletedMeta;
+        }
+      }
+
+      if (nextStatus) {
+        const resolvedCompletion = resolveMediaCompletion(nextStatus);
+        if (resolvedCompletion !== null) {
+          nextStatus.media_completed = resolvedCompletion;
+        }
+      }
+
       return {
         ...previous,
         [jobId]: {
           ...current,
+          status: nextStatus ?? current.status,
           latestEvent: event
         }
       };
@@ -318,6 +396,9 @@ export function App() {
         console.warn('Unable to force metadata refresh for job', jobId, refreshError);
         status = await fetchPipelineStatus(jobId);
       }
+      const resolvedCompletion = resolveMediaCompletion(status);
+      const normalizedStatus =
+        resolvedCompletion !== null ? { ...status, media_completed: resolvedCompletion } : status;
       setJobs((previous) => {
         const current = previous[jobId];
         if (!current) {
@@ -327,7 +408,7 @@ export function App() {
           ...previous,
           [jobId]: {
             ...current,
-            status,
+            status: normalizedStatus,
             latestEvent: status.latest_event ?? current.latestEvent
           }
         };
@@ -386,6 +467,9 @@ export function App() {
         }
 
         if (response) {
+          const resolvedCompletion = resolveMediaCompletion(response);
+          const normalizedResponse =
+            resolvedCompletion !== null ? { ...response, media_completed: resolvedCompletion } : response;
           if (action === 'delete') {
             setJobs((previous) => {
               if (!previous[jobId]) {
@@ -402,7 +486,7 @@ export function App() {
               return {
                 ...previous,
                 [jobId]: {
-                  status: response!,
+                  status: normalizedResponse!,
                   latestEvent: nextLatestEvent
                 }
               };
@@ -471,15 +555,95 @@ export function App() {
     [performJobAction]
   );
 
+  const handleMoveJobToLibrary = useCallback(
+    async (jobId: string) => {
+      const entry = jobs[jobId];
+      if (!entry?.status) {
+        window.alert('Job metadata is unavailable; refresh and try again.');
+        return;
+      }
+
+      const statusValue = entry.status.status;
+      const mediaCompleted = resolveMediaCompletion(entry.status);
+      const isCompleted = statusValue === 'completed';
+      const isPausedReady = statusValue === 'paused' && mediaCompleted === true;
+
+      if (!isCompleted && !isPausedReady) {
+        window.alert('Only completed or fully paused jobs with finalized media can be moved to the library.');
+        return;
+      }
+
+      const confirmed = window.confirm(
+        `Move job ${jobId} to the library? Its working files will be archived under the configured library root.`
+      );
+      if (!confirmed) {
+        return;
+      }
+
+      const statusOverride: 'finished' | 'paused' = isCompleted ? 'finished' : 'paused';
+      setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
+      try {
+        await moveJobToLibrary(jobId, statusOverride);
+        window.alert(`Job ${jobId} has been moved into the library.`);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Unable to move the job into the library.';
+        window.alert(message);
+      } finally {
+        setMutatingJobs((previous) => {
+          if (!previous[jobId]) {
+            return previous;
+          }
+          const next = { ...previous };
+          delete next[jobId];
+          return next;
+        });
+        await refreshJobs();
+      }
+    },
+    [jobs, refreshJobs]
+  );
+
+  const handleOpenPlayerForJob = useCallback(() => {
+    if (!activeJobId) {
+      return;
+    }
+    setPlayerContext({ type: 'job', jobId: activeJobId });
+    setSelectedView(JOB_MEDIA_VIEW);
+    setIsImmersiveMode(false);
+  }, [activeJobId]);
+
+  const handlePlayLibraryItem = useCallback(
+    (item: LibraryItem) => {
+      const metadata = buildLibraryBookMetadata(item);
+      setPlayerContext({
+        type: 'library',
+        jobId: item.jobId,
+        bookMetadata: metadata
+      });
+      setActiveJobId(null);
+      setSelectedView(JOB_MEDIA_VIEW);
+      setIsImmersiveMode(false);
+    },
+    []
+  );
+
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => {
       const owner = typeof entry.status?.user_id === 'string' ? entry.status.user_id : null;
       const canManage = Boolean(
         isAdmin || !owner || (sessionUsername && owner === sessionUsername)
       );
+      const resolvedStatus = entry.status
+        ? {
+            ...entry.status,
+            media_completed:
+              resolveMediaCompletion(entry.status) ?? entry.status.media_completed ?? null
+          }
+        : entry.status;
       return {
         jobId,
-        status: entry.status,
+        status: resolvedStatus,
         latestEvent: entry.latestEvent,
         isReloading: Boolean(reloadingJobs[jobId]),
         isMutating: Boolean(mutatingJobs[jobId]),
@@ -502,6 +666,7 @@ export function App() {
 
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
   const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
+  const isLibraryView = selectedView === LIBRARY_VIEW;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
       return null;
@@ -787,14 +952,24 @@ export function App() {
             </details>
           </details>
           <details className="sidebar__section">
-            <summary>Generated media</summary>
+            <summary>Library</summary>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === LIBRARY_VIEW ? 'is-active' : ''}`}
+              onClick={() => setSelectedView(LIBRARY_VIEW)}
+            >
+              Browse library
+            </button>
+          </details>
+          <details className="sidebar__section">
+            <summary>Player</summary>
             <button
               type="button"
               className={`sidebar__link ${selectedView === JOB_MEDIA_VIEW ? 'is-active' : ''}`}
-              onClick={() => setSelectedView(JOB_MEDIA_VIEW)}
+              onClick={handleOpenPlayerForJob}
               disabled={!activeJobId}
             >
-              {activeJobId ? `View media for job ${activeJobId}` : 'Select a job to view media'}
+              {activeJobId ? `Open player for job ${activeJobId}` : 'Select a job to open the player'}
             </button>
           </details>
           <details className="sidebar__section">
@@ -863,17 +1038,22 @@ export function App() {
             </section>
           ) : null}
           <header className="dashboard__header">
-            {isAdminView ? (
-              <>
-                <h1>User management</h1>
-                <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
-              </>
-            ) : (
-              <>
-                <h1>Language tools</h1>
-                <p>
-                  Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
-                  directly from the FastAPI backend.
+          {isAdminView ? (
+            <>
+              <h1>User management</h1>
+              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
+            </>
+          ) : isLibraryView ? (
+            <>
+              <h1>Library</h1>
+              <p>Browse archived jobs, review metadata, and manage stored media across completed runs.</p>
+            </>
+          ) : (
+            <>
+              <h1>Language tools</h1>
+              <p>
+                Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
+                directly from the FastAPI backend.
                 </p>
               </>
             )}
@@ -882,6 +1062,8 @@ export function App() {
             <section>
               <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
             </section>
+          ) : isLibraryView ? (
+            <LibraryPage onPlay={handlePlayLibraryItem} />
           ) : (
             <>
               {activePipelineSection ? (
@@ -919,6 +1101,7 @@ export function App() {
                       onCancel={() => handleCancelJob(selectedJob.jobId)}
                       onDelete={() => handleDeleteJob(selectedJob.jobId)}
                       onReload={() => handleReloadJob(selectedJob.jobId)}
+                      onMoveToLibrary={() => handleMoveJobToLibrary(selectedJob.jobId)}
                       isReloading={selectedJob.isReloading}
                       isMutating={selectedJob.isMutating}
                       canManage={selectedJob.canManage}
@@ -933,9 +1116,9 @@ export function App() {
               ) : null}
               {selectedView === JOB_MEDIA_VIEW ? (
                 <section className="job-media-section">
-                  <JobDetail
-                    jobId={selectedJob?.jobId ?? null}
-                    bookMetadata={selectedJob?.status?.result?.book_metadata ?? null}
+                  <PlayerView
+                    context={playerContext}
+                    jobBookMetadata={playerJobMetadata}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
                   />
                 </section>

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Dict, Mapping, TYPE_CHECKING
@@ -124,12 +125,23 @@ def load_all_jobs() -> Dict[str, "PipelineJobMetadata"]:
 
 
 def delete_job(job_id: str) -> None:
-    """Remove persisted metadata for ``job_id`` if it exists."""
+    """Remove persisted metadata and any stored artifacts for ``job_id``."""
 
-    path = _job_path(job_id)
+    metadata_path = _job_path(job_id)
+    job_root = _job_root(job_id)
+
     try:
-        path.unlink()
-    except FileNotFoundError:  # pragma: no cover - idempotent delete
-        return
+        metadata_path.unlink()
+    except FileNotFoundError:
+        pass
     else:
-        _LOGGER.debug("Job %s removed from persistence", job_id)
+        _LOGGER.debug("Job %s metadata removed from %s", job_id, metadata_path)
+
+    try:
+        shutil.rmtree(job_root)
+    except FileNotFoundError:
+        return
+    except OSError:
+        _LOGGER.debug("Unable to remove job directory %s", job_root, exc_info=True)
+    else:
+        _LOGGER.debug("Job %s directory %s removed", job_id, job_root)

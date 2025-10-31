@@ -18,6 +18,7 @@ class PipelineJobStatus(str, Enum):
 
     PENDING = "pending"
     RUNNING = "running"
+    PAUSING = "pausing"
     PAUSED = "paused"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -56,6 +57,7 @@ class PipelineJob:
     user_id: Optional[str] = None
     user_role: Optional[str] = None
     generated_files: Optional[Dict[str, Any]] = None
+    media_completed: bool = False
 
 
 __all__ = [

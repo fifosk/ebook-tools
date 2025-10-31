@@ -29,6 +29,8 @@ const SAMPLE_SENTENCES: Record<string, string> = {
   ja: 'ebook-tools からのサンプル文です。'
 };
 
+const PREFERRED_SAMPLE_EBOOK = 'test-agatha-poirot-30sentences.epub';
+
 type VoiceSelectOption = {
   value: string;
   label: string;
@@ -429,6 +431,28 @@ function formatList(items: string[]): string {
   return `${initial}, and ${items[items.length - 1]}`;
 }
 
+function deriveBaseOutputName(inputPath: string): string {
+  if (!inputPath) {
+    return '';
+  }
+  const segments = inputPath.split(/[/\\]/);
+  const filename = segments[segments.length - 1] || inputPath;
+  const withoutExtension = filename.replace(/\.epub$/i, '') || filename;
+  const normalized = withoutExtension
+    .trim()
+    .replace(/[^A-Za-z0-9]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .toLowerCase();
+  if (normalized) {
+    return normalized;
+  }
+  if (withoutExtension.trim()) {
+    return withoutExtension.trim();
+  }
+  return 'book-output';
+}
+
 export function PipelineSubmissionForm({
   onSubmit,
   isSubmitting = false,
@@ -516,9 +540,15 @@ export function PipelineSubmissionForm({
       if (previous.input_file === value) {
         return previous;
       }
+      const previousDerivedBase = deriveBaseOutputName(previous.input_file);
+      const nextDerivedBase = deriveBaseOutputName(value);
+      const shouldUpdateBase =
+        !previous.base_output_file ||
+        previous.base_output_file === previousDerivedBase;
       return {
         ...previous,
         input_file: value,
+        base_output_file: shouldUpdateBase ? nextDerivedBase : previous.base_output_file,
         book_metadata: '{}'
       };
     });
@@ -816,6 +846,28 @@ export function PipelineSubmissionForm({
   useEffect(() => {
     void refreshFiles();
   }, [refreshFiles]);
+
+  useEffect(() => {
+    if (!fileOptions || fileOptions.ebooks.length === 0) {
+      return;
+    }
+    setFormState((previous) => {
+      if (previous.input_file && previous.input_file.trim()) {
+        return previous;
+      }
+      const preferred =
+        fileOptions.ebooks.find((entry) =>
+          entry.name.trim().toLowerCase() === PREFERRED_SAMPLE_EBOOK
+        ) || fileOptions.ebooks[0];
+      const nextInput = preferred.path;
+      const derivedBase = deriveBaseOutputName(preferred.name || preferred.path);
+      return {
+        ...previous,
+        input_file: nextInput,
+        base_output_file: derivedBase || previous.base_output_file || 'book-output'
+      };
+    });
+  }, [fileOptions]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

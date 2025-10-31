@@ -398,7 +398,12 @@ class ProgressTracker:
                         "path": path_value,
                     }
                 )
-        return {"chunks": chunks_copy, "files": files_index}
+        remaining = None
+        total = self._total
+        if total is not None:
+            remaining = max(total - self._completed, 0)
+        complete = bool(total is not None and remaining == 0)
+        return {"chunks": chunks_copy, "files": files_index, "complete": complete}
 
 
 __all__ = [

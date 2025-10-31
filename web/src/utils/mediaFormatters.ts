@@ -78,3 +78,47 @@ export function extractTextFromHtml(raw: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
+
+type MediaStatusLike = {
+  media_completed?: boolean | null;
+  generated_files?: unknown;
+};
+
+export function hasGeneratedMedia(payload: unknown): boolean {
+  if (!payload || typeof payload !== 'object') {
+    return false;
+  }
+  const record = payload as Record<string, unknown>;
+  const files = record.files;
+  if (Array.isArray(files) && files.some((entry) => entry && typeof entry === 'object')) {
+    return true;
+  }
+  const chunks = record.chunks;
+  if (Array.isArray(chunks)) {
+    return chunks.some((chunk) => {
+      if (!chunk || typeof chunk !== 'object') {
+        return false;
+      }
+      const chunkRecord = chunk as Record<string, unknown>;
+      const chunkFiles = chunkRecord.files;
+      return Array.isArray(chunkFiles) && chunkFiles.some((entry) => entry && typeof entry === 'object');
+    });
+  }
+  return false;
+}
+
+export function resolveMediaCompletion(status: MediaStatusLike | null | undefined): boolean | null {
+  if (!status) {
+    return null;
+  }
+  if (status.media_completed === true) {
+    return true;
+  }
+  if (hasGeneratedMedia(status.generated_files)) {
+    return true;
+  }
+  if (status.media_completed === false) {
+    return false;
+  }
+  return null;
+}

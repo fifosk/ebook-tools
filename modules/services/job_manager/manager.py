@@ -123,8 +123,12 @@ class PipelineJobManager:
                 if job.status == PipelineJobStatus.RUNNING:
                     job.status = PipelineJobStatus.PAUSED
                     updates.append(self._persistence.snapshot(job))
+                elif job.status == PipelineJobStatus.PAUSING:
+                    job.status = PipelineJobStatus.PAUSED
+                    updates.append(self._persistence.snapshot(job))
                 if job.status in (
                     PipelineJobStatus.PENDING,
+                    PipelineJobStatus.PAUSING,
                     PipelineJobStatus.PAUSED,
                 ):
                     self._jobs[job_id] = job

@@ -1,0 +1,149 @@
+.listContainer {
+  background: var(--color-card-bg, #ffffff);
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.08));
+}
+
+.tableWrapper {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  color: var(--color-text-primary, #101828);
+}
+
+.table thead th {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle, #d0d5dd);
+  color: var(--color-text-muted, #475467);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.table tbody tr:nth-of-type(even) {
+  background: var(--color-card-alt, #f9fafb);
+}
+
+.table tbody td {
+  padding: 0.6rem 0.75rem;
+  vertical-align: middle;
+}
+
+.tableRowActive {
+  outline: 2px solid var(--color-accent, #4f46e5);
+  outline-offset: -2px;
+  background: var(--color-sidebar-link-active-bg, #eef4ff) !important;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  background: var(--color-sidebar-link-active-bg, #eef4ff);
+  color: var(--color-sidebar-link-active-text, #1d4ed8);
+}
+
+.statusBadge[data-variant='ready'] {
+  background: var(--color-status-success-bg, rgba(16, 185, 129, 0.18));
+  color: var(--color-status-success-text, #047857);
+}
+
+.statusBadge[data-variant='missing'] {
+  background: var(--color-status-warning-bg, rgba(251, 191, 36, 0.2));
+  color: var(--color-status-warning-text, #92400e);
+}
+
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.actionButton {
+  padding: 0.35rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-button-secondary-border, #d0d5dd);
+  background: var(--color-button-secondary-bg, #ffffff);
+  color: var(--color-button-secondary-text, #1f2937);
+  cursor: pointer;
+  font-size: 0.8rem;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.actionButton:hover {
+  background: var(--color-button-secondary-hover-bg, #f3f4f6);
+  border-color: var(--color-button-secondary-hover-border, #cbd5f5);
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.group,
+.subGroup {
+  margin-bottom: 0.75rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-card-bg, #ffffff);
+}
+
+.group summary,
+.subGroup summary {
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--color-text-primary, #101828);
+}
+
+.languageHeader {
+  margin-top: 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #475467);
+}
+
+.itemList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.itemCard {
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--color-card-alt, #f9fafb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.itemHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.itemMeta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #475467);
+}
+
+.emptyState {
+  margin: 0;
+  color: var(--color-text-muted, #475467);
+}

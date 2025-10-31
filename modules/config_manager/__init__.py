@@ -1,6 +1,8 @@
 """High-level configuration management for ebook-tools."""
 from __future__ import annotations
 
+from pathlib import Path
+
 from modules import logging_manager
 
 from .constants import (
@@ -17,6 +19,7 @@ from .constants import (
     DEFAULT_QUEUE_SIZE,
     DEFAULT_JOB_MAX_WORKERS,
     DEFAULT_COVERS_RELATIVE,
+    DEFAULT_LIBRARY_ROOT,
     DEFAULT_SMB_BOOKS_PATH,
     DEFAULT_SMB_OUTPUT_PATH,
     DEFAULT_THREADS,
@@ -111,6 +114,25 @@ def get_ollama_url() -> str:
     return get_local_ollama_url()
 
 
+def get_library_root(*, create: bool = True) -> Path:
+    """Return the configured library root directory, creating it when requested."""
+
+    settings = get_settings()
+    raw_value = getattr(settings, "library_root", None)
+    if isinstance(raw_value, str) and raw_value.strip():
+        candidate = Path(raw_value.strip()).expanduser()
+    else:
+        candidate = DEFAULT_LIBRARY_ROOT
+
+    if not candidate.is_absolute():
+        candidate = (MODULE_DIR.parent / candidate).resolve()
+
+    if create:
+        candidate.mkdir(parents=True, exist_ok=True)
+
+    return candidate
+
+
 __all__ = [
     "RuntimeContext",
     "EbookToolsSettings",
@@ -122,6 +144,7 @@ __all__ = [
     "get_llm_source",
     "get_local_ollama_url",
     "get_ollama_url",
+    "get_library_root",
     "get_queue_size",
     "get_runtime_context",
     "get_hardware_tuning_defaults",

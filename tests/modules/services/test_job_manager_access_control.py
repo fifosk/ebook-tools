@@ -124,7 +124,7 @@ def test_job_actions_require_authorisation(tmp_path: Path) -> None:
             service.pause_job(job.job_id, user_id="bob", user_role="viewer")
 
         paused = service.pause_job(job.job_id, user_id="admin", user_role="admin")
-        assert paused.status == PipelineJobStatus.PAUSED
+        assert paused.status == PipelineJobStatus.PAUSING
 
         other_job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
 

@@ -105,6 +105,8 @@ def test_delete_job_removes_file(storage_dir: Path):
 
     persistence.delete_job(metadata.job_id)
     assert not path.exists()
+    job_root = persistence._job_root(metadata.job_id)
+    assert not job_root.exists()
     assert metadata.job_id not in persistence.load_all_jobs()
 
 

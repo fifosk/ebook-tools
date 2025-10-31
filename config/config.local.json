@@ -8,5 +8,7 @@
       "session_file": "~/.ebooktools_session.json",
       "active_session_file": "~/.ebooktools_active_session"
     }
-  }
+  },
+  "library_root": "/Volumes/Data/Video/Library",
+  "ebooks_dir": "/Users/fifo/Projects/ebook-tools/books"
 }

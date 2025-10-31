@@ -1,6 +1,7 @@
 export type PipelineJobStatus =
   | 'pending'
   | 'running'
+  | 'pausing'
   | 'paused'
   | 'completed'
   | 'failed'
@@ -122,6 +123,7 @@ export interface PipelineStatusResponse {
   user_id?: string | null;
   user_role?: string | null;
   generated_files?: Record<string, unknown> | null;
+  media_completed?: boolean | null;
 }
 
 export interface PipelineJobListResponse {
@@ -198,6 +200,46 @@ export interface UserCreateRequestPayload {
   last_name?: string | null;
 }
 
+export type LibraryViewMode = 'flat' | 'by_author' | 'by_genre' | 'by_language';
+
+export interface LibraryItem {
+  jobId: string;
+  author: string;
+  bookTitle: string;
+  genre?: string | null;
+  language: string;
+  status: 'finished' | 'paused';
+  mediaCompleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+  libraryPath: string;
+  metadata: Record<string, unknown>;
+}
+
+export interface LibraryMoveResponse {
+  item: LibraryItem;
+}
+
+export interface LibrarySearchResponse {
+  total: number;
+  page: number;
+  limit: number;
+  view: LibraryViewMode;
+  items: LibraryItem[];
+  groups?: Record<string, unknown>[] | null;
+}
+
+export interface LibraryMediaRemovalResponse {
+  jobId: string;
+  location: 'library' | 'queue';
+  removed: number;
+  item?: LibraryItem | null;
+}
+
+export interface LibraryReindexResponse {
+  indexed: number;
+}
+
 export interface UserPasswordResetRequestPayload {
   password: string;
 }
@@ -216,10 +258,24 @@ export interface PipelineMediaFile {
   source: 'completed' | 'live';
   relative_path?: string | null;
   path?: string | null;
+  chunk_id?: string | null;
+  range_fragment?: string | null;
+  start_sentence?: number | null;
+  end_sentence?: number | null;
+}
+
+export interface PipelineMediaChunk {
+  chunk_id?: string | null;
+  range_fragment?: string | null;
+  start_sentence?: number | null;
+  end_sentence?: number | null;
+  files: PipelineMediaFile[];
 }
 
 export interface PipelineMediaResponse {
   media: Record<string, PipelineMediaFile[] | undefined>;
+  chunks: PipelineMediaChunk[];
+  complete: boolean;
 }
 
 export interface MediaSearchResult {

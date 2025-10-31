@@ -44,7 +44,9 @@ describe('useLiveMedia', () => {
             source: 'live'
           }
         ]
-      }
+      },
+      chunks: [],
+      complete: false
     });
 
     const listeners: Array<(event: ProgressEventPayload) => void> = [];
@@ -64,6 +66,9 @@ describe('useLiveMedia', () => {
     await waitFor(() => {
       expect(result.current.media.text).toHaveLength(1);
     });
+
+    expect(result.current.chunks).toHaveLength(0);
+    expect(result.current.isComplete).toBe(false);
 
     expect(result.current.media.text[0]).toMatchObject({
       name: '001-010_output.html',
@@ -112,7 +117,7 @@ describe('useLiveMedia', () => {
   });
 
   it('does not update state for non media events', async () => {
-    fetchLiveJobMediaMock.mockResolvedValue({ media: {} });
+    fetchLiveJobMediaMock.mockResolvedValue({ media: {}, chunks: [], complete: false });
 
     const listeners: Array<(event: ProgressEventPayload) => void> = [];
     subscribeToJobEventsMock.mockImplementation((_jobId: string, options: { onEvent?: (event: ProgressEventPayload) => void }) => {
@@ -139,5 +144,7 @@ describe('useLiveMedia', () => {
     });
 
     expect(result.current.media).toEqual({ text: [], audio: [], video: [] });
+    expect(result.current.chunks).toEqual([]);
+    expect(result.current.isComplete).toBe(false);
   });
 });

@@ -131,7 +131,9 @@ afterEach(() => {
 
     const user = userEvent.setup();
 
-    render(<PlayerPanel jobId="job-42" media={media} isLoading={false} error={null} />);
+    render(
+      <PlayerPanel jobId="job-42" media={media} chunks={[]} mediaComplete isLoading={false} error={null} />
+    );
 
     await act(async () => {
       await Promise.resolve();
