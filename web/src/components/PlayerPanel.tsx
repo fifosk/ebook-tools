@@ -876,14 +876,6 @@ export default function PlayerPanel({
     setIsTheaterMode(false);
   }, [normalisedJobId]);
 
-  if (!hasJobId) {
-    return (
-      <section className="player-panel" aria-label="Generated media">
-        <p>No job selected.</p>
-      </section>
-    );
-  }
-
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
   const sectionLabel = bookTitle ? `Generated media for ${bookTitle}` : 'Generated media';
@@ -912,7 +904,9 @@ export default function PlayerPanel({
   if (bookAuthor) {
     jobLabelParts.push(`By ${bookAuthor}`);
   }
-  jobLabelParts.push(`Job ${jobId}`);
+  if (hasJobId) {
+    jobLabelParts.push(`Job ${jobId}`);
+  }
   const jobLabel = jobLabelParts.join(' • ');
   const coverAltText = useMemo(() => {
     if (bookTitle && bookAuthor) {
@@ -930,6 +924,12 @@ export default function PlayerPanel({
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
+      {!hasJobId ? (
+        <div className="player-panel__empty" role="status">
+          <p>No job selected.</p>
+        </div>
+      ) : (
+        <>
       <div className="player-panel__search">
         <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
       </div>
@@ -1117,7 +1117,9 @@ export default function PlayerPanel({
             </TabsContent>
           );
         })}
-      </Tabs>
+        </Tabs>
+        </>
+      )}
     </section>
   );
 }
