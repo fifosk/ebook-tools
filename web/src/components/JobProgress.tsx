@@ -5,7 +5,7 @@ import {
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { buildStorageUrl, resolveJobCoverUrl } from '../api/client';
+import { buildStorageUrl } from '../api/client';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
@@ -258,26 +258,14 @@ export function JobProgress({
     return normalized.length > 0;
   });
   const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
-  const apiCoverUrl = useMemo(() => {
-    if (!jobId) {
-      return null;
-    }
-    return resolveJobCoverUrl(jobId);
-  }, [jobId]);
   const coverSources = useMemo(() => {
     if (!coverAsset) {
       const sources: string[] = [];
-      if (apiCoverUrl) {
-        sources.push(apiCoverUrl);
-      }
       sources.push(FALLBACK_COVER_URL);
       return sources;
     }
     if (coverAsset.type === 'external') {
       const sources = [] as string[];
-      if (apiCoverUrl) {
-        sources.push(apiCoverUrl);
-      }
       sources.push(coverAsset.url);
       return sources;
     }
@@ -296,10 +284,6 @@ export function JobProgress({
       unique.add(trimmed);
       sources.push(trimmed);
     };
-
-    if (apiCoverUrl) {
-      push(apiCoverUrl);
-    }
 
     const normalisedPath = coverAsset.path.trim();
     if (normalisedPath) {
