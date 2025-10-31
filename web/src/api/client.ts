@@ -460,6 +460,17 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
   return handleResponse<PipelineFileEntry>(response);
 }
 
+export async function deletePipelineEbook(path: string): Promise<void> {
+  const response = await apiFetch('/pipelines/files', {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ path })
+  });
+  await handleResponse<unknown>(response);
+}
+
 export interface LibrarySearchParams {
   query?: string;
   author?: string;

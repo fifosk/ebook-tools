@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Header, Query, UploadFile, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 
 from .dependencies import (
     RequestUserContext,
@@ -33,6 +33,7 @@ from .schemas import (
     PipelineMediaResponse,
     PipelineFileBrowserResponse,
     PipelineFileEntry,
+    PipelineFileDeleteRequest,
     PipelineDefaultsResponse,
     PipelineRequestPayload,
     PipelineStatusResponse,
@@ -423,6 +424,48 @@ async def upload_pipeline_ebook(
         path=_format_relative_path(destination, destination_dir),
         type="file",
     )
+
+
+@router.delete("/files", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pipeline_ebook(
+    payload: PipelineFileDeleteRequest,
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Remove an existing EPUB from the configured books directory."""
+
+    with context_provider.activation({}, {}) as context:
+        books_dir = context.books_dir
+        target = (books_dir / payload.path).resolve()
+
+        try:
+            target.relative_to(books_dir)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid ebook path",
+            ) from exc
+
+        if not target.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ebook not found",
+            )
+
+        if not target.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only files can be deleted",
+            )
+
+        try:
+            target.unlink()
+        except OSError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Unable to delete ebook: {exc}",
+            ) from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/defaults", response_model=PipelineDefaultsResponse)
