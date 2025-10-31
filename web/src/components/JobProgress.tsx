@@ -46,6 +46,13 @@ const METADATA_LABELS: Record<string, string> = {
   book_cover_file: 'Cover file'
 };
 
+const CREATION_METADATA_KEYS = new Set([
+  'creation_summary',
+  'creation_messages',
+  'creation_warnings',
+  'creation_sentences_preview'
+]);
+
 const TUNING_LABELS: Record<string, string> = {
   hardware_profile: 'Hardware profile',
   detected_cpu_cores: 'Detected CPU cores',
@@ -108,6 +115,23 @@ function formatTuningValue(value: unknown): string {
     return value;
   }
   return JSON.stringify(value);
+}
+
+function normaliseStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => {
+      if (typeof entry === 'string') {
+        return entry.trim();
+      }
+      if (entry === null || entry === undefined) {
+        return '';
+      }
+      return String(entry).trim();
+    })
+    .filter((entry) => entry.length > 0);
 }
 
 type CoverAsset =
@@ -250,13 +274,33 @@ export function JobProgress({
   const event = latestEvent ?? status?.latest_event ?? undefined;
   const bookMetadata = status?.result?.book_metadata ?? null;
   const metadata = bookMetadata ?? {};
+  const creationSummaryRaw = metadata['creation_summary'];
   const metadataEntries = Object.entries(metadata).filter(([key, value]) => {
-    if (key === 'job_cover_asset') {
+    if (key === 'job_cover_asset' || CREATION_METADATA_KEYS.has(key)) {
       return false;
     }
     const normalized = normalizeMetadataValue(value);
     return normalized.length > 0;
   });
+  const creationSummary = useMemo(() => {
+    if (!creationSummaryRaw || typeof creationSummaryRaw !== 'object') {
+      return null;
+    }
+    const summary = creationSummaryRaw as Record<string, unknown>;
+    const messages = normaliseStringList(summary['messages']);
+    const warnings = normaliseStringList(summary['warnings']);
+    const sentencesPreview = normaliseStringList(summary['sentences_preview']);
+    const epubPath = typeof summary['epub_path'] === 'string' ? summary['epub_path'].trim() : null;
+    if (!messages.length && !warnings.length && !sentencesPreview.length && !epubPath) {
+      return null;
+    }
+    return {
+      messages,
+      warnings,
+      sentencesPreview,
+      epubPath: epubPath && epubPath.length > 0 ? epubPath : null
+    };
+  }, [creationSummaryRaw]);
   const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
   const coverSources = useMemo(() => {
     if (!coverAsset) {
@@ -537,6 +581,37 @@ export function JobProgress({
       ) : (
         <p>No progress events received yet.</p>
       )}
+      {creationSummary ? (
+        <div className="job-card__section">
+          <h4>Book creation summary</h4>
+          {creationSummary.epubPath ? (
+            <p>
+              <strong>Seed EPUB:</strong> {creationSummary.epubPath}
+            </p>
+          ) : null}
+          {creationSummary.messages.length ? (
+            <ul style={{ marginTop: '0.5rem', marginBottom: creationSummary.warnings.length ? 0.5 : 0, paddingLeft: '1.25rem' }}>
+              {creationSummary.messages.map((message, index) => (
+                <li key={`creation-message-${index}`}>{message}</li>
+              ))}
+            </ul>
+          ) : null}
+          {creationSummary.sentencesPreview.length ? (
+            <p style={{ marginTop: '0.5rem', marginBottom: creationSummary.warnings.length ? 0.5 : 0 }}>
+              <strong>Sample sentences:</strong> {creationSummary.sentencesPreview.join(' ')}
+            </p>
+          ) : null}
+          {creationSummary.warnings.length ? (
+            <div className="notice notice--warning" role="alert" style={{ marginTop: '0.5rem' }}>
+              <ul style={{ margin: 0, paddingLeft: '1.25rem' }}>
+                {creationSummary.warnings.map((warning, index) => (
+                  <li key={`creation-warning-${index}`}>{warning}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <div className="job-card__section">
         <h4>Book metadata</h4>
         <div className="metadata-cover-preview">
