@@ -440,6 +440,7 @@ class PipelineService:
         """Submit ``request`` for background execution and return the job handle."""
 
         metadata_snapshot = self._prepare_submission_metadata(request)
+        config = request.config
 
         job = self._job_manager.submit(request, user_id=user_id, user_role=user_role)
 
@@ -452,6 +453,27 @@ class PipelineService:
                 self._persist_initial_metadata(job.job_id, metadata_snapshot, request)
             except Exception:  # pragma: no cover - filesystem/log noise
                 logger.debug("Unable to persist initial metadata snapshot", exc_info=True)
+
+        try:
+            use_ramdisk = bool(config.get("use_ramdisk"))
+        except Exception:
+            use_ramdisk = False
+
+        try:
+            auto_metadata = bool(config.get("auto_metadata", True))
+        except Exception:
+            auto_metadata = True
+
+        if use_ramdisk and not auto_metadata:
+            logger.info(
+                "Releasing RAM disk for job with auto_metadata disabled",
+                extra={
+                    "event": "pipeline.enqueue.release_ramdisk",
+                    "job_id": job.job_id,
+                    "console_suppress": True,
+                },
+            )
+            cfg.cleanup_environment(request.context)
 
         return job
 

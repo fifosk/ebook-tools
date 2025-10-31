@@ -117,6 +117,7 @@ class PipelineJobManager:
         stored_jobs = self._storage.load_all()
 
         updates: list[PipelineJobMetadata] = []
+        pending_jobs: list[str] = []
         with self._lock:
             for job_id, metadata in stored_jobs.items():
                 job = self._persistence.build_job(metadata)
@@ -132,8 +133,12 @@ class PipelineJobManager:
                     PipelineJobStatus.PAUSED,
                 ):
                     self._jobs[job_id] = job
+                    if job.status == PipelineJobStatus.PENDING:
+                        pending_jobs.append(job_id)
 
         self._storage.persist_reconciliation(updates)
+        for job_id in pending_jobs:
+            self._executor.submit(self._execute, job_id)
 
     def submit(
         self,
