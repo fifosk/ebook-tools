@@ -1,4 +1,4 @@
-import { getAuthToken } from './client';
+import { getAuthContext } from './client';
 
 export interface CreateBookPayload {
   input_language: string;
@@ -12,22 +12,29 @@ export interface CreateBookPayload {
 }
 
 export interface BookCreationResponse {
-  job_id: string;
+  job_id?: string | null;
   status: string;
   metadata: Record<string, unknown>;
   messages: string[];
   warnings: string[];
   epub_path: string | null;
+  input_file?: string | null;
   sentences_preview: string[];
 }
 
 export async function createBook(payload: CreateBookPayload): Promise<BookCreationResponse> {
-  const token = getAuthToken();
-  const headers: HeadersInit = {
+  const { token, userId, userRole } = getAuthContext();
+  const headers = new Headers({
     'Content-Type': 'application/json'
-  };
+  });
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  if (userId) {
+    headers.set('X-User-Id', userId);
+  }
+  if (userRole) {
+    headers.set('X-User-Role', userRole);
   }
 
   const response = await fetch('/api/books/create', {

@@ -39,12 +39,13 @@ class BookCreationRequest(BaseModel):
 
 
 class BookCreationResponse(BaseModel):
-    """Response payload returned once the synthetic book job is registered."""
+    """Response payload detailing the prepared synthetic book artefacts."""
 
-    job_id: str
+    job_id: str | None = None
     status: str
     metadata: Dict[str, Any]
     messages: List[str] = Field(default_factory=list)
     warnings: List[str] = Field(default_factory=list)
     epub_path: str | None = None
+    input_file: str | None = None
     sentences_preview: List[str] = Field(default_factory=list)

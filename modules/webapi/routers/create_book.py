@@ -13,14 +13,12 @@ from fastapi.concurrency import run_in_threadpool
 
 from modules.epub_utils import create_epub_from_sentences
 from modules.llm_client_manager import client_scope
-from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineService
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
 
 from ..dependencies import (
     RuntimeContextProvider,
     get_auth_service,
-    get_pipeline_service,
     get_runtime_context_provider,
 )
 from ..schemas.create_book import BookCreationRequest, BookCreationResponse
@@ -181,7 +179,6 @@ def _relative_epub_path(epub_path: Path, books_dir: Path) -> str:
 async def create_book(
     payload: BookCreationRequest,
     authorization: str | None = Header(default=None, alias="Authorization"),
-    pipeline_service: PipelineService = Depends(get_pipeline_service),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> BookCreationResponse:
@@ -258,6 +255,7 @@ async def create_book(
 
     relative_epub_path = _relative_epub_path(epub_path, books_dir)
     messages.append(f"Seed EPUB created at {relative_epub_path}.")
+    messages.append("Seed EPUB prepared; configure pipeline settings before submitting a job.")
 
     book_metadata = {
         "book_title": payload.book_name,
@@ -274,50 +272,6 @@ async def create_book(
         "seed_epub_path": relative_epub_path,
     }
 
-    pipeline_input = PipelineInput(
-        input_file=config_payload["input_file"],
-        base_output_file=base_output,
-        input_language=payload.input_language,
-        target_languages=[target_language],
-        sentences_per_output_file=payload.num_sentences,
-        start_sentence=1,
-        end_sentence=None,
-        stitch_full=bool(config_payload.get("stitch_full", False)),
-        generate_audio=bool(config_payload.get("generate_audio", True)),
-        audio_mode=str(config_payload.get("audio_mode") or "1"),
-        written_mode=str(config_payload.get("written_mode") or "4"),
-        selected_voice=selected_voice,
-        output_html=bool(config_payload.get("output_html", True)),
-        output_pdf=bool(config_payload.get("output_pdf", False)),
-        generate_video=bool(config_payload.get("generate_video", False)),
-        include_transliteration=bool(config_payload.get("include_transliteration", False)),
-        tempo=float(config_payload.get("tempo", 1.0)),
-        voice_overrides={},
-        book_metadata=book_metadata,
-    )
-
-    request = PipelineRequest(
-        config=config_payload,
-        context=context,
-        environment_overrides={},
-        pipeline_overrides={},
-        inputs=pipeline_input,
-    )
-
-    try:
-        job = pipeline_service.enqueue(
-            request,
-            user_id=user.username,
-            user_role=_resolve_user_role(user),
-        )
-    except Exception as exc:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to enqueue pipeline job: {exc}",
-        ) from exc
-
-    messages.append(f"Pipeline job {job.job_id} queued; monitor progress from the Jobs panel.")
-
     creation_summary = {
         "epub_path": relative_epub_path,
         "messages": list(messages),
@@ -332,22 +286,16 @@ async def create_book(
         "creation_summary": creation_summary,
     }
 
-    if job.request and job.request.inputs.book_metadata:
-        job.request.inputs.book_metadata.update(additional_metadata)
-    else:
-        book_metadata.update(additional_metadata)
-
-    if job.request and job.request.inputs.book_metadata:
-        metadata = job.request.inputs.book_metadata.as_dict()
-    else:
-        metadata = dict(book_metadata)
+    book_metadata.update(additional_metadata)
+    metadata = dict(book_metadata)
 
     return BookCreationResponse(
-        job_id=job.job_id,
-        status="accepted",
+        job_id=None,
+        status="prepared",
         metadata=metadata,
         messages=list(messages),
         warnings=list(warnings),
         epub_path=relative_epub_path,
+        input_file=str(epub_path),
         sentences_preview=list(sentences_preview),
     )

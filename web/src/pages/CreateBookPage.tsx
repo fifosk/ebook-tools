@@ -10,7 +10,7 @@ type VoiceOption = {
 };
 
 interface CreateBookPageProps {
-  onCreated?: (jobId: string) => void;
+  onCreated?: (result: BookCreationResponse) => void;
 }
 
 interface FormState {
@@ -166,12 +166,12 @@ export default function CreateBookPage({ onCreated }: CreateBookPageProps) {
     setIsSubmitting(true);
     try {
       const response = await createBook(trimmed);
-      setSuccessMessage(`Book job ${response.job_id} accepted.`);
+      setSuccessMessage('Seed EPUB prepared successfully.');
       setResult(response);
-      onCreated?.(response.job_id);
+      onCreated?.(response);
     } catch (submitError) {
       setError(
-        submitError instanceof Error ? submitError.message : 'Unable to create book job.'
+        submitError instanceof Error ? submitError.message : 'Unable to prepare the seed EPUB.'
       );
     } finally {
       setIsSubmitting(false);
@@ -181,7 +181,7 @@ export default function CreateBookPage({ onCreated }: CreateBookPageProps) {
   return (
     <section className="create-book-page">
       <h2>Create a book</h2>
-      <p>Generate a new pipeline job by asking the language model for source sentences, then automatically wiring them into the ebook pipeline.</p>
+      <p>Generate a seed EPUB by asking the language model for source sentences, then refine the pipeline settings before submitting the job.</p>
       {successMessage ? (
         <div className="form-callout form-callout--success" role="status">
           <p style={{ margin: 0, fontWeight: 600 }}>{successMessage}</p>
@@ -195,6 +195,11 @@ export default function CreateBookPage({ onCreated }: CreateBookPageProps) {
           {result?.epub_path ? (
             <p style={{ marginTop: '0.5rem', marginBottom: 0 }}>
               <strong>Seed EPUB:</strong> {result.epub_path}
+            </p>
+          ) : null}
+          {result?.input_file ? (
+            <p style={{ marginTop: '0.5rem', marginBottom: 0 }}>
+              <strong>Full path:</strong> {result.input_file}
             </p>
           ) : null}
           {result?.sentences_preview?.length ? (

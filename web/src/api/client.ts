@@ -57,6 +57,8 @@ function withBase(path: string): string {
 }
 
 let authToken: string | null = null;
+let authUserId: string | null = null;
+let authUserRole: string | null = null;
 let unauthorizedHandler: (() => void) | null = null;
 
 export function setAuthToken(token: string | null): void {
@@ -65,6 +67,23 @@ export function setAuthToken(token: string | null): void {
 
 export function getAuthToken(): string | null {
   return authToken;
+}
+
+export function setAuthContext(user: SessionStatusResponse['user'] | null): void {
+  authUserId = user?.username ?? null;
+  authUserRole = user?.role ?? null;
+}
+
+export function getAuthContext(): {
+  token: string | null;
+  userId: string | null;
+  userRole: string | null;
+} {
+  return {
+    token: authToken,
+    userId: authUserId,
+    userRole: authUserRole
+  };
 }
 
 export function setUnauthorizedHandler(handler: (() => void) | null): () => void {
@@ -91,8 +110,14 @@ async function apiFetch(
   { skipAuth = false }: FetchOptions = {}
 ): Promise<Response> {
   const headers = buildHeaders(init.headers);
-  if (!skipAuth && authToken) {
+  if (!skipAuth && authToken && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${authToken}`);
+  }
+  if (!skipAuth && authUserId && !headers.has('X-User-Id')) {
+    headers.set('X-User-Id', authUserId);
+  }
+  if (!skipAuth && authUserRole && !headers.has('X-User-Role')) {
+    headers.set('X-User-Role', authUserRole);
   }
 
   const response = await fetch(withBase(path), { ...init, headers });

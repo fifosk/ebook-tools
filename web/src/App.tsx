@@ -85,6 +85,7 @@ export function App() {
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
+  const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isAccountExpanded, setIsAccountExpanded] = useState(false);
@@ -340,6 +341,7 @@ export function App() {
           latestEvent: undefined
         }
       }));
+      setPendingInputFile(null);
       void refreshJobs();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to submit pipeline job';
@@ -1070,7 +1072,7 @@ export function App() {
           ) : isCreateBookView ? (
             <>
               <h1>Create book</h1>
-              <p>Draft a new ebook pipeline job by generating source sentences with the LLM.</p>
+              <p>Generate a seed EPUB with the LLM, then fine-tune the pipeline settings before submitting.</p>
             </>
           ) : (
             <>
@@ -1091,11 +1093,16 @@ export function App() {
           ) : isCreateBookView ? (
             <section>
               <CreateBookPage
-                onCreated={(jobId) => {
+                onCreated={(creation) => {
                   setIsImmersiveMode(false);
-                  setActiveJobId(jobId);
-                  setSelectedView(JOB_PROGRESS_VIEW);
-                  void refreshJobs();
+                  setActiveJobId(null);
+                  const nextInput =
+                    creation.input_file ??
+                    (creation.epub_path && creation.epub_path.trim() ? creation.epub_path : null);
+                  if (nextInput) {
+                    setPendingInputFile(nextInput);
+                  }
+                  setSelectedView('pipeline:source');
                 }}
               />
             </section>
@@ -1106,6 +1113,7 @@ export function App() {
                   <PipelineSubmissionForm
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
+                    prefillInputFile={pendingInputFile}
                     activeSection={activePipelineSection ?? undefined}
                     externalError={activePipelineSection === 'submit' ? submitError : null}
                   />
