@@ -13,6 +13,7 @@ import {
   synthesizeVoicePreview,
   uploadEpubFile
 } from '../../api/client';
+import { LanguageProvider } from '../../context/LanguageProvider';
 import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 
 vi.mock('../../api/client', () => ({
@@ -76,13 +77,17 @@ afterEach(() => {
   resolveFiles = null;
 });
 
+function renderWithLanguageProvider(ui: Parameters<typeof render>[0]) {
+  return render(<LanguageProvider>{ui}</LanguageProvider>);
+}
+
 describe('PipelineSubmissionForm', () => {
   it('submits normalized payloads when valid', async () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
 
     await act(async () => {
-      render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={handleSubmit} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -95,8 +100,7 @@ describe('PipelineSubmissionForm', () => {
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
     await user.clear(screen.getByLabelText(/Input language/i));
     await user.type(screen.getByLabelText(/Input language/i), 'English');
-
-    await user.click(screen.getByRole('checkbox', { name: 'French' }));
+    expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
     await user.click(screen.getByRole('checkbox', { name: 'German' }));
 
     const overrideSelect = await screen.findByLabelText(/Voice override for English/i);
@@ -127,7 +131,7 @@ describe('PipelineSubmissionForm', () => {
     const handleSubmit = vi.fn();
 
     await act(async () => {
-      render(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={handleSubmit} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -140,7 +144,7 @@ describe('PipelineSubmissionForm', () => {
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
     await user.clear(screen.getByLabelText(/Input language/i));
     await user.type(screen.getByLabelText(/Input language/i), 'English');
-    await user.click(screen.getByRole('checkbox', { name: 'French' }));
+    expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
 
     fireEvent.change(screen.getByLabelText(/Config overrides JSON/i), {
       target: { value: '{broken' }
@@ -154,7 +158,7 @@ describe('PipelineSubmissionForm', () => {
 
   it('prefills the form with defaults from the API response', async () => {
     await act(async () => {
-      render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={vi.fn()} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -212,7 +216,7 @@ describe('PipelineSubmissionForm', () => {
   it('allows selecting files from the dialog', async () => {
     const user = userEvent.setup();
     await act(async () => {
-      render(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={vi.fn()} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -238,7 +242,7 @@ describe('PipelineSubmissionForm', () => {
     });
 
     await act(async () => {
-      render(<PipelineSubmissionForm onSubmit={vi.fn()} activeSection="source" />);
+      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={vi.fn()} activeSection="source" />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
