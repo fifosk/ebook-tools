@@ -504,7 +504,8 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                 ) : null}
               </div>
               {isEditing ? (
-                <form className={styles.editForm} onSubmit={handleEditSubmit}>
+                <>
+                  <form className={styles.editForm} onSubmit={handleEditSubmit}>
                   {editError ? <div className={styles.editError}>{editError}</div> : null}
                   <div className={styles.fieldGroup}>
                     <label className={styles.fieldLabel} htmlFor="library-edit-title">Book Name</label>
@@ -603,14 +604,15 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                     </button>
                   </div>
                 </form>
-              {isbnPreview ? (
-                <div className={styles.previewBlock}>
-                  <h3>Fetched Metadata Preview</h3>
-                  <pre className={styles.metadataBlock}>
-{JSON.stringify(isbnPreview, null, 2)}
-                  </pre>
-                </div>
-              ) : null}
+                  {isbnPreview ? (
+                    <div className={styles.previewBlock}>
+                      <h3>Fetched Metadata Preview</h3>
+                      <pre className={styles.metadataBlock}>
+                        {JSON.stringify(isbnPreview, null, 2)}
+                      </pre>
+                    </div>
+                  ) : null}
+                </>
               ) : null}
               <ul className={styles.detailList}>
                 <li className={styles.detailItem}>
@@ -650,7 +652,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
               <div>
                 <h3>Metadata</h3>
                 <pre className={styles.metadataBlock}>
-{JSON.stringify(selectedItem.metadata, null, 2)}
+                  {JSON.stringify(selectedItem.metadata, null, 2)}
                 </pre>
               </div>
             </>
