@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import mimetypes
-from typing import Dict, Literal
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, Literal, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
 from ..dependencies import get_library_service
@@ -15,6 +17,8 @@ from ..schemas import (
     LibraryMetadataUpdateRequest,
     LibraryMoveRequest,
     LibraryMoveResponse,
+    LibraryIsbnLookupResponse,
+    LibraryIsbnUpdateRequest,
     LibraryReindexResponse,
     LibrarySearchResponse,
     PipelineMediaChunk,
@@ -144,11 +148,76 @@ async def update_library_metadata(
             author=payload.author,
             genre=payload.genre,
             language=payload.language,
+            isbn=payload.isbn,
         )
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryConflictError as exc:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    serialized = service.serialize_item(updated_item)
+    return LibraryItemPayload.model_validate(serialized)
+
+
+@router.post("/items/{job_id}/upload-source", response_model=LibraryItemPayload)
+async def upload_library_source(
+    job_id: str,
+    file: UploadFile = File(...),
+    service: LibraryService = Depends(get_library_service),
+):
+    if not file.filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded source must include a filename.",
+        )
+
+    suffix = Path(file.filename).suffix or ".epub"
+    temp_path: Optional[Path] = None
+    try:
+        with tempfile.NamedTemporaryFile("wb", delete=False, suffix=suffix) as handle:
+            while True:
+                chunk = await file.read(1024 * 1024)
+                if not chunk:
+                    break
+                handle.write(chunk)
+            temp_path = Path(handle.name)
+    finally:
+        await file.close()
+
+    if temp_path is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unable to process uploaded source file.",
+        )
+
+    try:
+        updated_item = service.reupload_source_from_path(job_id, temp_path)
+    except LibraryNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    finally:
+        try:
+            temp_path.unlink()
+        except OSError:
+            pass
+
+    serialized = service.serialize_item(updated_item)
+    return LibraryItemPayload.model_validate(serialized)
+
+
+@router.post("/items/{job_id}/isbn", response_model=LibraryItemPayload)
+async def apply_isbn_metadata(
+    job_id: str,
+    payload: LibraryIsbnUpdateRequest,
+    service: LibraryService = Depends(get_library_service),
+):
+    try:
+        updated_item = service.apply_isbn_metadata(job_id, payload.isbn)
+    except LibraryNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -170,6 +239,18 @@ async def refresh_library_metadata(
 
     serialized = service.serialize_item(refreshed_item)
     return LibraryItemPayload.model_validate(serialized)
+
+
+@router.get("/isbn/lookup", response_model=LibraryIsbnLookupResponse)
+async def lookup_isbn_metadata(
+    isbn: str = Query(..., min_length=1),
+    service: LibraryService = Depends(get_library_service),
+):
+    try:
+        metadata = service.lookup_isbn_metadata(isbn)
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    return LibraryIsbnLookupResponse(metadata=metadata)
 
 
 @router.post("/reindex", response_model=LibraryReindexResponse)

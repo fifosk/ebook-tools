@@ -239,7 +239,7 @@ function LibraryList({
         onClick={() => onEditMetadata(item)}
         disabled={Boolean(mutating[item.jobId])}
       >
-        Update metadata
+        Edit / Reupload
       </button>
       <button
         type="button"

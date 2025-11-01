@@ -9,7 +9,7 @@ from typing import Optional
 
 from modules import logging_manager
 
-from .constants import SCRIPT_DIR
+from .constants import SCRIPT_DIR, DEFAULT_LIBRARY_ROOT
 
 logger = logging_manager.get_logger()
 
@@ -96,18 +96,40 @@ def resolve_file_path(path_value, base_dir=None) -> Optional[Path]:
 
     if not path_value:
         return None
-    file_path = Path(os.path.expanduser(str(path_value)))
-    if file_path.is_absolute():
-        return file_path
+    raw_path = Path(str(path_value))
+    expanded_path = Path(os.path.expanduser(str(path_value)))
+    if expanded_path.is_absolute():
+        return expanded_path
+
+    candidates: list[Path] = []
+
     if base_dir:
         base = Path(base_dir)
-        if file_path.parts and base.name == file_path.parts[0]:
-            file_path = (SCRIPT_DIR / file_path).resolve()
-        else:
-            file_path = (base / file_path).resolve()
-    else:
-        file_path = (SCRIPT_DIR / file_path).resolve()
-    return file_path
+        candidates.append((base / raw_path).resolve())
+
+    candidates.append((SCRIPT_DIR / raw_path).resolve())
+
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+
+    try:
+        from . import get_library_root  # Local import to avoid circular dependency
+
+        library_root = get_library_root(create=False)
+    except Exception:
+        library_root = DEFAULT_LIBRARY_ROOT
+
+    library_candidate = Path(library_root) / raw_path
+    try:
+        library_candidate = library_candidate.resolve()
+    except OSError:
+        library_candidate = library_candidate
+
+    if library_candidate.exists():
+        return library_candidate
+
+    return candidates[0]
 
 
 __all__ = ["resolve_directory", "resolve_file_path"]

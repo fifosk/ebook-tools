@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Dict, Optional
 
 from .. import config_manager as cfg
@@ -26,7 +27,7 @@ def _create_library_service() -> LibraryService:
 
 def _filter_updates(args) -> Dict[str, Optional[str]]:
     updates: Dict[str, Optional[str]] = {}
-    for field in ("title", "author", "genre", "language"):
+    for field in ("title", "author", "genre", "language", "isbn"):
         value = getattr(args, field, None)
         if value is not None:
             updates[field] = value
@@ -78,6 +79,7 @@ def execute_library_command(args) -> int:
                 author=updates.get("author"),
                 genre=updates.get("genre"),
                 language=updates.get("language"),
+                isbn=updates.get("isbn"),
             )
         except LibraryNotFoundError:
             log_mgr.console_error(
@@ -99,6 +101,53 @@ def execute_library_command(args) -> int:
             "Updated metadata for '%s' (%s)",
             job_id,
             "; ".join(summary_parts),
+            logger_obj=LOGGER,
+        )
+        return 0
+
+    if command == "reupload":
+        job_id = args.job_id
+        source_path = Path(args.path)
+        try:
+            item = service.reupload_source_from_path(job_id, source_path)
+        except LibraryNotFoundError:
+            log_mgr.console_error(
+                f"Library entry '{job_id}' not found.",
+                logger_obj=LOGGER,
+            )
+            return 1
+        except LibraryError as exc:
+            log_mgr.console_error(str(exc), logger_obj=LOGGER)
+            return 1
+
+        log_mgr.console_info(
+            "Reuploaded source for '%s' — source path: %s",
+            job_id,
+            item.source_path or "(unknown)",
+            logger_obj=LOGGER,
+        )
+        return 0
+
+    if command == "fetch-isbn":
+        job_id = args.job_id
+        isbn = args.isbn
+        try:
+            item = service.apply_isbn_metadata(job_id, isbn)
+        except LibraryNotFoundError:
+            log_mgr.console_error(
+                f"Library entry '{job_id}' not found.",
+                logger_obj=LOGGER,
+            )
+            return 1
+        except LibraryError as exc:
+            log_mgr.console_error(str(exc), logger_obj=LOGGER)
+            return 1
+
+        log_mgr.console_info(
+            "Fetched ISBN metadata for '%s' — title: %s · author: %s",
+            job_id,
+            item.book_title or "Untitled",
+            item.author or "Unknown Author",
             logger_obj=LOGGER,
         )
         return 0

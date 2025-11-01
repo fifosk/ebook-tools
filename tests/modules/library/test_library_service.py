@@ -13,7 +13,7 @@ class TrackingJobManager:
     def __init__(self) -> None:
         self.deleted: list[str] = []
 
-    def delete_job(self, job_id: str) -> None:
+    def delete_job(self, job_id: str, **_kwargs) -> None:
         self.deleted.append(job_id)
 
 

@@ -17,6 +17,8 @@ def make_item(job_id: str, library_path: Path, **overrides) -> LibraryItem:
         'updated_at': overrides.get('updated_at', '2024-01-02T00:00:00+00:00'),
         'library_path': str(library_path),
         'cover_path': overrides.get('cover_path'),
+        'isbn': overrides.get('isbn'),
+        'source_path': overrides.get('source_path'),
         'meta_json': overrides.get('meta_json', '{}')
     }
     return LibraryItem(**payload)

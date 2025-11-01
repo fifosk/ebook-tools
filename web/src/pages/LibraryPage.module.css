@@ -171,6 +171,16 @@
   gap: 0.35rem;
 }
 
+.inlineFieldRow {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inlineFieldRow .fieldInput {
+  flex: 1 1 auto;
+}
+
 .fieldLabel {
   font-size: 0.85rem;
   font-weight: 600;
@@ -204,6 +214,20 @@
   background: #fef3f2;
   color: #b42318;
   font-size: 0.85rem;
+}
+
+.fileHint {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #475467);
+}
+
+.previewBlock {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  border-radius: 0.75rem;
+  background: var(--color-card-alt, #f9fafb);
 }
 
 .actionHint {

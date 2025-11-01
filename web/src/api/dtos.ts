@@ -214,6 +214,8 @@ export interface LibraryItem {
   updatedAt: string;
   libraryPath: string;
   coverPath?: string | null;
+  isbn?: string | null;
+  sourcePath?: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -246,6 +248,11 @@ export interface LibraryMetadataUpdatePayload {
   author?: string | null;
   genre?: string | null;
   language?: string | null;
+  isbn?: string | null;
+}
+
+export interface LibraryIsbnLookupResponse {
+  metadata: Record<string, unknown>;
 }
 
 export interface UserPasswordResetRequestPayload {

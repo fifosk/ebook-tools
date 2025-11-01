@@ -26,6 +26,8 @@ class LibraryItem:
     library_path: str
     meta_json: str
     cover_path: Optional[str] = None
+    isbn: Optional[str] = None
+    source_path: Optional[str] = None
 
     @property
     def metadata(self) -> Dict[str, Any]:
@@ -47,6 +49,8 @@ class LibraryItem:
             updated_at=row["updated_at"],
             library_path=row["library_path"],
             cover_path=row["cover_path"] if "cover_path" in row.keys() else None,
+            isbn=row["isbn"] if "isbn" in row.keys() else None,
+            source_path=row["source_path"] if "source_path" in row.keys() else None,
             meta_json=row["meta_json"],
         )
 
@@ -63,6 +67,8 @@ class LibraryBookRecord:
     cover_path: Optional[str]
     created_at: str
     updated_at: str
+    isbn: Optional[str] = None
+    source_path: Optional[str] = None
 
     @classmethod
     def from_row(cls, row: sqlite3.Row) -> "LibraryBookRecord":
@@ -75,6 +81,8 @@ class LibraryBookRecord:
             cover_path=row["cover_path"],
             created_at=row["created_at"],
             updated_at=row["updated_at"],
+            isbn=row["isbn"] if "isbn" in row.keys() else None,
+            source_path=row["source_path"] if "source_path" in row.keys() else None,
         )
 
 
@@ -103,7 +111,10 @@ class LibraryIndexer:
 
     def _apply_migrations(self, connection: sqlite3.Connection) -> None:
         connection.execute("PRAGMA foreign_keys = ON;")
-        connection.execute("PRAGMA journal_mode = WAL;")
+        try:
+            connection.execute("PRAGMA journal_mode = WAL;")
+        except sqlite3.OperationalError:
+            connection.execute("PRAGMA journal_mode = DELETE;")
         connection.execute(
             "CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)"
         )
@@ -137,17 +148,21 @@ class LibraryIndexer:
                 "updated_at": item.updated_at,
                 "library_path": item.library_path,
                 "cover_path": item.cover_path,
+                 "isbn": item.isbn,
+                 "source_path": item.source_path,
                 "meta_json": item.meta_json,
             }
             connection.execute(
                 """
                 INSERT INTO library_items (
                     id, author, book_title, genre, language, status,
-                    created_at, updated_at, library_path, cover_path, meta_json
+                    created_at, updated_at, library_path, cover_path,
+                    isbn, source_path, meta_json
                 )
                 VALUES (
                     :id, :author, :book_title, :genre, :language, :status,
-                    :created_at, :updated_at, :library_path, :cover_path, :meta_json
+                    :created_at, :updated_at, :library_path, :cover_path,
+                    :isbn, :source_path, :meta_json
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     author=excluded.author,
@@ -159,6 +174,8 @@ class LibraryIndexer:
                     updated_at=excluded.updated_at,
                     library_path=excluded.library_path,
                     cover_path=excluded.cover_path,
+                    isbn=excluded.isbn,
+                    source_path=excluded.source_path,
                     meta_json=excluded.meta_json;
                 """,
                 payload,
@@ -172,14 +189,16 @@ class LibraryIndexer:
                 "cover_path": item.cover_path,
                 "created_at": item.created_at,
                 "updated_at": item.updated_at,
+                "isbn": item.isbn,
+                "source_path": item.source_path,
             }
             connection.execute(
                 """
                 INSERT INTO books (
-                    id, title, author, genre, language, cover_path, created_at, updated_at
+                    id, title, author, genre, language, cover_path, isbn, source_path, created_at, updated_at
                 )
                 VALUES (
-                    :id, :title, :author, :genre, :language, :cover_path, :created_at, :updated_at
+                    :id, :title, :author, :genre, :language, :cover_path, :isbn, :source_path, :created_at, :updated_at
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     title=excluded.title,
@@ -187,6 +206,8 @@ class LibraryIndexer:
                     genre=excluded.genre,
                     language=excluded.language,
                     cover_path=excluded.cover_path,
+                    isbn=excluded.isbn,
+                    source_path=excluded.source_path,
                     created_at=excluded.created_at,
                     updated_at=excluded.updated_at;
                 """,
@@ -221,6 +242,8 @@ class LibraryIndexer:
         cover_path: Optional[str],
         created_at: str,
         updated_at: str,
+        isbn: Optional[str] = None,
+        source_path: Optional[str] = None,
     ) -> None:
         payload = {
             "id": job_id,
@@ -231,6 +254,8 @@ class LibraryIndexer:
             "cover_path": cover_path,
             "created_at": created_at,
             "updated_at": updated_at,
+            "isbn": isbn,
+            "source_path": source_path,
         }
         with self.connect() as connection:
             connection.execute(
@@ -241,6 +266,8 @@ class LibraryIndexer:
                     genre=:genre,
                     language=:language,
                     cover_path=:cover_path,
+                    isbn=:isbn,
+                    source_path=:source_path,
                     updated_at=:updated_at
                 WHERE id=:id
                 """,
@@ -249,10 +276,10 @@ class LibraryIndexer:
             connection.execute(
                 """
                 INSERT INTO books (
-                    id, title, author, genre, language, cover_path, created_at, updated_at
+                    id, title, author, genre, language, cover_path, isbn, source_path, created_at, updated_at
                 )
                 VALUES (
-                    :id, :title, :author, :genre, :language, :cover_path, :created_at, :updated_at
+                    :id, :title, :author, :genre, :language, :cover_path, :isbn, :source_path, :created_at, :updated_at
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     title=excluded.title,
@@ -260,6 +287,8 @@ class LibraryIndexer:
                     genre=excluded.genre,
                     language=excluded.language,
                     cover_path=excluded.cover_path,
+                    isbn=excluded.isbn,
+                    source_path=excluded.source_path,
                     created_at=excluded.created_at,
                     updated_at=excluded.updated_at;
                 """,
@@ -363,6 +392,8 @@ class LibraryIndexer:
                     "updated_at": item.updated_at,
                     "library_path": item.library_path,
                     "cover_path": item.cover_path,
+                    "isbn": item.isbn,
+                    "source_path": item.source_path,
                     "meta_json": item.meta_json,
                 }
                 for item in items
@@ -375,6 +406,8 @@ class LibraryIndexer:
                     "genre": item.genre,
                     "language": item.language,
                     "cover_path": item.cover_path,
+                    "isbn": item.isbn,
+                    "source_path": item.source_path,
                     "created_at": item.created_at,
                     "updated_at": item.updated_at,
                 }
@@ -384,10 +417,10 @@ class LibraryIndexer:
                 """
                 INSERT INTO library_items (
                     id, author, book_title, genre, language, status,
-                    created_at, updated_at, library_path, cover_path, meta_json
+                    created_at, updated_at, library_path, cover_path, isbn, source_path, meta_json
                 ) VALUES (
                     :id, :author, :book_title, :genre, :language, :status,
-                    :created_at, :updated_at, :library_path, :cover_path, :meta_json
+                    :created_at, :updated_at, :library_path, :cover_path, :isbn, :source_path, :meta_json
                 )
                 """,
                 library_rows,
@@ -395,10 +428,10 @@ class LibraryIndexer:
             connection.executemany(
                 """
                 INSERT INTO books (
-                    id, title, author, genre, language, cover_path, created_at, updated_at
+                    id, title, author, genre, language, cover_path, isbn, source_path, created_at, updated_at
                 )
                 VALUES (
-                    :id, :title, :author, :genre, :language, :cover_path, :created_at, :updated_at
+                    :id, :title, :author, :genre, :language, :cover_path, :isbn, :source_path, :created_at, :updated_at
                 )
                 """,
                 book_rows,

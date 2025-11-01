@@ -1,12 +1,16 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryItem, LibraryViewMode } from '../api/dtos';
 import {
+  applyLibraryIsbn,
+  appendAccessToken,
+  lookupLibraryIsbnMetadata,
   removeLibraryEntry,
   removeLibraryMedia,
   reindexLibrary,
   refreshLibraryMetadata,
   searchLibrary,
   updateLibraryMetadata,
+  uploadLibrarySource,
   type LibraryMetadataUpdatePayload,
   type LibrarySearchParams
 } from '../api/client';
@@ -35,14 +39,22 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const [refreshKey, setRefreshKey] = useState(0);
   const [isReindexing, setIsReindexing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editValues, setEditValues] = useState<{ title: string; author: string; genre: string; language: string }>({
-    title: '',
-    author: '',
-    genre: '',
-    language: ''
-  });
+  const [editValues, setEditValues] = useState<{ title: string; author: string; genre: string; language: string; isbn: string }>(
+    {
+      title: '',
+      author: '',
+      genre: '',
+      language: '',
+      isbn: ''
+    }
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isbnPreview, setIsbnPreview] = useState<Record<string, unknown> | null>(null);
+  const [previewCoverUrl, setPreviewCoverUrl] = useState<string | null>(null);
+  const [isbnFetchError, setIsbnFetchError] = useState<string | null>(null);
+  const [isFetchingIsbn, setIsFetchingIsbn] = useState(false);
 
   useEffect(() => {
     const handle = window.setTimeout(() => setEffectiveQuery(query), 250);
@@ -105,6 +117,11 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     if (!selectedItem) {
       setIsEditing(false);
       setEditError(null);
+      setSelectedFile(null);
+      setIsbnPreview(null);
+      setPreviewCoverUrl(null);
+      setIsbnFetchError(null);
+      setIsFetchingIsbn(false);
     }
   }, [selectedItem]);
 
@@ -215,8 +232,13 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
         title: item.bookTitle ?? '',
         author: item.author ?? '',
         genre: item.genre ?? '',
-        language: item.language ?? ''
+        language: item.language ?? '',
+        isbn: item.isbn ?? ''
       });
+      setSelectedFile(null);
+      setIsbnPreview(null);
+      setPreviewCoverUrl(null);
+      setIsbnFetchError(null);
       setIsEditing(true);
     },
     [handleOpen]
@@ -232,15 +254,73 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const handleEditCancel = useCallback(() => {
     setIsEditing(false);
     setEditError(null);
+     setSelectedFile(null);
+     setIsbnPreview(null);
+     setPreviewCoverUrl(null);
+     setIsbnFetchError(null);
+     setIsFetchingIsbn(false);
   }, []);
 
   const handleEditValueChange = useCallback(
-    (field: 'title' | 'author' | 'genre' | 'language') => (event: ChangeEvent<HTMLInputElement>) => {
+    (field: 'title' | 'author' | 'genre' | 'language' | 'isbn') => (event: ChangeEvent<HTMLInputElement>) => {
       const { value } = event.target;
       setEditValues((previous) => ({ ...previous, [field]: value }));
     },
     []
   );
+
+  const handleSourceFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files && event.target.files.length > 0 ? event.target.files[0] : null;
+    setSelectedFile(file ?? null);
+  }, []);
+
+  const handleFetchIsbnMetadata = useCallback(async () => {
+    const trimmedIsbn = editValues.isbn.trim();
+    if (!trimmedIsbn) {
+      setIsbnFetchError('Enter an ISBN to fetch metadata.');
+      return;
+    }
+    setIsbnFetchError(null);
+    setIsFetchingIsbn(true);
+    try {
+      const response = await lookupLibraryIsbnMetadata(trimmedIsbn);
+      const metadata = (response?.metadata ?? {}) as Record<string, unknown>;
+      setIsbnPreview(metadata);
+
+      setEditValues((previous) => ({
+        ...previous,
+        title: typeof metadata['book_title'] === 'string' && metadata['book_title'].trim() ? (metadata['book_title'] as string) : previous.title,
+        author: typeof metadata['book_author'] === 'string' && metadata['book_author'].trim() ? (metadata['book_author'] as string) : previous.author,
+        genre: typeof metadata['book_genre'] === 'string' && metadata['book_genre'].trim() ? (metadata['book_genre'] as string) : previous.genre,
+        language:
+          typeof metadata['book_language'] === 'string' && metadata['book_language'].trim()
+            ? (metadata['book_language'] as string)
+            : previous.language,
+        isbn: previous.isbn || trimmedIsbn
+      }));
+
+      const coverCandidate = ((): string | null => {
+        const coverFile = metadata['book_cover_file'];
+        if (typeof coverFile === 'string' && coverFile.trim()) {
+          return coverFile.trim();
+        }
+        const coverUrl = metadata['cover_url'];
+        if (typeof coverUrl === 'string' && coverUrl.trim()) {
+          return coverUrl.trim();
+        }
+        return null;
+      })();
+
+      setPreviewCoverUrl(coverCandidate ? appendAccessToken(coverCandidate) : null);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to fetch metadata from ISBN.';
+      setIsbnFetchError(message);
+      setIsbnPreview(null);
+      setPreviewCoverUrl(null);
+    } finally {
+      setIsFetchingIsbn(false);
+    }
+  }, [editValues.isbn]);
 
   const handleEditSubmit = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -251,20 +331,42 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
       setIsSaving(true);
       setEditError(null);
 
+      const trimmedTitle = editValues.title.trim();
+      const trimmedAuthor = editValues.author.trim();
+      const trimmedGenre = editValues.genre.trim();
+      const trimmedLanguage = editValues.language.trim();
+      const trimmedIsbn = editValues.isbn.trim();
+
       const payload: LibraryMetadataUpdatePayload = {
-        title: editValues.title.trim(),
-        author: editValues.author.trim(),
-        genre: editValues.genre.trim() ? editValues.genre.trim() : null,
-        language: editValues.language.trim(),
+        title: trimmedTitle,
+        author: trimmedAuthor,
+        genre: trimmedGenre ? trimmedGenre : null,
+        language: trimmedLanguage,
+        isbn: trimmedIsbn
       };
 
       try {
+        if (selectedFile) {
+          await uploadLibrarySource(selectedItem.jobId, selectedFile);
+        }
+
+        const originalIsbn = selectedItem.isbn ?? '';
+        if (trimmedIsbn && trimmedIsbn !== originalIsbn) {
+          await applyLibraryIsbn(selectedItem.jobId, trimmedIsbn);
+        } else if (!trimmedIsbn && originalIsbn) {
+          payload.isbn = '';
+        }
+
         const updated = await updateLibraryMetadata(selectedItem.jobId, payload);
         setItems((previous) =>
           previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
         );
         setSelectedItem(updated);
         setIsEditing(false);
+        setSelectedFile(null);
+        setIsbnPreview(null);
+        setPreviewCoverUrl(null);
+        setIsbnFetchError(null);
       } catch (actionError) {
         const message =
           actionError instanceof Error ? actionError.message : 'Unable to update metadata.';
@@ -303,6 +405,13 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     }
     return resolveLibraryCoverUrl(selectedItem, selectedBookMetadata);
   }, [selectedBookMetadata, selectedItem]);
+
+  const displayedCoverUrl = useMemo(() => {
+    if (isEditing && previewCoverUrl) {
+      return previewCoverUrl;
+    }
+    return coverUrl;
+  }, [coverUrl, isEditing, previewCoverUrl]);
 
   const handlePlay = useCallback(() => {
     if (!selectedItem || !onPlay) {
@@ -355,10 +464,10 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
           {selectedItem ? (
             <>
               <h2>{selectedItem.bookTitle || 'Untitled Book'}</h2>
-              {coverUrl ? (
+              {displayedCoverUrl ? (
                 <div className={styles.coverWrapper}>
                   <img
-                    src={coverUrl}
+                    src={displayedCoverUrl}
                     alt={`Cover art for ${selectedItem.bookTitle || 'selected book'}`}
                     className={styles.coverImage}
                   />
@@ -441,6 +550,45 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                       disabled={isSaving}
                     />
                   </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-isbn">ISBN</label>
+                    <div className={styles.inlineFieldRow}>
+                      <input
+                        id="library-edit-isbn"
+                        type="text"
+                        className={styles.fieldInput}
+                        value={editValues.isbn}
+                        onChange={handleEditValueChange('isbn')}
+                        disabled={isSaving || isFetchingIsbn}
+                      />
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={handleFetchIsbnMetadata}
+                        disabled={isSaving || isFetchingIsbn || !editValues.isbn.trim()}
+                      >
+                        {isFetchingIsbn ? 'Fetching…' : 'Fetch from ISBN'}
+                      </button>
+                    </div>
+                    {isbnFetchError ? <div className={styles.editError}>{isbnFetchError}</div> : null}
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-source">Replace Source EPUB</label>
+                    <input
+                      id="library-edit-source"
+                      type="file"
+                      accept=".epub,.pdf"
+                      onChange={handleSourceFileChange}
+                      disabled={isSaving}
+                    />
+                    <span className={styles.fileHint}>
+                      {selectedFile
+                        ? `Selected: ${selectedFile.name}`
+                        : selectedItem.sourcePath
+                        ? `Current: ${selectedItem.sourcePath}`
+                        : 'No source file stored yet.'}
+                    </span>
+                  </div>
                   <div className={styles.editActions}>
                     <button type="submit" className={styles.primaryButton} disabled={isSaving}>
                       Save changes
@@ -455,10 +603,24 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                     </button>
                   </div>
                 </form>
+              {isbnPreview ? (
+                <div className={styles.previewBlock}>
+                  <h3>Fetched Metadata Preview</h3>
+                  <pre className={styles.metadataBlock}>
+{JSON.stringify(isbnPreview, null, 2)}
+                  </pre>
+                </div>
+              ) : null}
               ) : null}
               <ul className={styles.detailList}>
                 <li className={styles.detailItem}>
                   <strong>Job ID:</strong> {selectedItem.jobId}
+                </li>
+                <li className={styles.detailItem}>
+                  <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
+                </li>
+                <li className={styles.detailItem}>
+                  <strong>Source file:</strong> {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
                 </li>
                 <li className={styles.detailItem}>
                   <strong>Author:</strong> {selectedItem.author || 'Unknown Author'}

@@ -47,6 +47,15 @@ _OPENLIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 _OPENLIBRARY_COVER_TEMPLATE = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
 
+def _normalize_isbn(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    cleaned = re.sub(r"[^0-9Xx]", "", value)
+    if len(cleaned) in {10, 13}:
+        return cleaned.upper()
+    return None
+
+
 def _is_placeholder(key: str, value: Optional[str]) -> bool:
     if value is None:
         return True
@@ -384,6 +393,100 @@ def _fetch_openlibrary_details(title: str, author: Optional[str]) -> Dict[str, O
     return enrichment
 
 
+def fetch_metadata_from_isbn(isbn: str) -> Dict[str, Optional[str]]:
+    """Return metadata for ``isbn`` sourced from public APIs."""
+
+    normalized = _normalize_isbn(isbn)
+    if not normalized:
+        raise ValueError("ISBN must contain 10 or 13 digits (optionally including X)")
+
+    metadata: Dict[str, Optional[str]] = {"isbn": normalized}
+
+    params = {
+        "bibkeys": f"ISBN:{normalized}",
+        "format": "json",
+        "jscmd": "data",
+    }
+
+    try:
+        response = requests.get("https://openlibrary.org/api/books", params=params, timeout=10)
+        response.raise_for_status()
+        payload = response.json()
+    except Exception as exc:  # pragma: no cover - network issues
+        logger.debug("OpenLibrary ISBN lookup failed: %s", exc)
+        return metadata
+
+    key = f"ISBN:{normalized}"
+    book_data = payload.get(key)
+    if not isinstance(book_data, dict):
+        return metadata
+
+    title = book_data.get("title")
+    if isinstance(title, str) and title.strip():
+        metadata["book_title"] = title.strip()
+
+    authors = book_data.get("authors")
+    if isinstance(authors, list):
+        names = []
+        for entry in authors:
+            if isinstance(entry, dict):
+                name = entry.get("name")
+                if isinstance(name, str) and name.strip():
+                    names.append(name.strip())
+        if names:
+            metadata["book_author"] = ", ".join(names)
+
+    publish_date = book_data.get("publish_date")
+    if isinstance(publish_date, str):
+        year_match = re.search(r"(18|19|20|21)\d{2}", publish_date)
+        if year_match:
+            metadata["book_year"] = year_match.group(0)
+
+    description = book_data.get("description")
+    if isinstance(description, dict):
+        description = description.get("value")
+    if isinstance(description, str):
+        metadata["book_summary"] = _limit_summary_length(description)
+
+    subjects = book_data.get("subjects")
+    if isinstance(subjects, list):
+        for candidate in subjects:
+            if isinstance(candidate, dict):
+                name = candidate.get("name")
+                if isinstance(name, str) and name.strip():
+                    metadata["book_genre"] = name.strip()
+                    break
+            elif isinstance(candidate, str) and candidate.strip():
+                metadata["book_genre"] = candidate.strip()
+                break
+
+    languages = book_data.get("languages")
+    if isinstance(languages, list):
+        for entry in languages:
+            if isinstance(entry, dict):
+                key_value = entry.get("key")
+                if isinstance(key_value, str) and key_value.strip():
+                    code = key_value.strip().split("/")[-1]
+                    if code:
+                        metadata["book_language"] = code
+                        break
+
+    cover_info = book_data.get("cover")
+    cover_url: Optional[str] = None
+    if isinstance(cover_info, dict):
+        cover_url = cover_info.get("large") or cover_info.get("medium") or cover_info.get("small")
+    elif isinstance(cover_info, str):
+        cover_url = cover_info
+
+    if cover_url:
+        destination = _cover_destination_for_isbn(normalized)
+        if _download_cover_from_url(cover_url, destination):
+            metadata["book_cover_file"] = str(destination)
+        metadata["cover_url"] = cover_url
+
+    return metadata
+
+
 def _limit_summary_length(summary: str) -> str:
     cleaned = summary.strip()
     if not cleaned:
@@ -463,6 +566,12 @@ def _cover_destination(epub_path: Path) -> Path:
     safe_base = re.sub(r"[^A-Za-z0-9_.-]", "_", epub_path.stem) or "book"
     digest = hashlib.sha1(epub_path.as_posix().encode("utf-8")).hexdigest()[:8]
     return root / f"{safe_base}_{digest}.jpg"
+
+
+def _cover_destination_for_isbn(isbn: str) -> Path:
+    root = _get_cover_storage_root()
+    safe_isbn = re.sub(r"[^0-9Xx]", "", isbn) or "isbn"
+    return root / f"isbn_{safe_isbn}.jpg"
 
 
 def _resolve_cover_path(candidate: Optional[str]) -> Optional[Path]:
@@ -582,7 +691,21 @@ def infer_metadata(
             if metadata.get(key) != previous:
                 logger.info("OpenLibrary provided %s", key)
 
-    cover_url = openlibrary_data.get("cover_url")
+    isbn_candidate = metadata.get("isbn") or (existing_metadata or {}).get("isbn")
+    normalized_isbn = _normalize_isbn(isbn_candidate)
+    if normalized_isbn:
+        metadata["isbn"] = normalized_isbn
+        try:
+            isbn_enrichment = fetch_metadata_from_isbn(normalized_isbn)
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.debug("Unable to fetch metadata for ISBN %s: %s", normalized_isbn, exc)
+        else:
+            for key, value in isbn_enrichment.items():
+                if key == "isbn":
+                    continue
+                _apply_metadata(metadata, key, value, force=force_refresh)
+
+    cover_url = metadata.get("cover_url") or openlibrary_data.get("cover_url")
     cover_path = _ensure_cover_image(metadata, epub_path, preferred_url=cover_url)
     if cover_path:
         if force_refresh or metadata.get("book_cover_file") != cover_path:
@@ -633,4 +756,4 @@ def populate_config_metadata(
     return config
 
 
-__all__ = ["infer_metadata", "populate_config_metadata"]
+__all__ = ["infer_metadata", "populate_config_metadata", "fetch_metadata_from_isbn"]

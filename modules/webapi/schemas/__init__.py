@@ -27,6 +27,8 @@ from ..jobs import PipelineJob, PipelineJobStatus
 from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchResponse
 from .library import (
     LibraryItemPayload,
+    LibraryIsbnLookupResponse,
+    LibraryIsbnUpdateRequest,
     LibraryMediaRemovalResponse,
     LibraryMetadataUpdateRequest,
     LibraryMoveRequest,

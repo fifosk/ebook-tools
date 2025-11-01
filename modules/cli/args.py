@@ -239,8 +239,25 @@ def build_cli_parser() -> argparse.ArgumentParser:
     library_edit_parser.add_argument("job_id", help="Library job identifier to edit.")
     library_edit_parser.add_argument("--title", help="Updated book title.")
     library_edit_parser.add_argument("--author", help="Updated author name.")
-    library_edit_parser.add_argument("--genre", help="Updated genre.")
-    library_edit_parser.add_argument("--language", help="Updated language code (e.g. en).")
+   library_edit_parser.add_argument("--genre", help="Updated genre.")
+   library_edit_parser.add_argument("--language", help="Updated language code (e.g. en).")
+    library_edit_parser.add_argument("--isbn", help="Updated ISBN value.")
+
+    library_reupload_parser = library_subparsers.add_parser(
+        "reupload",
+        help="Replace the stored source EPUB for a library entry.",
+        allow_abbrev=False,
+    )
+    library_reupload_parser.add_argument("job_id", help="Library job identifier to update.")
+    library_reupload_parser.add_argument("path", help="Path to the new EPUB file.")
+
+    library_fetch_isbn_parser = library_subparsers.add_parser(
+        "fetch-isbn",
+        help="Fetch metadata and cover art for a library entry using an ISBN.",
+        allow_abbrev=False,
+    )
+    library_fetch_isbn_parser.add_argument("job_id", help="Library job identifier to update.")
+    library_fetch_isbn_parser.add_argument("isbn", help="ISBN code to fetch metadata for.")
 
     return parser
 
