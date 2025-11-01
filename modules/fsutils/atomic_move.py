@@ -18,13 +18,19 @@ class ChecksumMismatchError(AtomicMoveError):
     """Raised when source and destination checksums do not match."""
 
 
+_IGNORED_NAMES = {
+    ".DS_Store",
+}
+
+
 def _iter_files(root: Path) -> Iterable[Tuple[Path, Path]]:
     if root.is_file():
-        yield Path("."), root
+        if root.name not in _IGNORED_NAMES:
+            yield Path("."), root
         return
 
     for path in sorted(root.rglob("*")):
-        if path.is_file():
+        if path.is_file() and path.name not in _IGNORED_NAMES:
             yield path.relative_to(root), path
 
 
