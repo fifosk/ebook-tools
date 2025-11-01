@@ -176,7 +176,7 @@ def test_search_endpoint_includes_library_results(tmp_path):
         user_id='tester', user_role='admin'
     )
 
-    with patch('modules.webapi.routes.search_generated_media', return_value=[]):
+    with patch('modules.webapi.routes.library_routes.search_generated_media', return_value=[]):
         client = TestClient(app)
         response = client.get('/pipelines/search', params={'query': 'Mystery', 'limit': 5, 'job_id': job_id})
 
