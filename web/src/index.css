@@ -538,7 +538,7 @@ main {
   padding-block-start: clamp(var(--space-md), 1rem + 1.5vw, var(--space-lg));
   padding-block-end: clamp(var(--space-md), 1.25rem + 2.5vw, var(--space-lg));
   padding-inline: clamp(var(--space-md), 5vw, var(--space-xl));
-  gap: var(--space-md);
+  gap: clamp(var(--space-md), 3vw, var(--space-lg));
 }
 
 .theme-control {
@@ -885,6 +885,11 @@ main {
     align-self: start;
   }
 
+  .dashboard__main:has(section:has(.new-immersive-book)) {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: clamp(var(--space-xl), 4vw, calc(var(--space-xl) * 1.15));
+  }
+
   .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
     > section.job-progress-section,
   .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
@@ -952,8 +957,9 @@ section {
 
 @media (min-width: 64rem) {
   .new-immersive-book {
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
     align-items: start;
+    gap: clamp(var(--space-xl), 4vw, calc(var(--space-xl) * 1.2));
   }
 }
 
