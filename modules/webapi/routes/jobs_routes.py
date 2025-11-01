@@ -131,6 +131,7 @@ async def submit_pipeline(
         job_id=job.job_id,
         status=job.status,
         created_at=job.created_at,
+        job_type=job.job_type,
     )
 
 

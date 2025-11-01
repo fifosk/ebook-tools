@@ -3,6 +3,7 @@
 ## Project Layout
 - `main.py` – CLI launcher that wires configuration, logging, and live progress display for the pipeline.
 - `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem now splits responsibilities across `modules/library/library_models.py`, `library_repository.py`, `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
+- `modules/subtitles/` – Subtitle parsing and translation utilities used by `SubtitleService` and the subtitle job API.
 - `web/` – React/Vite single-page application that talks to the FastAPI backend.
 - `scripts/` – Shell helpers (`run-webapi.sh`, `run-webui.sh`) that wrap common dev workflows.
 - `storage/ebooks/`, `storage/covers/`, `storage/<job_id>/metadata/`, `storage/<job_id>/media/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, consolidated cover images, per-job metadata snapshots, generated artifacts, temp data, and logs.
@@ -52,6 +53,7 @@ flowchart TD
 
 ## Runtime Services
 - `modules/services/job_manager.py` tracks job metadata, persists state (memory or Redis), and exposes lifecycle operations.
+- `modules/services/subtitle_service.py` schedules subtitle translation jobs and stages generated subtitle files under each job's `subtitles/` directory.
 - `modules/config_manager.py` resolves configuration files, environment overrides, and runtime directories. `modules/environment.py` layers `.env` files on import.
 - `modules/logging_manager.py` centralises structured logging primitives and console helpers.
 - `modules/metadata_manager.py` infers book metadata that can be refreshed mid-run.
@@ -62,10 +64,12 @@ flowchart TD
 - `modules/webapi/dependencies.py` wires dependency injection for the pipeline service, runtime context, and job store selection.
 - `modules/webapi/auth_routes.py` issues bearer tokens, reports active session metadata, rotates passwords, and revokes sessions via `AuthService`.
 - `modules/webapi/admin_routes.py` provides CRUD operations for user accounts, normalises profile metadata, and enforces the `admin` role on every request.
+- `modules/webapi/routers/subtitles.py` exposes endpoints to submit subtitle jobs, browse available source files, stream progress, and retrieve processed DRT subtitles.
 
 ## Frontend
 - The Vite client in `web/` consumes `VITE_API_BASE_URL`/`VITE_STORAGE_BASE_URL` to call the backend and display pipeline progress.
 - `AuthProvider` wraps the app to restore sessions from `localStorage`, attach bearer tokens to every fetch, and expose login/logout/password helpers to the UI shell.【F:web/src/components/AuthProvider.tsx†L1-L122】
 - `ThemeProvider` stores the preferred appearance (light, dark, magenta, or system) and updates the `data-theme` attribute so CSS variables react to the selected palette.【F:web/src/components/ThemeProvider.tsx†L1-L69】
 - `App.tsx` orchestrates the pipeline form sections, job registry, SSE subscriptions, and admin panel toggle based on the authenticated user's role.【F:web/src/App.tsx†L1-L215】
+- `SubtitlesPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs.【F:web/src/pages/SubtitlesPage.tsx†L1-L240】
 - Build artifacts (`web/dist/`) can be served by the API when `EBOOK_API_STATIC_ROOT` points to the directory.

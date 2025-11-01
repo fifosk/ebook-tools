@@ -54,6 +54,8 @@ class PipelineJobManager:
     ) -> None:
         self._lock = threading.RLock()
         self._jobs: Dict[str, PipelineJob] = {}
+        self._job_handlers: Dict[str, Callable[[str], None]] = {}
+        self._custom_workers: Dict[str, Callable[[PipelineJob], None]] = {}
         settings = cfg.get_settings()
         configured_workers = max_workers if max_workers is not None else settings.job_max_workers
         if max_workers is None:
@@ -135,12 +137,13 @@ class PipelineJobManager:
                     PipelineJobStatus.PAUSED,
                 ):
                     self._jobs[job_id] = job
+                    self._register_job_handler(job_id, job)
                     if job.status == PipelineJobStatus.PENDING:
                         pending_jobs.append(job_id)
 
         self._storage.persist_reconciliation(updates)
         for job_id in pending_jobs:
-            self._executor.submit(self._execute, job_id)
+            self._executor.submit(self._dispatch_execution, job_id)
 
     def _persist_source_file(self, job_id: str, request: PipelineRequest) -> Optional[str]:
         """Mirror the pipeline input file into the job's dedicated data directory."""
@@ -271,6 +274,7 @@ class PipelineJobManager:
 
         with self._lock:
             self._jobs[job_id] = job
+            self._register_job_handler(job_id, job)
             self._store.save(self._persistence.snapshot(job))
 
         if tuning_summary:
@@ -290,7 +294,61 @@ class PipelineJobManager:
                 },
             )
 
-        self._executor.submit(self._execute, job_id)
+        self._executor.submit(self._dispatch_execution, job_id)
+        return job
+
+    def submit_background_job(
+        self,
+        *,
+        job_type: str,
+        worker: Callable[[PipelineJob], None],
+        tracker: Optional[ProgressTracker] = None,
+        stop_event: Optional[threading.Event] = None,
+        request_payload: Optional[Mapping[str, Any]] = None,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+        setup: Optional[Callable[[PipelineJob], None]] = None,
+    ) -> PipelineJob:
+        """Register a non-pipeline job for asynchronous execution."""
+
+        normalized_type = job_type or "custom"
+        job_id = str(uuid4())
+        tracker = tracker or ProgressTracker()
+        stop_event = stop_event or threading.Event()
+
+        job_root = self._file_locator.resolve_path(job_id)
+        job_root.mkdir(parents=True, exist_ok=True)
+        self._file_locator.metadata_root(job_id).mkdir(parents=True, exist_ok=True)
+        self._file_locator.data_root(job_id).mkdir(parents=True, exist_ok=True)
+
+        job = PipelineJob(
+            job_id=job_id,
+            job_type=normalized_type,
+            status=PipelineJobStatus.PENDING,
+            created_at=datetime.now(timezone.utc),
+            request=None,
+            tracker=tracker,
+            stop_event=stop_event,
+            request_payload=dict(request_payload) if request_payload else None,
+            resume_context=None,
+            user_id=user_id,
+            user_role=user_role,
+        )
+
+        if setup is not None:
+            setup(job)
+
+        tracker.register_observer(lambda event: self._store_event(job_id, event))
+
+        with self._lock:
+            self._jobs[job_id] = job
+            self._custom_workers[job_id] = worker
+            self._register_job_handler(job_id, job)
+            snapshot = self._persistence.snapshot(job)
+            self._store.save(snapshot)
+
+        self._log_generic_job_submitted(job)
+        self._executor.submit(self._dispatch_execution, job_id)
         return job
 
     @property
@@ -337,14 +395,13 @@ class PipelineJobManager:
             snapshot = self._persistence.apply_event(job, event)
             self._store.update(snapshot)
         stage = metadata.get("stage")
-        correlation_id = None
-        if job and job.request is not None:
-            correlation_id = job.request.correlation_id
+        correlation_id = self._job_correlation_id(job) if job is not None else None
+        event_name = f"{job.job_type}.job.progress" if job is not None else "pipeline.job.progress"
         with log_mgr.log_context(job_id=job_id, correlation_id=correlation_id):
             logger.info(
                 "Pipeline progress event",
                 extra={
-                    "event": "pipeline.job.progress",
+                    "event": event_name,
                     "stage": stage,
                     "attributes": {
                         "event_type": event.event_type,
@@ -356,14 +413,118 @@ class PipelineJobManager:
                 },
             )
 
-    def _execute(self, job_id: str) -> None:
-        self._job_executor.execute(job_id)
+    def _register_job_handler(self, job_id: str, job: PipelineJob) -> None:
+        worker = self._custom_workers.get(job_id)
+        if worker is not None:
+            self._job_handlers[job_id] = lambda current_id=job_id, fn=worker: self._execute_custom(current_id, fn)
+            return
+        if job.job_type == "pipeline":
+            self._job_handlers[job_id] = self._execute_pipeline
+        else:
+            self._job_handlers[job_id] = lambda current_id=job_id: self._execute_orphaned(current_id)
+
+    def _dispatch_execution(self, job_id: str) -> None:
+        handler = self._job_handlers.get(job_id)
+        if handler is None:
+            handler = self._execute_orphaned
+        handler(job_id)
 
     def _job_correlation_id(self, job: PipelineJob) -> Optional[str]:
         request = job.request
         if request is None:
             return None
         return request.correlation_id
+
+    def _execute_pipeline(self, job_id: str) -> None:
+        self._job_executor.execute(job_id)
+
+    def _execute_custom(
+        self,
+        job_id: str,
+        worker: Callable[[PipelineJob], None],
+    ) -> None:
+        try:
+            job = self._get_unchecked(job_id)
+        except KeyError:
+            return
+
+        with self._lock:
+            job.status = PipelineJobStatus.RUNNING
+            job.started_at = datetime.now(timezone.utc)
+            snapshot = self._persistence.snapshot(job)
+        self._store.update(snapshot)
+
+        self._log_generic_job_started(job)
+
+        try:
+            worker(job)
+        except Exception as exc:  # pragma: no cover - defensive guard
+            with self._lock:
+                job.status = PipelineJobStatus.FAILED
+                job.error_message = str(exc)
+                job.completed_at = datetime.now(timezone.utc)
+                snapshot = self._persistence.snapshot(job)
+            self._store.update(snapshot)
+            if job.tracker is not None:
+                job.tracker.record_error(exc, {"stage": job.job_type})
+            self._log_generic_job_error(job, exc)
+        else:
+            terminal_states = {
+                PipelineJobStatus.COMPLETED,
+                PipelineJobStatus.FAILED,
+                PipelineJobStatus.CANCELLED,
+            }
+            with self._lock:
+                status = job.status
+                if status not in terminal_states:
+                    job.status = PipelineJobStatus.COMPLETED
+                    status = job.status
+                if job.completed_at is None:
+                    job.completed_at = datetime.now(timezone.utc)
+                snapshot = self._persistence.snapshot(job)
+            self._store.update(snapshot)
+            self._log_generic_job_finished(job, job.status)
+        finally:
+            with self._lock:
+                self._custom_workers.pop(job_id, None)
+                self._job_handlers.pop(job_id, None)
+                snapshot = self._persistence.snapshot(job)
+            self._store.update(snapshot)
+
+            if job.tracker is not None:
+                status = job.status
+                if status == PipelineJobStatus.COMPLETED:
+                    job.tracker.mark_finished(reason="completed", forced=False)
+                elif status == PipelineJobStatus.CANCELLED:
+                    job.tracker.mark_finished(reason="cancelled", forced=True)
+                else:
+                    job.tracker.mark_finished(reason="failed", forced=True)
+
+            if job.started_at and job.completed_at:
+                duration_ms = (job.completed_at - job.started_at).total_seconds() * 1000.0
+                metric_name = f"{job.job_type}.job.duration"
+                self._record_job_metric(
+                    metric_name,
+                    duration_ms,
+                    {"job_id": job.job_id, "status": job.status.value},
+                )
+
+    def _execute_orphaned(self, job_id: str) -> None:
+        try:
+            job = self._get_unchecked(job_id)
+        except KeyError:
+            return
+        message = f"No execution handler registered for job type '{job.job_type}'"
+        with self._lock:
+            job.status = PipelineJobStatus.FAILED
+            job.error_message = message
+            job.completed_at = job.completed_at or datetime.now(timezone.utc)
+            snapshot = self._persistence.snapshot(job)
+        self._store.update(snapshot)
+        self._job_handlers.pop(job_id, None)
+        if job.tracker is not None:
+            job.tracker.mark_finished(reason="failed", forced=True)
+        self._log_generic_job_error(job, RuntimeError(message))
 
     @contextmanager
     def _log_context(self, job: PipelineJob):
@@ -424,6 +585,50 @@ class PipelineJobManager:
                     "event": "pipeline.job.interrupted",
                     "status": status.value,
                     "console_suppress": True,
+                },
+            )
+
+    def _log_generic_job_started(self, job: PipelineJob) -> None:
+        with self._log_context(job):
+            logger.info(
+                "Background job started",
+                extra={
+                    "event": f"{job.job_type}.job.started",
+                    "status": PipelineJobStatus.RUNNING.value,
+                    "console_suppress": True,
+                },
+            )
+
+    def _log_generic_job_finished(self, job: PipelineJob, status: PipelineJobStatus) -> None:
+        with self._log_context(job):
+            logger.info(
+                "Background job finished",
+                extra={
+                    "event": f"{job.job_type}.job.finished",
+                    "status": status.value,
+                    "console_suppress": True,
+                },
+            )
+
+    def _log_generic_job_submitted(self, job: PipelineJob) -> None:
+        with self._log_context(job):
+            logger.info(
+                "Background job submitted",
+                extra={
+                    "event": f"{job.job_type}.job.submitted",
+                    "status": job.status.value,
+                    "console_suppress": True,
+                },
+            )
+
+    def _log_generic_job_error(self, job: PipelineJob, exc: Exception) -> None:
+        with self._log_context(job):
+            logger.error(
+                "Background job encountered an error",
+                extra={
+                    "event": f"{job.job_type}.job.error",
+                    "status": PipelineJobStatus.FAILED.value,
+                    "attributes": {"error": str(exc)},
                 },
             )
 
@@ -513,7 +718,10 @@ class PipelineJobManager:
             user_id=user_id,
             user_role=user_role,
         )
-        self._executor.submit(self._execute, job_id)
+        with self._lock:
+            self._jobs[job_id] = job
+            self._register_job_handler(job_id, job)
+        self._executor.submit(self._dispatch_execution, job_id)
         return job
 
     def cancel_job(
@@ -610,6 +818,9 @@ class PipelineJobManager:
             stored_metadata = self._store.get(job_id)
             job = self._persistence.build_job(stored_metadata)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
+
+        if job.job_type != "pipeline":
+            raise ValueError(f"Metadata refresh is not available for job type '{job.job_type}'")
 
         self._metadata_refresher.refresh(job)
 

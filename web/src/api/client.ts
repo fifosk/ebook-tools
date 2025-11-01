@@ -28,7 +28,10 @@ import {
   LibraryMoveResponse,
   LibraryReindexResponse,
   LibrarySearchResponse,
-  LibraryViewMode
+  LibraryViewMode,
+  SubtitleJobResultPayload,
+  SubtitleSourceEntry,
+  SubtitleSourceListResponse
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -190,6 +193,27 @@ export async function logout(): Promise<void> {
 export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
   const response = await apiFetch('/auth/session');
   return handleResponse<SessionStatusResponse>(response);
+}
+
+export async function fetchSubtitleSources(directory?: string): Promise<SubtitleSourceEntry[]> {
+  const query = directory ? `?directory=${encodeURIComponent(directory)}` : '';
+  const response = await apiFetch(`/api/subtitles/sources${query}`);
+  const payload = await handleResponse<SubtitleSourceListResponse>(response);
+  return payload.sources;
+}
+
+export async function submitSubtitleJob(formData: FormData): Promise<PipelineSubmissionResponse> {
+  const response = await apiFetch('/api/subtitles/jobs', {
+    method: 'POST',
+    body: formData
+  });
+  return handleResponse<PipelineSubmissionResponse>(response);
+}
+
+export async function fetchSubtitleResult(jobId: string): Promise<SubtitleJobResultPayload> {
+  const encoded = encodeURIComponent(jobId);
+  const response = await apiFetch(`/api/subtitles/jobs/${encoded}/result`);
+  return handleResponse<SubtitleJobResultPayload>(response);
 }
 
 export async function changePassword(payload: PasswordChangeRequestPayload): Promise<void> {
@@ -471,6 +495,21 @@ export function buildStorageUrl(path: string, jobId?: string | null): string {
     STORAGE_BASE_URL,
     API_BASE_URL
   );
+}
+
+export function resolveSubtitleDownloadUrl(
+  jobId: string,
+  relativePath: string | null | undefined
+): string | null {
+  if (!relativePath) {
+    return null;
+  }
+  const trimmed = relativePath.trim().replace(/^\/+/, '');
+  if (!trimmed) {
+    return null;
+  }
+  const composedPath = `${jobId}/${trimmed}`;
+  return buildStorageUrl(composedPath, jobId);
 }
 
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {

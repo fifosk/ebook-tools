@@ -6,6 +6,7 @@ import LibraryPage from './pages/LibraryPage';
 import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
+import SubtitlesPage from './pages/SubtitlesPage';
 import Sidebar from './components/Sidebar';
 import {
   LibraryItem,
@@ -53,6 +54,7 @@ const JOB_PROGRESS_VIEW = 'job:progress' as const;
 const JOB_MEDIA_VIEW = 'job:media' as const;
 const LIBRARY_VIEW = 'library:list' as const;
 const CREATE_BOOK_VIEW = 'books:create' as const;
+const SUBTITLES_VIEW = 'subtitles:home' as const;
 
 export type SelectedView =
   | PipelineMenuView
@@ -60,7 +62,8 @@ export type SelectedView =
   | typeof JOB_PROGRESS_VIEW
   | typeof JOB_MEDIA_VIEW
   | typeof LIBRARY_VIEW
-  | typeof CREATE_BOOK_VIEW;
+  | typeof CREATE_BOOK_VIEW
+  | typeof SUBTITLES_VIEW;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -357,6 +360,7 @@ export function App() {
       const submission = await submitPipeline(payload);
       const placeholderStatus: PipelineStatusResponse = {
         job_id: submission.job_id,
+        job_type: submission.job_type,
         status: submission.status,
         created_at: submission.created_at,
         started_at: null,
@@ -696,6 +700,22 @@ export function App() {
     [setSelectedView]
   );
 
+  const handleSubtitleJobCreated = useCallback(
+    (jobId: string) => {
+      setActiveJobId(jobId);
+      void refreshJobs();
+    },
+    [refreshJobs]
+  );
+
+  const handleSubtitleJobSelected = useCallback(
+    (jobId: string) => {
+      setActiveJobId(jobId);
+      setSelectedView(JOB_PROGRESS_VIEW);
+    },
+    [setSelectedView]
+  );
+
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => {
       const owner = typeof entry.status?.user_id === 'string' ? entry.status.user_id : null;
@@ -732,10 +752,15 @@ export function App() {
     return sortedJobs.filter((job) => job.canManage);
   }, [sortedJobs]);
 
+  const subtitleJobStates = useMemo(() => {
+    return sortedJobs.filter((job) => job.status.job_type === 'subtitle');
+  }, [sortedJobs]);
+
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
   const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
   const isLibraryView = selectedView === LIBRARY_VIEW;
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
+  const isSubtitlesView = selectedView === SUBTITLES_VIEW;
   const isNewImmersiveBookView = isPipelineView;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
@@ -1030,12 +1055,13 @@ export function App() {
           activeJobId={activeJobId}
           onSelectJob={handleSelectSidebarJob}
           onOpenPlayer={handleOpenPlayerForJob}
-          isAdmin={isAdmin}
-          createBookView={CREATE_BOOK_VIEW}
-          libraryView={LIBRARY_VIEW}
-          jobMediaView={JOB_MEDIA_VIEW}
-          adminView={ADMIN_USER_MANAGEMENT_VIEW}
-        />
+        isAdmin={isAdmin}
+        createBookView={CREATE_BOOK_VIEW}
+        libraryView={LIBRARY_VIEW}
+        subtitlesView={SUBTITLES_VIEW}
+        jobMediaView={JOB_MEDIA_VIEW}
+        adminView={ADMIN_USER_MANAGEMENT_VIEW}
+      />
       </aside>
       <div className="dashboard__content">
         <main className="dashboard__main">
@@ -1114,6 +1140,15 @@ export function App() {
                     isSubmitting={isSubmitting}
                     prefillInputFile={pendingInputFile}
                     submitError={activePipelineSection === 'submit' ? submitError : null}
+                  />
+                </section>
+              ) : null}
+              {isSubtitlesView ? (
+                <section>
+                  <SubtitlesPage
+                    subtitleJobs={subtitleJobStates}
+                    onJobCreated={handleSubtitleJobCreated}
+                    onSelectJob={handleSubtitleJobSelected}
                   />
                 </section>
               ) : null}

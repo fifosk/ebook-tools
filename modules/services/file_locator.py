@@ -121,6 +121,11 @@ class FileLocator:
 
         return self.job_root(job_id) / "data"
 
+    def subtitles_root(self, job_id: str) -> Path:
+        """Return the directory that stores generated subtitle files for ``job_id``."""
+
+        return self.job_root(job_id) / "subtitles"
+
     def resolve_url(
         self, job_id: str, path: Optional[PathLikeStr] = None
     ) -> Optional[str]:

@@ -58,6 +58,7 @@ class PipelineJob:
     user_role: Optional[str] = None
     generated_files: Optional[Dict[str, Any]] = None
     media_completed: bool = False
+    job_type: str = "pipeline"
 
 
 __all__ = [

@@ -77,6 +77,7 @@ export interface PipelineSubmissionResponse {
   job_id: string;
   status: PipelineJobStatus;
   created_at: string;
+  job_type: string;
 }
 
 export interface ProgressSnapshotPayload {
@@ -113,6 +114,7 @@ export interface PipelineResponsePayload {
 
 export interface PipelineStatusResponse {
   job_id: string;
+  job_type: string;
   status: PipelineJobStatus;
   created_at: string;
   started_at: string | null;
@@ -125,6 +127,26 @@ export interface PipelineStatusResponse {
   user_role?: string | null;
   generated_files?: Record<string, unknown> | null;
   media_completed?: boolean | null;
+}
+
+export interface SubtitleSourceEntry {
+  name: string;
+  path: string;
+}
+
+export interface SubtitleSourceListResponse {
+  sources: SubtitleSourceEntry[];
+}
+
+export interface SubtitleJobResultPayload {
+  subtitle?: {
+    output_path?: string;
+    relative_path?: string;
+    metadata?: Record<string, unknown>;
+    cues?: number;
+    translated?: number;
+  };
+  [key: string]: unknown;
 }
 
 export interface PipelineJobListResponse {

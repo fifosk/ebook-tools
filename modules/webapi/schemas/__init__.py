@@ -202,6 +202,32 @@ class PipelineSubmissionResponse(BaseModel):
     job_id: str
     status: PipelineJobStatus
     created_at: datetime
+    job_type: str = "pipeline"
+
+
+class SubtitleSourceEntry(BaseModel):
+    """Metadata describing a discoverable subtitle file."""
+
+    name: str
+    path: str
+
+
+class SubtitleSubmissionPayload(BaseModel):
+    """Payload used when submitting a subtitle job via JSON."""
+
+    input_language: str
+    target_language: str
+    enable_transliteration: bool = False
+    highlight: bool = True
+    batch_size: Optional[int] = None
+    source_path: Optional[str] = None
+    cleanup_source: bool = False
+
+
+class SubtitleSourceListResponse(BaseModel):
+    """Collection of available subtitle sources."""
+
+    sources: List[SubtitleSourceEntry] = Field(default_factory=list)
 
 
 class PipelineResponsePayload(BaseModel):
@@ -331,6 +357,7 @@ class PipelineStatusResponse(BaseModel):
     """Full status payload for a pipeline job."""
 
     job_id: str
+    job_type: str
     status: PipelineJobStatus
     created_at: datetime
     started_at: Optional[datetime]
@@ -362,6 +389,7 @@ class PipelineStatusResponse(BaseModel):
 
         return cls(
             job_id=job.job_id,
+            job_type=job.job_type,
             status=job.status,
             created_at=job.created_at,
             started_at=job.started_at,

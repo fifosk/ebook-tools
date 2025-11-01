@@ -7,6 +7,7 @@ const sampleJob: JobState = {
   jobId: '123',
   status: {
     job_id: '123',
+    job_type: 'pipeline',
     status: 'running',
     created_at: new Date().toISOString(),
     started_at: null,
@@ -36,6 +37,7 @@ describe('Sidebar', () => {
         isAdmin={false}
         createBookView="books:create"
         libraryView="library:list"
+        subtitlesView="subtitles:home"
         jobMediaView="job:media"
         adminView="admin:users"
       />
@@ -65,6 +67,7 @@ describe('Sidebar', () => {
         isAdmin={true}
         createBookView="books:create"
         libraryView="library:list"
+        subtitlesView="subtitles:home"
         jobMediaView="job:media"
         adminView="admin:users"
       />
