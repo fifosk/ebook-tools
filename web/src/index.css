@@ -886,7 +886,7 @@ main {
   }
 
   .dashboard__main:has(section:has(.new-immersive-book)) {
-    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
     gap: clamp(var(--space-xl), 4vw, calc(var(--space-xl) * 1.15));
   }
 
@@ -957,7 +957,7 @@ section {
 
 @media (min-width: 64rem) {
   .new-immersive-book {
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+    grid-template-columns: minmax(0, 0.68fr) minmax(0, 1.32fr);
     align-items: start;
     gap: clamp(var(--space-xl), 4vw, calc(var(--space-xl) * 1.2));
   }
