@@ -7,13 +7,18 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { UIEvent } from 'react';
+import type { CSSProperties, UIEvent } from 'react';
 import { appendAccessToken } from '../api/client';
 import type { LiveMediaChunk, LiveMediaItem } from '../hooks/useLiveMedia';
 
 type SentenceFragment = {
   index: number;
   text: string;
+  wordCount: number;
+  parts: Array<{ content: string; isWord: boolean }>;
+  translation: string | null;
+  transliteration: string | null;
+  weight: number;
 };
 
 type ParagraphFragment = {
@@ -70,6 +75,40 @@ function segmentParagraph(paragraph: string): string[] {
   return fallbackMatches.map((segment) => segment.trim()).filter(Boolean);
 }
 
+function buildSentenceParts(value: string): Array<{ content: string; isWord: boolean }> {
+  if (!value) {
+    return [];
+  }
+  const segments = value.match(/(\S+|\s+)/g) ?? [value];
+  return segments.map((segment) => ({
+    content: segment,
+    isWord: /\S/.test(segment) && !/^\s+$/.test(segment),
+  }));
+}
+
+function parseSentenceVariants(raw: string): {
+  primary: string;
+  translation: string | null;
+  transliteration: string | null;
+} {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return { primary: '', translation: null, transliteration: null };
+  }
+  const segments = trimmed
+    .split('||')
+    .map((segment) => segment.trim())
+    .filter((segment, index) => segment.length > 0 || index === 0);
+  const primary = segments[0] ?? trimmed;
+  const translation = segments[1] ?? null;
+  const transliteration = segments[2] ?? null;
+  return {
+    primary,
+    translation,
+    transliteration,
+  };
+}
+
 function buildParagraphs(content: string): ParagraphFragment[] {
   const trimmed = content?.trim();
   if (!trimmed) {
@@ -87,18 +126,41 @@ function buildParagraphs(content: string): ParagraphFragment[] {
 
     const segments = segmentParagraph(raw);
     if (segments.length === 0) {
+      const variants = parseSentenceVariants(raw);
+      const parts = buildSentenceParts(variants.primary);
+      const wordCount = parts.filter((part) => part.isWord).length;
+      const weight = Math.max(wordCount, variants.primary.length, 1);
       paragraphs.push({
         id: `paragraph-${paragraphIndex}`,
-        sentences: [{ index: nextIndex, text: raw }],
+        sentences: [
+          {
+            index: nextIndex,
+            text: variants.primary,
+            translation: variants.translation,
+            transliteration: variants.transliteration,
+            parts,
+            wordCount,
+            weight,
+          },
+        ],
       });
       nextIndex += 1;
       return;
     }
 
     const sentences: SentenceFragment[] = segments.map((segment) => {
+      const variants = parseSentenceVariants(segment);
+      const parts = buildSentenceParts(variants.primary);
+      const wordCount = parts.filter((part) => part.isWord).length;
+      const weight = Math.max(wordCount, variants.primary.length, 1);
       const fragment: SentenceFragment = {
         index: nextIndex,
-        text: segment,
+        text: variants.primary,
+        translation: variants.translation,
+        transliteration: variants.transliteration,
+        parts,
+        wordCount,
+        weight,
       };
       nextIndex += 1;
       return fragment;
@@ -111,10 +173,24 @@ function buildParagraphs(content: string): ParagraphFragment[] {
   });
 
   if (paragraphs.length === 0) {
+    const variants = parseSentenceVariants(trimmed);
+    const fallbackParts = buildSentenceParts(variants.primary);
+    const fallbackWordCount = fallbackParts.filter((part) => part.isWord).length;
+    const fallbackWeight = Math.max(fallbackWordCount, variants.primary.length, 1);
     return [
       {
         id: 'paragraph-0',
-        sentences: [{ index: 0, text: trimmed }],
+        sentences: [
+          {
+            index: 0,
+            text: variants.primary,
+            translation: variants.translation,
+            transliteration: variants.transliteration,
+            parts: fallbackParts,
+            wordCount: fallbackWordCount,
+            weight: fallbackWeight,
+          },
+        ],
       },
     ];
   }
@@ -137,6 +213,26 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
   useImperativeHandle(forwardedRef, () => containerRef.current as HTMLElement | null);
 
   const paragraphs = useMemo(() => buildParagraphs(content), [content]);
+  const flattenedSentences = useMemo(
+    () =>
+      paragraphs
+        .map((paragraph) => paragraph.sentences)
+        .flat()
+        .sort((a, b) => a.index - b.index),
+    [paragraphs],
+  );
+  const sentenceWeightSummary = useMemo(() => {
+    let cumulativeTotal = 0;
+    const cumulative: number[] = [];
+    flattenedSentences.forEach((sentence) => {
+      cumulativeTotal += sentence.weight;
+      cumulative.push(cumulativeTotal);
+    });
+    return {
+      cumulative,
+      total: cumulativeTotal,
+    };
+  }, [flattenedSentences]);
   const totalSentences = useMemo(
     () => paragraphs.reduce((count, paragraph) => count + paragraph.sentences.length, 0),
     [paragraphs],
@@ -186,11 +282,13 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
+  const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
   const pendingInitialSeek = useRef<number | null>(null);
   const lastReportedPosition = useRef(0);
 
   useEffect(() => {
     setActiveSentenceIndex(0);
+    setActiveSentenceProgress(0);
     const container = containerRef.current;
     if (container) {
       container.scrollTop = 0;
@@ -202,6 +300,7 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
       pendingInitialSeek.current = null;
       lastReportedPosition.current = 0;
       setActiveSentenceIndex(0);
+      setActiveSentenceProgress(0);
       setIsAudioPlaying(false);
       return;
     }
@@ -212,7 +311,8 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
       pendingInitialSeek.current = null;
     }
     lastReportedPosition.current = typeof stored === 'number' ? stored : 0;
-    setActiveSentenceIndex((current) => (current > 0 ? 0 : current));
+    setActiveSentenceIndex(0);
+    setActiveSentenceProgress(0);
   }, [activeAudioUrl, getStoredAudioPosition]);
 
   const handleScroll = useCallback(
@@ -226,6 +326,22 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
     () => (activeAudioUrl ? appendAccessToken(activeAudioUrl) : null),
     [activeAudioUrl],
   );
+
+  useEffect(() => {
+    if (!resolvedAudioUrl) {
+      return;
+    }
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    const attempt = element.play();
+    if (attempt && typeof attempt.catch === 'function') {
+      attempt.catch(() => {
+        /* Ignore autoplay restrictions */
+      });
+    }
+  }, [resolvedAudioUrl]);
 
   const emitAudioProgress = useCallback(
     (position: number) => {
@@ -243,14 +359,32 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
 
   const updateSentenceForTime = useCallback(
     (time: number, duration: number) => {
-      if (totalSentences === 0 || duration <= 0) {
+      const totalWeight = sentenceWeightSummary.total;
+      if (totalWeight <= 0 || duration <= 0 || flattenedSentences.length === 0) {
+        setActiveSentenceIndex(0);
+        setActiveSentenceProgress(0);
         return;
       }
+
       const progress = Math.max(0, Math.min(time / duration, 0.9999));
-      const nextIndex = Math.min(Math.floor(progress * totalSentences), totalSentences - 1);
-      setActiveSentenceIndex((current) => (current === nextIndex ? current : nextIndex));
+      const targetUnits = progress * totalWeight;
+      const cumulative = sentenceWeightSummary.cumulative;
+
+      let sentencePosition = cumulative.findIndex((value) => targetUnits < value);
+      if (sentencePosition === -1) {
+        sentencePosition = flattenedSentences.length - 1;
+      }
+
+      const sentence = flattenedSentences[sentencePosition];
+      const sentenceStartUnits = sentencePosition === 0 ? 0 : cumulative[sentencePosition - 1];
+      const sentenceWeight = Math.max(sentence.weight, 1);
+      const intraUnits = targetUnits - sentenceStartUnits;
+      const intra = Math.max(0, Math.min(intraUnits / sentenceWeight, 1));
+
+      setActiveSentenceIndex(sentence.index);
+      setActiveSentenceProgress(intra);
     },
-    [totalSentences],
+    [flattenedSentences, sentenceWeightSummary],
   );
 
   const handleLoadedMetadata = useCallback(() => {
@@ -296,6 +430,7 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
     setIsAudioPlaying(false);
     if (totalSentences > 0) {
       setActiveSentenceIndex(totalSentences - 1);
+      setActiveSentenceProgress(1);
     }
     emitAudioProgress(0);
   }, [emitAudioProgress, totalSentences]);
@@ -308,6 +443,7 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
       const element = audioRef.current;
       if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
         setActiveSentenceIndex(index);
+        setActiveSentenceProgress(0);
         return;
       }
       const segmentDuration = element.duration / totalSentences;
@@ -338,38 +474,108 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
     emitAudioProgress(element.currentTime);
   }, [emitAudioProgress, updateSentenceForTime]);
 
+  const previousActiveIndexRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (!isAudioPlaying) {
+    if (previousActiveIndexRef.current === activeSentenceIndex) {
       return;
     }
+    previousActiveIndexRef.current = activeSentenceIndex;
     const container = containerRef.current;
     const sentenceNode = sentenceRefs.current[activeSentenceIndex];
     if (!container || !sentenceNode) {
       return;
     }
-    const nodeOffsetTop = sentenceNode.offsetTop;
-    const nodeOffsetBottom = nodeOffsetTop + sentenceNode.offsetHeight;
-    const viewTop = container.scrollTop;
-    const viewBottom = viewTop + container.clientHeight;
-    const margin = Math.max(32, container.clientHeight * 0.15);
-
-    if (nodeOffsetTop < viewTop + margin) {
-      container.scrollTo({ top: Math.max(nodeOffsetTop - margin, 0), behavior: 'smooth' });
-      return;
-    }
-    if (nodeOffsetBottom > viewBottom - margin) {
-      const target = Math.min(nodeOffsetBottom + margin - container.clientHeight, container.scrollHeight);
-      container.scrollTo({ top: Math.max(target, 0), behavior: 'smooth' });
-    }
-  }, [activeSentenceIndex, isAudioPlaying]);
+    const target =
+      sentenceNode.offsetTop -
+      Math.max((container.clientHeight - sentenceNode.offsetHeight) / 2, 0);
+    container.scrollTo({ top: Math.max(target, 0), behavior: 'smooth' });
+  }, [activeSentenceIndex]);
 
   const noAudioAvailable = Boolean(chunk) && audioOptions.length === 0;
+  const chunkLabel = useMemo(() => {
+    if (!chunk) {
+      return 'Current chunk';
+    }
+    if (chunk.rangeFragment) {
+      return chunk.rangeFragment ?? 'Chunk';
+    }
+    const start = chunk.startSentence;
+    const end = chunk.endSentence;
+    if (typeof start === 'number' && typeof end === 'number') {
+      return `Sentences ${start}–${end}`;
+    }
+    if (typeof start === 'number') {
+      return `Sentence ${start}`;
+    }
+    return 'Current chunk';
+  }, [chunk]);
+
+  const hasAudio = Boolean(resolvedAudioUrl);
+
+  const handleChunkPlayPause = useCallback(() => {
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    if (element.paused) {
+      element.play().catch(() => {
+        /* Ignore autoplay restrictions */
+      });
+    } else {
+      element.pause();
+    }
+  }, []);
+
+  const handleChunkRestart = useCallback(() => {
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    try {
+      element.currentTime = 0;
+    } catch (error) {
+      // Ignore seek failures in unsupported environments
+    }
+    setActiveSentenceIndex(0);
+    setActiveSentenceProgress(0);
+    if (activeAudioUrl && onAudioProgress) {
+      onAudioProgress(activeAudioUrl, 0);
+      lastReportedPosition.current = 0;
+    }
+  }, [activeAudioUrl, onAudioProgress]);
 
   return (
     <div className="player-panel__interactive">
+      <div className="player-panel__interactive-toolbar">
+        <div className="player-panel__interactive-chunk">
+          <span className="player-panel__interactive-chunk-label">Chunk</span>
+          <span className="player-panel__interactive-chunk-value">{chunkLabel}</span>
+        </div>
+        <div className="player-panel__interactive-controls">
+          <button
+            type="button"
+            className="player-panel__interactive-button"
+            onClick={handleChunkPlayPause}
+            disabled={!hasAudio}
+          >
+            {isAudioPlaying ? 'Pause chunk' : 'Play chunk'}
+          </button>
+          <button
+            type="button"
+            className="player-panel__interactive-button player-panel__interactive-button--secondary"
+            onClick={handleChunkRestart}
+            disabled={!hasAudio}
+          >
+            Restart
+          </button>
+        </div>
+      </div>
       {audioOptions.length > 0 ? (
-        <div className="player-panel__interactive-audio">
-          <label htmlFor="player-panel-inline-audio">Synchronized audio</label>
+      <div className="player-panel__interactive-audio">
+        <label className="player-panel__interactive-label" htmlFor="player-panel-inline-audio">
+          Synchronized audio
+        </label>
           <div className="player-panel__interactive-audio-controls">
             {audioOptions.length > 1 ? (
               <select
@@ -389,6 +595,7 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
               src={resolvedAudioUrl ?? undefined}
               controls
               preload="metadata"
+              autoPlay
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
               onPlay={handleAudioPlay}
@@ -409,30 +616,92 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
         data-testid="player-panel-document"
         onScroll={handleScroll}
       >
-        {paragraphs.map((paragraph) => (
-          <p key={paragraph.id} className="player-panel__interactive-paragraph">
-            {paragraph.sentences.map((sentence, sentenceIndex) => {
-              const isActive = sentence.index === activeSentenceIndex;
-              return (
-                <span
-                  key={`${paragraph.id}-sentence-${sentenceIndex}`}
-                  ref={registerSentenceRef(sentence.index)}
-                  className={
-                    isActive
-                      ? 'player-panel__interactive-sentence player-panel__interactive-sentence--active'
-                      : 'player-panel__interactive-sentence'
-                  }
-                  role="presentation"
-                  tabIndex={-1}
-                  onClick={() => handleSentenceClick(sentence.index)}
-                >
-                  {sentence.text}
-                  {' '}
-                </span>
-              );
-            })}
-          </p>
-        ))}
+        {paragraphs.map((paragraph) => {
+          const visibleSentences = paragraph.sentences.filter(
+            (sentence) => Math.abs(sentence.index - activeSentenceIndex) <= 1,
+          );
+          if (visibleSentences.length === 0) {
+            return null;
+          }
+          return (
+            <div key={paragraph.id} className="player-panel__interactive-paragraph">
+              {visibleSentences.map((sentence) => {
+                const isActive = sentence.index === activeSentenceIndex;
+                const isBefore = sentence.index === activeSentenceIndex - 1;
+                const isAfter = sentence.index === activeSentenceIndex + 1;
+                const sentenceClassName = [
+                  'player-panel__interactive-sentence-group',
+                  isActive ? 'player-panel__interactive-sentence-group--active' : '',
+                  isBefore ? 'player-panel__interactive-sentence-group--previous' : '',
+                  isAfter ? 'player-panel__interactive-sentence-group--upcoming' : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ');
+                const activeWordIndex = isActive && sentence.wordCount > 0
+                  ? Math.min(
+                      sentence.wordCount - 1,
+                      Math.floor(activeSentenceProgress * sentence.wordCount),
+                    )
+                  : -1;
+                const activeWordProgress = isActive && sentence.wordCount > 0
+                  ? Math.max(0, Math.min(activeSentenceProgress * sentence.wordCount - activeWordIndex, 1))
+                  : 0;
+                let wordPointer = 0;
+
+                return (
+                  <div
+                    key={`${paragraph.id}-sentence-${sentence.index}`}
+                    ref={registerSentenceRef(sentence.index)}
+                    className={sentenceClassName}
+                    role="presentation"
+                    tabIndex={-1}
+                    onClick={() => handleSentenceClick(sentence.index)}
+                  >
+                    <div className="player-panel__interactive-original">
+                      {sentence.parts.map((part, partIndex) => {
+                        if (!part.isWord) {
+                          return <span key={`part-${partIndex}`}>{part.content}</span>;
+                        }
+                        const currentWordIndex = wordPointer;
+                        wordPointer += 1;
+                        let wordClassName = 'player-panel__interactive-word';
+                        if (isActive) {
+                          if (currentWordIndex < activeWordIndex) {
+                            wordClassName += ' player-panel__interactive-word--spoken';
+                          } else if (currentWordIndex === activeWordIndex) {
+                            wordClassName += ' player-panel__interactive-word--current';
+                          }
+                        }
+
+                        return (
+                          <span
+                            key={`part-${partIndex}`}
+                            className={wordClassName}
+                            style={
+                              isActive && currentWordIndex === activeWordIndex
+                                ? ({
+                                    '--word-progress': `${Math.round(activeWordProgress * 100)}%`,
+                                  } as CSSProperties)
+                                : undefined
+                            }
+                          >
+                            {part.content}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {sentence.translation ? (
+                      <div className="player-panel__interactive-translation">{sentence.translation}</div>
+                    ) : null}
+                    {sentence.transliteration ? (
+                      <div className="player-panel__interactive-transliteration">{sentence.transliteration}</div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </article>
     </div>
   );

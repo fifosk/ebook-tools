@@ -414,7 +414,7 @@ afterEach(() => {
     expect(coverImage.alt).toBe('Cover of Example Title by Jane Doe');
   });
 
-  it('toggles theater mode from the header controls', async () => {
+  it('toggles immersive mode from the header controls', async () => {
     const user = userEvent.setup();
     const media = createMediaState({
       video: [
@@ -431,7 +431,7 @@ afterEach(() => {
       <PlayerPanel jobId="job-900" media={media} chunks={[]} mediaComplete={false} isLoading={false} error={null} />,
     );
 
-    const toggle = screen.getByTestId('player-panel-theater-toggle');
+    const toggle = screen.getByTestId('player-panel-immersive-toggle');
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(document.querySelector('.player-panel--immersive')).toBeNull();
 
