@@ -145,6 +145,21 @@ class SubtitleService:
             job.status = PipelineJobStatus.COMPLETED
             job.error_message = None
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
+            export_path: Optional[Path] = None
+            try:
+                export_dir = self._default_source_dir
+                export_dir.mkdir(parents=True, exist_ok=True)
+                export_candidate = export_dir / output_name
+                if export_candidate != output_path:
+                    shutil.copy2(output_path, export_candidate)
+                export_path = export_candidate
+            except Exception:  # pragma: no cover - best effort mirror
+                logger.warning(
+                    "Unable to mirror subtitle output %s to %s",
+                    output_path,
+                    self._default_source_dir,
+                    exc_info=True,
+                )
             result_payload: Dict[str, object] = {
                 "subtitle": {
                     "output_path": output_path.as_posix(),
@@ -157,6 +172,12 @@ class SubtitleService:
                     "translated": result.translated_count,
                 }
             }
+            if export_path is not None:
+                subtitle_section = result_payload.get("subtitle")
+                if isinstance(subtitle_section, dict):
+                    metadata = subtitle_section.get("metadata")
+                    if isinstance(metadata, dict):
+                        metadata["export_path"] = export_path.as_posix()
             job.result_payload = result_payload
             file_entry = {
                 "type": "subtitle",

@@ -440,15 +440,45 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         ) : (
           <div className="subtitle-job-grid">
             {sortedSubtitleJobs.map((job) => {
-              const downloadFile = extractSubtitleFile(job.status);
-              const directUrl = downloadFile?.url ?? resolveSubtitleDownloadUrl(job.jobId, downloadFile?.relativePath ?? null);
-              const event = job.latestEvent ?? job.status.latest_event ?? null;
-              const completed = event?.snapshot.completed ?? 0;
-              const total = event?.snapshot.total ?? null;
               const subtitleDetails = jobResults[job.jobId]?.subtitle;
               const subtitleMetadata = (subtitleDetails?.metadata ?? null) as
                 | Record<string, unknown>
                 | null;
+              const statusFile = extractSubtitleFile(job.status);
+              const metadataDownloadValue = subtitleMetadata ? subtitleMetadata['download_url'] : null;
+              const metadataDownloadUrl =
+                typeof metadataDownloadValue === 'string' ? metadataDownloadValue : null;
+              const rawRelativePath =
+                statusFile?.relativePath ??
+                (typeof subtitleDetails?.relative_path === 'string' ? subtitleDetails.relative_path : null);
+              let resolvedRelativePath =
+                rawRelativePath && rawRelativePath.trim() ? rawRelativePath.trim() : null;
+              const rawOutputPath =
+                typeof subtitleDetails?.output_path === 'string' ? subtitleDetails.output_path : null;
+              const resultOutputPath = rawOutputPath && rawOutputPath.trim() ? rawOutputPath.trim() : null;
+              if (!resolvedRelativePath && resultOutputPath) {
+                const normalisedOutput = resultOutputPath.replace(/\\/g, '/');
+                const marker = `/${job.jobId}/`;
+                const markerIndex = normalisedOutput.indexOf(marker);
+                if (markerIndex >= 0) {
+                  const candidate = normalisedOutput.slice(markerIndex + marker.length).trim();
+                  resolvedRelativePath = candidate || null;
+                }
+              }
+              const derivedNameFromRelative = resolvedRelativePath
+                ? resolvedRelativePath.split(/[\\/]/).filter(Boolean).pop() ?? null
+                : null;
+              const derivedNameFromOutput = resultOutputPath
+                ? resultOutputPath.split(/[\\/]/).filter(Boolean).pop() ?? null
+                : null;
+              const resolvedName = statusFile?.name ?? derivedNameFromRelative ?? derivedNameFromOutput ?? 'subtitle';
+              const directUrl =
+                statusFile?.url ??
+                metadataDownloadUrl ??
+                (resolvedRelativePath ? resolveSubtitleDownloadUrl(job.jobId, resolvedRelativePath) : null);
+              const event = job.latestEvent ?? job.status.latest_event ?? null;
+              const completed = event?.snapshot.completed ?? 0;
+              const total = event?.snapshot.total ?? null;
               const workerValue = subtitleMetadata ? subtitleMetadata['workers'] : null;
               const batchValue = subtitleMetadata ? subtitleMetadata['batch_size'] : null;
               const workerSetting =
@@ -506,10 +536,10 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       </div>
                     ) : null}
                   </dl>
-                  {downloadFile && directUrl ? (
+                  {directUrl ? (
                     <p>
                       <a href={directUrl} className="link-button" target="_blank" rel="noopener noreferrer">
-                        Download {downloadFile.name}
+                        Download {resolvedName}
                       </a>
                     </p>
                   ) : job.status.status === 'completed' ? (
