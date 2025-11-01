@@ -1016,7 +1016,6 @@ export function App() {
           ) : isNewImmersiveBookView ? (
             <>
               <h1>New immersive book</h1>
-              <p>Configure pipeline settings and submit jobs in a unified workspace tailored for immersive ebooks.</p>
             </>
           ) : (
             <>
