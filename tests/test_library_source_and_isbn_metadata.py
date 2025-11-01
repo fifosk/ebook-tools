@@ -102,6 +102,43 @@ def test_reupload_source_refreshes_metadata(tmp_path, monkeypatch):
     assert metadata_payload.get("source_path") == data_files[0].relative_to(job_root).as_posix()
 
 
+def test_reupload_source_handles_refresh_failure(tmp_path, monkeypatch):
+    service, locator, _library_root, _job_manager = create_service(tmp_path)
+
+    job_id = "job-reupload-fallback"
+    queue_root = locator.job_root(job_id)
+    queue_root.mkdir(parents=True)
+
+    source_dir = tmp_path / "sources"
+    source_dir.mkdir()
+    original_source = source_dir / "original.epub"
+    original_source.write_text("original", encoding="utf-8")
+
+    metadata = build_job_metadata(job_id)
+    metadata["input_file"] = str(original_source)
+    write_metadata(queue_root, metadata)
+
+    service.move_to_library(job_id, status_override="finished")
+
+    replacement_source = source_dir / "replacement.epub"
+    replacement_source.write_text("replacement", encoding="utf-8")
+
+    def failing_refresh(*_args, **_kwargs):
+        raise LibraryError("boom")
+
+    monkeypatch.setattr(
+        "modules.library.library_service.LibraryService.refresh_metadata",
+        failing_refresh,
+    )
+
+    updated = service.reupload_source_from_path(job_id, replacement_source)
+
+    job_root = Path(updated.library_path)
+    data_dir = job_root / "data"
+    assert any(data_dir.iterdir())
+    assert updated.source_path is not None
+
+
 def test_refresh_metadata_uses_isbn_when_source_missing(tmp_path, monkeypatch):
     service, locator, _library_root, _job_manager = create_service(tmp_path)
 

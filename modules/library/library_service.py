@@ -544,7 +544,25 @@ class LibraryService:
             metadata["updated_at"] = self._current_timestamp()
             self._write_metadata(job_root, metadata)
 
-        return self.refresh_metadata(job_id)
+        try:
+            return self.refresh_metadata(job_id)
+        except LibraryError as exc:
+            LOGGER.warning(
+                "Metadata refresh failed after source upload for %s: %s",
+                job_id,
+                exc,
+            )
+        except Exception as exc:  # pragma: no cover - defensive guard
+            LOGGER.exception(
+                "Unexpected failure refreshing metadata after source upload for %s",
+                job_id,
+            )
+
+        # Fallback: return the item with updated source details even if refresh failed.
+        fallback_metadata = self._load_metadata(job_root)
+        fallback_item = self._build_item(fallback_metadata, job_root)
+        self._indexer.upsert(fallback_item)
+        return fallback_item
 
     def apply_isbn_metadata(self, job_id: str, isbn: str) -> LibraryItem:
         """Persist ``isbn`` for ``job_id`` and refresh metadata using remote lookups."""
