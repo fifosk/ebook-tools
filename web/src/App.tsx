@@ -1163,6 +1163,7 @@ export function App() {
                     context={playerContext}
                     jobBookMetadata={playerJobMetadata}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
+                    onOpenLibraryItem={handlePlayLibraryItem}
                   />
                 </section>
               ) : null}

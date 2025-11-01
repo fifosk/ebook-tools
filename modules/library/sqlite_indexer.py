@@ -25,6 +25,7 @@ class LibraryItem:
     updated_at: str
     library_path: str
     meta_json: str
+    cover_path: Optional[str] = None
 
     @property
     def metadata(self) -> Dict[str, Any]:
@@ -45,7 +46,35 @@ class LibraryItem:
             created_at=row["created_at"],
             updated_at=row["updated_at"],
             library_path=row["library_path"],
+            cover_path=row["cover_path"] if "cover_path" in row.keys() else None,
             meta_json=row["meta_json"],
+        )
+
+
+@dataclass(frozen=True)
+class LibraryBookRecord:
+    """Structured representation of metadata stored in the ``books`` table."""
+
+    id: str
+    title: str
+    author: str
+    genre: Optional[str]
+    language: str
+    cover_path: Optional[str]
+    created_at: str
+    updated_at: str
+
+    @classmethod
+    def from_row(cls, row: sqlite3.Row) -> "LibraryBookRecord":
+        return cls(
+            id=row["id"],
+            title=row["title"] or "",
+            author=row["author"] or "",
+            genre=row["genre"],
+            language=row["language"] or "",
+            cover_path=row["cover_path"],
+            created_at=row["created_at"],
+            updated_at=row["updated_at"],
         )
 
 
@@ -97,15 +126,28 @@ class LibraryIndexer:
 
     def upsert(self, item: LibraryItem) -> None:
         with self.connect() as connection:
+            payload = {
+                "id": item.id,
+                "author": item.author,
+                "book_title": item.book_title,
+                "genre": item.genre,
+                "language": item.language,
+                "status": item.status,
+                "created_at": item.created_at,
+                "updated_at": item.updated_at,
+                "library_path": item.library_path,
+                "cover_path": item.cover_path,
+                "meta_json": item.meta_json,
+            }
             connection.execute(
                 """
                 INSERT INTO library_items (
                     id, author, book_title, genre, language, status,
-                    created_at, updated_at, library_path, meta_json
+                    created_at, updated_at, library_path, cover_path, meta_json
                 )
                 VALUES (
                     :id, :author, :book_title, :genre, :language, :status,
-                    :created_at, :updated_at, :library_path, :meta_json
+                    :created_at, :updated_at, :library_path, :cover_path, :meta_json
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     author=excluded.author,
@@ -116,20 +158,113 @@ class LibraryIndexer:
                     created_at=excluded.created_at,
                     updated_at=excluded.updated_at,
                     library_path=excluded.library_path,
+                    cover_path=excluded.cover_path,
                     meta_json=excluded.meta_json;
                 """,
-                item.__dict__,
+                payload,
+            )
+            book_payload = {
+                "id": item.id,
+                "title": item.book_title,
+                "author": item.author,
+                "genre": item.genre,
+                "language": item.language,
+                "cover_path": item.cover_path,
+                "created_at": item.created_at,
+                "updated_at": item.updated_at,
+            }
+            connection.execute(
+                """
+                INSERT INTO books (
+                    id, title, author, genre, language, cover_path, created_at, updated_at
+                )
+                VALUES (
+                    :id, :title, :author, :genre, :language, :cover_path, :created_at, :updated_at
+                )
+                ON CONFLICT(id) DO UPDATE SET
+                    title=excluded.title,
+                    author=excluded.author,
+                    genre=excluded.genre,
+                    language=excluded.language,
+                    cover_path=excluded.cover_path,
+                    created_at=excluded.created_at,
+                    updated_at=excluded.updated_at;
+                """,
+                book_payload,
             )
 
     def delete(self, job_id: str) -> None:
         with self.connect() as connection:
             connection.execute("DELETE FROM library_items WHERE id = ?", (job_id,))
+            connection.execute("DELETE FROM books WHERE id = ?", (job_id,))
 
     def get(self, job_id: str) -> Optional[LibraryItem]:
         with self.connect() as connection:
             cursor = connection.execute("SELECT * FROM library_items WHERE id = ?", (job_id,))
             row = cursor.fetchone()
         return LibraryItem.from_row(row) if row else None
+
+    def get_book(self, job_id: str) -> Optional[LibraryBookRecord]:
+        with self.connect() as connection:
+            cursor = connection.execute("SELECT * FROM books WHERE id = ?", (job_id,))
+            row = cursor.fetchone()
+        return LibraryBookRecord.from_row(row) if row else None
+
+    def update_book_metadata(
+        self,
+        job_id: str,
+        *,
+        title: str,
+        author: str,
+        genre: Optional[str],
+        language: str,
+        cover_path: Optional[str],
+        created_at: str,
+        updated_at: str,
+    ) -> None:
+        payload = {
+            "id": job_id,
+            "title": title,
+            "author": author,
+            "genre": genre,
+            "language": language,
+            "cover_path": cover_path,
+            "created_at": created_at,
+            "updated_at": updated_at,
+        }
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE library_items
+                SET author=:author,
+                    book_title=:title,
+                    genre=:genre,
+                    language=:language,
+                    cover_path=:cover_path,
+                    updated_at=:updated_at
+                WHERE id=:id
+                """,
+                payload,
+            )
+            connection.execute(
+                """
+                INSERT INTO books (
+                    id, title, author, genre, language, cover_path, created_at, updated_at
+                )
+                VALUES (
+                    :id, :title, :author, :genre, :language, :cover_path, :created_at, :updated_at
+                )
+                ON CONFLICT(id) DO UPDATE SET
+                    title=excluded.title,
+                    author=excluded.author,
+                    genre=excluded.genre,
+                    language=excluded.language,
+                    cover_path=excluded.cover_path,
+                    created_at=excluded.created_at,
+                    updated_at=excluded.updated_at;
+                """,
+                payload,
+            )
 
     def iter_all(self) -> Iterator[LibraryItem]:
         with self.connect() as connection:
@@ -215,17 +350,58 @@ class LibraryIndexer:
     def replace_all(self, items: Sequence[LibraryItem]) -> None:
         with self.connect() as connection:
             connection.execute("DELETE FROM library_items")
+            connection.execute("DELETE FROM books")
+            library_rows = [
+                {
+                    "id": item.id,
+                    "author": item.author,
+                    "book_title": item.book_title,
+                    "genre": item.genre,
+                    "language": item.language,
+                    "status": item.status,
+                    "created_at": item.created_at,
+                    "updated_at": item.updated_at,
+                    "library_path": item.library_path,
+                    "cover_path": item.cover_path,
+                    "meta_json": item.meta_json,
+                }
+                for item in items
+            ]
+            book_rows = [
+                {
+                    "id": item.id,
+                    "title": item.book_title,
+                    "author": item.author,
+                    "genre": item.genre,
+                    "language": item.language,
+                    "cover_path": item.cover_path,
+                    "created_at": item.created_at,
+                    "updated_at": item.updated_at,
+                }
+                for item in items
+            ]
             connection.executemany(
                 """
                 INSERT INTO library_items (
                     id, author, book_title, genre, language, status,
-                    created_at, updated_at, library_path, meta_json
+                    created_at, updated_at, library_path, cover_path, meta_json
                 ) VALUES (
                     :id, :author, :book_title, :genre, :language, :status,
-                    :created_at, :updated_at, :library_path, :meta_json
+                    :created_at, :updated_at, :library_path, :cover_path, :meta_json
                 )
                 """,
-                [item.__dict__ for item in items],
+                library_rows,
+            )
+            connection.executemany(
+                """
+                INSERT INTO books (
+                    id, title, author, genre, language, cover_path, created_at, updated_at
+                )
+                VALUES (
+                    :id, :title, :author, :genre, :language, :cover_path, :created_at, :updated_at
+                )
+                """,
+                book_rows,
             )
 
 

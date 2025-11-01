@@ -8,6 +8,8 @@ type Props = {
   onOpen: (item: LibraryItem) => void;
   onRemoveMedia: (item: LibraryItem) => void;
   onRemove: (item: LibraryItem) => void;
+  onRefreshMetadata: (item: LibraryItem) => void;
+  onEditMetadata: (item: LibraryItem) => void;
   selectedJobId?: string | null;
   mutating?: Record<string, boolean>;
 };
@@ -196,6 +198,8 @@ function LibraryList({
   onOpen,
   onRemoveMedia,
   onRemove,
+  onRefreshMetadata,
+  onEditMetadata,
   selectedJobId,
   mutating = {}
 }: Props) {
@@ -220,6 +224,22 @@ function LibraryList({
         disabled={Boolean(mutating[item.jobId])}
       >
         Remove media
+      </button>
+      <button
+        type="button"
+        className={styles.actionButton}
+        onClick={() => onRefreshMetadata(item)}
+        disabled={Boolean(mutating[item.jobId])}
+      >
+        Refetch cover
+      </button>
+      <button
+        type="button"
+        className={styles.actionButton}
+        onClick={() => onEditMetadata(item)}
+        disabled={Boolean(mutating[item.jobId])}
+      >
+        Update metadata
       </button>
       <button
         type="button"

@@ -11,12 +11,14 @@ interface PlayerViewProps {
   context: PlayerContext | null;
   jobBookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  onOpenLibraryItem?: (jobId: string) => void;
 }
 
 export default function PlayerView({
   context,
   jobBookMetadata = null,
-  onVideoPlaybackStateChange
+  onVideoPlaybackStateChange,
+  onOpenLibraryItem
 }: PlayerViewProps) {
   if (!context) {
     return (
@@ -34,6 +36,7 @@ export default function PlayerView({
         jobId={context.jobId}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         bookMetadata={jobBookMetadata}
+        onOpenLibraryItem={onOpenLibraryItem}
       />
     );
   }
@@ -59,6 +62,7 @@ export default function PlayerView({
         bookMetadata={context.bookMetadata ?? null}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         origin="library"
+        onOpenLibraryItem={onOpenLibraryItem}
       />
     </section>
   );

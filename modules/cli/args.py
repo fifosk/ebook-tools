@@ -218,6 +218,30 @@ def build_cli_parser() -> argparse.ArgumentParser:
         help="Session token to revoke (defaults to the active session token).",
     )
 
+    library_parser = subparsers.add_parser(
+        "library", help="Manage persisted library entries", allow_abbrev=False
+    )
+    library_parser.set_defaults(command="library")
+    library_subparsers = library_parser.add_subparsers(dest="library_command", required=True)
+
+    library_refresh_parser = library_subparsers.add_parser(
+        "refresh",
+        help="Re-extract metadata and cover art for a library entry.",
+        allow_abbrev=False,
+    )
+    library_refresh_parser.add_argument("job_id", help="Library job identifier to refresh.")
+
+    library_edit_parser = library_subparsers.add_parser(
+        "edit",
+        help="Edit the stored metadata for a library entry.",
+        allow_abbrev=False,
+    )
+    library_edit_parser.add_argument("job_id", help="Library job identifier to edit.")
+    library_edit_parser.add_argument("--title", help="Updated book title.")
+    library_edit_parser.add_argument("--author", help="Updated author name.")
+    library_edit_parser.add_argument("--genre", help="Updated genre.")
+    library_edit_parser.add_argument("--language", help="Updated language code (e.g. en).")
+
     return parser
 
 

@@ -11,7 +11,9 @@ import type { MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 
-type MediaCategory = keyof LiveMediaState;
+type BaseMediaCategory = keyof LiveMediaState;
+const MEDIA_CATEGORIES: BaseMediaCategory[] = ['text', 'audio', 'video'];
+type MediaCategory = BaseMediaCategory | 'library';
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 
 interface MediaSelectionRequest {
@@ -32,6 +34,7 @@ interface PlayerPanelProps {
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   origin?: 'job' | 'library';
+  onOpenLibraryItem?: (jobId: string) => void;
 }
 
 interface TabDefinition {
@@ -97,7 +100,7 @@ function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCate
   if (preferred) {
     categories.push(preferred);
   }
-  (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+  MEDIA_CATEGORIES.forEach((category) => {
     if (!categories.includes(category)) {
       categories.push(category);
     }
@@ -177,6 +180,7 @@ export default function PlayerPanel({
   bookMetadata = null,
   onVideoPlaybackStateChange,
   origin = 'job',
+  onOpenLibraryItem,
 }: PlayerPanelProps) {
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
@@ -184,9 +188,10 @@ export default function PlayerPanel({
       text: null,
       audio: null,
       video: null,
+      library: null,
     };
 
-    (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+    MEDIA_CATEGORIES.forEach((category) => {
       const firstItem = media[category][0];
       initial[category] = firstItem?.url ?? null;
     });
@@ -209,9 +214,10 @@ export default function PlayerPanel({
       text: new Map(),
       audio: new Map(),
       video: new Map(),
+      library: new Map(),
     };
 
-    (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+    MEDIA_CATEGORIES.forEach((category) => {
       media[category].forEach((item) => {
         if (item.url) {
           map[category].set(item.url, item);
@@ -365,6 +371,13 @@ export default function PlayerPanel({
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: MediaCategory) => {
+      if (category === 'library') {
+        if (result.job_id) {
+          onOpenLibraryItem?.(result.job_id);
+        }
+        return;
+      }
+
       if (result.job_id && result.job_id !== jobId) {
         return;
       }
@@ -381,7 +394,7 @@ export default function PlayerPanel({
       });
 
     },
-    [jobId],
+    [jobId, onOpenLibraryItem],
   );
 
   const getMediaItem = useCallback(
@@ -431,7 +444,7 @@ export default function PlayerPanel({
       let changed = false;
       const next: Record<MediaCategory, string | null> = { ...current };
 
-      (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+      MEDIA_CATEGORIES.forEach((category) => {
         const items = media[category];
         const currentId = current[category];
 
@@ -468,7 +481,7 @@ export default function PlayerPanel({
     if (preferredType) {
       candidates.push(preferredType);
     }
-    (['text', 'audio', 'video'] as MediaCategory[]).forEach((category) => {
+    MEDIA_CATEGORIES.forEach((category) => {
       if (!candidates.includes(category)) {
         candidates.push(category);
       }
@@ -478,6 +491,7 @@ export default function PlayerPanel({
       text: baseId ? findMatchingMediaId(baseId, 'text', media.text) : null,
       audio: baseId ? findMatchingMediaId(baseId, 'audio', media.audio) : null,
       video: baseId ? findMatchingMediaId(baseId, 'video', media.video) : null,
+      library: null,
     };
 
     let appliedCategory: MediaCategory | null = null;
@@ -673,7 +687,7 @@ export default function PlayerPanel({
   }, [isVideoPlaying, isVideoTabActive]);
   const combinedMedia = useMemo(
     () =>
-      (['text', 'audio', 'video'] as MediaCategory[]).flatMap((category) =>
+      MEDIA_CATEGORIES.flatMap((category) =>
         media[category].map((item) => ({ ...item, type: category })),
       ),
     [media],

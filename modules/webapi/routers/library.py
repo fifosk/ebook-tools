@@ -12,6 +12,7 @@ from ..dependencies import get_library_service
 from ..schemas import (
     LibraryItemPayload,
     LibraryMediaRemovalResponse,
+    LibraryMetadataUpdateRequest,
     LibraryMoveRequest,
     LibraryMoveResponse,
     LibraryReindexResponse,
@@ -128,6 +129,47 @@ async def remove_library_entry(
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.patch("/items/{job_id}", response_model=LibraryItemPayload)
+async def update_library_metadata(
+    job_id: str,
+    payload: LibraryMetadataUpdateRequest,
+    service: LibraryService = Depends(get_library_service),
+):
+    try:
+        updated_item = service.update_metadata(
+            job_id,
+            title=payload.title,
+            author=payload.author,
+            genre=payload.genre,
+            language=payload.language,
+        )
+    except LibraryNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except LibraryConflictError as exc:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(exc)) from exc
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    serialized = service.serialize_item(updated_item)
+    return LibraryItemPayload.model_validate(serialized)
+
+
+@router.post("/items/{job_id}/refresh", response_model=LibraryItemPayload)
+async def refresh_library_metadata(
+    job_id: str,
+    service: LibraryService = Depends(get_library_service),
+):
+    try:
+        refreshed_item = service.refresh_metadata(job_id)
+    except LibraryNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    serialized = service.serialize_item(refreshed_item)
+    return LibraryItemPayload.model_validate(serialized)
 
 
 @router.post("/reindex", response_model=LibraryReindexResponse)

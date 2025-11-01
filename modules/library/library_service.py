@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, List, Literal, Mapping, Optional, Tuple
 from urllib.parse import quote
 
-from modules import logging_manager
+from modules import logging_manager, metadata_manager
 from modules.fsutils import AtomicMoveError, ChecksumMismatchError, DirectoryLock, atomic_move
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobTransitionError
 
-from .indexer import LibraryIndexer, LibraryItem
+from .sqlite_indexer import LibraryIndexer, LibraryItem
 
 LOGGER = logging_manager.get_logger().getChild("library.service")
 
@@ -291,6 +291,147 @@ class LibraryService:
 
         self._indexer.delete(job_id)
 
+    def update_metadata(
+        self,
+        job_id: str,
+        *,
+        title: Optional[str] = None,
+        author: Optional[str] = None,
+        genre: Optional[str] = None,
+        language: Optional[str] = None,
+    ) -> LibraryItem:
+        """Persist user-supplied metadata changes for ``job_id``."""
+
+        item = self._indexer.get(job_id)
+        if not item:
+            raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
+
+        job_root = Path(item.library_path)
+        if not job_root.exists():
+            raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
+
+        normalized_title = (title or item.book_title or "").strip() or item.book_title
+        normalized_author = (author or item.author or "").strip() or item.author
+        if genre is not None:
+            if isinstance(genre, str):
+                normalized_genre = genre.strip() or None
+            else:
+                normalized_genre = None
+        else:
+            normalized_genre = item.genre
+        normalized_language = (language or item.language or "").strip() or item.language
+
+        now = self._current_timestamp()
+
+        with DirectoryLock(job_root) as lock:
+            metadata = self._load_metadata(job_root)
+            metadata["book_title"] = normalized_title
+            metadata["author"] = normalized_author
+            metadata["genre"] = normalized_genre
+            metadata["language"] = normalized_language
+            metadata["updated_at"] = now
+
+            book_metadata_raw = metadata.get("book_metadata")
+            book_metadata: Dict[str, Any]
+            if isinstance(book_metadata_raw, Mapping):
+                book_metadata = dict(book_metadata_raw)
+            else:
+                book_metadata = {}
+            book_metadata["book_title"] = normalized_title
+            book_metadata["book_author"] = normalized_author
+            if normalized_genre:
+                book_metadata["book_genre"] = normalized_genre
+            elif "book_genre" in book_metadata:
+                book_metadata.pop("book_genre", None)
+            metadata["book_metadata"] = book_metadata
+
+            target_path = self._resolve_library_path(metadata, job_id)
+            current_resolved = job_root.resolve()
+            target_resolved = target_path.resolve()
+
+            if target_resolved != current_resolved:
+                if target_resolved.exists():
+                    raise LibraryConflictError(
+                        f"Library path {target_resolved} already exists for job {job_id}"
+                    )
+                target_resolved.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    atomic_move(current_resolved, target_resolved)
+                except (AtomicMoveError, ChecksumMismatchError) as exc:
+                    raise LibraryError(f"Failed to relocate library entry: {exc}") from exc
+                lock.relocate(target_resolved)
+                job_root = target_resolved
+
+            self._write_metadata(job_root, metadata)
+
+        updated_item = self._build_item(metadata, job_root)
+        self._indexer.upsert(updated_item)
+        return updated_item
+
+    def refresh_metadata(self, job_id: str) -> LibraryItem:
+        """Recompute metadata for ``job_id`` using the shared metadata manager."""
+
+        item = self._indexer.get(job_id)
+        if not item:
+            raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
+
+        job_root = Path(item.library_path)
+        if not job_root.exists():
+            raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
+
+        with DirectoryLock(job_root):
+            metadata = self._load_metadata(job_root)
+            epub_path = self._locate_input_epub(metadata, job_root)
+            if epub_path is None or not epub_path.exists():
+                raise LibraryError(
+                    f"Unable to locate a source EPUB for job {job_id}; cannot refresh metadata"
+                )
+
+            book_metadata_raw = metadata.get("book_metadata")
+            existing_metadata: Dict[str, Optional[str]]
+            if isinstance(book_metadata_raw, Mapping):
+                existing_metadata = {
+                    key: str(value) if isinstance(value, str) else None
+                    for key, value in book_metadata_raw.items()
+                }
+            else:
+                existing_metadata = {}
+
+            try:
+                inferred = metadata_manager.infer_metadata(
+                    str(epub_path),
+                    existing_metadata=existing_metadata,
+                    force_refresh=True,
+                )
+            except Exception as exc:
+                raise LibraryError(f"Metadata refresh failed: {exc}") from exc
+
+            updated_metadata = dict(inferred)
+            metadata["book_metadata"] = updated_metadata
+
+            if updated_metadata.get("book_title"):
+                metadata["book_title"] = updated_metadata["book_title"]
+            if updated_metadata.get("book_author"):
+                metadata["author"] = updated_metadata["book_author"]
+            if updated_metadata.get("book_language"):
+                metadata["language"] = updated_metadata["book_language"] or metadata.get("language")
+
+            cover_asset = self._mirror_cover_asset(job_root, updated_metadata.get("book_cover_file"))
+            if cover_asset:
+                metadata["job_cover_asset"] = cover_asset
+                updated_metadata["job_cover_asset"] = cover_asset
+                updated_metadata["book_cover_file"] = cover_asset
+            else:
+                metadata.pop("job_cover_asset", None)
+                updated_metadata.pop("job_cover_asset", None)
+
+            metadata["updated_at"] = self._current_timestamp()
+            self._write_metadata(job_root, metadata)
+
+        refreshed_item = self._build_item(metadata, job_root)
+        self._indexer.upsert(refreshed_item)
+        return refreshed_item
+
     def search(
         self,
         *,
@@ -373,6 +514,7 @@ class LibraryService:
             "created_at": item.created_at,
             "updated_at": item.updated_at,
             "library_path": item.library_path,
+            "cover_path": item.cover_path,
             "metadata": item.metadata,
         }
         metadata_payload = item.metadata if isinstance(item.metadata, dict) else {}
@@ -791,7 +933,13 @@ class LibraryService:
         if not item:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
-        metadata_dir = Path(item.library_path).resolve() / "metadata"
+        job_root = Path(item.library_path).resolve()
+        if item.cover_path:
+            candidate = job_root / Path(item.cover_path)
+            if candidate.is_file():
+                return candidate
+
+        metadata_dir = job_root / "metadata"
         if not metadata_dir.exists():
             return None
         for candidate in sorted(metadata_dir.glob("cover.*")):
@@ -824,6 +972,286 @@ class LibraryService:
             Path(tmp_handle.name).unlink(missing_ok=True)
             raise
 
+    def _extract_cover_path(
+        self,
+        metadata: Mapping[str, Any],
+        job_root: Path,
+    ) -> Optional[str]:
+        candidates: List[str] = []
+
+        def push(value: Any) -> None:
+            if not value:
+                return
+            if isinstance(value, str):
+                trimmed = value.strip()
+                if trimmed:
+                    candidates.append(trimmed)
+
+        push(metadata.get("job_cover_asset"))
+        push(metadata.get("book_cover_file"))
+
+        book_metadata = metadata.get("book_metadata")
+        if isinstance(book_metadata, Mapping):
+            push(book_metadata.get("job_cover_asset"))
+            push(book_metadata.get("book_cover_file"))
+
+        for raw in candidates:
+            normalized = self._normalize_cover_path(raw, job_root)
+            if normalized:
+                return normalized
+
+        metadata_dir = job_root / "metadata"
+        for candidate in sorted(metadata_dir.glob("cover.*")):
+            if candidate.is_file():
+                try:
+                    relative = candidate.relative_to(job_root)
+                except ValueError:
+                    return candidate.as_posix()
+                return relative.as_posix()
+
+        return None
+
+    @staticmethod
+    def _normalize_cover_path(raw: str, job_root: Path) -> Optional[str]:
+        trimmed = raw.strip()
+        if not trimmed or "://" in trimmed:
+            return None
+
+        candidate = Path(trimmed.replace("\\", "/"))
+        try:
+            if candidate.is_absolute():
+                try:
+                    relative = candidate.relative_to(job_root)
+                except ValueError:
+                    return candidate.as_posix()
+                return relative.as_posix()
+        except OSError:
+            return None
+
+        normalized = trimmed.lstrip("/\\")
+        relative_candidate = Path(normalized.replace("\\", "/"))
+        resolved_candidate = job_root / relative_candidate
+        if resolved_candidate.exists():
+            try:
+                relative = resolved_candidate.relative_to(job_root)
+            except ValueError:
+                return relative_candidate.as_posix()
+            return relative.as_posix()
+
+        metadata_candidate = job_root / "metadata" / relative_candidate.name
+        if metadata_candidate.exists():
+            try:
+                relative = metadata_candidate.relative_to(job_root)
+            except ValueError:
+                return metadata_candidate.as_posix()
+            return relative.as_posix()
+
+        return relative_candidate.as_posix()
+
+    def _locate_input_epub(
+        self,
+        metadata: Mapping[str, Any],
+        job_root: Path,
+    ) -> Optional[Path]:
+        candidates: List[str] = []
+
+        def push(value: Any) -> None:
+            if isinstance(value, str):
+                trimmed = value.strip()
+                if trimmed:
+                    candidates.append(trimmed)
+
+        def collect(payload: Any) -> None:
+            if isinstance(payload, Mapping):
+                for key, value in payload.items():
+                    lowered = str(key).lower()
+                    if lowered in {
+                        "input_file",
+                        "input_path",
+                        "source_file",
+                        "source_path",
+                        "epub_path",
+                    }:
+                        push(value)
+                    else:
+                        collect(value)
+            elif isinstance(payload, list):
+                for entry in payload:
+                    collect(entry)
+
+        collect(metadata)
+
+        for raw in candidates:
+            resolved = self._resolve_epub_candidate(raw, job_root)
+            if resolved is not None:
+                return resolved
+
+        for candidate in job_root.rglob("*.epub"):
+            if candidate.is_file():
+                return candidate
+        return None
+
+    @staticmethod
+    def _resolve_epub_candidate(raw: str, job_root: Path) -> Optional[Path]:
+        trimmed = raw.strip()
+        if not trimmed or "://" in trimmed:
+            return None
+
+        candidate = Path(trimmed)
+        try:
+            if candidate.is_absolute():
+                return candidate if candidate.exists() else None
+        except OSError:
+            return None
+
+        normalized = trimmed.lstrip("/\\")
+        relative_candidate = Path(normalized.replace("\\", "/"))
+
+        search_roots = [
+            job_root,
+            job_root / "metadata",
+            job_root / "media",
+            job_root / "source",
+        ]
+        for root in search_roots:
+            resolved = root / relative_candidate
+            if resolved.exists():
+                return resolved
+
+        # Fallback: search by filename anywhere under the job root
+        target_name = relative_candidate.name
+        if target_name:
+            for match in job_root.rglob(target_name):
+                if match.is_file():
+                    return match
+
+        return None
+
+    def _mirror_cover_asset(
+        self,
+        job_root: Path,
+        cover_reference: Optional[str],
+    ) -> Optional[str]:
+        metadata_root = job_root / "metadata"
+        metadata_root.mkdir(parents=True, exist_ok=True)
+
+        if not cover_reference:
+            self._cleanup_cover_assets(metadata_root)
+            return None
+
+        source = self._resolve_cover_source(job_root, cover_reference)
+        if source is None:
+            self._cleanup_cover_assets(metadata_root)
+            return None
+
+        try:
+            return self._copy_cover_asset(metadata_root, source)
+        except Exception as exc:
+            LOGGER.debug("Unable to mirror cover asset %s: %s", source, exc)
+            return None
+
+    def _resolve_cover_source(self, job_root: Path, raw_value: str) -> Optional[Path]:
+        trimmed = raw_value.strip()
+        if not trimmed or "://" in trimmed:
+            return None
+
+        candidate = Path(trimmed.replace("\\", "/"))
+        search_paths: List[Path] = []
+
+        try:
+            if candidate.is_absolute():
+                search_paths.append(candidate)
+        except OSError:
+            candidate = Path()
+
+        normalized = trimmed.lstrip("/\\")
+        relative_candidate = Path(normalized.replace("\\", "/"))
+
+        search_roots = [
+            job_root,
+            job_root / "metadata",
+            job_root / "media",
+            job_root.parent if job_root.parent != job_root else job_root,
+        ]
+        for root in search_roots:
+            search_paths.append(root / relative_candidate)
+
+        if len(relative_candidate.parts) > 1 and relative_candidate.parts[0].lower() in {
+            "metadata",
+            "media",
+            "covers",
+        }:
+            search_paths.append(job_root / Path(*relative_candidate.parts[1:]))
+
+        search_paths.append(job_root / relative_candidate.name)
+        search_paths.append(job_root / "metadata" / relative_candidate.name)
+
+        seen: set[Path] = set()
+        for path in search_paths:
+            try:
+                resolved = path.resolve()
+            except OSError:
+                continue
+            if resolved in seen:
+                continue
+            seen.add(resolved)
+            if resolved.is_file():
+                return resolved
+        return None
+
+    def _copy_cover_asset(self, metadata_root: Path, source: Path) -> str:
+        metadata_root.mkdir(parents=True, exist_ok=True)
+        try:
+            resolved_source = source.resolve()
+        except OSError:
+            resolved_source = source
+
+        suffix = resolved_source.suffix.lower() or ".jpg"
+        if not suffix.startswith("."):
+            suffix = f".{suffix}"
+        destination_name = f"cover{suffix}"
+        destination_path = metadata_root / destination_name
+        destination_abs = destination_path.parent.resolve() / destination_path.name
+
+        if destination_abs != resolved_source:
+            should_copy = True
+            if destination_path.exists():
+                try:
+                    src_stat = resolved_source.stat()
+                    dest_stat = destination_path.stat()
+                    if (
+                        src_stat.st_size == dest_stat.st_size
+                        and int(src_stat.st_mtime) == int(dest_stat.st_mtime)
+                    ):
+                        should_copy = False
+                except OSError:
+                    pass
+            if should_copy:
+                shutil.copy2(resolved_source, destination_path)
+
+        for existing in metadata_root.glob("cover.*"):
+            if existing.name == destination_name:
+                continue
+            try:
+                existing.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                LOGGER.debug("Unable to remove stale cover asset %s", existing, exc_info=True)
+
+        relative_path = Path("metadata") / destination_name
+        return relative_path.as_posix()
+
+    @staticmethod
+    def _cleanup_cover_assets(metadata_root: Path) -> None:
+        for existing in metadata_root.glob("cover.*"):
+            try:
+                existing.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError:
+                LOGGER.debug("Unable to remove cover asset %s", existing, exc_info=True)
+
     def _build_item(self, metadata: Dict[str, Any], job_root: Path) -> LibraryItem:
         job_id = str(metadata.get("job_id") or "").strip()
         if not job_id:
@@ -851,6 +1279,16 @@ class LibraryService:
             job_root,
         )
 
+        cover_path = self._extract_cover_path(metadata, job_root)
+        if cover_path:
+            metadata["job_cover_asset"] = cover_path
+            book_metadata = metadata.get("book_metadata")
+            if isinstance(book_metadata, Mapping):
+                nested = dict(book_metadata)
+                nested["job_cover_asset"] = cover_path
+                nested.setdefault("book_cover_file", cover_path)
+                metadata["book_metadata"] = nested
+
         serialized = json.dumps(metadata, ensure_ascii=False, sort_keys=True)
         return LibraryItem(
             id=job_id,
@@ -862,6 +1300,7 @@ class LibraryService:
             created_at=created_at,
             updated_at=updated_at,
             library_path=str(job_root.resolve()),
+            cover_path=cover_path,
             meta_json=serialized,
         )
 

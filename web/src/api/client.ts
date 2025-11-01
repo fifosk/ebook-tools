@@ -21,6 +21,7 @@ import {
   VoiceInventoryResponse,
   LibraryItem,
   LibraryMediaRemovalResponse,
+  LibraryMetadataUpdatePayload,
   LibraryMoveResponse,
   LibraryReindexResponse,
   LibrarySearchResponse,
@@ -537,6 +538,27 @@ export async function reindexLibrary(): Promise<LibraryReindexResponse> {
     method: 'POST'
   });
   return handleResponse<LibraryReindexResponse>(response);
+}
+
+export async function refreshLibraryMetadata(jobId: string): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/refresh`, {
+    method: 'POST'
+  });
+  return handleResponse<LibraryItem>(response);
+}
+
+export async function updateLibraryMetadata(
+  jobId: string,
+  payload: LibraryMetadataUpdatePayload
+): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<LibraryItem>(response);
 }
 
 export function appendAccessToken(url: string): string {

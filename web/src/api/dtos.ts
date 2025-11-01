@@ -213,6 +213,7 @@ export interface LibraryItem {
   createdAt: string;
   updatedAt: string;
   libraryPath: string;
+  coverPath?: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -238,6 +239,13 @@ export interface LibraryMediaRemovalResponse {
 
 export interface LibraryReindexResponse {
   indexed: number;
+}
+
+export interface LibraryMetadataUpdatePayload {
+  title?: string | null;
+  author?: string | null;
+  genre?: string | null;
+  language?: string | null;
 }
 
 export interface UserPasswordResetRequestPayload {
@@ -294,6 +302,12 @@ export interface MediaSearchResult {
   offset_ratio: number | null;
   approximate_time_seconds: number | null;
   media: Record<string, PipelineMediaFile[] | undefined>;
+  source: 'pipeline' | 'library';
+  libraryAuthor?: string | null;
+  libraryGenre?: string | null;
+  libraryLanguage?: string | null;
+  coverPath?: string | null;
+  libraryPath?: string | null;
 }
 
 export interface MediaSearchResponse {

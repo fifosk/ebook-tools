@@ -1,10 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import type { LibraryItem, LibraryViewMode } from '../api/dtos';
 import {
   removeLibraryEntry,
   removeLibraryMedia,
   reindexLibrary,
+  refreshLibraryMetadata,
   searchLibrary,
+  updateLibraryMetadata,
+  type LibraryMetadataUpdatePayload,
   type LibrarySearchParams
 } from '../api/client';
 import LibraryList from '../components/LibraryList';
@@ -31,6 +34,15 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const [mutating, setMutating] = useState<Record<string, boolean>>({});
   const [refreshKey, setRefreshKey] = useState(0);
   const [isReindexing, setIsReindexing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValues, setEditValues] = useState<{ title: string; author: string; genre: string; language: string }>({
+    title: '',
+    author: '',
+    genre: '',
+    language: ''
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   useEffect(() => {
     const handle = window.setTimeout(() => setEffectiveQuery(query), 250);
@@ -89,7 +101,16 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     setPage(1);
   }, [effectiveQuery, view]);
 
+  useEffect(() => {
+    if (!selectedItem) {
+      setIsEditing(false);
+      setEditError(null);
+    }
+  }, [selectedItem]);
+
   const handleOpen = useCallback((item: LibraryItem) => {
+    setIsEditing(false);
+    setEditError(null);
     setSelectedItem(item);
   }, []);
 
@@ -165,6 +186,96 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     }
   }, []);
 
+  const handleRefreshMetadata = useCallback(async (item: LibraryItem) => {
+    setMutating((previous) => ({ ...previous, [item.jobId]: true }));
+    try {
+      const updated = await refreshLibraryMetadata(item.jobId);
+      setItems((previous) =>
+        previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
+      );
+      setSelectedItem((current) => (current && current.jobId === updated.jobId ? updated : current));
+    } catch (actionError) {
+      const message =
+        actionError instanceof Error ? actionError.message : 'Unable to refresh metadata.';
+      window.alert(message);
+    } finally {
+      setMutating((previous) => {
+        const next = { ...previous };
+        delete next[item.jobId];
+        return next;
+      });
+    }
+  }, []);
+
+  const startEditingItem = useCallback(
+    (item: LibraryItem) => {
+      handleOpen(item);
+      setEditError(null);
+      setEditValues({
+        title: item.bookTitle ?? '',
+        author: item.author ?? '',
+        genre: item.genre ?? '',
+        language: item.language ?? ''
+      });
+      setIsEditing(true);
+    },
+    [handleOpen]
+  );
+
+  const handleEditMetadata = useCallback(
+    (item: LibraryItem) => {
+      startEditingItem(item);
+    },
+    [startEditingItem]
+  );
+
+  const handleEditCancel = useCallback(() => {
+    setIsEditing(false);
+    setEditError(null);
+  }, []);
+
+  const handleEditValueChange = useCallback(
+    (field: 'title' | 'author' | 'genre' | 'language') => (event: ChangeEvent<HTMLInputElement>) => {
+      const { value } = event.target;
+      setEditValues((previous) => ({ ...previous, [field]: value }));
+    },
+    []
+  );
+
+  const handleEditSubmit = useCallback(
+    async (event: FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      if (!selectedItem) {
+        return;
+      }
+      setIsSaving(true);
+      setEditError(null);
+
+      const payload: LibraryMetadataUpdatePayload = {
+        title: editValues.title.trim(),
+        author: editValues.author.trim(),
+        genre: editValues.genre.trim() ? editValues.genre.trim() : null,
+        language: editValues.language.trim(),
+      };
+
+      try {
+        const updated = await updateLibraryMetadata(selectedItem.jobId, payload);
+        setItems((previous) =>
+          previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
+        );
+        setSelectedItem(updated);
+        setIsEditing(false);
+      } catch (actionError) {
+        const message =
+          actionError instanceof Error ? actionError.message : 'Unable to update metadata.';
+        setEditError(message);
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [editValues, selectedItem]
+  );
+
   const totalPages = useMemo(() => {
     if (total === 0) {
       return 1;
@@ -221,6 +332,8 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
             onOpen={handleOpen}
             onRemoveMedia={handleRemoveMedia}
             onRemove={handleRemoveEntry}
+            onRefreshMetadata={handleRefreshMetadata}
+            onEditMetadata={handleEditMetadata}
             selectedJobId={selectedItem?.jobId}
             mutating={mutating}
           />
@@ -254,10 +367,26 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
               <div className={styles.actionBar}>
                 <button
                   type="button"
-                  className={styles.playButton}
+                  className={styles.primaryButton}
                   onClick={handlePlay}
                 >
                   Open in Player
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => handleRefreshMetadata(selectedItem)}
+                  disabled={Boolean(mutating[selectedItem.jobId]) || isSaving}
+                >
+                  Refetch Cover
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={() => startEditingItem(selectedItem)}
+                  disabled={isSaving || Boolean(mutating[selectedItem.jobId])}
+                >
+                  Edit Metadata
                 </button>
                 {!selectedItem.mediaCompleted ? (
                   <span className={styles.actionHint}>
@@ -265,6 +394,68 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   </span>
                 ) : null}
               </div>
+              {isEditing ? (
+                <form className={styles.editForm} onSubmit={handleEditSubmit}>
+                  {editError ? <div className={styles.editError}>{editError}</div> : null}
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-title">Book Name</label>
+                    <input
+                      id="library-edit-title"
+                      type="text"
+                      className={styles.fieldInput}
+                      value={editValues.title}
+                      onChange={handleEditValueChange('title')}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-author">Author</label>
+                    <input
+                      id="library-edit-author"
+                      type="text"
+                      className={styles.fieldInput}
+                      value={editValues.author}
+                      onChange={handleEditValueChange('author')}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-genre">Genre</label>
+                    <input
+                      id="library-edit-genre"
+                      type="text"
+                      className={styles.fieldInput}
+                      value={editValues.genre}
+                      onChange={handleEditValueChange('genre')}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className={styles.fieldGroup}>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-language">Language</label>
+                    <input
+                      id="library-edit-language"
+                      type="text"
+                      className={styles.fieldInput}
+                      value={editValues.language}
+                      onChange={handleEditValueChange('language')}
+                      disabled={isSaving}
+                    />
+                  </div>
+                  <div className={styles.editActions}>
+                    <button type="submit" className={styles.primaryButton} disabled={isSaving}>
+                      Save changes
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={handleEditCancel}
+                      disabled={isSaving}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : null}
               <ul className={styles.detailList}>
                 <li className={styles.detailItem}>
                   <strong>Job ID:</strong> {selectedItem.jobId}

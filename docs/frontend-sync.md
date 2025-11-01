@@ -29,6 +29,7 @@ The comparison reports:
 - Differences between `.env` files (highlighting API base URL mismatches).
 - Whether the bundled Vite build manifests match.
 - Backend API version discrepancies.
+- Library metadata schema hash mismatches so the SQLite migrations remain in sync.
 
 `dirty` in the JSON snapshot only flips to `true` when tracked files differ from
 `HEAD`; untracked files are captured separately under `untracked_files` so you
@@ -39,8 +40,9 @@ Follow the suggested remediations to restore parity:
 1. Align git branches and commits between machines.
 2. Fix any differing API URLs or missing env variables.
 3. Rebuild the frontend (`npm install && npm run build`).
-4. Restart the FastAPI backend to reload `EBOOK_API_STATIC_ROOT`.
-5. Clear `web/dist/` caches or browser caches if differences persist.
+4. If the library schema hashes differ, run the latest migrations via `python scripts/db_migrate.py`.
+5. Restart the FastAPI backend to reload `EBOOK_API_STATIC_ROOT`.
+6. Clear `web/dist/` caches or browser caches if differences persist.
 
 With matching snapshots both machines should render the same media search
 experience.

@@ -1,9 +1,18 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent
+} from 'react';
 import { MediaSearchResponse, MediaSearchResult } from '../api/dtos';
 import { searchMedia } from '../api/client';
 import styles from './MediaSearchPanel.module.css';
 
-type MediaCategory = 'text' | 'audio' | 'video';
+type MediaCategory = 'text' | 'audio' | 'video' | 'library';
+const BASE_MEDIA_CATEGORIES: Array<Exclude<MediaCategory, 'library'>> = ['text', 'audio', 'video'];
 
 interface MediaSearchPanelProps {
   onResultAction: (result: MediaSearchResult, category: MediaCategory) => void;
@@ -208,9 +217,16 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
           {!isSearching && !error && hasResults ? (
             <div className={styles.resultsList}>
               {results.map((result) => {
-                const categories: MediaCategory[] = (['text', 'audio', 'video'] as MediaCategory[]).filter(
-                  (category) => Array.isArray(result.media?.[category]) && result.media?.[category]?.length,
-                );
+                const isLibraryResult = result.source === 'library';
+                const categories: MediaCategory[] = [];
+                if (isLibraryResult) {
+                  categories.push('library');
+                }
+                BASE_MEDIA_CATEGORIES.forEach((category) => {
+                  if (Array.isArray(result.media?.[category]) && (result.media?.[category]?.length ?? 0) > 0) {
+                    categories.push(category);
+                  }
+                });
                 const isActiveJob = currentJobId === result.job_id;
 
                 return (
@@ -222,11 +238,25 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                   >
                     <header className={styles.resultHeader}>
                       <div className={styles.resultTitle}>
-                        {result.job_label ? result.job_label : `Job ${result.job_id}`}
+                        {isLibraryResult
+                          ? result.job_label ?? `Library ${result.job_id}`
+                          : result.job_label ?? `Job ${result.job_id}`}
                       </div>
                       <div className={styles.resultMeta}>
-                        {result.range_fragment ? `Chunk ${result.range_fragment}` : 'Chunk'}
-                        {typeof result.occurrence_count === 'number' && result.occurrence_count > 1
+                        {isLibraryResult
+                          ? [
+                              result.libraryAuthor ? `Author ${result.libraryAuthor}` : null,
+                              result.libraryLanguage ? `Language ${result.libraryLanguage}` : null,
+                              result.libraryGenre ? `Genre ${result.libraryGenre}` : null
+                            ]
+                              .filter(Boolean)
+                              .join(' · ')
+                          : result.range_fragment
+                          ? `Chunk ${result.range_fragment}`
+                          : 'Chunk'}
+                        {!isLibraryResult &&
+                        typeof result.occurrence_count === 'number' &&
+                        result.occurrence_count > 1
                           ? ` • ${result.occurrence_count} matches`
                           : ''}
                       </div>
@@ -251,6 +281,7 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                             {category === 'text' ? 'Open text' : null}
                             {category === 'audio' ? 'Play audio' : null}
                             {category === 'video' ? 'Play video' : null}
+                            {category === 'library' ? 'Open in Library' : null}
                           </button>
                         ))}
                       </div>

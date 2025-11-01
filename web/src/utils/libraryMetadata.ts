@@ -39,6 +39,9 @@ export function resolveLibraryCoverUrl(
     return null;
   }
   const candidates: string[] = [];
+  if (item.coverPath) {
+    candidates.push(item.coverPath);
+  }
   const pushCandidate = (value: unknown) => {
     if (typeof value !== 'string') {
       return;

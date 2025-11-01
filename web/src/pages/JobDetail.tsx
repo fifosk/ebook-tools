@@ -6,9 +6,10 @@ export interface JobDetailProps {
   jobId: string | null | undefined;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   bookMetadata?: Record<string, unknown> | null;
+  onOpenLibraryItem?: (jobId: string) => void;
 }
 
-export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null }: JobDetailProps) {
+export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null, onOpenLibraryItem }: JobDetailProps) {
   const normalisedJobId = jobId ?? null;
   const { media, chunks, isComplete, isLoading, error } = useLiveMedia(normalisedJobId, {
     enabled: Boolean(normalisedJobId),
@@ -45,6 +46,7 @@ export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetad
         error={error}
         bookMetadata={bookMetadata}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
+        onOpenLibraryItem={onOpenLibraryItem}
       />
     </section>
   );
