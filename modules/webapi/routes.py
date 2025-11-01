@@ -41,7 +41,7 @@ from .schemas import (
     PipelineSubmissionResponse,
     ProgressEventPayload,
 )
-from ...library.library_service import LibraryNotFoundError, LibraryService
+from modules.library.library_service import LibraryNotFoundError, LibraryService
 
 router = APIRouter()
 storage_router = APIRouter()
