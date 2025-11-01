@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import PipelineSubmissionForm, { PipelineFormSection } from './components/PipelineSubmissionForm';
+import type { PipelineFormSection } from './components/PipelineSubmissionForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
 import LibraryPage from './pages/LibraryPage';
 import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
+import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
+import Sidebar from './components/Sidebar';
 import {
   LibraryItem,
   PipelineRequestPayload,
@@ -38,7 +40,7 @@ interface JobRegistryEntry {
 
 type JobAction = 'pause' | 'resume' | 'cancel' | 'delete';
 
-type PipelineMenuView =
+export type PipelineMenuView =
   | 'pipeline:source'
   | 'pipeline:language'
   | 'pipeline:output'
@@ -52,7 +54,7 @@ const JOB_MEDIA_VIEW = 'job:media' as const;
 const LIBRARY_VIEW = 'library:list' as const;
 const CREATE_BOOK_VIEW = 'books:create' as const;
 
-type SelectedView =
+export type SelectedView =
   | PipelineMenuView
   | typeof ADMIN_USER_MANAGEMENT_VIEW
   | typeof JOB_PROGRESS_VIEW
@@ -68,12 +70,13 @@ const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:submit': 'submit'
 };
 
-const PIPELINE_SETTINGS: Array<{ key: PipelineMenuView; label: string }> = [
-  { key: 'pipeline:source', label: 'Source material' },
-  { key: 'pipeline:language', label: 'Language & scope' },
-  { key: 'pipeline:output', label: 'Output & narration' },
-  { key: 'pipeline:performance', label: 'Performance tuning' }
-];
+const PIPELINE_SECTION_TO_VIEW: Record<PipelineFormSection, PipelineMenuView> = {
+  source: 'pipeline:source',
+  language: 'pipeline:language',
+  output: 'pipeline:output',
+  performance: 'pipeline:performance',
+  submit: 'pipeline:submit'
+};
 
 export function App() {
   const { session, isLoading: isAuthLoading, logoutReason, login, logout, updatePassword } = useAuth();
@@ -641,6 +644,29 @@ export function App() {
     []
   );
 
+  const handleSelectSidebarJob = useCallback(
+    (jobId: string) => {
+      setActiveJobId(jobId);
+      setSelectedView(JOB_PROGRESS_VIEW);
+    },
+    [setActiveJobId, setSelectedView]
+  );
+
+  const handleImmersiveSectionChange = useCallback(
+    (section: PipelineFormSection) => {
+      const nextView = PIPELINE_SECTION_TO_VIEW[section];
+      setSelectedView(nextView);
+    },
+    [setSelectedView]
+  );
+
+  const handleSidebarSelectView = useCallback(
+    (view: SelectedView) => {
+      setSelectedView(view);
+    },
+    [setSelectedView]
+  );
+
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => {
       const owner = typeof entry.status?.user_id === 'string' ? entry.status.user_id : null;
@@ -681,6 +707,7 @@ export function App() {
   const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
   const isLibraryView = selectedView === LIBRARY_VIEW;
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
+  const isNewImmersiveBookView = isPipelineView;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
       return null;
@@ -938,115 +965,19 @@ export function App() {
             </div>
           </div>
         </div>
-        <nav className="sidebar__nav" aria-label="Dashboard menu">
-          <details className="sidebar__section" open>
-            <summary>Books</summary>
-            <ul className="sidebar__list">
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${selectedView === 'pipeline:submit' ? 'is-active' : ''}`}
-                  onClick={() => setSelectedView('pipeline:submit')}
-                >
-                  Submit book for processing
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className={`sidebar__link ${selectedView === CREATE_BOOK_VIEW ? 'is-active' : ''}`}
-                  onClick={() => setSelectedView(CREATE_BOOK_VIEW)}
-                >
-                  Create book
-                </button>
-              </li>
-              <li>
-                <details className="sidebar__section sidebar__section--nested">
-                  <summary>Book processing settings</summary>
-                  <ul className="sidebar__list sidebar__list--nested">
-                    {PIPELINE_SETTINGS.map((entry) => (
-                      <li key={entry.key}>
-                        <button
-                          type="button"
-                          className={`sidebar__link ${selectedView === entry.key ? 'is-active' : ''}`}
-                          onClick={() => setSelectedView(entry.key)}
-                        >
-                          {entry.label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              </li>
-            </ul>
-          </details>
-          <details className="sidebar__section">
-            <summary>Library</summary>
-            <button
-              type="button"
-              className={`sidebar__link ${selectedView === LIBRARY_VIEW ? 'is-active' : ''}`}
-              onClick={() => setSelectedView(LIBRARY_VIEW)}
-            >
-              Browse library
-            </button>
-          </details>
-          <details className="sidebar__section">
-            <summary>Player</summary>
-            <button
-              type="button"
-              className={`sidebar__link ${selectedView === JOB_MEDIA_VIEW ? 'is-active' : ''}`}
-              onClick={handleOpenPlayerForJob}
-              disabled={!activeJobId}
-            >
-              {activeJobId ? `Open player for job ${activeJobId}` : 'Select a job to open the player'}
-            </button>
-          </details>
-          <details className="sidebar__section">
-            <summary>Tracked jobs</summary>
-            {sidebarJobs.length > 0 ? (
-              <ul className="sidebar__list">
-                {sidebarJobs.map((job) => {
-                  const statusValue = job.status?.status ?? 'pending';
-                  return (
-                    <li key={job.jobId}>
-                      <button
-                        type="button"
-                        className={`sidebar__link sidebar__link--job ${
-                          activeJobId === job.jobId ? 'is-active' : ''
-                        }`}
-                        onClick={() => {
-                          setActiveJobId(job.jobId);
-                          setSelectedView(JOB_PROGRESS_VIEW);
-                        }}
-                      >
-                        <span className="sidebar__job-label">Job {job.jobId}</span>
-                        <span className="job-status" data-state={statusValue}>
-                          {statusValue}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="sidebar__empty">No accessible jobs yet.</p>
-            )}
-          </details>
-          {isAdmin ? (
-            <details className="sidebar__section">
-              <summary>Administration</summary>
-              <button
-                type="button"
-                className={`sidebar__link ${
-                  selectedView === ADMIN_USER_MANAGEMENT_VIEW ? 'is-active' : ''
-                }`}
-                onClick={() => setSelectedView(ADMIN_USER_MANAGEMENT_VIEW)}
-              >
-                User management
-              </button>
-            </details>
-          ) : null}
-        </nav>
+        <Sidebar
+          selectedView={selectedView}
+          onSelectView={handleSidebarSelectView}
+          sidebarJobs={sidebarJobs}
+          activeJobId={activeJobId}
+          onSelectJob={handleSelectSidebarJob}
+          onOpenPlayer={handleOpenPlayerForJob}
+          isAdmin={isAdmin}
+          createBookView={CREATE_BOOK_VIEW}
+          libraryView={LIBRARY_VIEW}
+          jobMediaView={JOB_MEDIA_VIEW}
+          adminView={ADMIN_USER_MANAGEMENT_VIEW}
+        />
       </aside>
       <div className="dashboard__content">
         <main className="dashboard__main">
@@ -1082,6 +1013,11 @@ export function App() {
               <h1>Create book</h1>
               <p>Generate a seed EPUB with the LLM, then fine-tune the pipeline settings before submitting.</p>
             </>
+          ) : isNewImmersiveBookView ? (
+            <>
+              <h1>New immersive book</h1>
+              <p>Configure pipeline settings and submit jobs in a unified workspace tailored for immersive ebooks.</p>
+            </>
           ) : (
             <>
               <h1>Language tools</h1>
@@ -1116,26 +1052,27 @@ export function App() {
             </section>
           ) : (
             <>
-              {activePipelineSection ? (
+              {isNewImmersiveBookView ? (
                 <section>
-                  <PipelineSubmissionForm
+                  <NewImmersiveBookPage
+                    activeSection={activePipelineSection ?? 'source'}
+                    onSectionChange={handleImmersiveSectionChange}
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
                     prefillInputFile={pendingInputFile}
-                    activeSection={activePipelineSection ?? undefined}
-                    externalError={activePipelineSection === 'submit' ? submitError : null}
+                    submitError={activePipelineSection === 'submit' ? submitError : null}
                   />
                 </section>
               ) : null}
-              {activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
+              {isNewImmersiveBookView && activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
                 <section>
-                  <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+                  <h2 style={{ marginTop: 0 }}>Active jobs</h2>
                   <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
                 </section>
               ) : null}
               {sidebarJobs.length === 0 ? (
                 <section>
-                  <h2 style={{ marginTop: 0 }}>Tracked jobs</h2>
+                  <h2 style={{ marginTop: 0 }}>Active jobs</h2>
                   <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
                 </section>
               ) : null}
@@ -1160,7 +1097,7 @@ export function App() {
                   ) : (
                     <div className="job-card job-card--placeholder" aria-live="polite">
                       <h3 style={{ marginTop: 0 }}>No job selected</h3>
-                      <p>Select a tracked job to monitor its pipeline progress and live status updates.</p>
+                      <p>Select an active job to monitor its pipeline progress and live status updates.</p>
                     </div>
                   )}
                 </section>

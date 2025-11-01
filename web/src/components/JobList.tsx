@@ -41,9 +41,9 @@ export function JobList({
   if (sortedJobs.length === 0) {
     return (
       <section>
-        <h2 className="visually-hidden">Tracked jobs</h2>
+        <h2 className="visually-hidden">Active jobs</h2>
         <details className="job-list-collapsible" open>
-          <summary>Tracked jobs</summary>
+          <summary>Active jobs</summary>
           <p>No persisted jobs yet. Submit a pipeline request to get started.</p>
         </details>
       </section>
@@ -52,9 +52,9 @@ export function JobList({
 
   return (
     <section>
-      <h2 className="visually-hidden">Tracked jobs</h2>
+      <h2 className="visually-hidden">Active jobs</h2>
       <details className="job-list-collapsible" open>
-        <summary>Tracked jobs</summary>
+        <summary>Active jobs</summary>
         <div className="job-grid">
           {sortedJobs.map((job) => {
             const statusValue = job.status?.status ?? 'pending';

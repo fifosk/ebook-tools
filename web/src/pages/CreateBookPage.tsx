@@ -3,6 +3,7 @@ import { createBook, type CreateBookPayload, type BookCreationResponse } from '.
 import { fetchVoiceInventory } from '../api/client';
 import type { MacOSVoice, VoiceInventoryResponse } from '../api/dtos';
 import { VOICE_OPTIONS } from '../constants/menuOptions';
+import { useLanguagePreferences } from '../context/LanguageProvider';
 
 type VoiceOption = {
   value: string;
@@ -80,7 +81,18 @@ function buildVoiceOptionsFromInventory(inventory: VoiceInventoryResponse | null
 }
 
 export default function CreateBookPage({ onCreated }: CreateBookPageProps) {
-  const [formState, setFormState] = useState<FormState>(INITIAL_FORM_STATE);
+  const {
+    inputLanguage: sharedInputLanguage,
+    setInputLanguage: setSharedInputLanguage,
+    primaryTargetLanguage,
+    setPrimaryTargetLanguage
+  } = useLanguagePreferences();
+  const [formState, setFormState] = useState<FormState>(() => ({
+    ...INITIAL_FORM_STATE,
+    input_language: sharedInputLanguage ?? INITIAL_FORM_STATE.input_language,
+    output_language:
+      primaryTargetLanguage ?? INITIAL_FORM_STATE.output_language
+  }));
   const [voiceOptions, setVoiceOptions] = useState<VoiceOption[]>(() =>
     VOICE_OPTIONS.map(({ value, label }) => ({ value, label }))
   );
@@ -130,15 +142,51 @@ export default function CreateBookPage({ onCreated }: CreateBookPageProps) {
     };
   }, []);
 
+  useEffect(() => {
+    setFormState((previous) => {
+      if (previous.input_language === sharedInputLanguage) {
+        return previous;
+      }
+      return {
+        ...previous,
+        input_language: sharedInputLanguage
+      };
+    });
+  }, [sharedInputLanguage]);
+
+  useEffect(() => {
+    const nextOutput = primaryTargetLanguage ?? '';
+    setFormState((previous) => {
+      if (previous.output_language === nextOutput) {
+        return previous;
+      }
+      return {
+        ...previous,
+        output_language: nextOutput
+      };
+    });
+  }, [primaryTargetLanguage]);
+
   const sortedVoiceOptions = useMemo(() => {
     return voiceOptions.slice().sort((a, b) => a.label.localeCompare(b.label));
   }, [voiceOptions]);
 
   const handleChange = <Key extends keyof FormState>(key: Key, value: FormState[Key]) => {
-    setFormState((previous) => ({
-      ...previous,
-      [key]: value
-    }));
+    setFormState((previous) => {
+      if (previous[key] === value) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [key]: value
+      };
+    });
+
+    if (key === 'input_language' && typeof value === 'string') {
+      setSharedInputLanguage(value);
+    } else if (key === 'output_language' && typeof value === 'string') {
+      setPrimaryTargetLanguage(value);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {

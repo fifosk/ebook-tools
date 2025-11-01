@@ -22,6 +22,7 @@ import {
   WRITTEN_MODE_OPTIONS
 } from '../constants/menuOptions';
 import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
+import { useLanguagePreferences } from '../context/LanguageProvider';
 
 const SAMPLE_SENTENCES: Record<string, string> = {
   en: 'Hello from ebook-tools! This is a sample narration.',
@@ -166,7 +167,7 @@ const SECTION_ORDER: PipelineFormSection[] = [
   'submit'
 ];
 
-const SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
+export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
   source: {
     title: 'Source material',
     description: 'Select the EPUB to ingest and where generated files should be written.'
@@ -188,6 +189,18 @@ const SECTION_META: Record<PipelineFormSection, { title: string; description: st
     description: 'Review the configured settings and enqueue the job for processing.'
   }
 };
+
+function areLanguageArraysEqual(left: string[], right: string[]): boolean {
+  if (left.length !== right.length) {
+    return false;
+  }
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+  return true;
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -463,7 +476,20 @@ export function PipelineSubmissionForm({
   externalError = null,
   prefillInputFile = null
 }: Props) {
-  const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
+  const {
+    inputLanguage: sharedInputLanguage,
+    setInputLanguage: setSharedInputLanguage,
+    targetLanguages: sharedTargetLanguages,
+    setTargetLanguages: setSharedTargetLanguages
+  } = useLanguagePreferences();
+  const [formState, setFormState] = useState<FormState>(() => ({
+    ...DEFAULT_FORM_STATE,
+    input_language: sharedInputLanguage ?? DEFAULT_FORM_STATE.input_language,
+    target_languages:
+      sharedTargetLanguages.length > 0
+        ? [...sharedTargetLanguages]
+        : [...DEFAULT_FORM_STATE.target_languages]
+  }));
   const [error, setError] = useState<string | null>(null);
   const [fileOptions, setFileOptions] = useState<PipelineFileBrowserResponse | null>(null);
   const [fileDialogError, setFileDialogError] = useState<string | null>(null);
@@ -532,11 +558,49 @@ export function PipelineSubmissionForm({
     prefillAppliedRef.current = normalizedPrefill;
   }, [prefillInputFile]);
 
+  useEffect(() => {
+    setFormState((previous) => {
+      if (previous.input_language === sharedInputLanguage) {
+        return previous;
+      }
+      return {
+        ...previous,
+        input_language: sharedInputLanguage
+      };
+    });
+  }, [sharedInputLanguage]);
+
+  useEffect(() => {
+    setFormState((previous) => {
+      if (areLanguageArraysEqual(previous.target_languages, sharedTargetLanguages)) {
+        return previous;
+      }
+      return {
+        ...previous,
+        target_languages: [...sharedTargetLanguages]
+      };
+    });
+  }, [sharedTargetLanguages]);
+
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
-    setFormState((previous) => ({
-      ...previous,
-      [key]: value
-    }));
+    setFormState((previous) => {
+      if (previous[key] === value) {
+        return previous;
+      }
+      return {
+        ...previous,
+        [key]: value
+      };
+    });
+
+    if (key === 'input_language' && typeof value === 'string') {
+      setSharedInputLanguage(value);
+    } else if (key === 'target_languages' && Array.isArray(value)) {
+      const nextLanguages = value as string[];
+      if (!areLanguageArraysEqual(sharedTargetLanguages, nextLanguages)) {
+        setSharedTargetLanguages(nextLanguages);
+      }
+    }
   };
 
   const updateVoiceOverride = useCallback((languageCode: string, voiceValue: string) => {
@@ -867,7 +931,12 @@ export function PipelineSubmissionForm({
         if (cancelled) {
           return;
         }
-        setFormState((previous) => applyConfigDefaults(previous, response.config));
+        setFormState((previous) => {
+          const nextState = applyConfigDefaults(previous, response.config);
+          setSharedInputLanguage(nextState.input_language);
+          setSharedTargetLanguages(nextState.target_languages);
+          return nextState;
+        });
       })
       .catch((error) => {
         if (!cancelled) {
@@ -910,7 +979,7 @@ export function PipelineSubmissionForm({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [setSharedInputLanguage, setSharedTargetLanguages]);
 
   useEffect(() => {
     return () => {
@@ -1046,9 +1115,9 @@ export function PipelineSubmissionForm({
     }
   };
 
-  const headerTitle = activeSection ? SECTION_META[activeSection].title : 'Submit a Pipeline Job';
+  const headerTitle = activeSection ? PIPELINE_SECTION_META[activeSection].title : 'Submit a Pipeline Job';
   const headerDescription = activeSection
-    ? SECTION_META[activeSection].description
+    ? PIPELINE_SECTION_META[activeSection].description
     : 'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';
   const missingRequirements: string[] = [];
   if (!formState.input_file.trim()) {
@@ -1087,8 +1156,8 @@ export function PipelineSubmissionForm({
         return (
           <section key="source" className="pipeline-card" aria-labelledby="pipeline-card-source">
             <header className="pipeline-card__header">
-              <h3 id="pipeline-card-source">{SECTION_META.source.title}</h3>
-              <p>{SECTION_META.source.description}</p>
+              <h3 id="pipeline-card-source">{PIPELINE_SECTION_META.source.title}</h3>
+              <p>{PIPELINE_SECTION_META.source.description}</p>
             </header>
             <div className="pipeline-card__body">
               <label htmlFor="input_file">Input file path</label>
@@ -1182,8 +1251,8 @@ export function PipelineSubmissionForm({
             aria-labelledby="pipeline-card-language"
           >
             <header className="pipeline-card__header">
-              <h3 id="pipeline-card-language">{SECTION_META.language.title}</h3>
-              <p>{SECTION_META.language.description}</p>
+              <h3 id="pipeline-card-language">{PIPELINE_SECTION_META.language.title}</h3>
+              <p>{PIPELINE_SECTION_META.language.description}</p>
             </header>
             <div className="pipeline-card__body">
               <label htmlFor="input_language">Input language</label>
@@ -1263,8 +1332,8 @@ export function PipelineSubmissionForm({
         return (
           <section key="output" className="pipeline-card" aria-labelledby="pipeline-card-output">
             <header className="pipeline-card__header">
-              <h3 id="pipeline-card-output">{SECTION_META.output.title}</h3>
-              <p>{SECTION_META.output.description}</p>
+              <h3 id="pipeline-card-output">{PIPELINE_SECTION_META.output.title}</h3>
+              <p>{PIPELINE_SECTION_META.output.description}</p>
             </header>
             <div className="pipeline-card__body">
               <label className="checkbox">
@@ -1458,8 +1527,8 @@ export function PipelineSubmissionForm({
             aria-labelledby="pipeline-card-performance"
           >
             <header className="pipeline-card__header">
-              <h3 id="pipeline-card-performance">{SECTION_META.performance.title}</h3>
-              <p>{SECTION_META.performance.description}</p>
+              <h3 id="pipeline-card-performance">{PIPELINE_SECTION_META.performance.title}</h3>
+              <p>{PIPELINE_SECTION_META.performance.description}</p>
             </header>
             <div className="pipeline-card__body">
               <div className="collapsible-group">
@@ -1560,8 +1629,8 @@ export function PipelineSubmissionForm({
         return (
           <section key="submit" className="pipeline-card" aria-labelledby="pipeline-card-submit">
             <header className="pipeline-card__header">
-              <h3 id="pipeline-card-submit">{SECTION_META.submit.title}</h3>
-              <p>{SECTION_META.submit.description}</p>
+              <h3 id="pipeline-card-submit">{PIPELINE_SECTION_META.submit.title}</h3>
+              <p>{PIPELINE_SECTION_META.submit.description}</p>
             </header>
             <div className="pipeline-card__body">
               {missingRequirements.length > 0 ? (
