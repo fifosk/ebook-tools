@@ -3272,10 +3272,6 @@ button[data-variant='metadata-action'] {
   color: var(--color-status-neutral-text);
 }
 
-small {
-  color: var(--color-text-muted);
-}
-
 .video-panel {
   margin-top: var(--space-lg);
   background: var(--color-card-bg);

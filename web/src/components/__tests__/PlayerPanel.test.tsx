@@ -408,6 +408,24 @@ afterEach(() => {
     expect(screen.getByText('By Jane Doe • Job job-789')).toBeInTheDocument();
     const mediaNotices = screen.getAllByText('No generated media yet for Example Title.');
     expect(mediaNotices.length).toBeGreaterThan(0);
+    expect(screen.queryByTestId('player-cover-image')).not.toBeInTheDocument();
+  });
+
+  it('renders the cover image once media generation completes', () => {
+    const media = createMediaState({});
+
+    render(
+      <PlayerPanel
+        jobId="job-789"
+        media={media}
+        chunks={[]}
+        mediaComplete
+        isLoading={false}
+        error={null}
+        bookMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
+      />,
+    );
+
     const coverImage = screen.getByTestId('player-cover-image') as HTMLImageElement;
     expect(coverImage).toBeInTheDocument();
     expect(coverImage.src).toContain('/pipelines/job-789/cover');

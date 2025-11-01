@@ -365,7 +365,8 @@ export default function PlayerPanel({
     });
   }, [coverCandidates]);
   const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
-  const coverErrorHandler = shouldHandleCoverError ? handleCoverError : undefined;
+  const shouldShowCoverImage = origin === 'library' || mediaComplete;
+  const coverErrorHandler = shouldShowCoverImage && shouldHandleCoverError ? handleCoverError : undefined;
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: SearchCategory) => {
@@ -1089,25 +1090,27 @@ export default function PlayerPanel({
         </div>
       ) : (
         <>
-      <div className="player-panel__search">
-        <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
-      </div>
-      <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
-        <header className="player-panel__header">
-          <div className="player-panel__heading">
-            <div className="player-panel__cover" aria-hidden={false}>
-              <img
-                src={displayCoverUrl}
-                alt={coverAltText}
-                data-testid="player-cover-image"
-                onError={coverErrorHandler}
-              />
-            </div>
-            <div className="player-panel__heading-text">
-              <h2>{headingLabel}</h2>
-              <span className="player-panel__job">{jobLabel}</span>
-            </div>
+          <div className="player-panel__search">
+            <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
           </div>
+          <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
+            <header className="player-panel__header">
+              <div className="player-panel__heading">
+                {shouldShowCoverImage ? (
+                  <div className="player-panel__cover" aria-hidden={false}>
+                    <img
+                      src={displayCoverUrl}
+                      alt={coverAltText}
+                      data-testid="player-cover-image"
+                      onError={coverErrorHandler}
+                    />
+                  </div>
+                ) : null}
+                <div className="player-panel__heading-text">
+                  <h2>{headingLabel}</h2>
+                  <span className="player-panel__job">{jobLabel}</span>
+                </div>
+              </div>
           <div className="player-panel__tabs-row">
             <div className="player-panel__navigation" role="group" aria-label="Navigate media items">
               <button
