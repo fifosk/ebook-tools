@@ -469,13 +469,61 @@ main {
 
 .dashboard__main {
   flex: 1 1 auto;
-  padding: var(--space-lg) var(--space-md) var(--space-xl);
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-flow: row dense;
+  align-content: start;
+  align-items: start;
   gap: var(--space-lg);
+  width: min(100%, clamp(52rem, 90vw, 96rem));
+  margin-inline: auto;
+  padding-block-start: clamp(var(--space-md), 1.25rem + 2vw, var(--space-xl));
+  padding-block-end: clamp(var(--space-lg), calc(var(--space-md) + 3vw), calc(var(--space-xl) * 1.1));
+  padding-inline: clamp(var(--space-md), 4vw, var(--space-xl));
   min-width: 0;
   min-height: 0;
   overflow-y: auto;
+}
+
+.dashboard__main > section {
+  min-width: 0;
+}
+
+.dashboard__main > :not(section) {
+  grid-column: 1 / -1;
+}
+
+.dashboard__main > .dashboard__header,
+.dashboard__main > .password-message,
+.dashboard__main > .account-panel {
+  grid-column: 1 / -1;
+}
+
+.dashboard__header {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.dashboard__header h1 {
+  margin: 0;
+}
+
+.dashboard__header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  max-width: 75ch;
+}
+
+@media (min-width: 64rem) {
+  .dashboard__header {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    align-items: end;
+    column-gap: var(--space-lg);
+  }
+
+  .dashboard__header p {
+    justify-self: start;
+  }
 }
 
 .dashboard--immersive .dashboard__sidebar {
@@ -487,7 +535,9 @@ main {
 }
 
 .dashboard--immersive .dashboard__main {
-  padding: var(--space-md);
+  padding-block-start: clamp(var(--space-md), 1rem + 1.5vw, var(--space-lg));
+  padding-block-end: clamp(var(--space-md), 1.25rem + 2.5vw, var(--space-lg));
+  padding-inline: clamp(var(--space-md), 5vw, var(--space-xl));
   gap: var(--space-md);
 }
 
@@ -816,13 +866,36 @@ main {
   }
 
   .dashboard__main {
-    padding: var(--space-xl);
+    padding-inline: clamp(var(--space-lg), 6vw, calc(var(--space-xl) * 1.05));
+    padding-block-start: clamp(var(--space-lg), 1.5rem + 2vw, calc(var(--space-xl) * 1.05));
+    padding-block-end: clamp(var(--space-lg), calc(var(--space-md) + 4vw), calc(var(--space-xl) * 1.15));
   }
 }
 
 @media (min-width: 64rem) {
   .dashboard__main {
-    padding: var(--space-xl) clamp(2.5rem, 2rem + 2vw, 4rem);
+    grid-template-columns: repeat(auto-fit, minmax(min(36rem, 100%), 1fr));
+    gap: clamp(var(--space-lg), 3vw, var(--space-xl));
+    padding-inline: clamp(var(--space-xl), 7vw, calc(var(--space-xl) * 1.2));
+    padding-block-start: clamp(var(--space-xl), 2rem + 2vw, calc(var(--space-xl) * 1.2));
+    padding-block-end: clamp(var(--space-xl), calc(var(--space-md) + 5vw), calc(var(--space-xl) * 1.3));
+  }
+
+  .dashboard__main > section {
+    align-self: start;
+  }
+
+  .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
+    > section.job-progress-section,
+  .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
+    > section.job-media-section,
+  .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
+    > section:has(.job-list-collapsible),
+  .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
+    > section:has(.job-card),
+  .dashboard__main:has(:is(.pipeline-settings, section:has(.new-immersive-book), .create-book-page))
+    > section:has(.job-grid) {
+    grid-column: 2;
   }
 }
 
@@ -842,15 +915,46 @@ section {
 }
 
 .pipeline-form {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
+}
+
+@media (min-width: 64rem) {
+  .pipeline-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pipeline-form > .pipeline-card {
+    height: 100%;
+  }
+
+  .pipeline-form > .pipeline-card[aria-labelledby='pipeline-card-submit'] {
+    grid-column: 1 / -1;
+  }
 }
 
 .pipeline-settings {
   display: flex;
   flex-direction: column;
   gap: var(--space-lg);
+}
+
+.new-immersive-book {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.new-immersive-book__tabs,
+.new-immersive-book__form {
+  min-width: 0;
+}
+
+@media (min-width: 64rem) {
+  .new-immersive-book {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+  }
 }
 
 .pipeline-card {
@@ -1400,6 +1504,13 @@ button.link-button:focus {
 .job-grid {
   display: grid;
   gap: 1rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 64rem) {
+  .job-grid {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  }
 }
 
 .job-detail-layout {
