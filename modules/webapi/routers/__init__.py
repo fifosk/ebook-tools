@@ -4,4 +4,5 @@ __all__ = [
     "audio",
     "create_book",
     "library",
+    "video",
 ]

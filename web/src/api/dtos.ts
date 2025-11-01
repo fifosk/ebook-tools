@@ -294,6 +294,19 @@ export interface PipelineMediaResponse {
   complete: boolean;
 }
 
+export interface VideoGenerationResponse {
+  request_id: string;
+  job_id: string;
+  status: string;
+  output_path?: string | null;
+  logs_url?: string | null;
+}
+
+export interface VideoGenerationRequestPayload {
+  job_id: string;
+  parameters: Record<string, unknown>;
+}
+
 export interface MediaSearchResult {
   job_id: string;
   job_label: string | null;

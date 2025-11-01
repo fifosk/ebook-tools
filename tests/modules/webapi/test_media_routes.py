@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-from typing import Iterator, Tuple
+from typing import Any, Dict, Iterator, Mapping, Tuple
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,6 +8,7 @@ from pydub import AudioSegment
 
 from modules.media.exceptions import MediaBackendError
 from modules.services.file_locator import FileLocator
+from modules.services.video_service import VideoTaskSnapshot
 from modules.user_management import AuthService
 from modules.user_management.local_user_store import LocalUserStore
 from modules.user_management.session_manager import SessionManager
@@ -17,7 +17,6 @@ from modules.webapi.dependencies import (
     get_audio_service,
     get_auth_service,
     get_file_locator,
-    get_video_job_manager,
     get_video_service,
 )
 
@@ -51,24 +50,38 @@ class _StubAudioService:
 
 
 class _StubVideoService:
-    pass
+    def __init__(self) -> None:
+        self.calls: list[Dict[str, Any]] = []
+        self.status = "queued"
 
-
-class _StubVideoJobManager:
-    def __init__(self, locator: FileLocator) -> None:
-        self.locator = locator
-        self.submitted: list[SimpleNamespace] = []
-        self._counter = 0
-
-    def submit(self, task, *, video_service) -> SimpleNamespace:  # pragma: no cover - simple stub
-        self._counter += 1
-        job_id = f"video-job-{self._counter}"
-        self.submitted.append(SimpleNamespace(task=task, service=video_service))
-        return SimpleNamespace(job_id=job_id)
+    def enqueue(
+        self,
+        job_id: str,
+        parameters: Mapping[str, Any],
+        *,
+        correlation_id: str | None = None,
+    ) -> VideoTaskSnapshot:
+        request_id = f"video-request-{len(self.calls) + 1}"
+        self.calls.append(
+            {
+                "job_id": job_id,
+                "parameters": dict(parameters),
+                "correlation_id": correlation_id,
+            }
+        )
+        return VideoTaskSnapshot(
+            request_id=request_id,
+            job_id=job_id,
+            status=self.status,
+            output_path=None,
+            logs_path=None,
+            logs_url=None,
+            error=None,
+        )
 
 
 @pytest.fixture
-def media_client(tmp_path) -> Iterator[Tuple[TestClient, str, str, _StubAudioService, _StubVideoJobManager, FileLocator]]:
+def media_client(tmp_path) -> Iterator[Tuple[TestClient, str, str, _StubAudioService, _StubVideoService, FileLocator]]:
     user_store_path = tmp_path / "users.json"
     session_file = tmp_path / "sessions.json"
     job_storage = tmp_path / "storage"
@@ -86,18 +99,16 @@ def media_client(tmp_path) -> Iterator[Tuple[TestClient, str, str, _StubAudioSer
 
     locator = FileLocator(storage_dir=job_storage)
     audio_service = _StubAudioService()
-    video_manager = _StubVideoJobManager(locator)
     video_service = _StubVideoService()
 
     app = create_app()
     app.dependency_overrides[get_auth_service] = lambda: service
     app.dependency_overrides[get_audio_service] = lambda: audio_service
-    app.dependency_overrides[get_video_job_manager] = lambda: video_manager
     app.dependency_overrides[get_video_service] = lambda: video_service
     app.dependency_overrides[get_file_locator] = lambda: locator
 
     with TestClient(app) as client:
-        yield client, viewer_token, producer_token, audio_service, video_manager, locator
+        yield client, viewer_token, producer_token, audio_service, video_service, locator
 
     app.dependency_overrides.clear()
 
@@ -197,7 +208,7 @@ def test_audio_generation_reports_backend_failure(media_client) -> None:
 
 
 def test_video_generation_submits_job(media_client) -> None:
-    client, _, producer_token, _, video_manager, locator = media_client
+    client, _, producer_token, _, video_service, locator = media_client
 
     job_id = "job-555"
     job_dir = locator.resolve_path(job_id)
@@ -224,8 +235,8 @@ def test_video_generation_submits_job(media_client) -> None:
 
     assert response.status_code == 202
     payload = response.json()
-    assert payload["status"] == "queued"
+    assert payload["status"] == video_service.status
     assert payload["media_type"] == "video"
-    assert payload["request_id"].startswith("video-job-")
+    assert payload["request_id"] == "video-request-1"
     assert payload["parameters"]["audio"][0]["job_id"] == job_id
-    assert video_manager.submitted
+    assert video_service.calls

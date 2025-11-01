@@ -23,9 +23,9 @@ from ..library import (
 )
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
+from ..services.video_service import VideoService
 from ..user_management import AuthService, LocalUserStore, SessionManager
-from ..video.api import VideoService
-from ..video.jobs import VideoJobManager
+from ..video.backends import create_video_renderer
 from .jobs import PipelineJobManager
 
 
@@ -333,14 +333,18 @@ def get_video_service() -> VideoService:
 
     config = _get_bootstrapped_media_config()
     backend_name, backend_settings = _resolve_video_configuration(config)
-    return VideoService(backend=backend_name, backend_settings=backend_settings)
+    active_backend = (backend_name or "ffmpeg").lower()
+    backend_config = dict(backend_settings.get(active_backend, {}))
 
+    def _renderer_factory():
+        return create_video_renderer(active_backend, backend_config)
 
-@lru_cache
-def get_video_job_manager() -> VideoJobManager:
-    """Return the process-wide :class:`VideoJobManager` instance."""
-
-    return VideoJobManager()
+    job_manager = get_pipeline_job_manager()
+    return VideoService(
+        job_manager=job_manager,
+        locator=job_manager.file_locator,
+        renderer_factory=_renderer_factory,
+    )
 
 
 def _expand_path(path_value: Optional[str]) -> Optional[Path]:

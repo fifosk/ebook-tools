@@ -7,8 +7,8 @@ import os
 import pytest
 
 from modules.audio.api import AudioService
-from modules.video.api import VideoService
 from modules.video.backends import BaseVideoRenderer
+from modules.services.video_service import VideoService
 from modules.webapi.dependencies import (
     configure_media_services,
     get_audio_service,
@@ -52,8 +52,7 @@ def test_configure_media_services_falls_back_to_defaults() -> None:
     assert audio_service._backend_name_override is None
     assert audio_service._executable_override is None
     assert isinstance(video_service, VideoService)
-    assert video_service._backend_name == video_service._config.video_backend.lower()
-    assert isinstance(video_service.renderer, BaseVideoRenderer)
+    assert isinstance(video_service._renderer, BaseVideoRenderer)
 
 
 def test_audio_service_honours_environment_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -84,8 +83,7 @@ def test_video_service_honours_environment_overrides(monkeypatch: pytest.MonkeyP
 
     video_service = get_video_service()
 
-    assert video_service._backend_name == "ffmpeg"
-    assert video_service._backend_settings["ffmpeg"]["executable"] == "/opt/bin/ffmpeg-custom"
+    assert getattr(video_service._renderer, "_executable") == "/opt/bin/ffmpeg-custom"
 
 
 def test_video_service_merges_ffmpeg_path_from_config() -> None:
@@ -100,7 +98,7 @@ def test_video_service_merges_ffmpeg_path_from_config() -> None:
 
     video_service = get_video_service()
 
-    assert video_service._backend_settings["ffmpeg"]["executable"] == "/usr/local/bin/ffmpeg"
+    assert getattr(video_service._renderer, "_executable") == "/usr/local/bin/ffmpeg"
 
 
 def test_configure_media_services_sets_audio_api_environment() -> None:
@@ -117,4 +115,3 @@ def test_configure_media_services_sets_audio_api_environment() -> None:
     assert os.environ["EBOOK_AUDIO_API_BASE_URL"] == "https://audio.example"
     assert os.environ["EBOOK_AUDIO_API_TIMEOUT_SECONDS"] == "42.0"
     assert os.environ["EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS"] == "2.5"
-
