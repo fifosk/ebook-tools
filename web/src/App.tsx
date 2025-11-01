@@ -1064,12 +1064,6 @@ export function App() {
                   />
                 </section>
               ) : null}
-              {isNewImmersiveBookView && activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
-                <section>
-                  <h2 style={{ marginTop: 0 }}>Active jobs</h2>
-                  <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
-                </section>
-              ) : null}
               {sidebarJobs.length === 0 ? (
                 <section>
                   <h2 style={{ marginTop: 0 }}>Active jobs</h2>
