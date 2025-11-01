@@ -1016,15 +1016,10 @@ export function App() {
           ) : isNewImmersiveBookView ? (
             <>
               <h1>New immersive book</h1>
-              <p>Configure pipeline settings and submit jobs in a unified workspace tailored for immersive ebooks.</p>
             </>
           ) : (
             <>
               <h1>Language tools</h1>
-              <p>
-                Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
-                directly from the FastAPI backend.
-              </p>
             </>
           )}
           </header>
@@ -1062,18 +1057,6 @@ export function App() {
                     prefillInputFile={pendingInputFile}
                     submitError={activePipelineSection === 'submit' ? submitError : null}
                   />
-                </section>
-              ) : null}
-              {isNewImmersiveBookView && activePipelineSection === 'submit' && sidebarJobs.length > 0 ? (
-                <section>
-                  <h2 style={{ marginTop: 0 }}>Active jobs</h2>
-                  <p style={{ marginBottom: 0 }}>Select a job from the menu to review its detailed progress.</p>
-                </section>
-              ) : null}
-              {sidebarJobs.length === 0 ? (
-                <section>
-                  <h2 style={{ marginTop: 0 }}>Active jobs</h2>
-                  <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
                 </section>
               ) : null}
               {selectedView === JOB_PROGRESS_VIEW ? (
