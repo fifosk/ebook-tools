@@ -47,6 +47,30 @@ router = APIRouter()
 storage_router = APIRouter()
 
 
+class _LibrarySearchJobAdapter:
+    """Minimal adapter that exposes library metadata to the media search helpers."""
+
+    __slots__ = ("job_id", "generated_files", "request", "resume_context", "request_payload")
+
+    def __init__(
+        self,
+        job_id: str,
+        generated_files: Mapping[str, Any],
+        *,
+        label: Optional[str] = None,
+    ) -> None:
+        self.job_id = job_id
+        self.generated_files = generated_files
+        self.request: Any = None
+        self.resume_context: Optional[Mapping[str, Any]] = None
+        if label:
+            self.request_payload: Optional[Mapping[str, Any]] = {
+                "inputs": {"book_metadata": {"title": label}}
+            }
+        else:
+            self.request_payload = None
+
+
 def _format_relative_path(path: Path, root: Path) -> str:
     """Return ``path`` relative to ``root`` using POSIX separators when possible."""
 
@@ -571,23 +595,47 @@ async def search_pipeline_media(
     if not normalized_query:
         return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
 
+    library_item = library_service.get_item(job_id) if library_service is not None else None
+
     try:
         job = pipeline_service.get_job(
             job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
-    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except KeyError:
+        job = None
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
+    if job is None and library_item is None:  # pragma: no cover - defensive guard
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+
+    jobs_to_search: List[PipelineJob | _LibrarySearchJobAdapter] = []
+    if job is not None:
+        jobs_to_search.append(job)
+    elif library_item is not None:
+        serialized_item = library_service.serialize_item(library_item)
+        metadata_payload = serialized_item.get("metadata")
+        generated_files = (
+            metadata_payload.get("generated_files") if isinstance(metadata_payload, Mapping) else None
+        )
+        if isinstance(generated_files, Mapping):
+            label = serialized_item.get("book_title") or metadata_payload.get("book_title")
+            jobs_to_search.append(
+                _LibrarySearchJobAdapter(
+                    job_id=job_id,
+                    generated_files=generated_files,
+                    label=label if isinstance(label, str) and label.strip() else None,
+                )
+            )
+
     hits = search_generated_media(
         query=normalized_query,
-        jobs=(job,),
+        jobs=tuple(jobs_to_search),
         locator=file_locator,
         limit=limit,
-    )
+    ) if jobs_to_search else []
 
     serialized_hits: list[MediaSearchHit] = []
     for hit in hits:

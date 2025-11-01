@@ -157,6 +157,8 @@ class LibraryService:
         self._locator = file_locator
         self._indexer = indexer or LibraryIndexer(self._library_root)
         self._job_manager = job_manager
+        self._library_job_cache: Dict[str, Path] = {}
+        self._missing_job_cache: set[str] = set()
         # Prime the database and ensure migrations run up-front.
         with self._indexer.connect():
             pass
@@ -640,6 +642,52 @@ class LibraryService:
             items=items,
             groups=groups,
         )
+
+    def get_item(self, job_id: str) -> Optional[LibraryItem]:
+        """Return the indexed ``LibraryItem`` for ``job_id`` if present."""
+
+        if not job_id:
+            return None
+        if job_id in self._missing_job_cache:
+            return None
+
+        item = self._indexer.get(job_id)
+        if item:
+            try:
+                self._library_job_cache[job_id] = Path(item.library_path)
+            except Exception:
+                pass
+            return item
+
+        cached_root = self._library_job_cache.get(job_id)
+        if cached_root is not None:
+            metadata_path = cached_root / "metadata" / "job.json"
+            if metadata_path.exists():
+                try:
+                    metadata = self._load_metadata(cached_root)
+                    recovered = self._build_item(metadata, cached_root)
+                except (FileNotFoundError, LibraryError):
+                    pass
+                else:
+                    self._indexer.upsert(recovered)
+                    return recovered
+
+        job_root = self._locate_job_root(job_id)
+        if job_root is None:
+            self._missing_job_cache.add(job_id)
+            return None
+
+        try:
+            metadata = self._load_metadata(job_root)
+            recovered = self._build_item(metadata, job_root)
+        except (FileNotFoundError, LibraryError):
+            self._missing_job_cache.add(job_id)
+            return None
+
+        self._library_job_cache[job_id] = job_root
+        self._indexer.upsert(recovered)
+        self._missing_job_cache.discard(job_id)
+        return recovered
 
     def reindex_from_fs(self) -> int:
         """Scan the library filesystem and rebuild the SQLite index."""
@@ -1676,6 +1724,43 @@ class LibraryService:
         language_segment = _sanitize_segment(metadata.get("language"), _UNKNOWN_LANGUAGE)
         job_segment = _sanitize_segment(job_id, "job")
         return self._library_root / author_segment / book_segment / language_segment / job_segment
+
+    def _locate_job_root(self, job_id: str) -> Optional[Path]:
+        normalized = str(job_id or "").strip()
+        if not normalized:
+            return None
+
+        cached = self._library_job_cache.get(normalized)
+        if cached is not None:
+            metadata_path = cached / "metadata" / "job.json"
+            if metadata_path.exists():
+                return cached
+
+        try:
+            author_dirs = [path for path in self._library_root.iterdir() if path.is_dir()]
+        except FileNotFoundError:
+            return None
+
+        for author_dir in author_dirs:
+            if author_dir.name.startswith("."):
+                continue
+            try:
+                book_dirs = [path for path in author_dir.iterdir() if path.is_dir()]
+            except FileNotFoundError:
+                continue
+            for book_dir in book_dirs:
+                try:
+                    language_dirs = [path for path in book_dir.iterdir() if path.is_dir()]
+                except FileNotFoundError:
+                    continue
+                for language_dir in language_dirs:
+                    candidate = language_dir / normalized
+                    metadata_path = candidate / "metadata" / "job.json"
+                    if metadata_path.exists():
+                        self._library_job_cache[normalized] = candidate
+                        self._missing_job_cache.discard(normalized)
+                        return candidate
+        return None
 
     def _purge_media_files(self, job_root: Path) -> int:
         removed = 0
