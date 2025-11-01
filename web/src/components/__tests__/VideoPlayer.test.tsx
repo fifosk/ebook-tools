@@ -133,7 +133,7 @@ describe('VideoPlayer', () => {
     expect(onEnded).toHaveBeenCalledTimes(1);
   });
 
-  it('requests theater exit when backdrop or Escape is used', async () => {
+  it('requests immersive exit when backdrop or Escape is used', async () => {
     const user = userEvent.setup();
     const sample: VideoFile = {
       id: 'sample',
@@ -152,14 +152,14 @@ describe('VideoPlayer', () => {
       />,
     );
 
-    await user.click(screen.getByRole('button', { name: /Exit theater mode/i }));
+    await user.click(screen.getByRole('button', { name: /Exit immersive mode/i }));
     expect(onExit).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onExit).toHaveBeenCalledTimes(2);
   });
 
-  it('requests fullscreen while theater mode is active and exits when disabled', () => {
+  it('requests fullscreen while immersive mode is active and exits when disabled', () => {
     const sample: VideoFile = {
       id: 'sample',
       name: 'Sample',

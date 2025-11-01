@@ -256,7 +256,9 @@ afterEach(() => {
 
     const user = userEvent.setup();
 
-    render(<PlayerPanel jobId="job-123" media={media} isLoading={false} error={null} />);
+    render(
+      <PlayerPanel jobId="job-123" media={media} chunks={[]} mediaComplete={false} isLoading={false} error={null} />,
+    );
 
     const article = await screen.findByTestId('player-panel-document');
 
@@ -357,7 +359,7 @@ afterEach(() => {
     const user = userEvent.setup();
 
     const { unmount } = render(
-      <PlayerPanel jobId="job-456" media={media} isLoading={false} error={null} />,
+      <PlayerPanel jobId="job-456" media={media} chunks={[]} mediaComplete={false} isLoading={false} error={null} />,
     );
 
     await screen.findByTestId('player-panel-document');
@@ -370,7 +372,9 @@ afterEach(() => {
 
     unmount();
 
-    render(<PlayerPanel jobId="job-456" media={media} isLoading={false} error={null} />);
+    render(
+      <PlayerPanel jobId="job-456" media={media} chunks={[]} mediaComplete={false} isLoading={false} error={null} />,
+    );
 
     const videoTab = await screen.findByTestId('media-tab-video');
 
@@ -392,6 +396,8 @@ afterEach(() => {
       <PlayerPanel
         jobId="job-789"
         media={media}
+        chunks={[]}
+        mediaComplete={false}
         isLoading={false}
         error={null}
         bookMetadata={{ book_title: 'Example Title', book_author: 'Jane Doe' }}
@@ -400,14 +406,15 @@ afterEach(() => {
 
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Example Title');
     expect(screen.getByText('By Jane Doe • Job job-789')).toBeInTheDocument();
-    expect(screen.getByText('No generated media yet for Example Title.')).toBeInTheDocument();
+    const mediaNotices = screen.getAllByText('No generated media yet for Example Title.');
+    expect(mediaNotices.length).toBeGreaterThan(0);
     const coverImage = screen.getByTestId('player-cover-image') as HTMLImageElement;
     expect(coverImage).toBeInTheDocument();
     expect(coverImage.src).toContain('/pipelines/job-789/cover');
     expect(coverImage.alt).toBe('Cover of Example Title by Jane Doe');
   });
 
-  it('toggles theater mode from the header controls', async () => {
+  it('toggles immersive mode from the header controls', async () => {
     const user = userEvent.setup();
     const media = createMediaState({
       video: [
@@ -420,9 +427,11 @@ afterEach(() => {
       ]
     });
 
-    render(<PlayerPanel jobId="job-900" media={media} isLoading={false} error={null} />);
+    render(
+      <PlayerPanel jobId="job-900" media={media} chunks={[]} mediaComplete={false} isLoading={false} error={null} />,
+    );
 
-    const toggle = screen.getByTestId('player-panel-theater-toggle');
+    const toggle = screen.getByTestId('player-panel-immersive-toggle');
     expect(toggle).toHaveAttribute('aria-pressed', 'false');
     expect(document.querySelector('.player-panel--immersive')).toBeNull();
 

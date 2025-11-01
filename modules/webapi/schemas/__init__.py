@@ -155,6 +155,20 @@ class PipelineDefaultsResponse(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
 
 
+class PipelineFileDeleteRequest(BaseModel):
+    """Request payload for deleting a stored pipeline input file."""
+
+    path: str
+
+    @field_validator("path")
+    @classmethod
+    def _validate_path(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("Path cannot be empty")
+        return trimmed
+
+
 class PipelineRequestPayload(BaseModel):
     """Schema mirroring :class:`PipelineRequest` for incoming submissions."""
 

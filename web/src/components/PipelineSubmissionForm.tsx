@@ -2,6 +2,7 @@ import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState
 import {
   MacOSVoice,
   PipelineFileBrowserResponse,
+  PipelineFileEntry,
   PipelineRequestPayload,
   VoiceInventoryResponse
 } from '../api/dtos';
@@ -9,6 +10,7 @@ import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
   fetchVoiceInventory,
+  deletePipelineEbook,
   synthesizeVoicePreview,
   uploadEpubFile
 } from '../api/client';
@@ -85,6 +87,7 @@ type Props = {
   isSubmitting?: boolean;
   activeSection?: PipelineFormSection;
   externalError?: string | null;
+  prefillInputFile?: string | null;
 };
 
 type JsonFields =
@@ -457,7 +460,8 @@ export function PipelineSubmissionForm({
   onSubmit,
   isSubmitting = false,
   activeSection,
-  externalError = null
+  externalError = null,
+  prefillInputFile = null
 }: Props) {
   const [formState, setFormState] = useState<FormState>(DEFAULT_FORM_STATE);
   const [error, setError] = useState<string | null>(null);
@@ -475,6 +479,7 @@ export function PipelineSubmissionForm({
   const [voicePreviewStatus, setVoicePreviewStatus] = useState<Record<string, 'idle' | 'loading' | 'playing'>>({});
   const [voicePreviewError, setVoicePreviewError] = useState<Record<string, string>>({});
   const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string; code: string } | null>(null);
+  const prefillAppliedRef = useRef<string | null>(null);
   const cleanupPreviewAudio = useCallback(() => {
     const current = previewAudioRef.current;
     if (!current) {
@@ -496,6 +501,36 @@ export function PipelineSubmissionForm({
 
   const isSubmitSection = !activeSection || activeSection === 'submit';
   const visibleSections = activeSection ? [activeSection] : SECTION_ORDER;
+
+  useEffect(() => {
+    if (prefillInputFile === undefined) {
+      return;
+    }
+    const normalizedPrefill = prefillInputFile && prefillInputFile.trim();
+    if (!normalizedPrefill) {
+      prefillAppliedRef.current = null;
+      return;
+    }
+    if (prefillAppliedRef.current === normalizedPrefill) {
+      return;
+    }
+    setFormState((previous) => {
+      if (previous.input_file === normalizedPrefill) {
+        return previous;
+      }
+      const previousDerivedBase = deriveBaseOutputName(previous.input_file);
+      const nextDerivedBase = deriveBaseOutputName(normalizedPrefill);
+      const shouldUpdateBase =
+        !previous.base_output_file || previous.base_output_file === previousDerivedBase;
+      return {
+        ...previous,
+        input_file: normalizedPrefill,
+        base_output_file: shouldUpdateBase ? nextDerivedBase : previous.base_output_file,
+        book_metadata: '{}'
+      };
+    });
+    prefillAppliedRef.current = normalizedPrefill;
+  }, [prefillInputFile]);
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
     setFormState((previous) => ({
@@ -723,6 +758,46 @@ export function PipelineSubmissionForm({
       setIsLoadingFiles(false);
     }
   }, []);
+
+  const handleDeleteEbook = useCallback(
+    async (entry: PipelineFileEntry) => {
+      const confirmed =
+        typeof window === 'undefined'
+          ? true
+          : window.confirm(`Delete ${entry.name}? This action cannot be undone.`);
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        await deletePipelineEbook(entry.path);
+        setFileDialogError(null);
+        setFormState((previous) => {
+          if (previous.input_file !== entry.path) {
+            return previous;
+          }
+          const derivedBase = deriveBaseOutputName(entry.name);
+          const nextBase =
+            previous.base_output_file === derivedBase ? '' : previous.base_output_file;
+          return {
+            ...previous,
+            input_file: '',
+            base_output_file: nextBase,
+            book_metadata: '{}'
+          };
+        });
+        prefillAppliedRef.current = null;
+        await refreshFiles();
+      } catch (deleteError) {
+        const message =
+          deleteError instanceof Error
+            ? deleteError.message
+            : 'Unable to delete selected ebook.';
+        setFileDialogError(message);
+      }
+    },
+    [refreshFiles]
+  );
 
   const processFileUpload = useCallback(
     async (file: File) => {
@@ -1559,6 +1634,13 @@ export function PipelineSubmissionForm({
             setActiveFileDialog(null);
           }}
           onClose={() => setActiveFileDialog(null)}
+          onDelete={
+            activeFileDialog === 'input'
+              ? (entry) => {
+                  void handleDeleteEbook(entry);
+                }
+              : undefined
+          }
         />
       ) : null}
     </section>

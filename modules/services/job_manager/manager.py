@@ -101,7 +101,7 @@ class PipelineJobManager:
             record_metric=self._record_job_metric,
         )
         self._job_executor = PipelineJobExecutor(
-            job_getter=self.get,
+            job_getter=self._get_unchecked,
             lock=self._lock,
             store=self._store,
             persistence=self._persistence,
@@ -117,6 +117,7 @@ class PipelineJobManager:
         stored_jobs = self._storage.load_all()
 
         updates: list[PipelineJobMetadata] = []
+        pending_jobs: list[str] = []
         with self._lock:
             for job_id, metadata in stored_jobs.items():
                 job = self._persistence.build_job(metadata)
@@ -132,8 +133,12 @@ class PipelineJobManager:
                     PipelineJobStatus.PAUSED,
                 ):
                     self._jobs[job_id] = job
+                    if job.status == PipelineJobStatus.PENDING:
+                        pending_jobs.append(job_id)
 
         self._storage.persist_reconciliation(updates)
+        for job_id in pending_jobs:
+            self._executor.submit(self._execute, job_id)
 
     def submit(
         self,
@@ -376,6 +381,16 @@ class PipelineJobManager:
     def _is_admin(user_role: Optional[str]) -> bool:
         return bool(user_role and user_role.lower() == "admin")
 
+    def _get_unchecked(self, job_id: str) -> PipelineJob:
+        """Return ``job_id`` without applying authorization checks."""
+
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is not None:
+                return job
+        metadata = self._store.get(job_id)
+        return self._persistence.build_job(metadata)
+
     def _assert_job_access(
         self,
         job: PipelineJob,
@@ -399,13 +414,7 @@ class PipelineJobManager:
     ) -> PipelineJob:
         """Return the job associated with ``job_id``."""
 
-        with self._lock:
-            job = self._jobs.get(job_id)
-            if job is not None:
-                self._assert_job_access(job, user_id=user_id, user_role=user_role)
-                return job
-        metadata = self._store.get(job_id)
-        job = self._persistence.build_job(metadata)
+        job = self._get_unchecked(job_id)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
         return job
 

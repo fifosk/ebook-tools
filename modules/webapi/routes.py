@@ -8,12 +8,15 @@ from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Callable, Dict, Iterator, List, Mapping, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, HTTPException, Header, Query, UploadFile, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse, Response
 
 from .dependencies import (
+    RequestUserContext,
     RuntimeContextProvider,
     get_file_locator,
+    get_library_service,
     get_pipeline_service,
+    get_request_user,
     get_runtime_context_provider,
 )
 from .jobs import PipelineJob, PipelineJobTransitionError
@@ -31,12 +34,14 @@ from .schemas import (
     PipelineMediaResponse,
     PipelineFileBrowserResponse,
     PipelineFileEntry,
+    PipelineFileDeleteRequest,
     PipelineDefaultsResponse,
     PipelineRequestPayload,
     PipelineStatusResponse,
     PipelineSubmissionResponse,
     ProgressEventPayload,
 )
+from modules.library.library_service import LibraryNotFoundError, LibraryService
 
 router = APIRouter()
 storage_router = APIRouter()
@@ -342,12 +347,14 @@ def _guess_cover_media_type(path: Path) -> str:
 @router.get("/jobs", response_model=PipelineJobListResponse)
 async def list_jobs(
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return all persisted jobs ordered by creation time."""
 
-    jobs = pipeline_service.list_jobs(user_id=user_id, user_role=user_role).values()
+    jobs = pipeline_service.list_jobs(
+        user_id=request_user.user_id,
+        user_role=request_user.user_role,
+    ).values()
     ordered = sorted(
         jobs,
         key=lambda job: job.created_at or datetime.min.replace(tzinfo=timezone.utc),
@@ -421,6 +428,48 @@ async def upload_pipeline_ebook(
     )
 
 
+@router.delete("/files", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_pipeline_ebook(
+    payload: PipelineFileDeleteRequest,
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Remove an existing EPUB from the configured books directory."""
+
+    with context_provider.activation({}, {}) as context:
+        books_dir = context.books_dir
+        target = (books_dir / payload.path).resolve()
+
+        try:
+            target.relative_to(books_dir)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid ebook path",
+            ) from exc
+
+        if not target.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ebook not found",
+            )
+
+        if not target.is_file():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only files can be deleted",
+            )
+
+        try:
+            target.unlink()
+        except OSError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Unable to delete ebook: {exc}",
+            ) from exc
+
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/defaults", response_model=PipelineDefaultsResponse)
 async def get_pipeline_defaults(
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
@@ -439,8 +488,7 @@ async def search_pipeline_media(
     job_id: str = Query(..., alias="job_id"),
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Search across generated ebook media for the provided query."""
 
@@ -451,8 +499,8 @@ async def search_pipeline_media(
     try:
         job = pipeline_service.get_job(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
@@ -524,8 +572,7 @@ async def submit_pipeline(
     payload: PipelineRequestPayload,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Submit a pipeline execution request and return an identifier."""
 
@@ -540,7 +587,11 @@ async def submit_pipeline(
         context=context,
         resolved_config=resolved_config,
     )
-    job = pipeline_service.enqueue(request, user_id=user_id, user_role=user_role)
+    job = pipeline_service.enqueue(
+        request,
+        user_id=request_user.user_id,
+        user_role=request_user.user_role,
+    )
     return PipelineSubmissionResponse(
         job_id=job.job_id,
         status=job.status,
@@ -552,16 +603,15 @@ async def submit_pipeline(
 async def refresh_pipeline_metadata(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Trigger metadata inference again for ``job_id`` and return the updated status."""
 
     try:
         job = pipeline_service.refresh_metadata(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
@@ -577,16 +627,15 @@ async def refresh_pipeline_metadata(
 async def get_pipeline_status(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return the latest status for the requested job."""
 
     try:
         job = pipeline_service.get_job(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
@@ -601,25 +650,40 @@ async def fetch_job_cover(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    library_service: LibraryService = Depends(get_library_service),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return the stored cover image for ``job_id`` if available."""
 
+    permission_denied = False
+    job_missing = False
     try:
         pipeline_service.get_job(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
-    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except PermissionError:
+        permission_denied = True
+    except KeyError:
+        job_missing = True
 
     metadata_root = file_locator.metadata_root(job_id)
     cover_path = _find_job_cover_path(metadata_root)
+
+    if (cover_path is None or not cover_path.is_file()) and library_service is not None:
+        try:
+            library_cover = library_service.find_cover_asset(job_id)
+        except LibraryNotFoundError:
+            library_cover = None
+        if library_cover is not None and library_cover.is_file():
+            cover_path = library_cover
+
     if cover_path is None or not cover_path.is_file():
+        if job_missing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
+        if permission_denied:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access cover")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
 
     media_type = _guess_cover_media_type(cover_path)
@@ -637,16 +701,15 @@ async def get_job_media(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return generated media metadata for a completed or persisted job."""
 
     try:
         job = pipeline_service.get_job(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
@@ -667,16 +730,15 @@ async def get_job_media_live(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return live generated media metadata from the active progress tracker."""
 
     try:
         job = pipeline_service.get_job(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
@@ -702,11 +764,14 @@ def _handle_job_action(
     job_id: str,
     action: Callable[..., PipelineJob],
     *,
-    user_id: str | None = None,
-    user_role: str | None = None,
+    request_user: RequestUserContext,
 ) -> PipelineJobActionResponse:
     try:
-        job = action(job_id, user_id=user_id, user_role=user_role)
+        job = action(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
     except KeyError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
     except PermissionError as exc:
@@ -720,16 +785,14 @@ def _handle_job_action(
 async def pause_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Pause the specified job if possible."""
 
     return _handle_job_action(
         job_id,
         pipeline_service.pause_job,
-        user_id=user_id,
-        user_role=user_role,
+        request_user=request_user,
     )
 
 
@@ -737,16 +800,14 @@ async def pause_job(
 async def resume_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Resume a paused job."""
 
     return _handle_job_action(
         job_id,
         pipeline_service.resume_job,
-        user_id=user_id,
-        user_role=user_role,
+        request_user=request_user,
     )
 
 
@@ -754,16 +815,14 @@ async def resume_job(
 async def cancel_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Cancel a running or pending job."""
 
     return _handle_job_action(
         job_id,
         pipeline_service.cancel_job,
-        user_id=user_id,
-        user_role=user_role,
+        request_user=request_user,
     )
 
 
@@ -771,16 +830,14 @@ async def cancel_job(
 async def delete_job(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Delete persisted metadata for a job."""
 
     return _handle_job_action(
         job_id,
         pipeline_service.delete_job,
-        user_id=user_id,
-        user_role=user_role,
+        request_user=request_user,
     )
 
 
@@ -811,16 +868,15 @@ async def _event_stream(job: PipelineJob) -> AsyncIterator[bytes]:
 async def stream_pipeline_events(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
-    user_id: str | None = Header(default=None, alias="X-User-Id"),
-    user_role: str | None = Header(default=None, alias="X-User-Role"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Stream progress events for ``job_id`` as Server-Sent Events."""
 
     try:
         job = pipeline_service.get_job(
             job_id,
-            user_id=user_id,
-            user_role=user_role,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except KeyError as exc:  # pragma: no cover - FastAPI handles error path
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc

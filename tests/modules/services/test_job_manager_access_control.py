@@ -7,10 +7,16 @@ from typing import Callable
 import pytest
 
 from modules.services.job_manager import manager as manager_module
+from modules.services.job_manager.execution_adapter import PipelineExecutionAdapter
 from modules.services.job_manager.job import PipelineJobStatus
 from modules.services.job_manager.manager import PipelineJobManager
 from modules.services.job_manager.stores import InMemoryJobStore
-from modules.services.pipeline_service import PipelineInput, PipelineRequest, PipelineService
+from modules.services.pipeline_service import (
+    PipelineInput,
+    PipelineRequest,
+    PipelineResponse,
+    PipelineService,
+)
 
 
 class _DummyExecutor:
@@ -32,7 +38,8 @@ class _DummyWorkerPool:
 
 @pytest.fixture(autouse=True)
 def _isolate_job_directories(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(manager_module, "_JOB_OUTPUT_ROOT", tmp_path / "storage")
+    if hasattr(manager_module, "_JOB_OUTPUT_ROOT"):
+        monkeypatch.setattr(manager_module, "_JOB_OUTPUT_ROOT", tmp_path / "storage")
 
 
 @pytest.fixture(autouse=True)
@@ -105,6 +112,25 @@ def test_list_jobs_respects_role_visibility(tmp_path: Path) -> None:
     finally:
         manager._executor.shutdown()
 
+
+def test_executor_runs_owned_jobs(tmp_path: Path) -> None:
+    store = InMemoryJobStore()
+    execution_adapter = PipelineExecutionAdapter(lambda _: PipelineResponse(success=True))
+    manager = PipelineJobManager(
+        max_workers=1,
+        store=store,
+        worker_pool_factory=lambda _: _DummyWorkerPool(),
+        execution_adapter=execution_adapter,
+    )
+    service = PipelineService(manager)
+
+    try:
+        job = service.enqueue(_build_request(), user_id="alice", user_role="editor")
+        manager._execute(job.job_id)
+        updated = manager.get(job.job_id, user_id="alice", user_role="editor")
+        assert updated.status == PipelineJobStatus.COMPLETED
+    finally:
+        manager._executor.shutdown()
 
 def test_job_actions_require_authorisation(tmp_path: Path) -> None:
     store = InMemoryJobStore()

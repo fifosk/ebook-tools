@@ -228,7 +228,7 @@ export default function VideoPlayer({
         <button
           type="button"
           className="video-player__backdrop"
-          aria-label="Exit theater mode"
+          aria-label="Exit immersive mode"
           onClick={onExitTheaterMode}
         />
       ) : null}

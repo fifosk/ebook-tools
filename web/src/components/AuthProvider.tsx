@@ -4,6 +4,7 @@ import {
   fetchSessionStatus,
   login as loginRequest,
   logout as logoutRequest,
+  setAuthContext,
   setAuthToken,
   setUnauthorizedHandler
 } from '../api/client';
@@ -62,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const clearSession = useCallback(() => {
     setSession(null);
     setAuthToken(null);
+    setAuthContext(null);
     persistToken(null);
   }, []);
 
@@ -90,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         setSession(response);
+        setAuthToken(response.token);
+        setAuthContext(response.user);
         persistToken(response.token);
         setLogoutReason(null);
       })
@@ -113,6 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const applySession = useCallback((response: SessionStatusResponse) => {
     setSession(response);
     setAuthToken(response.token);
+    setAuthContext(response.user);
     persistToken(response.token);
     setLogoutReason(null);
   }, []);

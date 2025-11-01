@@ -5,9 +5,12 @@ from __future__ import annotations
 import os
 from contextlib import contextmanager
 from copy import deepcopy
+from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, cast
+
+from fastapi import Depends, Header
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
@@ -26,6 +29,23 @@ logger = log_mgr.logger
 
 
 _BOOTSTRAPPED_MEDIA_CONFIG: Dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class RequestUserContext:
+    """Identity extracted from headers or the current session token."""
+
+    user_id: str | None
+    user_role: str | None
+
+
+def _extract_bearer_token(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() == "bearer" and token:
+        return token.strip() or None
+    return authorization.strip() or None
 
 
 def _apply_audio_api_configuration(config: Mapping[str, Any]) -> None:
@@ -341,3 +361,35 @@ def get_auth_service() -> AuthService:
     user_store = LocalUserStore(storage_path=user_store_path)
     session_manager = SessionManager(session_file=session_file)
     return AuthService(user_store, session_manager)
+
+
+def get_request_user(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    header_user_id: str | None = Header(default=None, alias="X-User-Id"),
+    header_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> RequestUserContext:
+    """Resolve the request user identity from forwarded headers or session token."""
+
+    if header_user_id:
+        user_id = header_user_id.strip() or None
+        role_value = (header_user_role or "").strip()
+        user_role = role_value.lower() if role_value else None
+        return RequestUserContext(user_id=user_id, user_role=user_role)
+
+    token = _extract_bearer_token(authorization)
+    if not token:
+        return RequestUserContext(user_id=None, user_role=None)
+
+    record = auth_service.authenticate(token)
+    if record is None:
+        return RequestUserContext(user_id=None, user_role=None)
+
+    role = None
+    if record.roles:
+        primary = record.roles[0]
+        if isinstance(primary, str):
+            normalized = primary.strip()
+            if normalized:
+                role = normalized.lower()
+    return RequestUserContext(user_id=record.username, user_role=role)

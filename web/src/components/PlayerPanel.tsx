@@ -9,6 +9,7 @@ import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/m
 import MediaSearchPanel from './MediaSearchPanel';
 import type { MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
+import InteractiveTextViewer from './InteractiveTextViewer';
 
 type MediaCategory = keyof LiveMediaState;
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
@@ -196,7 +197,7 @@ export default function PlayerPanel({
   const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
-  const [isTheaterMode, setIsTheaterMode] = useState(false);
+  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
@@ -656,8 +657,8 @@ export default function PlayerPanel({
       setIsVideoPlaying(false);
     }
   }, [videoFiles.length, isVideoPlaying]);
-  const textContentCache = useRef(new Map<string, string>());
-  const [textPreview, setTextPreview] = useState<{ url: string; content: string } | null>(null);
+  const textContentCache = useRef(new Map<string, { raw: string; plain: string }>());
+  const [textPreview, setTextPreview] = useState<{ url: string; content: string; raw: string } | null>(null);
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
 
@@ -715,8 +716,59 @@ export default function PlayerPanel({
       }) ?? null
     );
   }, [chunks, selectedItem]);
-  const isImmersiveMode = isVideoTabActive && isTheaterMode;
-  const panelClassName = isImmersiveMode ? 'player-panel player-panel--immersive' : 'player-panel';
+  const chunkAudioItems = useMemo(() => {
+    if (!selectedChunk) {
+      return [];
+    }
+    const seen = new Set<string>();
+    const items: LiveMediaItem[] = [];
+    selectedChunk.files.forEach((file) => {
+      if (file.type !== 'audio' || !file.url) {
+        return;
+      }
+      if (seen.has(file.url)) {
+        return;
+      }
+      seen.add(file.url);
+      items.push(file);
+    });
+    return items;
+  }, [selectedChunk]);
+  const interactiveAudioItems = useMemo(() => {
+    const seen = new Set<string>();
+    const register = (item: LiveMediaItem | null | undefined) => {
+      if (!item || !item.url || seen.has(item.url)) {
+        return;
+      }
+      seen.add(item.url);
+      result.push(item);
+    };
+    const result: LiveMediaItem[] = [];
+    chunkAudioItems.forEach(register);
+    const baseId = selectedItem ? deriveBaseId(selectedItem) : null;
+    if (baseId) {
+      media.audio.forEach((item) => {
+        if (deriveBaseId(item) === baseId) {
+          register(item);
+        }
+      });
+    }
+    const selectedAudio = getMediaItem('audio', selectedItemIds.audio);
+    register(selectedAudio);
+    if (result.length === 0) {
+      register(media.audio[0]);
+    }
+    return result;
+  }, [
+    chunkAudioItems,
+    deriveBaseId,
+    getMediaItem,
+    media.audio,
+    selectedItem,
+    selectedItemIds.audio,
+  ]);
+  const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
+  const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
   const navigableItems = useMemo(
@@ -788,6 +840,23 @@ export default function PlayerPanel({
       rememberPosition({ mediaId, mediaType: 'audio', baseId, position });
     },
     [selectedItemIds.audio, getMediaItem, deriveBaseId, rememberPosition],
+  );
+
+  const handleInlineAudioProgress = useCallback(
+    (audioUrl: string, position: number) => {
+      if (!audioUrl) {
+        return;
+      }
+      const current = getMediaItem('audio', audioUrl);
+      const baseId = current ? deriveBaseId(current) : null;
+      rememberPosition({ mediaId: audioUrl, mediaType: 'audio', baseId, position });
+    },
+    [deriveBaseId, getMediaItem, rememberPosition],
+  );
+
+  const getInlineAudioPosition = useCallback(
+    (audioUrl: string) => getPosition(audioUrl),
+    [getPosition],
   );
 
   const handleVideoProgress = useCallback(
@@ -879,9 +948,9 @@ export default function PlayerPanel({
       return;
     }
 
-    if (textContentCache.current.has(url)) {
-      const cached = textContentCache.current.get(url) ?? '';
-      setTextPreview({ url, content: cached });
+    const cached = textContentCache.current.get(url);
+    if (cached) {
+      setTextPreview({ url, content: cached.plain, raw: cached.raw });
       setTextError(null);
       setTextLoading(false);
       return;
@@ -913,8 +982,8 @@ export default function PlayerPanel({
         }
 
         const normalised = extractTextFromHtml(raw);
-        textContentCache.current.set(url, normalised);
-        setTextPreview({ url, content: normalised });
+        textContentCache.current.set(url, { raw, plain: normalised });
+        setTextPreview({ url, content: normalised, raw });
         setTextError(null);
       })
       .catch((requestError) => {
@@ -938,25 +1007,25 @@ export default function PlayerPanel({
     };
   }, [selectedMediaType, selectedItem?.url]);
 
-  const handleTheaterToggle = useCallback(() => {
+  const handleImmersiveToggle = useCallback(() => {
     if (!isVideoTabActive || media.video.length === 0) {
       return;
     }
-    setIsTheaterMode((current) => !current);
+    setIsImmersiveMode((current) => !current);
   }, [isVideoTabActive, media.video.length]);
 
-  const handleExitTheaterMode = useCallback(() => {
-    setIsTheaterMode(false);
+  const handleExitImmersiveMode = useCallback(() => {
+    setIsImmersiveMode(false);
   }, []);
 
   useEffect(() => {
     if (!isVideoTabActive) {
-      setIsTheaterMode(false);
+      setIsImmersiveMode(false);
     }
   }, [isVideoTabActive]);
 
   useEffect(() => {
-    setIsTheaterMode(false);
+    setIsImmersiveMode(false);
   }, [normalisedJobId]);
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
@@ -999,7 +1068,7 @@ export default function PlayerPanel({
       : bookAuthor
       ? `Book cover for ${bookAuthor}`
       : 'Book cover preview';
-  const theaterToggleLabel = isTheaterMode ? 'Exit theater mode' : 'Enter theater mode';
+  const immersiveToggleLabel = isImmersiveMode ? 'Exit immersive mode' : 'Enter immersive mode';
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
@@ -1069,14 +1138,14 @@ export default function PlayerPanel({
             </div>
             <button
               type="button"
-              className="player-panel__theater-toggle"
-              onClick={handleTheaterToggle}
+              className="player-panel__immersive-toggle"
+              onClick={handleImmersiveToggle}
               disabled={!isVideoTabActive || media.video.length === 0}
-              aria-pressed={isTheaterMode}
-              aria-label={theaterToggleLabel}
-              data-testid="player-panel-theater-toggle"
+              aria-pressed={isImmersiveMode}
+              aria-label={immersiveToggleLabel}
+              data-testid="player-panel-immersive-toggle"
             >
-              {theaterToggleLabel}
+              {immersiveToggleLabel}
             </button>
             <TabsList className="player-panel__tabs" aria-label="Media categories">
               {TAB_DEFINITIONS.map((tab) => {
@@ -1160,8 +1229,8 @@ export default function PlayerPanel({
                           playbackPosition={videoPlaybackPosition}
                           onPlaybackPositionChange={handleVideoProgress}
                           onPlaybackStateChange={handleVideoPlaybackStateChange}
-                          isTheaterMode={isTheaterMode}
-                          onExitTheaterMode={handleExitTheaterMode}
+                          isTheaterMode={isImmersiveMode}
+                          onExitTheaterMode={handleExitImmersiveMode}
                         />
                       ) : null}
                       {tab.key === 'text' ? (
@@ -1177,14 +1246,16 @@ export default function PlayerPanel({
                               </div>
                             ) : textPreview ? (
                               textPreview.content ? (
-                                <article
+                                <InteractiveTextViewer
                                   ref={textScrollRef}
-                                  className="player-panel__document-body"
-                                  data-testid="player-panel-document"
+                                  content={textPreview.content}
+                                  rawContent={textPreview.raw}
+                                  chunk={selectedChunk}
+                                  audioItems={interactiveAudioItems}
                                   onScroll={handleTextScroll}
-                                >
-                                  <pre className="player-panel__document-text">{textPreview.content}</pre>
-                                </article>
+                                  onAudioProgress={handleInlineAudioProgress}
+                                  getStoredAudioPosition={getInlineAudioPosition}
+                                />
                               ) : (
                                 <div className="player-panel__document-status" role="status">
                                   Document preview is empty.

@@ -6,6 +6,7 @@ type Props = {
   onSelect: (path: string) => void;
   onClose: () => void;
   description?: string;
+  onDelete?: (entry: PipelineFileEntry) => void;
 };
 
 function formatEntryDescription(entry: PipelineFileEntry): string {
@@ -15,7 +16,7 @@ function formatEntryDescription(entry: PipelineFileEntry): string {
   return 'File';
 }
 
-export function FileSelectionDialog({ title, files, onSelect, onClose, description }: Props) {
+export function FileSelectionDialog({ title, files, onSelect, onClose, description, onDelete }: Props) {
   return (
     <div className="modal-backdrop" role="presentation">
       <div className="modal" role="dialog" aria-modal="true" aria-labelledby="file-dialog-title">
@@ -30,17 +31,36 @@ export function FileSelectionDialog({ title, files, onSelect, onClose, descripti
             <ul className="file-list" role="list">
               {files.map((entry) => (
                 <li key={entry.path} className="file-list__item">
-                  <button
-                    type="button"
-                    className="file-list__button"
-                    onClick={() => onSelect(entry.path)}
-                    aria-label={`Select ${entry.name}`}
+                  <div
+                    className="file-list__item-row"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}
                   >
-                    <span className="file-list__name">{entry.name}</span>
-                    <span className="file-list__meta">
-                      {formatEntryDescription(entry)} · {entry.path}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      className="file-list__button"
+                      onClick={() => onSelect(entry.path)}
+                      aria-label={`Select ${entry.name}`}
+                    >
+                      <span className="file-list__name">{entry.name}</span>
+                      <span className="file-list__meta">
+                        {formatEntryDescription(entry)} · {entry.path}
+                      </span>
+                    </button>
+                    {entry.type === 'file' && onDelete ? (
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onDelete(entry);
+                        }}
+                        aria-label={`Delete ${entry.name}`}
+                      >
+                        Delete
+                      </button>
+                    ) : null}
+                  </div>
                 </li>
               ))}
             </ul>

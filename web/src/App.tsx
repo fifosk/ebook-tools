@@ -3,6 +3,7 @@ import PipelineSubmissionForm, { PipelineFormSection } from './components/Pipeli
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
 import LibraryPage from './pages/LibraryPage';
+import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import {
   LibraryItem,
@@ -49,13 +50,15 @@ const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
 const JOB_PROGRESS_VIEW = 'job:progress' as const;
 const JOB_MEDIA_VIEW = 'job:media' as const;
 const LIBRARY_VIEW = 'library:list' as const;
+const CREATE_BOOK_VIEW = 'books:create' as const;
 
 type SelectedView =
   | PipelineMenuView
   | typeof ADMIN_USER_MANAGEMENT_VIEW
   | typeof JOB_PROGRESS_VIEW
   | typeof JOB_MEDIA_VIEW
-  | typeof LIBRARY_VIEW;
+  | typeof LIBRARY_VIEW
+  | typeof CREATE_BOOK_VIEW;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -82,6 +85,7 @@ export function App() {
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
+  const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isAccountExpanded, setIsAccountExpanded] = useState(false);
@@ -337,6 +341,7 @@ export function App() {
           latestEvent: undefined
         }
       }));
+      setPendingInputFile(null);
       void refreshJobs();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to submit pipeline job';
@@ -667,6 +672,7 @@ export function App() {
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
   const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
   const isLibraryView = selectedView === LIBRARY_VIEW;
+  const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
       return null;
@@ -927,29 +933,44 @@ export function App() {
         <nav className="sidebar__nav" aria-label="Dashboard menu">
           <details className="sidebar__section" open>
             <summary>Books</summary>
-            <button
-              type="button"
-              className={`sidebar__link ${selectedView === 'pipeline:submit' ? 'is-active' : ''}`}
-              onClick={() => setSelectedView('pipeline:submit')}
-            >
-              Submit book for processing
-            </button>
-            <details className="sidebar__section sidebar__section--nested">
-              <summary>Book processing settings</summary>
-              <ul className="sidebar__list sidebar__list--nested">
-                {PIPELINE_SETTINGS.map((entry) => (
-                  <li key={entry.key}>
-                    <button
-                      type="button"
-                      className={`sidebar__link ${selectedView === entry.key ? 'is-active' : ''}`}
-                      onClick={() => setSelectedView(entry.key)}
-                    >
-                      {entry.label}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </details>
+            <ul className="sidebar__list">
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar__link ${selectedView === 'pipeline:submit' ? 'is-active' : ''}`}
+                  onClick={() => setSelectedView('pipeline:submit')}
+                >
+                  Submit book for processing
+                </button>
+              </li>
+              <li>
+                <button
+                  type="button"
+                  className={`sidebar__link ${selectedView === CREATE_BOOK_VIEW ? 'is-active' : ''}`}
+                  onClick={() => setSelectedView(CREATE_BOOK_VIEW)}
+                >
+                  Create book
+                </button>
+              </li>
+              <li>
+                <details className="sidebar__section sidebar__section--nested">
+                  <summary>Book processing settings</summary>
+                  <ul className="sidebar__list sidebar__list--nested">
+                    {PIPELINE_SETTINGS.map((entry) => (
+                      <li key={entry.key}>
+                        <button
+                          type="button"
+                          className={`sidebar__link ${selectedView === entry.key ? 'is-active' : ''}`}
+                          onClick={() => setSelectedView(entry.key)}
+                        >
+                          {entry.label}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </li>
+            </ul>
           </details>
           <details className="sidebar__section">
             <summary>Library</summary>
@@ -1048,15 +1069,20 @@ export function App() {
               <h1>Library</h1>
               <p>Browse archived jobs, review metadata, and manage stored media across completed runs.</p>
             </>
+          ) : isCreateBookView ? (
+            <>
+              <h1>Create book</h1>
+              <p>Generate a seed EPUB with the LLM, then fine-tune the pipeline settings before submitting.</p>
+            </>
           ) : (
             <>
               <h1>Language tools</h1>
               <p>
                 Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
                 directly from the FastAPI backend.
-                </p>
-              </>
-            )}
+              </p>
+            </>
+          )}
           </header>
           {isAdminView ? (
             <section>
@@ -1064,6 +1090,22 @@ export function App() {
             </section>
           ) : isLibraryView ? (
             <LibraryPage onPlay={handlePlayLibraryItem} />
+          ) : isCreateBookView ? (
+            <section>
+              <CreateBookPage
+                onCreated={(creation) => {
+                  setIsImmersiveMode(false);
+                  setActiveJobId(null);
+                  const nextInput =
+                    creation.input_file ??
+                    (creation.epub_path && creation.epub_path.trim() ? creation.epub_path : null);
+                  if (nextInput) {
+                    setPendingInputFile(nextInput);
+                  }
+                  setSelectedView('pipeline:source');
+                }}
+              />
+            </section>
           ) : (
             <>
               {activePipelineSection ? (
@@ -1071,6 +1113,7 @@ export function App() {
                   <PipelineSubmissionForm
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
+                    prefillInputFile={pendingInputFile}
                     activeSection={activePipelineSection ?? undefined}
                     externalError={activePipelineSection === 'submit' ? submitError : null}
                   />

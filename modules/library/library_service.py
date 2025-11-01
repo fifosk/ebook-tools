@@ -232,7 +232,7 @@ class LibraryService:
         if self._job_manager is None:
             return
         try:
-            self._job_manager.delete_job(job_id)
+            self._job_manager.delete_job(job_id, user_role="admin")
         except KeyError:
             LOGGER.debug("Job %s already absent from job queue storage; skipping removal", job_id)
         except PipelineJobTransitionError as exc:
@@ -783,6 +783,21 @@ class LibraryService:
                 f"Media file {relative_path} not found for job {job_id}"
             )
         return candidate
+
+    def find_cover_asset(self, job_id: str) -> Optional[Path]:
+        """Return the cover asset for ``job_id`` if the library stores one."""
+
+        item = self._indexer.get(job_id)
+        if not item:
+            raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
+
+        metadata_dir = Path(item.library_path).resolve() / "metadata"
+        if not metadata_dir.exists():
+            return None
+        for candidate in sorted(metadata_dir.glob("cover.*")):
+            if candidate.is_file():
+                return candidate
+        return None
 
     def _load_metadata(self, job_root: Path) -> Dict[str, Any]:
         metadata_path = job_root / "metadata" / "job.json"
