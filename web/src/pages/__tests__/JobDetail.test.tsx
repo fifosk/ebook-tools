@@ -51,8 +51,7 @@ describe('JobDetail', () => {
     if (originalFetch) {
       globalThis.fetch = originalFetch;
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch;
+      Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: typeof fetch }, 'fetch');
     }
   });
 
@@ -67,6 +66,8 @@ describe('JobDetail', () => {
           },
         ],
       },
+      chunks: [],
+      complete: false,
     });
 
     const listeners: Array<(event: ProgressEventPayload) => void> = [];
@@ -148,6 +149,8 @@ describe('JobDetail', () => {
           },
         ],
       },
+      chunks: [],
+      complete: false,
     });
 
     subscribeToJobEventsMock.mockReturnValue(() => {});

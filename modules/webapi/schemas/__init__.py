@@ -27,7 +27,10 @@ from ..jobs import PipelineJob, PipelineJobStatus
 from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchResponse
 from .library import (
     LibraryItemPayload,
+    LibraryIsbnLookupResponse,
+    LibraryIsbnUpdateRequest,
     LibraryMediaRemovalResponse,
+    LibraryMetadataUpdateRequest,
     LibraryMoveRequest,
     LibraryMoveResponse,
     LibraryReindexResponse,
@@ -457,6 +460,12 @@ class MediaSearchHit(BaseModel):
     offset_ratio: Optional[float] = None
     approximate_time_seconds: Optional[float] = None
     media: Dict[str, List[PipelineMediaFile]] = Field(default_factory=dict)
+    source: Literal["pipeline", "library"] = Field(default="pipeline")
+    library_author: Optional[str] = Field(default=None, alias="libraryAuthor")
+    library_genre: Optional[str] = Field(default=None, alias="libraryGenre")
+    library_language: Optional[str] = Field(default=None, alias="libraryLanguage")
+    cover_path: Optional[str] = Field(default=None, alias="coverPath")
+    library_path: Optional[str] = Field(default=None, alias="libraryPath")
 
 
 class MediaSearchResponse(BaseModel):

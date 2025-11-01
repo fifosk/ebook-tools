@@ -116,6 +116,11 @@ class FileLocator:
     def metadata_root(self, job_id: str) -> Path:
         return self.job_root(job_id) / "metadata"
 
+    def data_root(self, job_id: str) -> Path:
+        """Return the directory that stores source inputs for ``job_id``."""
+
+        return self.job_root(job_id) / "data"
+
     def resolve_url(
         self, job_id: str, path: Optional[PathLikeStr] = None
     ) -> Optional[str]:

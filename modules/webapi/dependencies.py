@@ -15,7 +15,7 @@ from fastapi import Depends, Header
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from ..audio.api import AudioService
-from ..library.indexer import LibraryIndexer
+from ..library.sqlite_indexer import LibraryIndexer
 from ..library.library_service import LibraryService
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService

@@ -619,13 +619,21 @@ export function App() {
   }, [activeJobId]);
 
   const handlePlayLibraryItem = useCallback(
-    (item: LibraryItem) => {
-      const metadata = buildLibraryBookMetadata(item);
-      setPlayerContext({
-        type: 'library',
-        jobId: item.jobId,
-        bookMetadata: metadata
-      });
+    (entry: LibraryItem | string) => {
+      if (typeof entry === 'string') {
+        setPlayerContext({
+          type: 'library',
+          jobId: entry,
+          bookMetadata: null
+        });
+      } else {
+        const metadata = buildLibraryBookMetadata(entry);
+        setPlayerContext({
+          type: 'library',
+          jobId: entry.jobId,
+          bookMetadata: metadata
+        });
+      }
       setActiveJobId(null);
       setSelectedView(JOB_MEDIA_VIEW);
       setIsImmersiveMode(false);
@@ -1163,6 +1171,7 @@ export function App() {
                     context={playerContext}
                     jobBookMetadata={playerJobMetadata}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
+                    onOpenLibraryItem={handlePlayLibraryItem}
                   />
                 </section>
               ) : null}

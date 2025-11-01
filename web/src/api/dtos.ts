@@ -56,6 +56,7 @@ export interface PipelineInputPayload {
   audio_mode: string;
   written_mode: string;
   selected_voice: string;
+  voice_overrides?: Record<string, string>;
   output_html: boolean;
   output_pdf: boolean;
   generate_video: boolean;
@@ -213,6 +214,9 @@ export interface LibraryItem {
   createdAt: string;
   updatedAt: string;
   libraryPath: string;
+  coverPath?: string | null;
+  isbn?: string | null;
+  sourcePath?: string | null;
   metadata: Record<string, unknown>;
 }
 
@@ -238,6 +242,18 @@ export interface LibraryMediaRemovalResponse {
 
 export interface LibraryReindexResponse {
   indexed: number;
+}
+
+export interface LibraryMetadataUpdatePayload {
+  title?: string | null;
+  author?: string | null;
+  genre?: string | null;
+  language?: string | null;
+  isbn?: string | null;
+}
+
+export interface LibraryIsbnLookupResponse {
+  metadata: Record<string, unknown>;
 }
 
 export interface UserPasswordResetRequestPayload {
@@ -294,6 +310,12 @@ export interface MediaSearchResult {
   offset_ratio: number | null;
   approximate_time_seconds: number | null;
   media: Record<string, PipelineMediaFile[] | undefined>;
+  source: 'pipeline' | 'library';
+  libraryAuthor?: string | null;
+  libraryGenre?: string | null;
+  libraryLanguage?: string | null;
+  coverPath?: string | null;
+  libraryPath?: string | null;
 }
 
 export interface MediaSearchResponse {

@@ -68,7 +68,7 @@ describe('subscribeToJobEvents', () => {
         writable: true
       });
     } else {
-      delete (window as typeof window & { EventSource?: typeof EventSource }).EventSource;
+      Reflect.deleteProperty(window as typeof window & { EventSource?: typeof EventSource }, 'EventSource');
     }
 
     if (originalGlobalEventSource) {
@@ -78,7 +78,7 @@ describe('subscribeToJobEvents', () => {
         writable: true
       });
     } else {
-      delete (globalThis as typeof globalThis & { EventSource?: typeof EventSource }).EventSource;
+      Reflect.deleteProperty(globalThis as typeof globalThis & { EventSource?: typeof EventSource }, 'EventSource');
     }
   });
 

@@ -240,6 +240,17 @@ def _gather_media_entries(
             if candidate is not None and candidate.exists():
                 absolute = candidate
 
+        entry_url = entry.get("url")
+        if isinstance(entry_url, str) and entry_url.strip():
+            url: Optional[str] = entry_url.strip()
+        else:
+            url = None
+            if isinstance(relative_path, str) and relative_path.strip():
+                try:
+                    url = locator.resolve_url(job_id, relative_path)
+                except ValueError:
+                    url = None
+
         size: Optional[int] = None
         updated_at: Optional[datetime] = None
         if absolute is not None and absolute.exists():
@@ -250,13 +261,6 @@ def _gather_media_entries(
             if stat_result is not None:
                 size = stat_result.st_size
                 updated_at = datetime.fromtimestamp(stat_result.st_mtime, tz=timezone.utc)
-
-        url: Optional[str] = None
-        if isinstance(relative_path, str) and relative_path.strip():
-            try:
-                url = locator.resolve_url(job_id, relative_path)
-            except ValueError:
-                url = None
 
         source_value = entry.get("source")
         if isinstance(source_value, str) and source_value.strip().lower() == "live":
@@ -270,6 +274,15 @@ def _gather_media_entries(
         else:
             name = "media"
 
+        normalized_relative: Optional[str] = None
+        if isinstance(relative_path, str) and relative_path.strip():
+            trimmed_relative = relative_path.strip().lstrip("./")
+            if trimmed_relative.startswith("media/"):
+                stripped = trimmed_relative.split("/", 1)[1]
+                normalized_relative = stripped or trimmed_relative
+            else:
+                normalized_relative = trimmed_relative
+
         payload: MutableMapping[str, object] = {
             "name": name,
             "source": source,
@@ -280,8 +293,10 @@ def _gather_media_entries(
             payload["size"] = size
         if updated_at is not None:
             payload["updated_at"] = updated_at.isoformat()
-        if isinstance(relative_path, str) and relative_path.strip():
-            payload["relative_path"] = relative_path
+        if normalized_relative is not None:
+            payload["relative_path"] = normalized_relative
+        elif isinstance(relative_path, str) and relative_path.strip():
+            payload["relative_path"] = relative_path.strip()
         if isinstance(path_value, str) and path_value.strip():
             payload["path"] = path_value
 

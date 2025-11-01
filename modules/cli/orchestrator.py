@@ -19,6 +19,7 @@ from .. import logging_manager as log_mgr
 from ..progress_tracker import ProgressTracker
 from ..services.pipeline_service import PipelineResponse
 from .args import parse_cli_args, parse_legacy_args
+from .library_commands import execute_library_command
 from .user_commands import SessionRequirementError, ensure_active_session, execute_user_command
 from .pipeline_runner import run_pipeline_from_args
 from .progress import CLIProgressLogger
@@ -188,6 +189,9 @@ def run_cli(argv: Optional[Sequence[str]] = None, *, report_interval: float = 5.
 
     if command == "user":
         return execute_user_command(args)
+
+    if command == "library":
+        return execute_library_command(args)
 
     if command in {"run", "interactive"}:
         user_store_override = getattr(args, "user_store", None)

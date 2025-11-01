@@ -20,6 +20,9 @@ class LibraryItemPayload(BaseModel):
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
     library_path: str = Field(alias="libraryPath")
+    cover_path: Optional[str] = Field(alias="coverPath", default=None)
+    isbn: Optional[str] = None
+    source_path: Optional[str] = Field(alias="sourcePath", default=None)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     class Config:
@@ -70,3 +73,28 @@ class LibraryReindexResponse(BaseModel):
     """Response payload for reindex operations."""
 
     indexed: int
+
+
+class LibraryMetadataUpdateRequest(BaseModel):
+    """Payload describing metadata edits for a library entry."""
+
+    title: Optional[str] = Field(default=None)
+    author: Optional[str] = Field(default=None)
+    genre: Optional[str] = Field(default=None)
+    language: Optional[str] = Field(default=None)
+    isbn: Optional[str] = Field(default=None)
+
+    class Config:
+        populate_by_name = True
+
+
+class LibraryIsbnUpdateRequest(BaseModel):
+    """Request payload for assigning an ISBN to a library entry."""
+
+    isbn: str
+
+
+class LibraryIsbnLookupResponse(BaseModel):
+    """Metadata fetched from external services using an ISBN."""
+
+    metadata: Dict[str, Any]

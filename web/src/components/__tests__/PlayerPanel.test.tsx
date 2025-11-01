@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { Mock } from 'vitest';
 import PlayerPanel from '../PlayerPanel';
 import type { LiveMediaState } from '../../hooks/useLiveMedia';
 
@@ -26,8 +27,8 @@ const documentPrototype = Document.prototype as Document & {
 const originalRequestFullscreen = videoPrototype.requestFullscreen;
 const originalExitFullscreen = documentPrototype.exitFullscreen;
 
-let requestFullscreenMock: ReturnType<typeof vi.fn>;
-let exitFullscreenMock: ReturnType<typeof vi.fn>;
+let requestFullscreenMock: Mock<[], Promise<void>>;
+let exitFullscreenMock: Mock<[], Promise<void>>;
 
 beforeAll(() => {
   Object.defineProperty(mediaPrototype, 'currentTime', {
@@ -67,29 +68,28 @@ beforeEach(() => {
   window.sessionStorage.clear();
   vi.spyOn(mediaPrototype, 'play').mockImplementation(() => Promise.resolve());
   vi.spyOn(mediaPrototype, 'pause').mockImplementation(() => {});
-  requestFullscreenMock = vi.fn().mockResolvedValue(undefined);
-  videoPrototype.requestFullscreen = requestFullscreenMock;
-  exitFullscreenMock = vi.fn().mockResolvedValue(undefined);
-  documentPrototype.exitFullscreen = exitFullscreenMock;
+  requestFullscreenMock = vi.fn<[], Promise<void>>().mockResolvedValue(undefined);
+  videoPrototype.requestFullscreen = requestFullscreenMock as typeof videoPrototype.requestFullscreen;
+  exitFullscreenMock = vi.fn<[], Promise<void>>().mockResolvedValue(undefined);
+  documentPrototype.exitFullscreen = exitFullscreenMock as typeof documentPrototype.exitFullscreen;
 });
 
 afterEach(() => {
   if (originalFetch) {
     globalThis.fetch = originalFetch;
     } else {
-    // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-    delete (globalThis as typeof globalThis & { fetch?: typeof fetch }).fetch;
+    Reflect.deleteProperty(globalThis as typeof globalThis & { fetch?: typeof fetch }, 'fetch');
   }
   vi.restoreAllMocks();
   if (originalRequestFullscreen) {
     videoPrototype.requestFullscreen = originalRequestFullscreen;
   } else {
-    delete videoPrototype.requestFullscreen;
+    Reflect.deleteProperty(videoPrototype, 'requestFullscreen');
   }
   if (originalExitFullscreen) {
     documentPrototype.exitFullscreen = originalExitFullscreen;
   } else {
-    delete documentPrototype.exitFullscreen;
+    Reflect.deleteProperty(documentPrototype, 'exitFullscreen');
   }
 });
 

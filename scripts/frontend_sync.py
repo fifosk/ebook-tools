@@ -68,6 +68,7 @@ class RepositorySnapshot:
     env_files: list[EnvSnapshot]
     build: BuildSnapshot
     api_version: str | None
+    library_schema_hash: str | None
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -88,6 +89,7 @@ class RepositorySnapshot:
                 "manifest_hash": self.build.manifest_hash,
             },
             "api_version": self.api_version,
+            "library_schema_hash": self.library_schema_hash,
         }
 
 
@@ -172,6 +174,18 @@ def _extract_api_version(repo_root: Path) -> str | None:
     return None
 
 
+def _capture_library_schema(repo_root: Path) -> str | None:
+    migrations_dir = repo_root / "modules" / "library" / "migrations"
+    if not migrations_dir.exists():
+        return None
+    digest = hashlib.sha256()
+    has_files = False
+    for path in sorted(migrations_dir.glob("*.sql")):
+        digest.update(path.read_bytes())
+        has_files = True
+    return digest.hexdigest() if has_files else None
+
+
 def capture_snapshot(path: str) -> RepositorySnapshot:
     repo_root = _find_repo_root(Path(path))
     web_dir = repo_root / "web"
@@ -179,12 +193,14 @@ def capture_snapshot(path: str) -> RepositorySnapshot:
     env_snapshots = _capture_env_snapshots(web_dir)
     build_snapshot = _capture_build_snapshot(web_dir)
     api_version = _extract_api_version(repo_root)
+    library_schema_hash = _capture_library_schema(repo_root)
     return RepositorySnapshot(
         repo_path=str(repo_root),
         git=git_snapshot,
         env_files=env_snapshots,
         build=build_snapshot,
         api_version=api_version,
+        library_schema_hash=library_schema_hash,
     )
 
 

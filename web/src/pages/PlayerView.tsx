@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import { useLibraryMedia } from '../hooks/useLibraryMedia';
 import JobDetail from './JobDetail';
+import type { LibraryItem } from '../api/dtos';
 
 export type PlayerContext =
   | { type: 'job'; jobId: string }
@@ -11,12 +12,14 @@ interface PlayerViewProps {
   context: PlayerContext | null;
   jobBookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  onOpenLibraryItem?: (item: LibraryItem | string) => void;
 }
 
 export default function PlayerView({
   context,
   jobBookMetadata = null,
-  onVideoPlaybackStateChange
+  onVideoPlaybackStateChange,
+  onOpenLibraryItem
 }: PlayerViewProps) {
   if (!context) {
     return (
@@ -34,6 +37,7 @@ export default function PlayerView({
         jobId={context.jobId}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         bookMetadata={jobBookMetadata}
+        onOpenLibraryItem={onOpenLibraryItem}
       />
     );
   }
@@ -59,6 +63,7 @@ export default function PlayerView({
         bookMetadata={context.bookMetadata ?? null}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         origin="library"
+        onOpenLibraryItem={onOpenLibraryItem}
       />
     </section>
   );

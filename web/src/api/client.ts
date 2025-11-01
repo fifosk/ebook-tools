@@ -20,7 +20,9 @@ import {
   UserUpdateRequestPayload,
   VoiceInventoryResponse,
   LibraryItem,
+  LibraryIsbnLookupResponse,
   LibraryMediaRemovalResponse,
+  LibraryMetadataUpdatePayload,
   LibraryMoveResponse,
   LibraryReindexResponse,
   LibrarySearchResponse,
@@ -537,6 +539,53 @@ export async function reindexLibrary(): Promise<LibraryReindexResponse> {
     method: 'POST'
   });
   return handleResponse<LibraryReindexResponse>(response);
+}
+
+export async function refreshLibraryMetadata(jobId: string): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/refresh`, {
+    method: 'POST'
+  });
+  return handleResponse<LibraryItem>(response);
+}
+
+export async function updateLibraryMetadata(
+  jobId: string,
+  payload: LibraryMetadataUpdatePayload
+): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<LibraryItem>(response);
+}
+
+export async function uploadLibrarySource(jobId: string, file: File): Promise<LibraryItem> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/upload-source`, {
+    method: 'POST',
+    body: formData
+  });
+  return handleResponse<LibraryItem>(response);
+}
+
+export async function applyLibraryIsbn(jobId: string, isbn: string): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/isbn`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ isbn })
+  });
+  return handleResponse<LibraryItem>(response);
+}
+
+export async function lookupLibraryIsbnMetadata(isbn: string): Promise<LibraryIsbnLookupResponse> {
+  const response = await apiFetch(`/api/library/isbn/lookup?isbn=${encodeURIComponent(isbn)}`);
+  return handleResponse<LibraryIsbnLookupResponse>(response);
 }
 
 export function appendAccessToken(url: string): string {

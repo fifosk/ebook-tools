@@ -31,6 +31,7 @@ __all__ = [
     "args",
     "context",
     "interactive",
+    "library_commands",
     "orchestrator",
     "pipeline_runner",
     "progress",
@@ -39,7 +40,16 @@ __all__ = [
 
 
 if TYPE_CHECKING:  # pragma: no cover - import side effects only for typing
-    from . import args, context, interactive, orchestrator, pipeline_runner, progress, user_commands
+    from . import (
+        args,
+        context,
+        interactive,
+        library_commands,
+        orchestrator,
+        pipeline_runner,
+        progress,
+        user_commands,
+    )
 
 
 def __getattr__(name: str):
