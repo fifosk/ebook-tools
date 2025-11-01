@@ -10,7 +10,7 @@ from typing import Any, Dict, Literal, Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
 
-from ..dependencies import get_library_service
+from ..dependencies import get_library_service, get_library_sync
 from ..schemas import (
     LibraryItemPayload,
     LibraryMediaRemovalResponse,
@@ -25,11 +25,12 @@ from ..schemas import (
     PipelineMediaFile,
     PipelineMediaResponse,
 )
-from ...library.library_service import (
+from ...library import (
     LibraryConflictError,
     LibraryError,
     LibraryNotFoundError,
     LibraryService,
+    LibrarySync,
 )
 
 
@@ -40,10 +41,10 @@ router = APIRouter(prefix="/api/library", tags=["library"])
 async def move_job_to_library(
     job_id: str,
     payload: LibraryMoveRequest | None = None,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        item = service.move_to_library(
+        item = sync.move_to_library(
             job_id,
             status_override=payload.status_override if payload else None,
         )
@@ -54,7 +55,7 @@ async def move_job_to_library(
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    serialized = service.serialize_item(item)
+    serialized = sync.serialize_item(item)
     return LibraryMoveResponse(item=LibraryItemPayload.model_validate(serialized))
 
 
@@ -70,10 +71,10 @@ async def list_library_items(
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=25, ge=1, le=100),
     sort: Literal["updated_at_desc", "updated_at_asc"] = Query(default="updated_at_desc"),
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        result = service.search(
+        result = sync.search(
             query=query,
             author=author,
             book_title=book,
@@ -88,7 +89,7 @@ async def list_library_items(
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    items = [LibraryItemPayload.model_validate(service.serialize_item(entry)) for entry in result.items]
+    items = [LibraryItemPayload.model_validate(sync.serialize_item(entry)) for entry in result.items]
 
     return LibrarySearchResponse(
         total=result.total,
@@ -103,10 +104,10 @@ async def list_library_items(
 @router.post("/remove-media/{job_id}", response_model=LibraryMediaRemovalResponse)
 async def remove_library_media(
     job_id: str,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        updated_item, removed = service.remove_media(job_id)
+        updated_item, removed = sync.remove_media(job_id)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
@@ -114,7 +115,7 @@ async def remove_library_media(
 
     location = "library" if updated_item is not None else "queue"
     payload_item = (
-        LibraryItemPayload.model_validate(service.serialize_item(updated_item))
+        LibraryItemPayload.model_validate(sync.serialize_item(updated_item))
         if updated_item is not None
         else None
     )
@@ -124,10 +125,10 @@ async def remove_library_media(
 @router.delete("/remove/{job_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_library_entry(
     job_id: str,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        service.remove_entry(job_id)
+        sync.remove_entry(job_id)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
@@ -139,10 +140,10 @@ async def remove_library_entry(
 async def update_library_metadata(
     job_id: str,
     payload: LibraryMetadataUpdateRequest,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        updated_item = service.update_metadata(
+        updated_item = sync.update_metadata(
             job_id,
             title=payload.title,
             author=payload.author,
@@ -157,7 +158,7 @@ async def update_library_metadata(
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    serialized = service.serialize_item(updated_item)
+    serialized = sync.serialize_item(updated_item)
     return LibraryItemPayload.model_validate(serialized)
 
 
@@ -165,7 +166,7 @@ async def update_library_metadata(
 async def upload_library_source(
     job_id: str,
     file: UploadFile = File(...),
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     if not file.filename:
         raise HTTPException(
@@ -193,7 +194,7 @@ async def upload_library_source(
         )
 
     try:
-        updated_item = service.reupload_source_from_path(job_id, temp_path)
+        updated_item = sync.reupload_source_from_path(job_id, temp_path)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
@@ -204,7 +205,7 @@ async def upload_library_source(
         except OSError:
             pass
 
-    serialized = service.serialize_item(updated_item)
+    serialized = sync.serialize_item(updated_item)
     return LibraryItemPayload.model_validate(serialized)
 
 
@@ -212,42 +213,42 @@ async def upload_library_source(
 async def apply_isbn_metadata(
     job_id: str,
     payload: LibraryIsbnUpdateRequest,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        updated_item = service.apply_isbn_metadata(job_id, payload.isbn)
+        updated_item = sync.apply_isbn_metadata(job_id, payload.isbn)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    serialized = service.serialize_item(updated_item)
+    serialized = sync.serialize_item(updated_item)
     return LibraryItemPayload.model_validate(serialized)
 
 
 @router.post("/items/{job_id}/refresh", response_model=LibraryItemPayload)
 async def refresh_library_metadata(
     job_id: str,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        refreshed_item = service.refresh_metadata(job_id)
+        refreshed_item = sync.refresh_metadata(job_id)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
-    serialized = service.serialize_item(refreshed_item)
+    serialized = sync.serialize_item(refreshed_item)
     return LibraryItemPayload.model_validate(serialized)
 
 
 @router.get("/isbn/lookup", response_model=LibraryIsbnLookupResponse)
 async def lookup_isbn_metadata(
     isbn: str = Query(..., min_length=1),
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        metadata = service.lookup_isbn_metadata(isbn)
+        metadata = sync.lookup_isbn_metadata(isbn)
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     return LibraryIsbnLookupResponse(metadata=metadata)
@@ -255,17 +256,17 @@ async def lookup_isbn_metadata(
 
 @router.post("/reindex", response_model=LibraryReindexResponse)
 async def reindex_library(service: LibraryService = Depends(get_library_service)):
-    indexed = service.reindex_from_fs()
+    indexed = service.rebuild_index()
     return LibraryReindexResponse(indexed=indexed)
 
 
 @router.get("/media/{job_id}", response_model=PipelineMediaResponse)
 async def get_library_media(
     job_id: str,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        media_map, chunk_records, complete = service.get_media(job_id)
+        media_map, chunk_records, complete = sync.get_media(job_id)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
@@ -295,10 +296,10 @@ async def get_library_media(
 async def download_library_media(
     job_id: str,
     relative_path: str,
-    service: LibraryService = Depends(get_library_service),
+    sync: LibrarySync = Depends(get_library_sync),
 ):
     try:
-        resolved = service.resolve_media_file(job_id, relative_path)
+        resolved = sync.resolve_media_file(job_id, relative_path)
     except LibraryNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:

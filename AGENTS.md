@@ -10,7 +10,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - **Frontend Book Flows:** `web/src/pages/NewImmersiveBookPage.tsx` unifies the submission and settings experience behind the sidebar entry “New immersive book,” sharing language state with `web/src/pages/CreateBookPage.tsx` and `web/src/components/PipelineSubmissionForm.tsx` via `web/src/context/LanguageProvider.tsx`.
 - **Search:** `modules/webapi/routes.py` exposes `/api/pipelines/search`, which now requires a `job_id` query parameter, scans that job's persisted chunks for snippets surfaced in the frontend `MediaSearchPanel`, and falls back to library metadata when the pipeline job has already been archived.
 - **Audio Voices:** `modules/webapi/routers/audio.py` serves `/api/audio/voices` for language-specific voice inventories and `/api/audio` for preview synthesis consumed by the `PipelineSubmissionForm` voice picker.
-- **Library:** `modules/library/` contains the persistent library service, SQLite indexer, and supporting filesystem utilities surfaced through `modules/webapi/routers/library.py`; the frontend experience lives in `web/src/pages/LibraryPage.tsx` and related components.
+- **Library:** `modules/library/` now splits the domain into `library_models`, `library_repository`, `library_metadata`, `library_sync`, and the lightweight `library_service` facade consumed by `modules/webapi/routers/library.py`; the frontend experience lives in `web/src/pages/LibraryPage.tsx` and related components.
 
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.

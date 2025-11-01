@@ -14,7 +14,7 @@ from .dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
     get_file_locator,
-    get_library_service,
+    get_library_sync,
     get_pipeline_service,
     get_request_user,
     get_runtime_context_provider,
@@ -41,7 +41,7 @@ from .schemas import (
     PipelineSubmissionResponse,
     ProgressEventPayload,
 )
-from modules.library.library_service import LibraryError, LibraryNotFoundError, LibraryService
+from modules.library import LibraryError, LibraryNotFoundError, LibrarySync
 
 router = APIRouter()
 storage_router = APIRouter()
@@ -586,7 +586,7 @@ async def search_pipeline_media(
     job_id: str = Query(..., alias="job_id"),
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
-    library_service: LibraryService = Depends(get_library_service),
+    library_sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Search across generated ebook media for the provided query."""
@@ -595,7 +595,7 @@ async def search_pipeline_media(
     if not normalized_query:
         return MediaSearchResponse(query=query, limit=limit, count=0, results=[])
 
-    library_item = library_service.get_item(job_id) if library_service is not None else None
+    library_item = library_sync.get_item(job_id) if library_sync is not None else None
 
     try:
         job = pipeline_service.get_job(
@@ -615,7 +615,7 @@ async def search_pipeline_media(
     if job is not None:
         jobs_to_search.append(job)
     elif library_item is not None:
-        serialized_item = library_service.serialize_item(library_item)
+        serialized_item = library_sync.serialize_item(library_item)
         metadata_payload = serialized_item.get("metadata")
         generated_files = (
             metadata_payload.get("generated_files") if isinstance(metadata_payload, Mapping) else None
@@ -685,9 +685,9 @@ async def search_pipeline_media(
 
     available_slots = max(limit - len(serialized_hits), 0)
     library_hits: list[MediaSearchHit] = []
-    if library_service is not None and available_slots > 0:
+    if library_sync is not None and available_slots > 0:
         try:
-            library_search = library_service.search(
+            library_search = library_sync.search(
                 query=normalized_query,
                 page=1,
                 limit=min(available_slots, limit),
@@ -698,7 +698,7 @@ async def search_pipeline_media(
         if library_search is not None:
             seen_ids = {hit.job_id for hit in serialized_hits}
             for entry in library_search.items:
-                serialized_item = library_service.serialize_item(entry)
+                serialized_item = library_sync.serialize_item(entry)
                 job_identifier = serialized_item.get("job_id") or entry.id
                 if job_identifier in seen_ids:
                     continue
@@ -831,7 +831,7 @@ async def fetch_job_cover(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
-    library_service: LibraryService = Depends(get_library_service),
+    library_sync: LibrarySync = Depends(get_library_sync),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return the stored cover image for ``job_id`` if available."""
@@ -852,9 +852,9 @@ async def fetch_job_cover(
     metadata_root = file_locator.metadata_root(job_id)
     cover_path = _find_job_cover_path(metadata_root)
 
-    if (cover_path is None or not cover_path.is_file()) and library_service is not None:
+    if (cover_path is None or not cover_path.is_file()) and library_sync is not None:
         try:
-            library_cover = library_service.find_cover_asset(job_id)
+            library_cover = library_sync.find_cover_asset(job_id)
         except LibraryNotFoundError:
             library_cover = None
         if library_cover is not None and library_cover.is_file():

@@ -15,8 +15,12 @@ from fastapi import Depends, Header, Query
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from ..audio.api import AudioService
-from ..library.sqlite_indexer import LibraryIndexer
-from ..library.library_service import LibraryService
+from ..library import (
+    LibraryRepository,
+    LibraryService,
+    LibrarySync,
+    get_library_service as build_library_service,
+)
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..user_management import AuthService, LocalUserStore, SessionManager
@@ -282,26 +286,31 @@ def get_file_locator() -> FileLocator:
 
 
 @lru_cache
-def get_library_indexer() -> LibraryIndexer:
-    """Return the process-wide :class:`LibraryIndexer`."""
-
-    return LibraryIndexer(cfg.get_library_root(create=True))
-
-
-@lru_cache
 def get_library_service() -> LibraryService:
     """Return the shared :class:`LibraryService` instance."""
 
     library_root = cfg.get_library_root(create=True)
     locator = get_file_locator()
-    indexer = get_library_indexer()
     job_manager = get_pipeline_job_manager()
-    return LibraryService(
+    return build_library_service(
         library_root=library_root,
         file_locator=locator,
-        indexer=indexer,
         job_manager=job_manager,
     )
+
+
+@lru_cache
+def get_library_sync() -> LibrarySync:
+    """Convenience accessor for the shared :class:`LibrarySync`."""
+
+    return get_library_service().sync
+
+
+@lru_cache
+def get_library_repository() -> LibraryRepository:
+    """Convenience accessor for the shared :class:`LibraryRepository`."""
+
+    return get_library_service().repository
 
 
 @lru_cache
