@@ -127,7 +127,9 @@ export default function NewImmersiveBookPage({
             })}
           </div>
         </TabsContent>
-        <TabsContent value="submit" className="new-immersive-book__panel" />
+        <TabsContent value="submit" className="new-immersive-book__panel" aria-label="Submit job">
+          <p>Review your selections and submit the job using the form on the right.</p>
+        </TabsContent>
       </Tabs>
       <div className="new-immersive-book__form">
         <PipelineSubmissionForm

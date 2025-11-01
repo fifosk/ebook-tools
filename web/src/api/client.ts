@@ -382,21 +382,67 @@ export function resolveJobCoverUrl(jobId: string): string | null {
   return withBase(`/pipelines/${encoded}/cover`);
 }
 
-export function buildStorageUrl(path: string): string {
-  const trimmed = (path ?? '').trim();
-  if (!trimmed) {
+export function buildStorageUrl(path: string, jobId?: string | null): string {
+  const trimmedPath = (path ?? '').trim();
+  if (!trimmedPath) {
     return resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
   }
 
-  const normalised = trimmed.replace(/^\/+/, '');
-  if (!normalised) {
+  const normalisedPath = trimmedPath.replace(/^\/+/, '');
+  if (!normalisedPath) {
     return resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
   }
 
-  const [jobSegment, ...rest] = normalised.split('/');
+  const normalisedJobId = (jobId ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
+  const segments = normalisedPath.split('/').filter((segment) => segment.length > 0);
+
+  if (normalisedJobId) {
+    const jobIndex = segments.findIndex((segment) => segment === normalisedJobId);
+    if (jobIndex >= 0) {
+      const fileSegment = segments.slice(jobIndex + 1).join('/');
+      return resolveStoragePath(
+        normalisedJobId,
+        fileSegment,
+        STORAGE_BASE_URL,
+        API_BASE_URL
+      );
+    }
+
+    if (
+      segments.length >= 2 &&
+      segments[0].toLowerCase() === 'jobs' &&
+      segments[1] === normalisedJobId
+    ) {
+      const fileSegment = segments.slice(2).join('/');
+      return resolveStoragePath(
+        normalisedJobId,
+        fileSegment,
+        STORAGE_BASE_URL,
+        API_BASE_URL
+      );
+    }
+
+    const firstSegment = segments[0]?.toLowerCase() ?? '';
+    const requiresJobPrefix = firstSegment !== 'covers' && firstSegment !== 'storage' && firstSegment !== 'jobs';
+    if (requiresJobPrefix) {
+      return resolveStoragePath(
+        normalisedJobId,
+        normalisedPath,
+        STORAGE_BASE_URL,
+        API_BASE_URL
+      );
+    }
+  }
+
+  const [jobSegment, ...rest] = segments;
   const fileSegment = rest.length > 0 ? rest.join('/') : '';
 
-  return resolveStoragePath(jobSegment, fileSegment, STORAGE_BASE_URL, API_BASE_URL);
+  return resolveStoragePath(
+    jobSegment || null,
+    fileSegment,
+    STORAGE_BASE_URL,
+    API_BASE_URL
+  );
 }
 
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {

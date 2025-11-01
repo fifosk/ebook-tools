@@ -10,7 +10,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Iterator, Mapping, Optional, cast
 
-from fastapi import Depends, Header
+from fastapi import Depends, Header, Query
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
@@ -367,6 +367,7 @@ def get_request_user(
     authorization: str | None = Header(default=None, alias="Authorization"),
     header_user_id: str | None = Header(default=None, alias="X-User-Id"),
     header_user_role: str | None = Header(default=None, alias="X-User-Role"),
+    access_token: str | None = Query(default=None, alias="access_token"),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> RequestUserContext:
     """Resolve the request user identity from forwarded headers or session token."""
@@ -378,6 +379,8 @@ def get_request_user(
         return RequestUserContext(user_id=user_id, user_role=user_role)
 
     token = _extract_bearer_token(authorization)
+    if not token:
+        token = (access_token or "").strip() or None
     if not token:
         return RequestUserContext(user_id=None, user_role=None)
 
