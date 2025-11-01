@@ -535,9 +535,11 @@ main {
 }
 
 .dashboard--immersive .dashboard__main {
+  width: 100%;
+  margin-inline: 0;
   padding-block-start: clamp(var(--space-md), 1rem + 1.5vw, var(--space-lg));
   padding-block-end: clamp(var(--space-md), 1.25rem + 2.5vw, var(--space-lg));
-  padding-inline: clamp(var(--space-md), 5vw, var(--space-xl));
+  padding-inline: clamp(var(--space-md), 3vw, var(--space-lg));
   gap: clamp(var(--space-md), 3vw, var(--space-lg));
 }
 
@@ -886,7 +888,7 @@ main {
   }
 
   .dashboard__main:has(section:has(.new-immersive-book)) {
-    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+    grid-template-columns: minmax(0, 0.6fr) minmax(0, 1.4fr);
     gap: clamp(var(--space-xl), 4vw, calc(var(--space-xl) * 1.15));
   }
 
@@ -902,6 +904,18 @@ main {
     > section:has(.job-grid) {
     grid-column: 2;
   }
+}
+
+.dashboard__main:has(section:has(.new-immersive-book)) {
+  width: 100%;
+  margin-inline: 0;
+  padding-inline-start: clamp(var(--space-md), 3vw, var(--space-lg));
+  padding-inline-end: 0;
+}
+
+section:has(.new-immersive-book) {
+  padding-inline-start: clamp(var(--space-md), 3vw, var(--space-lg));
+  padding-inline-end: 0;
 }
 
 h1,
