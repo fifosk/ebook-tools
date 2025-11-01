@@ -36,8 +36,20 @@ interface InteractiveTextViewerProps {
   getStoredAudioPosition?: (audioUrl: string) => number;
 }
 
-const hasIntlSegmenter =
-  typeof Intl !== 'undefined' && typeof (Intl as { Segmenter?: unknown }).Segmenter === 'function';
+type SegmenterInstance = {
+  segment: (input: string) => Iterable<{ segment: string }>;
+};
+
+type SegmenterConstructor = new (
+  locales?: Intl.LocalesArgument,
+  options?: { granularity?: 'grapheme' | 'word' | 'sentence' },
+) => SegmenterInstance;
+
+const segmenterCtor =
+  typeof Intl !== 'undefined'
+    ? (Intl as typeof Intl & { Segmenter?: SegmenterConstructor }).Segmenter ?? null
+    : null;
+const hasIntlSegmenter = typeof segmenterCtor === 'function';
 
 function segmentParagraph(paragraph: string): string[] {
   if (!paragraph) {
@@ -49,9 +61,9 @@ function segmentParagraph(paragraph: string): string[] {
     return [];
   }
 
-  if (hasIntlSegmenter) {
+  if (hasIntlSegmenter && segmenterCtor) {
     try {
-      const segmenter = new Intl.Segmenter(undefined, { granularity: 'sentence' });
+      const segmenter = new segmenterCtor(undefined, { granularity: 'sentence' });
       const segments: string[] = [];
       for (const entry of segmenter.segment(trimmed)) {
         const segment = entry.segment.trim();
@@ -198,7 +210,7 @@ function buildParagraphs(content: string): ParagraphFragment[] {
   return paragraphs;
 }
 
-const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps>(function InteractiveTextViewer(
+const InteractiveTextViewer = forwardRef<HTMLElement | null, InteractiveTextViewerProps>(function InteractiveTextViewer(
   {
     content,
     chunk,
@@ -210,7 +222,7 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
   forwardedRef,
 ) {
   const containerRef = useRef<HTMLElement | null>(null);
-  useImperativeHandle(forwardedRef, () => containerRef.current as HTMLElement | null);
+  useImperativeHandle<HTMLElement | null, HTMLElement | null>(forwardedRef, () => containerRef.current);
 
   const paragraphs = useMemo(() => buildParagraphs(content), [content]);
   const flattenedSentences = useMemo(
@@ -238,11 +250,11 @@ const InteractiveTextViewer = forwardRef<HTMLElement, InteractiveTextViewerProps
     [paragraphs],
   );
 
-  const sentenceRefs = useRef<HTMLSpanElement[]>([]);
+  const sentenceRefs = useRef<Array<HTMLSpanElement | null>>([]);
   sentenceRefs.current = sentenceRefs.current.slice(0, totalSentences);
   const registerSentenceRef = useCallback(
     (index: number) => (element: HTMLSpanElement | null) => {
-      sentenceRefs.current[index] = element ?? undefined;
+      sentenceRefs.current[index] = element;
     },
     [],
   );

@@ -42,7 +42,7 @@ function resolveAccountStatus(user: ManagedUser): UserAccountStatus {
   if (user.is_active === false) {
     return 'inactive';
   }
-  const metadataSuspended = user.metadata?.suspended ?? user.metadata?.is_suspended;
+  const metadataSuspended = (user.metadata?.suspended ?? user.metadata?.is_suspended) as unknown;
   if (typeof metadataSuspended === 'boolean') {
     return metadataSuspended ? 'suspended' : 'active';
   }

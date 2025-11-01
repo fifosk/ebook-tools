@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { vi } from 'vitest';
+import type { Mock } from 'vitest';
 import VideoPlayer, { VideoFile } from '../VideoPlayer';
 
 describe('VideoPlayer', () => {
@@ -14,22 +15,22 @@ describe('VideoPlayer', () => {
   const originalRequestFullscreen = videoPrototype.requestFullscreen;
   const originalExitFullscreen = documentPrototype.exitFullscreen;
   const originalFullscreenDescriptor = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
-  let requestFullscreenMock: ReturnType<typeof vi.fn>;
-  let exitFullscreenMock: ReturnType<typeof vi.fn>;
+  let requestFullscreenMock: Mock<[], Promise<void>>;
+  let exitFullscreenMock: Mock<[], Promise<void>>;
   let fullscreenElementSlot: Element | null = null;
 
   beforeEach(() => {
     playSpy = vi.spyOn(window.HTMLMediaElement.prototype, 'play').mockImplementation(() => Promise.resolve());
-    requestFullscreenMock = vi.fn(function (this: HTMLVideoElement) {
+    requestFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(function (this: HTMLVideoElement) {
       fullscreenElementSlot = this;
       return Promise.resolve();
     });
-    exitFullscreenMock = vi.fn(() => {
+    exitFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(() => {
       fullscreenElementSlot = null;
       return Promise.resolve();
     });
-    videoPrototype.requestFullscreen = requestFullscreenMock;
-    documentPrototype.exitFullscreen = exitFullscreenMock;
+    videoPrototype.requestFullscreen = requestFullscreenMock as typeof videoPrototype.requestFullscreen;
+    documentPrototype.exitFullscreen = exitFullscreenMock as typeof documentPrototype.exitFullscreen;
     Object.defineProperty(document, 'fullscreenElement', {
       configurable: true,
       get() {
@@ -46,17 +47,17 @@ describe('VideoPlayer', () => {
     if (originalRequestFullscreen) {
       videoPrototype.requestFullscreen = originalRequestFullscreen;
     } else {
-      delete videoPrototype.requestFullscreen;
+      Reflect.deleteProperty(videoPrototype, 'requestFullscreen');
     }
     if (originalExitFullscreen) {
       documentPrototype.exitFullscreen = originalExitFullscreen;
     } else {
-      delete documentPrototype.exitFullscreen;
+      Reflect.deleteProperty(documentPrototype, 'exitFullscreen');
     }
     if (originalFullscreenDescriptor) {
       Object.defineProperty(document, 'fullscreenElement', originalFullscreenDescriptor);
     } else {
-      delete (document as Document & { fullscreenElement?: Element | null }).fullscreenElement;
+      Reflect.deleteProperty(document as Document & { fullscreenElement?: Element | null }, 'fullscreenElement');
     }
   });
 

@@ -163,12 +163,13 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
         return;
       }
 
+      const url = media.url;
       const baseId = deriveBaseIdFromItem(media);
       setState((current) => {
-        const existing = current.entries[media.url];
+        const existing = current.entries[url];
         const position = existing?.position ?? 0;
         if (
-          current.current.currentMediaId === media.url &&
+          current.current.currentMediaId === url &&
           current.current.currentMediaType === media.type &&
           current.current.baseId === baseId &&
           Math.abs(current.current.playbackPosition - position) < 0.1
@@ -178,13 +179,13 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
 
         const next = cloneState(current);
         next.current = {
-          currentMediaId: media.url,
+          currentMediaId: url,
           currentMediaType: media.type,
           playbackPosition: position,
           baseId,
         };
-        next.entries[media.url] = {
-          mediaId: media.url,
+        next.entries[url] = {
+          mediaId: url,
           mediaType: media.type,
           baseId,
           position,
@@ -285,4 +286,3 @@ export function useMediaMemory({ jobId }: UseMediaMemoryArgs): UseMediaMemoryRes
 }
 
 export type { MediaCategory };
-

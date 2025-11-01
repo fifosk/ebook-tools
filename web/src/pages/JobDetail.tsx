@@ -1,12 +1,13 @@
 import { useEffect } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import { useLiveMedia } from '../hooks/useLiveMedia';
+import type { LibraryItem } from '../api/dtos';
 
 export interface JobDetailProps {
   jobId: string | null | undefined;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   bookMetadata?: Record<string, unknown> | null;
-  onOpenLibraryItem?: (jobId: string) => void;
+  onOpenLibraryItem?: (item: LibraryItem | string) => void;
 }
 
 export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null, onOpenLibraryItem }: JobDetailProps) {

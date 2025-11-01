@@ -7,13 +7,13 @@ import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 import MediaSearchPanel from './MediaSearchPanel';
-import type { MediaSearchResult } from '../api/dtos';
+import type { LibraryItem, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 
-type BaseMediaCategory = keyof LiveMediaState;
-const MEDIA_CATEGORIES: BaseMediaCategory[] = ['text', 'audio', 'video'];
-type MediaCategory = BaseMediaCategory | 'library';
+const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
+type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
+type SearchCategory = MediaCategory | 'library';
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 
 interface MediaSelectionRequest {
@@ -34,7 +34,7 @@ interface PlayerPanelProps {
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   origin?: 'job' | 'library';
-  onOpenLibraryItem?: (jobId: string) => void;
+  onOpenLibraryItem?: (item: LibraryItem | string) => void;
 }
 
 interface TabDefinition {
@@ -188,7 +188,6 @@ export default function PlayerPanel({
       text: null,
       audio: null,
       video: null,
-      library: null,
     };
 
     MEDIA_CATEGORIES.forEach((category) => {
@@ -214,7 +213,6 @@ export default function PlayerPanel({
       text: new Map(),
       audio: new Map(),
       video: new Map(),
-      library: new Map(),
     };
 
     MEDIA_CATEGORIES.forEach((category) => {
@@ -370,7 +368,7 @@ export default function PlayerPanel({
   const coverErrorHandler = shouldHandleCoverError ? handleCoverError : undefined;
 
   const handleSearchSelection = useCallback(
-    (result: MediaSearchResult, category: MediaCategory) => {
+    (result: MediaSearchResult, category: SearchCategory) => {
       if (category === 'library') {
         if (result.job_id) {
           onOpenLibraryItem?.(result.job_id);
@@ -491,7 +489,6 @@ export default function PlayerPanel({
       text: baseId ? findMatchingMediaId(baseId, 'text', media.text) : null,
       audio: baseId ? findMatchingMediaId(baseId, 'audio', media.audio) : null,
       video: baseId ? findMatchingMediaId(baseId, 'video', media.video) : null,
-      library: null,
     };
 
     let appliedCategory: MediaCategory | null = null;
@@ -515,7 +512,7 @@ export default function PlayerPanel({
 
     if (!appliedCategory && preferredType) {
       const category = preferredType;
-    setSelectedMediaType((current) => (current === category ? current : category));
+      setSelectedMediaType((current) => (current === category ? current : category));
       setSelectedItemIds((current) => {
         const hasCurrent = current[category] !== null;
         if (hasCurrent) {

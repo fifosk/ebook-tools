@@ -27,9 +27,9 @@ interface TabsContextValue {
 
 const TabsContext = createContext<TabsContextValue | null>(null);
 
-interface TabsProps extends HTMLAttributes<HTMLDivElement> {
+interface TabsProps extends Omit<HTMLAttributes<HTMLDivElement>, 'defaultValue'> {
   value?: string | null;
-  defaultValue?: string | null;
+  defaultValue?: string;
   onValueChange?: (value: string) => void;
   orientation?: TabsOrientation;
   children: ReactNode;
@@ -37,7 +37,7 @@ interface TabsProps extends HTMLAttributes<HTMLDivElement> {
 
 export function Tabs({
   value,
-  defaultValue = null,
+  defaultValue,
   onValueChange,
   orientation = 'horizontal',
   children,
@@ -199,4 +199,3 @@ export function TabsContent({ value, children, ...props }: TabsContentProps) {
     </div>
   );
 }
-

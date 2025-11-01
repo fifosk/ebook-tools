@@ -1,5 +1,5 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import type { LibraryItem, LibraryViewMode } from '../api/dtos';
+import type { LibraryItem, LibraryViewMode, LibraryMetadataUpdatePayload } from '../api/dtos';
 import {
   applyLibraryIsbn,
   appendAccessToken,
@@ -11,7 +11,6 @@ import {
   searchLibrary,
   updateLibraryMetadata,
   uploadLibrarySource,
-  type LibraryMetadataUpdatePayload,
   type LibrarySearchParams
 } from '../api/client';
 import LibraryList from '../components/LibraryList';
@@ -22,7 +21,7 @@ import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/lib
 const PAGE_SIZE = 25;
 
 type LibraryPageProps = {
-  onPlay?: (item: LibraryItem) => void;
+  onPlay?: (item: LibraryItem | string) => void;
 };
 
 function LibraryPage({ onPlay }: LibraryPageProps) {

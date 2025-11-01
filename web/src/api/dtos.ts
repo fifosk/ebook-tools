@@ -56,6 +56,7 @@ export interface PipelineInputPayload {
   audio_mode: string;
   written_mode: string;
   selected_voice: string;
+  voice_overrides?: Record<string, string>;
   output_html: boolean;
   output_pdf: boolean;
   generate_video: boolean;
