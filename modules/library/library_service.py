@@ -232,7 +232,7 @@ class LibraryService:
         if self._job_manager is None:
             return
         try:
-            self._job_manager.delete_job(job_id)
+            self._job_manager.delete_job(job_id, user_role="admin")
         except KeyError:
             LOGGER.debug("Job %s already absent from job queue storage; skipping removal", job_id)
         except PipelineJobTransitionError as exc:
