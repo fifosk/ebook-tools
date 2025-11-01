@@ -1064,7 +1064,7 @@ export function App() {
                   />
                 </section>
               ) : null}
-              {sidebarJobs.length === 0 ? (
+              {!isNewImmersiveBookView && sidebarJobs.length === 0 ? (
                 <section>
                   <h2 style={{ marginTop: 0 }}>Active jobs</h2>
                   <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
