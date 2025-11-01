@@ -1063,12 +1063,6 @@ export function App() {
                   />
                 </section>
               ) : null}
-              {!isNewImmersiveBookView && sidebarJobs.length === 0 ? (
-                <section>
-                  <h2 style={{ marginTop: 0 }}>Active jobs</h2>
-                  <p style={{ marginBottom: 0 }}>No accessible jobs yet. Submit a pipeline request to get started.</p>
-                </section>
-              ) : null}
               {selectedView === JOB_PROGRESS_VIEW ? (
                 <section className="job-progress-section">
                   {selectedJob ? (
