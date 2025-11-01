@@ -127,12 +127,7 @@ export default function NewImmersiveBookPage({
             })}
           </div>
         </TabsContent>
-        <TabsContent value="submit" className="new-immersive-book__panel">
-          <p className="new-immersive-book__summary">
-            Review your configuration, confirm language coverage, and enqueue the immersive ebook pipeline when
-            everything looks correct.
-          </p>
-        </TabsContent>
+        <TabsContent value="submit" className="new-immersive-book__panel" />
       </Tabs>
       <div className="new-immersive-book__form">
         <PipelineSubmissionForm

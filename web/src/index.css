@@ -913,9 +913,26 @@ main {
   padding-inline-end: 0;
 }
 
+.dashboard__main:has(> section.job-media-section) {
+  width: 100%;
+  margin-inline: 0;
+  padding-inline-start: clamp(var(--space-md), 3vw, var(--space-lg));
+  padding-inline-end: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
+
 section:has(.new-immersive-book) {
   padding-inline-start: clamp(var(--space-md), 3vw, var(--space-lg));
   padding-inline-end: 0;
+}
+
+section.job-media-section {
+  padding-inline-start: clamp(var(--space-md), 3vw, var(--space-lg));
+  padding-inline-end: 0;
+}
+
+.dashboard__main > section.job-media-section {
+  grid-column: 1 / -1;
 }
 
 h1,

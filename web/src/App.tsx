@@ -1020,10 +1020,6 @@ export function App() {
           ) : (
             <>
               <h1>Language tools</h1>
-              <p>
-                Submit ebook processing jobs, monitor their current state, and observe real-time progress streamed
-                directly from the FastAPI backend.
-              </p>
             </>
           )}
           </header>
