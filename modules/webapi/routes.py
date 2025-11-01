@@ -612,6 +612,7 @@ async def search_pipeline_media(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
     jobs_to_search: List[PipelineJob | _LibrarySearchJobAdapter] = []
+    library_job_ids: set[str] = set()
     if job is not None:
         jobs_to_search.append(job)
     elif library_item is not None:
@@ -629,6 +630,7 @@ async def search_pipeline_media(
                     label=label if isinstance(label, str) and label.strip() else None,
                 )
             )
+            library_job_ids.add(job_id)
 
     hits = search_generated_media(
         query=normalized_query,
@@ -662,6 +664,7 @@ async def search_pipeline_media(
                 files.append(media_file)
             if files:
                 media_payload[category] = files
+        hit_source = "library" if hit.job_id in library_job_ids else "pipeline"
         serialized_hits.append(
             MediaSearchHit(
                 job_id=hit.job_id,
@@ -679,7 +682,7 @@ async def search_pipeline_media(
                 offset_ratio=hit.offset_ratio,
                 approximate_time_seconds=hit.approximate_time_seconds,
                 media=media_payload,
-                source="pipeline",
+                source=hit_source,
             )
         )
 

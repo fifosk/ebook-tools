@@ -729,6 +729,13 @@ class LibrarySync:
     def serialize_item(self, item: LibraryEntry) -> Dict[str, Any]:
         """Return a JSON-serializable representation of ``item``."""
 
+        if isinstance(item.metadata, MetadataSnapshot):
+            metadata_payload: Dict[str, Any] = dict(item.metadata.data)
+        elif isinstance(item.metadata, Mapping):
+            metadata_payload = dict(item.metadata)
+        else:
+            metadata_payload = {}
+
         payload = {
             "job_id": item.id,
             "author": item.author or "",
@@ -742,9 +749,8 @@ class LibrarySync:
             "cover_path": item.cover_path,
             "isbn": item.isbn,
             "source_path": item.source_path,
-            "metadata": item.metadata,
+            "metadata": metadata_payload,
         }
-        metadata_payload = item.metadata if isinstance(item.metadata, dict) else {}
         media_completed = bool(metadata_payload.get("media_completed"))
         if not media_completed:
             generated = metadata_payload.get("generated_files")
