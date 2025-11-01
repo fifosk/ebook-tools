@@ -17,17 +17,15 @@ from modules.audio.api import AudioService
 from modules.media.exceptions import MediaBackendError
 from modules.observability import record_metric
 from modules.services.file_locator import FileLocator
+from modules.services.video_service import VideoService
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
-from modules.video.api import VideoService
-from modules.video.jobs import VideoJobManager
 
 from .audio_utils import resolve_language, resolve_speed, resolve_voice
 from .dependencies import (
     get_audio_service,
     get_auth_service,
     get_file_locator,
-    get_video_job_manager,
     get_video_service,
 )
 from .schemas import (
@@ -49,7 +47,6 @@ AuthorizationHeader = Annotated[str | None, Header(alias="Authorization")]
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 AudioServiceDep = Annotated[AudioService, Depends(get_audio_service)]
 VideoServiceDep = Annotated[VideoService, Depends(get_video_service)]
-VideoJobManagerDep = Annotated[VideoJobManager, Depends(get_video_job_manager)]
 FileLocatorDep = Annotated[FileLocator, Depends(get_file_locator)]
 
 
@@ -287,7 +284,6 @@ def _prepare_video_request(
 def _submit_video_job(
     payload: MediaGenerationRequestPayload,
     *,
-    job_manager: VideoJobManager,
     video_service: VideoService,
     requested_by: str,
     correlation_id: str | None,
@@ -295,17 +291,20 @@ def _submit_video_job(
     assert payload.video is not None
     request_payload = _prepare_video_request(payload.job_id, payload.video)
 
-    task = request_payload.to_task(job_manager.locator)
-    job = job_manager.submit(task, video_service=video_service)
+    snapshot = video_service.enqueue(
+        payload.job_id,
+        request_payload.model_dump(),
+        correlation_id=correlation_id,
+    )
     logger.info(
-        "Video rendering job %s submitted for pipeline job %s",
-        job.job_id,
+        "Video rendering request %s submitted for pipeline job %s",
+        snapshot.request_id,
         payload.job_id,
         extra={
             "event": "media.video.submit",
             "attributes": {
-                "slides": len(task.slides),
-                "audio_tracks": len(task.audio_sources),
+                "slides": len(request_payload.slides),
+                "audio_tracks": len(request_payload.audio),
                 "pipeline_job_id": payload.job_id,
             },
         },
@@ -313,14 +312,16 @@ def _submit_video_job(
 
     normalized_params = request_payload.model_dump()
     return MediaGenerationResponse(
-        request_id=job.job_id,
-        status="queued",
+        request_id=snapshot.request_id,
+        status=snapshot.status,
         job_id=payload.job_id,
         media_type="video",
         requested_by=requested_by,
         parameters=normalized_params,
         notes=payload.notes,
         message="Video rendering job submitted.",
+        artifact_path=snapshot.output_path,
+        artifact_url=None,
         correlation_id=correlation_id,
     )
 
@@ -353,7 +354,6 @@ def request_media_generation(
     auth_service: AuthServiceDep,
     audio_service: AudioServiceDep,
     video_service: VideoServiceDep,
-    video_job_manager: VideoJobManagerDep,
     locator: FileLocatorDep,
     request: Request,
     authorization: AuthorizationHeader = None,
@@ -410,7 +410,6 @@ def request_media_generation(
         if media_type == "video":
             return _submit_video_job(
                 payload,
-                job_manager=video_job_manager,
                 video_service=video_service,
                 requested_by=user.username,
                 correlation_id=correlation_override or correlation_id,

@@ -3275,3 +3275,88 @@ button[data-variant='metadata-action'] {
 small {
   color: var(--color-text-muted);
 }
+
+.video-panel {
+  margin-top: var(--space-lg);
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.video-panel__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.video-panel__header h2 {
+  font-size: var(--font-size-large);
+  margin: 0;
+  color: var(--color-text-heading);
+}
+
+.video-panel__status {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+  text-transform: capitalize;
+}
+
+.video-panel__preview {
+  width: 100%;
+  border-radius: var(--radius-md);
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px solid var(--color-border-subtle);
+  min-height: 12rem;
+}
+
+.video-panel__placeholder {
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border-subtle);
+  padding: var(--space-md);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.video-panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.video-panel__actions button {
+  background: var(--color-button-secondary-bg);
+  border: 1px solid var(--color-button-secondary-border);
+  color: var(--color-button-secondary-text);
+  padding: 0.5rem var(--space-md);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.video-panel__actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.video-panel__actions button:not(:disabled):hover {
+  background: var(--color-button-secondary-hover-bg);
+  border-color: var(--color-button-secondary-hover-border);
+}
+
+.video-panel__hint {
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.video-panel__error {
+  font-size: var(--font-size-small);
+  color: var(--color-status-danger-text);
+}
+small {
+  color: var(--color-text-muted);
+}

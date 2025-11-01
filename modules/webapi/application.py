@@ -30,7 +30,7 @@ from .dependencies import configure_media_services, get_runtime_context_provider
 from .media_routes import register_exception_handlers as register_media_exception_handlers
 from .media_routes import router as media_router
 from .routes import router, storage_router
-from .video_routes import router as video_router
+from .routers.video import router as video_router
 
 load_environment()
 
@@ -264,7 +264,7 @@ def create_app() -> FastAPI:
     app.include_router(create_book_router)
     app.include_router(library_router)
     app.include_router(media_router)
-    app.include_router(video_router)
+    app.include_router(video_router, prefix="/api/video", tags=["video"])
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
 

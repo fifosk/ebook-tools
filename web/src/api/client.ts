@@ -12,6 +12,8 @@ import {
   PipelineSubmissionResponse,
   SessionStatusResponse,
   PipelineMediaResponse,
+  VideoGenerationRequestPayload,
+  VideoGenerationResponse,
   MediaSearchResponse,
   UserAccountResponse,
   UserCreateRequestPayload,
@@ -333,6 +335,32 @@ export async function fetchJobMedia(jobId: string): Promise<PipelineMediaRespons
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
   const response = await apiFetch(`/pipelines/jobs/${jobId}/media/live`);
   return handleResponse<PipelineMediaResponse>(response);
+}
+
+export async function generateVideo(
+  jobId: string,
+  parameters: Record<string, unknown>
+): Promise<VideoGenerationResponse> {
+  const payload: VideoGenerationRequestPayload = {
+    job_id: jobId,
+    parameters
+  };
+  const response = await apiFetch('/api/video/generate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<VideoGenerationResponse>(response);
+}
+
+export async function fetchVideoStatus(jobId: string): Promise<VideoGenerationResponse | null> {
+  const response = await apiFetch(`/api/video/status/${encodeURIComponent(jobId)}`);
+  if (response.status === 404) {
+    return null;
+  }
+  return handleResponse<VideoGenerationResponse>(response);
 }
 
 export async function searchMedia(jobId: string | null | undefined, query: string, limit?: number): Promise<MediaSearchResponse> {
