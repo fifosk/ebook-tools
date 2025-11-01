@@ -14,6 +14,7 @@ from .dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
     get_file_locator,
+    get_library_service,
     get_pipeline_service,
     get_request_user,
     get_runtime_context_provider,
@@ -40,6 +41,7 @@ from .schemas import (
     PipelineSubmissionResponse,
     ProgressEventPayload,
 )
+from ...library.library_service import LibraryNotFoundError, LibraryService
 
 router = APIRouter()
 storage_router = APIRouter()
@@ -648,24 +650,40 @@ async def fetch_job_cover(
     job_id: str,
     pipeline_service: PipelineService = Depends(get_pipeline_service),
     file_locator: FileLocator = Depends(get_file_locator),
+    library_service: LibraryService = Depends(get_library_service),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return the stored cover image for ``job_id`` if available."""
 
+    permission_denied = False
+    job_missing = False
     try:
         pipeline_service.get_job(
             job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
         )
-    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except PermissionError:
+        permission_denied = True
+    except KeyError:
+        job_missing = True
 
     metadata_root = file_locator.metadata_root(job_id)
     cover_path = _find_job_cover_path(metadata_root)
+
+    if (cover_path is None or not cover_path.is_file()) and library_service is not None:
+        try:
+            library_cover = library_service.find_cover_asset(job_id)
+        except LibraryNotFoundError:
+            library_cover = None
+        if library_cover is not None and library_cover.is_file():
+            cover_path = library_cover
+
     if cover_path is None or not cover_path.is_file():
+        if job_missing:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
+        if permission_denied:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access cover")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Cover not found")
 
     media_type = _guess_cover_media_type(cover_path)
