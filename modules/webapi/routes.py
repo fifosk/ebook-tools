@@ -742,6 +742,12 @@ async def search_pipeline_media(
     )
 
 
+@router.post(
+    "",
+    response_model=PipelineSubmissionResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    include_in_schema=False,
+)
 @router.post("/", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
 async def submit_pipeline(
     payload: PipelineRequestPayload,

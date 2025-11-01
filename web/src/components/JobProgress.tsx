@@ -337,7 +337,7 @@ export function JobProgress({
         push(`/storage/${stripped}`);
       } else {
         try {
-          push(buildStorageUrl(stripped));
+          push(buildStorageUrl(stripped, jobId));
         } catch (error) {
           console.warn('Unable to build storage URL for cover image', error);
         }
@@ -364,7 +364,7 @@ export function JobProgress({
     }
 
     return sources;
-  }, [coverAsset]);
+  }, [coverAsset, jobId]);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const coverUrl = coverSources[coverSourceIndex] ?? null;
   const [coverFailed, setCoverFailed] = useState(false);

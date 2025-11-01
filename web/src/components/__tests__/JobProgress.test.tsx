@@ -1,7 +1,10 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const buildStorageUrlMock = vi.hoisted(() =>
-  vi.fn<[string], string>((path) => `https://storage.example/${path}`)
+  vi.fn<[string, string?], string>((path, jobId) => {
+    const suffix = jobId ? `${jobId}/${path}` : path;
+    return `https://storage.example/${suffix}`;
+  })
 );
 
 vi.mock('../../api/client', async () => {
@@ -44,7 +47,10 @@ beforeAll(() => {
 describe('JobProgress', () => {
   beforeEach(() => {
     buildStorageUrlMock.mockReset();
-    buildStorageUrlMock.mockImplementation((path) => `https://storage.example/${path}`);
+    buildStorageUrlMock.mockImplementation((path, jobId) => {
+      const suffix = jobId ? `${jobId}/${path}` : path;
+      return `https://storage.example/${suffix}`;
+    });
   });
 
   it('renders snapshot metrics when an event is supplied', () => {
@@ -170,7 +176,7 @@ describe('JobProgress', () => {
     expect(image.src).toContain('/pipelines/job-2/cover');
     fireEvent.error(image);
     expect(image.src).toBe('https://storage.example/runtime/example-cover.jpg');
-    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg', 'job-2');
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
   });
 
@@ -217,7 +223,7 @@ describe('JobProgress', () => {
     expect(image.src).toContain('/pipelines/job-2a/cover');
     fireEvent.error(image);
     expect(image.src).toBe('https://storage.example/runtime/storage-rooted-cover.jpg');
-    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/storage-rooted-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/storage-rooted-cover.jpg', 'job-2a');
     expect(screen.getByText('storage/runtime/storage-rooted-cover.jpg')).toBeInTheDocument();
   });
 
@@ -536,7 +542,7 @@ describe('JobProgress', () => {
     fireEvent.error(image);
     const fallbackImage = screen.getByAltText('Cover of Output Rooted Cover by Author Name') as HTMLImageElement;
     expect(fallbackImage.src).toBe('https://storage.example/runtime/output-cover.jpg');
-    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/output-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/output-cover.jpg', 'job-7');
     expect(screen.getByText('storage/runtime/output-cover.jpg')).toBeInTheDocument();
   });
 
@@ -586,7 +592,7 @@ describe('JobProgress', () => {
     fireEvent.error(image);
     const fallbackImage = screen.getByAltText('Cover of Example Title by Author Name') as HTMLImageElement;
     expect(fallbackImage.src.endsWith('/storage/runtime/example-cover.jpg')).toBe(true);
-    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg');
+    expect(buildStorageUrlMock).toHaveBeenCalledWith('runtime/example-cover.jpg', 'job-7');
   });
 
   it('shows a fallback cover when no cover metadata is available', () => {

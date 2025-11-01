@@ -309,7 +309,7 @@ export default function PlayerPanel({
         return null;
       }
       try {
-        return buildStorageUrl(stripped);
+        return buildStorageUrl(stripped, normalisedJobId);
       } catch (error) {
         console.warn('Unable to build storage URL for cover image', error);
         return `/${stripped}`;
