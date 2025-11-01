@@ -14,7 +14,7 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from modules import config_manager as cfg  # noqa: E402
-from modules.library.sqlite_indexer import LibraryIndexer  # noqa: E402
+from modules.library.library_repository import LibraryRepository  # noqa: E402
 
 
 def _column_exists(connection: sqlite3.Connection, table: str, column: str) -> bool:
@@ -86,9 +86,9 @@ def _extract_source_path(metadata: Dict[str, Any]) -> str | None:
 
 def main() -> None:
     library_root = cfg.get_library_root(create=True)
-    indexer = LibraryIndexer(library_root)
+    repository = LibraryRepository(library_root)
 
-    with indexer.connect() as connection:
+    with repository.connect() as connection:
         connection.row_factory = sqlite3.Row
 
         added_columns = []

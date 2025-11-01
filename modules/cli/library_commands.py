@@ -5,24 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Optional
 
-from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
-from ..library import LibraryError, LibraryIndexer, LibraryNotFoundError, LibraryService
-from ..services.file_locator import FileLocator
+from ..library import LibraryError, LibraryNotFoundError, LibraryService, get_library_service
 
 LOGGER = log_mgr.get_logger().getChild("cli.library")
 
 
 def _create_library_service() -> LibraryService:
-    library_root = cfg.get_library_root(create=True)
-    locator = FileLocator()
-    indexer = LibraryIndexer(library_root)
-    return LibraryService(
-        library_root=library_root,
-        file_locator=locator,
-        indexer=indexer,
-        job_manager=None,
-    )
+    return get_library_service()
 
 
 def _filter_updates(args) -> Dict[str, Optional[str]]:
@@ -38,6 +28,7 @@ def execute_library_command(args) -> int:
     """Dispatch the ``ebook-tools library`` sub-commands."""
 
     service = _create_library_service()
+    sync = service.sync
     command = getattr(args, "library_command", None)
 
     if command == "refresh":
@@ -73,7 +64,7 @@ def execute_library_command(args) -> int:
             )
             return 1
         try:
-            item = service.update_metadata(
+            item = sync.update_metadata(
                 job_id,
                 title=updates.get("title"),
                 author=updates.get("author"),
@@ -109,7 +100,7 @@ def execute_library_command(args) -> int:
         job_id = args.job_id
         source_path = Path(args.path)
         try:
-            item = service.reupload_source_from_path(job_id, source_path)
+            item = sync.reupload_source_from_path(job_id, source_path)
         except LibraryNotFoundError:
             log_mgr.console_error(
                 f"Library entry '{job_id}' not found.",
@@ -132,7 +123,7 @@ def execute_library_command(args) -> int:
         job_id = args.job_id
         isbn = args.isbn
         try:
-            item = service.apply_isbn_metadata(job_id, isbn)
+            item = sync.apply_isbn_metadata(job_id, isbn)
         except LibraryNotFoundError:
             log_mgr.console_error(
                 f"Library entry '{job_id}' not found.",

@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from modules.library import LibraryError, LibraryIndexer, LibraryNotFoundError, LibraryService
+from modules.library import LibraryError, LibraryNotFoundError, LibraryRepository, LibrarySync
 from modules.services.file_locator import FileLocator
 
 
@@ -40,16 +40,16 @@ def write_metadata(job_root: Path, payload: dict) -> None:
     (metadata_dir / "job.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
-def create_service(tmp_path: Path) -> tuple[LibraryService, FileLocator, Path, TrackingJobManager]:
+def create_service(tmp_path: Path) -> tuple[LibrarySync, FileLocator, Path, TrackingJobManager]:
     queue_root = tmp_path / "queue"
     library_root = tmp_path / "library"
     locator = FileLocator(storage_dir=queue_root)
-    indexer = LibraryIndexer(library_root)
+    repository = LibraryRepository(library_root)
     job_manager = TrackingJobManager()
-    service = LibraryService(
+    service = LibrarySync(
         library_root=library_root,
         file_locator=locator,
-        indexer=indexer,
+        repository=repository,
         job_manager=job_manager,
     )
     return service, locator, library_root, job_manager
@@ -127,7 +127,7 @@ def test_reupload_source_handles_refresh_failure(tmp_path, monkeypatch):
         raise LibraryError("boom")
 
     monkeypatch.setattr(
-        "modules.library.library_service.LibraryService.refresh_metadata",
+        "modules.library.library_sync.LibrarySync.refresh_metadata",
         failing_refresh,
     )
 

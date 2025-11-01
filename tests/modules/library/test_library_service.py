@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from modules.library import LibraryError, LibraryIndexer, LibraryNotFoundError, LibraryService
+from modules.library import LibraryError, LibraryNotFoundError, LibraryRepository, LibrarySync
 from modules.services.file_locator import FileLocator
 
 
@@ -40,16 +40,16 @@ def write_metadata(job_root: Path, payload: dict) -> None:
     (metadata_dir / 'job.json').write_text(json.dumps(payload), encoding='utf-8')
 
 
-def create_service(tmp_path: Path) -> tuple[LibraryService, FileLocator, Path, TrackingJobManager]:
+def create_service(tmp_path: Path) -> tuple[LibrarySync, FileLocator, Path, TrackingJobManager]:
     queue_root = tmp_path / 'queue'
     library_root = tmp_path / 'library'
     locator = FileLocator(storage_dir=queue_root)
-    indexer = LibraryIndexer(library_root)
+    repository = LibraryRepository(library_root)
     job_manager = TrackingJobManager()
-    service = LibraryService(
+    service = LibrarySync(
         library_root=library_root,
         file_locator=locator,
-        indexer=indexer,
+        repository=repository,
         job_manager=job_manager
     )
     return service, locator, library_root, job_manager
@@ -72,7 +72,7 @@ def test_move_to_library_and_index(tmp_path):
     assert not queue_root.exists()
     assert item.status == 'finished'
 
-    stored = service._indexer.get(job_id)
+    stored = service._repository.get_entry_by_id(job_id)
     assert stored is not None
     assert stored.library_path == str(library_path.resolve())
 
@@ -108,7 +108,7 @@ def test_remove_media_and_entry(tmp_path):
 
     service.remove_entry(job_id)
     assert not library_path.exists()
-    assert service._indexer.get(job_id) is None
+    assert service._repository.get_entry_by_id(job_id) is None
 
     with pytest.raises(LibraryNotFoundError):
         service.remove_entry(job_id)
@@ -167,7 +167,7 @@ def test_move_paused_job_with_partial_media(tmp_path):
 
     item = service.move_to_library(job_id)
     assert item.status == 'paused'
-    stored = service._indexer.get(job_id)
+    stored = service._repository.get_entry_by_id(job_id)
     assert stored is not None
     payload = json.loads((library_root / 'Jane Doe' / 'Sample Book' / 'en' / job_id / 'metadata' / 'job.json').read_text(encoding='utf-8'))
     assert payload.get('media_completed') is True
@@ -252,4 +252,4 @@ def test_reindex_from_filesystem(tmp_path):
 
     indexed = service.reindex_from_fs()
     assert indexed == 1
-    assert service._indexer.get('job-900') is not None
+    assert service._repository.get_entry_by_id('job-900') is not None

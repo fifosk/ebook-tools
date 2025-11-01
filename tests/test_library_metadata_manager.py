@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
-from modules.library import LibraryIndexer, LibraryService
+from modules.library import LibraryRepository, LibrarySync
 from modules.services.file_locator import FileLocator
 from modules.webapi.application import create_app
 from modules.webapi import dependencies
@@ -45,12 +45,12 @@ def _write_metadata(job_root: Path, payload: dict) -> None:
     (metadata_dir / 'job.json').write_text(json.dumps(payload), encoding='utf-8')
 
 
-def _create_library_service(tmp_path: Path) -> tuple[LibraryService, FileLocator, Path, Path]:
+def _create_library_service(tmp_path: Path) -> tuple[LibrarySync, FileLocator, Path, Path]:
     queue_root = tmp_path / 'queue'
     library_root = tmp_path / 'library'
     locator = FileLocator(storage_dir=queue_root)
-    indexer = LibraryIndexer(library_root)
-    service = LibraryService(library_root=library_root, file_locator=locator, indexer=indexer)
+    repository = LibraryRepository(library_root)
+    service = LibrarySync(library_root=library_root, file_locator=locator, repository=repository)
     return service, locator, library_root, queue_root
 
 
@@ -101,7 +101,7 @@ def test_refresh_metadata_infers_and_copies_cover(tmp_path, monkeypatch):
     _write_metadata(queue_job_root, metadata)
 
     service.move_to_library(job_id, status_override='finished')
-    library_job_root = Path(service._indexer.get(job_id).library_path)  # type: ignore[union-attr]
+    library_job_root = Path(service._repository.get_entry_by_id(job_id).library_path)  # type: ignore[union-attr]
 
     cover_source = tmp_path / 'cover-source.png'
     cover_source.write_bytes(b'PNG DATA')
@@ -114,10 +114,10 @@ def test_refresh_metadata_infers_and_copies_cover(tmp_path, monkeypatch):
     }
 
     def _fake_infer(path: str, *, existing_metadata=None, force_refresh=False):
-        assert Path(path) == library_job_root / 'input.epub'
+        assert Path(path) == library_job_root / 'data' / 'input.epub'
         return inferred_payload
 
-    monkeypatch.setattr('modules.library.library_service.metadata_manager.infer_metadata', _fake_infer)
+    monkeypatch.setattr('modules.library.library_metadata.metadata_manager.infer_metadata', _fake_infer)
 
     refreshed = service.refresh_metadata(job_id)
 
@@ -136,10 +136,10 @@ def test_refresh_metadata_infers_and_copies_cover(tmp_path, monkeypatch):
     # Ensure reindex respects the refreshed payload.
     indexed = service.reindex_from_fs()
     assert indexed == 1
-    stored = service._indexer.get(job_id)
+    stored = service._repository.get_entry_by_id(job_id)
     assert stored is not None
     assert stored.book_title == 'Refreshed Title'
-    assert stored.meta_json
+    assert stored.metadata.data
 
 
 def test_search_endpoint_includes_library_results(tmp_path):
@@ -158,11 +158,18 @@ def test_search_endpoint_includes_library_results(tmp_path):
         def get_job(self, job_id: str, user_id=None, user_role=None):
             return SimpleNamespace(job_id=job_id)
 
+    from modules.library import LibraryService as LibraryOrchestrator
+
+    orchestrator = LibraryOrchestrator(library_root=library_root, file_locator=locator)
+    library_sync = orchestrator.sync
+
     dependencies.get_library_service.cache_clear()
+    dependencies.get_library_sync.cache_clear()
     dependencies.get_pipeline_service.cache_clear()
     dependencies.get_file_locator.cache_clear()
 
-    app.dependency_overrides[dependencies.get_library_service] = lambda: service
+    app.dependency_overrides[dependencies.get_library_service] = lambda: orchestrator
+    app.dependency_overrides[dependencies.get_library_sync] = lambda: library_sync
     app.dependency_overrides[dependencies.get_pipeline_service] = lambda: StubPipelineService()
     app.dependency_overrides[dependencies.get_file_locator] = lambda: locator
     app.dependency_overrides[dependencies.get_request_user] = lambda: RequestUserContext(
@@ -175,6 +182,7 @@ def test_search_endpoint_includes_library_results(tmp_path):
 
     app.dependency_overrides.clear()
     dependencies.get_library_service.cache_clear()
+    dependencies.get_library_sync.cache_clear()
     dependencies.get_pipeline_service.cache_clear()
     dependencies.get_file_locator.cache_clear()
 
