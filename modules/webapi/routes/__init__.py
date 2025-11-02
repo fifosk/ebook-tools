@@ -16,8 +16,8 @@ router = APIRouter()
 
 router.include_router(system_router)
 router.include_router(books_router)
-router.include_router(jobs_router)
 router.include_router(library_router)
+router.include_router(jobs_router)
 router.include_router(media_router)
 router.include_router(user_router)
 

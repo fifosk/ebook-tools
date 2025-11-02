@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, List, Mapping, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from modules.library import LibraryError, LibrarySync
 

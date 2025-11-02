@@ -95,14 +95,21 @@ function fillRemainTimes(target: number[], totalTokens: number, fallbackTime: nu
   }
 }
 
+type InlineAudioControls = {
+  pause: () => void;
+};
+
 interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
   audioItems: LiveMediaItem[];
+  activeAudioUrl: string | null;
+  noAudioAvailable: boolean;
   onScroll?: (event: UIEvent<HTMLDivElement>) => void;
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
+  onRegisterInlineAudioControls?: (controls: InlineAudioControls | null) => void;
 }
 
 type SegmenterInstance = {
@@ -284,9 +291,12 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     content,
     chunk,
     audioItems,
+    activeAudioUrl,
+    noAudioAvailable,
     onScroll,
     onAudioProgress,
     getStoredAudioPosition,
+    onRegisterInlineAudioControls,
   },
   forwardedRef,
 ) {
@@ -723,40 +733,33 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [paragraphs],
   );
 
-  const audioOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const options: { url: string; label: string }[] = [];
-    audioItems.forEach((item, index) => {
-      const url = item.url ?? '';
-      if (!url || seen.has(url)) {
-        return;
-      }
-      seen.add(url);
-      options.push({
-        url,
-        label: item.name ?? `Audio ${index + 1}`,
-      });
-    });
-    return options;
-  }, [audioItems]);
-
-  const [activeAudioUrl, setActiveAudioUrl] = useState<string | null>(() => audioOptions[0]?.url ?? null);
-
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
-    if (audioOptions.length === 0) {
-      setActiveAudioUrl(null);
+    if (!onRegisterInlineAudioControls) {
       return;
     }
-    setActiveAudioUrl((current) => {
-      if (current && audioOptions.some((option) => option.url === current)) {
-        return current;
+    if (!activeAudioUrl) {
+      onRegisterInlineAudioControls(null);
+      return () => {
+        onRegisterInlineAudioControls(null);
+      };
+    }
+    const handler = () => {
+      const element = audioRef.current;
+      if (!element) {
+        return;
       }
-      return audioOptions[0]?.url ?? null;
-    });
-  }, [audioOptions]);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+      try {
+        element.pause();
+      } catch (error) {
+        // Ignore pause failures triggered by browsers blocking programmatic control.
+      }
+    };
+    onRegisterInlineAudioControls({ pause: handler });
+    return () => {
+      onRegisterInlineAudioControls(null);
+    };
+  }, [onRegisterInlineAudioControls, activeAudioUrl]);
   const pendingInitialSeek = useRef<number | null>(null);
   const lastReportedPosition = useRef(0);
 
@@ -810,7 +813,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       lastReportedPosition.current = 0;
       setActiveSentenceIndex(0);
       setActiveSentenceProgress(0);
-      setIsAudioPlaying(false);
       setAudioDuration(null);
       return;
     }
@@ -898,66 +900,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [rawSentences, sentenceWeightSummary],
   );
 
-  const sentenceTimings = useMemo(() => {
-    if (!audioDuration || audioDuration <= 0) {
-      return null;
-    }
-    const totalUnits = sentenceWeightSummary.total;
-    if (totalUnits <= 0) {
-      return null;
-    }
-    const cumulative = sentenceWeightSummary.cumulative;
-    const timings = new Map<number, { start: number; end: number }>();
-    rawSentences.forEach((sentence, index) => {
-      const startUnits = index === 0 ? 0 : cumulative[index - 1];
-      const endUnits = cumulative[index];
-      const start = (startUnits / totalUnits) * audioDuration;
-      const end = (endUnits / totalUnits) * audioDuration;
-      timings.set(sentence.index, {
-        start: Number.isFinite(start) ? Math.max(0, start) : 0,
-        end: Number.isFinite(end) ? Math.max(0, end) : 0,
-      });
-    });
-    return timings;
-  }, [audioDuration, rawSentences, sentenceWeightSummary]);
-
-  const seekWithinSentence = useCallback(
-    (sentenceIndex: number, fraction: number) => {
-      if (sentenceIndex < 0 || sentenceIndex >= totalSentences) {
-        return;
-      }
-      const element = audioRef.current;
-      const clampedFraction = Math.max(0, Math.min(fraction, 1));
-      if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
-        setActiveSentenceIndex(sentenceIndex);
-        setActiveSentenceProgress(clampedFraction);
-        return;
-      }
-      const duration = element.duration;
-      const timing = sentenceTimings?.get(sentenceIndex);
-      let targetTime: number;
-      if (timing) {
-        const span = Math.max(timing.end - timing.start, 0);
-        targetTime = Math.min(timing.start + span * clampedFraction, duration - 0.05);
-      } else {
-        const approximate = duration * (sentenceIndex / Math.max(totalSentences, 1));
-        targetTime = Math.min(Math.max(approximate, 0), duration - 0.05);
-      }
-      try {
-        element.currentTime = targetTime;
-      } catch (error) {
-        // Ignore assignment failures in restricted environments.
-      }
-      const playResult = element.play?.();
-      if (playResult && typeof playResult.catch === 'function') {
-        playResult.catch(() => undefined);
-      }
-      emitAudioProgress(targetTime);
-      updateSentenceForTime(targetTime, duration);
-    },
-    [emitAudioProgress, sentenceTimings, totalSentences, updateSentenceForTime],
-  );
-
   const handleLoadedMetadata = useCallback(() => {
     const element = audioRef.current;
     if (!element) {
@@ -976,6 +918,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       element.currentTime = clamped;
       updateSentenceForTime(clamped, duration);
       emitAudioProgress(clamped);
+      const maybePlay = element.play?.();
+      if (maybePlay && typeof maybePlay.catch === 'function') {
+        maybePlay.catch(() => undefined);
+      }
       pendingInitialSeek.current = null;
       return;
     }
@@ -999,16 +945,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     emitAudioProgress(currentTime);
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
 
-  const handleAudioPlay = useCallback(() => {
-    setIsAudioPlaying(true);
-  }, []);
-
-  const handleAudioPause = useCallback(() => {
-    setIsAudioPlaying(false);
-  }, []);
-
   const handleAudioEnded = useCallback(() => {
-    setIsAudioPlaying(false);
     if (hasTimeline && timelineDisplay) {
       setChunkTime((prev) => (audioDuration ? audioDuration : prev));
       setActiveSentenceIndex(timelineDisplay.activeIndex);
@@ -1032,60 +969,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     emitAudioProgress(element.currentTime);
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
-  const noAudioAvailable = Boolean(chunk) && audioOptions.length === 0;
-  const chunkLabel = useMemo(() => {
-    if (!chunk) {
-      return 'Current chunk';
-    }
-    if (chunk.rangeFragment) {
-      return chunk.rangeFragment ?? 'Chunk';
-    }
-    const start = chunk.startSentence;
-    const end = chunk.endSentence;
-    if (typeof start === 'number' && typeof end === 'number') {
-      return `Sentences ${start}–${end}`;
-    }
-    if (typeof start === 'number') {
-      return `Sentence ${start}`;
-    }
-    return 'Current chunk';
-  }, [chunk]);
-
-  const hasAudio = Boolean(resolvedAudioUrl);
-
-  const handleChunkPlayPause = useCallback(() => {
-    const element = audioRef.current;
-    if (!element) {
-      return;
-    }
-    if (element.paused) {
-      element.play().catch(() => {
-        /* Ignore autoplay restrictions */
-      });
-    } else {
-      element.pause();
-    }
-  }, []);
-
-  const handleChunkRestart = useCallback(() => {
-    const element = audioRef.current;
-    if (!element) {
-      return;
-    }
-    try {
-      element.currentTime = 0;
-    } catch (error) {
-      // Ignore seek failures in unsupported environments
-    }
-    setChunkTime(0);
-    setActiveSentenceIndex(0);
-    setActiveSentenceProgress(0);
-    if (activeAudioUrl && onAudioProgress) {
-      onAudioProgress(activeAudioUrl, 0);
-      lastReportedPosition.current = 0;
-    }
-  }, [activeAudioUrl, onAudioProgress]);
-
   const handleTokenSeek = useCallback(
     (time: number) => {
       const element = audioRef.current;
@@ -1108,49 +991,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
   return (
     <div className="player-panel__interactive">
-      <div className="player-panel__interactive-toolbar">
-        <div className="player-panel__interactive-chunk">
-          <span className="player-panel__interactive-chunk-label">Chunk</span>
-          <span className="player-panel__interactive-chunk-value">{chunkLabel}</span>
-        </div>
-        <div className="player-panel__interactive-controls">
-          <button
-            type="button"
-            className="player-panel__interactive-button"
-            onClick={handleChunkPlayPause}
-            disabled={!hasAudio}
-          >
-            {isAudioPlaying ? 'Pause chunk' : 'Play chunk'}
-          </button>
-          <button
-            type="button"
-            className="player-panel__interactive-button player-panel__interactive-button--secondary"
-            onClick={handleChunkRestart}
-            disabled={!hasAudio}
-          >
-            Restart
-          </button>
-        </div>
-      </div>
-      {audioOptions.length > 0 ? (
-      <div className="player-panel__interactive-audio">
-        <label className="player-panel__interactive-label" htmlFor="player-panel-inline-audio">
-          Synchronized audio
-        </label>
+      {resolvedAudioUrl ? (
+        <div className="player-panel__interactive-audio">
+          <span className="player-panel__interactive-label">Synchronized audio</span>
           <div className="player-panel__interactive-audio-controls">
-            {audioOptions.length > 1 ? (
-              <select
-                id="player-panel-inline-audio"
-                value={activeAudioUrl ?? ''}
-                onChange={(event) => setActiveAudioUrl(event.target.value || null)}
-              >
-                {audioOptions.map((option) => (
-                  <option key={option.url} value={option.url}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            ) : null}
             <audio
               ref={audioRef}
               src={resolvedAudioUrl ?? undefined}
@@ -1159,8 +1003,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
               autoPlay
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
-              onPlay={handleAudioPlay}
-              onPause={handleAudioPause}
               onEnded={handleAudioEnded}
               onSeeked={handleAudioSeeked}
             />

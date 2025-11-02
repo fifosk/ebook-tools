@@ -58,24 +58,29 @@
   line-height: 1.55;
 }
 
-.lineContentOriginal {
+.lineContentOriginal,
+.lineContentTranslit,
+.lineContentTranslation {
   font-size: 1.08rem;
+}
+
+.lineContentOriginal {
   font-weight: 650;
   color: var(--tp-original, #ffd400);
 }
 
-.sentenceActive .lineContentOriginal {
-  font-size: 1.28rem;
-}
-
 .lineContentTranslit {
-  font-size: 1rem;
   color: var(--tp-translit, #2dd4bf);
 }
 
 .lineContentTranslation {
-  font-size: 1rem;
   color: var(--tp-translation, #34d399);
+}
+
+.sentenceActive .lineContentOriginal,
+.sentenceActive .lineContentTranslit,
+.sentenceActive .lineContentTranslation {
+  font-size: 1.28rem;
 }
 
 

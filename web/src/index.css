@@ -1881,6 +1881,13 @@ button.link-button:focus {
   width: 100%;
 }
 
+.player-panel__navigation-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
 .player-panel__navigation {
   display: inline-flex;
   align-items: center;
@@ -1950,6 +1957,45 @@ button.link-button:focus {
   opacity: 0.45;
   cursor: not-allowed;
   transform: none;
+}
+
+.player-panel__inline-audio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.player-panel__inline-audio-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text-muted);
+}
+
+.player-panel__inline-audio select {
+  appearance: none;
+  border: none;
+  background: transparent;
+  color: var(--color-text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.15rem 0.25rem;
+  min-width: 8rem;
+}
+
+.player-panel__inline-audio select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35);
+  border-radius: 0.5rem;
+}
+
+.player-panel__inline-audio select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .player-panel__tabs-row .player-panel__tabs {
@@ -2202,80 +2248,6 @@ button.link-button:focus {
   color: var(--color-text-muted);
 }
 
-.player-panel__interactive-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 0.75rem;
-  background: rgba(15, 23, 42, 0.55);
-  padding: 0.75rem 1rem;
-}
-
-.player-panel__interactive-chunk {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-  flex: 1;
-  color: var(--color-text-muted);
-  min-width: 0;
-}
-
-.player-panel__interactive-chunk-label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.player-panel__interactive-chunk-value {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--color-text-heading);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.player-panel__interactive-controls {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.player-panel__interactive-button {
-  appearance: none;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(59, 130, 246, 0.2);
-  color: var(--color-text-heading);
-  border-radius: 999px;
-  padding: 0.35rem 0.85rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.2s ease;
-}
-
-.player-panel__interactive-button:hover,
-.player-panel__interactive-button:focus-visible {
-  border-color: var(--color-border-accent);
-  background: rgba(129, 140, 248, 0.3);
-  outline: none;
-  transform: translateY(-1px);
-}
-
-.player-panel__interactive-button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.player-panel__interactive-button--secondary {
-  background: rgba(15, 23, 42, 0.45);
-  color: var(--color-text-secondary);
-}
-
 .player-panel__interactive-audio {
   display: flex;
   flex-direction: column;
@@ -2287,15 +2259,6 @@ button.link-button:focus {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-}
-
-.player-panel__interactive-audio select {
-  max-width: 320px;
-  padding: 0.45rem 0.6rem;
-  border-radius: 0.5rem;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  background: rgba(15, 23, 42, 0.35);
-  color: var(--color-text-primary);
 }
 
 .player-panel__interactive-audio audio {
@@ -2359,6 +2322,7 @@ button.link-button:focus {
 .player-panel__interactive-sentence-group--previous .player-panel__interactive-transliteration,
 .player-panel__interactive-sentence-group--upcoming .player-panel__interactive-transliteration {
   opacity: 0.75;
+  font-size: 1.05rem;
 }
 
 .drt-original {
@@ -2447,7 +2411,7 @@ button.link-button:focus {
 
 .player-panel__interactive-translation,
 .player-panel__interactive-transliteration {
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 500;
   letter-spacing: 0.01em;
 }
@@ -2458,17 +2422,12 @@ button.link-button:focus {
 
 .player-panel__interactive-transliteration {
   color: rgba(110, 231, 183, 0.95);
-  font-size: 0.9rem;
 }
 
-.player-panel__interactive-sentence-group--active .player-panel__interactive-translation {
-  font-size: 1.05rem;
-  font-weight: 600;
-}
-
+.player-panel__interactive-sentence-group--active .player-panel__interactive-translation,
 .player-panel__interactive-sentence-group--active .player-panel__interactive-transliteration {
-  font-size: 1rem;
-  font-weight: 500;
+  font-size: 1.4rem;
+  font-weight: 600;
 }
 
 .player-panel__interactive-no-audio {

@@ -12,6 +12,7 @@ interface AudioPlayerProps {
   onPlaybackEnded?: () => void;
   playbackPosition?: number | null;
   onPlaybackPositionChange?: (position: number) => void;
+  onRegisterControls?: (controls: { pause: () => void } | null) => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -24,6 +25,7 @@ export default function AudioPlayer({
   onPlaybackEnded,
   playbackPosition = null,
   onPlaybackPositionChange,
+  onRegisterControls,
 }: AudioPlayerProps) {
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const labels = files.map((file, index) => ({
@@ -32,6 +34,29 @@ export default function AudioPlayer({
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+
+  useEffect(() => {
+    if (!onRegisterControls) {
+      return;
+    }
+    const controls = {
+      pause: () => {
+        const element = elementRef.current;
+        if (!element) {
+          return;
+        }
+        try {
+          element.pause();
+        } catch (error) {
+          // Ignore failures triggered in environments without media support.
+        }
+      },
+    };
+    onRegisterControls(controls);
+    return () => {
+      onRegisterControls(null);
+    };
+  }, [onRegisterControls, activeFile?.id]);
 
   const attemptAutoplay = useCallback(() => {
     if (!autoPlay) {

@@ -16,6 +16,7 @@ interface VideoPlayerProps {
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
   isTheaterMode?: boolean;
   onExitTheaterMode?: () => void;
+  onRegisterControls?: (controls: { pause: () => void } | null) => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -31,6 +32,7 @@ export default function VideoPlayer({
   onPlaybackStateChange,
   isTheaterMode = false,
   onExitTheaterMode,
+  onRegisterControls,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
@@ -40,6 +42,29 @@ export default function VideoPlayer({
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+
+  useEffect(() => {
+    if (!onRegisterControls) {
+      return;
+    }
+    const controls = {
+      pause: () => {
+        const element = elementRef.current;
+        if (!element) {
+          return;
+        }
+        try {
+          element.pause();
+        } catch (error) {
+          // Ignore failures triggered by non-media environments.
+        }
+      },
+    };
+    onRegisterControls(controls);
+    return () => {
+      onRegisterControls(null);
+    };
+  }, [onRegisterControls, activeFile?.id]);
 
   const attemptAutoplay = useCallback(() => {
     if (!autoPlay) {
