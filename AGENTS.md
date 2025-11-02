@@ -11,7 +11,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - **Search:** `modules/webapi/routes.py` exposes `/api/pipelines/search`, which now requires a `job_id` query parameter, scans that job's persisted chunks for snippets surfaced in the frontend `MediaSearchPanel`, and falls back to library metadata when the pipeline job has already been archived.
 - **Audio Voices:** `modules/webapi/routers/audio.py` serves `/api/audio/voices` for language-specific voice inventories and `/api/audio` for preview synthesis consumed by the `PipelineSubmissionForm` voice picker.
 - **Library:** `modules/library/` now splits the domain into `library_models`, `library_repository`, `library_metadata`, `library_sync`, and the lightweight `library_service` facade consumed by `modules/webapi/routers/library.py`; the frontend experience lives in `web/src/pages/LibraryPage.tsx` and related components.
-- **Subtitles:** `modules/subtitles/processing.py` handles colourised subtitle rendering, supporting per-word SRT highlighting, optional ASS exports, and configurable start/end time windows (including relative offsets) via `SubtitleJobOptions` fields surfaced in `modules/webapi/routers/subtitles.py`.
+- **Subtitles:** `modules/subtitles/processing.py` handles colourised subtitle rendering, supporting per-word SRT highlighting, optional ASS exports, configurable start/end time windows (including relative offsets), and the new `original_language`/`show_original` options exposed on `SubtitlesPage.tsx` via `modules/webapi/routers/subtitles.py`.
 
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.

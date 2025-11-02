@@ -271,9 +271,12 @@ def process_subtitle_file(
 
     metadata = {
         "input_file": source_path.name,
+        "input_language": options.input_language,
+        "original_language": options.original_language,
         "target_language": options.target_language,
         "highlight": options.highlight,
         "transliteration": options.enable_transliteration,
+        "show_original": options.show_original,
         "batch_size": batch_size,
         "workers": worker_count,
     }
@@ -565,16 +568,22 @@ def _build_output_cues(
     transliteration: str,
     *,
     highlight: bool,
+    show_original: bool,
     renderer: CueTextRenderer,
 ) -> List[SubtitleCue]:
     translation = translation or ""
     original_text = _normalize_text(source.as_text())
-    original_line = renderer.render_original(original_text)
+    include_original = show_original and bool(original_text)
+    original_line = renderer.render_original(original_text) if include_original else ""
     translation_words = translation.split()
     transliteration_words = transliteration.split() if transliteration else []
+    use_highlight = highlight and bool(translation_words)
+    base_line: Optional[str] = original_line if include_original and original_line else None
 
-    if not highlight or not translation_words:
-        lines = [original_line]
+    if not use_highlight:
+        lines: List[str] = []
+        if base_line:
+            lines.append(base_line)
         if translation:
             lines.append(renderer.render_translation(translation))
         if transliteration:
@@ -594,10 +603,8 @@ def _build_output_cues(
 
     for offset in range(len(translation_words)):
         highlight_translation = renderer.render_translation_highlight(translation_words, offset)
-        lines = [
-            original_line,
-            highlight_translation,
-        ]
+        lines: List[str] = [base_line] if base_line else []
+        lines.append(highlight_translation)
         if transliteration:
             if transliteration_words:
                 highlight_translit = renderer.render_transliteration_highlight(
@@ -811,5 +818,6 @@ def _process_cue(
         translation,
         transliteration_text,
         highlight=options.highlight,
+        show_original=options.show_original,
         renderer=renderer,
     )

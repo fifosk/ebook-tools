@@ -29,6 +29,7 @@ def test_build_output_cues_srt_highlight() -> None:
         "hola mundo",
         "",
         highlight=True,
+        show_original=True,
         renderer=renderer,
     )
     assert len(cues) == 2
@@ -53,6 +54,7 @@ def test_build_output_cues_ass_highlight() -> None:
         "hola mundo",
         "",
         highlight=True,
+        show_original=True,
         renderer=renderer,
     )
     assert len(cues) == 2
@@ -62,6 +64,24 @@ def test_build_output_cues_ass_highlight() -> None:
     assert "{\\c&H3C92FB&}{\\b1}hola{\\b0}" in first_translation
     # Remaining words stay green.
     assert "{\\c&H5DC521&}mundo" in first_translation
+
+
+def test_build_output_cues_hide_original_line() -> None:
+    palette = SubtitleColorPalette.default()
+    renderer = CueTextRenderer("srt", palette)
+    cues = _build_output_cues(
+        _sample_source_cue(),
+        "hola mundo",
+        "",
+        highlight=True,
+        show_original=False,
+        renderer=renderer,
+    )
+    assert len(cues) == 2
+    first_cue = cues[0]
+    assert len(first_cue.lines) == 1
+    assert all("#FFD60A" not in line for line in first_cue.lines)
+    assert '<font color="#FB923C"><b>hola</b></font>' in first_cue.lines[0]
 
 
 @pytest.fixture
@@ -93,6 +113,7 @@ def test_process_subtitle_file_emits_colourised_srt(tmp_path: Path, srt_source: 
         target_language="Spanish",
         enable_transliteration=False,
         highlight=True,
+        show_original=True,
         output_format="srt",
     )
 
@@ -110,6 +131,35 @@ def test_process_subtitle_file_emits_colourised_srt(tmp_path: Path, srt_source: 
     assert '<font color="#21C55D">mundo</font>' in payload
 
 
+def test_process_subtitle_file_hides_original_when_disabled(
+    tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    output_path = tmp_path / "source.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        show_original=False,
+        output_format="srt",
+    )
+
+    result = process_subtitle_file(
+        srt_source,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    payload = output_path.read_text(encoding="utf-8")
+    assert "Hello world" not in payload
+    assert '<font color="#FB923C"><b>hola</b></font>' in payload
+    assert '<font color="#21C55D">hola mundo</font>' not in payload
+    assert result.metadata["show_original"] is False
+    assert result.metadata["original_language"] == "English"
+
+
 def test_process_subtitle_file_emits_ass_with_header(tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _stub_translation(monkeypatch, "hola mundo")
     output_path = tmp_path / "source.es.drt.ass"
@@ -118,6 +168,7 @@ def test_process_subtitle_file_emits_ass_with_header(tmp_path: Path, srt_source:
         target_language="Spanish",
         enable_transliteration=False,
         highlight=True,
+        show_original=True,
         output_format="ass",
     )
 
@@ -156,6 +207,7 @@ def test_process_subtitle_file_respects_end_time(tmp_path: Path, monkeypatch: py
         target_language="Spanish",
         enable_transliteration=False,
         highlight=True,
+        show_original=True,
         start_time_offset=0.0,
         end_time_offset=5.0,
         output_format="srt",
@@ -192,6 +244,7 @@ def test_original_line_sanitises_html_tags(monkeypatch: pytest.MonkeyPatch) -> N
         target_language="Spanish",
         enable_transliteration=False,
         highlight=False,
+        show_original=True,
         output_format="srt",
     )
     renderer = CueTextRenderer("srt", SubtitleColorPalette.default())
@@ -200,6 +253,7 @@ def test_original_line_sanitises_html_tags(monkeypatch: pytest.MonkeyPatch) -> N
         "hola mundo",
         "",
         highlight=False,
+        show_original=True,
         renderer=renderer,
     )
     assert len(result) == 1

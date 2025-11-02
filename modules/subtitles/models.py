@@ -106,6 +106,8 @@ class SubtitleJobOptions:
 
     input_language: str
     target_language: str
+    original_language: Optional[str] = None
+    show_original: bool = True
     enable_transliteration: bool = False
     highlight: bool = True
     batch_size: Optional[int] = None
@@ -117,6 +119,17 @@ class SubtitleJobOptions:
     color_palette: SubtitleColorPalette = field(default_factory=SubtitleColorPalette.default)
 
     def __post_init__(self) -> None:
+        input_language = (self.input_language or "").strip()
+        original_language = (self.original_language or "").strip()
+        if not input_language and original_language:
+            input_language = original_language
+        if not input_language:
+            input_language = "English"
+        if not original_language:
+            original_language = input_language
+        object.__setattr__(self, "input_language", input_language)
+        object.__setattr__(self, "original_language", original_language)
+        object.__setattr__(self, "show_original", bool(self.show_original))
         if self.start_time_offset is not None:
             object.__setattr__(self, "start_time_offset", float(self.start_time_offset))
         if self.end_time_offset is not None:
@@ -175,10 +188,42 @@ class SubtitleJobOptions:
             if isinstance(color_palette_payload, Mapping)
             else SubtitleColorPalette.default()
         )
+        input_language_value = data.get("input_language")
+        if isinstance(input_language_value, str):
+            stripped_input = input_language_value.strip()
+            input_language = stripped_input or "English"
+        else:
+            input_language = "English"
+        target_language_value = data.get("target_language")
+        if isinstance(target_language_value, str):
+            stripped_target = target_language_value.strip()
+            target_language = stripped_target or "English"
+        else:
+            target_language = "English"
+        original_language_value = data.get("original_language")
+        original_language = (
+            original_language_value.strip()
+            if isinstance(original_language_value, str)
+            else None
+        )
+        show_original_value = data.get("show_original")
+        show_original = True
+        if isinstance(show_original_value, bool):
+            show_original = show_original_value
+        elif isinstance(show_original_value, str):
+            flag = show_original_value.strip().lower()
+            if flag in {"false", "0", "no", "off"}:
+                show_original = False
+            elif flag in {"true", "1", "yes", "on"}:
+                show_original = True
+        elif isinstance(show_original_value, (int, float)):
+            show_original = bool(show_original_value)
 
         return cls(
-            input_language=str(data.get("input_language") or "English"),
-            target_language=str(data.get("target_language") or "English"),
+            input_language=input_language,
+            target_language=target_language,
+            original_language=original_language,
+            show_original=show_original,
             enable_transliteration=bool(data.get("enable_transliteration")),
             highlight=bool(data.get("highlight", True)),
             batch_size=int(data["batch_size"]) if data.get("batch_size") else None,
@@ -196,6 +241,8 @@ class SubtitleJobOptions:
         payload: Dict[str, object] = {
             "input_language": self.input_language,
             "target_language": self.target_language,
+            "original_language": self.original_language,
+            "show_original": self.show_original,
             "enable_transliteration": self.enable_transliteration,
             "highlight": self.highlight,
             "mirror_batches_to_source_dir": self.mirror_batches_to_source_dir,

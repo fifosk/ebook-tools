@@ -3,6 +3,7 @@ import type { ChangeEvent } from 'react';
 import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
+  fetchPipelineDefaults,
   fetchSubtitleSources,
   fetchSubtitleResult,
   resolveSubtitleDownloadUrl,
@@ -24,6 +25,7 @@ const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
 const DEFAULT_WORKER_COUNT = 30;
 const DEFAULT_BATCH_SIZE = 30;
 const DEFAULT_START_TIME = '00:00';
+const SHOW_ORIGINAL_STORAGE_KEY = 'subtitles:show_original';
 
 function deriveDirectoryFromPath(value: string | undefined): string {
   if (!value) {
@@ -189,12 +191,53 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
     setPrimaryTargetLanguage
   } = useLanguagePreferences();
   const [targetLanguage, setTargetLanguage] = useState<string>(primaryTargetLanguage ?? 'French');
+  const [fetchedLanguages, setFetchedLanguages] = useState<string[]>([]);
+  const languageOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const result: string[] = [];
+    const append = (value: string | null | undefined) => {
+      const trimmed = (value ?? '').trim();
+      if (!trimmed) {
+        return;
+      }
+      const key = trimmed.toLowerCase();
+      if (seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      result.push(trimmed);
+    };
+    for (const entry of fetchedLanguages) {
+      append(entry);
+    }
+    for (const entry of TOP_LANGUAGES) {
+      append(entry);
+    }
+    append(inputLanguage);
+    append(primaryTargetLanguage);
+    append(targetLanguage);
+    return result.length > 0 ? result : ['English'];
+  }, [fetchedLanguages, inputLanguage, primaryTargetLanguage, targetLanguage]);
   const [sourceMode, setSourceMode] = useState<SourceMode>('existing');
   const [sources, setSources] = useState<SubtitleSourceEntry[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
+  const [showOriginal, setShowOriginal] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    try {
+      const persisted = window.localStorage.getItem(SHOW_ORIGINAL_STORAGE_KEY);
+      if (persisted === null) {
+        return true;
+      }
+      return persisted === 'true';
+    } catch {
+      return true;
+    }
+  });
   const [mirrorToSourceDir, setMirrorToSourceDir] = useState<boolean>(true);
   const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
   const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
@@ -217,6 +260,58 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
   }, [primaryTargetLanguage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPipelineDefaults()
+      .then((defaults) => {
+        if (cancelled) {
+          return;
+        }
+        const config = defaults?.config ?? {};
+        const targetLanguages = Array.isArray(config['target_languages'])
+          ? (config['target_languages'] as unknown[])
+          : [];
+        const normalised = targetLanguages
+          .map((language) => (typeof language === 'string' ? language.trim() : ''))
+          .filter((language) => language.length > 0);
+        if (normalised.length > 0) {
+          setFetchedLanguages(normalised);
+        }
+        const defaultInput =
+          typeof config['input_language'] === 'string' ? config['input_language'].trim() : '';
+        if (defaultInput && !inputLanguage) {
+          setInputLanguage(defaultInput);
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load pipeline defaults for language list', error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [inputLanguage, setInputLanguage]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(SHOW_ORIGINAL_STORAGE_KEY, showOriginal ? 'true' : 'false');
+    } catch {
+      // Ignore persistence failures; preference resets next session.
+    }
+  }, [showOriginal]);
+
+  useEffect(() => {
+    if (!targetLanguage && languageOptions.length > 0) {
+      const preferred = languageOptions[0];
+      setTargetLanguage(preferred);
+      if (preferred) {
+        setPrimaryTargetLanguage(preferred);
+      }
+    }
+  }, [languageOptions, setPrimaryTargetLanguage, targetLanguage]);
 
   const refreshSources = useCallback(
     async (hint?: string) => {
@@ -298,7 +393,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
     setUploadFile(file);
   }, []);
 
-  const handleTargetLanguageChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+  const handleTargetLanguageChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     const value = normaliseLanguage(event.target.value);
     setTargetLanguage(value);
     if (value) {
@@ -306,7 +401,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
     }
   }, [setPrimaryTargetLanguage]);
 
-  const handleInputLanguageChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+  const handleInputLanguageChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     const value = normaliseLanguage(event.target.value);
     setInputLanguage(value || 'English');
   }, [setInputLanguage]);
@@ -316,6 +411,11 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       event.preventDefault();
       setSubmitError(null);
 
+      const trimmedOriginal = normaliseLanguage(inputLanguage);
+      if (!trimmedOriginal) {
+        setSubmitError('Choose an original language.');
+        return;
+      }
       const trimmedTarget = normaliseLanguage(targetLanguage);
       if (!trimmedTarget) {
         setSubmitError('Choose a target language.');
@@ -349,10 +449,12 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       }
 
       const formData = new FormData();
-      formData.append('input_language', inputLanguage);
+      formData.append('input_language', trimmedOriginal);
+      formData.append('original_language', trimmedOriginal);
       formData.append('target_language', trimmedTarget);
       formData.append('enable_transliteration', String(enableTransliteration));
       formData.append('highlight', String(enableHighlight));
+      formData.append('show_original', String(showOriginal));
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
       formData.append('start_time', normalisedStartTime);
       if (normalisedEndTime) {
@@ -398,6 +500,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
     [
       enableHighlight,
       enableTransliteration,
+      showOriginal,
       inputLanguage,
       onJobCreated,
       selectedSource,
@@ -499,30 +602,32 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
           <fieldset>
             <legend>Languages</legend>
             <div className="field">
-              <label className="field-label" htmlFor="subtitle-input-language">Source language</label>
-              <input
+              <label className="field-label" htmlFor="subtitle-input-language">Original language</label>
+              <select
                 id="subtitle-input-language"
-                type="text"
                 value={inputLanguage}
                 onChange={handleInputLanguageChange}
-                placeholder="English"
-              />
+              >
+                {languageOptions.map((language) => (
+                  <option key={language} value={language}>
+                    {language}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="field">
-              <label className="field-label" htmlFor="subtitle-target-language">Target language</label>
-              <input
+              <label className="field-label" htmlFor="subtitle-target-language">Translation language</label>
+              <select
                 id="subtitle-target-language"
-                type="text"
                 value={targetLanguage}
                 onChange={handleTargetLanguageChange}
-                list="subtitle-language-options"
-                placeholder="Arabic"
-              />
-              <datalist id="subtitle-language-options">
-                {TOP_LANGUAGES.map((language) => (
-                  <option key={language} value={language} />
+              >
+                {languageOptions.map((language) => (
+                  <option key={language} value={language}>
+                    {language}
+                  </option>
                 ))}
-              </datalist>
+              </select>
             </div>
             <div className="field-inline">
               <label>
@@ -540,6 +645,14 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                   onChange={(event) => setEnableHighlight(event.target.checked)}
                 />
                 Dynamic word highlighting
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={showOriginal}
+                  onChange={(event) => setShowOriginal(event.target.checked)}
+                />
+                Show original language part
               </label>
               <label>
                 <input
@@ -706,6 +819,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
               const total = event?.snapshot.total ?? null;
               const workerValue = subtitleMetadata ? subtitleMetadata['workers'] : null;
               const batchValue = subtitleMetadata ? subtitleMetadata['batch_size'] : null;
+              const targetLanguageValue = subtitleMetadata ? subtitleMetadata['target_language'] : null;
+              const originalLanguageValue = subtitleMetadata ? subtitleMetadata['original_language'] : null;
+              const showOriginalValue = subtitleMetadata ? subtitleMetadata['show_original'] : null;
               const startTimeValue = subtitleMetadata ? subtitleMetadata['start_time_offset_label'] : null;
               const endTimeValue = subtitleMetadata ? subtitleMetadata['end_time_offset_label'] : null;
               const workerSetting =
@@ -724,6 +840,20 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                 typeof endTimeValue === 'string' && endTimeValue.trim()
                   ? endTimeValue.trim()
                   : null;
+              const translationLanguage =
+                typeof targetLanguageValue === 'string' && targetLanguageValue.trim()
+                  ? targetLanguageValue.trim()
+                  : null;
+              const originalLanguageLabel =
+                typeof originalLanguageValue === 'string' && originalLanguageValue.trim()
+                  ? originalLanguageValue.trim()
+                  : null;
+              const showOriginalSetting =
+                typeof showOriginalValue === 'boolean'
+                  ? showOriginalValue
+                  : typeof showOriginalValue === 'string'
+                    ? !['false', '0', 'no', 'off'].includes(showOriginalValue.trim().toLowerCase())
+                    : null;
               const stage = typeof event?.metadata?.stage === 'string' ? event?.metadata?.stage : null;
               const updatedAt = job.status.completed_at
                 || job.status.started_at
@@ -743,6 +873,24 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       <dt>Updated</dt>
                       <dd>{formatTimestamp(updatedAt) ?? '—'}</dd>
                     </div>
+                    {originalLanguageLabel ? (
+                      <div>
+                        <dt>Original language</dt>
+                        <dd>{originalLanguageLabel}</dd>
+                      </div>
+                    ) : null}
+                    {translationLanguage ? (
+                      <div>
+                        <dt>Translation language</dt>
+                        <dd>{translationLanguage}</dd>
+                      </div>
+                    ) : null}
+                    {showOriginalSetting !== null ? (
+                      <div>
+                        <dt>Show original text</dt>
+                        <dd>{showOriginalSetting ? 'Yes' : 'No'}</dd>
+                      </div>
+                    ) : null}
                     {event ? (
                       <div>
                         <dt>Progress</dt>
