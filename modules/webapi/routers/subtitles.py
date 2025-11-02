@@ -18,7 +18,7 @@ from fastapi import (
 from modules.services import SubtitleService, SubtitleSubmission
 from modules.services.job_manager import PipelineJobManager
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
-from modules.subtitles import SubtitleJobOptions
+from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
 from ..dependencies import (
     RequestUserContext,
@@ -54,60 +54,103 @@ def _coerce_int(value: Optional[str | int]) -> Optional[int]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid batch_size") from exc
 
 
-def _parse_time_offset(value: Optional[str]) -> float:
-    if value is None:
-        return 0.0
-    trimmed = str(value).strip()
+def _parse_timecode_to_seconds(value: str, *, allow_minutes_only: bool) -> float:
+    trimmed = value.strip()
     if not trimmed:
-        return 0.0
-
+        raise ValueError("Empty time value")
     segments = trimmed.split(":")
+    hours = 0
+    minutes_str: Optional[str] = None
+    seconds_str: Optional[str] = None
+    if len(segments) == 1:
+        if not allow_minutes_only:
+            raise ValueError("Time value must include ':' separators")
+        try:
+            minutes = int(segments[0])
+        except ValueError as exc:
+            raise ValueError("Relative time must be an integer minute value") from exc
+        if minutes < 0:
+            raise ValueError("Relative minutes must be non-negative")
+        return float(minutes * 60)
     if len(segments) == 2:
-        hours = 0
         minutes_str, seconds_str = segments
     elif len(segments) == 3:
         hours_str, minutes_str, seconds_str = segments
         try:
             hours = int(hours_str)
         except ValueError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid start_time hours component.",
-            ) from exc
+            raise ValueError("Hours component must be an integer") from exc
+        if hours < 0:
+            raise ValueError("Hours component cannot be negative")
     else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_time must be in MM:SS or HH:MM:SS format.",
-        )
+        raise ValueError("Time value must be MM:SS or HH:MM:SS")
 
+    if minutes_str is None or seconds_str is None:
+        raise ValueError("Minutes and seconds components are required")
     try:
         minutes = int(minutes_str)
         seconds = int(seconds_str)
     except ValueError as exc:
+        raise ValueError("Minutes and seconds must be integers") from exc
+    if minutes < 0 or seconds < 0:
+        raise ValueError("Minutes and seconds must be non-negative")
+    if len(segments) == 3 and minutes >= 60:
+        raise ValueError("Minutes must be between 00 and 59 when hours are provided")
+    if seconds >= 60:
+        raise ValueError("Seconds must be between 00 and 59")
+    return float(hours * 3600 + minutes * 60 + seconds)
+
+
+def _parse_time_offset(value: Optional[str]) -> float:
+    if value is None:
+        return 0.0
+    trimmed = str(value).strip()
+    if not trimmed:
+        return 0.0
+    try:
+        return _parse_timecode_to_seconds(trimmed, allow_minutes_only=False)
+    except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid start_time minutes or seconds component.",
+            detail="start_time must be in MM:SS or HH:MM:SS format.",
         ) from exc
 
-    if hours < 0 or minutes < 0 or seconds < 0:
+
+def _parse_end_time(value: Optional[str], start_seconds: float) -> Optional[float]:
+    if value is None:
+        return None
+    trimmed = str(value).strip()
+    if not trimmed:
+        return None
+    if trimmed.startswith("+"):
+        relative_expr = trimmed[1:].strip()
+        if not relative_expr:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="end_time offset cannot be empty.",
+            )
+        try:
+            delta = _parse_timecode_to_seconds(relative_expr, allow_minutes_only=True)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Relative end_time must be '+MM:SS', '+HH:MM:SS', or '+<minutes>'.",
+            ) from exc
+        end_seconds = start_seconds + delta
+    else:
+        try:
+            end_seconds = _parse_timecode_to_seconds(trimmed, allow_minutes_only=False)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="end_time must be in MM:SS or HH:MM:SS format.",
+            ) from exc
+    if end_seconds <= start_seconds:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="start_time components cannot be negative.",
+            detail="end_time must be after start_time.",
         )
-
-    if seconds >= 60:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Seconds in start_time must be between 00 and 59.",
-        )
-
-    if len(segments) == 3 and minutes >= 60:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Minutes must be between 00 and 59 when hours are specified.",
-        )
-
-    return float(hours * 3600 + minutes * 60 + seconds)
+    return float(end_seconds)
 
 
 @router.get("/sources", response_model=SubtitleSourceListResponse)
@@ -145,9 +188,16 @@ async def submit_subtitle_job(
     batch_size: Optional[str] = Form(None),
     worker_count: Optional[str] = Form(None),
     start_time: Optional[str] = Form("00:00"),
+    end_time: Optional[str] = Form(None),
     source_path: Optional[str] = Form(None),
     cleanup_source: Union[str, bool] = Form(False),
     mirror_batches_to_source_dir: Union[str, bool] = Form(True),
+    output_format: str = Form("srt"),
+    subtitle_color_original: Optional[str] = Form(None),
+    subtitle_color_translation: Optional[str] = Form(None),
+    subtitle_color_transliteration: Optional[str] = Form(None),
+    subtitle_color_highlight_current: Optional[str] = Form(None),
+    subtitle_color_highlight_prior: Optional[str] = Form(None),
     file: UploadFile | None = File(None),
     service: SubtitleService = Depends(get_subtitle_service),
     request_user: RequestUserContext = Depends(get_request_user),
@@ -165,16 +215,41 @@ async def submit_subtitle_job(
             detail="Only one of upload or source_path may be provided.",
         )
 
-    options_model = SubtitleJobOptions(
-        input_language=input_language.strip(),
-        target_language=target_language.strip(),
-        enable_transliteration=_as_bool(enable_transliteration, False),
-        highlight=_as_bool(highlight, True),
-        batch_size=_coerce_int(batch_size),
-        worker_count=_coerce_int(worker_count),
-        mirror_batches_to_source_dir=_as_bool(mirror_batches_to_source_dir, True),
-        start_time_offset=_parse_time_offset(start_time),
-    )
+    color_payload = {
+        "original": subtitle_color_original,
+        "translation": subtitle_color_translation,
+        "transliteration": subtitle_color_transliteration,
+        "highlight_current": subtitle_color_highlight_current,
+        "highlight_prior": subtitle_color_highlight_prior,
+    }
+    palette_mapping = {
+        key: value
+        for key, value in color_payload.items()
+        if value is not None and str(value).strip()
+    }
+
+    try:
+        start_offset_seconds = _parse_time_offset(start_time)
+        end_offset_seconds = _parse_end_time(end_time, start_offset_seconds)
+        palette = SubtitleColorPalette.from_mapping(palette_mapping if palette_mapping else None)
+        options_model = SubtitleJobOptions(
+            input_language=input_language.strip(),
+            target_language=target_language.strip(),
+            enable_transliteration=_as_bool(enable_transliteration, False),
+            highlight=_as_bool(highlight, True),
+            batch_size=_coerce_int(batch_size),
+            worker_count=_coerce_int(worker_count),
+            mirror_batches_to_source_dir=_as_bool(mirror_batches_to_source_dir, True),
+            start_time_offset=start_offset_seconds,
+            end_time_offset=end_offset_seconds,
+            output_format=output_format,
+            color_palette=palette,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
     cleanup_flag = _as_bool(cleanup_source, False)
     temp_file: Optional[Path] = None
 

@@ -1,0 +1,220 @@
+import textwrap
+from pathlib import Path
+
+import pytest
+
+from modules.subtitles.models import SubtitleCue, SubtitleJobOptions
+from modules.subtitles.processing import (
+    CueTextRenderer,
+    SubtitleColorPalette,
+    _build_output_cues,
+    process_subtitle_file,
+)
+
+
+def _sample_source_cue() -> SubtitleCue:
+    return SubtitleCue(
+        index=1,
+        start=0.0,
+        end=2.0,
+        lines=["Hello world"],
+    )
+
+
+def test_build_output_cues_srt_highlight() -> None:
+    palette = SubtitleColorPalette.default()
+    renderer = CueTextRenderer("srt", palette)
+    cues = _build_output_cues(
+        _sample_source_cue(),
+        "hola mundo",
+        "",
+        highlight=True,
+        renderer=renderer,
+    )
+    assert len(cues) == 2
+
+    first_cue = cues[0]
+    assert '<font color="#FFD60A">Hello world</font>' in first_cue.lines[0]
+    translation_line = first_cue.lines[1]
+    assert '<font color="#FB923C"><b>hola</b></font>' in translation_line
+    assert '<font color="#21C55D">mundo</font>' in translation_line
+
+    second_cue = cues[1]
+    translation_line_second = second_cue.lines[1]
+    assert '<font color="#FB923C">hola</font>' in translation_line_second
+    assert '<font color="#FB923C"><b>mundo</b></font>' in translation_line_second
+
+
+def test_build_output_cues_ass_highlight() -> None:
+    palette = SubtitleColorPalette.default()
+    renderer = CueTextRenderer("ass", palette)
+    cues = _build_output_cues(
+        _sample_source_cue(),
+        "hola mundo",
+        "",
+        highlight=True,
+        renderer=renderer,
+    )
+    assert len(cues) == 2
+
+    first_translation = cues[0].lines[1]
+    # Highlight colour should be the first word with bold enabled.
+    assert "{\\c&H3C92FB&}{\\b1}hola{\\b0}" in first_translation
+    # Remaining words stay green.
+    assert "{\\c&H5DC521&}mundo" in first_translation
+
+
+@pytest.fixture
+def srt_source(tmp_path: Path) -> Path:
+    payload = textwrap.dedent(
+        """\
+        1
+        00:00:00,000 --> 00:00:02,000
+        Hello world
+        """
+    ).strip() + "\n"
+    source = tmp_path / "source.srt"
+    source.write_text(payload, encoding="utf-8")
+    return source
+
+
+def _stub_translation(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
+    monkeypatch.setattr(
+        "modules.subtitles.processing.translate_sentence_simple",
+        lambda text, src, tgt, include_transliteration=False: value,
+    )
+
+
+def test_process_subtitle_file_emits_colourised_srt(tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    output_path = tmp_path / "source.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        output_format="srt",
+    )
+
+    result = process_subtitle_file(
+        srt_source,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    payload = output_path.read_text(encoding="utf-8")
+    assert result.cue_count == 1
+    assert '<font color="#FFD60A">Hello world</font>' in payload
+    assert '<font color="#FB923C"><b>hola</b></font>' in payload
+    assert '<font color="#21C55D">mundo</font>' in payload
+
+
+def test_process_subtitle_file_emits_ass_with_header(tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    output_path = tmp_path / "source.es.drt.ass"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        output_format="ass",
+    )
+
+    process_subtitle_file(
+        srt_source,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    payload = output_path.read_text(encoding="utf-8")
+    assert payload.startswith("[Script Info]")
+    assert "Style: DRT,Arial,48,&H5DC521&,&H3C92FB&" in payload
+    assert "Dialogue: 0,0:00:00.00,0:00:01.00,DRT" in payload
+    assert "{\\c&H3C92FB&}{\\b1}hola{\\b0}" in payload
+
+
+def test_process_subtitle_file_respects_end_time(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    source_path = tmp_path / "window.srt"
+    source_payload = textwrap.dedent(
+        """\
+        1
+        00:00:00,000 --> 00:00:10,000
+        Hello world
+
+        2
+        00:00:12,000 --> 00:00:15,000
+        Another line
+        """
+    ).strip() + "\n"
+    source_path.write_text(source_payload, encoding="utf-8")
+    output_path = tmp_path / "window.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        start_time_offset=0.0,
+        end_time_offset=5.0,
+        output_format="srt",
+    )
+
+    result = process_subtitle_file(
+        source_path,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    payload = output_path.read_text(encoding="utf-8")
+    assert "00:00:05,000" in payload
+    assert "00:00:10,000" not in payload
+    assert "00:00:12" not in payload
+    assert result.metadata["end_time_offset_seconds"] == pytest.approx(5.0)
+    assert result.metadata["end_time_offset_label"] == "00:05"
+
+
+def test_original_line_sanitises_html_tags(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "modules.subtitles.processing.translate_sentence_simple",
+        lambda text, *_args, **_kwargs: "hola mundo",
+    )
+    cue = SubtitleCue(
+        index=1,
+        start=0.0,
+        end=2.0,
+        lines=["<i>Hello</i> <span>world</span> &amp; beyond"],
+    )
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=False,
+        output_format="srt",
+    )
+    renderer = CueTextRenderer("srt", SubtitleColorPalette.default())
+    result = _build_output_cues(
+        cue,
+        "hola mundo",
+        "",
+        highlight=False,
+        renderer=renderer,
+    )
+    assert len(result) == 1
+    original_line = result[0].lines[0]
+    assert "<font" in original_line
+    assert "<i>" not in original_line
+    assert original_line.count("&amp;") == 1
+    assert "Hello world & beyond" in original_line.replace("&amp;", "&")
+
+
+def test_subtitle_job_options_require_end_after_start() -> None:
+    with pytest.raises(ValueError):
+        SubtitleJobOptions(
+            input_language="English",
+            target_language="Spanish",
+            start_time_offset=10.0,
+            end_time_offset=5.0,
+        )

@@ -2,6 +2,7 @@
 
 from .models import (
     SubtitleCue,
+    SubtitleColorPalette,
     SubtitleJobOptions,
     SubtitleProcessingResult,
 )
@@ -12,6 +13,7 @@ from .processing import (
 
 __all__ = [
     "SubtitleCue",
+    "SubtitleColorPalette",
     "SubtitleJobOptions",
     "SubtitleProcessingResult",
     "load_subtitle_cues",

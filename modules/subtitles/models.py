@@ -2,9 +2,85 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Mapping, Optional
+
+
+_HEX_COLOR_PATTERN = re.compile(r"^#?(?P<value>[0-9A-Fa-f]{6})$")
+
+
+def _normalise_hex_color(name: str, value: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{name} must be a hex colour string in RRGGBB format")
+    match = _HEX_COLOR_PATTERN.match(value.strip())
+    if not match:
+        raise ValueError(f"{name} must be a hex colour string in RRGGBB format")
+    return f"#{match.group('value').upper()}"
+
+
+@dataclass(slots=True)
+class SubtitleColorPalette:
+    """Colour palette applied during subtitle rendering."""
+
+    original: str = "#FFD60A"
+    translation: str = "#21C55D"
+    transliteration: str = "#21C55D"
+    highlight_current: str = "#FB923C"
+    highlight_prior: str = "#FB923C"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "original", _normalise_hex_color("original", self.original))
+        object.__setattr__(
+            self,
+            "translation",
+            _normalise_hex_color("translation", self.translation),
+        )
+        object.__setattr__(
+            self,
+            "transliteration",
+            _normalise_hex_color("transliteration", self.transliteration),
+        )
+        object.__setattr__(
+            self,
+            "highlight_current",
+            _normalise_hex_color("highlight_current", self.highlight_current),
+        )
+        object.__setattr__(
+            self,
+            "highlight_prior",
+            _normalise_hex_color("highlight_prior", self.highlight_prior),
+        )
+
+    def to_dict(self) -> Dict[str, str]:
+        return {
+            "original": self.original,
+            "translation": self.translation,
+            "transliteration": self.transliteration,
+            "highlight_current": self.highlight_current,
+            "highlight_prior": self.highlight_prior,
+        }
+
+    @classmethod
+    def default(cls) -> "SubtitleColorPalette":
+        return cls()
+
+    @classmethod
+    def from_mapping(cls, payload: Mapping[str, object] | None) -> "SubtitleColorPalette":
+        if not payload:
+            return cls.default()
+        data = dict(payload)
+        defaults = cls.default()
+        return cls(
+            original=str(data.get("original", defaults.original)),
+            translation=str(data.get("translation", defaults.translation)),
+            transliteration=str(data.get("transliteration", defaults.transliteration)),
+            highlight_current=str(
+                data.get("highlight_current", defaults.highlight_current)
+            ),
+            highlight_prior=str(data.get("highlight_prior", defaults.highlight_prior)),
+        )
 
 
 @dataclass(slots=True)
@@ -36,6 +112,35 @@ class SubtitleJobOptions:
     worker_count: Optional[int] = None
     mirror_batches_to_source_dir: bool = True
     start_time_offset: Optional[float] = None
+    end_time_offset: Optional[float] = None
+    output_format: str = "srt"
+    color_palette: SubtitleColorPalette = field(default_factory=SubtitleColorPalette.default)
+
+    def __post_init__(self) -> None:
+        if self.start_time_offset is not None:
+            object.__setattr__(self, "start_time_offset", float(self.start_time_offset))
+        if self.end_time_offset is not None:
+            object.__setattr__(self, "end_time_offset", float(self.end_time_offset))
+        format_value = (self.output_format or "srt").strip().lower()
+        if format_value not in {"srt", "ass"}:
+            raise ValueError("output_format must be 'srt' or 'ass'")
+        object.__setattr__(self, "output_format", format_value)
+        palette = self.color_palette
+        if isinstance(palette, Mapping):
+            palette = SubtitleColorPalette.from_mapping(palette)
+        if not isinstance(palette, SubtitleColorPalette):
+            raise ValueError("color_palette must be a SubtitleColorPalette instance")
+        object.__setattr__(self, "color_palette", palette)
+        if self.start_time_offset is not None and self.start_time_offset < 0:
+            raise ValueError("start_time_offset must be non-negative")
+        if self.end_time_offset is not None:
+            if self.end_time_offset < 0:
+                raise ValueError("end_time_offset must be non-negative")
+            if (
+                self.start_time_offset is not None
+                and self.end_time_offset <= self.start_time_offset
+            ):
+                raise ValueError("end_time_offset must be greater than start_time_offset")
 
     @classmethod
     def from_mapping(cls, data: Dict[str, object]) -> "SubtitleJobOptions":
@@ -54,6 +159,22 @@ class SubtitleJobOptions:
                 start_time_offset = float(start_offset_value.strip())
             except ValueError:
                 start_time_offset = None
+        end_offset_value = data.get("end_time_offset")
+        end_time_offset = None
+        if isinstance(end_offset_value, (int, float)):
+            end_time_offset = float(end_offset_value)
+        elif isinstance(end_offset_value, str) and end_offset_value.strip():
+            try:
+                end_time_offset = float(end_offset_value.strip())
+            except ValueError:
+                end_time_offset = None
+        output_format_raw = str(data.get("output_format") or "srt").strip().lower()
+        color_palette_payload = data.get("color_palette")
+        palette = (
+            SubtitleColorPalette.from_mapping(color_palette_payload)
+            if isinstance(color_palette_payload, Mapping)
+            else SubtitleColorPalette.default()
+        )
 
         return cls(
             input_language=str(data.get("input_language") or "English"),
@@ -66,6 +187,9 @@ class SubtitleJobOptions:
                 data.get("mirror_batches_to_source_dir", True)
             ),
             start_time_offset=start_time_offset,
+            end_time_offset=end_time_offset,
+            output_format=output_format_raw or "srt",
+            color_palette=palette,
         )
 
     def to_dict(self) -> Dict[str, object]:
@@ -75,6 +199,8 @@ class SubtitleJobOptions:
             "enable_transliteration": self.enable_transliteration,
             "highlight": self.highlight,
             "mirror_batches_to_source_dir": self.mirror_batches_to_source_dir,
+            "output_format": self.output_format,
+            "color_palette": self.color_palette.to_dict(),
         }
         if self.batch_size is not None:
             payload["batch_size"] = self.batch_size
@@ -82,6 +208,8 @@ class SubtitleJobOptions:
             payload["worker_count"] = self.worker_count
         if self.start_time_offset is not None:
             payload["start_time_offset"] = self.start_time_offset
+        if self.end_time_offset is not None:
+            payload["end_time_offset"] = self.end_time_offset
         return payload
 
 
