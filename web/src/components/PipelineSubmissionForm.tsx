@@ -145,7 +145,7 @@ const DEFAULT_FORM_STATE: FormState = {
   voice_overrides: {},
   output_html: true,
   output_pdf: false,
-  generate_video: false,
+  generate_video: true,
   include_transliteration: false,
   tempo: 1,
   thread_count: '',
