@@ -15,7 +15,12 @@ from modules.progress_tracker import ProgressTracker
 from modules.translation_engine import translate_sentence_simple
 from modules.transliteration import TransliterationService, get_transliterator
 
-from .models import SubtitleCue, SubtitleJobOptions, SubtitleProcessingResult
+from .models import (
+    SubtitleColorPalette,
+    SubtitleCue,
+    SubtitleJobOptions,
+    SubtitleProcessingResult,
+)
 
 logger = log_mgr.get_logger().getChild("subtitles.processing")
 
@@ -25,7 +30,10 @@ SRT_TIMESTAMP_PATTERN = re.compile(
 
 WEBVTT_HEADER = re.compile(r"^\ufeff?WEBVTT", re.IGNORECASE)
 
-DEFAULT_OUTPUT_SUFFIX = "drt.srt"
+DEFAULT_OUTPUT_SUFFIX = "drt"
+SRT_EXTENSION = ".srt"
+ASS_EXTENSION = ".ass"
+ASS_STYLE_NAME = "DRT"
 DEFAULT_BATCH_SIZE = 30
 DEFAULT_WORKERS = 30
 
@@ -68,11 +76,42 @@ def process_subtitle_file(
     cues = load_subtitle_cues(source_path)
 
     start_offset = max(0.0, options.start_time_offset or 0.0)
-    if start_offset > 0:
-        cues = [cue for cue in cues if cue.start >= start_offset]
+    end_offset = options.end_time_offset
+    if end_offset is not None:
+        end_offset = max(0.0, float(end_offset))
+        if end_offset <= start_offset:
+            raise SubtitleProcessingError("End time must be greater than start time")
+
+    if start_offset > 0 or end_offset is not None:
+        trimmed: List[SubtitleCue] = []
+        for cue in cues:
+            if cue.start < start_offset:
+                continue
+            if end_offset is not None and cue.start >= end_offset:
+                continue
+            clipped_end = cue.end
+            if end_offset is not None and cue.end > end_offset:
+                clipped_end = end_offset
+            if clipped_end <= cue.start:
+                continue
+            trimmed.append(
+                SubtitleCue(
+                    index=cue.index,
+                    start=cue.start,
+                    end=clipped_end,
+                    lines=list(cue.lines),
+                )
+            )
+        cues = trimmed
 
     total_cues = len(cues)
     if not cues:
+        if end_offset is not None:
+            start_label = _format_timecode_label(start_offset)
+            end_label = _format_timecode_label(end_offset)
+            raise SubtitleProcessingError(
+                f"No cues found between {start_label} and {end_label}"
+            )
         if start_offset > 0:
             label = _format_timecode_label(start_offset)
             raise SubtitleProcessingError(f"No cues found at or after start time {label}")
@@ -99,6 +138,8 @@ def process_subtitle_file(
 
     temp_output = output_path.with_suffix(output_path.suffix + ".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)
+    renderer = CueTextRenderer(options.output_format, options.color_palette)
+    output_extension = ASS_EXTENSION if options.output_format == "ass" else SRT_EXTENSION
 
     translated_count = 0
     next_index = 1
@@ -107,8 +148,8 @@ def process_subtitle_file(
     if mirror_output_path is not None:
         try:
             mirror_target = mirror_output_path.expanduser()
-            if mirror_target.suffix.lower() != ".srt":
-                mirror_target = mirror_target.with_suffix(".srt")
+            if mirror_target.suffix.lower() != output_extension:
+                mirror_target = mirror_target.with_suffix(output_extension)
             mirror_target.parent.mkdir(parents=True, exist_ok=True)
             mirror_target.unlink(missing_ok=True)
         except Exception:  # pragma: no cover - best effort mirror
@@ -121,6 +162,12 @@ def process_subtitle_file(
 
     try:
         with temp_output.open("w", encoding="utf-8", newline="\n") as handle:
+            writer = _SubtitleFileWriter(
+                handle,
+                renderer,
+                options.output_format,
+                start_index=next_index,
+            )
             with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 for batch_number, batch_start in enumerate(range(0, total_cues, batch_size), start=1):
                     if _is_cancelled(stop_event):
@@ -134,6 +181,7 @@ def process_subtitle_file(
                                 options,
                                 transliterator,
                                 stop_event,
+                                renderer,
                             ),
                             batch,
                         )
@@ -164,15 +212,17 @@ def process_subtitle_file(
                                     "batch_size": batch_size,
                                 },
                             )
-                        next_index = _write_srt_block(handle, cue_output, next_index)
+                        next_index = writer.write(cue_output)
                         translated_count += 1
                         if mirror_handle is not None:
                             try:
-                                mirror_next_index = _write_srt_block(
+                                mirror_writer = _SubtitleFileWriter(
                                     mirror_handle,
-                                    cue_output,
-                                    mirror_next_index,
+                                    renderer,
+                                    options.output_format,
+                                    start_index=mirror_next_index,
                                 )
+                                mirror_next_index = mirror_writer.write(cue_output)
                             except Exception:  # pragma: no cover - best effort mirror
                                 logger.warning(
                                     "Unable to mirror subtitle batch to %s",
@@ -229,6 +279,15 @@ def process_subtitle_file(
     }
     metadata["start_time_offset_seconds"] = float(start_offset)
     metadata["start_time_offset_label"] = _format_timecode_label(start_offset)
+    if end_offset is not None:
+        metadata["end_time_offset_seconds"] = float(end_offset)
+        metadata["end_time_offset_label"] = _format_timecode_label(end_offset)
+    else:
+        metadata["end_time_offset_seconds"] = None
+        metadata["end_time_offset_label"] = None
+    metadata["output_format"] = options.output_format
+    metadata["color_palette"] = options.color_palette.to_dict()
+    metadata["output_extension"] = output_extension
 
     return SubtitleProcessingResult(
         output_path=output_path,
@@ -350,24 +409,154 @@ def _seconds_to_timestamp(value: float) -> str:
     return f"{hours:02d}:{minutes:02d}:{seconds:02d},{milliseconds:03d}"
 
 
+def _seconds_to_ass_timestamp(value: float) -> str:
+    total_cs = int(round(value * 100))
+    hours, remainder = divmod(total_cs, 360_000)
+    minutes, remainder = divmod(remainder, 6_000)
+    seconds, centiseconds = divmod(remainder, 100)
+    return f"{hours}:{minutes:02d}:{seconds:02d}.{centiseconds:02d}"
+
+
 # ---------------------------------------------------------------------------
 # Rendering helpers
 # ---------------------------------------------------------------------------
 
 _WHITESPACE_PATTERN = re.compile(r"\s+")
+_HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 
 
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFC", value or "")
+    normalized = html.unescape(normalized)
+    normalized = _HTML_TAG_PATTERN.sub(" ", normalized)
     normalized = normalized.replace("“", '"').replace("”", '"')
     normalized = normalized.replace("‘", "'").replace("’", "'")
     normalized = _WHITESPACE_PATTERN.sub(" ", normalized)
     return normalized.strip()
 
 
-def _wrap_line(class_name: str, content: str, *, escape_content: bool = False) -> str:
-    payload = html.escape(content) if escape_content else content
-    return f'<span class="{class_name}">{payload}</span>'
+class CueTextRenderer:
+    """Render cue lines using player-compatible markup."""
+
+    __slots__ = ("format", "palette")
+
+    def __init__(self, output_format: str, palette: SubtitleColorPalette) -> None:
+        self.format = output_format
+        self.palette = palette
+
+    def render_original(self, text: str) -> str:
+        return self._apply_color(self.palette.original, text, bold=False, escape=True)
+
+    def render_translation(self, text: str) -> str:
+        return self._apply_color(self.palette.translation, text, bold=False, escape=True)
+
+    def render_transliteration(self, text: str) -> str:
+        return self._apply_color(self.palette.transliteration, text, bold=False, escape=True)
+
+    def render_translation_highlight(self, tokens: Sequence[str], index: int) -> str:
+        return self._render_highlight_sequence(tokens, index, self.palette.translation)
+
+    def render_transliteration_highlight(self, tokens: Sequence[str], index: int) -> str:
+        return self._render_highlight_sequence(tokens, index, self.palette.transliteration)
+
+    def _render_highlight_sequence(
+        self,
+        tokens: Sequence[str],
+        index: int,
+        base_color: str,
+    ) -> str:
+        if not tokens:
+            return ""
+        safe_index = min(max(index, 0), len(tokens) - 1)
+        fragments: List[str] = []
+        for position, token in enumerate(tokens):
+            if position < safe_index:
+                fragments.append(
+                    self._apply_color(
+                        self.palette.highlight_prior,
+                        token,
+                        bold=False,
+                        escape=True,
+                    )
+                )
+            elif position == safe_index:
+                fragments.append(
+                    self._apply_color(
+                        self.palette.highlight_current,
+                        token,
+                        bold=True,
+                        escape=True,
+                    )
+                )
+            else:
+                fragments.append(
+                    self._apply_color(
+                        base_color,
+                        token,
+                        bold=False,
+                        escape=True,
+                    )
+                )
+        return " ".join(fragments)
+
+    def _apply_color(
+        self,
+        color: str,
+        content: str,
+        *,
+        bold: bool,
+        escape: bool,
+    ) -> str:
+        if self.format == "ass":
+            return self._apply_ass_color(color, content, bold=bold, escape=escape)
+        return self._apply_srt_color(color, content, bold=bold, escape=escape)
+
+    def _apply_srt_color(
+        self,
+        color: str,
+        content: str,
+        *,
+        bold: bool,
+        escape: bool,
+    ) -> str:
+        payload = html.escape(content) if escape else content
+        pieces = [f'<font color="{color}">']
+        if bold:
+            pieces.append("<b>")
+        pieces.append(payload)
+        if bold:
+            pieces.append("</b>")
+        pieces.append("</font>")
+        return "".join(pieces)
+
+    def _apply_ass_color(
+        self,
+        color: str,
+        content: str,
+        *,
+        bold: bool,
+        escape: bool,
+    ) -> str:
+        payload = self._escape_ass(content) if escape else content
+        components = [f"{{\\c{_ass_color_token(color)}}}"]
+        if bold:
+            components.append("{\\b1}")
+        components.append(payload)
+        if bold:
+            components.append("{\\b0}")
+        return "".join(components)
+
+    @staticmethod
+    def _escape_ass(value: str) -> str:
+        return value.replace("\\", "\\\\").replace("{", r"\{").replace("}", r"\}")
+
+
+def _ass_color_token(color: str) -> str:
+    hex_value = color.lstrip("#")
+    red = hex_value[0:2]
+    green = hex_value[2:4]
+    blue = hex_value[4:6]
+    return f"&H{blue}{green}{red}&"
 
 
 def _build_output_cues(
@@ -376,34 +565,20 @@ def _build_output_cues(
     transliteration: str,
     *,
     highlight: bool,
+    renderer: CueTextRenderer,
 ) -> List[SubtitleCue]:
-    if not translation:
-        translation = ""
-
-    original_line = _wrap_line("drt-original", source.as_text(), escape_content=True)
+    translation = translation or ""
+    original_text = _normalize_text(source.as_text())
+    original_line = renderer.render_original(original_text)
     translation_words = translation.split()
     transliteration_words = transliteration.split() if transliteration else []
 
-    if not highlight or not translation:
+    if not highlight or not translation_words:
         lines = [original_line]
         if translation:
-            lines.append(_wrap_line("drt-translation", translation, escape_content=True))
+            lines.append(renderer.render_translation(translation))
         if transliteration:
-            lines.append(_wrap_line("drt-transliteration", transliteration, escape_content=True))
-        return [
-            SubtitleCue(
-                index=source.index,
-                start=source.start,
-                end=source.end,
-                lines=lines,
-            )
-        ]
-
-    if not translation_words:
-        lines = [original_line]
-        lines.append(_wrap_line("drt-translation", translation, escape_content=True))
-        if transliteration:
-            lines.append(_wrap_line("drt-transliteration", transliteration, escape_content=True))
+            lines.append(renderer.render_transliteration(transliteration))
         return [
             SubtitleCue(
                 index=source.index,
@@ -417,18 +592,21 @@ def _build_output_cues(
     step = duration / max(len(translation_words), 1)
     cues: List[SubtitleCue] = []
 
-    for offset, count in enumerate(range(1, len(translation_words) + 1)):
-        highlight_translation = _highlight_words(translation_words, count)
+    for offset in range(len(translation_words)):
+        highlight_translation = renderer.render_translation_highlight(translation_words, offset)
         lines = [
             original_line,
-            _wrap_line("drt-translation", highlight_translation),
+            highlight_translation,
         ]
         if transliteration:
             if transliteration_words:
-                highlight_translit = _highlight_words(transliteration_words, count)
-                lines.append(_wrap_line("drt-transliteration", highlight_translit))
+                highlight_translit = renderer.render_transliteration_highlight(
+                    transliteration_words,
+                    offset,
+                )
+                lines.append(highlight_translit)
             else:
-                lines.append(_wrap_line("drt-transliteration", transliteration, escape_content=True))
+                lines.append(renderer.render_transliteration(transliteration))
         cues.append(
             SubtitleCue(
                 index=source.index,
@@ -448,21 +626,95 @@ def _build_output_cues(
     return cues
 
 
-def _highlight_words(words: Sequence[str], count: int) -> str:
-    tokens = list(words)
-    if not tokens:
-        return ""
-    current_index = min(max(count - 1, 0), len(tokens) - 1)
-    fragments: List[str] = []
-    for index, word in enumerate(tokens):
-        escaped = html.escape(word)
-        if index < current_index:
-            fragments.append(f'<span class="drt-prior">{escaped}</span>')
-        elif index == current_index:
-            fragments.append(f'<span class="drt-current">{escaped}</span>')
+class _SubtitleFileWriter:
+    """Serialize subtitle cues using the configured subtitle format."""
+
+    __slots__ = ("handle", "renderer", "format", "_index")
+
+    def __init__(
+        self,
+        handle: TextIO,
+        renderer: CueTextRenderer,
+        output_format: str,
+        start_index: int = 1,
+    ) -> None:
+        self.handle = handle
+        self.renderer = renderer
+        self.format = output_format
+        self._index = start_index
+        if self.format == "ass" and self._index == 1:
+            self._write_ass_header()
+
+    @property
+    def index(self) -> int:
+        return self._index
+
+    def write(self, cues: Sequence[SubtitleCue]) -> int:
+        if not cues:
+            return self._index
+        if self.format == "ass":
+            self._write_ass_block(cues)
         else:
-            fragments.append(escaped)
-    return " ".join(fragments)
+            self._write_srt_block(cues)
+        return self._index
+
+    def _write_srt_block(self, cues: Sequence[SubtitleCue]) -> None:
+        index = self._index
+        for cue in cues:
+            start_ts = _seconds_to_timestamp(cue.start)
+            end_ts = _seconds_to_timestamp(cue.end)
+            self.handle.write(f"{index}\n")
+            self.handle.write(f"{start_ts} --> {end_ts}\n")
+            for line in cue.lines:
+                self.handle.write(f"{line}\n")
+            self.handle.write("\n")
+            index += 1
+        self._index = index
+
+    def _write_ass_block(self, cues: Sequence[SubtitleCue]) -> None:
+        for cue in cues:
+            start_ts = _seconds_to_ass_timestamp(cue.start)
+            end_ts = _seconds_to_ass_timestamp(cue.end)
+            text = self._format_ass_lines(cue.lines)
+            self.handle.write(
+                f"Dialogue: 0,{start_ts},{end_ts},{ASS_STYLE_NAME},,0,0,0,,{text}\n"
+            )
+        self._index += len(cues)
+
+    def _write_ass_header(self) -> None:
+        palette = self.renderer.palette
+        translation_color = _ass_color_token(palette.translation)
+        highlight_color = _ass_color_token(palette.highlight_current)
+        outline_color = "&H64000000"
+        back_color = "&H32000000"
+        header = (
+            "[Script Info]\n"
+            "ScriptType: v4.00+\n"
+            "Collisions: Normal\n"
+            "PlayResX: 1920\n"
+            "PlayResY: 1080\n"
+            "WrapStyle: 0\n"
+            "ScaledBorderAndShadow: yes\n"
+            "\n"
+            "[V4+ Styles]\n"
+            "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
+            "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
+            "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
+            f"Style: {ASS_STYLE_NAME},Arial,48,{translation_color},{highlight_color},"
+            f"{outline_color},{back_color},0,0,0,0,100,100,0,0,1,2,0,2,40,40,40,1\n"
+            "\n"
+            "[Events]\n"
+            "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
+        )
+        self.handle.write(header)
+
+    @staticmethod
+    def _format_ass_lines(lines: Sequence[str]) -> str:
+        buffer: List[str] = []
+        for line in lines:
+            candidate = line.replace("\r\n", "\n").replace("\r", "\n")
+            buffer.append(candidate.replace("\n", r"\N"))
+        return r"\N".join(buffer)
 
 
 # ---------------------------------------------------------------------------
@@ -525,6 +777,7 @@ def _process_cue(
     options: SubtitleJobOptions,
     transliterator: Optional[TransliterationService],
     stop_event,
+    renderer: CueTextRenderer,
 ) -> List[SubtitleCue]:
     if _is_cancelled(stop_event):
         raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
@@ -558,18 +811,5 @@ def _process_cue(
         translation,
         transliteration_text,
         highlight=options.highlight,
+        renderer=renderer,
     )
-
-
-def _write_srt_block(handle, cues: Sequence[SubtitleCue], start_index: int) -> int:
-    index = start_index
-    for cue in cues:
-        start_ts = _seconds_to_timestamp(cue.start)
-        end_ts = _seconds_to_timestamp(cue.end)
-        handle.write(f"{index}\n")
-        handle.write(f"{start_ts} --> {end_ts}\n")
-        for line in cue.lines:
-            handle.write(f"{line}\n")
-        handle.write("\n")
-        index += 1
-    return index

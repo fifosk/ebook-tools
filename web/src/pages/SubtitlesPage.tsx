@@ -75,39 +75,110 @@ function normaliseLanguage(value: string): string {
   return value.trim() || '';
 }
 
-function normaliseTimecodeInput(value: string): string | null {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return DEFAULT_START_TIME;
-  }
+type ParsedTimecode = {
+  seconds: number;
+  normalized: string;
+};
 
+function parseAbsoluteTimecode(value: string): ParsedTimecode | null {
+  const trimmed = value.trim();
   const match = trimmed.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
   if (!match) {
     return null;
   }
-
   const [, primary, secondary, tertiary] = match;
   const first = Number(primary);
   const second = Number(secondary);
   const third = typeof tertiary === 'string' ? Number(tertiary) : null;
 
-  if ([first, second, third ?? 0].some((component) => !Number.isFinite(component) || component < 0)) {
+  if ([first, second, third ?? 0].some((component) => !Number.isInteger(component) || component < 0)) {
     return null;
   }
-  if (second >= 60 || (third !== null && third >= 60)) {
-    return null;
-  }
-
   if (third !== null) {
+    if (second >= 60 || third >= 60) {
+      return null;
+    }
     const hours = first;
     const minutes = second;
     const seconds = third;
-    return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
+    const normalized = [hours, minutes, seconds]
+      .map((component, index) => (index === 0 ? component.toString().padStart(2, '0') : component.toString().padStart(2, '0')))
+      .join(':');
+    return {
+      seconds: hours * 3600 + minutes * 60 + seconds,
+      normalized
+    };
   }
 
+  if (second >= 60) {
+    return null;
+  }
   const minutes = first;
   const seconds = second;
+  return {
+    seconds: minutes * 60 + seconds,
+    normalized: `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+  };
+}
+
+function formatRelativeDuration(totalSeconds: number): string {
+  const clamped = Math.max(0, Math.floor(totalSeconds));
+  if (clamped >= 3600) {
+    const hours = Math.floor(clamped / 3600);
+    const remainder = clamped % 3600;
+    const minutes = Math.floor(remainder / 60);
+    const seconds = remainder % 60;
+    return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
+  }
+  const minutes = Math.floor(clamped / 60);
+  const seconds = clamped % 60;
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+function parseRelativeTimecode(value: string): ParsedTimecode | null {
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) {
+    const minutes = Number(trimmed);
+    if (!Number.isInteger(minutes) || minutes < 0) {
+      return null;
+    }
+    const totalSeconds = minutes * 60;
+    return {
+      seconds: totalSeconds,
+      normalized: formatRelativeDuration(totalSeconds)
+    };
+  }
+  const absolute = parseAbsoluteTimecode(trimmed);
+  if (!absolute) {
+    return null;
+  }
+  return {
+    seconds: absolute.seconds,
+    normalized: formatRelativeDuration(absolute.seconds)
+  };
+}
+
+function normaliseTimecodeInput(
+  value: string,
+  options: { allowRelative?: boolean; emptyValue?: string } = {}
+): string | null {
+  const { allowRelative = false, emptyValue = '' } = options;
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return emptyValue;
+  }
+  if (allowRelative && trimmed.startsWith('+')) {
+    const relative = parseRelativeTimecode(trimmed.slice(1));
+    if (!relative) {
+      return null;
+    }
+    return `+${relative.normalized}`;
+  }
+  const absolute = parseAbsoluteTimecode(trimmed);
+  if (!absolute) {
+    return null;
+  }
+  return absolute.normalized;
 }
 
 export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob }: Props) {
@@ -128,6 +199,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
   const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
   const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
+  const [endTime, setEndTime] = useState<string>('');
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -140,6 +212,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
     typeof DEFAULT_BATCH_SIZE === 'number' ? DEFAULT_BATCH_SIZE : null
   );
   const [lastSubmittedStartTime, setLastSubmittedStartTime] = useState<string>(DEFAULT_START_TIME);
+  const [lastSubmittedEndTime, setLastSubmittedEndTime] = useState<string | null>(null);
 
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
@@ -258,9 +331,20 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         return;
       }
 
-      const normalisedStartTime = normaliseTimecodeInput(startTime);
+      const normalisedStartTime = normaliseTimecodeInput(startTime, {
+        emptyValue: DEFAULT_START_TIME
+      });
       if (normalisedStartTime === null) {
         setSubmitError('Enter a valid start time in MM:SS or HH:MM:SS format.');
+        return;
+      }
+
+      const normalisedEndTime = normaliseTimecodeInput(endTime, {
+        allowRelative: true,
+        emptyValue: ''
+      });
+      if (normalisedEndTime === null) {
+        setSubmitError('Enter a valid end time in MM:SS, HH:MM:SS, or +offset format.');
         return;
       }
 
@@ -271,6 +355,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       formData.append('highlight', String(enableHighlight));
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
       formData.append('start_time', normalisedStartTime);
+      if (normalisedEndTime) {
+        formData.append('end_time', normalisedEndTime);
+      }
       if (sourceMode === 'existing') {
         formData.append('source_path', selectedSource.trim());
       } else if (uploadFile) {
@@ -290,8 +377,12 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         setLastSubmittedWorkerCount(typeof workerCount === 'number' ? workerCount : null);
         setLastSubmittedBatchSize(typeof batchSize === 'number' ? batchSize : null);
         setLastSubmittedStartTime(normalisedStartTime);
+        setLastSubmittedEndTime(normalisedEndTime || null);
         if (normalisedStartTime !== startTime) {
           setStartTime(normalisedStartTime);
+        }
+        if (normalisedEndTime !== endTime) {
+          setEndTime(normalisedEndTime);
         }
         onJobCreated(response.job_id);
         if (sourceMode === 'upload') {
@@ -316,7 +407,8 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       workerCount,
       batchSize,
       mirrorToSourceDir,
-      startTime
+      startTime,
+      endTime
     ]
   );
 
@@ -509,6 +601,16 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                   inputMode="numeric"
                 />
               </label>
+              <label>
+                End time (leave blank for full file)
+                <input
+                  type="text"
+                  value={endTime}
+                  onChange={(event) => setEndTime(event.target.value)}
+                  placeholder="+05:00"
+                  inputMode="numeric"
+                />
+              </label>
             </div>
           </fieldset>
 
@@ -528,6 +630,13 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                 }
                 if (lastSubmittedStartTime && lastSubmittedStartTime !== DEFAULT_START_TIME) {
                   details.push(`starting at ${lastSubmittedStartTime}`);
+                }
+                if (lastSubmittedEndTime) {
+                  const display =
+                    lastSubmittedEndTime.startsWith('+')
+                      ? `ending after ${lastSubmittedEndTime.slice(1)}`
+                      : `ending at ${lastSubmittedEndTime}`;
+                  details.push(display);
                 }
                 if (details.length === 0) {
                   return ' using auto-detected concurrency. Live status appears below.';
@@ -598,6 +707,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
               const workerValue = subtitleMetadata ? subtitleMetadata['workers'] : null;
               const batchValue = subtitleMetadata ? subtitleMetadata['batch_size'] : null;
               const startTimeValue = subtitleMetadata ? subtitleMetadata['start_time_offset_label'] : null;
+              const endTimeValue = subtitleMetadata ? subtitleMetadata['end_time_offset_label'] : null;
               const workerSetting =
                 typeof workerValue === 'number' && Number.isFinite(workerValue)
                   ? workerValue
@@ -609,6 +719,10 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
               const startTimeLabel =
                 typeof startTimeValue === 'string' && startTimeValue.trim()
                   ? startTimeValue.trim()
+                  : null;
+              const endTimeLabel =
+                typeof endTimeValue === 'string' && endTimeValue.trim()
+                  ? endTimeValue.trim()
                   : null;
               const stage = typeof event?.metadata?.stage === 'string' ? event?.metadata?.stage : null;
               const updatedAt = job.status.completed_at
@@ -654,6 +768,12 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       <div>
                         <dt>Start time</dt>
                         <dd>{startTimeLabel}</dd>
+                      </div>
+                    ) : null}
+                    {endTimeLabel ? (
+                      <div>
+                        <dt>End time</dt>
+                        <dd>{endTimeLabel}</dd>
                       </div>
                     ) : null}
                     {stage ? (

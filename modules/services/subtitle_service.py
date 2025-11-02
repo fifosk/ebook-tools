@@ -14,7 +14,9 @@ from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.subtitles import SubtitleJobOptions
 from modules.subtitles.processing import (
+    ASS_EXTENSION,
     DEFAULT_OUTPUT_SUFFIX,
+    SRT_EXTENSION,
     SubtitleJobCancelled,
     SubtitleProcessingError,
     load_subtitle_cues,
@@ -142,7 +144,8 @@ class SubtitleService:
             subtitles_root.mkdir(parents=True, exist_ok=True)
             target_fragment = options.target_language.lower().replace(" ", "-")
             source_stem = Path(source_file).stem
-            output_name = f"{source_stem}.{target_fragment}.{DEFAULT_OUTPUT_SUFFIX}"
+            extension = ASS_EXTENSION if options.output_format == "ass" else SRT_EXTENSION
+            output_name = f"{source_stem}.{target_fragment}.{DEFAULT_OUTPUT_SUFFIX}{extension}"
             output_path = subtitles_root / output_name
             try:
                 output_path.unlink(missing_ok=True)
