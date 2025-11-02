@@ -91,6 +91,7 @@ async def submit_subtitle_job(
     worker_count: Optional[str] = Form(None),
     source_path: Optional[str] = Form(None),
     cleanup_source: Union[str, bool] = Form(False),
+    mirror_batches_to_source_dir: Union[str, bool] = Form(True),
     file: UploadFile | None = File(None),
     service: SubtitleService = Depends(get_subtitle_service),
     request_user: RequestUserContext = Depends(get_request_user),
@@ -115,6 +116,7 @@ async def submit_subtitle_job(
         highlight=_as_bool(highlight, True),
         batch_size=_coerce_int(batch_size),
         worker_count=_coerce_int(worker_count),
+        mirror_batches_to_source_dir=_as_bool(mirror_batches_to_source_dir, True),
     )
     cleanup_flag = _as_bool(cleanup_source, False)
     temp_file: Optional[Path] = None

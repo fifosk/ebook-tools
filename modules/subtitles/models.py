@@ -34,6 +34,7 @@ class SubtitleJobOptions:
     highlight: bool = True
     batch_size: Optional[int] = None
     worker_count: Optional[int] = None
+    mirror_batches_to_source_dir: bool = True
 
     @classmethod
     def from_mapping(cls, data: Dict[str, object]) -> "SubtitleJobOptions":
@@ -50,6 +51,9 @@ class SubtitleJobOptions:
             highlight=bool(data.get("highlight", True)),
             batch_size=int(data["batch_size"]) if data.get("batch_size") else None,
             worker_count=worker_count,
+            mirror_batches_to_source_dir=bool(
+                data.get("mirror_batches_to_source_dir", True)
+            ),
         )
 
     def to_dict(self) -> Dict[str, object]:
@@ -58,6 +62,7 @@ class SubtitleJobOptions:
             "target_language": self.target_language,
             "enable_transliteration": self.enable_transliteration,
             "highlight": self.highlight,
+            "mirror_batches_to_source_dir": self.mirror_batches_to_source_dir,
         }
         if self.batch_size is not None:
             payload["batch_size"] = self.batch_size

@@ -222,6 +222,7 @@ class SubtitleSubmissionPayload(BaseModel):
     batch_size: Optional[int] = None
     source_path: Optional[str] = None
     cleanup_source: bool = False
+    mirror_batches_to_source_dir: bool = True
 
 
 class SubtitleSourceListResponse(BaseModel):

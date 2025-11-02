@@ -58,6 +58,7 @@ def process_subtitle_file(
     output_path: Path,
     options: SubtitleJobOptions,
     *,
+    mirror_output_path: Optional[Path] = None,
     tracker: Optional[ProgressTracker] = None,
     stop_event=None,
     transliterator: Optional[TransliterationService] = None,
@@ -92,6 +93,22 @@ def process_subtitle_file(
 
     translated_count = 0
     next_index = 1
+    mirror_next_index = 1
+    mirror_handle = None
+    mirror_target: Optional[Path] = None
+    if mirror_output_path is not None:
+        try:
+            mirror_target = mirror_output_path.expanduser()
+            mirror_target.parent.mkdir(parents=True, exist_ok=True)
+            mirror_handle = mirror_target.open("w", encoding="utf-8", newline="\n")
+        except Exception:  # pragma: no cover - best effort mirror
+            logger.warning(
+                "Unable to open subtitle mirror output at %s",
+                mirror_output_path,
+                exc_info=True,
+            )
+            mirror_handle = None
+            mirror_target = None
 
     try:
         with temp_output.open("w", encoding="utf-8", newline="\n") as handle:
@@ -127,7 +144,43 @@ def process_subtitle_file(
                             )
                         next_index = _write_srt_block(handle, cue_output, next_index)
                         translated_count += 1
+                        if mirror_handle is not None:
+                            try:
+                                mirror_next_index = _write_srt_block(
+                                    mirror_handle,
+                                    cue_output,
+                                    mirror_next_index,
+                                )
+                            except Exception:  # pragma: no cover - best effort mirror
+                                logger.warning(
+                                    "Unable to mirror subtitle batch to %s",
+                                    mirror_target,
+                                    exc_info=True,
+                                )
+                                try:
+                                    mirror_handle.close()
+                                except Exception:
+                                    pass
+                                mirror_handle = None
+                                mirror_target = None
+                                mirror_next_index = next_index
                     handle.flush()
+                    if mirror_handle is not None:
+                        try:
+                            mirror_handle.flush()
+                        except Exception:  # pragma: no cover - best effort mirror
+                            logger.warning(
+                                "Unable to flush mirrored subtitle output %s",
+                                mirror_target,
+                                exc_info=True,
+                            )
+                            try:
+                                mirror_handle.close()
+                            except Exception:
+                                pass
+                            mirror_handle = None
+                            mirror_target = None
+                            mirror_next_index = next_index
     except SubtitleJobCancelled:
         temp_output.unlink(missing_ok=True)
         raise
@@ -136,6 +189,12 @@ def process_subtitle_file(
         raise
     else:
         temp_output.replace(output_path)
+    finally:
+        if mirror_handle is not None:
+            try:
+                mirror_handle.close()
+            except Exception:  # pragma: no cover - defensive close
+                logger.debug("Unable to close subtitle mirror handle", exc_info=True)
 
     metadata = {
         "input_file": source_path.name,

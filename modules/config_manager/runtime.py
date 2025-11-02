@@ -283,9 +283,24 @@ def _resolve_url(candidate: Any, fallback: str) -> str:
 
 def _try_smb_directory(candidate: Path, *, require_write: bool) -> Optional[Path]:
     candidate_path = Path(os.path.expanduser(str(candidate)))
-    if not candidate_path.exists():
+    books_root = Path(os.path.expanduser(str(DEFAULT_SMB_BOOKS_PATH)))
+    try:
+        candidate_path = candidate_path.resolve(strict=False)
+        books_root = books_root.resolve(strict=False)
+    except OSError:
+        return None
+    if candidate_path == books_root:
+        if not candidate_path.exists() or not candidate_path.is_dir():
+            return None
+    elif not candidate_path.exists():
         parent = candidate_path.parent
+        if parent == candidate_path:
+            return None
+        if parent == books_root and (not parent.exists() or not parent.is_dir()):
+            return None
         if not parent.exists() or not parent.is_dir():
+            return None
+        if not os.access(parent, os.W_OK):
             return None
         try:
             candidate_path.mkdir(parents=False, exist_ok=True)

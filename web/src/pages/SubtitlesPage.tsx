@@ -20,7 +20,7 @@ type Props = {
   onSelectJob: (jobId: string) => void;
 };
 
-const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subs';
+const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
 const DEFAULT_WORKER_COUNT = 4;
 
 function deriveDirectoryFromPath(value: string | undefined): string {
@@ -87,6 +87,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [enableTransliteration, setEnableTransliteration] = useState<boolean>(false);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
+  const [mirrorToSourceDir, setMirrorToSourceDir] = useState<boolean>(true);
   const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
@@ -219,6 +220,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       formData.append('target_language', trimmedTarget);
       formData.append('enable_transliteration', String(enableTransliteration));
       formData.append('highlight', String(enableHighlight));
+      formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
       if (sourceMode === 'existing') {
         formData.append('source_path', selectedSource.trim());
       } else if (uploadFile) {
@@ -253,7 +255,8 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       sourceMode,
       targetLanguage,
       uploadFile,
-      workerCount
+      workerCount,
+      mirrorToSourceDir
     ]
   );
 
@@ -385,6 +388,14 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                   onChange={(event) => setEnableHighlight(event.target.checked)}
                 />
                 Dynamic word highlighting
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={mirrorToSourceDir}
+                  onChange={(event) => setMirrorToSourceDir(event.target.checked)}
+                />
+                Write batches to <code>{DEFAULT_SOURCE_DIRECTORY}</code>
               </label>
               <label>
                 Worker threads

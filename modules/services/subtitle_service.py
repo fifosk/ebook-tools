@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import threading
 from dataclasses import dataclass
@@ -47,12 +48,31 @@ class SubtitleService:
     ) -> None:
         self._job_manager = job_manager
         self._locator = locator or job_manager.file_locator
-        self._default_source_dir = (
-            Path(default_source_dir).expanduser()
-            if default_source_dir is not None
-            else Path("/Volumes/Data/Download/Subs")
-        )
-        self._default_source_dir = self._default_source_dir.resolve()
+        self._default_source_dir = Path(
+            default_source_dir
+        ).expanduser() if default_source_dir is not None else Path(
+            "/Volumes/Data/Download/Subtitles"
+        ).expanduser()
+        self._mirror_warning_logged = False
+
+    def _probe_directory(self, path: Path, *, require_write: bool) -> Optional[Path]:
+        candidate = path.expanduser()
+        try:
+            resolved = candidate.resolve(strict=False)
+        except OSError:
+            logger.debug(
+                "Unable to resolve subtitle directory %s",
+                candidate,
+                exc_info=True,
+            )
+            return None
+        if not resolved.exists() or not resolved.is_dir():
+            return None
+        if not os.access(resolved, os.R_OK):
+            return None
+        if require_write and not os.access(resolved, os.W_OK):
+            return None
+        return resolved
 
     # ------------------------------------------------------------------
     # Public API
@@ -124,12 +144,32 @@ class SubtitleService:
             source_stem = Path(source_file).stem
             output_name = f"{source_stem}.{target_fragment}.{DEFAULT_OUTPUT_SUFFIX}"
             output_path = subtitles_root / output_name
+            mirror_dir: Optional[Path] = None
+            mirror_path: Optional[Path] = None
+            if options.mirror_batches_to_source_dir:
+                mirror_dir = self._probe_directory(
+                    self._default_source_dir,
+                    require_write=True,
+                )
+                if mirror_dir is None:
+                    if not self._mirror_warning_logged:
+                        logger.info(
+                            "Subtitle mirror directory %s is unavailable; continuing without live mirroring.",
+                            self._default_source_dir,
+                        )
+                        self._mirror_warning_logged = True
+                else:
+                    self._mirror_warning_logged = False
+                    candidate = mirror_dir / output_name
+                    if candidate != output_path:
+                        mirror_path = candidate
 
             try:
                 result = process_subtitle_file(
                     input_path,
                     output_path,
                     options,
+                    mirror_output_path=mirror_path,
                     tracker=tracker_local,
                     stop_event=stop_event,
                 )
@@ -146,20 +186,28 @@ class SubtitleService:
             job.error_message = None
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
             export_path: Optional[Path] = None
-            try:
-                export_dir = self._default_source_dir
-                export_dir.mkdir(parents=True, exist_ok=True)
-                export_candidate = export_dir / output_name
-                if export_candidate != output_path:
-                    shutil.copy2(output_path, export_candidate)
-                export_path = export_candidate
-            except Exception:  # pragma: no cover - best effort mirror
-                logger.warning(
-                    "Unable to mirror subtitle output %s to %s",
-                    output_path,
-                    self._default_source_dir,
-                    exc_info=True,
-                )
+            if mirror_path is not None:
+                try:
+                    if mirror_path.exists():
+                        export_path = mirror_path
+                except OSError:
+                    logger.info(
+                        "Unable to access mirrored subtitle output at %s; will attempt copy fallback.",
+                        mirror_path,
+                    )
+            elif mirror_dir is not None:
+                try:
+                    export_candidate = mirror_dir / output_name
+                    if export_candidate != output_path:
+                        shutil.copy2(output_path, export_candidate)
+                    export_path = export_candidate
+                except Exception:  # pragma: no cover - best effort mirror
+                    logger.warning(
+                        "Unable to mirror subtitle output %s to %s",
+                        output_path,
+                        mirror_dir,
+                        exc_info=True,
+                    )
             result_payload: Dict[str, object] = {
                 "subtitle": {
                     "output_path": output_path.as_posix(),
@@ -217,11 +265,14 @@ class SubtitleService:
     def list_sources(self, directory: Optional[Path] = None) -> List[Path]:
         """Return discovered subtitle files under ``directory``."""
 
-        base = (directory or self._default_source_dir).expanduser()
-        if not base.exists():
+        base_candidate = directory or self._default_source_dir
+        resolved = self._probe_directory(base_candidate, require_write=False)
+        if resolved is None:
+            if directory is not None:
+                raise FileNotFoundError(f"Subtitle directory '{base_candidate}' is not accessible")
             return []
         entries: List[Path] = []
-        for candidate in base.iterdir():
+        for candidate in resolved.iterdir():
             if candidate.is_file() and candidate.suffix.lower() in SUPPORTED_EXTENSIONS:
                 entries.append(candidate.resolve())
         entries.sort()
