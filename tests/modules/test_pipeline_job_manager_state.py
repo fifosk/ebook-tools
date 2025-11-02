@@ -66,6 +66,7 @@ def _build_metadata(
     }
     return PipelineJobMetadata(
         job_id=job_id,
+        job_type="pipeline",
         status=status,
         created_at=now,
         started_at=now,

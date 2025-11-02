@@ -128,33 +128,43 @@ def test_get_video_job_status_returns_state(_video_dependencies):
 
         job = manager.get("job-123")
         assert job is not None
-        job.status = VideoJobStatus.COMPLETED
-        job.started_at = datetime.now(timezone.utc)
-        job.completed_at = datetime.now(timezone.utc)
-        job.result = VideoJobResult(
-            path=manager.locator.resolve_path(job.job_id, "video.mp4"),
-            relative_path="video.mp4",
-            url="https://example.com/video.mp4",
-        )
-        job.generated_files = {
-            "files": [
-                {"type": "video", "path": "video.mp4", "url": "https://example.com/video.mp4"}
-            ]
-        }
-        job.tracker.publish_start({"stage": "video_render"})
-        job.tracker.record_media_completion(0, 5)
-        job.tracker.mark_finished(reason="completed", forced=False)
+        job.status = VideoJobStatus.RUNNING
 
         status_response = client.get("/api/video/job-123")
 
     assert status_response.status_code == 200
-    status_payload = status_response.json()
-    assert status_payload["status"] == VideoJobStatus.COMPLETED.value
-    assert status_payload["result"]["relative_path"] == "video.mp4"
-    assert status_payload["progress"]["completed"] == 1
+    payload = status_response.json()
+    assert payload["job_id"] == "job-123"
+    assert payload["status"] == VideoJobStatus.RUNNING.value
 
 
-def test_get_video_job_status_returns_404(_video_dependencies):
+def test_get_video_job_status_returns_results(_video_dependencies):
+    app, manager = _video_dependencies
+
+    with TestClient(app) as client:
+        submit_response = client.post("/api/video", json=_build_payload(b"stub"))
+        assert submit_response.status_code == 202
+
+        job = manager.get("job-123")
+        assert job is not None
+        job.status = VideoJobStatus.COMPLETED
+        job.result = VideoJobResult(
+            job_id="job-123",
+            created_at=datetime.now(timezone.utc),
+            backend="stub-backend",
+            slides=["Slide 1"],
+            output_path="storage/job-123/video.mp4",
+        )
+
+        status_response = client.get("/api/video/job-123")
+
+    assert status_response.status_code == 200
+    payload = status_response.json()
+    assert payload["result"]["backend"] == "stub-backend"
+    assert payload["result"]["output_path"] == "storage/job-123/video.mp4"
+
+
+def test_get_video_job_status_not_found(_video_dependencies):
     app, _ = _video_dependencies
 
     with TestClient(app) as client:

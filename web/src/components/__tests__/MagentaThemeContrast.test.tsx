@@ -61,6 +61,7 @@ function buildJob(jobId: string, status: 'running' | 'pending' | 'failed' | 'com
     jobId,
     status: {
       job_id: jobId,
+      job_type: 'pipeline',
       status,
       created_at: timestamp,
       started_at: timestamp,
@@ -106,6 +107,7 @@ describe('Magenta theme contrast', () => {
         isAdmin={false}
         createBookView={'books:create' as SelectedView}
         libraryView={'library:list' as SelectedView}
+        subtitlesView={'subtitles:home' as SelectedView}
         jobMediaView={'job:media' as SelectedView}
         adminView={'admin:users' as SelectedView}
       />
@@ -191,4 +193,3 @@ describe('Magenta theme contrast', () => {
     }
   });
 });
-

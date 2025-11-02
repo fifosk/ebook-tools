@@ -171,6 +171,41 @@ class ProgressTracker:
 
         self._emit_event("progress", metadata=dict(metadata or {}))
 
+    def record_step_completion(
+        self,
+        *,
+        stage: str,
+        index: int,
+        total: Optional[int] = None,
+        metadata: Optional[Dict[str, object]] = None,
+    ) -> None:
+        """Increment progress counters for a custom stage."""
+
+        extra = dict(metadata or {})
+        should_emit_completion = False
+        with self._lock:
+            if total is not None and (self._total is None or self._total < total):
+                self._total = total
+            self._completed += 1
+            completed = self._completed
+            expected = self._total
+            if expected is not None and completed >= expected:
+                self._finished_event.set()
+                should_emit_completion = True
+        extra.update(
+            {
+                "stage": stage,
+                "index": index,
+                "completed": completed,
+            }
+        )
+        if total is not None:
+            extra.setdefault("total", total)
+        self._emit_event("progress", metadata=extra)
+        if should_emit_completion:
+            completion_metadata = {"stage": stage, "forced": False}
+            self._emit_completion(metadata=completion_metadata)
+
     def record_generated_chunk(
         self,
         *,

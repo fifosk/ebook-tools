@@ -262,6 +262,8 @@ export function JobProgress({
   canManage
 }: Props) {
   const statusValue = status?.status ?? 'pending';
+  const jobType = status?.job_type ?? 'pipeline';
+  const isPipelineJob = jobType === 'pipeline';
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -438,14 +440,15 @@ export function JobProgress({
       })
     : false;
 
-  const canPause = canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
-  const canResume = canManage && statusValue === 'paused';
+  const canPause =
+    isPipelineJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
+  const canResume = isPipelineJob && canManage && statusValue === 'paused';
   const canCancel = canManage && !isTerminal;
   const canDelete = canManage && isTerminal;
   const mediaCompleted = useMemo(() => resolveMediaCompletion(status), [status]);
   const isLibraryCandidate =
-    statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true);
-  const shouldRenderLibraryButton = Boolean(onMoveToLibrary) && canManage;
+    isPipelineJob && (statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true));
+  const shouldRenderLibraryButton = Boolean(onMoveToLibrary) && canManage && isPipelineJob;
   const canMoveToLibrary = shouldRenderLibraryButton && isLibraryCandidate;
   const libraryButtonTitle =
     shouldRenderLibraryButton && !isLibraryCandidate
@@ -458,6 +461,7 @@ export function JobProgress({
       <div className="job-card__header">
         <div className="job-card__header-title">
           <h3>Job {jobId}</h3>
+          <span className="job-card__badge">{jobType}</span>
         </div>
         <div className="job-card__header-actions">
           <span className="job-status" data-state={statusValue}>

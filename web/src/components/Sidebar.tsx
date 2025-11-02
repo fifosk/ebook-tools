@@ -12,6 +12,7 @@ interface SidebarProps {
   createBookView: SelectedView;
   libraryView: SelectedView;
   jobMediaView: SelectedView;
+  subtitlesView: SelectedView;
   adminView: SelectedView;
 }
 
@@ -29,6 +30,7 @@ export function Sidebar({
   isAdmin,
   createBookView,
   libraryView,
+  subtitlesView,
   jobMediaView,
   adminView
 }: SidebarProps) {
@@ -47,6 +49,15 @@ export function Sidebar({
               onClick={() => onSelectView('pipeline:source')}
             >
               New immersive book
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === subtitlesView ? 'is-active' : ''}`}
+              onClick={() => onSelectView(subtitlesView)}
+            >
+              Subtitles
             </button>
           </li>
           <li>

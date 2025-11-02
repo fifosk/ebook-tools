@@ -56,6 +56,7 @@ describe('JobProgress', () => {
   it('renders snapshot metrics when an event is supplied', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-1',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -103,6 +104,7 @@ describe('JobProgress', () => {
   it('hides job action buttons when the session cannot manage the job', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-unauthorized',
+      job_type: 'pipeline',
       status: 'running',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -136,6 +138,7 @@ describe('JobProgress', () => {
   it('renders metadata when present and enables reload control', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-2',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -183,6 +186,7 @@ describe('JobProgress', () => {
   it('normalises storage-rooted cover metadata to avoid double storage prefixes', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-2a',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -230,6 +234,7 @@ describe('JobProgress', () => {
   it('resolves shared cover storage paths', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-2b',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -273,6 +278,7 @@ describe('JobProgress', () => {
   it('renders tuning metrics when provided', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-3',
+      job_type: 'pipeline',
       status: 'running',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -312,6 +318,7 @@ describe('JobProgress', () => {
   it('falls back to placeholder text when the cover fails to load', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-4',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -371,6 +378,7 @@ describe('JobProgress', () => {
   it('allows retrying the cover preview after a failure', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-4',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -424,6 +432,7 @@ describe('JobProgress', () => {
   it('retries the cover preview when metadata refreshes without changing the path', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-6',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -503,6 +512,7 @@ describe('JobProgress', () => {
   it('normalises cover metadata rooted in the output directory to storage paths', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-7',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -553,6 +563,7 @@ describe('JobProgress', () => {
 
     const status: PipelineStatusResponse = {
       job_id: 'job-7',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),
@@ -598,6 +609,7 @@ describe('JobProgress', () => {
   it('shows a fallback cover when no cover metadata is available', () => {
     const status: PipelineStatusResponse = {
       job_id: 'job-5',
+      job_type: 'pipeline',
       status: 'completed',
       created_at: new Date().toISOString(),
       started_at: new Date().toISOString(),

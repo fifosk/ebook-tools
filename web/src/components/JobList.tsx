@@ -62,6 +62,7 @@ export function JobList({
               <details key={job.jobId} className="job-collapsible" open>
                 <summary>
                   <span>Job {job.jobId}</span>
+                  <span className="job-type">{job.status.job_type}</span>
                   <span className="job-status" data-state={statusValue}>
                     {statusValue}
                   </span>

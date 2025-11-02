@@ -23,6 +23,7 @@ from .admin_routes import router as admin_router
 from .routers.audio import router as audio_router
 from .routers.create_book import router as create_book_router
 from .routers.library import router as library_router
+from .routers.subtitles import router as subtitles_router
 from .auth_routes import router as auth_router
 from modules.audio.config import load_media_config
 
@@ -265,6 +266,7 @@ def create_app() -> FastAPI:
     app.include_router(library_router)
     app.include_router(media_router)
     app.include_router(video_router, prefix="/api/video", tags=["video"])
+    app.include_router(subtitles_router)
     app.include_router(router, prefix="/pipelines", tags=["pipelines"])
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
 

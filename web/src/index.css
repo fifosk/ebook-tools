@@ -2360,6 +2360,44 @@ button.link-button:focus {
   opacity: 0.75;
 }
 
+.drt-original {
+  color: #f8fafc;
+}
+
+.drt-translation {
+  color: rgba(248, 180, 76, 0.95);
+}
+
+.drt-transliteration {
+  color: rgba(110, 231, 183, 0.95);
+  font-size: inherit;
+}
+
+.drt-prior,
+.drt-current {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 0 0.18rem;
+  border-radius: 0.35rem;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.drt-prior {
+  background: rgba(96, 165, 250, 0.25);
+  color: inherit;
+}
+
+.drt-current {
+  background: linear-gradient(
+    90deg,
+    rgba(59, 130, 246, 0.85) var(--drt-progress, 60%),
+    rgba(96, 165, 250, 0.35) var(--drt-progress, 60%)
+  );
+  color: #0f172a;
+  font-weight: 700;
+  transform: scale(1.1);
+}
+
 .player-panel__interactive-sentence-group--active {
   background: rgba(30, 64, 175, 0.45);
   box-shadow: 0 0 0 1px rgba(96, 165, 250, 0.35);

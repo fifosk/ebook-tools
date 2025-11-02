@@ -35,6 +35,7 @@ def _build_metadata(job_id: str) -> PipelineJobMetadata:
     now = datetime.now(timezone.utc)
     return PipelineJobMetadata(
         job_id=job_id,
+        job_type="pipeline",
         status=PipelineJobStatus.PENDING,
         created_at=now,
         started_at=now,

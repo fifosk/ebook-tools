@@ -17,6 +17,7 @@ from .pipeline_service import (
     serialize_pipeline_response,
 )
 from .pipeline_types import PipelineMetadata
+from .subtitle_service import SubtitleService, SubtitleSubmission
 from .video_service import VideoService, VideoTaskSnapshot
 
 __all__ = [
@@ -33,6 +34,8 @@ __all__ = [
     "RedisJobStore",
     "run_pipeline",
     "serialize_pipeline_response",
+    "SubtitleService",
+    "SubtitleSubmission",
     "VideoService",
     "VideoTaskSnapshot",
 ]

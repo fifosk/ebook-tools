@@ -23,6 +23,7 @@ from ..library import (
 )
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
+from ..services.subtitle_service import SubtitleService
 from ..services.video_service import VideoService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
@@ -345,6 +346,15 @@ def get_video_service() -> VideoService:
         locator=job_manager.file_locator,
         renderer_factory=_renderer_factory,
     )
+
+
+@lru_cache
+def get_subtitle_service() -> SubtitleService:
+    """Return the shared :class:`SubtitleService` instance."""
+
+    job_manager = get_pipeline_job_manager()
+    locator = get_file_locator()
+    return SubtitleService(job_manager=job_manager, locator=locator)
 
 
 def _expand_path(path_value: Optional[str]) -> Optional[Path]:

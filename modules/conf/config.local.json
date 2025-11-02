@@ -1,7 +1,7 @@
 {
     "input_file": "book.epub",
     "ebooks_dir": "storage/ebooks",
-    "base_output_file": "/Volumes/Data/Download/Subs/ebook/book/Arabic_book.html",
+    "base_output_file": "/Volumes/Data/Download/Ebooks/ebook/book/Arabic_book.html",
     "input_language": "English",
     "target_languages": [
         "Arabic"

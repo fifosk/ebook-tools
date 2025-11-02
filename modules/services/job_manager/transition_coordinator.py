@@ -87,6 +87,10 @@ class PipelineJobTransitionCoordinator:
         """Mark ``job_id`` as paused and persist the updated status."""
 
         def _pause(job: PipelineJob) -> None:
+            if job.job_type != "pipeline":
+                raise ValueError(
+                    f"Pause is not supported for job type '{job.job_type}'"
+                )
             apply_pause_transition(job)
             event = job.stop_event
             if event is None and job.request is not None:
@@ -117,6 +121,10 @@ class PipelineJobTransitionCoordinator:
         """Resume ``job_id`` from a paused state and persist the change."""
 
         def _resume(job: PipelineJob) -> None:
+            if job.job_type != "pipeline":
+                raise ValueError(
+                    f"Resume is not supported for job type '{job.job_type}'"
+                )
             apply_resume_transition(job)
             payload = job.resume_context or job.request_payload
             if payload is None:

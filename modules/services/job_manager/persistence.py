@@ -67,6 +67,7 @@ class PipelineJobPersistence:
 
         snapshot = PipelineJobMetadata(
             job_id=job.job_id,
+            job_type=job.job_type,
             status=job.status,
             created_at=job.created_at,
             started_at=job.started_at,
@@ -112,6 +113,7 @@ class PipelineJobPersistence:
 
         job = PipelineJob(
             job_id=metadata.job_id,
+            job_type=metadata.job_type,
             status=metadata.status,
             created_at=metadata.created_at,
             started_at=metadata.started_at,

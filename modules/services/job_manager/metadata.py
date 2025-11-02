@@ -27,6 +27,7 @@ class PipelineJobMetadata:
     """Serializable metadata describing a pipeline job."""
 
     job_id: str
+    job_type: str
     status: PipelineJobStatus
     created_at: datetime
     started_at: Optional[datetime] = None
@@ -48,6 +49,7 @@ class PipelineJobMetadata:
 
         payload: Dict[str, Any] = {
             "job_id": self.job_id,
+            "job_type": self.job_type,
             "status": self.status.value,
             "created_at": _dt(self.created_at),
             "started_at": _dt(self.started_at),
@@ -89,6 +91,7 @@ class PipelineJobMetadata:
     def from_dict(cls, data: Mapping[str, Any]) -> "PipelineJobMetadata":
         return cls(
             job_id=str(data["job_id"]),
+            job_type=str(data.get("job_type") or "pipeline"),
             status=PipelineJobStatus(str(data["status"])),
             created_at=cls._parse_datetime(data.get("created_at")) or datetime.now(timezone.utc),
             started_at=cls._parse_datetime(data.get("started_at")),
