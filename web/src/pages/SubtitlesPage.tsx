@@ -81,44 +81,33 @@ function normaliseTimecodeInput(value: string): string | null {
     return DEFAULT_START_TIME;
   }
 
-  const segments = trimmed.split(':').map((segment) => segment.trim());
-  const isDigits = (input: string): boolean => /^\d+$/.test(input);
-
-  if (segments.length === 2) {
-    const [minutesPart, secondsPart] = segments;
-    if (!isDigits(minutesPart) || !/^\d{1,2}$/.test(secondsPart)) {
-      return null;
-    }
-    const minutes = Number(minutesPart);
-    const seconds = Number(secondsPart);
-    if (!Number.isFinite(minutes) || !Number.isFinite(seconds) || seconds >= 60) {
-      return null;
-    }
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  const match = trimmed.match(/^(\d+):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (!match) {
+    return null;
   }
 
-  if (segments.length === 3) {
-    const [hoursPart, minutesPart, secondsPart] = segments;
-    if (![hoursPart, minutesPart, secondsPart].every(isDigits)) {
-      return null;
-    }
-    const hours = Number(hoursPart);
-    const minutes = Number(minutesPart);
-    const seconds = Number(secondsPart);
-    if ([hours, minutes, seconds].some((component) => !Number.isFinite(component))) {
-      return null;
-    }
-    if (minutes >= 60 || seconds >= 60) {
-      return null;
-    }
-    return [
-      hours.toString().padStart(2, '0'),
-      minutes.toString().padStart(2, '0'),
-      seconds.toString().padStart(2, '0')
-    ].join(':');
+  const [, primary, secondary, tertiary] = match;
+  const first = Number(primary);
+  const second = Number(secondary);
+  const third = typeof tertiary === 'string' ? Number(tertiary) : null;
+
+  if ([first, second, third ?? 0].some((component) => !Number.isFinite(component) || component < 0)) {
+    return null;
+  }
+  if (second >= 60 || (third !== null && third >= 60)) {
+    return null;
   }
 
-  return null;
+  if (third !== null) {
+    const hours = first;
+    const minutes = second;
+    const seconds = third;
+    return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
+  }
+
+  const minutes = first;
+  const seconds = second;
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
 export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob }: Props) {
@@ -511,14 +500,13 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                 />
               </label>
               <label>
-                Start time (MM:SS)
+                Start time (MM:SS or HH:MM:SS)
                 <input
                   type="text"
                   value={startTime}
                   onChange={(event) => setStartTime(event.target.value)}
                   placeholder={DEFAULT_START_TIME}
                   inputMode="numeric"
-                  pattern="^\\d{1,2}:\\d{2}(?::\\d{2})?$"
                 />
               </label>
             </div>
