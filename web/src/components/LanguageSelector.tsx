@@ -1,45 +1,59 @@
-import { useMemo } from 'react';
+import { ChangeEvent, useId, useMemo } from 'react';
 import { TOP_LANGUAGES } from '../constants/menuOptions';
 
 type Props = {
+  id?: string;
   value: string[];
   onChange: (next: string[]) => void;
 };
 
-function toggleSelection(selected: string[], language: string): string[] {
-  const exists = selected.includes(language);
-  if (exists) {
-    return selected.filter((item) => item !== language);
-  }
-  return [...selected, language];
-}
+export function LanguageSelector({ id, value, onChange }: Props) {
+  const autoId = useId();
+  const selectId = id ?? `language-selector-${autoId}`;
+  const helperId = `${selectId}-helper`;
+  const sortedLanguages = useMemo(() => {
+    const copy = TOP_LANGUAGES.slice();
+    copy.sort((a, b) => a.localeCompare(b));
+    return copy;
+  }, []);
+  const combinedOptions = useMemo(() => {
+    const optionSet = new Set(sortedLanguages.map((language) => language.toLowerCase()));
+    const extras: string[] = [];
+    for (const language of value) {
+      const normalized = language.toLowerCase();
+      if (!optionSet.has(normalized)) {
+        optionSet.add(normalized);
+        extras.push(language);
+      }
+    }
+    return [...sortedLanguages, ...extras];
+  }, [sortedLanguages, value]);
 
-export function LanguageSelector({ value, onChange }: Props) {
-  const sortedLanguages = useMemo(() => TOP_LANGUAGES.slice(), []);
+  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    const next = Array.from(event.target.selectedOptions).map((option) => option.value);
+    onChange(next);
+  };
 
   return (
     <div className="language-selector">
-      <div className="language-grid" role="group" aria-label="Popular target languages">
-        {sortedLanguages.map((language) => {
-          const id = `language-${language.toLowerCase().replace(/[^a-z0-9]+/gi, '-')}`;
-          return (
-            <label key={language} className="language-option" htmlFor={id}>
-              <input
-                id={id}
-                type="checkbox"
-                name="target_languages"
-                value={language}
-                checked={value.includes(language)}
-                onChange={() => onChange(toggleSelection(value, language))}
-              />
-              <span>{language}</span>
-            </label>
-          );
-        })}
-      </div>
-      <p className="language-helper">
-        The list mirrors the CLI menu ordering. You can combine these presets with custom languages
-        below.
+      <select
+        id={selectId}
+        name="target_languages"
+        multiple
+        size={Math.min(8, Math.max(4, combinedOptions.length))}
+        value={value}
+        onChange={handleChange}
+        aria-describedby={helperId}
+      >
+        {combinedOptions.map((language) => (
+          <option key={language} value={language}>
+            {language}
+          </option>
+        ))}
+      </select>
+      <p id={helperId} className="language-helper">
+        Select one or more languages. Hold Command (macOS) or Control (Windows) while clicking to
+        choose additional languages. You can still enter custom languages below.
       </p>
     </div>
   );

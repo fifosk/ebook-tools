@@ -14,7 +14,6 @@ import {
   synthesizeVoicePreview,
   uploadEpubFile
 } from '../api/client';
-import LanguageSelector from './LanguageSelector';
 import {
   AUDIO_MODE_OPTIONS,
   MenuOption,
@@ -23,6 +22,13 @@ import {
 } from '../constants/menuOptions';
 import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
+import PipelineSourceSection from './PipelineSourceSection';
+import PipelineLanguageSection from './PipelineLanguageSection';
+import PipelineOutputSection from './PipelineOutputSection';
+import PipelinePerformanceSection from './PipelinePerformanceSection';
+import PipelineSubmitSection from './PipelineSubmitSection';
+import FileSelectionDialog from './FileSelectionDialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 const SAMPLE_SENTENCES: Record<string, string> = {
   en: 'Hello from ebook-tools! This is a sample narration.',
@@ -33,12 +39,6 @@ const SAMPLE_SENTENCES: Record<string, string> = {
 };
 
 const PREFERRED_SAMPLE_EBOOK = 'test-agatha-poirot-30sentences.epub';
-
-type VoiceSelectOption = {
-  value: string;
-  label: string;
-  description?: string;
-};
 
 function capitalize(value: string): string {
   if (!value) {
@@ -74,8 +74,6 @@ function sampleSentenceFor(languageCode: string, fallbackLabel: string): string 
   const displayName = resolvedName || 'this language';
   return `Sample narration for ${displayName}.`;
 }
-import FileSelectionDialog from './FileSelectionDialog';
-
 export type PipelineFormSection =
   | 'source'
   | 'language'
@@ -139,9 +137,9 @@ const DEFAULT_FORM_STATE: FormState = {
   end_sentence: '',
   stitch_full: false,
   generate_audio: true,
-  audio_mode: '1',
+  audio_mode: '4',
   written_mode: '4',
-  selected_voice: 'gTTS',
+  selected_voice: 'macOS-auto-male',
   voice_overrides: {},
   output_html: true,
   output_pdf: false,
@@ -525,8 +523,20 @@ export function PipelineSubmissionForm({
     });
   }, []);
 
-  const isSubmitSection = !activeSection || activeSection === 'submit';
-  const visibleSections = activeSection ? [activeSection] : SECTION_ORDER;
+  const tabSections: PipelineFormSection[] = ['source', 'language', 'output', 'performance'];
+  const [activeTab, setActiveTab] = useState<PipelineFormSection>(() => {
+    if (activeSection && tabSections.includes(activeSection)) {
+      return activeSection;
+    }
+    return 'source';
+  });
+  const isSubmitSection = activeSection === 'submit';
+
+  useEffect(() => {
+    if (activeSection && tabSections.includes(activeSection)) {
+      setActiveTab(activeSection);
+    }
+  }, [activeSection]);
 
   useEffect(() => {
     if (prefillInputFile === undefined) {
@@ -742,8 +752,8 @@ export function PipelineSubmissionForm({
   );
 
   const buildVoiceOptions = useCallback(
-    (languageLabel: string, languageCode: string | null): VoiceSelectOption[] => {
-      const baseOptions: VoiceSelectOption[] = VOICE_OPTIONS.map((option) => ({
+    (languageLabel: string, languageCode: string | null): MenuOption[] => {
+      const baseOptions: MenuOption[] = VOICE_OPTIONS.map((option) => ({
         value: option.value,
         label: option.label,
         description: option.description
@@ -753,7 +763,7 @@ export function PipelineSubmissionForm({
         return baseOptions;
       }
 
-      const extras: VoiceSelectOption[] = [];
+      const extras: MenuOption[] = [];
       const normalizedCode = languageCode.toLowerCase();
 
       const gttsMatches = voiceInventory.gtts.filter((entry) => {
@@ -771,7 +781,7 @@ export function PipelineSubmissionForm({
         }
         seenGtts.add(shortCode);
         const identifier = `gTTS-${shortCode}`;
-        extras.push({ value: identifier, label: `gTTS (${entry.name})` });
+        extras.push({ value: identifier, label: `gTTS (${entry.name})`, description: 'gTTS voice' });
       }
 
       const macVoices = voiceInventory.macos.filter((voice) => {
@@ -793,7 +803,7 @@ export function PipelineSubmissionForm({
           });
         });
 
-      const merged = new Map<string, VoiceSelectOption>();
+      const merged = new Map<string, MenuOption>();
       for (const option of [...baseOptions, ...extras]) {
         if (!option.value) {
           continue;
@@ -926,30 +936,6 @@ export function PipelineSubmissionForm({
 
   useEffect(() => {
     let cancelled = false;
-    fetchPipelineDefaults()
-      .then((response) => {
-        if (cancelled) {
-          return;
-        }
-        setFormState((previous) => {
-          const nextState = applyConfigDefaults(previous, response.config);
-          setSharedInputLanguage(nextState.input_language);
-          setSharedTargetLanguages(nextState.target_languages);
-          return nextState;
-        });
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.warn('Unable to load pipeline defaults', error);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
     setIsLoadingVoiceInventory(true);
     fetchVoiceInventory()
       .then((inventory) => {
@@ -1015,9 +1001,6 @@ export function PipelineSubmissionForm({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!isSubmitSection) {
-      return;
-    }
     setError(null);
 
     try {
@@ -1129,14 +1112,6 @@ export function PipelineSubmissionForm({
   if (normalizedTargetLanguages.length === 0) {
     missingRequirements.push('at least one target language');
   }
-  const dropzoneClassNames = ['file-dropzone'];
-  if (isDraggingFile) {
-    dropzoneClassNames.push('file-dropzone--dragging');
-  }
-  if (isUploadingFile) {
-    dropzoneClassNames.push('file-dropzone--uploading');
-  }
-  const dropzoneClassName = dropzoneClassNames.join(' ');
   const targetLanguageSummary =
     normalizedTargetLanguages.length > 0 ? normalizedTargetLanguages.join(', ') : 'None selected';
   const isSubmitDisabled = isSubmitting || missingRequirements.length > 0;
@@ -1149,531 +1124,142 @@ export function PipelineSubmissionForm({
     ]
       .filter(Boolean)
       .join(', ') || 'Default';
+  const missingRequirementText = formatList(missingRequirements);
+  const canBrowseFiles = Boolean(fileOptions);
 
   const renderSection = (section: PipelineFormSection) => {
     switch (section) {
       case 'source':
         return (
-          <section key="source" className="pipeline-card" aria-labelledby="pipeline-card-source">
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-source">{PIPELINE_SECTION_META.source.title}</h3>
-              <p>{PIPELINE_SECTION_META.source.description}</p>
-            </header>
-            <div className="pipeline-card__body">
-              <label htmlFor="input_file">Input file path</label>
-              <input
-                id="input_file"
-                name="input_file"
-                type="text"
-                value={formState.input_file}
-                onChange={(event) => handleInputFileChange(event.target.value)}
-                placeholder="/storage/ebooks/source.epub"
-                required
-              />
-              <div className="pipeline-card__actions">
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => setActiveFileDialog('input')}
-                  disabled={!fileOptions || isLoadingFiles}
-                >
-                  {isLoadingFiles ? 'Loading…' : 'Browse ebooks'}
-                </button>
-              </div>
-              {fileDialogError ? (
-                <p className="form-help-text" role="status">
-                  {fileDialogError}
-                </p>
-              ) : null}
-              <div
-                className={dropzoneClassName}
-                onDragEnter={handleDropzoneDragOver}
-                onDragOver={handleDropzoneDragOver}
-                onDragLeave={handleDropzoneDragLeave}
-                onDrop={handleDropzoneDrop}
-              >
-                <label htmlFor="epub-upload-input">
-                  <strong>{isUploadingFile ? 'Uploading EPUB…' : 'Drag & drop an EPUB file'}</strong>
-                  <span>or click to choose a file from your computer.</span>
-                </label>
-                <input
-                  id="epub-upload-input"
-                  type="file"
-                  accept=".epub"
-                  onChange={(event) => {
-                    const nextFile = event.target.files?.[0] ?? null;
-                    if (nextFile) {
-                      void processFileUpload(nextFile);
-                    }
-                    event.target.value = '';
-                  }}
-                  disabled={isUploadingFile}
-                />
-              </div>
-              {uploadError ? (
-                <p className="form-help-text form-help-text--error" role="alert">
-                  {uploadError}
-                </p>
-              ) : null}
-              {recentUploadName ? (
-                <p className="form-help-text form-help-text--success" role="status">
-                  Uploaded <strong>{recentUploadName}</strong> to the ebooks library.
-                </p>
-              ) : null}
-              <label htmlFor="base_output_file">Base output file</label>
-              <input
-                id="base_output_file"
-                name="base_output_file"
-                type="text"
-                value={formState.base_output_file}
-                onChange={(event) => handleChange('base_output_file', event.target.value)}
-                placeholder="ebooks/output"
-                required
-              />
-              <div className="pipeline-card__actions">
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => setActiveFileDialog('output')}
-                  disabled={!fileOptions || isLoadingFiles}
-                >
-                  {isLoadingFiles ? 'Loading…' : 'Browse output paths'}
-                </button>
-              </div>
-            </div>
-          </section>
+          <PipelineSourceSection
+            key="source"
+            headingId="pipeline-card-source"
+            title={PIPELINE_SECTION_META.source.title}
+            description={PIPELINE_SECTION_META.source.description}
+            inputFile={formState.input_file}
+            baseOutputFile={formState.base_output_file}
+            onInputFileChange={handleInputFileChange}
+            onBaseOutputFileChange={(value) => handleChange('base_output_file', value)}
+            onBrowseClick={(dialogType) => setActiveFileDialog(dialogType)}
+            canBrowseFiles={canBrowseFiles}
+            isLoadingFiles={isLoadingFiles}
+            fileDialogError={fileDialogError}
+            isDraggingFile={isDraggingFile}
+            isUploadingFile={isUploadingFile}
+            onDropzoneDragOver={handleDropzoneDragOver}
+            onDropzoneDragLeave={handleDropzoneDragLeave}
+            onDropzoneDrop={handleDropzoneDrop}
+            onUploadFile={processFileUpload}
+            uploadError={uploadError}
+            recentUploadName={recentUploadName}
+          />
         );
       case 'language':
         return (
-          <section
+          <PipelineLanguageSection
             key="language"
-            className="pipeline-card"
-            aria-labelledby="pipeline-card-language"
-          >
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-language">{PIPELINE_SECTION_META.language.title}</h3>
-              <p>{PIPELINE_SECTION_META.language.description}</p>
-            </header>
-            <div className="pipeline-card__body">
-              <label htmlFor="input_language">Input language</label>
-              <input
-                id="input_language"
-                name="input_language"
-                type="text"
-                value={formState.input_language}
-                onChange={(event) => handleChange('input_language', event.target.value)}
-                required
-                placeholder="English"
-              />
-              <LanguageSelector
-                value={formState.target_languages}
-                onChange={(next) => handleChange('target_languages', next)}
-              />
-              <label htmlFor="custom_target_languages">Other target languages (comma separated)</label>
-              <input
-                id="custom_target_languages"
-                name="custom_target_languages"
-                type="text"
-                value={formState.custom_target_languages}
-                onChange={(event) => handleChange('custom_target_languages', event.target.value)}
-                placeholder="e.g. Klingon, Sindarin"
-              />
-              <div className="field-grid">
-                <label htmlFor="sentences_per_output_file">
-                  Sentences per output file
-                  <input
-                    id="sentences_per_output_file"
-                    name="sentences_per_output_file"
-                    type="number"
-                    min={1}
-                    value={formState.sentences_per_output_file}
-                    onChange={(event) =>
-                      handleChange('sentences_per_output_file', Number(event.target.value))
-                    }
-                  />
-                </label>
-                <label htmlFor="start_sentence">
-                  Start sentence
-                  <input
-                    id="start_sentence"
-                    name="start_sentence"
-                    type="number"
-                    min={1}
-                    value={formState.start_sentence}
-                    onChange={(event) => handleChange('start_sentence', Number(event.target.value))}
-                  />
-                </label>
-                <label htmlFor="end_sentence">
-                  End sentence (optional)
-                  <input
-                    id="end_sentence"
-                    name="end_sentence"
-                    type="number"
-                    min={formState.start_sentence}
-                    value={formState.end_sentence}
-                    onChange={(event) => handleChange('end_sentence', event.target.value)}
-                    placeholder="Leave blank for entire document"
-                  />
-                </label>
-              </div>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="stitch_full"
-                  checked={formState.stitch_full}
-                  onChange={(event) => handleChange('stitch_full', event.target.checked)}
-                />
-                Stitch full document once complete
-              </label>
-            </div>
-          </section>
+            headingId="pipeline-card-language"
+            title={PIPELINE_SECTION_META.language.title}
+            description={PIPELINE_SECTION_META.language.description}
+            inputLanguage={formState.input_language}
+            targetLanguages={formState.target_languages}
+            customTargetLanguages={formState.custom_target_languages}
+            sentencesPerOutputFile={formState.sentences_per_output_file}
+            startSentence={formState.start_sentence}
+            endSentence={formState.end_sentence}
+            stitchFull={formState.stitch_full}
+            onInputLanguageChange={(value) => handleChange('input_language', value)}
+            onTargetLanguagesChange={(value) => handleChange('target_languages', value)}
+            onCustomTargetLanguagesChange={(value) => handleChange('custom_target_languages', value)}
+            onSentencesPerOutputFileChange={(value) =>
+              handleChange('sentences_per_output_file', value)
+            }
+            onStartSentenceChange={(value) => handleChange('start_sentence', value)}
+            onEndSentenceChange={(value) => handleChange('end_sentence', value)}
+            onStitchFullChange={(value) => handleChange('stitch_full', value)}
+          />
         );
       case 'output':
         return (
-          <section key="output" className="pipeline-card" aria-labelledby="pipeline-card-output">
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-output">{PIPELINE_SECTION_META.output.title}</h3>
-              <p>{PIPELINE_SECTION_META.output.description}</p>
-            </header>
-            <div className="pipeline-card__body">
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="generate_audio"
-                  checked={formState.generate_audio}
-                  onChange={(event) => handleChange('generate_audio', event.target.checked)}
-                />
-                Generate narration tracks
-              </label>
-              <div className="option-grid">
-                {availableAudioModes.map((option) => (
-                  <label key={option.value} className="option-card">
-                    <input
-                      type="radio"
-                      name="audio_mode"
-                      value={option.value}
-                      checked={formState.audio_mode === option.value}
-                      onChange={(event) => handleChange('audio_mode', event.target.value)}
-                    />
-                    <div>
-                      <strong>{option.label}</strong>
-                      <p>{option.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <div className="option-grid">
-                {availableVoices.map((option) => (
-                  <label key={option.value} className="option-card">
-                    <input
-                      type="radio"
-                      name="selected_voice"
-                      value={option.value}
-                      checked={formState.selected_voice === option.value}
-                      onChange={(event) => handleChange('selected_voice', event.target.value)}
-                    />
-                    <div>
-                      <strong>{option.label}</strong>
-                      <p>{option.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <div className="voice-overrides">
-                <h4>Language-specific voices</h4>
-                <p className="form-help-text">
-                  Override the narration voice for individual languages. Leave as default to use the
-                  selection above.
-                </p>
-                {isLoadingVoiceInventory ? (
-                  <p className="form-help-text" role="status">
-                    Loading voice inventory…
-                  </p>
-                ) : null}
-                {voiceInventoryError ? (
-                  <p className="form-help-text form-help-text--error" role="alert">
-                    {voiceInventoryError}
-                  </p>
-                ) : null}
-                <div className="voice-override-list">
-                  {languagesForOverride.map(({ label, code }) => {
-                    const effectiveCode = code ?? '';
-                    const options = buildVoiceOptions(label, code);
-                    const overrideValue = code ? formState.voice_overrides[code] ?? '' : '';
-                    const status = voicePreviewStatus[effectiveCode] ?? 'idle';
-                    const previewError = voicePreviewError[effectiveCode];
-                    const defaultVoiceLabel =
-                      availableVoices.find((option) => option.value === formState.selected_voice)?.label ||
-                      formState.selected_voice;
-                    return (
-                      <div key={effectiveCode || label} className="voice-override-row">
-                        <div className="voice-override-info">
-                          <strong>{label}</strong>
-                          <span className="voice-override-code">{code ?? 'Unknown code'}</span>
-                        </div>
-                        {code && options.length > 0 ? (
-                          <div className="voice-override-controls">
-                            <select
-                              aria-label={`Voice override for ${label}`}
-                              value={overrideValue}
-                              onChange={(event) => updateVoiceOverride(code, event.target.value)}
-                            >
-                              <option value="">{`Default (${defaultVoiceLabel})`}</option>
-                              {options.map((option) => (
-                                <option key={option.value} value={option.value} title={option.description}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              className="link-button"
-                              onClick={() => void playVoicePreview(code, label)}
-                              disabled={status === 'loading' || isLoadingVoiceInventory}
-                            >
-                              {status === 'loading'
-                                ? 'Loading preview…'
-                                : status === 'playing'
-                                ? 'Playing preview…'
-                                : 'Play sample'}
-                            </button>
-                          </div>
-                        ) : (
-                          <p className="form-help-text">No voice inventory available for this language.</p>
-                        )}
-                        {previewError ? (
-                          <p className="form-help-text form-help-text--error" role="status">
-                            {previewError}
-                          </p>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="option-grid">
-                {availableWrittenModes.map((option) => (
-                  <label key={option.value} className="option-card">
-                    <input
-                      type="radio"
-                      name="written_mode"
-                      value={option.value}
-                      checked={formState.written_mode === option.value}
-                      onChange={(event) => handleChange('written_mode', event.target.value)}
-                    />
-                    <div>
-                      <strong>{option.label}</strong>
-                      <p>{option.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="output_html"
-                  checked={formState.output_html}
-                  onChange={(event) => handleChange('output_html', event.target.checked)}
-                />
-                Generate HTML output
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="output_pdf"
-                  checked={formState.output_pdf}
-                  onChange={(event) => handleChange('output_pdf', event.target.checked)}
-                />
-                Generate PDF output
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="include_transliteration"
-                  checked={formState.include_transliteration}
-                  onChange={(event) => handleChange('include_transliteration', event.target.checked)}
-                />
-                Include transliteration in written output
-              </label>
-              <label htmlFor="tempo">
-                Tempo
-                <input
-                  id="tempo"
-                  name="tempo"
-                  type="number"
-                  step="0.1"
-                  min={0.5}
-                  value={formState.tempo}
-                  onChange={(event) => handleChange('tempo', Number(event.target.value))}
-                />
-              </label>
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  name="generate_video"
-                  checked={formState.generate_video}
-                  onChange={(event) => handleChange('generate_video', event.target.checked)}
-                />
-                Generate stitched video assets
-              </label>
-            </div>
-          </section>
+          <PipelineOutputSection
+            key="output"
+            headingId="pipeline-card-output"
+            title={PIPELINE_SECTION_META.output.title}
+            description={PIPELINE_SECTION_META.output.description}
+            generateAudio={formState.generate_audio}
+            audioMode={formState.audio_mode}
+            selectedVoice={formState.selected_voice}
+            writtenMode={formState.written_mode}
+            outputHtml={formState.output_html}
+            outputPdf={formState.output_pdf}
+            includeTransliteration={formState.include_transliteration}
+            tempo={formState.tempo}
+            generateVideo={formState.generate_video}
+            availableAudioModes={availableAudioModes}
+            availableVoices={availableVoices}
+            availableWrittenModes={availableWrittenModes}
+            languagesForOverride={languagesForOverride}
+            voiceOverrides={formState.voice_overrides}
+            voicePreviewStatus={voicePreviewStatus}
+            voicePreviewError={voicePreviewError}
+            isLoadingVoiceInventory={isLoadingVoiceInventory}
+            voiceInventoryError={voiceInventoryError}
+            buildVoiceOptions={buildVoiceOptions}
+            onGenerateAudioChange={(value) => handleChange('generate_audio', value)}
+            onAudioModeChange={(value) => handleChange('audio_mode', value)}
+            onSelectedVoiceChange={(value) => handleChange('selected_voice', value)}
+            onVoiceOverrideChange={updateVoiceOverride}
+            onWrittenModeChange={(value) => handleChange('written_mode', value)}
+            onOutputHtmlChange={(value) => handleChange('output_html', value)}
+            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
+            onIncludeTransliterationChange={(value) =>
+              handleChange('include_transliteration', value)
+            }
+            onTempoChange={(value) => handleChange('tempo', value)}
+            onGenerateVideoChange={(value) => handleChange('generate_video', value)}
+            onPlayVoicePreview={playVoicePreview}
+          />
         );
       case 'performance':
         return (
-          <section
+          <PipelinePerformanceSection
             key="performance"
-            className="pipeline-card"
-            aria-labelledby="pipeline-card-performance"
-          >
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-performance">{PIPELINE_SECTION_META.performance.title}</h3>
-              <p>{PIPELINE_SECTION_META.performance.description}</p>
-            </header>
-            <div className="pipeline-card__body">
-              <div className="collapsible-group">
-                <details>
-                  <summary>Translation threads</summary>
-                  <p className="form-help-text">
-                    Control how many translation and media workers run simultaneously. Leave blank to
-                    use the backend default.
-                  </p>
-                  <label htmlFor="thread_count">
-                    Worker threads
-                    <input
-                      id="thread_count"
-                      name="thread_count"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={formState.thread_count}
-                      onChange={(event) => handleChange('thread_count', event.target.value)}
-                      placeholder="Default"
-                    />
-                  </label>
-                </details>
-                <details>
-                  <summary>Job orchestration</summary>
-                  <p className="form-help-text">
-                    Tune job level parallelism and queue pressure for large or resource constrained
-                    hosts.
-                  </p>
-                  <label htmlFor="job_max_workers">
-                    Maximum concurrent jobs
-                    <input
-                      id="job_max_workers"
-                      name="job_max_workers"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={formState.job_max_workers}
-                      onChange={(event) => handleChange('job_max_workers', event.target.value)}
-                      placeholder="Default"
-                    />
-                  </label>
-                  <label htmlFor="queue_size">
-                    Translation queue size
-                    <input
-                      id="queue_size"
-                      name="queue_size"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={formState.queue_size}
-                      onChange={(event) => handleChange('queue_size', event.target.value)}
-                      placeholder="Default"
-                    />
-                  </label>
-                </details>
-                <details>
-                  <summary>Slide rendering parallelism</summary>
-                  <p className="form-help-text">
-                    Select the rendering backend for slide generation and optionally cap worker count
-                    when video output is enabled.
-                  </p>
-                  <label htmlFor="slide_parallelism">
-                    Slide parallelism mode
-                    <select
-                      id="slide_parallelism"
-                      name="slide_parallelism"
-                      value={formState.slide_parallelism}
-                      onChange={(event) => handleChange('slide_parallelism', event.target.value)}
-                    >
-                      <option value="">Use configured default</option>
-                      <option value="off">Off</option>
-                      <option value="auto">Auto</option>
-                      <option value="thread">Thread</option>
-                      <option value="process">Process</option>
-                    </select>
-                  </label>
-                  <label htmlFor="slide_parallel_workers">
-                    Parallel slide workers
-                    <input
-                      id="slide_parallel_workers"
-                      name="slide_parallel_workers"
-                      type="number"
-                      min={1}
-                      step={1}
-                      value={formState.slide_parallel_workers}
-                      onChange={(event) => handleChange('slide_parallel_workers', event.target.value)}
-                      placeholder="Default"
-                    />
-                  </label>
-                </details>
-              </div>
-            </div>
-          </section>
+            headingId="pipeline-card-performance"
+            title={PIPELINE_SECTION_META.performance.title}
+            description={PIPELINE_SECTION_META.performance.description}
+            threadCount={formState.thread_count}
+            queueSize={formState.queue_size}
+            jobMaxWorkers={formState.job_max_workers}
+            slideParallelism={formState.slide_parallelism}
+            slideParallelWorkers={formState.slide_parallel_workers}
+            onThreadCountChange={(value) => handleChange('thread_count', value)}
+            onQueueSizeChange={(value) => handleChange('queue_size', value)}
+            onJobMaxWorkersChange={(value) => handleChange('job_max_workers', value)}
+            onSlideParallelismChange={(value) => handleChange('slide_parallelism', value)}
+            onSlideParallelWorkersChange={(value) => handleChange('slide_parallel_workers', value)}
+          />
         );
       case 'submit':
       default:
         return (
-          <section key="submit" className="pipeline-card" aria-labelledby="pipeline-card-submit">
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-submit">{PIPELINE_SECTION_META.submit.title}</h3>
-              <p>{PIPELINE_SECTION_META.submit.description}</p>
-            </header>
-            <div className="pipeline-card__body">
-              {missingRequirements.length > 0 ? (
-                <div className="form-callout form-callout--warning" role="status">
-                  Provide {formatList(missingRequirements)} before submitting.
-                </div>
-              ) : (
-                <div className="form-callout form-callout--success" role="status">
-                  All required settings are ready to submit.
-                </div>
-              )}
-              {isSubmitSection && (error || externalError) ? (
-                <div className="alert" role="alert">
-                  {error ?? externalError}
-                </div>
-              ) : null}
-              <dl className="pipeline-summary">
-                <div>
-                  <dt>Input file</dt>
-                  <dd>{formState.input_file || 'Not set'}</dd>
-                </div>
-                <div>
-                  <dt>Base output</dt>
-                  <dd>{formState.base_output_file || 'Not set'}</dd>
-                </div>
-                <div>
-                  <dt>Input language</dt>
-                  <dd>{formState.input_language || 'Not set'}</dd>
-                </div>
-                <div>
-                  <dt>Target languages</dt>
-                  <dd>{targetLanguageSummary}</dd>
-                </div>
-                <div>
-                  <dt>Output formats</dt>
-                  <dd>{outputFormats}</dd>
-                </div>
-              </dl>
-              <button type="submit" disabled={isSubmitDisabled}>
-                {isSubmitting ? 'Submitting…' : 'Submit job'}
-              </button>
-            </div>
-          </section>
+          <PipelineSubmitSection
+            key="submit"
+            headingId="pipeline-card-submit"
+            title={PIPELINE_SECTION_META.submit.title}
+            description={PIPELINE_SECTION_META.submit.description}
+            missingRequirements={missingRequirements}
+            missingRequirementText={missingRequirementText}
+            isSubmitSection={isSubmitSection}
+            error={error}
+            externalError={externalError}
+            inputFile={formState.input_file}
+            baseOutputFile={formState.base_output_file}
+            inputLanguage={formState.input_language}
+            targetLanguageSummary={targetLanguageSummary}
+            outputFormats={outputFormats}
+            isSubmitting={isSubmitting}
+            isSubmitDisabled={isSubmitDisabled}
+          />
         );
     }
   };
@@ -1683,7 +1269,34 @@ export function PipelineSubmissionForm({
       <h2>{headerTitle}</h2>
       <p>{headerDescription}</p>
       <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
-        {visibleSections.map((section) => renderSection(section))}
+      <Tabs
+        className="pipeline-tabs"
+        value={activeTab}
+        onValueChange={(next) => setActiveTab(next as PipelineFormSection)}
+      >
+        <TabsList className="pipeline-tabs__list">
+          {tabSections.map((section) => (
+            <TabsTrigger key={section} value={section} className="pipeline-tabs__trigger">
+              <span className="pipeline-tabs__trigger-title">
+                {PIPELINE_SECTION_META[section].title}
+              </span>
+              <span className="pipeline-tabs__trigger-description">
+                {PIPELINE_SECTION_META[section].description}
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {tabSections.map((section) => (
+          <TabsContent
+            key={section}
+            value={section}
+            className="pipeline-tabs__content"
+          >
+            {renderSection(section)}
+          </TabsContent>
+        ))}
+      </Tabs>
+      {renderSection('submit')}
       </form>
       {activeFileDialog && fileOptions ? (
         <FileSelectionDialog
