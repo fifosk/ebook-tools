@@ -144,6 +144,10 @@ class SubtitleService:
             source_stem = Path(source_file).stem
             output_name = f"{source_stem}.{target_fragment}.{DEFAULT_OUTPUT_SUFFIX}"
             output_path = subtitles_root / output_name
+            try:
+                output_path.unlink(missing_ok=True)
+            except Exception:  # pragma: no cover - defensive cleanup
+                logger.debug("Unable to remove existing subtitle output %s", output_path, exc_info=True)
             mirror_dir: Optional[Path] = None
             mirror_path: Optional[Path] = None
             if options.mirror_batches_to_source_dir:
