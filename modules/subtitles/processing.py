@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
+import html
 import re
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-import os
-from typing import Iterable, List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence, TextIO
 
 from modules import logging_manager as log_mgr
 from modules.progress_tracker import ProgressTracker
@@ -26,8 +26,8 @@ SRT_TIMESTAMP_PATTERN = re.compile(
 WEBVTT_HEADER = re.compile(r"^\ufeff?WEBVTT", re.IGNORECASE)
 
 DEFAULT_OUTPUT_SUFFIX = "drt.srt"
-DEFAULT_BATCH_SIZE = 24
-DEFAULT_WORKERS = 4
+DEFAULT_BATCH_SIZE = 30
+DEFAULT_WORKERS = 30
 
 
 class SubtitleProcessingError(RuntimeError):
@@ -66,8 +66,16 @@ def process_subtitle_file(
     """Process ``source_path`` and persist the translated subtitles."""
 
     cues = load_subtitle_cues(source_path)
+
+    start_offset = max(0.0, options.start_time_offset or 0.0)
+    if start_offset > 0:
+        cues = [cue for cue in cues if cue.start >= start_offset]
+
     total_cues = len(cues)
     if not cues:
+        if start_offset > 0:
+            label = _format_timecode_label(start_offset)
+            raise SubtitleProcessingError(f"No cues found at or after start time {label}")
         raise SubtitleProcessingError("No cues processed from source subtitle")
 
     batch_size = _resolve_batch_size(options.batch_size, total_cues)
@@ -82,6 +90,7 @@ def process_subtitle_file(
                 "target_language": options.target_language,
                 "batch_size": batch_size,
                 "workers": worker_count,
+                "start_time_offset": start_offset,
             }
         )
 
@@ -94,20 +103,20 @@ def process_subtitle_file(
     translated_count = 0
     next_index = 1
     mirror_next_index = 1
-    mirror_handle = None
     mirror_target: Optional[Path] = None
     if mirror_output_path is not None:
         try:
             mirror_target = mirror_output_path.expanduser()
+            if mirror_target.suffix.lower() != ".srt":
+                mirror_target = mirror_target.with_suffix(".srt")
             mirror_target.parent.mkdir(parents=True, exist_ok=True)
-            mirror_handle = mirror_target.open("w", encoding="utf-8", newline="\n")
+            mirror_target.unlink(missing_ok=True)
         except Exception:  # pragma: no cover - best effort mirror
             logger.warning(
-                "Unable to open subtitle mirror output at %s",
+                "Unable to prepare subtitle mirror output at %s",
                 mirror_output_path,
                 exc_info=True,
             )
-            mirror_handle = None
             mirror_target = None
 
     try:
@@ -129,6 +138,19 @@ def process_subtitle_file(
                             batch,
                         )
                     )
+
+                    mirror_handle: Optional[TextIO] = None
+                    if mirror_target is not None:
+                        try:
+                            mirror_handle = mirror_target.open("a", encoding="utf-8", newline="\n")
+                        except Exception:  # pragma: no cover - best effort mirror
+                            logger.warning(
+                                "Unable to append subtitle batch to %s",
+                                mirror_target,
+                                exc_info=True,
+                            )
+                            mirror_target = None
+                            mirror_handle = None
 
                     for offset, cue_output in enumerate(processed_batch, start=1):
                         cue_index = batch_start + offset
@@ -157,10 +179,14 @@ def process_subtitle_file(
                                     mirror_target,
                                     exc_info=True,
                                 )
-                                try:
-                                    mirror_handle.close()
-                                except Exception:
-                                    pass
+                                if mirror_handle is not None:
+                                    try:
+                                        mirror_handle.close()
+                                    except Exception:
+                                        logger.debug(
+                                            "Unable to close subtitle mirror handle after failure",
+                                            exc_info=True,
+                                        )
                                 mirror_handle = None
                                 mirror_target = None
                                 mirror_next_index = next_index
@@ -174,13 +200,16 @@ def process_subtitle_file(
                                 mirror_target,
                                 exc_info=True,
                             )
-                            try:
-                                mirror_handle.close()
-                            except Exception:
-                                pass
-                            mirror_handle = None
                             mirror_target = None
                             mirror_next_index = next_index
+                        finally:
+                            try:
+                                mirror_handle.close()
+                            except Exception:  # pragma: no cover - defensive close
+                                logger.debug("Unable to close subtitle mirror handle", exc_info=True)
+                            mirror_handle = None
+                    elif mirror_target is None:
+                        mirror_next_index = next_index
     except SubtitleJobCancelled:
         temp_output.unlink(missing_ok=True)
         raise
@@ -189,12 +218,6 @@ def process_subtitle_file(
         raise
     else:
         temp_output.replace(output_path)
-    finally:
-        if mirror_handle is not None:
-            try:
-                mirror_handle.close()
-            except Exception:  # pragma: no cover - defensive close
-                logger.debug("Unable to close subtitle mirror handle", exc_info=True)
 
     metadata = {
         "input_file": source_path.name,
@@ -204,6 +227,8 @@ def process_subtitle_file(
         "batch_size": batch_size,
         "workers": worker_count,
     }
+    metadata["start_time_offset_seconds"] = float(start_offset)
+    metadata["start_time_offset_label"] = _format_timecode_label(start_offset)
 
     return SubtitleProcessingResult(
         output_path=output_path,
@@ -340,6 +365,11 @@ def _normalize_text(value: str) -> str:
     return normalized.strip()
 
 
+def _wrap_line(class_name: str, content: str, *, escape_content: bool = False) -> str:
+    payload = html.escape(content) if escape_content else content
+    return f'<span class="{class_name}">{payload}</span>'
+
+
 def _build_output_cues(
     source: SubtitleCue,
     translation: str,
@@ -350,42 +380,55 @@ def _build_output_cues(
     if not translation:
         translation = ""
 
-    base_lines = [source.as_text(), translation]
-    if transliteration:
-        base_lines.append(transliteration)
+    original_line = _wrap_line("drt-original", source.as_text(), escape_content=True)
+    translation_words = translation.split()
+    transliteration_words = transliteration.split() if transliteration else []
 
     if not highlight or not translation:
+        lines = [original_line]
+        if translation:
+            lines.append(_wrap_line("drt-translation", translation, escape_content=True))
+        if transliteration:
+            lines.append(_wrap_line("drt-transliteration", transliteration, escape_content=True))
         return [
             SubtitleCue(
                 index=source.index,
                 start=source.start,
                 end=source.end,
-                lines=base_lines,
+                lines=lines,
             )
         ]
 
-    words = translation.split()
-    if not words:
+    if not translation_words:
+        lines = [original_line]
+        lines.append(_wrap_line("drt-translation", translation, escape_content=True))
+        if transliteration:
+            lines.append(_wrap_line("drt-transliteration", transliteration, escape_content=True))
         return [
             SubtitleCue(
                 index=source.index,
                 start=source.start,
                 end=source.end,
-                lines=base_lines,
+                lines=lines,
             )
         ]
 
     duration = max(source.duration, 0.2)
-    step = duration / max(len(words), 1)
+    step = duration / max(len(translation_words), 1)
     cues: List[SubtitleCue] = []
 
-    for offset, count in enumerate(range(1, len(words) + 1)):
-        highlight_translation = _highlight_words(words, count)
-        lines = [source.as_text(), highlight_translation]
+    for offset, count in enumerate(range(1, len(translation_words) + 1)):
+        highlight_translation = _highlight_words(translation_words, count)
+        lines = [
+            original_line,
+            _wrap_line("drt-translation", highlight_translation),
+        ]
         if transliteration:
-            transliteration_words = transliteration.split()
-            highlight_translit = _highlight_words(transliteration_words, count)
-            lines.append(highlight_translit)
+            if transliteration_words:
+                highlight_translit = _highlight_words(transliteration_words, count)
+                lines.append(_wrap_line("drt-transliteration", highlight_translit))
+            else:
+                lines.append(_wrap_line("drt-transliteration", transliteration, escape_content=True))
         cues.append(
             SubtitleCue(
                 index=source.index,
@@ -406,15 +449,33 @@ def _build_output_cues(
 
 
 def _highlight_words(words: Sequence[str], count: int) -> str:
+    tokens = list(words)
+    if not tokens:
+        return ""
+    current_index = min(max(count - 1, 0), len(tokens) - 1)
     fragments: List[str] = []
-    for index, word in enumerate(words):
-        token = word
-        if index < count - 1:
-            token = f"<span class=\"drt-prior\">{word}</span>"
-        elif index == count - 1:
-            token = f"<span class=\"drt-current\">{word}</span>"
-        fragments.append(token)
+    for index, word in enumerate(tokens):
+        escaped = html.escape(word)
+        if index < current_index:
+            fragments.append(f'<span class="drt-prior">{escaped}</span>')
+        elif index == current_index:
+            fragments.append(f'<span class="drt-current">{escaped}</span>')
+        else:
+            fragments.append(escaped)
     return " ".join(fragments)
+
+
+# ---------------------------------------------------------------------------
+# Formatting helpers
+# ---------------------------------------------------------------------------
+
+def _format_timecode_label(total_seconds: float) -> str:
+    total = max(0, int(round(total_seconds)))
+    minutes_total, seconds = divmod(total, 60)
+    hours, minutes = divmod(minutes_total, 60)
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes_total:02d}:{seconds:02d}"
 
 
 # ---------------------------------------------------------------------------
@@ -443,9 +504,7 @@ def _resolve_worker_count(
 ) -> int:
     if isinstance(candidate, int) and candidate > 0:
         return max(1, min(candidate, total))
-    cpu_default = os.cpu_count() or DEFAULT_WORKERS
-    resolved = min(DEFAULT_WORKERS, cpu_default)
-    resolved = min(resolved, batch_size, total)
+    resolved = min(DEFAULT_WORKERS, batch_size, total)
     return max(1, resolved)
 
 

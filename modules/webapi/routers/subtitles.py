@@ -1,7 +1,6 @@
 """Routes exposing subtitle job orchestration."""
 
 from __future__ import annotations
-
 import tempfile
 from pathlib import Path
 from typing import Optional, Union
@@ -55,6 +54,62 @@ def _coerce_int(value: Optional[str | int]) -> Optional[int]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid batch_size") from exc
 
 
+def _parse_time_offset(value: Optional[str]) -> float:
+    if value is None:
+        return 0.0
+    trimmed = str(value).strip()
+    if not trimmed:
+        return 0.0
+
+    segments = trimmed.split(":")
+    if len(segments) == 2:
+        hours = 0
+        minutes_str, seconds_str = segments
+    elif len(segments) == 3:
+        hours_str, minutes_str, seconds_str = segments
+        try:
+            hours = int(hours_str)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid start_time hours component.",
+            ) from exc
+    else:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_time must be in MM:SS or HH:MM:SS format.",
+        )
+
+    try:
+        minutes = int(minutes_str)
+        seconds = int(seconds_str)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid start_time minutes or seconds component.",
+        ) from exc
+
+    if hours < 0 or minutes < 0 or seconds < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="start_time components cannot be negative.",
+        )
+
+    if seconds >= 60:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Seconds in start_time must be between 00 and 59.",
+        )
+
+    if len(segments) == 3 and minutes >= 60:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Minutes must be between 00 and 59 when hours are specified.",
+        )
+
+    return float(hours * 3600 + minutes * 60 + seconds)
+
+
 @router.get("/sources", response_model=SubtitleSourceListResponse)
 def list_subtitle_sources(
     directory: Optional[str] = None,
@@ -89,6 +144,7 @@ async def submit_subtitle_job(
     highlight: Union[str, bool] = Form(True),
     batch_size: Optional[str] = Form(None),
     worker_count: Optional[str] = Form(None),
+    start_time: Optional[str] = Form("00:00"),
     source_path: Optional[str] = Form(None),
     cleanup_source: Union[str, bool] = Form(False),
     mirror_batches_to_source_dir: Union[str, bool] = Form(True),
@@ -117,6 +173,7 @@ async def submit_subtitle_job(
         batch_size=_coerce_int(batch_size),
         worker_count=_coerce_int(worker_count),
         mirror_batches_to_source_dir=_as_bool(mirror_batches_to_source_dir, True),
+        start_time_offset=_parse_time_offset(start_time),
     )
     cleanup_flag = _as_bool(cleanup_source, False)
     temp_file: Optional[Path] = None

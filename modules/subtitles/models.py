@@ -35,6 +35,7 @@ class SubtitleJobOptions:
     batch_size: Optional[int] = None
     worker_count: Optional[int] = None
     mirror_batches_to_source_dir: bool = True
+    start_time_offset: Optional[float] = None
 
     @classmethod
     def from_mapping(cls, data: Dict[str, object]) -> "SubtitleJobOptions":
@@ -44,6 +45,16 @@ class SubtitleJobOptions:
             worker_count = worker_value
         elif isinstance(worker_value, str) and worker_value.strip().isdigit():
             worker_count = int(worker_value.strip())
+        start_offset_value = data.get("start_time_offset")
+        start_time_offset = None
+        if isinstance(start_offset_value, (int, float)):
+            start_time_offset = float(start_offset_value)
+        elif isinstance(start_offset_value, str) and start_offset_value.strip():
+            try:
+                start_time_offset = float(start_offset_value.strip())
+            except ValueError:
+                start_time_offset = None
+
         return cls(
             input_language=str(data.get("input_language") or "English"),
             target_language=str(data.get("target_language") or "English"),
@@ -54,6 +65,7 @@ class SubtitleJobOptions:
             mirror_batches_to_source_dir=bool(
                 data.get("mirror_batches_to_source_dir", True)
             ),
+            start_time_offset=start_time_offset,
         )
 
     def to_dict(self) -> Dict[str, object]:
@@ -68,6 +80,8 @@ class SubtitleJobOptions:
             payload["batch_size"] = self.batch_size
         if self.worker_count is not None:
             payload["worker_count"] = self.worker_count
+        if self.start_time_offset is not None:
+            payload["start_time_offset"] = self.start_time_offset
         return payload
 
 

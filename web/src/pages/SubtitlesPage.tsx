@@ -21,7 +21,9 @@ type Props = {
 };
 
 const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
-const DEFAULT_WORKER_COUNT = 4;
+const DEFAULT_WORKER_COUNT = 30;
+const DEFAULT_BATCH_SIZE = 30;
+const DEFAULT_START_TIME = '00:00';
 
 function deriveDirectoryFromPath(value: string | undefined): string {
   if (!value) {
@@ -73,6 +75,52 @@ function normaliseLanguage(value: string): string {
   return value.trim() || '';
 }
 
+function normaliseTimecodeInput(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return DEFAULT_START_TIME;
+  }
+
+  const segments = trimmed.split(':').map((segment) => segment.trim());
+  const isDigits = (input: string): boolean => /^\d+$/.test(input);
+
+  if (segments.length === 2) {
+    const [minutesPart, secondsPart] = segments;
+    if (!isDigits(minutesPart) || !/^\d{1,2}$/.test(secondsPart)) {
+      return null;
+    }
+    const minutes = Number(minutesPart);
+    const seconds = Number(secondsPart);
+    if (!Number.isFinite(minutes) || !Number.isFinite(seconds) || seconds >= 60) {
+      return null;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  if (segments.length === 3) {
+    const [hoursPart, minutesPart, secondsPart] = segments;
+    if (![hoursPart, minutesPart, secondsPart].every(isDigits)) {
+      return null;
+    }
+    const hours = Number(hoursPart);
+    const minutes = Number(minutesPart);
+    const seconds = Number(secondsPart);
+    if ([hours, minutes, seconds].some((component) => !Number.isFinite(component))) {
+      return null;
+    }
+    if (minutes >= 60 || seconds >= 60) {
+      return null;
+    }
+    return [
+      hours.toString().padStart(2, '0'),
+      minutes.toString().padStart(2, '0'),
+      seconds.toString().padStart(2, '0')
+    ].join(':');
+  }
+
+  return null;
+}
+
 export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob }: Props) {
   const {
     inputLanguage,
@@ -85,10 +133,12 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [sources, setSources] = useState<SubtitleSourceEntry[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>('');
   const [uploadFile, setUploadFile] = useState<File | null>(null);
-  const [enableTransliteration, setEnableTransliteration] = useState<boolean>(false);
+  const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
   const [mirrorToSourceDir, setMirrorToSourceDir] = useState<boolean>(true);
   const [workerCount, setWorkerCount] = useState<number | ''>(DEFAULT_WORKER_COUNT);
+  const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
+  const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -97,6 +147,10 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
     typeof DEFAULT_WORKER_COUNT === 'number' ? DEFAULT_WORKER_COUNT : null
   );
   const [jobResults, setJobResults] = useState<Record<string, SubtitleJobResultPayload>>({});
+  const [lastSubmittedBatchSize, setLastSubmittedBatchSize] = useState<number | null>(
+    typeof DEFAULT_BATCH_SIZE === 'number' ? DEFAULT_BATCH_SIZE : null
+  );
+  const [lastSubmittedStartTime, setLastSubmittedStartTime] = useState<string>(DEFAULT_START_TIME);
 
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
@@ -215,12 +269,19 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         return;
       }
 
+      const normalisedStartTime = normaliseTimecodeInput(startTime);
+      if (normalisedStartTime === null) {
+        setSubmitError('Enter a valid start time in MM:SS or HH:MM:SS format.');
+        return;
+      }
+
       const formData = new FormData();
       formData.append('input_language', inputLanguage);
       formData.append('target_language', trimmedTarget);
       formData.append('enable_transliteration', String(enableTransliteration));
       formData.append('highlight', String(enableHighlight));
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
+      formData.append('start_time', normalisedStartTime);
       if (sourceMode === 'existing') {
         formData.append('source_path', selectedSource.trim());
       } else if (uploadFile) {
@@ -229,12 +290,20 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       if (typeof workerCount === 'number' && workerCount > 0) {
         formData.append('worker_count', String(workerCount));
       }
+      if (typeof batchSize === 'number' && batchSize > 0) {
+        formData.append('batch_size', String(batchSize));
+      }
 
       setSubmitting(true);
       try {
         const response = await submitSubtitleJob(formData);
         setLastSubmittedJobId(response.job_id);
         setLastSubmittedWorkerCount(typeof workerCount === 'number' ? workerCount : null);
+        setLastSubmittedBatchSize(typeof batchSize === 'number' ? batchSize : null);
+        setLastSubmittedStartTime(normalisedStartTime);
+        if (normalisedStartTime !== startTime) {
+          setStartTime(normalisedStartTime);
+        }
         onJobCreated(response.job_id);
         if (sourceMode === 'upload') {
           setUploadFile(null);
@@ -256,7 +325,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       targetLanguage,
       uploadFile,
       workerCount,
-      mirrorToSourceDir
+      batchSize,
+      mirrorToSourceDir,
+      startTime
     ]
   );
 
@@ -418,9 +489,37 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                   }}
                 />
               </label>
-              <label className="disabled-option" title="Batch processing not yet available">
-                Batch size (coming soon)
-                <input type="number" value={1} min={1} disabled />
+              <label>
+                Batch size
+                <input
+                  type="number"
+                  min={1}
+                  max={500}
+                  value={batchSize}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    if (!raw.trim()) {
+                      setBatchSize('');
+                      return;
+                    }
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) {
+                      return;
+                    }
+                    setBatchSize(Math.min(Math.max(1, parsed), 500));
+                  }}
+                />
+              </label>
+              <label>
+                Start time (MM:SS)
+                <input
+                  type="text"
+                  value={startTime}
+                  onChange={(event) => setStartTime(event.target.value)}
+                  placeholder={DEFAULT_START_TIME}
+                  inputMode="numeric"
+                  pattern="^\\d{1,2}:\\d{2}(?::\\d{2})?$"
+                />
               </label>
             </div>
           </fieldset>
@@ -429,10 +528,28 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
           {lastSubmittedJobId ? (
             <div className="notice notice--info" role="status">
               Submitted subtitle job {lastSubmittedJobId}
-              {lastSubmittedWorkerCount ? ` using ${lastSubmittedWorkerCount} thread${
-                lastSubmittedWorkerCount === 1 ? '' : 's'
-              }` : ' using auto-detected concurrency'}
-              . Live status appears below.
+              {(() => {
+                const details: string[] = [];
+                if (lastSubmittedWorkerCount) {
+                  details.push(
+                    `${lastSubmittedWorkerCount} thread${lastSubmittedWorkerCount === 1 ? '' : 's'}`
+                  );
+                }
+                if (lastSubmittedBatchSize) {
+                  details.push(`batch size ${lastSubmittedBatchSize}`);
+                }
+                if (lastSubmittedStartTime && lastSubmittedStartTime !== DEFAULT_START_TIME) {
+                  details.push(`starting at ${lastSubmittedStartTime}`);
+                }
+                if (details.length === 0) {
+                  return ' using auto-detected concurrency. Live status appears below.';
+                }
+                const detailText =
+                  details.length === 1
+                    ? details[0]
+                    : `${details.slice(0, -1).join(', ')} and ${details[details.length - 1]}`;
+                return ` using ${detailText}. Live status appears below.`;
+              })()}
             </div>
           ) : null}
 
@@ -492,6 +609,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
               const total = event?.snapshot.total ?? null;
               const workerValue = subtitleMetadata ? subtitleMetadata['workers'] : null;
               const batchValue = subtitleMetadata ? subtitleMetadata['batch_size'] : null;
+              const startTimeValue = subtitleMetadata ? subtitleMetadata['start_time_offset_label'] : null;
               const workerSetting =
                 typeof workerValue === 'number' && Number.isFinite(workerValue)
                   ? workerValue
@@ -499,6 +617,10 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
               const batchSetting =
                 typeof batchValue === 'number' && Number.isFinite(batchValue)
                   ? batchValue
+                  : null;
+              const startTimeLabel =
+                typeof startTimeValue === 'string' && startTimeValue.trim()
+                  ? startTimeValue.trim()
                   : null;
               const stage = typeof event?.metadata?.stage === 'string' ? event?.metadata?.stage : null;
               const updatedAt = job.status.completed_at
@@ -538,6 +660,12 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       <div>
                         <dt>Batch size</dt>
                         <dd>{batchSetting}</dd>
+                      </div>
+                    ) : null}
+                    {startTimeLabel ? (
+                      <div>
+                        <dt>Start time</dt>
+                        <dd>{startTimeLabel}</dd>
                       </div>
                     ) : null}
                     {stage ? (
