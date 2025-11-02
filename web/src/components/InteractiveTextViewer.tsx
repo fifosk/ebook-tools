@@ -295,6 +295,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
+  const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
+  const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
 
   const paragraphs = useMemo(() => buildParagraphs(content), [content]);
   const timelineSentences = useMemo(() => {
@@ -316,13 +318,40 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const translationReveal: number[] = [];
       const transliterationReveal: number[] = [];
 
+      const eventDurationTotal = events.reduce((total, event) => {
+        const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
+        return total + duration;
+      }, 0);
+
+      const declaredDuration = (() => {
+        if (typeof metadata.total_duration === 'number' && metadata.total_duration > 0) {
+          return metadata.total_duration;
+        }
+        if (eventDurationTotal > 0) {
+          return eventDurationTotal;
+        }
+        const fallbackTokens = Math.max(
+          originalTokens.length,
+          translationTokens.length,
+          transliterationTokens.length,
+        );
+        if (fallbackTokens > 0) {
+          return fallbackTokens * 0.35;
+        }
+        return 0.5;
+      })();
+
+      const durationScale =
+        eventDurationTotal > 0 && declaredDuration > 0 ? declaredDuration / eventDurationTotal : 1;
+
       let prevOriginal = 0;
       let prevTranslation = 0;
       let prevTranslit = 0;
       let elapsed = 0;
 
       events.forEach((event) => {
-        const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
+        const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
+        const adjustedDuration = baseDuration * durationScale;
         const eventStart = offset + elapsed;
         const nextOriginal = Math.min(
           typeof event.original_index === 'number' ? Math.max(event.original_index, 0) : prevOriginal,
@@ -339,35 +368,42 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           transliterationTokens.length,
         );
 
-        distributeRevealTimes(prevOriginal, nextOriginal, eventStart, duration, originalReveal);
-        distributeRevealTimes(prevTranslation, nextTranslation, eventStart, duration, translationReveal);
-        distributeRevealTimes(prevTranslit, nextTranslit, eventStart, duration, transliterationReveal);
+        distributeRevealTimes(
+          prevOriginal,
+          nextOriginal,
+          eventStart,
+          adjustedDuration,
+          originalReveal,
+        );
+        distributeRevealTimes(
+          prevTranslation,
+          nextTranslation,
+          eventStart,
+          adjustedDuration,
+          translationReveal,
+        );
+        distributeRevealTimes(
+          prevTranslit,
+          nextTranslit,
+          eventStart,
+          adjustedDuration,
+          transliterationReveal,
+        );
 
         prevOriginal = nextOriginal;
         prevTranslation = nextTranslation;
         prevTranslit = nextTranslit;
-        elapsed += duration;
+        elapsed += adjustedDuration;
       });
 
-      const totalDuration = (() => {
-        if (typeof metadata.total_duration === 'number' && metadata.total_duration > 0) {
-          return metadata.total_duration;
-        }
-        if (elapsed > 0) {
-          return elapsed;
-        }
-        const fallbackTokens = Math.max(
-          originalTokens.length,
-          translationTokens.length,
-          transliterationTokens.length,
-        );
-        if (fallbackTokens > 0) {
-          return fallbackTokens * 0.35;
-        }
-        return 0.5;
-      })();
+      let sentenceDuration = declaredDuration;
+      if (!(sentenceDuration > 0)) {
+        sentenceDuration = elapsed;
+      } else if (elapsed > sentenceDuration) {
+        sentenceDuration = elapsed;
+      }
 
-      const endTime = offset + totalDuration;
+      const endTime = offset + sentenceDuration;
 
       fillRemainTimes(originalReveal, originalTokens.length, endTime);
       fillRemainTimes(translationReveal, translationTokens.length, endTime);
@@ -448,26 +484,36 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           return;
         }
 
-        let revealedCount = 0;
-        let currentIndex: number | null = null;
+        const tokens = variantRuntime.tokens;
+        const revealTimes = variantRuntime.revealTimes;
+        const safeEffectiveTime = Math.max(effectiveTime, 0);
+        const revealCutoff = Math.min(safeEffectiveTime, endTime);
+        const progressCount = revealTimes.filter((time) => time <= revealCutoff + 1e-3).length;
 
-        if (state !== 'future') {
-          revealedCount = variantRuntime.tokens.length;
-          currentIndex = variantRuntime.tokens.length - 1;
+        let revealedCount: number;
+        if (state === 'past') {
+          revealedCount = tokens.length;
+        } else if (state === 'future') {
+          revealedCount = progressCount;
+        } else {
+          revealedCount = progressCount;
         }
 
-        revealedCount = Math.max(revealedCount, 0);
-        revealedCount = Math.min(revealedCount, variantRuntime.tokens.length);
-        if (state === 'future') {
-          revealedCount = variantRuntime.revealTimes.filter((time) => time <= effectiveTime + 1e-3).length;
-          revealedCount = Math.max(revealedCount, 1);
-          revealedCount = Math.min(revealedCount, variantRuntime.tokens.length);
-          currentIndex = revealedCount - 1;
+        revealedCount = Math.max(0, Math.min(revealedCount, tokens.length));
+        if (state === 'active' && revealedCount === 0 && revealTimes.length > 0) {
+          if (safeEffectiveTime >= startTime - 1e-3) {
+            revealedCount = 1;
+          }
+        }
+
+        let currentIndex: number | null = revealedCount > 0 ? revealedCount - 1 : null;
+        if (state === 'past' && tokens.length > 0) {
+          currentIndex = tokens.length - 1;
         }
 
         variants.push({
           label,
-          tokens: variantRuntime.tokens,
+          tokens,
           revealedCount,
           currentIndex,
           baseClass,
@@ -503,6 +549,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     return {
       sentences: displaySentences,
       activeIndex: activeIndex ?? 0,
+      effectiveTime,
     };
   }, [timelineSentences, chunkTime, audioDuration]);
   
@@ -516,8 +563,24 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   );
 
   const textPlayerSentences = useMemo(() => {
+    const forceActive = (sentence: TextPlayerSentence | undefined | null): TextPlayerSentence[] | null => {
+      if (!sentence) {
+        return null;
+      }
+      return [
+        {
+          ...sentence,
+          state: 'active',
+        },
+      ];
+    };
+
     if (timelineDisplay?.sentences && timelineDisplay.sentences.length > 0) {
-      return timelineDisplay.sentences;
+      const active =
+        timelineDisplay.sentences.find((entry) => entry.index === activeSentenceIndex) ??
+        timelineDisplay.sentences.find((entry) => entry.state === 'active') ??
+        timelineDisplay.sentences[0];
+      return forceActive(active);
     }
 
     const buildTokens = (value: string | null | undefined): string[] => {
@@ -576,7 +639,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
       const filtered = fallbackFromChunk.filter((sentence) => sentence.variants.length > 0);
       if (filtered.length > 0) {
-        return filtered;
+        const active =
+          filtered.find((sentence) => sentence.index === activeSentenceIndex) ?? filtered[0];
+        return forceActive(active);
       }
     }
 
@@ -633,8 +698,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       })
       .filter((value): value is TextPlayerSentence => value !== null);
 
-    return fallbackFromContent.length > 0 ? fallbackFromContent : null;
-  }, [timelineDisplay, chunk?.sentences, rawSentences]);
+    if (fallbackFromContent.length === 0) {
+      return null;
+    }
+    const active =
+      fallbackFromContent.find((sentence) => sentence.index === activeSentenceIndex) ??
+      fallbackFromContent[0];
+    return forceActive(active);
+  }, [timelineDisplay, chunk?.sentences, rawSentences, activeSentenceIndex]);
   const sentenceWeightSummary = useMemo(() => {
     let cumulativeTotal = 0;
     const cumulative: number[] = [];
@@ -686,8 +757,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
-  const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
   const pendingInitialSeek = useRef<number | null>(null);
   const lastReportedPosition = useRef(0);
 
@@ -702,18 +771,38 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   useEffect(() => {
     setActiveSentenceIndex(0);
     setActiveSentenceProgress(0);
-    const container = containerRef.current;
-    if (container) {
-      container.scrollTop = 0;
-    }
   }, [content, totalSentences]);
 
   useEffect(() => {
     if (!timelineDisplay) {
       return;
     }
-    setActiveSentenceIndex(timelineDisplay.activeIndex);
-  }, [timelineDisplay]);
+    const { activeIndex: candidateIndex, effectiveTime } = timelineDisplay;
+    if (candidateIndex === activeSentenceIndex) {
+      return;
+    }
+    if (!timelineSentences || timelineSentences.length === 0) {
+      setActiveSentenceIndex(candidateIndex);
+      return;
+    }
+    const epsilon = 0.05;
+    const clampedIndex = Math.max(0, Math.min(candidateIndex, timelineSentences.length - 1));
+    const candidateRuntime = timelineSentences[clampedIndex];
+    if (!candidateRuntime) {
+      setActiveSentenceIndex(clampedIndex);
+      return;
+    }
+    if (clampedIndex > activeSentenceIndex) {
+      if (effectiveTime < candidateRuntime.startTime + epsilon) {
+        return;
+      }
+    } else if (clampedIndex < activeSentenceIndex) {
+      if (effectiveTime > candidateRuntime.endTime - epsilon) {
+        return;
+      }
+    }
+    setActiveSentenceIndex(clampedIndex);
+  }, [timelineDisplay, activeSentenceIndex, timelineSentences]);
 
   useEffect(() => {
     if (!activeAudioUrl) {
@@ -943,26 +1032,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     emitAudioProgress(element.currentTime);
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
-
-  const previousActiveIndexRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (previousActiveIndexRef.current === activeSentenceIndex) {
-      return;
-    }
-    previousActiveIndexRef.current = activeSentenceIndex;
-    const container = containerRef.current;
-    if (!container || !timelineDisplay) {
-      return;
-    }
-    const sentence = timelineDisplay.sentences.find((entry) => entry.index === activeSentenceIndex);
-    if (!sentence) {
-      return;
-    }
-    const approxOffset = sentence.index * 160;
-    container.scrollTo({ top: Math.max(approxOffset - container.clientHeight * 0.3, 0), behavior: 'smooth' });
-  }, [activeSentenceIndex]);
-
   const noAudioAvailable = Boolean(chunk) && audioOptions.length === 0;
   const chunkLabel = useMemo(() => {
     if (!chunk) {

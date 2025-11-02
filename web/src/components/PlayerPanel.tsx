@@ -44,7 +44,7 @@ interface TabDefinition {
 }
 
 const TAB_DEFINITIONS: TabDefinition[] = [
-  { key: 'text', label: 'Text', emptyMessage: 'No text media yet.' },
+  { key: 'text', label: 'Interactive Reader', emptyMessage: 'No interactive reader media yet.' },
   { key: 'audio', label: 'Audio', emptyMessage: 'No audio media yet.' },
   { key: 'video', label: 'Video', emptyMessage: 'No video media yet.' },
 ];
@@ -205,6 +205,10 @@ export default function PlayerPanel({
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
+  const visibleTabs = useMemo(() => {
+    return TAB_DEFINITIONS.filter((tab) => tab.key !== 'video' || media.video.length > 0);
+  }, [media.video.length]);
+  const defaultTab = useMemo(() => selectInitialTab(media), [media]);
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
   const textScrollRef = useRef<HTMLDivElement | null>(null);
@@ -416,6 +420,13 @@ export default function PlayerPanel({
       return selectInitialTab(media);
     });
   }, [media]);
+
+  useEffect(() => {
+    if (media.video.length > 0 || selectedMediaType !== 'video') {
+      return;
+    }
+    setSelectedMediaType(defaultTab);
+  }, [defaultTab, media.video.length, selectedMediaType]);
 
   useEffect(() => {
     const rememberedType = memoryState.currentMediaType;
@@ -728,13 +739,41 @@ export default function PlayerPanel({
       }) ?? null
     );
   }, [chunks, selectedItem]);
+  const hasInteractiveChunks = useMemo(
+    () =>
+      chunks.some(
+        (chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0,
+      ),
+    [chunks],
+  );
+  const activeTextChunk = useMemo(() => {
+    if (selectedChunk) {
+      return selectedChunk;
+    }
+    if (!chunks.length) {
+      return null;
+    }
+    const audioId = selectedItemIds.audio;
+    if (audioId) {
+      const matchedByAudio = chunks.find((chunk) =>
+        chunk.files.some((file) => file.type === 'audio' && file.url === audioId),
+      );
+      if (matchedByAudio) {
+        return matchedByAudio;
+      }
+    }
+    const firstWithSentences = chunks.find(
+      (chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0,
+    );
+    return firstWithSentences ?? chunks[0];
+  }, [chunks, selectedChunk, selectedItemIds.audio]);
   const chunkAudioItems = useMemo(() => {
-    if (!selectedChunk) {
+    if (!activeTextChunk) {
       return [];
     }
     const seen = new Set<string>();
     const items: LiveMediaItem[] = [];
-    selectedChunk.files.forEach((file) => {
+    activeTextChunk.files.forEach((file) => {
       if (file.type !== 'audio' || !file.url) {
         return;
       }
@@ -745,7 +784,7 @@ export default function PlayerPanel({
       items.push(file);
     });
     return items;
-  }, [selectedChunk]);
+  }, [activeTextChunk]);
   const interactiveAudioItems = useMemo(() => {
     const seen = new Set<string>();
     const register = (item: LiveMediaItem | null | undefined) => {
@@ -771,18 +810,53 @@ export default function PlayerPanel({
       register(media.audio[0]);
     }
     return result;
-  }, [
-    chunkAudioItems,
-    deriveBaseId,
-    getMediaItem,
-    media.audio,
-    selectedItem,
-    selectedItemIds.audio,
-  ]);
+  }, [chunkAudioItems, deriveBaseId, getMediaItem, media.audio, selectedItem, selectedItemIds.audio]);
+  const fallbackTextContent = useMemo(() => {
+    if (!activeTextChunk || !Array.isArray(activeTextChunk.sentences)) {
+      return '';
+    }
+    const blocks = activeTextChunk.sentences
+      .map((sentence) => {
+        if (!sentence) {
+          return '';
+        }
+        const lines: string[] = [];
+        if (sentence.original?.text) {
+          lines.push(sentence.original.text);
+        }
+        if (sentence.translation?.text) {
+          lines.push(sentence.translation.text);
+        }
+        if (sentence.transliteration?.text) {
+          lines.push(sentence.transliteration.text);
+        }
+        return lines.filter(Boolean).join('\n');
+      })
+      .filter((block) => block.trim().length > 0);
+    return blocks.join('\n\n');
+  }, [activeTextChunk]);
+  const interactiveViewerContent = (textPreview?.content ?? fallbackTextContent) || '';
+  const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
+  const canRenderInteractiveViewer =
+    Boolean(activeTextChunk) && interactiveViewerContent.trim().length > 0;
   const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
   const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
+  const activeChunkRange = activeTextChunk
+    ? activeTextChunk.rangeFragment ??
+      formatSentenceRange(activeTextChunk.startSentence ?? null, activeTextChunk.endSentence ?? null)
+    : null;
+  const selectionTitle =
+    selectedItem?.name ??
+    activeChunkRange ??
+    (activeTextChunk ? 'Interactive chunk' : 'No media selected');
+  const selectionLabel = selectedItem
+    ? `Selected media: ${selectedItem.name}`
+    : activeTextChunk
+    ? `Interactive chunk: ${activeChunkRange ?? 'Chunk'}`
+    : 'No media selected';
+  const hasTextItems = media.text.length > 0;
   const navigableItems = useMemo(
     () =>
       media[selectedMediaType].filter((item) => typeof item.url === 'string' && item.url.length > 0),
@@ -1150,19 +1224,21 @@ export default function PlayerPanel({
                 <span aria-hidden="true">⏭</span>
               </button>
             </div>
-            <button
-              type="button"
-              className="player-panel__immersive-toggle"
-              onClick={handleImmersiveToggle}
-              disabled={!isVideoTabActive || media.video.length === 0}
-              aria-pressed={isImmersiveMode}
-              aria-label={immersiveToggleLabel}
-              data-testid="player-panel-immersive-toggle"
-            >
-              {immersiveToggleLabel}
-            </button>
+            {media.video.length > 0 ? (
+              <button
+                type="button"
+                className="player-panel__immersive-toggle"
+                onClick={handleImmersiveToggle}
+                disabled={!isVideoTabActive}
+                aria-pressed={isImmersiveMode}
+                aria-label={immersiveToggleLabel}
+                data-testid="player-panel-immersive-toggle"
+              >
+                {immersiveToggleLabel}
+              </button>
+            ) : null}
             <TabsList className="player-panel__tabs" aria-label="Media categories">
-              {TAB_DEFINITIONS.map((tab) => {
+              {visibleTabs.map((tab) => {
                 const count = media[tab.key].length;
                 return (
                   <TabsTrigger
@@ -1178,14 +1254,16 @@ export default function PlayerPanel({
             </TabsList>
           </div>
         </header>
-        {TAB_DEFINITIONS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const isActive = tab.key === selectedMediaType;
           const tabItems = media[tab.key];
+          const tabHasInteractiveContent = tab.key === 'text' && hasInteractiveChunks;
+          const tabHasContent = tabItems.length > 0 || tabHasInteractiveContent;
           return (
             <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
               {!hasAnyMedia && !isLoading ? (
                 <p role="status">{emptyMediaMessage}</p>
-              ) : tabItems.length === 0 ? (
+              ) : !tabHasContent ? (
                 <p role="status">{tab.emptyMessage}</p>
               ) : (
                 isActive ? (
@@ -1198,9 +1276,9 @@ export default function PlayerPanel({
                     <div className="player-panel__selection-header" data-testid="player-panel-selection">
                       <div
                         className="player-panel__selection-name"
-                        title={selectedItem?.name ?? 'No media selected'}
+                        title={selectionTitle}
                       >
-                        {selectedItem ? `Selected media: ${selectedItem.name}` : 'No media selected'}
+                        {selectionLabel}
                       </div>
                       <dl className="player-panel__selection-meta">
                         <div className="player-panel__selection-meta-item">
@@ -1213,11 +1291,11 @@ export default function PlayerPanel({
                         </div>
                         <div className="player-panel__selection-meta-item">
                           <dt>Chunk</dt>
-                          <dd>{selectedChunk?.rangeFragment ?? '—'}</dd>
+                          <dd>{activeTextChunk?.rangeFragment ?? '—'}</dd>
                         </div>
                         <div className="player-panel__selection-meta-item">
                           <dt>Sentences</dt>
-                          <dd>{formatSentenceRange(selectedChunk?.startSentence ?? null, selectedChunk?.endSentence ?? null)}</dd>
+                          <dd>{formatSentenceRange(activeTextChunk?.startSentence ?? null, activeTextChunk?.endSentence ?? null)}</dd>
                         </div>
                       </dl>
                     </div>
@@ -1249,40 +1327,32 @@ export default function PlayerPanel({
                       ) : null}
                       {tab.key === 'text' ? (
                         <div className="player-panel__document">
-                          {selectedItem ? (
-                            textLoading ? (
-                              <div className="player-panel__document-status" role="status">
-                                Loading document…
-                              </div>
-                            ) : textError ? (
-                              <div className="player-panel__document-error" role="alert">
-                                {textError}
-                              </div>
-                            ) : textPreview ? (
-                              textPreview.content ? (
-                                <InteractiveTextViewer
-                                  ref={textScrollRef}
-                                  content={textPreview.content}
-                                  rawContent={textPreview.raw}
-                                  chunk={selectedChunk}
-                                  audioItems={interactiveAudioItems}
-                                  onScroll={handleTextScroll}
-                                  onAudioProgress={handleInlineAudioProgress}
-                                  getStoredAudioPosition={getInlineAudioPosition}
-                                />
-                              ) : (
-                                <div className="player-panel__document-status" role="status">
-                                  Document preview is empty.
-                                </div>
-                              )
-                            ) : (
-                              <div className="player-panel__document-status" role="status">
-                                Preparing document preview…
-                              </div>
-                            )
-                          ) : (
+                          {hasTextItems && !selectedItem ? (
                             <div className="player-panel__empty-viewer" role="status">
                               Select a file to preview.
+                            </div>
+                          ) : textLoading && selectedItem ? (
+                            <div className="player-panel__document-status" role="status">
+                              Loading document…
+                            </div>
+                          ) : textError ? (
+                            <div className="player-panel__document-error" role="alert">
+                              {textError}
+                            </div>
+                          ) : canRenderInteractiveViewer ? (
+                            <InteractiveTextViewer
+                              ref={textScrollRef}
+                              content={interactiveViewerContent}
+                              rawContent={interactiveViewerRaw}
+                              chunk={activeTextChunk}
+                              audioItems={interactiveAudioItems}
+                              onScroll={handleTextScroll}
+                              onAudioProgress={handleInlineAudioProgress}
+                              getStoredAudioPosition={getInlineAudioPosition}
+                            />
+                          ) : (
+                            <div className="player-panel__document-status" role="status">
+                              Interactive reader assets are still being prepared.
                             </div>
                           )}
                         </div>

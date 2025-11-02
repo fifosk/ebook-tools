@@ -141,6 +141,13 @@ class BatchExporter:
             }
             for event in timeline_result.events
         ]
+        raw_timeline_duration = sum(event.duration for event in timeline_result.events)
+        if audio_segment is not None:
+            audio_duration = float(audio_segment.duration_seconds)
+        else:
+            audio_duration = raw_timeline_duration
+        if audio_duration <= 0 and raw_timeline_duration > 0:
+            audio_duration = raw_timeline_duration
 
         original_tokens = _tokenize_words(original_text)
         translation_units = _split_translation_units(header, translation_text)
@@ -154,7 +161,7 @@ class BatchExporter:
             },
             "timeline": events_payload,
             "highlight_granularity": timeline_result.effective_granularity,
-            "total_duration": sum(event.duration for event in timeline_result.events),
+            "total_duration": audio_duration,
         }
 
         if translation_text:

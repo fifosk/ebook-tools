@@ -496,8 +496,7 @@ class RenderPipeline:
         )
         self._update_voice_metadata(state, voice_metadata)
         state.written_blocks.append(written_block)
-        if generate_video:
-            state.video_blocks.append(video_block)
+        state.video_blocks.append(video_block)
         if generate_audio and audio_segment is not None:
             if state.current_audio_segments is not None:
                 state.current_audio_segments.append(audio_segment)
@@ -798,8 +797,7 @@ class RenderPipeline:
                         ),
                     )
                     state.written_blocks.append(written_block)
-                    if generate_video:
-                        state.video_blocks.append(video_block)
+                    state.video_blocks.append(video_block)
                     should_flush = (
                         (item.sentence_number - state.current_batch_start + 1)
                         % sentences_per_file

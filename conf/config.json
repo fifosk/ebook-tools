@@ -65,7 +65,7 @@
     "percentile": 96,
     "split_on_comma_semicolon": false,
     "generate_audio": true,
-    "generate_video": true,
+    "generate_video": false,
     "audio_mode": "4",
     "written_mode": "4",
     "include_transliteration": true,

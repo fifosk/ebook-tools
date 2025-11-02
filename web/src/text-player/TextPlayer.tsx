@@ -195,7 +195,11 @@ const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek }) => {
         }
 
         return (
-          <div className={classNames.join(' ')} key={sentence.id}>
+          <div
+            className={classNames.join(' ')}
+            key={sentence.id}
+            data-sentence-index={sentence.index}
+          >
             {sentence.variants.map((variant) =>
               renderVariant(sentence.state, sentence.index, variant, onSeek)
             )}

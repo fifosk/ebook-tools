@@ -44,7 +44,7 @@ class EbookToolsSettings(BaseModel):
     target_languages: list[str] = Field(default_factory=lambda: ["Arabic"])
     ollama_model: str = DEFAULT_MODEL
     generate_audio: bool = True
-    generate_video: bool = True
+    generate_video: bool = False
     sentences_per_output_file: int = 10
     start_sentence: int = 1
     end_sentence: Optional[int] = None
