@@ -183,8 +183,10 @@ def list_subtitle_sources(
 async def submit_subtitle_job(
     input_language: str = Form(...),
     target_language: str = Form(...),
+    original_language: Optional[str] = Form(None),
     enable_transliteration: Union[str, bool] = Form(False),
     highlight: Union[str, bool] = Form(True),
+    show_original: Union[str, bool] = Form(True),
     batch_size: Optional[str] = Form(None),
     worker_count: Optional[str] = Form(None),
     start_time: Optional[str] = Form("00:00"),
@@ -232,9 +234,18 @@ async def submit_subtitle_job(
         start_offset_seconds = _parse_time_offset(start_time)
         end_offset_seconds = _parse_end_time(end_time, start_offset_seconds)
         palette = SubtitleColorPalette.from_mapping(palette_mapping if palette_mapping else None)
+        resolved_input_language = (input_language or "").strip()
+        if not resolved_input_language:
+            resolved_input_language = "English"
+        resolved_target_language = (target_language or "").strip()
+        resolved_original_language = (original_language or "").strip()
+        if not resolved_original_language:
+            resolved_original_language = resolved_input_language
         options_model = SubtitleJobOptions(
-            input_language=input_language.strip(),
-            target_language=target_language.strip(),
+            input_language=resolved_input_language,
+            target_language=resolved_target_language,
+            original_language=resolved_original_language,
+            show_original=_as_bool(show_original, True),
             enable_transliteration=_as_bool(enable_transliteration, False),
             highlight=_as_bool(highlight, True),
             batch_size=_coerce_int(batch_size),
