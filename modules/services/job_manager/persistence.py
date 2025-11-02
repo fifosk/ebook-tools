@@ -362,6 +362,9 @@ class PipelineJobPersistence:
                 "end_sentence": chunk.get("end_sentence"),
                 "files": [],
             }
+            sentences_raw = chunk.get("sentences")
+            if isinstance(sentences_raw, list):
+                chunk_entry["sentences"] = copy.deepcopy(sentences_raw)
             files_raw = chunk.get("files", [])
             if not isinstance(files_raw, list):
                 files_raw = []

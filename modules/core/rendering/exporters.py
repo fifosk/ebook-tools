@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Dict, Mapping, Optional, Sequence
+from typing import Dict, List, Mapping, Optional, Sequence
 
 from PIL import Image
 from pydub import AudioSegment
@@ -19,6 +19,34 @@ from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
 from modules.video.api import VideoService
 from modules.video.slides import SlideRenderOptions
+from modules.audio.highlight import timeline
+
+
+def _parse_sentence_block(block: str) -> tuple[str, str, str, str]:
+    lines = block.split("\n")
+    header = lines[0].strip() if lines else ""
+    body_lines = [line.strip() for line in lines[1:] if line.strip()]
+
+    original = body_lines[0] if body_lines else ""
+    translation = body_lines[1] if len(body_lines) > 1 else ""
+    transliteration = body_lines[2] if len(body_lines) > 2 else ""
+
+    return header, original, translation, transliteration
+
+
+def _split_translation_units(header: str, translation: str) -> List[str]:
+    if not translation:
+        return []
+    if "Chinese" in header or "Japanese" in header:
+        return list(translation)
+    units = translation.split()
+    return units or ([translation] if translation else [])
+
+
+def _tokenize_words(text: str) -> List[str]:
+    if not text:
+        return []
+    return [token for token in text.split() if token]
 
 
 @dataclass(frozen=True)
@@ -75,6 +103,7 @@ class BatchExportResult:
     end_sentence: int
     range_fragment: str
     artifacts: Dict[str, str] = field(default_factory=dict)
+    sentences: List[Dict[str, object]] = field(default_factory=list)
 
 
 class BatchExporter:
@@ -86,6 +115,71 @@ class BatchExporter:
             backend=context.video_backend,
             backend_settings=context.video_backend_settings,
         )
+
+    def _build_sentence_metadata(
+        self,
+        *,
+        block: str,
+        audio_segment: Optional[AudioSegment],
+        sentence_number: int,
+    ) -> Dict[str, object]:
+        header, original_text, translation_text, transliteration_text = _parse_sentence_block(block)
+
+        timeline_options = timeline.TimelineBuildOptions(
+            sync_ratio=self._context.sync_ratio,
+            word_highlighting=self._context.word_highlighting,
+            highlight_granularity=self._context.highlight_granularity,
+        )
+        timeline_result = timeline.build(block, audio_segment, timeline_options)
+
+        events_payload: List[Dict[str, object]] = [
+            {
+                "duration": event.duration,
+                "original_index": event.original_index,
+                "translation_index": event.translation_index,
+                "transliteration_index": event.transliteration_index,
+            }
+            for event in timeline_result.events
+        ]
+
+        original_tokens = _tokenize_words(original_text)
+        translation_units = _split_translation_units(header, translation_text)
+        transliteration_tokens = _tokenize_words(transliteration_text)
+
+        payload: Dict[str, object] = {
+            "sentence_number": sentence_number,
+            "original": {
+                "text": original_text,
+                "tokens": original_tokens,
+            },
+            "timeline": events_payload,
+            "highlight_granularity": timeline_result.effective_granularity,
+            "total_duration": sum(event.duration for event in timeline_result.events),
+        }
+
+        if translation_text:
+            payload["translation"] = {
+                "text": translation_text,
+                "tokens": translation_units,
+            }
+        else:
+            payload["translation"] = None
+
+        if transliteration_text:
+            payload["transliteration"] = {
+                "text": transliteration_text,
+                "tokens": transliteration_tokens,
+            }
+        else:
+            payload["transliteration"] = None
+
+        payload["counts"] = {
+            "original": len(original_tokens),
+            "translation": len(translation_units),
+            "transliteration": len(transliteration_tokens),
+        }
+
+        return payload
 
     @staticmethod
     def _format_voice_lines(
@@ -158,6 +252,21 @@ class BatchExporter:
         writer = DeferredBatchWriter(Path(self._context.base_dir), batch_context)
 
         artifacts: Dict[str, str] = {}
+        audio_segments: List[AudioSegment] = (
+            list(request.audio_segments) if request.generate_audio else []
+        )
+        video_blocks: List[str] = list(request.video_blocks)
+        sentence_payloads: List[Dict[str, object]] = []
+
+        for offset, block in enumerate(video_blocks):
+            sentence_number = request.start_sentence + offset
+            audio_segment = audio_segments[offset] if offset < len(audio_segments) else None
+            metadata = self._build_sentence_metadata(
+                block=block,
+                audio_segment=audio_segment,
+                sentence_number=sentence_number,
+            )
+            sentence_payloads.append(metadata)
 
         try:
             document_paths = output_formatter.export_batch_documents(
@@ -174,9 +283,6 @@ class BatchExporter:
             for kind, created_path in document_paths.items():
                 staged_path = writer.stage(Path(created_path))
                 artifacts[kind] = str(staged_path)
-
-            audio_segments = list(request.audio_segments) if request.generate_audio else []
-            video_blocks = list(request.video_blocks) if request.generate_video else []
 
             if request.generate_audio and audio_segments:
                 combined = AudioSegment.empty()
@@ -228,6 +334,7 @@ class BatchExporter:
             end_sentence=request.end_sentence,
             range_fragment=range_fragment,
             artifacts=artifacts,
+            sentences=sentence_payloads,
         )
 
 

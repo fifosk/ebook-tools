@@ -291,6 +291,7 @@ class VideoService:
                 end_sentence=state.task.options.batch_end,
                 range_fragment=f"{state.task.options.batch_start}-{state.task.options.batch_end}",
                 files={"video": relative_path},
+                sentences=None,
             )
 
     def _finalize_failure(

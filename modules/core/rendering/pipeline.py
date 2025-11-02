@@ -304,6 +304,7 @@ class RenderPipeline:
                 end_sentence=result.end_sentence,
                 range_fragment=result.range_fragment,
                 files=result.artifacts,
+                sentences=result.sentences,
             )
 
     def _initial_state(

@@ -207,7 +207,7 @@ export default function PlayerPanel({
   const isVideoTabActive = selectedMediaType === 'video';
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
-  const textScrollRef = useRef<HTMLElement | null>(null);
+  const textScrollRef = useRef<HTMLDivElement | null>(null);
   const mediaIndex = useMemo(() => {
     const map: Record<MediaCategory, Map<string, LiveMediaItem>> = {
       text: new Map(),

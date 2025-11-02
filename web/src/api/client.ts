@@ -170,7 +170,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
 export async function login(payload: LoginRequestPayload): Promise<SessionStatusResponse> {
   const response = await apiFetch(
-    '/auth/login',
+    '/api/auth/login',
     {
       method: 'POST',
       headers: {
@@ -184,14 +184,14 @@ export async function login(payload: LoginRequestPayload): Promise<SessionStatus
 }
 
 export async function logout(): Promise<void> {
-  const response = await apiFetch('/auth/logout', {
+  const response = await apiFetch('/api/auth/logout', {
     method: 'POST'
   });
   await handleResponse<unknown>(response);
 }
 
 export async function fetchSessionStatus(): Promise<SessionStatusResponse> {
-  const response = await apiFetch('/auth/session');
+  const response = await apiFetch('/api/auth/session');
   return handleResponse<SessionStatusResponse>(response);
 }
 
@@ -217,7 +217,7 @@ export async function fetchSubtitleResult(jobId: string): Promise<SubtitleJobRes
 }
 
 export async function changePassword(payload: PasswordChangeRequestPayload): Promise<void> {
-  const response = await apiFetch('/auth/password', {
+  const response = await apiFetch('/api/auth/password', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -230,7 +230,7 @@ export async function changePassword(payload: PasswordChangeRequestPayload): Pro
 export async function submitPipeline(
   payload: PipelineRequestPayload
 ): Promise<PipelineSubmissionResponse> {
-  const response = await apiFetch('/pipelines', {
+  const response = await apiFetch('/api/pipelines', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -241,12 +241,12 @@ export async function submitPipeline(
 }
 
 export async function fetchPipelineStatus(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/pipelines/${jobId}`);
+  const response = await apiFetch(`/api/pipelines/${jobId}`);
   return handleResponse<PipelineStatusResponse>(response);
 }
 
 export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
-  const response = await apiFetch('/pipelines/jobs');
+  const response = await apiFetch('/api/pipelines/jobs');
   const payload = await handleResponse<PipelineJobListResponse>(response);
   return payload.jobs;
 }
@@ -322,7 +322,7 @@ export async function resetUserPassword(
 }
 
 async function postJobAction(jobId: string, action: string): Promise<PipelineJobActionResponse> {
-  const response = await apiFetch(`/pipelines/jobs/${jobId}/${action}`, {
+  const response = await apiFetch(`/api/pipelines/jobs/${jobId}/${action}`, {
     method: 'POST'
   });
   return handleResponse<PipelineJobActionResponse>(response);
@@ -345,19 +345,19 @@ export async function deleteJob(jobId: string): Promise<PipelineJobActionRespons
 }
 
 export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {
-  const response = await apiFetch(`/pipelines/${jobId}/metadata/refresh`, {
+  const response = await apiFetch(`/api/pipelines/${jobId}/metadata/refresh`, {
     method: 'POST'
   });
   return handleResponse<PipelineStatusResponse>(response);
 }
 
 export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/pipelines/jobs/${jobId}/media`);
+  const response = await apiFetch(`/api/pipelines/jobs/${jobId}/media`);
   return handleResponse<PipelineMediaResponse>(response);
 }
 
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/pipelines/jobs/${jobId}/media/live`);
+  const response = await apiFetch(`/api/pipelines/jobs/${jobId}/media/live`);
   return handleResponse<PipelineMediaResponse>(response);
 }
 
@@ -403,12 +403,12 @@ export async function searchMedia(jobId: string | null | undefined, query: strin
   params.set('query', trimmed);
   params.set('limit', String(resolvedLimit));
   params.set('job_id', jobId);
-  const response = await apiFetch(`/pipelines/search?${params.toString()}`);
+  const response = await apiFetch(`/api/pipelines/search?${params.toString()}`);
   return handleResponse<MediaSearchResponse>(response);
 }
 
 export function buildEventStreamUrl(jobId: string): string {
-  const baseUrl = withBase(`/pipelines/${jobId}/events`);
+  const baseUrl = withBase(`/api/pipelines/${jobId}/events`);
   const token = getAuthToken();
   try {
     const url = new URL(baseUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
@@ -431,7 +431,7 @@ export function resolveJobCoverUrl(jobId: string): string | null {
     return null;
   }
   const encoded = encodeURIComponent(trimmed);
-  return withBase(`/pipelines/${encoded}/cover`);
+  return withBase(`/api/pipelines/${encoded}/cover`);
 }
 
 export function buildStorageUrl(path: string, jobId?: string | null): string {
@@ -513,12 +513,12 @@ export function resolveSubtitleDownloadUrl(
 }
 
 export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse> {
-  const response = await apiFetch('/pipelines/files');
+  const response = await apiFetch('/api/pipelines/files');
   return handleResponse<PipelineFileBrowserResponse>(response);
 }
 
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
-  const response = await apiFetch('/pipelines/defaults');
+  const response = await apiFetch('/api/pipelines/defaults');
   return handleResponse<PipelineDefaultsResponse>(response);
 }
 
@@ -567,7 +567,7 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
   const formData = new FormData();
   formData.append('file', file, file.name);
 
-  const response = await apiFetch('/pipelines/files/upload', {
+  const response = await apiFetch('/api/pipelines/files/upload', {
     method: 'POST',
     body: formData
   });
@@ -576,7 +576,7 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
 }
 
 export async function deletePipelineEbook(path: string): Promise<void> {
-  const response = await apiFetch('/pipelines/files', {
+  const response = await apiFetch('/api/pipelines/files', {
     method: 'DELETE',
     headers: {
       'Content-Type': 'application/json'

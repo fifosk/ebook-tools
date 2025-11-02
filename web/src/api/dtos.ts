@@ -300,6 +300,30 @@ export interface PipelineMediaFile {
   range_fragment?: string | null;
   start_sentence?: number | null;
   end_sentence?: number | null;
+  type?: string | null;
+}
+
+export interface ChunkSentenceTimelineEvent {
+  duration: number;
+  original_index: number;
+  translation_index: number;
+  transliteration_index: number;
+}
+
+export interface ChunkSentenceVariant {
+  text: string;
+  tokens: string[];
+}
+
+export interface ChunkSentenceMetadata {
+  sentence_number?: number | null;
+  original: ChunkSentenceVariant;
+  translation?: ChunkSentenceVariant | null;
+  transliteration?: ChunkSentenceVariant | null;
+  timeline: ChunkSentenceTimelineEvent[];
+  total_duration?: number | null;
+  highlight_granularity?: string | null;
+  counts?: Record<string, number>;
 }
 
 export interface PipelineMediaChunk {
@@ -308,6 +332,7 @@ export interface PipelineMediaChunk {
   start_sentence?: number | null;
   end_sentence?: number | null;
   files: PipelineMediaFile[];
+  sentences?: ChunkSentenceMetadata[];
 }
 
 export interface PipelineMediaResponse {

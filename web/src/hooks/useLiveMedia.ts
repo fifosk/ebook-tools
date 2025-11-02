@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { fetchLiveJobMedia } from '../api/client';
-import { PipelineMediaFile, PipelineMediaResponse, ProgressEventPayload } from '../api/dtos';
+import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
+import {
+  PipelineMediaFile,
+  PipelineMediaResponse,
+  ProgressEventPayload,
+  ChunkSentenceMetadata,
+} from '../api/dtos';
 import { subscribeToJobEvents } from '../services/api';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
 
@@ -22,6 +27,7 @@ export interface LiveMediaChunk {
   startSentence: number | null;
   endSentence: number | null;
   files: LiveMediaItem[];
+  sentences?: ChunkSentenceMetadata[];
 }
 
 export interface UseLiveMediaOptions {
@@ -165,12 +171,17 @@ function buildStateFromSections(
       if (chunkFiles.length === 0) {
         return;
       }
+      const sentencesRaw = payload.sentences;
+      const sentences = Array.isArray(sentencesRaw)
+        ? (sentencesRaw as ChunkSentenceMetadata[])
+        : [];
       chunkRecords.push({
         chunkId: toStringOrNull(payload.chunk_id),
         rangeFragment: toStringOrNull(payload.range_fragment),
         startSentence: toNumberOrNull(payload.start_sentence),
         endSentence: toNumberOrNull(payload.end_sentence),
         files: chunkFiles,
+        sentences,
       });
     });
   }
@@ -459,6 +470,24 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
     return base.slice();
   }
 
+  const mergeChunk = (current: LiveMediaChunk, update: LiveMediaChunk): LiveMediaChunk => {
+    const mergedFiles =
+      update.files && update.files.length > 0
+        ? update.files
+        : current.files;
+    const mergedSentences =
+      update.sentences && update.sentences.length > 0
+        ? update.sentences
+        : current.sentences;
+
+    return {
+      ...current,
+      ...update,
+      files: mergedFiles,
+      sentences: mergedSentences,
+    };
+  };
+
   const baseKeys = new Map<string, LiveMediaChunk>();
   base.forEach((chunk) => {
     baseKeys.set(chunkKey(chunk), chunk);
@@ -471,12 +500,19 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
 
   const result: LiveMediaChunk[] = base.map((chunk) => {
     const key = chunkKey(chunk);
-    return incomingMap.get(key) ?? chunk;
+    const update = incomingMap.get(key);
+    if (!update) {
+      return chunk;
+    }
+    return mergeChunk(chunk, update);
   });
 
   incomingMap.forEach((chunk, key) => {
     if (!baseKeys.has(key)) {
-      result.push(chunk);
+      result.push({
+        ...chunk,
+        sentences: chunk.sentences && chunk.sentences.length > 0 ? chunk.sentences : undefined,
+      });
     }
   });
 
@@ -490,6 +526,10 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
   });
 
   return result;
+}
+
+function hasChunkSentences(chunks: LiveMediaChunk[]): boolean {
+  return chunks.some((chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0);
 }
 
 export function useLiveMedia(
@@ -520,12 +560,41 @@ export function useLiveMedia(
     fetchLiveJobMedia(jobId)
       .then((response: PipelineMediaResponse) => {
         if (cancelled) {
-          return;
+          return null;
         }
         const { media: initialMedia, chunks: initialChunks, complete } = normaliseFetchedMedia(response, jobId);
         setMedia(initialMedia);
         setChunks(initialChunks);
         setIsComplete(complete);
+        return { initialMedia, initialChunks, complete };
+      })
+      .then((payload) => {
+        if (cancelled || !payload) {
+          return;
+        }
+        if (hasChunkSentences(payload.initialChunks)) {
+          return;
+        }
+        return fetchJobMedia(jobId)
+          .then((fallbackResponse: PipelineMediaResponse) => {
+            if (cancelled) {
+              return;
+            }
+            const {
+              media: fallbackMedia,
+              chunks: fallbackChunks,
+              complete: fallbackComplete,
+            } = normaliseFetchedMedia(fallbackResponse, jobId);
+            if (fallbackMedia.text.length + fallbackMedia.audio.length + fallbackMedia.video.length === 0) {
+              return;
+            }
+            setMedia(fallbackMedia);
+            setChunks(fallbackChunks);
+            setIsComplete(fallbackComplete || payload.complete);
+          })
+          .catch(() => {
+            // Ignore failures; live snapshot will remain in place.
+          });
       })
       .catch((fetchError: unknown) => {
         if (cancelled) {

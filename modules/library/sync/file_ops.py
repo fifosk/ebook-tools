@@ -8,6 +8,7 @@ import shutil
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+import copy
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from urllib.parse import quote
 
@@ -659,6 +660,7 @@ def serialize_media_entries(
                         "start_sentence": utils.coerce_int(chunk.get("start_sentence")),
                         "end_sentence": utils.coerce_int(chunk.get("end_sentence")),
                         "files": chunk_files,
+                        "sentences": copy.deepcopy(chunk.get("sentences", [])),
                     }
                 )
 
@@ -747,6 +749,7 @@ def build_media_record(
         "end_sentence": utils.coerce_int(
             sanitized.get("end_sentence") or sanitized.get("endSentence")
         ),
+        "type": category,
     }
 
     return record, category, signature

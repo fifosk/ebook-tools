@@ -286,6 +286,7 @@ async def get_library_media(
                 start_sentence=chunk.get("start_sentence"),
                 end_sentence=chunk.get("end_sentence"),
                 files=files,
+                sentences=chunk.get("sentences") or [],
             )
         )
 

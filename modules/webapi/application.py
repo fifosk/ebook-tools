@@ -259,15 +259,15 @@ def create_app() -> FastAPI:
 
         return {"status": "ok"}
 
-    app.include_router(auth_router, prefix="/auth", tags=["auth"])
-    app.include_router(admin_router, prefix="/admin", tags=["admin"])
+    app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+    app.include_router(admin_router, prefix="/api/admin", tags=["admin"])
     app.include_router(audio_router)
     app.include_router(create_book_router)
     app.include_router(library_router)
     app.include_router(media_router)
     app.include_router(video_router, prefix="/api/video", tags=["video"])
     app.include_router(subtitles_router)
-    app.include_router(router, prefix="/pipelines", tags=["pipelines"])
+    app.include_router(router, prefix="/api/pipelines", tags=["pipelines"])
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
 
     static_enabled = _configure_static_assets(app)

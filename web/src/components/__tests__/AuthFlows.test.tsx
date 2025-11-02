@@ -58,18 +58,18 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(createJsonResponse(sessionResponse));
       }
-      if (path === '/pipelines/jobs') {
+      if (path === '/api/pipelines/jobs') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(createJsonResponse({ jobs: [] }));
       }
-      if (path === '/pipelines/defaults') {
+      if (path === '/api/pipelines/defaults') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(createJsonResponse({ config: {} }));
       }
-      if (path === '/pipelines/files') {
+      if (path === '/api/pipelines/files') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(
           createJsonResponse({
@@ -99,7 +99,7 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(new Response('Invalid credentials', { status: 401 }));
       }
       throw new Error(`Unhandled request for ${path}`);
@@ -124,20 +124,20 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(createJsonResponse(sessionResponse));
       }
-      if (path === '/auth/logout') {
+      if (path === '/api/auth/logout') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(createEmptyResponse());
       }
-      if (path === '/pipelines/jobs') {
+      if (path === '/api/pipelines/jobs') {
         return Promise.resolve(createJsonResponse({ jobs: [] }));
       }
-      if (path === '/pipelines/defaults') {
+      if (path === '/api/pipelines/defaults') {
         return Promise.resolve(createJsonResponse({ config: {} }));
       }
-      if (path === '/pipelines/files') {
+      if (path === '/api/pipelines/files') {
         return Promise.resolve(
           createJsonResponse({
             ebooks: [],
@@ -172,20 +172,20 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(createJsonResponse(sessionResponse));
       }
-      if (path === '/auth/password') {
+      if (path === '/api/auth/password') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(createEmptyResponse());
       }
-      if (path === '/pipelines/jobs') {
+      if (path === '/api/pipelines/jobs') {
         return Promise.resolve(createJsonResponse({ jobs: [] }));
       }
-      if (path === '/pipelines/defaults') {
+      if (path === '/api/pipelines/defaults') {
         return Promise.resolve(createJsonResponse({ config: {} }));
       }
-      if (path === '/pipelines/files') {
+      if (path === '/api/pipelines/files') {
         return Promise.resolve(
           createJsonResponse({
             ebooks: [],
@@ -223,20 +223,20 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(createJsonResponse(sessionResponse));
       }
-      if (path === '/auth/password') {
+      if (path === '/api/auth/password') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(new Response('Current password incorrect', { status: 400 }));
       }
-      if (path === '/pipelines/jobs') {
+      if (path === '/api/pipelines/jobs') {
         return Promise.resolve(createJsonResponse({ jobs: [] }));
       }
-      if (path === '/pipelines/defaults') {
+      if (path === '/api/pipelines/defaults') {
         return Promise.resolve(createJsonResponse({ config: {} }));
       }
-      if (path === '/pipelines/files') {
+      if (path === '/api/pipelines/files') {
         return Promise.resolve(
           createJsonResponse({
             ebooks: [],
@@ -274,16 +274,16 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(createJsonResponse(sessionResponse));
       }
-      if (path === '/pipelines/jobs') {
+      if (path === '/api/pipelines/jobs') {
         return Promise.resolve(createJsonResponse({ jobs: [] }));
       }
-      if (path === '/pipelines/defaults') {
+      if (path === '/api/pipelines/defaults') {
         return Promise.resolve(createJsonResponse({ config: {} }));
       }
-      if (path === '/pipelines/files') {
+      if (path === '/api/pipelines/files') {
         return Promise.resolve(
           createJsonResponse({
             ebooks: [],
@@ -293,7 +293,7 @@ describe('authentication flows', () => {
           })
         );
       }
-      if (path === '/admin/users') {
+      if (path === '/api/admin/users') {
         expect(new Headers(init?.headers).get('Authorization')).toBe('Bearer test-token');
         return Promise.resolve(createJsonResponse({ users: [] }));
       }
@@ -325,16 +325,16 @@ describe('authentication flows', () => {
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {
       const path = resolvePath(input);
-      if (path === '/auth/login') {
+      if (path === '/api/auth/login') {
         return Promise.resolve(createJsonResponse(sessionResponse));
       }
-      if (path === '/pipelines/jobs') {
+      if (path === '/api/pipelines/jobs') {
         return Promise.resolve(createJsonResponse({ jobs: [] }));
       }
-      if (path === '/pipelines/defaults') {
+      if (path === '/api/pipelines/defaults') {
         return Promise.resolve(createJsonResponse({ config: {} }));
       }
-      if (path === '/pipelines/files') {
+      if (path === '/api/pipelines/files') {
         return Promise.resolve(
           createJsonResponse({
             ebooks: [],
