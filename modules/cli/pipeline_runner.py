@@ -338,7 +338,7 @@ def _build_pipeline_input(
         output_html=config.get("output_html", True),
         output_pdf=config.get("output_pdf", False),
         generate_video=config.get("generate_video", False),
-        include_transliteration=config.get("include_transliteration", False),
+        include_transliteration=config.get("include_transliteration", True),
         tempo=config.get("tempo", 1.0),
         book_metadata=PipelineMetadata.from_mapping(book_metadata),
     )
@@ -465,7 +465,7 @@ def prepare_non_interactive_run(
     config.setdefault("output_html", True)
     config.setdefault("output_pdf", False)
     config.setdefault("generate_video", False)
-    config.setdefault("include_transliteration", False)
+    config.setdefault("include_transliteration", True)
     config.setdefault("tempo", 1.0)
     config.setdefault("macos_reading_speed", 100)
     config.setdefault("sync_ratio", 0.9)

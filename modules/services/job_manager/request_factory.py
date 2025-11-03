@@ -87,7 +87,7 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
         output_html=_coerce_bool(data.get("output_html")),
         output_pdf=_coerce_bool(data.get("output_pdf")),
         generate_video=_coerce_bool(data.get("generate_video")),
-        include_transliteration=_coerce_bool(data.get("include_transliteration")),
+        include_transliteration=_coerce_bool(data.get("include_transliteration"), True),
         tempo=_coerce_float(data.get("tempo"), 1.0),
         book_metadata=PipelineMetadata.from_mapping(book_metadata),
     )
@@ -193,4 +193,3 @@ __all__ = [
     "_coerce_int",
     "_hydrate_request_from_payload",
 ]
-

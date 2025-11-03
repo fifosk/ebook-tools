@@ -141,7 +141,7 @@ class PipelineInputPayload(BaseModel):
     output_html: bool = True
     output_pdf: bool = False
     generate_video: bool = False
-    include_transliteration: bool = False
+    include_transliteration: bool = True
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
     book_metadata: Dict[str, Any] = Field(default_factory=dict)

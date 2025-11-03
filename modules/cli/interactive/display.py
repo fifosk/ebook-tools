@@ -100,7 +100,7 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     )
     console_info(
         "21. Include transliteration for non-Latin alphabets: %s",
-        config.get("include_transliteration", False),
+        config.get("include_transliteration", True),
     )
     console_info(
         "22. Word highlighting for video slides: %s",

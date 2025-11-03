@@ -357,12 +357,12 @@ def _handle_split_on_punctuation(
 def _handle_transliteration(
     config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
 ) -> Tuple[Dict[str, Any], bool]:
-    default_value = config.get("include_transliteration", False)
+    default_value = config.get("include_transliteration", True)
     prompt = (
         f"Include transliteration for non-Latin alphabets? (yes/no, default {'yes' if default_value else 'no'}): "
     )
     response = prompt_user(prompt).lower()
-    config["include_transliteration"] = True if response in {"yes", "y"} else False
+    config["include_transliteration"] = True if response not in {"no", "n"} else False
     return config, False
 
 

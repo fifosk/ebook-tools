@@ -30,7 +30,7 @@ def install_job_manager_stubs() -> None:
             output_html: bool = False
             output_pdf: bool = False
             generate_video: bool = False
-            include_transliteration: bool = False
+            include_transliteration: bool = True
             tempo: float = 1.0
             book_metadata: Dict[str, Any] = field(default_factory=dict)
 
