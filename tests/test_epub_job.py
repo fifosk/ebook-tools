@@ -691,7 +691,7 @@ def test_epub_job_artifacts(tmp_path, epub_job_cli_overrides):
             "selected_voice": config.get("selected_voice", "macOS-auto-male"),
             "output_html": config.get("output_html", True),
             "output_pdf": config.get("output_pdf", False),
-            "generate_video": config.get("generate_video", True),
+            "generate_video": config.get("generate_video", False),
             "include_transliteration": config.get("include_transliteration", True),
             "tempo": config.get("tempo", 1.0),
             "book_metadata": {

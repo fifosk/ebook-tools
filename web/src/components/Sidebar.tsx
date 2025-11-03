@@ -34,7 +34,7 @@ export function Sidebar({
   jobMediaView,
   adminView
 }: SidebarProps) {
-  const isNewImmersiveBookActive = isPipelineView(selectedView);
+  const isAddBookActive = isPipelineView(selectedView);
   const canOpenPlayer = Boolean(activeJobId);
 
   return (
@@ -45,19 +45,10 @@ export function Sidebar({
           <li>
             <button
               type="button"
-              className={`sidebar__link ${isNewImmersiveBookActive ? 'is-active' : ''}`}
+              className={`sidebar__link ${isAddBookActive ? 'is-active' : ''}`}
               onClick={() => onSelectView('pipeline:source')}
             >
-              New immersive book
-            </button>
-          </li>
-          <li>
-            <button
-              type="button"
-              className={`sidebar__link ${selectedView === subtitlesView ? 'is-active' : ''}`}
-              onClick={() => onSelectView(subtitlesView)}
-            >
-              Subtitles
+              Add book
             </button>
           </li>
           <li>
@@ -67,6 +58,15 @@ export function Sidebar({
               onClick={() => onSelectView(createBookView)}
             >
               Create book
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === subtitlesView ? 'is-active' : ''}`}
+              onClick={() => onSelectView(subtitlesView)}
+            >
+              Subtitles
             </button>
           </li>
         </ul>

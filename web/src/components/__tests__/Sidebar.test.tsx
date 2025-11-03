@@ -25,7 +25,7 @@ const sampleJob: JobState = {
 };
 
 describe('Sidebar', () => {
-  it('renders the New immersive book entry as active for pipeline views', () => {
+  it('renders the Add book entry as active for pipeline views', () => {
     render(
       <Sidebar
         selectedView="pipeline:source"
@@ -43,10 +43,10 @@ describe('Sidebar', () => {
       />
     );
 
-    const immersiveButton = screen.getByRole('button', { name: /New immersive book/i });
-    expect(immersiveButton).toBeInTheDocument();
-    expect(immersiveButton).toHaveClass('is-active');
-
+    const addBookButton = screen.getByRole('button', { name: /Add book/i });
+    expect(addBookButton).toBeInTheDocument();
+    expect(addBookButton).toHaveClass('is-active');
+    expect(screen.getByRole('button', { name: /Subtitles/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create book/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
   });
@@ -73,7 +73,7 @@ describe('Sidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /New immersive book/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Add book/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);
     expect(handleSelectView.mock.calls).toContainEqual(['admin:users']);

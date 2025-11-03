@@ -761,7 +761,7 @@ export function App() {
   const isLibraryView = selectedView === LIBRARY_VIEW;
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
   const isSubtitlesView = selectedView === SUBTITLES_VIEW;
-  const isNewImmersiveBookView = isPipelineView;
+  const isAddBookView = isPipelineView;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
       return null;
@@ -1097,9 +1097,9 @@ export function App() {
               <h1>Create book</h1>
               <p>Generate a seed EPUB with the LLM, then fine-tune the pipeline settings before submitting.</p>
             </>
-          ) : isNewImmersiveBookView ? (
+          ) : isAddBookView ? (
             <>
-              <h1>New immersive book</h1>
+              <h1>Add book</h1>
             </>
           ) : (
             <>
@@ -1131,7 +1131,7 @@ export function App() {
             </section>
           ) : (
             <>
-              {isNewImmersiveBookView ? (
+              {isAddBookView ? (
                 <section>
                   <NewImmersiveBookPage
                     activeSection={activePipelineSection ?? 'source'}

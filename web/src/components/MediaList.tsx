@@ -21,7 +21,7 @@ function deriveEmptyMessage(category: MediaCategory): string {
       return 'No video media yet.';
     case 'text':
     default:
-      return 'No text media yet.';
+      return 'No interactive reader media yet.';
   }
 }
 

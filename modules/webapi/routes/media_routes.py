@@ -140,6 +140,7 @@ def _build_media_file(
         range_fragment=range_fragment,
         start_sentence=start_sentence,
         end_sentence=end_sentence,
+        type=file_type,
     )
     signature_key = path_value or relative_path or url or name
     signature = (signature_key or name, file_type)
@@ -207,6 +208,7 @@ def _serialize_media_entries(
                         start_sentence=_coerce_int(chunk.get("start_sentence")),
                         end_sentence=_coerce_int(chunk.get("end_sentence")),
                         files=chunk_files,
+                        sentences=chunk.get("sentences") or [],
                     )
                 )
 

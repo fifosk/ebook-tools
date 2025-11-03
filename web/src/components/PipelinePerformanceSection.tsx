@@ -1,0 +1,126 @@
+type PipelinePerformanceSectionProps = {
+  headingId: string;
+  title: string;
+  description: string;
+  threadCount: string;
+  queueSize: string;
+  jobMaxWorkers: string;
+  slideParallelism: string;
+  slideParallelWorkers: string;
+  onThreadCountChange: (value: string) => void;
+  onQueueSizeChange: (value: string) => void;
+  onJobMaxWorkersChange: (value: string) => void;
+  onSlideParallelismChange: (value: string) => void;
+  onSlideParallelWorkersChange: (value: string) => void;
+};
+
+const PipelinePerformanceSection = ({
+  headingId,
+  title,
+  description,
+  threadCount,
+  queueSize,
+  jobMaxWorkers,
+  slideParallelism,
+  slideParallelWorkers,
+  onThreadCountChange,
+  onQueueSizeChange,
+  onJobMaxWorkersChange,
+  onSlideParallelismChange,
+  onSlideParallelWorkersChange
+}: PipelinePerformanceSectionProps) => {
+  return (
+    <section className="pipeline-card" aria-labelledby={headingId}>
+      <header className="pipeline-card__header">
+        <h3 id={headingId}>{title}</h3>
+        <p>{description}</p>
+      </header>
+      <div className="pipeline-card__body">
+        <div className="collapsible-group">
+          <details>
+            <summary>Translation threads</summary>
+            <p className="form-help-text">
+              Control how many translation and media workers run simultaneously. Leave blank to use
+              the backend default.
+            </p>
+            <label htmlFor="thread_count">
+              Worker threads
+              <input
+                id="thread_count"
+                name="thread_count"
+                type="number"
+                min={1}
+                step={1}
+                value={threadCount}
+                onChange={(event) => onThreadCountChange(event.target.value)}
+                placeholder="Default"
+              />
+            </label>
+            <label htmlFor="queue_size">
+              Translation queue size
+              <input
+                id="queue_size"
+                name="queue_size"
+                type="number"
+                min={1}
+                step={1}
+                value={queueSize}
+                onChange={(event) => onQueueSizeChange(event.target.value)}
+                placeholder="Default"
+              />
+            </label>
+            <label htmlFor="job_max_workers">
+              Maximum job workers
+              <input
+                id="job_max_workers"
+                name="job_max_workers"
+                type="number"
+                min={1}
+                step={1}
+                value={jobMaxWorkers}
+                onChange={(event) => onJobMaxWorkersChange(event.target.value)}
+                placeholder="Default"
+              />
+            </label>
+          </details>
+          <details>
+            <summary>Slide rendering</summary>
+            <p className="form-help-text">
+              Override the default slide rendering strategy if you need to tune CPU or GPU usage.
+            </p>
+            <label htmlFor="slide_parallelism">
+              Parallelism mode
+              <select
+                id="slide_parallelism"
+                name="slide_parallelism"
+                value={slideParallelism}
+                onChange={(event) => onSlideParallelismChange(event.target.value)}
+              >
+                <option value="">Use configured default</option>
+                <option value="off">Off</option>
+                <option value="auto">Auto</option>
+                <option value="thread">Thread</option>
+                <option value="process">Process</option>
+              </select>
+            </label>
+            <label htmlFor="slide_parallel_workers">
+              Parallel slide workers
+              <input
+                id="slide_parallel_workers"
+                name="slide_parallel_workers"
+                type="number"
+                min={1}
+                step={1}
+                value={slideParallelWorkers}
+                onChange={(event) => onSlideParallelWorkersChange(event.target.value)}
+                placeholder="Default"
+              />
+            </label>
+          </details>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+export default PipelinePerformanceSection;

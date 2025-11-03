@@ -1,16 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import {
   PipelineJobStatus,
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
-import { buildStorageUrl } from '../api/client';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
-const FALLBACK_COVER_URL = '/assets/default-cover.png';
-
 type Props = {
   jobId: string;
   status: PipelineStatusResponse | undefined;
@@ -134,100 +131,10 @@ function normaliseStringList(value: unknown): string[] {
     .filter((entry) => entry.length > 0);
 }
 
-type CoverAsset =
-  | { type: 'external'; url: string }
-  | { type: 'storage'; path: string; raw: string }
-  | null;
-
-function isExternalAsset(path: string): boolean {
-  const lower = path.trim().toLowerCase();
-  return lower.startsWith('http://') || lower.startsWith('https://') || lower.startsWith('data:');
-}
-
-function normaliseStoragePath(path: string): string {
-  const normalised = path.replace(/\\/g, '/').trim();
-  if (!normalised) {
-    return '';
-  }
-
-  const withoutDrive = normalised.replace(/^[A-Za-z]:/, '');
-  const segments = withoutDrive
-    .split('/')
-    .map((segment) => segment.trim())
-    .filter((segment) => segment.length > 0);
-
-  if (segments.length === 0) {
-    return '';
-  }
-
-  const lowered = segments.map((segment) => segment.toLowerCase());
-  const runtimeIndex = lowered.lastIndexOf('runtime');
-  if (runtimeIndex >= 0) {
-    return segments.slice(runtimeIndex).join('/');
-  }
-
-  const booksIndex = lowered.lastIndexOf('books');
-  if (booksIndex >= 0) {
-    return segments.slice(booksIndex).join('/');
-  }
-
-  const storageIndex = lowered.indexOf('storage');
-  if (storageIndex >= 0 && storageIndex + 1 < segments.length) {
-    return segments.slice(storageIndex + 1).join('/');
-  }
-
-  const outputIndex = lowered.indexOf('output');
-  if (outputIndex >= 0 && outputIndex + 1 < segments.length) {
-    return segments.slice(outputIndex + 1).join('/');
-  }
-
-  return segments.join('/');
-}
-
-function resolveCoverAsset(metadata: Record<string, unknown>): CoverAsset {
-  const jobAssetValue = metadata['job_cover_asset'];
-  if (typeof jobAssetValue === 'string') {
-    const trimmedJobAsset = jobAssetValue.trim();
-    if (trimmedJobAsset) {
-      const jobRelative = normaliseStoragePath(trimmedJobAsset);
-      if (jobRelative) {
-        return { type: 'storage', path: jobRelative, raw: trimmedJobAsset };
-      }
-    }
-  }
-
-  const rawValue = metadata['book_cover_file'];
-  if (typeof rawValue !== 'string') {
-    return null;
-  }
-  const trimmed = rawValue.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (isExternalAsset(trimmed)) {
-    return { type: 'external', url: trimmed };
-  }
-  const relative = normaliseStoragePath(trimmed);
-  if (!relative) {
-    return { type: 'storage', path: '', raw: trimmed };
-  }
-  return { type: 'storage', path: relative, raw: trimmed };
-}
-
-function formatMetadataValue(key: string, value: unknown, coverAsset: CoverAsset): string {
+function formatMetadataValue(key: string, value: unknown): string {
   const normalized = normalizeMetadataValue(value);
   if (!normalized) {
     return '';
-  }
-  if (key === 'book_cover_file' && coverAsset) {
-    if (coverAsset.type === 'external') {
-      return coverAsset.url;
-    }
-    const relative = coverAsset.path.trim();
-    if (relative) {
-      return `storage/${relative.replace(/^\/+/, '')}`;
-    }
-    return coverAsset.raw || normalized;
   }
   return normalized;
 }
@@ -303,118 +210,6 @@ export function JobProgress({
       epubPath: epubPath && epubPath.length > 0 ? epubPath : null
     };
   }, [creationSummaryRaw]);
-  const coverAsset = useMemo(() => resolveCoverAsset(metadata), [metadata]);
-  const coverSources = useMemo(() => {
-    if (!coverAsset) {
-      const sources: string[] = [];
-      sources.push(FALLBACK_COVER_URL);
-      return sources;
-    }
-    if (coverAsset.type === 'external') {
-      const sources = [] as string[];
-      sources.push(coverAsset.url);
-      return sources;
-    }
-
-    const sources: string[] = [];
-    const unique = new Set<string>();
-
-    const push = (candidate: string | null | undefined) => {
-      const trimmed = candidate?.trim();
-      if (!trimmed) {
-        return;
-      }
-      if (unique.has(trimmed)) {
-        return;
-      }
-      unique.add(trimmed);
-      sources.push(trimmed);
-    };
-
-    const normalisedPath = coverAsset.path.trim();
-    if (normalisedPath) {
-      const stripped = normalisedPath.replace(/^\/+/, '');
-      const isGlobalCover = stripped.startsWith('covers/');
-      if (isGlobalCover) {
-        push(`/storage/${stripped}`);
-      } else {
-        try {
-          push(buildStorageUrl(stripped, jobId));
-        } catch (error) {
-          console.warn('Unable to build storage URL for cover image', error);
-        }
-        push(`/storage/${stripped}`);
-        push(`/${stripped}`);
-      }
-    }
-
-    const rawValue = coverAsset.raw.trim();
-    if (rawValue) {
-      if (isExternalAsset(rawValue)) {
-        push(rawValue);
-      } else if (/storage[\\/]+covers[\\/]+/i.test(rawValue)) {
-        const match = rawValue.replace(/\\/g, '/').split('/storage/').pop();
-        if (match) {
-          const relative = match.replace(/^\/+/, '');
-          push(`/storage/${relative}`);
-        }
-      } else if (rawValue.startsWith('/')) {
-        push(rawValue);
-      } else {
-        push(`/${rawValue}`);
-      }
-    }
-
-    return sources;
-  }, [coverAsset, jobId]);
-  const [coverSourceIndex, setCoverSourceIndex] = useState(0);
-  const coverUrl = coverSources[coverSourceIndex] ?? null;
-  const [coverFailed, setCoverFailed] = useState(false);
-  useEffect(() => {
-    setCoverSourceIndex(0);
-    setCoverFailed(false);
-  }, [coverSources, bookMetadata]);
-  const handleCoverError = useCallback(() => {
-    setCoverSourceIndex((currentIndex) => {
-      const nextIndex = currentIndex + 1;
-      if (nextIndex >= coverSources.length) {
-        setCoverFailed(true);
-        return currentIndex;
-      }
-      return nextIndex;
-    });
-  }, [coverSources.length]);
-  const handleCoverRetry = useCallback(() => {
-    setCoverFailed(false);
-    setCoverSourceIndex(0);
-  }, []);
-  const coverAltText = useMemo(() => {
-    const title = normalizeMetadataValue(metadata['book_title']);
-    const author = normalizeMetadataValue(metadata['book_author']);
-    if (title && author) {
-      return `Cover of ${title} by ${author}`;
-    }
-    if (title) {
-      return `Cover of ${title}`;
-    }
-    if (author) {
-      return `Book cover for ${author}`;
-    }
-    return 'Book cover preview';
-  }, [metadata]);
-  const coverPlaceholderMessage = useMemo(() => {
-    if (coverFailed) {
-      return 'Cover preview could not be loaded.';
-    }
-    if (coverAsset) {
-      return 'Cover preview is not available.';
-    }
-    return 'Cover image not provided yet.';
-  }, [coverAsset, coverFailed]);
-  const shouldShowFallbackCover = !coverUrl;
-  const displayCoverUrl =
-    coverUrl && !coverFailed ? coverUrl : shouldShowFallbackCover ? FALLBACK_COVER_URL : null;
-  const coverErrorHandler = displayCoverUrl && displayCoverUrl === coverUrl ? handleCoverError : undefined;
   const tuningEntries = useMemo(() => {
     const tuning = status?.tuning ?? null;
     if (!tuning) {
@@ -618,24 +413,10 @@ export function JobProgress({
       ) : null}
       <div className="job-card__section">
         <h4>Book metadata</h4>
-        <div className="metadata-cover-preview">
-          {displayCoverUrl ? (
-            <img src={displayCoverUrl} alt={coverAltText} onError={coverErrorHandler} />
-          ) : (
-            <div className="metadata-cover-preview__placeholder" role="status" aria-live="polite">
-              <span>{coverPlaceholderMessage}</span>
-              {coverFailed && coverUrl ? (
-                <button type="button" className="link-button" onClick={handleCoverRetry}>
-                  Retry preview
-                </button>
-              ) : null}
-            </div>
-          )}
-        </div>
         {metadataEntries.length > 0 ? (
           <dl className="metadata-grid">
             {metadataEntries.map(([key, value]) => {
-              const formatted = formatMetadataValue(key, value, coverAsset);
+              const formatted = formatMetadataValue(key, value);
               if (!formatted) {
                 return null;
               }
@@ -661,12 +442,6 @@ export function JobProgress({
           {isReloading ? 'Reloading…' : 'Reload metadata'}
         </button>
       </div>
-      {status?.result ? (
-        <details className="job-card__details">
-          <summary>View pipeline result payload</summary>
-          <pre style={{ overflowX: 'auto' }}>{JSON.stringify(status.result, null, 2)}</pre>
-        </details>
-      ) : null}
     </div>
   );
 }

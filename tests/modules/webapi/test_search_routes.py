@@ -149,7 +149,7 @@ def test_search_returns_matching_snippet(api_app) -> None:
 
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get(
-            "/pipelines/search",
+            "/api/pipelines/search",
             params={"query": "fortune", "job_id": job_id},
         )
 
@@ -201,7 +201,7 @@ def test_search_returns_404_for_unknown_job(api_app) -> None:
 
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get(
-            "/pipelines/search",
+            "/api/pipelines/search",
             params={"query": "fortune", "job_id": "missing-job"},
         )
 
@@ -293,7 +293,7 @@ def test_search_uses_library_metadata_when_pipeline_job_missing(api_app, tmp_pat
 
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get(
-            "/pipelines/search",
+            "/api/pipelines/search",
             params={"query": "fortune", "job_id": job_id},
         )
 
@@ -381,7 +381,7 @@ def test_search_recovers_library_entry_when_index_missing(api_app, tmp_path) -> 
 
     with TestClient(app, raise_server_exceptions=False) as client:
         response = client.get(
-            "/pipelines/search",
+            "/api/pipelines/search",
             params={"query": "treasure", "job_id": job_id},
         )
 

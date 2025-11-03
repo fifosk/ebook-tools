@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
-import VideoPanel from '../components/VideoPanel';
 import { useLiveMedia } from '../hooks/useLiveMedia';
 import type { LibraryItem } from '../api/dtos';
 
@@ -50,7 +49,6 @@ export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetad
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         onOpenLibraryItem={onOpenLibraryItem}
       />
-      <VideoPanel jobId={normalisedJobId} chunks={chunks} isLoading={isLoading} />
     </section>
   );
 }

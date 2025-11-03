@@ -450,6 +450,30 @@ class PipelineMediaFile(BaseModel):
     range_fragment: Optional[str] = None
     start_sentence: Optional[int] = None
     end_sentence: Optional[int] = None
+    type: Optional[str] = None
+
+
+class ChunkSentenceTimelineEvent(BaseModel):
+    duration: float
+    original_index: int
+    translation_index: int
+    transliteration_index: int
+
+
+class ChunkSentenceVariant(BaseModel):
+    text: str = ""
+    tokens: List[str] = Field(default_factory=list)
+
+
+class ChunkSentenceMetadata(BaseModel):
+    sentence_number: Optional[int] = None
+    original: ChunkSentenceVariant
+    translation: Optional[ChunkSentenceVariant] = None
+    transliteration: Optional[ChunkSentenceVariant] = None
+    timeline: List[ChunkSentenceTimelineEvent] = Field(default_factory=list)
+    total_duration: Optional[float] = None
+    highlight_granularity: Optional[str] = None
+    counts: Dict[str, int] = Field(default_factory=dict)
 
 
 class PipelineMediaChunk(BaseModel):
@@ -460,6 +484,7 @@ class PipelineMediaChunk(BaseModel):
     start_sentence: Optional[int] = None
     end_sentence: Optional[int] = None
     files: List[PipelineMediaFile] = Field(default_factory=list)
+    sentences: List[ChunkSentenceMetadata] = Field(default_factory=list)
 
 
 class PipelineMediaResponse(BaseModel):

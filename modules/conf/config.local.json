@@ -8,7 +8,7 @@
     ],
     "ollama_model": "gpt-oss:120b-cloud",
     "generate_audio": true,
-    "generate_video": true,
+    "generate_video": false,
     "sentences_per_output_file": 10,
     "start_sentence": 1,
     "end_sentence": null,

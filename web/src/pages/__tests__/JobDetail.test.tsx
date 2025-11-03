@@ -188,8 +188,8 @@ describe('JobDetail', () => {
     expect(screen.getByRole('tab', { name: /Audio \(1\)/i })).toHaveAttribute('aria-selected', 'true');
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /Text \(0\)/i }));
+    await user.click(screen.getByRole('tab', { name: /Interactive Reader \(0\)/i }));
 
-    expect(screen.getByText('No text media yet.')).toBeInTheDocument();
+    expect(screen.getByText('No interactive reader media yet.')).toBeInTheDocument();
   });
 });
