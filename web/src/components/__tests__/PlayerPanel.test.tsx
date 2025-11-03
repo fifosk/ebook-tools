@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { Mock } from 'vitest';
+import type { Mock, SpyInstance } from 'vitest';
 import PlayerPanel from '../PlayerPanel';
-import type { LiveMediaState } from '../../hooks/useLiveMedia';
+import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../../hooks/useLiveMedia';
 
 function createMediaState(overrides: Partial<LiveMediaState>): LiveMediaState {
   return {
@@ -18,6 +18,8 @@ const mediaPrototype = HTMLMediaElement.prototype;
 const originalCurrentTimeDescriptor = Object.getOwnPropertyDescriptor(mediaPrototype, 'currentTime');
 const elementPrototype = HTMLElement.prototype;
 const originalScrollDescriptor = Object.getOwnPropertyDescriptor(elementPrototype, 'scrollTop');
+const originalElementRequestFullscreen = elementPrototype.requestFullscreen;
+const originalFullscreenDescriptor = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
 const videoPrototype = HTMLVideoElement.prototype as HTMLVideoElement & {
   requestFullscreen?: () => Promise<void>;
 };
@@ -29,6 +31,10 @@ const originalExitFullscreen = documentPrototype.exitFullscreen;
 
 let requestFullscreenMock: Mock<[], Promise<void>>;
 let exitFullscreenMock: Mock<[], Promise<void>>;
+let elementRequestFullscreenMock: Mock<[], Promise<void>>;
+let fullscreenElementSlot: Element | null = null;
+let playSpy: SpyInstance<[], Promise<void>>;
+let pauseSpy: SpyInstance<[], void>;
 
 beforeAll(() => {
   Object.defineProperty(mediaPrototype, 'currentTime', {
@@ -64,14 +70,118 @@ afterAll(() => {
 describe('PlayerPanel', () => {
   const originalFetch = globalThis.fetch;
 
+  function buildInteractiveFixtures(): {
+    media: LiveMediaState;
+    chunks: LiveMediaChunk[];
+  } {
+    const chunkOneText: LiveMediaItem = {
+      type: 'text',
+      name: 'chunk-1.html',
+      url: 'https://example.com/text/chunk-1.html',
+      source: 'live',
+    };
+    const chunkTwoText: LiveMediaItem = {
+      type: 'text',
+      name: 'chunk-2.html',
+      url: 'https://example.com/text/chunk-2.html',
+      source: 'live',
+    };
+    const chunkOneAudio: LiveMediaItem = {
+      type: 'audio',
+      name: 'chunk-1.mp3',
+      url: 'https://example.com/audio/chunk-1.mp3',
+      source: 'live',
+    };
+    const chunkTwoAudio: LiveMediaItem = {
+      type: 'audio',
+      name: 'chunk-2.mp3',
+      url: 'https://example.com/audio/chunk-2.mp3',
+      source: 'live',
+    };
+
+    const chunks: LiveMediaChunk[] = [
+      {
+        chunkId: 'chunk-1',
+        rangeFragment: 'Chunk 1',
+        startSentence: 1,
+        endSentence: 2,
+        files: [chunkOneText, chunkOneAudio],
+        sentences: [
+          {
+            sentence_number: 1,
+            original: {
+              text: 'Hello world',
+              tokens: ['Hello', 'world'],
+            },
+            translation: null,
+            transliteration: null,
+            timeline: [],
+            total_duration: 2,
+          },
+        ],
+      },
+      {
+        chunkId: 'chunk-2',
+        rangeFragment: 'Chunk 2',
+        startSentence: 3,
+        endSentence: 4,
+        files: [chunkTwoText, chunkTwoAudio],
+        sentences: [
+          {
+            sentence_number: 2,
+            original: {
+              text: 'Another line',
+              tokens: ['Another', 'line'],
+            },
+            translation: null,
+            transliteration: null,
+            timeline: [],
+            total_duration: 2,
+          },
+        ],
+      },
+    ];
+
+    return {
+      media: createMediaState({
+        text: [chunkOneText, chunkTwoText],
+        audio: [chunkOneAudio, chunkTwoAudio],
+        video: [],
+      }),
+      chunks,
+    };
+  }
+
 beforeEach(() => {
   window.sessionStorage.clear();
-  vi.spyOn(mediaPrototype, 'play').mockImplementation(() => Promise.resolve());
-  vi.spyOn(mediaPrototype, 'pause').mockImplementation(() => {});
-  requestFullscreenMock = vi.fn<[], Promise<void>>().mockResolvedValue(undefined);
+  playSpy = vi.spyOn(mediaPrototype, 'play').mockImplementation(() => Promise.resolve());
+  pauseSpy = vi.spyOn(mediaPrototype, 'pause').mockImplementation(() => undefined);
+  fullscreenElementSlot = null;
+  requestFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(function (this: HTMLVideoElement) {
+    fullscreenElementSlot = this;
+    return Promise.resolve(undefined);
+  });
+  elementRequestFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(function (this: HTMLElement) {
+    fullscreenElementSlot = this;
+    return Promise.resolve(undefined);
+  });
   videoPrototype.requestFullscreen = requestFullscreenMock as typeof videoPrototype.requestFullscreen;
-  exitFullscreenMock = vi.fn<[], Promise<void>>().mockResolvedValue(undefined);
+  (elementPrototype as HTMLElement & { requestFullscreen?: () => Promise<void> }).requestFullscreen =
+    elementRequestFullscreenMock as typeof elementPrototype.requestFullscreen;
+  exitFullscreenMock = vi.fn<[], Promise<void>>().mockImplementation(() => {
+    fullscreenElementSlot = null;
+    return Promise.resolve(undefined);
+  });
   documentPrototype.exitFullscreen = exitFullscreenMock as typeof documentPrototype.exitFullscreen;
+  Object.defineProperty(document, 'fullscreenElement', {
+    configurable: true,
+    get() {
+      return fullscreenElementSlot;
+    },
+    set(value) {
+      fullscreenElementSlot = value as Element | null;
+    },
+  });
 });
 
 afterEach(() => {
@@ -91,6 +201,17 @@ afterEach(() => {
   } else {
     Reflect.deleteProperty(documentPrototype, 'exitFullscreen');
   }
+  if (originalElementRequestFullscreen) {
+    elementPrototype.requestFullscreen = originalElementRequestFullscreen;
+  } else {
+    Reflect.deleteProperty(elementPrototype as HTMLElement & { requestFullscreen?: () => Promise<void> }, 'requestFullscreen');
+  }
+  if (originalFullscreenDescriptor) {
+    Object.defineProperty(document, 'fullscreenElement', originalFullscreenDescriptor);
+  } else {
+    Reflect.deleteProperty(document as Document & { fullscreenElement?: Element | null }, 'fullscreenElement');
+  }
+  fullscreenElementSlot = null;
 });
 
   it('loads text previews and updates when selecting items from the list', async () => {
@@ -212,6 +333,113 @@ afterEach(() => {
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('plays and pauses synchronized audio via the player controls', async () => {
+    const { media, chunks } = buildInteractiveFixtures();
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Chunk two.</p></body></html>'),
+      } as Response);
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const user = userEvent.setup();
+
+    render(
+      <PlayerPanel
+        jobId="job-99"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const playButton = screen.getByRole('button', { name: /Play playback/i });
+    const pauseButton = screen.getByRole('button', { name: /Pause playback/i });
+
+    const initialPlayCalls = playSpy.mock.calls.length;
+    await user.click(playButton);
+    expect(playSpy.mock.calls.length).toBeGreaterThan(initialPlayCalls);
+
+    const initialPauseCalls = pauseSpy.mock.calls.length;
+    await user.click(pauseButton);
+    expect(pauseSpy.mock.calls.length).toBeGreaterThan(initialPauseCalls);
+  });
+
+  it('advances chunks automatically while interactive fullscreen is enabled', async () => {
+    const { media, chunks } = buildInteractiveFixtures();
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Chunk two.</p></body></html>'),
+      } as Response);
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const user = userEvent.setup();
+
+    render(
+      <PlayerPanel
+        jobId="job-100"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const fullscreenToggle = screen.getByTestId('player-panel-interactive-fullscreen');
+    expect(fullscreenToggle).not.toBeDisabled();
+
+    await user.click(fullscreenToggle);
+
+    expect(elementRequestFullscreenMock).toHaveBeenCalled();
+    expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'true');
+
+    const audioElement = document.querySelector('audio');
+    expect(audioElement).not.toBeNull();
+
+    const playCallsBeforeAdvance = playSpy.mock.calls.length;
+    fireEvent.ended(audioElement as HTMLAudioElement);
+
+    await waitFor(() => {
+      expect((audioElement as HTMLAudioElement).getAttribute('src')).toContain('chunk-2.mp3');
+    });
+
+    expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'true');
+    expect(playSpy.mock.calls.length).toBeGreaterThan(playCallsBeforeAdvance);
+
+    const exitCallsBefore = exitFullscreenMock.mock.calls.length;
+    await user.click(fullscreenToggle);
+    expect(exitFullscreenMock.mock.calls.length).toBe(exitCallsBefore + 1);
+    expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('remembers playback and scroll positions across media types', async () => {

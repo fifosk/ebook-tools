@@ -2260,6 +2260,28 @@ button.link-button:focus {
   height: 100%;
 }
 
+.player-panel__interactive--fullscreen {
+  background: var(--color-surface-elevated, rgba(17, 24, 39, 0.85));
+  padding: 1.5rem;
+  box-sizing: border-box;
+  justify-content: stretch;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-body {
+  max-height: none;
+  overflow-y: auto;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 60rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-audio,
+.player-panel__interactive--fullscreen .player-panel__interactive-playlist {
+  max-width: 48rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
 .player-panel__interactive-label {
   font-size: 0.8rem;
   text-transform: uppercase;

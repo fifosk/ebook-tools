@@ -18,6 +18,7 @@ type SearchCategory = MediaCategory | 'library';
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 type PlaybackControls = {
   pause: () => void;
+  play: () => void;
 };
 
 interface MediaSelectionRequest {
@@ -348,9 +349,11 @@ export default function PlayerPanel({
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
+  const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState(false);
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
+  const isTextTabActive = selectedMediaType === 'text';
   const visibleTabs = useMemo(() => {
     return TAB_DEFINITIONS.filter((tab) => tab.key !== 'video' || media.video.length > 0);
   }, [media.video.length]);
@@ -361,6 +364,7 @@ export default function PlayerPanel({
   const audioControlsRef = useRef<PlaybackControls | null>(null);
   const videoControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
+  const hasSkippedInitialRememberRef = useRef(false);
   const [hasAudioControls, setHasAudioControls] = useState(false);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
@@ -641,13 +645,29 @@ export default function PlayerPanel({
       return;
     }
 
+    if (
+      !hasSkippedInitialRememberRef.current &&
+      memoryState.currentMediaType &&
+      memoryState.currentMediaId
+    ) {
+      hasSkippedInitialRememberRef.current = true;
+      return;
+    }
+
     const currentItem = getMediaItem(selectedMediaType, activeItemId);
     if (!currentItem) {
       return;
     }
 
     rememberSelection({ media: currentItem });
-  }, [activeItemId, selectedMediaType, getMediaItem, rememberSelection]);
+  }, [
+    activeItemId,
+    selectedMediaType,
+    getMediaItem,
+    rememberSelection,
+    memoryState.currentMediaId,
+    memoryState.currentMediaType,
+  ]);
 
   const handleTabChange = useCallback(
     (nextValue: string) => {
@@ -1067,8 +1087,30 @@ export default function PlayerPanel({
   const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
   const canRenderInteractiveViewer =
     Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
+  const handleInteractiveFullscreenToggle = useCallback(() => {
+    if (!isTextTabActive || !canRenderInteractiveViewer) {
+      setIsInteractiveFullscreen(false);
+      return;
+    }
+    setIsInteractiveFullscreen((current) => !current);
+  }, [canRenderInteractiveViewer, isTextTabActive]);
+
+  const handleExitInteractiveFullscreen = useCallback(() => {
+    setIsInteractiveFullscreen(false);
+  }, []);
   const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
   const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
+  useEffect(() => {
+    if (!isTextTabActive) {
+      setIsInteractiveFullscreen(false);
+    }
+  }, [isTextTabActive]);
+
+  useEffect(() => {
+    if (!canRenderInteractiveViewer) {
+      setIsInteractiveFullscreen(false);
+    }
+  }, [canRenderInteractiveViewer]);
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
   const activeChunkLabel = useMemo(() => {
@@ -1142,7 +1184,7 @@ export default function PlayerPanel({
   const isLastDisabled =
     navigableItems.length === 0 ||
     (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
-  const pauseControlsAvailable =
+  const playbackControlsAvailable =
     selectedMediaType === 'audio'
       ? hasAudioControls
       : selectedMediaType === 'video'
@@ -1150,7 +1192,9 @@ export default function PlayerPanel({
       : selectedMediaType === 'text'
       ? hasInlineAudioControls
       : false;
-  const isPauseDisabled = !pauseControlsAvailable;
+  const isPauseDisabled = !playbackControlsAvailable;
+  const isPlayDisabled = !playbackControlsAvailable;
+  const isFullscreenDisabled = !isTextTabActive || !canRenderInteractiveViewer;
 
   const handleAdvanceMedia = useCallback(
     (category: MediaCategory) => {
@@ -1188,6 +1232,16 @@ export default function PlayerPanel({
       videoControlsRef.current?.pause();
     } else if (selectedMediaType === 'text') {
       inlineAudioControlsRef.current?.pause();
+    }
+  }, [selectedMediaType]);
+
+  const handlePlayActiveMedia = useCallback(() => {
+    if (selectedMediaType === 'audio') {
+      audioControlsRef.current?.play();
+    } else if (selectedMediaType === 'video') {
+      videoControlsRef.current?.play();
+    } else if (selectedMediaType === 'text') {
+      inlineAudioControlsRef.current?.play();
     }
   }, [selectedMediaType]);
 
@@ -1245,7 +1299,6 @@ export default function PlayerPanel({
       setSelectedItemIds((current) =>
         current.audio === audioUrl ? current : { ...current, audio: audioUrl },
       );
-      setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
       const chunkIndex = audioChunkIndexMap.get(audioUrl);
       if (typeof chunkIndex === 'number' && chunkIndex >= 0 && chunkIndex < chunks.length) {
         const targetChunk = chunks[chunkIndex];
@@ -1509,6 +1562,7 @@ export default function PlayerPanel({
 
   useEffect(() => {
     setIsImmersiveMode(false);
+    setIsInteractiveFullscreen(false);
   }, [normalisedJobId]);
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
@@ -1552,6 +1606,7 @@ export default function PlayerPanel({
       ? `Book cover for ${bookAuthor}`
       : 'Book cover preview';
   const immersiveToggleLabel = isImmersiveMode ? 'Exit immersive mode' : 'Enter immersive mode';
+  const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
@@ -1606,6 +1661,15 @@ export default function PlayerPanel({
                 <button
                   type="button"
                   className="player-panel__nav-button"
+                  onClick={handlePlayActiveMedia}
+                  disabled={isPlayDisabled}
+                  aria-label="Play playback"
+                >
+                  <span aria-hidden="true">▶</span>
+                </button>
+                <button
+                  type="button"
+                  className="player-panel__nav-button"
                   onClick={handlePauseActiveMedia}
                   disabled={isPauseDisabled}
                   aria-label="Pause playback"
@@ -1629,6 +1693,17 @@ export default function PlayerPanel({
                   aria-label="Go to last item"
                 >
                   <span aria-hidden="true">⏭</span>
+                </button>
+                <button
+                  type="button"
+                  className="player-panel__nav-button"
+                  onClick={handleInteractiveFullscreenToggle}
+                  disabled={isFullscreenDisabled}
+                  aria-pressed={isInteractiveFullscreen}
+                  aria-label={interactiveFullscreenLabel}
+                  data-testid="player-panel-interactive-fullscreen"
+                >
+                  <span aria-hidden="true">⛶</span>
                 </button>
               </div>
               {selectedMediaType === 'text' && inlineAudioOptions.length > 0 ? (
@@ -1757,6 +1832,8 @@ export default function PlayerPanel({
                             onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
                             onSelectAudio={handleInlineAudioSelect}
                             onRequestAdvanceChunk={handleInlineAudioEnded}
+                            isFullscreen={isInteractiveFullscreen}
+                            onRequestExitFullscreen={handleExitInteractiveFullscreen}
                           />
                           ) : (
                             <div className="player-panel__document-status" role="status">

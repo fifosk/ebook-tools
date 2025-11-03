@@ -16,7 +16,7 @@ interface VideoPlayerProps {
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
   isTheaterMode?: boolean;
   onExitTheaterMode?: () => void;
-  onRegisterControls?: (controls: { pause: () => void } | null) => void;
+  onRegisterControls?: (controls: { pause: () => void; play: () => void } | null) => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -57,6 +57,20 @@ export default function VideoPlayer({
           element.pause();
         } catch (error) {
           // Ignore failures triggered by non-media environments.
+        }
+      },
+      play: () => {
+        const element = elementRef.current;
+        if (!element) {
+          return;
+        }
+        try {
+          const playResult = element.play();
+          if (playResult && typeof playResult.catch === 'function') {
+            playResult.catch(() => undefined);
+          }
+        } catch (error) {
+          // Swallow play failures caused by autoplay policies.
         }
       },
     };

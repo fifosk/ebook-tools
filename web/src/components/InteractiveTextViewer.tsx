@@ -97,6 +97,7 @@ function fillRemainTimes(target: number[], totalTokens: number, fallbackTime: nu
 
 type InlineAudioControls = {
   pause: () => void;
+  play: () => void;
 };
 
 interface InteractiveTextViewerProps {
@@ -112,6 +113,8 @@ interface InteractiveTextViewerProps {
   onRegisterInlineAudioControls?: (controls: InlineAudioControls | null) => void;
   onSelectAudio?: (audioUrl: string) => void;
   onRequestAdvanceChunk?: () => void;
+  isFullscreen?: boolean;
+  onRequestExitFullscreen?: () => void;
 }
 
 type SegmenterInstance = {
@@ -301,10 +304,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onRegisterInlineAudioControls,
     onSelectAudio,
     onRequestAdvanceChunk,
+    isFullscreen = false,
+    onRequestExitFullscreen,
   },
   forwardedRef,
 ) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const fullscreenRequestedRef = useRef(false);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
@@ -765,7 +772,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onRegisterInlineAudioControls(null);
       };
     }
-    const handler = () => {
+    const pauseHandler = () => {
       const element = audioRef.current;
       if (!element) {
         return;
@@ -776,7 +783,21 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         // Ignore pause failures triggered by browsers blocking programmatic control.
       }
     };
-    onRegisterInlineAudioControls({ pause: handler });
+    const playHandler = () => {
+      const element = audioRef.current;
+      if (!element) {
+        return;
+      }
+      try {
+        const result = element.play();
+        if (result && typeof result.catch === 'function') {
+          result.catch(() => undefined);
+        }
+      } catch (error) {
+        // Swallow play failures caused by autoplay restrictions.
+      }
+    };
+    onRegisterInlineAudioControls({ pause: pauseHandler, play: playHandler });
     return () => {
       onRegisterInlineAudioControls(null);
     };
@@ -860,6 +881,85 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     () => (activeAudioUrl ? appendAccessToken(activeAudioUrl) : null),
     [activeAudioUrl],
   );
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const element = rootRef.current;
+    if (!element) {
+      return;
+    }
+
+    const exitFullscreen = () => {
+      if (typeof document.exitFullscreen === 'function') {
+        const exitResult = document.exitFullscreen();
+        if (exitResult && typeof exitResult.catch === 'function') {
+          exitResult.catch(() => undefined);
+        }
+      }
+      fullscreenRequestedRef.current = false;
+    };
+
+    if (isFullscreen) {
+      if (document.fullscreenElement === element) {
+        return;
+      }
+      if (typeof element.requestFullscreen === 'function') {
+        try {
+          const requestResult = element.requestFullscreen();
+          fullscreenRequestedRef.current = true;
+          if (requestResult && typeof requestResult.catch === 'function') {
+            requestResult.catch(() => {
+              fullscreenRequestedRef.current = false;
+              onRequestExitFullscreen?.();
+            });
+          }
+        } catch (error) {
+          fullscreenRequestedRef.current = false;
+          onRequestExitFullscreen?.();
+        }
+      } else {
+        onRequestExitFullscreen?.();
+      }
+      return;
+    }
+
+    if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
+      exitFullscreen();
+    } else {
+      fullscreenRequestedRef.current = false;
+    }
+
+    return () => {
+      if (!isFullscreen) {
+        return;
+      }
+      if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
+        exitFullscreen();
+      }
+    };
+  }, [isFullscreen, onRequestExitFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen || typeof document === 'undefined') {
+      return;
+    }
+    const element = rootRef.current;
+    if (!element) {
+      return;
+    }
+    const handleFullscreenChange = () => {
+      if (document.fullscreenElement !== element) {
+        fullscreenRequestedRef.current = false;
+        onRequestExitFullscreen?.();
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, [isFullscreen, onRequestExitFullscreen]);
 
   useEffect(() => {
     if (!resolvedAudioUrl) {
@@ -1061,8 +1161,19 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [],
   );
 
+  const rootClassName = [
+    'player-panel__interactive',
+    isFullscreen ? 'player-panel__interactive--fullscreen' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className="player-panel__interactive">
+    <div
+      ref={rootRef}
+      className={rootClassName}
+      data-fullscreen={isFullscreen ? 'true' : 'false'}
+    >
       {resolvedAudioUrl ? (
         <div className="player-panel__interactive-audio">
           <span className="player-panel__interactive-label">Synchronized audio</span>
