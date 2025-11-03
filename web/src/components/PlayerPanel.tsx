@@ -56,6 +56,155 @@ const TAB_DEFINITIONS: TabDefinition[] = [
 
 const DEFAULT_COVER_URL = '/assets/default-cover.png';
 
+interface NavigationControlsProps {
+  context: 'panel' | 'fullscreen';
+  onNavigate: (intent: NavigationIntent) => void;
+  onToggleFullscreen: () => void;
+  onPlay: () => void;
+  onPause: () => void;
+  disableFirst: boolean;
+  disablePrevious: boolean;
+  disableNext: boolean;
+  disableLast: boolean;
+  disablePlay: boolean;
+  disablePause: boolean;
+  disableFullscreen: boolean;
+  isFullscreen: boolean;
+  fullscreenLabel: string;
+  inlineAudioOptions: { url: string; label: string }[];
+  inlineAudioSelection: string | null;
+  onSelectInlineAudio: (audioUrl: string) => void;
+  showInlineAudio: boolean;
+}
+
+function NavigationControls({
+  context,
+  onNavigate,
+  onToggleFullscreen,
+  onPlay,
+  onPause,
+  disableFirst,
+  disablePrevious,
+  disableNext,
+  disableLast,
+  disablePlay,
+  disablePause,
+  disableFullscreen,
+  isFullscreen,
+  fullscreenLabel,
+  inlineAudioOptions,
+  inlineAudioSelection,
+  onSelectInlineAudio,
+  showInlineAudio,
+}: NavigationControlsProps) {
+  const inlineAudioId =
+    context === 'fullscreen' ? 'player-panel-inline-audio-fullscreen' : 'player-panel-inline-audio';
+  const groupClassName =
+    context === 'fullscreen'
+      ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
+      : 'player-panel__navigation-group';
+  const navigationClassName =
+    context === 'fullscreen'
+      ? 'player-panel__navigation player-panel__navigation--fullscreen'
+      : 'player-panel__navigation';
+  const inlineAudioClassName =
+    context === 'fullscreen'
+      ? 'player-panel__inline-audio player-panel__inline-audio--fullscreen'
+      : 'player-panel__inline-audio';
+  const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
+
+  return (
+    <div className={groupClassName}>
+      <div className={navigationClassName} role="group" aria-label="Navigate media items">
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={() => onNavigate('first')}
+          disabled={disableFirst}
+          aria-label="Go to first item"
+        >
+          <span aria-hidden="true">⏮</span>
+        </button>
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={() => onNavigate('previous')}
+          disabled={disablePrevious}
+          aria-label="Go to previous item"
+        >
+          <span aria-hidden="true">⏪</span>
+        </button>
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={onPlay}
+          disabled={disablePlay}
+          aria-label="Play playback"
+        >
+          <span aria-hidden="true">▶</span>
+        </button>
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={onPause}
+          disabled={disablePause}
+          aria-label="Pause playback"
+        >
+          <span aria-hidden="true">⏸</span>
+        </button>
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={() => onNavigate('next')}
+          disabled={disableNext}
+          aria-label="Go to next item"
+        >
+          <span aria-hidden="true">⏩</span>
+        </button>
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={() => onNavigate('last')}
+          disabled={disableLast}
+          aria-label="Go to last item"
+        >
+          <span aria-hidden="true">⏭</span>
+        </button>
+        <button
+          type="button"
+          className="player-panel__nav-button"
+          onClick={onToggleFullscreen}
+          disabled={disableFullscreen}
+          aria-pressed={isFullscreen}
+          aria-label={fullscreenLabel}
+          data-testid={fullscreenTestId}
+        >
+          <span aria-hidden="true">⛶</span>
+        </button>
+      </div>
+      {showInlineAudio && inlineAudioOptions.length > 0 ? (
+        <div className={inlineAudioClassName} role="group" aria-label="Synchronized audio">
+          <label className="player-panel__inline-audio-label" htmlFor={inlineAudioId}>
+            Synchronized audio
+          </label>
+          <select
+            id={inlineAudioId}
+            value={inlineAudioSelection ?? inlineAudioOptions[0]?.url ?? ''}
+            onChange={(event) => onSelectInlineAudio(event.target.value)}
+            disabled={inlineAudioOptions.length === 1}
+          >
+            {inlineAudioOptions.map((option) => (
+              <option key={`${context}-${option.url}`} value={option.url}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function selectInitialTab(media: LiveMediaState): MediaCategory {
   const populated = TAB_DEFINITIONS.find((tab) => media[tab.key].length > 0);
   return populated?.key ?? 'text';
@@ -1175,15 +1324,32 @@ export default function PlayerPanel({
 
     return navigableItems.length > 0 ? 0 : -1;
   }, [navigableItems, selectedItemIds, selectedMediaType]);
+  const derivedNavigation = useMemo(() => {
+    if (navigableItems.length > 0) {
+      return {
+        mode: 'media' as const,
+        count: navigableItems.length,
+        index: Math.max(0, activeNavigableIndex),
+      };
+    }
+    if (selectedMediaType === 'text' && chunks.length > 0) {
+      const index = activeTextChunkIndex >= 0 ? activeTextChunkIndex : 0;
+      return {
+        mode: 'chunks' as const,
+        count: chunks.length,
+        index: Math.max(0, Math.min(index, Math.max(chunks.length - 1, 0))),
+      };
+    }
+    return { mode: 'none' as const, count: 0, index: -1 };
+  }, [activeNavigableIndex, activeTextChunkIndex, chunks.length, navigableItems.length, selectedMediaType]);
   const isFirstDisabled =
-    navigableItems.length === 0 || (activeNavigableIndex === 0 && navigableItems.length > 0);
-  const isPreviousDisabled = navigableItems.length === 0 || activeNavigableIndex <= 0;
+    derivedNavigation.count === 0 || derivedNavigation.index <= 0;
+  const isPreviousDisabled =
+    derivedNavigation.count === 0 || derivedNavigation.index <= 0;
   const isNextDisabled =
-    navigableItems.length === 0 ||
-    (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
+    derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
   const isLastDisabled =
-    navigableItems.length === 0 ||
-    (activeNavigableIndex !== -1 && activeNavigableIndex >= navigableItems.length - 1);
+    derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
   const playbackControlsAvailable =
     selectedMediaType === 'audio'
       ? hasAudioControls
@@ -1213,6 +1379,43 @@ export default function PlayerPanel({
     setHasVideoControls(Boolean(controls));
   }, []);
 
+  const syncInteractiveSelection = useCallback(
+    (audioUrl: string | null) => {
+      if (!audioUrl) {
+        return;
+      }
+      setSelectedItemIds((current) =>
+        current.audio === audioUrl ? current : { ...current, audio: audioUrl },
+      );
+      const chunkIndex = audioChunkIndexMap.get(audioUrl);
+      if (typeof chunkIndex === 'number' && chunkIndex >= 0 && chunkIndex < chunks.length) {
+        const targetChunk = chunks[chunkIndex];
+        const nextTextFile = targetChunk.files.find((file) => file.type === 'text' && file.url);
+        if (nextTextFile?.url) {
+          setSelectedItemIds((current) =>
+            current.text === nextTextFile.url ? current : { ...current, text: nextTextFile.url },
+          );
+        }
+      }
+    },
+    [
+      audioChunkIndexMap,
+      chunks,
+      setSelectedItemIds,
+    ],
+  );
+
+  const handleInlineAudioSelect = useCallback(
+    (audioUrl: string) => {
+      if (!audioUrl) {
+        return;
+      }
+      setInlineAudioSelection((current) => (current === audioUrl ? current : audioUrl));
+      syncInteractiveSelection(audioUrl);
+    },
+    [syncInteractiveSelection],
+  );
+
   const handleInlineAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     inlineAudioControlsRef.current = controls;
     setHasInlineAudioControls(Boolean(controls));
@@ -1220,9 +1423,69 @@ export default function PlayerPanel({
 
   const handleNavigate = useCallback(
     (intent: NavigationIntent) => {
+      const textItems = selectedMediaType === 'text' ? navigableItems : [];
+      if (
+        selectedMediaType === 'text' &&
+        textItems.length === 0 &&
+        chunks.length > 0
+      ) {
+        const currentIndex = activeTextChunkIndex >= 0 ? activeTextChunkIndex : 0;
+        const lastIndex = chunks.length - 1;
+        let nextIndex = currentIndex;
+        switch (intent) {
+          case 'first':
+            nextIndex = 0;
+            break;
+          case 'last':
+            nextIndex = lastIndex;
+            break;
+          case 'previous':
+            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
+            break;
+          case 'next':
+            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, lastIndex);
+            break;
+          default:
+            nextIndex = currentIndex;
+        }
+
+        if (nextIndex === currentIndex) {
+          return;
+        }
+
+        const targetChunk = chunks[nextIndex];
+        if (!targetChunk) {
+          return;
+        }
+        const nextAudio = targetChunk.files.find((file) => file.type === 'audio' && file.url);
+        if (nextAudio?.url) {
+          setInlineAudioSelection((current) => (current === nextAudio.url ? current : nextAudio.url));
+          syncInteractiveSelection(nextAudio.url);
+        } else {
+          const nextText = targetChunk.files.find((file) => file.type === 'text' && file.url);
+          if (nextText?.url) {
+            setSelectedItemIds((current) =>
+              current.text === nextText.url ? current : { ...current, text: nextText.url },
+            );
+          }
+        }
+        setPendingTextScrollRatio(0);
+        return;
+      }
+
       updateSelection(selectedMediaType, intent);
     },
-    [selectedMediaType, updateSelection],
+    [
+      activeTextChunkIndex,
+      chunks,
+      navigableItems,
+      selectedMediaType,
+      setInlineAudioSelection,
+      setPendingTextScrollRatio,
+      setSelectedItemIds,
+      syncInteractiveSelection,
+      updateSelection,
+    ],
   );
 
   const handlePauseActiveMedia = useCallback(() => {
@@ -1289,44 +1552,6 @@ export default function PlayerPanel({
   const getInlineAudioPosition = useCallback(
     (audioUrl: string) => getPosition(audioUrl),
     [getPosition],
-  );
-
-  const syncInteractiveSelection = useCallback(
-    (audioUrl: string | null) => {
-      if (!audioUrl) {
-        return;
-      }
-      setSelectedItemIds((current) =>
-        current.audio === audioUrl ? current : { ...current, audio: audioUrl },
-      );
-      const chunkIndex = audioChunkIndexMap.get(audioUrl);
-      if (typeof chunkIndex === 'number' && chunkIndex >= 0 && chunkIndex < chunks.length) {
-        const targetChunk = chunks[chunkIndex];
-        const nextTextFile = targetChunk.files.find((file) => file.type === 'text' && file.url);
-        if (nextTextFile?.url) {
-          setSelectedItemIds((current) =>
-            current.text === nextTextFile.url ? current : { ...current, text: nextTextFile.url },
-          );
-        }
-      }
-    },
-    [
-      audioChunkIndexMap,
-      chunks,
-      setSelectedItemIds,
-      setSelectedMediaType,
-    ],
-  );
-
-  const handleInlineAudioSelect = useCallback(
-    (audioUrl: string) => {
-      if (!audioUrl) {
-        return;
-      }
-      setInlineAudioSelection((current) => (current === audioUrl ? current : audioUrl));
-      syncInteractiveSelection(audioUrl);
-    },
-    [syncInteractiveSelection],
   );
 
   const advanceInteractiveChunk = useCallback(() => {
@@ -1571,22 +1796,6 @@ export default function PlayerPanel({
   const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
   const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
 
-  if (error) {
-    return (
-      <section className="player-panel" aria-label={sectionLabel}>
-        <p role="alert">Unable to load generated media: {error.message}</p>
-      </section>
-    );
-  }
-
-  if (isLoading && media.text.length === 0 && media.audio.length === 0 && media.video.length === 0) {
-    return (
-      <section className="player-panel" aria-label={sectionLabel}>
-        <p role="status">{loadingMessage}</p>
-      </section>
-    );
-  }
-
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
   const headingLabel = bookTitle ?? 'Player';
   const jobLabelParts: string[] = [];
@@ -1607,6 +1816,86 @@ export default function PlayerPanel({
       : 'Book cover preview';
   const immersiveToggleLabel = isImmersiveMode ? 'Exit immersive mode' : 'Enter immersive mode';
   const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
+
+  const navigationGroup = (
+    <NavigationControls
+      context="panel"
+      onNavigate={handleNavigate}
+      onToggleFullscreen={handleInteractiveFullscreenToggle}
+      onPlay={handlePlayActiveMedia}
+      onPause={handlePauseActiveMedia}
+      disableFirst={isFirstDisabled}
+      disablePrevious={isPreviousDisabled}
+      disableNext={isNextDisabled}
+      disableLast={isLastDisabled}
+      disablePlay={isPlayDisabled}
+      disablePause={isPauseDisabled}
+      disableFullscreen={isFullscreenDisabled}
+      isFullscreen={isInteractiveFullscreen}
+      fullscreenLabel={interactiveFullscreenLabel}
+      inlineAudioOptions={inlineAudioOptions}
+      inlineAudioSelection={inlineAudioSelection}
+      onSelectInlineAudio={handleInlineAudioSelect}
+      showInlineAudio={selectedMediaType === 'text'}
+    />
+  );
+  const fullscreenNavigationGroup = isInteractiveFullscreen ? (
+    <NavigationControls
+      context="fullscreen"
+      onNavigate={handleNavigate}
+      onToggleFullscreen={handleInteractiveFullscreenToggle}
+      onPlay={handlePlayActiveMedia}
+      onPause={handlePauseActiveMedia}
+      disableFirst={isFirstDisabled}
+      disablePrevious={isPreviousDisabled}
+      disableNext={isNextDisabled}
+      disableLast={isLastDisabled}
+      disablePlay={isPlayDisabled}
+      disablePause={isPauseDisabled}
+      disableFullscreen={isFullscreenDisabled}
+      isFullscreen={isInteractiveFullscreen}
+      fullscreenLabel={interactiveFullscreenLabel}
+      inlineAudioOptions={inlineAudioOptions}
+      inlineAudioSelection={inlineAudioSelection}
+      onSelectInlineAudio={handleInlineAudioSelect}
+      showInlineAudio={selectedMediaType === 'text'}
+    />
+  ) : null;
+
+  const fullscreenHeader = isInteractiveFullscreen ? (
+    <div className="player-panel__fullscreen-header">
+      {shouldShowCoverImage ? (
+        <div className="player-panel__fullscreen-cover" aria-hidden={false}>
+          <img
+            src={displayCoverUrl}
+            alt={coverAltText}
+            data-testid="player-panel-fullscreen-cover"
+            onError={coverErrorHandler}
+          />
+        </div>
+      ) : null}
+      <div className="player-panel__fullscreen-meta">
+        <h3>{headingLabel}</h3>
+        {jobLabel ? <span className="player-panel__fullscreen-job">{jobLabel}</span> : null}
+      </div>
+    </div>
+  ) : null;
+
+  if (error) {
+    return (
+      <section className="player-panel" aria-label={sectionLabel}>
+        <p role="alert">Unable to load generated media: {error.message}</p>
+      </section>
+    );
+  }
+
+  if (isLoading && media.text.length === 0 && media.audio.length === 0 && media.video.length === 0) {
+    return (
+      <section className="player-panel" aria-label={sectionLabel}>
+        <p role="status">{loadingMessage}</p>
+      </section>
+    );
+  }
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
@@ -1638,94 +1927,7 @@ export default function PlayerPanel({
                 </div>
               </div>
           <div className="player-panel__tabs-row">
-            <div className="player-panel__navigation-group">
-              <div className="player-panel__navigation" role="group" aria-label="Navigate media items">
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={() => handleNavigate('first')}
-                  disabled={isFirstDisabled}
-                  aria-label="Go to first item"
-                >
-                  <span aria-hidden="true">⏮</span>
-                </button>
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={() => handleNavigate('previous')}
-                  disabled={isPreviousDisabled}
-                  aria-label="Go to previous item"
-                >
-                  <span aria-hidden="true">⏪</span>
-                </button>
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={handlePlayActiveMedia}
-                  disabled={isPlayDisabled}
-                  aria-label="Play playback"
-                >
-                  <span aria-hidden="true">▶</span>
-                </button>
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={handlePauseActiveMedia}
-                  disabled={isPauseDisabled}
-                  aria-label="Pause playback"
-                >
-                  <span aria-hidden="true">⏸</span>
-                </button>
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={() => handleNavigate('next')}
-                  disabled={isNextDisabled}
-                  aria-label="Go to next item"
-                >
-                  <span aria-hidden="true">⏩</span>
-                </button>
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={() => handleNavigate('last')}
-                  disabled={isLastDisabled}
-                  aria-label="Go to last item"
-                >
-                  <span aria-hidden="true">⏭</span>
-                </button>
-                <button
-                  type="button"
-                  className="player-panel__nav-button"
-                  onClick={handleInteractiveFullscreenToggle}
-                  disabled={isFullscreenDisabled}
-                  aria-pressed={isInteractiveFullscreen}
-                  aria-label={interactiveFullscreenLabel}
-                  data-testid="player-panel-interactive-fullscreen"
-                >
-                  <span aria-hidden="true">⛶</span>
-                </button>
-              </div>
-              {selectedMediaType === 'text' && inlineAudioOptions.length > 0 ? (
-                <div className="player-panel__inline-audio" role="group" aria-label="Synchronized audio">
-                  <label className="player-panel__inline-audio-label" htmlFor="player-panel-inline-audio">
-                    Synchronized audio
-                  </label>
-                  <select
-                    id="player-panel-inline-audio"
-                    value={inlineAudioSelection ?? inlineAudioOptions[0]?.url ?? ''}
-                    onChange={(event) => handleInlineAudioSelect(event.target.value)}
-                    disabled={inlineAudioOptions.length === 1}
-                  >
-                    {inlineAudioOptions.map((option) => (
-                      <option key={option.url} value={option.url}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : null}
-            </div>
+            {navigationGroup}
             {media.video.length > 0 ? (
               <button
                 type="button"
@@ -1823,17 +2025,23 @@ export default function PlayerPanel({
                             content={interactiveViewerContent}
                             rawContent={interactiveViewerRaw}
                             chunk={resolvedActiveTextChunk}
-                            audioItems={interactiveAudioPlaylist}
                             activeAudioUrl={inlineAudioSelection}
                             noAudioAvailable={inlineAudioUnavailable}
                             onScroll={handleTextScroll}
                             onAudioProgress={handleInlineAudioProgress}
                             getStoredAudioPosition={getInlineAudioPosition}
-                            onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
-                            onSelectAudio={handleInlineAudioSelect}
-                            onRequestAdvanceChunk={handleInlineAudioEnded}
-                            isFullscreen={isInteractiveFullscreen}
-                            onRequestExitFullscreen={handleExitInteractiveFullscreen}
+                          onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
+                          onRequestAdvanceChunk={handleInlineAudioEnded}
+                          isFullscreen={isInteractiveFullscreen}
+                          onRequestExitFullscreen={handleExitInteractiveFullscreen}
+                            fullscreenControls={
+                              isInteractiveFullscreen ? (
+                                <>
+                                  {fullscreenHeader}
+                                  {fullscreenNavigationGroup}
+                                </>
+                              ) : null
+                            }
                           />
                           ) : (
                             <div className="player-panel__document-status" role="status">
@@ -1858,10 +2066,6 @@ export default function PlayerPanel({
                         <div className="player-panel__selection-meta-item">
                           <dt>File size</dt>
                           <dd>{selectedSize ?? '—'}</dd>
-                        </div>
-                        <div className="player-panel__selection-meta-item">
-                          <dt>Chunk</dt>
-                          <dd>{activeChunkLabel ?? '—'}</dd>
                         </div>
                         <div className="player-panel__selection-meta-item">
                           <dt>Sentences</dt>

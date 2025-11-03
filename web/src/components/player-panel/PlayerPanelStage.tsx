@@ -1,4 +1,4 @@
-import type { RefObject, UIEvent } from 'react';
+import type { ReactNode, RefObject, UIEvent } from 'react';
 import { TabsContent } from '../ui/Tabs';
 import AudioPlayer, { type AudioFile } from '../AudioPlayer';
 import VideoPlayer, { type VideoFile } from '../VideoPlayer';
@@ -43,7 +43,6 @@ interface TextStageProps {
   interactiveViewerContent: string;
   interactiveViewerRaw: string;
   resolvedActiveChunk: LiveMediaChunk | null;
-  inlineAudioPlaylist: LiveMediaItem[];
   inlineAudioSelection: string | null;
   inlineAudioUnavailable: boolean;
   textScrollRef: RefObject<HTMLDivElement | null>;
@@ -51,10 +50,10 @@ interface TextStageProps {
   onAudioProgress: (audioUrl: string, position: number) => void;
   getStoredAudioPosition: (audioUrl: string) => number;
   onRegisterInlineAudioControls: (controls: PlaybackControls | null) => void;
-  onSelectInlineAudio: (audioUrl: string) => void;
   onRequestAdvanceChunk: () => void;
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
+  fullscreenControls?: ReactNode;
 }
 
 interface SelectionInfo {
@@ -62,7 +61,6 @@ interface SelectionInfo {
   label: string;
   timestamp: string | null;
   size: string | null;
-  chunkLabel: string | null;
   sentenceRange: string;
 }
 
@@ -164,17 +162,16 @@ export function PlayerPanelStage({
                             content={text.interactiveViewerContent}
                             rawContent={text.interactiveViewerRaw}
                             chunk={text.resolvedActiveChunk}
-                            audioItems={text.inlineAudioPlaylist}
                             activeAudioUrl={text.inlineAudioSelection}
                             noAudioAvailable={text.inlineAudioUnavailable}
-                            onScroll={text.onScroll}
-                            onAudioProgress={text.onAudioProgress}
-                            getStoredAudioPosition={text.getStoredAudioPosition}
+                          onScroll={text.onScroll}
+                          onAudioProgress={text.onAudioProgress}
+                          getStoredAudioPosition={text.getStoredAudioPosition}
                           onRegisterInlineAudioControls={text.onRegisterInlineAudioControls}
-                          onSelectAudio={text.onSelectInlineAudio}
                           onRequestAdvanceChunk={text.onRequestAdvanceChunk}
                           isFullscreen={text.isFullscreen}
                           onRequestExitFullscreen={text.onRequestExitFullscreen}
+                          fullscreenControls={text.fullscreenControls}
                         />
                         ) : (
                           <div className="player-panel__document-status" role="status">
@@ -196,10 +193,6 @@ export function PlayerPanelStage({
                       <div className="player-panel__selection-meta-item">
                         <dt>File size</dt>
                         <dd>{selection.size ?? '—'}</dd>
-                      </div>
-                      <div className="player-panel__selection-meta-item">
-                        <dt>Chunk</dt>
-                        <dd>{selection.chunkLabel ?? '—'}</dd>
                       </div>
                       <div className="player-panel__selection-meta-item">
                         <dt>Sentences</dt>

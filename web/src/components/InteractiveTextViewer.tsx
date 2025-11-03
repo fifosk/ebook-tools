@@ -7,9 +7,9 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { UIEvent } from 'react';
+import type { ReactNode, UIEvent } from 'react';
 import { appendAccessToken } from '../api/client';
-import type { LiveMediaChunk, LiveMediaItem } from '../hooks/useLiveMedia';
+import type { LiveMediaChunk } from '../hooks/useLiveMedia';
 import TextPlayer, {
   type TextPlayerSentence,
   type TextPlayerVariantDisplay,
@@ -104,17 +104,16 @@ interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
-  audioItems: LiveMediaItem[];
   activeAudioUrl: string | null;
   noAudioAvailable: boolean;
   onScroll?: (event: UIEvent<HTMLDivElement>) => void;
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
   onRegisterInlineAudioControls?: (controls: InlineAudioControls | null) => void;
-  onSelectAudio?: (audioUrl: string) => void;
   onRequestAdvanceChunk?: () => void;
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
+  fullscreenControls?: ReactNode;
 }
 
 type SegmenterInstance = {
@@ -295,17 +294,16 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   {
     content,
     chunk,
-    audioItems,
     activeAudioUrl,
     noAudioAvailable,
     onScroll,
     onAudioProgress,
     getStoredAudioPosition,
     onRegisterInlineAudioControls,
-    onSelectAudio,
     onRequestAdvanceChunk,
     isFullscreen = false,
     onRequestExitFullscreen,
+    fullscreenControls,
   },
   forwardedRef,
 ) {
@@ -482,17 +480,30 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
     timelineSentences.forEach((runtime) => {
       const { startTime, endTime } = runtime;
-      let state: 'past' | 'active' | 'future';
+      let timeState: 'past' | 'active' | 'future';
       if (effectiveTime < startTime - 1e-3) {
-        state = 'future';
+        timeState = 'future';
       } else if (effectiveTime > endTime + 1e-3) {
-        state = 'past';
+        timeState = 'past';
       } else {
-        state = 'active';
+        timeState = 'active';
         if (activeIndex === null) {
           activeIndex = runtime.index;
         }
       }
+
+      const stabilisedState: 'past' | 'active' | 'future' = (() => {
+        if (runtime.index === activeSentenceIndex) {
+          return 'active';
+        }
+        if (runtime.index < activeSentenceIndex) {
+          return 'past';
+        }
+        if (runtime.index > activeSentenceIndex) {
+          return 'future';
+        }
+        return timeState;
+      })();
 
       const variants: TextPlayerVariantDisplay[] = [];
 
@@ -512,23 +523,23 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         const progressCount = revealTimes.filter((time) => time <= revealCutoff + 1e-3).length;
 
         let revealedCount: number;
-        if (state === 'past') {
+        if (stabilisedState === 'past') {
           revealedCount = tokens.length;
-        } else if (state === 'future') {
+        } else if (stabilisedState === 'future') {
           revealedCount = progressCount;
         } else {
           revealedCount = progressCount;
         }
 
         revealedCount = Math.max(0, Math.min(revealedCount, tokens.length));
-        if (state === 'active' && revealedCount === 0 && revealTimes.length > 0) {
+        if (stabilisedState === 'active' && revealedCount === 0 && revealTimes.length > 0) {
           if (safeEffectiveTime >= startTime - 1e-3) {
             revealedCount = 1;
           }
         }
 
         let currentIndex: number | null = revealedCount > 0 ? revealedCount - 1 : null;
-        if (state === 'past' && tokens.length > 0) {
+        if (stabilisedState === 'past' && tokens.length > 0) {
           currentIndex = tokens.length - 1;
         }
 
@@ -550,7 +561,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         id: `sentence-${runtime.index}`,
         index: runtime.index,
         sentenceNumber: runtime.sentenceNumber ?? runtime.index + 1,
-        state,
+        state: stabilisedState,
         variants,
       });
     });
@@ -572,7 +583,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       activeIndex: activeIndex ?? 0,
       effectiveTime,
     };
-  }, [timelineSentences, chunkTime, audioDuration]);
+  }, [timelineSentences, chunkTime, audioDuration, activeSentenceIndex]);
   
   const rawSentences = useMemo(
     () =>
@@ -744,23 +755,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [paragraphs],
   );
 
-  const audioPlaylist = useMemo(() => {
-    const seen = new Set<string>();
-    const items: Array<{ id: string; label: string }> = [];
-    audioItems.forEach((item) => {
-      const url = item.url ?? '';
-      if (!url || seen.has(url)) {
-        return;
-      }
-      seen.add(url);
-      const label =
-        typeof item.name === 'string' && item.name.trim().length > 0
-          ? item.name
-          : `Track ${items.length + 1}`;
-      items.push({ id: url, label });
-    });
-    return items;
-  }, [audioItems]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
@@ -1021,56 +1015,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [rawSentences, sentenceWeightSummary],
   );
 
-  const handlePlaylistSelect = useCallback(
-    (audioId: string) => {
-      if (!audioId) {
-        return;
-      }
-      if (audioId === activeAudioUrl) {
-        const element = audioRef.current;
-        if (!element) {
-          return;
-        }
-        try {
-          element.currentTime = 0;
-        } catch (error) {
-          // Ignore failures in restricted environments.
-        }
-        const duration =
-          Number.isFinite(element.duration) && element.duration > 0 ? element.duration : audioDuration ?? 0;
-        setChunkTime(0);
-        if (hasTimeline) {
-          setActiveSentenceIndex(0);
-          setActiveSentenceProgress(0);
-        } else if (duration > 0) {
-          updateSentenceForTime(0, duration);
-        } else {
-          setActiveSentenceIndex(0);
-          setActiveSentenceProgress(0);
-        }
-        emitAudioProgress(0);
-        try {
-          const attempt = element.play?.();
-          if (attempt && typeof attempt.catch === 'function') {
-            attempt.catch(() => undefined);
-          }
-        } catch (error) {
-          // Ignore playback errors in restricted environments.
-        }
-        return;
-      }
-      onSelectAudio?.(audioId);
-    },
-    [
-      activeAudioUrl,
-      audioDuration,
-      emitAudioProgress,
-      hasTimeline,
-      onSelectAudio,
-      updateSentenceForTime,
-    ],
-  );
-
   const handleLoadedMetadata = useCallback(() => {
     const element = audioRef.current;
     if (!element) {
@@ -1174,6 +1118,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       className={rootClassName}
       data-fullscreen={isFullscreen ? 'true' : 'false'}
     >
+      {isFullscreen && fullscreenControls ? (
+        <div className="player-panel__interactive-fullscreen-controls">
+          {fullscreenControls}
+        </div>
+      ) : null}
       {resolvedAudioUrl ? (
         <div className="player-panel__interactive-audio">
           <span className="player-panel__interactive-label">Synchronized audio</span>
@@ -1216,24 +1165,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           </div>
         )}
       </div>
-      {audioPlaylist.length > 0 ? (
-        <div className="player-panel__interactive-playlist">
-          <span className="player-panel__interactive-label">Audio tracks</span>
-          <div className="audio-player__playlist" role="group" aria-label="Audio tracks">
-            {audioPlaylist.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className="audio-player__track"
-                aria-pressed={item.id === activeAudioUrl}
-                onClick={() => handlePlaylistSelect(item.id)}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 });
