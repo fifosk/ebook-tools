@@ -144,6 +144,48 @@ class LibrarySync:
                 job_id,
                 target_path,
             )
+
+            cover_reference: Optional[str] = None
+
+            def _select_cover_candidate(value: Any) -> None:
+                nonlocal cover_reference
+                if cover_reference is not None:
+                    return
+                if isinstance(value, str):
+                    candidate = value.strip()
+                    if candidate:
+                        cover_reference = candidate
+
+            _select_cover_candidate(metadata.get("job_cover_asset"))
+            _select_cover_candidate(metadata.get("book_cover_file"))
+
+            book_metadata = metadata.get("book_metadata")
+            if cover_reference is None and isinstance(book_metadata, Mapping):
+                _select_cover_candidate(book_metadata.get("job_cover_asset"))
+                _select_cover_candidate(book_metadata.get("book_cover_file"))
+
+            cover_asset = (
+                file_ops.mirror_cover_asset(target_path, cover_reference) if cover_reference else None
+            )
+            if cover_asset:
+                metadata["job_cover_asset"] = cover_asset
+                metadata["book_cover_file"] = cover_asset
+                if isinstance(book_metadata, Mapping):
+                    nested = dict(book_metadata)
+                    nested["job_cover_asset"] = cover_asset
+                    nested["book_cover_file"] = cover_asset
+                    metadata["book_metadata"] = nested
+            else:
+                metadata.pop("job_cover_asset", None)
+                if not metadata.get("book_cover_file"):
+                    metadata.pop("book_cover_file", None)
+                if isinstance(book_metadata, Mapping):
+                    nested = dict(book_metadata)
+                    nested.pop("job_cover_asset", None)
+                    if not nested.get("book_cover_file"):
+                        nested.pop("book_cover_file", None)
+                    metadata["book_metadata"] = nested
+
             file_ops.write_metadata(target_path, metadata)
 
         library_item = metadata_utils.build_entry(
@@ -209,6 +251,9 @@ class LibrarySync:
                 shutil.rmtree(job_root, ignore_errors=True)
 
         self._repository.delete_entry(job_id)
+        self._library_job_cache.pop(job_id, None)
+        self._missing_job_cache.discard(job_id)
+        self._prune_empty_ancestors(job_root)
 
     def update_metadata(
         self,
@@ -681,6 +726,24 @@ class LibrarySync:
 
         cover_candidate = file_ops.contains_cover_asset(job_root)
         return cover_candidate
+
+    def _prune_empty_ancestors(self, path: Path) -> None:
+        """Remove empty parent directories up to the library root."""
+
+        try:
+            library_root = self._library_root.resolve()
+            current = Path(path).resolve().parent
+            while current != library_root and library_root in current.parents:
+                if not current.exists():
+                    current = current.parent
+                    continue
+                try:
+                    current.rmdir()
+                except OSError:
+                    break
+                current = current.parent
+        except Exception:
+            LOGGER.debug("Unable to prune directories for %s", path, exc_info=True)
  
     def _locate_job_root(self, job_id: str) -> Optional[Path]:
         normalized = str(job_id or "").strip()
