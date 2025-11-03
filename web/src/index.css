@@ -2457,6 +2457,12 @@ button.link-button:focus {
   background: rgba(15, 23, 42, 0.35);
 }
 
+.player-panel__interactive-playlist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
 .player-panel__document-status,
 .player-panel__document-error {
   flex: 1;

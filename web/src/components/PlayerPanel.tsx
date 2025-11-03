@@ -7,9 +7,10 @@ import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 import MediaSearchPanel from './MediaSearchPanel';
-import type { LibraryItem, MediaSearchResult } from '../api/dtos';
+import type { ChunkSentenceMetadata, LibraryItem, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
+import { resolve as resolveStoragePath } from '../utils/storageResolver';
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
 type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
@@ -173,6 +174,144 @@ function formatSentenceRange(start: number | null | undefined, end: number | nul
   return '—';
 }
 
+function formatChunkLabel(chunk: LiveMediaChunk, index: number): string {
+  const rangeFragment = typeof chunk.rangeFragment === 'string' ? chunk.rangeFragment.trim() : '';
+  if (rangeFragment) {
+    return rangeFragment;
+  }
+  const chunkId = typeof chunk.chunkId === 'string' ? chunk.chunkId.trim() : '';
+  if (chunkId) {
+    return chunkId;
+  }
+  const sentenceRange = formatSentenceRange(chunk.startSentence ?? null, chunk.endSentence ?? null);
+  if (sentenceRange && sentenceRange !== '—') {
+    return `Chunk ${index + 1} · ${sentenceRange}`;
+  }
+  return `Chunk ${index + 1}`;
+}
+
+function buildInteractiveAudioCatalog(
+  chunks: LiveMediaChunk[],
+  audioMedia: LiveMediaItem[],
+): {
+  playlist: LiveMediaItem[];
+  nameMap: Map<string, string>;
+  chunkIndexMap: Map<string, number>;
+} {
+  const playlist: LiveMediaItem[] = [];
+  const nameMap = new Map<string, string>();
+  const chunkIndexMap = new Map<string, number>();
+  const seen = new Set<string>();
+
+  const register = (
+    item: LiveMediaItem | null | undefined,
+    chunkIndex: number | null,
+    fallbackLabel?: string,
+  ) => {
+    if (!item || !item.url) {
+      return;
+    }
+    const url = item.url;
+    if (seen.has(url)) {
+      return;
+    }
+    seen.add(url);
+    const trimmedName = typeof item.name === 'string' ? item.name.trim() : '';
+    const trimmedFallback = typeof fallbackLabel === 'string' ? fallbackLabel.trim() : '';
+    const label = trimmedName || trimmedFallback || `Audio ${playlist.length + 1}`;
+    const enriched = trimmedName ? item : { ...item, name: label };
+    playlist.push(enriched);
+    nameMap.set(url, label);
+    if (typeof chunkIndex === 'number' && chunkIndex >= 0) {
+      chunkIndexMap.set(url, chunkIndex);
+    }
+  };
+
+  chunks.forEach((chunk, index) => {
+    const chunkLabel = formatChunkLabel(chunk, index);
+    chunk.files.forEach((file) => {
+      if (file.type !== 'audio') {
+        return;
+      }
+      register(file, index, chunkLabel);
+    });
+  });
+
+  audioMedia.forEach((item) => {
+    if (!item.url) {
+      return;
+    }
+    const existingIndex = chunkIndexMap.get(item.url);
+    register(item, typeof existingIndex === 'number' ? existingIndex : null, item.name);
+  });
+
+  return { playlist, nameMap, chunkIndexMap };
+}
+
+function chunkCacheKey(chunk: LiveMediaChunk): string | null {
+  if (chunk.chunkId) {
+    return `id:${chunk.chunkId}`;
+  }
+  if (chunk.rangeFragment) {
+    return `range:${chunk.rangeFragment}`;
+  }
+  if (chunk.metadataPath) {
+    return `path:${chunk.metadataPath}`;
+  }
+  if (chunk.metadataUrl) {
+    return `url:${chunk.metadataUrl}`;
+  }
+  const audioUrl = chunk.files.find((file) => file.type === 'audio' && file.url)?.url;
+  if (audioUrl) {
+    return `audio:${audioUrl}`;
+  }
+  return null;
+}
+
+async function requestChunkMetadata(
+  jobId: string,
+  chunk: LiveMediaChunk,
+): Promise<ChunkSentenceMetadata[] | null> {
+  let targetUrl: string | null = chunk.metadataUrl ?? null;
+
+  if (!targetUrl) {
+    const metadataPath = chunk.metadataPath ?? null;
+    if (metadataPath) {
+      try {
+        targetUrl = resolveStoragePath(jobId, metadataPath);
+      } catch (error) {
+        if (jobId) {
+          const encodedJobId = encodeURIComponent(jobId);
+          const sanitizedPath = metadataPath.replace(/^\/+/, '');
+          targetUrl = `/pipelines/jobs/${encodedJobId}/${encodeURI(sanitizedPath)}`;
+        } else {
+          console.warn('Unable to resolve chunk metadata path', metadataPath, error);
+        }
+      }
+    }
+  }
+
+  if (!targetUrl) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(targetUrl, { credentials: 'include' });
+    if (!response.ok) {
+      throw new Error(`Chunk metadata request failed with status ${response.status}`);
+    }
+    const payload = await response.json();
+    const sentences = payload?.sentences;
+    if (Array.isArray(sentences)) {
+      return sentences as ChunkSentenceMetadata[];
+    }
+    return [];
+  } catch (error) {
+    console.warn('Unable to load chunk metadata', targetUrl, error);
+    return null;
+  }
+}
+
 export default function PlayerPanel({
   jobId,
   media,
@@ -202,6 +341,10 @@ export default function PlayerPanel({
   });
   const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
   const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
+  const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
+  const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
+  const chunkMetadataStoreRef = useRef(chunkMetadataStore);
+  const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
@@ -221,6 +364,10 @@ export default function PlayerPanel({
   const [hasAudioControls, setHasAudioControls] = useState(false);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
+
+  useEffect(() => {
+    chunkMetadataStoreRef.current = chunkMetadataStore;
+  }, [chunkMetadataStore]);
   const mediaIndex = useMemo(() => {
     const map: Record<MediaCategory, Map<string, LiveMediaItem>> = {
       text: new Map(),
@@ -651,6 +798,11 @@ export default function PlayerPanel({
       }) ?? null
     );
   }, [chunks, selectedItem]);
+  const {
+    playlist: interactiveAudioPlaylist,
+    nameMap: interactiveAudioNameMap,
+    chunkIndexMap: audioChunkIndexMap,
+  } = useMemo(() => buildInteractiveAudioCatalog(chunks, media.audio), [chunks, media.audio]);
   const hasInteractiveChunks = useMemo(
     () =>
       chunks.some(
@@ -665,8 +817,18 @@ export default function PlayerPanel({
     if (!chunks.length) {
       return null;
     }
+    if (inlineAudioSelection) {
+      const mappedIndex = audioChunkIndexMap.get(inlineAudioSelection);
+      if (typeof mappedIndex === 'number' && mappedIndex >= 0 && mappedIndex < chunks.length) {
+        return chunks[mappedIndex];
+      }
+    }
     const audioId = selectedItemIds.audio;
     if (audioId) {
+      const mappedIndex = audioChunkIndexMap.get(audioId);
+      if (typeof mappedIndex === 'number' && mappedIndex >= 0 && mappedIndex < chunks.length) {
+        return chunks[mappedIndex];
+      }
       const matchedByAudio = chunks.find((chunk) =>
         chunk.files.some((file) => file.type === 'audio' && file.url === audioId),
       );
@@ -678,83 +840,103 @@ export default function PlayerPanel({
       (chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0,
     );
     return firstWithSentences ?? chunks[0];
-  }, [chunks, selectedChunk, selectedItemIds.audio]);
-  const chunkAudioItems = useMemo(() => {
-    if (!activeTextChunk) {
-      return [];
-    }
-    const seen = new Set<string>();
-    const items: LiveMediaItem[] = [];
-    activeTextChunk.files.forEach((file) => {
-      if (file.type !== 'audio' || !file.url) {
-        return;
-      }
-      if (seen.has(file.url)) {
-        return;
-      }
-      seen.add(file.url);
-      items.push(file);
-    });
-    return items;
-  }, [activeTextChunk]);
-  const interactiveAudioItems = useMemo(() => {
-    const seen = new Set<string>();
-    const register = (item: LiveMediaItem | null | undefined) => {
-      if (!item || !item.url || seen.has(item.url)) {
-        return;
-      }
-      seen.add(item.url);
-      result.push(item);
-    };
-    const result: LiveMediaItem[] = [];
-    chunkAudioItems.forEach(register);
-    const baseId = selectedItem ? deriveBaseId(selectedItem) : null;
-    if (baseId) {
-      media.audio.forEach((item) => {
-        if (deriveBaseId(item) === baseId) {
-          register(item);
-        }
-      });
-    }
-    const selectedAudio = getMediaItem('audio', selectedItemIds.audio);
-    register(selectedAudio);
-    if (result.length === 0) {
-      register(media.audio[0]);
-    }
-    return result;
-  }, [chunkAudioItems, deriveBaseId, getMediaItem, media.audio, selectedItem, selectedItemIds.audio]);
-  const inlineAudioOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const options: { url: string; label: string }[] = [];
-    interactiveAudioItems.forEach((item) => {
-      const url = item.url ?? '';
-      if (!url || seen.has(url)) {
-        return;
-      }
-      seen.add(url);
-      options.push({
-        url,
-        label: item.name ?? `Audio ${options.length + 1}`,
-      });
-    });
-    return options;
-  }, [interactiveAudioItems]);
-  const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(
-    () => inlineAudioOptions[0]?.url ?? null,
+  }, [audioChunkIndexMap, chunks, inlineAudioSelection, selectedChunk, selectedItemIds.audio]);
+  const activeTextChunkIndex = useMemo(
+    () => (activeTextChunk ? chunks.findIndex((chunk) => chunk === activeTextChunk) : -1),
+    [activeTextChunk, chunks],
   );
 
   useEffect(() => {
-    if (inlineAudioOptions.length === 0) {
-      setInlineAudioSelection(null);
+    if (!jobId || !activeTextChunk) {
       return;
     }
-    setInlineAudioSelection((current) => {
-      if (current && inlineAudioOptions.some((option) => option.url === current)) {
-        return current;
+    if (Array.isArray(activeTextChunk.sentences) && activeTextChunk.sentences.length > 0) {
+      return;
+    }
+    const cacheKey = chunkCacheKey(activeTextChunk);
+    if (!cacheKey) {
+      return;
+    }
+    if (chunkMetadataStoreRef.current[cacheKey] !== undefined) {
+      return;
+    }
+    if (chunkMetadataLoadingRef.current.has(cacheKey)) {
+      return;
+    }
+    chunkMetadataLoadingRef.current.add(cacheKey);
+    requestChunkMetadata(jobId, activeTextChunk)
+      .then((sentences) => {
+        if (sentences !== null) {
+          setChunkMetadataStore((current) => {
+            if (current[cacheKey] !== undefined) {
+              return current;
+            }
+            return { ...current, [cacheKey]: sentences };
+          });
+        }
+      })
+      .catch((error) => {
+        console.warn('Unable to load interactive chunk metadata', error);
+      })
+      .finally(() => {
+        chunkMetadataLoadingRef.current.delete(cacheKey);
+      });
+  }, [jobId, activeTextChunk]);
+
+  const resolvedActiveTextChunk = useMemo(() => {
+    if (!activeTextChunk) {
+      return null;
+    }
+    if (Array.isArray(activeTextChunk.sentences) && activeTextChunk.sentences.length > 0) {
+      return activeTextChunk;
+    }
+    const cacheKey = chunkCacheKey(activeTextChunk);
+    if (!cacheKey) {
+      return activeTextChunk;
+    }
+    const cached = chunkMetadataStore[cacheKey];
+    if (cached !== undefined) {
+      return {
+        ...activeTextChunk,
+        sentences: cached,
+        sentenceCount: cached.length,
+      };
+    }
+    return activeTextChunk;
+  }, [activeTextChunk, chunkMetadataStore]);
+  const inlineAudioOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const options: { url: string; label: string }[] = [];
+    const register = (url: string | null | undefined, label: string | null | undefined) => {
+      if (!url || seen.has(url)) {
+        return;
       }
-      return inlineAudioOptions[0]?.url ?? null;
+      const trimmedLabel = typeof label === 'string' ? label.trim() : '';
+      options.push({
+        url,
+        label: trimmedLabel || `Audio ${options.length + 1}`,
+      });
+      seen.add(url);
+    };
+    const chunkForOptions = resolvedActiveTextChunk ?? activeTextChunk;
+    if (chunkForOptions && activeTextChunkIndex >= 0) {
+      chunkForOptions.files.forEach((file) => {
+        if (file.type !== 'audio' || !file.url) {
+          return;
+        }
+        const label =
+          interactiveAudioNameMap.get(file.url) ??
+          (typeof file.name === 'string' ? file.name.trim() : '') ??
+          formatChunkLabel(chunkForOptions, activeTextChunkIndex);
+        register(file.url, label);
+      });
+    }
+    interactiveAudioPlaylist.forEach((item, index) => {
+      register(item.url, item.name ?? `Audio ${index + 1}`);
     });
-  }, [inlineAudioOptions]);
+    return options;
+  }, [activeTextChunk, activeTextChunkIndex, interactiveAudioNameMap, interactiveAudioPlaylist, resolvedActiveTextChunk]);
+
   const inlineAudioUnavailable = inlineAudioOptions.length === 0;
   useEffect(() => {
     if (!pendingSelection) {
@@ -858,10 +1040,10 @@ export default function PlayerPanel({
     inlineAudioOptions,
   ]);
   const fallbackTextContent = useMemo(() => {
-    if (!activeTextChunk || !Array.isArray(activeTextChunk.sentences)) {
+    if (!resolvedActiveTextChunk || !Array.isArray(resolvedActiveTextChunk.sentences)) {
       return '';
     }
-    const blocks = activeTextChunk.sentences
+    const blocks = resolvedActiveTextChunk.sentences
       .map((sentence) => {
         if (!sentence) {
           return '';
@@ -880,27 +1062,57 @@ export default function PlayerPanel({
       })
       .filter((block) => block.trim().length > 0);
     return blocks.join('\n\n');
-  }, [activeTextChunk]);
+  }, [resolvedActiveTextChunk]);
   const interactiveViewerContent = (textPreview?.content ?? fallbackTextContent) || '';
   const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
   const canRenderInteractiveViewer =
-    Boolean(activeTextChunk) && interactiveViewerContent.trim().length > 0;
+    Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
   const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
   const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
   const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
   const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
-  const activeChunkRange = activeTextChunk
-    ? activeTextChunk.rangeFragment ??
-      formatSentenceRange(activeTextChunk.startSentence ?? null, activeTextChunk.endSentence ?? null)
+  const activeChunkLabel = useMemo(() => {
+    if (!resolvedActiveTextChunk) {
+      return null;
+    }
+    if (inlineAudioSelection) {
+      const mappedName = interactiveAudioNameMap.get(inlineAudioSelection);
+      if (mappedName) {
+        return mappedName;
+      }
+    }
+    if (activeTextChunkIndex >= 0) {
+      const chunkAudioLabel = resolvedActiveTextChunk.files
+        .filter((file) => file.type === 'audio' && file.url)
+        .map((file) => {
+          const byMap = interactiveAudioNameMap.get(file.url ?? '');
+          if (byMap) {
+            return byMap;
+          }
+          return typeof file.name === 'string' ? file.name.trim() : '';
+        })
+        .find((value) => value && value.length > 0);
+      if (chunkAudioLabel) {
+        return chunkAudioLabel;
+      }
+      return formatChunkLabel(resolvedActiveTextChunk, activeTextChunkIndex);
+    }
+    return resolvedActiveTextChunk.rangeFragment ?? null;
+  }, [activeTextChunkIndex, inlineAudioSelection, interactiveAudioNameMap, resolvedActiveTextChunk]);
+  const activeChunkRange = resolvedActiveTextChunk
+    ? formatSentenceRange(
+        resolvedActiveTextChunk.startSentence ?? null,
+        resolvedActiveTextChunk.endSentence ?? null,
+      )
     : null;
   const selectionTitle =
     selectedItem?.name ??
-    activeChunkRange ??
-    (activeTextChunk ? 'Interactive chunk' : 'No media selected');
+    activeChunkLabel ??
+    (resolvedActiveTextChunk ? 'Interactive chunk' : 'No media selected');
   const selectionLabel = selectedItem
     ? `Selected media: ${selectedItem.name}`
-    : activeTextChunk
-    ? `Interactive chunk: ${activeChunkRange ?? 'Chunk'}`
+    : resolvedActiveTextChunk
+    ? `Interactive chunk: ${activeChunkLabel ?? 'Chunk'}`
     : 'No media selected';
   const hasTextItems = media.text.length > 0;
   const navigableItems = useMemo(
@@ -1024,6 +1236,111 @@ export default function PlayerPanel({
     (audioUrl: string) => getPosition(audioUrl),
     [getPosition],
   );
+
+  const syncInteractiveSelection = useCallback(
+    (audioUrl: string | null) => {
+      if (!audioUrl) {
+        return;
+      }
+      setSelectedItemIds((current) =>
+        current.audio === audioUrl ? current : { ...current, audio: audioUrl },
+      );
+      setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+      const chunkIndex = audioChunkIndexMap.get(audioUrl);
+      if (typeof chunkIndex === 'number' && chunkIndex >= 0 && chunkIndex < chunks.length) {
+        const targetChunk = chunks[chunkIndex];
+        const nextTextFile = targetChunk.files.find((file) => file.type === 'text' && file.url);
+        if (nextTextFile?.url) {
+          setSelectedItemIds((current) =>
+            current.text === nextTextFile.url ? current : { ...current, text: nextTextFile.url },
+          );
+        }
+      }
+    },
+    [
+      audioChunkIndexMap,
+      chunks,
+      setSelectedItemIds,
+      setSelectedMediaType,
+    ],
+  );
+
+  const handleInlineAudioSelect = useCallback(
+    (audioUrl: string) => {
+      if (!audioUrl) {
+        return;
+      }
+      setInlineAudioSelection((current) => (current === audioUrl ? current : audioUrl));
+      syncInteractiveSelection(audioUrl);
+    },
+    [syncInteractiveSelection],
+  );
+
+  const advanceInteractiveChunk = useCallback(() => {
+    if (chunks.length === 0) {
+      return false;
+    }
+    let currentIndex = activeTextChunkIndex;
+    if (currentIndex < 0 && inlineAudioSelection) {
+      const mappedIndex = audioChunkIndexMap.get(inlineAudioSelection);
+      if (typeof mappedIndex === 'number' && mappedIndex >= 0) {
+        currentIndex = mappedIndex;
+      }
+    }
+    const nextIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
+    if (nextIndex >= chunks.length) {
+      return false;
+    }
+    const nextChunk = chunks[nextIndex];
+    const nextAudio = nextChunk.files.find((file) => file.type === 'audio' && file.url);
+    if (nextAudio?.url) {
+      setInlineAudioSelection(nextAudio.url);
+      syncInteractiveSelection(nextAudio.url);
+    } else {
+      const nextText = nextChunk.files.find((file) => file.type === 'text' && file.url);
+      if (nextText?.url) {
+        setSelectedItemIds((current) =>
+          current.text === nextText.url ? current : { ...current, text: nextText.url },
+        );
+      }
+    }
+    setPendingTextScrollRatio(0);
+    return true;
+  }, [
+    activeTextChunkIndex,
+    audioChunkIndexMap,
+    chunks,
+    inlineAudioSelection,
+    setPendingTextScrollRatio,
+    setSelectedItemIds,
+    syncInteractiveSelection,
+  ]);
+
+  const handleInlineAudioEnded = useCallback(() => {
+    const advanced = advanceInteractiveChunk();
+    if (!advanced) {
+      updateSelection('text', 'next');
+    }
+  }, [advanceInteractiveChunk, updateSelection]);
+
+  useEffect(() => {
+    if (inlineAudioOptions.length === 0) {
+      if (inlineAudioSelection !== null) {
+        setInlineAudioSelection(null);
+      }
+      return;
+    }
+
+    if (!inlineAudioSelection || !inlineAudioOptions.some((option) => option.url === inlineAudioSelection)) {
+      const nextUrl = inlineAudioOptions[0]?.url ?? null;
+      if (nextUrl) {
+        setInlineAudioSelection(nextUrl);
+        syncInteractiveSelection(nextUrl);
+      } else if (inlineAudioSelection !== null) {
+        setInlineAudioSelection(null);
+      }
+    }
+  }, [inlineAudioOptions, inlineAudioSelection, syncInteractiveSelection]);
 
   const handleVideoProgress = useCallback(
     (position: number) => {
@@ -1322,7 +1639,7 @@ export default function PlayerPanel({
                   <select
                     id="player-panel-inline-audio"
                     value={inlineAudioSelection ?? inlineAudioOptions[0]?.url ?? ''}
-                    onChange={(event) => setInlineAudioSelection(event.target.value || null)}
+                    onChange={(event) => handleInlineAudioSelect(event.target.value)}
                     disabled={inlineAudioOptions.length === 1}
                   >
                     {inlineAudioOptions.map((option) => (
@@ -1430,14 +1747,16 @@ export default function PlayerPanel({
                             ref={textScrollRef}
                             content={interactiveViewerContent}
                             rawContent={interactiveViewerRaw}
-                            chunk={activeTextChunk}
-                            audioItems={interactiveAudioItems}
+                            chunk={resolvedActiveTextChunk}
+                            audioItems={interactiveAudioPlaylist}
                             activeAudioUrl={inlineAudioSelection}
                             noAudioAvailable={inlineAudioUnavailable}
                             onScroll={handleTextScroll}
                             onAudioProgress={handleInlineAudioProgress}
                             getStoredAudioPosition={getInlineAudioPosition}
                             onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
+                            onSelectAudio={handleInlineAudioSelect}
+                            onRequestAdvanceChunk={handleInlineAudioEnded}
                           />
                           ) : (
                             <div className="player-panel__document-status" role="status">
@@ -1465,11 +1784,11 @@ export default function PlayerPanel({
                         </div>
                         <div className="player-panel__selection-meta-item">
                           <dt>Chunk</dt>
-                          <dd>{activeTextChunk?.rangeFragment ?? '—'}</dd>
+                          <dd>{activeChunkLabel ?? '—'}</dd>
                         </div>
                         <div className="player-panel__selection-meta-item">
                           <dt>Sentences</dt>
-                          <dd>{formatSentenceRange(activeTextChunk?.startSentence ?? null, activeTextChunk?.endSentence ?? null)}</dd>
+                          <dd>{formatSentenceRange(resolvedActiveTextChunk?.startSentence ?? null, resolvedActiveTextChunk?.endSentence ?? null)}</dd>
                         </div>
                       </dl>
                     </div>

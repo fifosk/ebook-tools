@@ -110,6 +110,8 @@ interface InteractiveTextViewerProps {
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
   onRegisterInlineAudioControls?: (controls: InlineAudioControls | null) => void;
+  onSelectAudio?: (audioUrl: string) => void;
+  onRequestAdvanceChunk?: () => void;
 }
 
 type SegmenterInstance = {
@@ -297,6 +299,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onAudioProgress,
     getStoredAudioPosition,
     onRegisterInlineAudioControls,
+    onSelectAudio,
+    onRequestAdvanceChunk,
   },
   forwardedRef,
 ) {
@@ -733,6 +737,23 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [paragraphs],
   );
 
+  const audioPlaylist = useMemo(() => {
+    const seen = new Set<string>();
+    const items: Array<{ id: string; label: string }> = [];
+    audioItems.forEach((item) => {
+      const url = item.url ?? '';
+      if (!url || seen.has(url)) {
+        return;
+      }
+      seen.add(url);
+      const label =
+        typeof item.name === 'string' && item.name.trim().length > 0
+          ? item.name
+          : `Track ${items.length + 1}`;
+      items.push({ id: url, label });
+    });
+    return items;
+  }, [audioItems]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
@@ -900,6 +921,56 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [rawSentences, sentenceWeightSummary],
   );
 
+  const handlePlaylistSelect = useCallback(
+    (audioId: string) => {
+      if (!audioId) {
+        return;
+      }
+      if (audioId === activeAudioUrl) {
+        const element = audioRef.current;
+        if (!element) {
+          return;
+        }
+        try {
+          element.currentTime = 0;
+        } catch (error) {
+          // Ignore failures in restricted environments.
+        }
+        const duration =
+          Number.isFinite(element.duration) && element.duration > 0 ? element.duration : audioDuration ?? 0;
+        setChunkTime(0);
+        if (hasTimeline) {
+          setActiveSentenceIndex(0);
+          setActiveSentenceProgress(0);
+        } else if (duration > 0) {
+          updateSentenceForTime(0, duration);
+        } else {
+          setActiveSentenceIndex(0);
+          setActiveSentenceProgress(0);
+        }
+        emitAudioProgress(0);
+        try {
+          const attempt = element.play?.();
+          if (attempt && typeof attempt.catch === 'function') {
+            attempt.catch(() => undefined);
+          }
+        } catch (error) {
+          // Ignore playback errors in restricted environments.
+        }
+        return;
+      }
+      onSelectAudio?.(audioId);
+    },
+    [
+      activeAudioUrl,
+      audioDuration,
+      emitAudioProgress,
+      hasTimeline,
+      onSelectAudio,
+      updateSentenceForTime,
+    ],
+  );
+
   const handleLoadedMetadata = useCallback(() => {
     const element = audioRef.current;
     if (!element) {
@@ -956,7 +1027,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       }
     }
     emitAudioProgress(0);
-  }, [audioDuration, emitAudioProgress, hasTimeline, timelineDisplay, totalSentences]);
+    onRequestAdvanceChunk?.();
+  }, [audioDuration, emitAudioProgress, hasTimeline, onRequestAdvanceChunk, timelineDisplay, totalSentences]);
 
   const handleAudioSeeked = useCallback(() => {
     const element = audioRef.current;
@@ -1023,12 +1095,34 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           <TextPlayer sentences={textPlayerSentences} onSeek={handleTokenSeek} />
         ) : paragraphs.length > 0 ? (
           <pre className="player-panel__document-text">{content}</pre>
+        ) : chunk ? (
+          <div className="player-panel__document-status" role="status">
+            Loading interactive chunk…
+          </div>
         ) : (
           <div className="player-panel__document-status" role="status">
             Text preview will appear once generated.
           </div>
         )}
       </div>
+      {audioPlaylist.length > 0 ? (
+        <div className="player-panel__interactive-playlist">
+          <span className="player-panel__interactive-label">Audio tracks</span>
+          <div className="audio-player__playlist" role="group" aria-label="Audio tracks">
+            {audioPlaylist.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className="audio-player__track"
+                aria-pressed={item.id === activeAudioUrl}
+                onClick={() => handlePlaylistSelect(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 });
