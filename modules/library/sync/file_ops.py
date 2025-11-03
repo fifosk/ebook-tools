@@ -13,6 +13,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from urllib.parse import quote
 
 from modules import logging_manager
+from modules.metadata_manager import MetadataLoader
 
 from conf.sync_config import (
     AUDIO_SUFFIXES,
@@ -628,6 +629,24 @@ def serialize_media_entries(
     complete = bool(complete_flag) if isinstance(complete_flag, bool) else False
 
     seen: set[Tuple[str, str, str]] = set()
+    loader: Optional[MetadataLoader] = None
+    loader_attempted = False
+
+    def resolve_loader() -> Optional[MetadataLoader]:
+        nonlocal loader, loader_attempted
+        if loader is not None:
+            return loader
+        if loader_attempted:
+            return None
+        loader_attempted = True
+        manifest_path = job_root / "metadata" / "job.json"
+        if not manifest_path.exists():
+            return None
+        try:
+            loader = MetadataLoader(job_root)
+        except Exception:  # pragma: no cover - defensive logging
+            loader = None
+        return loader
 
     chunks_section = generated_files.get("chunks")
     if isinstance(chunks_section, list):
@@ -652,17 +671,47 @@ def serialize_media_entries(
                         continue
                     seen.add(signature)
                     media_map.setdefault(category, []).append(record)
-            if chunk_files:
-                chunk_records.append(
-                    {
-                        "chunk_id": utils.to_string(chunk.get("chunk_id")),
-                        "range_fragment": utils.to_string(chunk.get("range_fragment")),
-                        "start_sentence": utils.coerce_int(chunk.get("start_sentence")),
-                        "end_sentence": utils.coerce_int(chunk.get("end_sentence")),
-                        "files": chunk_files,
-                        "sentences": copy.deepcopy(chunk.get("sentences", [])),
-                    }
-                )
+            if not chunk_files:
+                continue
+
+            summary: Mapping[str, Any] = chunk
+            active_loader = resolve_loader()
+            if active_loader is not None:
+                try:
+                    summary = active_loader.load_chunk(chunk, include_sentences=False)
+                except Exception:  # pragma: no cover - defensive logging
+                    summary = chunk
+
+            metadata_path = summary.get("metadata_path")
+            sentence_count = utils.coerce_int(summary.get("sentence_count"))
+
+            sentences_payload: List[Any] = []
+            if isinstance(metadata_path, str) and metadata_path.strip():
+                sentences_payload = []
+            else:
+                if active_loader is not None:
+                    sentences_payload = active_loader.load_chunk_sentences(chunk)
+                else:
+                    inline_sentences = summary.get("sentences") or chunk.get("sentences")
+                    if isinstance(inline_sentences, list):
+                        sentences_payload = copy.deepcopy(inline_sentences)
+                if sentence_count is None:
+                    sentence_count = len(sentences_payload)
+
+            chunk_record: Dict[str, Any] = {
+                "chunk_id": utils.to_string(summary.get("chunk_id")),
+                "range_fragment": utils.to_string(summary.get("range_fragment")),
+                "start_sentence": utils.coerce_int(summary.get("start_sentence")),
+                "end_sentence": utils.coerce_int(summary.get("end_sentence")),
+                "files": chunk_files,
+                "sentences": sentences_payload,
+            }
+            if isinstance(metadata_path, str) and metadata_path.strip():
+                chunk_record["metadata_path"] = metadata_path
+                chunk_record["metadata_url"] = build_library_media_url(job_id, metadata_path)
+            if sentence_count is not None:
+                chunk_record["sentence_count"] = sentence_count
+            chunk_records.append(chunk_record)
 
     files_section = generated_files.get("files")
     if isinstance(files_section, list):

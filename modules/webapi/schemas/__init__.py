@@ -485,6 +485,9 @@ class PipelineMediaChunk(BaseModel):
     end_sentence: Optional[int] = None
     files: List[PipelineMediaFile] = Field(default_factory=list)
     sentences: List[ChunkSentenceMetadata] = Field(default_factory=list)
+    metadata_path: Optional[str] = None
+    metadata_url: Optional[str] = None
+    sentence_count: Optional[int] = None
 
 
 class PipelineMediaResponse(BaseModel):

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
 import {
   PipelineMediaFile,
@@ -28,6 +28,9 @@ export interface LiveMediaChunk {
   endSentence: number | null;
   files: LiveMediaItem[];
   sentences?: ChunkSentenceMetadata[];
+  metadataPath?: string | null;
+  metadataUrl?: string | null;
+  sentenceCount?: number | null;
 }
 
 export interface UseLiveMediaOptions {
@@ -171,17 +174,36 @@ function buildStateFromSections(
       if (chunkFiles.length === 0) {
         return;
       }
+      const metadataPath = toStringOrNull(
+        (payload.metadata_path as string | undefined) ?? (payload.metadataPath as string | undefined),
+      );
+      const metadataUrl = toStringOrNull(
+        (payload.metadata_url as string | undefined) ?? (payload.metadataUrl as string | undefined),
+      );
+      const rawSentenceCount = toNumberOrNull(
+        (payload.sentence_count as number | string | undefined) ??
+          (payload.sentenceCount as number | string | undefined),
+      );
       const sentencesRaw = payload.sentences;
       const sentences = Array.isArray(sentencesRaw)
         ? (sentencesRaw as ChunkSentenceMetadata[])
         : [];
+      const sentenceCount =
+        typeof rawSentenceCount === 'number' && Number.isFinite(rawSentenceCount)
+          ? rawSentenceCount
+          : sentences.length > 0
+            ? sentences.length
+            : null;
       chunkRecords.push({
         chunkId: toStringOrNull(payload.chunk_id),
         rangeFragment: toStringOrNull(payload.range_fragment),
         startSentence: toNumberOrNull(payload.start_sentence),
         endSentence: toNumberOrNull(payload.end_sentence),
         files: chunkFiles,
-        sentences,
+        sentences: sentences.length > 0 ? sentences : undefined,
+        metadataPath,
+        metadataUrl,
+        sentenceCount,
       });
     });
   }
@@ -480,11 +502,23 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
         ? update.sentences
         : current.sentences;
 
+    const sentenceCount =
+      update.sentences && update.sentences.length > 0
+        ? update.sentences.length
+        : typeof update.sentenceCount === 'number'
+          ? update.sentenceCount
+          : typeof current.sentenceCount === 'number'
+            ? current.sentenceCount
+            : mergedSentences && mergedSentences.length > 0
+              ? mergedSentences.length
+              : null;
+
     return {
       ...current,
       ...update,
       files: mergedFiles,
       sentences: mergedSentences,
+      sentenceCount,
     };
   };
 
@@ -512,6 +546,12 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
       result.push({
         ...chunk,
         sentences: chunk.sentences && chunk.sentences.length > 0 ? chunk.sentences : undefined,
+        sentenceCount:
+          typeof chunk.sentenceCount === 'number'
+            ? chunk.sentenceCount
+            : chunk.sentences && chunk.sentences.length > 0
+              ? chunk.sentences.length
+              : null,
       });
     }
   });
@@ -529,7 +569,58 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
 }
 
 function hasChunkSentences(chunks: LiveMediaChunk[]): boolean {
-  return chunks.some((chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0);
+  return chunks.some(
+    (chunk) =>
+      (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) ||
+      (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0),
+  );
+}
+
+async function fetchChunkMetadata(
+  jobId: string | null | undefined,
+  chunk: LiveMediaChunk,
+): Promise<ChunkSentenceMetadata[] | null> {
+  const explicitUrl = chunk.metadataUrl ?? null;
+  let targetUrl = explicitUrl ?? null;
+
+  if (!targetUrl) {
+    const metadataPath = chunk.metadataPath ?? null;
+    if (metadataPath) {
+      try {
+        targetUrl = resolveStoragePath(jobId ?? null, metadataPath);
+      } catch (error) {
+        if (jobId) {
+          const encodedJobId = encodeURIComponent(jobId);
+          const sanitizedPath = metadataPath.replace(/^\/+/, '');
+          targetUrl = `/pipelines/jobs/${encodedJobId}/${encodeURI(sanitizedPath)}`;
+        } else {
+          console.warn('Unable to resolve chunk metadata path', metadataPath, error);
+        }
+      }
+    }
+  }
+
+  if (!targetUrl) {
+    return null;
+  }
+
+  try {
+    const response = await fetch(targetUrl, {
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      throw new Error(`Chunk metadata request failed with status ${response.status}`);
+    }
+    const payload = await response.json();
+    const sentences = payload?.sentences;
+    if (Array.isArray(sentences)) {
+      return sentences as ChunkSentenceMetadata[];
+    }
+    return [];
+  } catch (error) {
+    console.warn('Unable to load chunk metadata', targetUrl, error);
+    return null;
+  }
 }
 
 export function useLiveMedia(
@@ -542,6 +633,8 @@ export function useLiveMedia(
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const loadedChunksRef = useRef<Set<string>>(new Set());
+  const loadingChunksRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!enabled || !jobId) {
@@ -550,12 +643,16 @@ export function useLiveMedia(
       setIsComplete(false);
       setIsLoading(false);
       setError(null);
+      loadedChunksRef.current.clear();
+      loadingChunksRef.current.clear();
       return;
     }
 
     let cancelled = false;
     setIsLoading(true);
     setError(null);
+    loadedChunksRef.current.clear();
+    loadingChunksRef.current.clear();
 
     fetchLiveJobMedia(jobId)
       .then((response: PipelineMediaResponse) => {
@@ -645,6 +742,64 @@ export function useLiveMedia(
       }
     });
   }, [enabled, jobId]);
+
+  useEffect(() => {
+    if (!enabled || !jobId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const ensureChunkLoaded = (chunk: LiveMediaChunk) => {
+      const key = chunkKey(chunk);
+      if (loadedChunksRef.current.has(key) || loadingChunksRef.current.has(key)) {
+        return;
+      }
+      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
+        loadedChunksRef.current.add(key);
+        return;
+      }
+      if (!chunk.metadataUrl && !chunk.metadataPath) {
+        return;
+      }
+      loadingChunksRef.current.add(key);
+      fetchChunkMetadata(jobId, chunk)
+        .then((sentences) => {
+          if (cancelled) {
+            return;
+          }
+          if (sentences !== null) {
+            const update: LiveMediaChunk = {
+              ...chunk,
+              sentences: sentences.length > 0 ? sentences : [],
+              sentenceCount:
+                sentences.length > 0
+                  ? sentences.length
+                  : typeof chunk.sentenceCount === 'number'
+                    ? chunk.sentenceCount
+                    : 0,
+            };
+            setChunks((current) => mergeChunkCollections(current, [update]));
+          }
+          loadedChunksRef.current.add(key);
+        })
+        .catch((error) => {
+          if (!cancelled) {
+            console.warn('Unable to retrieve chunk metadata', error);
+          }
+          loadedChunksRef.current.add(key);
+        })
+        .finally(() => {
+          loadingChunksRef.current.delete(key);
+        });
+    };
+
+    chunks.forEach(ensureChunkLoaded);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chunks, enabled, jobId]);
 
   return useMemo(
     () => ({

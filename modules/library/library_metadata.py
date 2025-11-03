@@ -106,6 +106,27 @@ class LibraryMetadataManager:
                 else:
                     if current is None:
                         merged[key] = value
+        generated = merged.get("generated_files")
+        if isinstance(generated, Mapping):
+            chunks = generated.get("chunks")
+            if isinstance(chunks, list):
+                compacted: list[Dict[str, Any]] = []
+                changed = False
+                for chunk in chunks:
+                    if not isinstance(chunk, Mapping):
+                        continue
+                    entry = dict(chunk)
+                    sentences = entry.get("sentences")
+                    metadata_path = entry.get("metadata_path")
+                    if isinstance(sentences, list) and metadata_path:
+                        entry["sentence_count"] = entry.get("sentence_count") or len(sentences)
+                        entry.pop("sentences", None)
+                        changed = True
+                    compacted.append(entry)
+                if changed:
+                    generated_copy = dict(generated)
+                    generated_copy["chunks"] = compacted
+                    merged["generated_files"] = generated_copy
         return merged
 
     def infer_metadata_from_epub(

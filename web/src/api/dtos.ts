@@ -333,6 +333,9 @@ export interface PipelineMediaChunk {
   end_sentence?: number | null;
   files: PipelineMediaFile[];
   sentences?: ChunkSentenceMetadata[];
+  metadata_path?: string | null;
+  metadata_url?: string | null;
+  sentence_count?: number | null;
 }
 
 export interface PipelineMediaResponse {

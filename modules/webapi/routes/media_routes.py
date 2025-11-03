@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import mimetypes
 from datetime import datetime, timezone
 from pathlib import Path
@@ -11,6 +12,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
 
 from ... import config_manager as cfg
+from ...metadata_manager import MetadataLoader
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
 from ..dependencies import (
@@ -153,6 +155,7 @@ def _serialize_media_entries(
     locator: FileLocator,
     *,
     source: str,
+    metadata_loader: Optional[MetadataLoader] = None,
 ) -> tuple[Dict[str, List[PipelineMediaFile]], List[PipelineMediaChunk], bool]:
     """Return serialized media metadata grouped by type and chunk."""
 
@@ -165,6 +168,25 @@ def _serialize_media_entries(
 
     job_root = locator.resolve_path(job_id)
     seen: set[tuple[str, str]] = set()
+
+    loader = metadata_loader
+    loader_attempted = metadata_loader is not None
+
+    def _resolve_loader() -> Optional[MetadataLoader]:
+        nonlocal loader, loader_attempted
+        if loader is not None:
+            return loader
+        if loader_attempted:
+            return None
+        loader_attempted = True
+        manifest_path = job_root / "metadata" / "job.json"
+        if not manifest_path.exists():
+            return None
+        try:
+            loader = MetadataLoader(job_root)
+        except Exception:  # pragma: no cover - defensive logging
+            loader = None
+        return loader
 
     chunks_section = generated_files.get("chunks")
     if isinstance(chunks_section, list):
@@ -198,19 +220,49 @@ def _serialize_media_entries(
                 seen.add(signature)
                 media_map.setdefault(file_type, []).append(record)
                 chunk_files.append(record)
-            if chunk_files:
-                chunk_records.append(
-                    PipelineMediaChunk(
-                        chunk_id=str(chunk.get("chunk_id")) if chunk.get("chunk_id") else None,
-                        range_fragment=str(chunk.get("range_fragment"))
-                        if chunk.get("range_fragment")
-                        else None,
-                        start_sentence=_coerce_int(chunk.get("start_sentence")),
-                        end_sentence=_coerce_int(chunk.get("end_sentence")),
-                        files=chunk_files,
-                        sentences=chunk.get("sentences") or [],
-                    )
+            if not chunk_files:
+                continue
+
+            summary: Mapping[str, Any] = chunk
+            active_loader = _resolve_loader()
+            if active_loader is not None:
+                try:
+                    summary = active_loader.load_chunk(chunk, include_sentences=False)
+                except Exception:  # pragma: no cover - defensive logging
+                    summary = chunk
+
+            metadata_path = summary.get("metadata_path")
+            metadata_url = summary.get("metadata_url")
+            sentence_count = _coerce_int(summary.get("sentence_count"))
+
+            sentences_payload: List[Any] = []
+            if isinstance(metadata_path, str) and metadata_path.strip():
+                sentences_payload = []
+            else:
+                if active_loader is not None:
+                    sentences_payload = active_loader.load_chunk_sentences(chunk)
+                else:
+                    inline_sentences = summary.get("sentences") or chunk.get("sentences")
+                    if isinstance(inline_sentences, list):
+                        sentences_payload = copy.deepcopy(inline_sentences)
+                if sentence_count is None:
+                    sentence_count = len(sentences_payload)
+
+            chunk_records.append(
+                PipelineMediaChunk(
+                    chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
+                    range_fragment=str(summary.get("range_fragment"))
+                    if summary.get("range_fragment")
+                    else None,
+                    start_sentence=_coerce_int(summary.get("start_sentence")),
+                    end_sentence=_coerce_int(summary.get("end_sentence")),
+                    files=chunk_files,
+                    sentences=sentences_payload,
+                    metadata_path=metadata_path if isinstance(metadata_path, str) else None,
+                    metadata_url=metadata_url if isinstance(metadata_url, str) else None,
+                    sentence_count=sentence_count,
                 )
+            )
 
     files_section = generated_files.get("files")
     if isinstance(files_section, list):

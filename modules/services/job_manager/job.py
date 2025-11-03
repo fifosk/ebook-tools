@@ -59,6 +59,7 @@ class PipelineJob:
     generated_files: Optional[Dict[str, Any]] = None
     media_completed: bool = False
     job_type: str = "pipeline"
+    chunk_manifest: Optional[Dict[str, Any]] = None
 
 
 __all__ = [
