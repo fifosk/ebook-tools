@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
 import shutil
@@ -9,7 +10,7 @@ import textwrap
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Tuple
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
@@ -756,4 +757,172 @@ def populate_config_metadata(
     return config
 
 
-__all__ = ["infer_metadata", "populate_config_metadata", "fetch_metadata_from_isbn"]
+class MetadataLoader:
+    """Helper class for reading per-chunk pipeline metadata payloads."""
+
+    def __init__(self, job_root: str | Path) -> None:
+        self._job_root = Path(job_root)
+        self._metadata_root = self._job_root / "metadata"
+        self._manifest_cache: Optional[Dict[str, Any]] = None
+
+    def _manifest_path(self) -> Path:
+        return self._metadata_root / "job.json"
+
+    def load_manifest(self, *, refresh: bool = False) -> Dict[str, Any]:
+        if self._manifest_cache is not None and not refresh:
+            return copy.deepcopy(self._manifest_cache)
+        manifest_path = self._manifest_path()
+        with manifest_path.open("r", encoding="utf-8") as handle:
+            manifest = json.load(handle)
+        self._manifest_cache = manifest
+        return copy.deepcopy(manifest)
+
+    def get_generated_files(self) -> Mapping[str, Any]:
+        manifest = self.load_manifest()
+        generated = manifest.get("generated_files")
+        if isinstance(generated, Mapping):
+            return copy.deepcopy(generated)
+        fallback_chunks = manifest.get("chunks")
+        if isinstance(fallback_chunks, list):
+            return {
+                "chunks": [
+                    copy.deepcopy(chunk)
+                    for chunk in fallback_chunks
+                    if isinstance(chunk, Mapping)
+                ]
+            }
+        return {}
+
+    def iter_chunks(self) -> Iterator[Mapping[str, Any]]:
+        generated = self.get_generated_files()
+        chunks = generated.get("chunks") if isinstance(generated, Mapping) else None
+        if not isinstance(chunks, list):
+            return iter(())
+        return (
+            copy.deepcopy(chunk)
+            for chunk in chunks
+            if isinstance(chunk, Mapping)
+        )
+
+    def load_chunks(self, *, include_sentences: bool = True) -> List[Dict[str, Any]]:
+        return [
+            self._load_chunk_payload(chunk, include_sentences=include_sentences)
+            for chunk in self.iter_chunks()
+        ]
+
+    def load_chunk(
+        self,
+        chunk: Mapping[str, Any],
+        *,
+        include_sentences: bool = True,
+    ) -> Dict[str, Any]:
+        return self._load_chunk_payload(chunk, include_sentences=include_sentences)
+
+    def load_chunk_sentences(self, chunk: Mapping[str, Any]) -> List[Any]:
+        payload = self._load_chunk_payload(chunk, include_sentences=True)
+        sentences = payload.get("sentences")
+        return list(sentences) if isinstance(sentences, list) else []
+
+    def build_chunk_manifest(self) -> Dict[str, Any]:
+        manifest = self.load_manifest()
+        raw_manifest = manifest.get("chunk_manifest")
+        if isinstance(raw_manifest, Mapping):
+            normalized = {
+                "chunk_count": int(raw_manifest.get("chunk_count", 0))
+                if isinstance(raw_manifest.get("chunk_count"), int)
+                else len(raw_manifest.get("chunks", []) or []),
+                "chunks": [],
+            }
+            raw_chunks = raw_manifest.get("chunks")
+            if isinstance(raw_chunks, list):
+                for entry in raw_chunks:
+                    if not isinstance(entry, Mapping):
+                        continue
+                    normalized["chunks"].append(
+                        {
+                            "index": entry.get("index"),
+                            "chunk_id": entry.get("chunk_id"),
+                            "path": entry.get("path"),
+                            "url": entry.get("url"),
+                            "sentence_count": entry.get("sentence_count"),
+                        }
+                    )
+            return normalized
+
+        chunk_entries = []
+        for index, chunk in enumerate(self.iter_chunks()):
+            summary = self._load_chunk_payload(chunk, include_sentences=False)
+            chunk_entries.append(
+                {
+                    "index": index,
+                    "chunk_id": summary.get("chunk_id"),
+                    "path": summary.get("metadata_path"),
+                    "url": summary.get("metadata_url"),
+                    "sentence_count": summary.get("sentence_count"),
+                }
+            )
+        return {"chunk_count": len(chunk_entries), "chunks": chunk_entries}
+
+    def _resolve_chunk_path(self, path_value: str) -> Path:
+        normalized = path_value.replace("\\", "/").lstrip("/")
+        candidate = Path(normalized)
+        if candidate.is_absolute():
+            return candidate
+        return self._job_root / candidate
+
+    def _load_chunk_payload(
+        self,
+        chunk: Mapping[str, Any],
+        *,
+        include_sentences: bool,
+    ) -> Dict[str, Any]:
+        payload = {
+            key: copy.deepcopy(value)
+            for key, value in chunk.items()
+            if key != "sentences"
+        }
+
+        sentence_count = payload.get("sentence_count")
+        if not isinstance(sentence_count, int):
+            sentence_count = 0
+
+        sentences: List[Any] = []
+        if include_sentences:
+            sentences = self._load_sentences_from_chunk(chunk)
+            if sentences:
+                payload["sentences"] = sentences
+                sentence_count = len(sentences)
+        elif "sentences" in chunk and not payload.get("metadata_path"):
+            inline = chunk.get("sentences")
+            if isinstance(inline, list) and inline:
+                sentence_count = len(inline)
+
+        payload["sentence_count"] = sentence_count
+        return payload
+
+    def _load_sentences_from_chunk(self, chunk: Mapping[str, Any]) -> List[Any]:
+        metadata_path = chunk.get("metadata_path")
+        if isinstance(metadata_path, str) and metadata_path.strip():
+            candidate = self._resolve_chunk_path(metadata_path)
+            try:
+                with candidate.open("r", encoding="utf-8") as handle:
+                    data = json.load(handle)
+            except (OSError, json.JSONDecodeError):
+                data = None
+            if isinstance(data, Mapping):
+                sentences = data.get("sentences")
+                if isinstance(sentences, list):
+                    return [copy.deepcopy(entry) for entry in sentences]
+
+        inline = chunk.get("sentences")
+        if isinstance(inline, list):
+            return [copy.deepcopy(entry) for entry in inline]
+        return []
+
+
+__all__ = [
+    "infer_metadata",
+    "populate_config_metadata",
+    "fetch_metadata_from_isbn",
+    "MetadataLoader",
+]

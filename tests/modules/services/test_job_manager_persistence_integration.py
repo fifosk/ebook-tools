@@ -182,6 +182,14 @@ def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypa
                     "files": [
                         {"type": "audio", "path": str(media_path)},
                     ],
+                    "sentences": [
+                        {
+                            "sentence_number": 1,
+                            "original": {"text": "Hello", "tokens": ["Hello"]},
+                            "timeline": [],
+                            "counts": {"original": 1},
+                        }
+                    ],
                 }
             ]
         }
@@ -210,6 +218,8 @@ def test_generated_file_urls_survive_storage_dir_change(tmp_path: Path, monkeypa
         persisted_before = persistence.load_job(job.job_id)
         assert persisted_before.generated_files is not None
         assert persisted_before.generated_files["files"][0]["url"].startswith(original_base_url)
+        chunk_entry = persisted_before.generated_files["chunks"][0]
+        assert chunk_entry.get("metadata_path") == "metadata/chunk_0000.json"
     finally:
         manager._executor.shutdown(wait=False)
 

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -61,6 +62,14 @@ def _progress_event() -> ProgressEvent:
                         "files": [
                             {"type": "audio", "relative_path": "chunk-1/audio.mp3"},
                         ],
+                        "sentences": [
+                            {
+                                "sentence_number": 1,
+                                "original": {"text": "Hello", "tokens": ["Hello"]},
+                                "timeline": [],
+                                "counts": {"original": 1},
+                            }
+                        ],
                     }
                 ]
             },
@@ -98,6 +107,14 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
                         {"type": "audio", "path": str(media_path)},
                         {"type": "text", "relative_path": "chunk-1/transcript.txt"},
                     ],
+                    "sentences": [
+                        {
+                            "sentence_number": 1,
+                            "original": {"text": "Hello", "tokens": ["Hello"]},
+                            "timeline": [],
+                            "counts": {"original": 1},
+                        }
+                    ],
                 }
             ]
         },
@@ -110,6 +127,22 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert metadata.result is not None
     assert metadata.last_event is not None
     assert metadata.generated_files is not None
+    assert metadata.chunk_manifest is not None
+    assert metadata.chunk_manifest.get("chunk_count") == 1
+
+    metadata_root = locator.metadata_root(job_id)
+    chunk_file = metadata_root / "chunk_0000.json"
+    assert chunk_file.is_file()
+    chunk_payload = json.loads(chunk_file.read_text(encoding="utf-8"))
+    assert chunk_payload.get("sentences")
+    first_sentence = chunk_payload["sentences"][0]
+    assert first_sentence.get("original", {}).get("text") == "Hello"
+
+    chunk_entries = metadata.generated_files.get("chunks")
+    assert isinstance(chunk_entries, list)
+    manifest_entry = chunk_entries[0]
+    assert manifest_entry.get("metadata_path") == "metadata/chunk_0000.json"
+    assert manifest_entry.get("sentence_count") == 1
 
     restored = persistence.build_job(metadata)
 
@@ -119,6 +152,7 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert restored.result_payload == metadata.result
     assert restored.generated_files == metadata.generated_files
     assert restored.last_event == job.last_event
+    assert restored.chunk_manifest == metadata.chunk_manifest
 
 
 def test_snapshot_mirrors_cover_asset(tmp_path: Path) -> None:
@@ -186,3 +220,4 @@ def test_apply_event_updates_generated_files(tmp_path: Path) -> None:
     chunk_files = generated_files["chunks"][0]["files"]
     assert chunk_files[0]["path"].startswith(str(locator.resolve_path(job_id)))
     assert chunk_files[0]["url"].startswith(locator.base_url)
+    assert generated_files["chunks"][0].get("metadata_path") is not None

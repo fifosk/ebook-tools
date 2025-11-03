@@ -53,7 +53,7 @@ class EbookToolsSettings(BaseModel):
     split_on_comma_semicolon: bool = False
     audio_mode: str = "1"
     written_mode: str = "4"
-    include_transliteration: bool = False
+    include_transliteration: bool = True
     debug: bool = False
     output_html: bool = True
     output_pdf: bool = False

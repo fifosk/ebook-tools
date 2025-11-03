@@ -144,7 +144,7 @@ const DEFAULT_FORM_STATE: FormState = {
   output_html: true,
   output_pdf: false,
   generate_video: false,
-  include_transliteration: false,
+  include_transliteration: true,
   tempo: 1,
   thread_count: '',
   queue_size: '',

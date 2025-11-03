@@ -141,7 +141,7 @@ class PipelineInputPayload(BaseModel):
     output_html: bool = True
     output_pdf: bool = False
     generate_video: bool = False
-    include_transliteration: bool = False
+    include_transliteration: bool = True
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
     book_metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -485,6 +485,9 @@ class PipelineMediaChunk(BaseModel):
     end_sentence: Optional[int] = None
     files: List[PipelineMediaFile] = Field(default_factory=list)
     sentences: List[ChunkSentenceMetadata] = Field(default_factory=list)
+    metadata_path: Optional[str] = None
+    metadata_url: Optional[str] = None
+    sentence_count: Optional[int] = None
 
 
 class PipelineMediaResponse(BaseModel):

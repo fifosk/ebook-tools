@@ -53,6 +53,9 @@ def test_get_library_media_includes_sentence_metadata() -> None:
                     "counts": {"tokens": 2},
                 }
             ],
+            "metadata_path": "metadata/chunk_0000.json",
+            "metadata_url": "/api/library/media/library-job/file/metadata/chunk_0000.json",
+            "sentence_count": 1,
         }
     ]
     payload = (media_map, chunk_records, True)
@@ -71,6 +74,9 @@ def test_get_library_media_includes_sentence_metadata() -> None:
     assert data["chunks"], "Expected chunks to be returned"
     first_chunk = data["chunks"][0]
     assert first_chunk["sentences"], "Expected sentence metadata for Text Player"
+    assert first_chunk["metadata_path"] == "metadata/chunk_0000.json"
+    assert first_chunk["metadata_url"].startswith("/api/library/media/library-job/file/")
+    assert first_chunk["sentence_count"] == 1
     sentence = first_chunk["sentences"][0]
     assert sentence["original"]["tokens"] == ["Hello", "world"]
     assert sentence["timeline"][0]["duration"] == 1.0

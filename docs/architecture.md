@@ -6,7 +6,7 @@
 - `modules/subtitles/` – Subtitle parsing and translation utilities used by `SubtitleService` and the subtitle job API.
 - `web/` – React/Vite single-page application that talks to the FastAPI backend.
 - `scripts/` – Shell helpers (`run-webapi.sh`, `run-webui.sh`) that wrap common dev workflows.
-- `storage/ebooks/`, `storage/covers/`, `storage/<job_id>/metadata/`, `storage/<job_id>/media/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, consolidated cover images, per-job metadata snapshots, generated artifacts, temp data, and logs.
+- `storage/ebooks/`, `storage/covers/`, `storage/<job_id>/metadata/`, `storage/<job_id>/media/`, `output/`, `tmp/`, `log/` – Default working directories used by the runtime context for source EPUBs, consolidated cover images, per-job metadata snapshots, generated artifacts, temp data, and logs. Highlight metadata now lives in chunked JSON files (`metadata/chunk_0000.json`, etc.) referenced by a compact `metadata/job.json` manifest; `MetadataLoader` in `modules/metadata_manager.py` abstracts loading chunk summaries and legacy single-file payloads.
 
 ## Pipeline Flow
 1. **Entry point** – `modules/ebook_tools.py` parses CLI or interactive input and builds a `PipelineRequest`.

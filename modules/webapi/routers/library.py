@@ -287,6 +287,9 @@ async def get_library_media(
                 end_sentence=chunk.get("end_sentence"),
                 files=files,
                 sentences=chunk.get("sentences") or [],
+                metadata_path=chunk.get("metadata_path"),
+                metadata_url=chunk.get("metadata_url"),
+                sentence_count=chunk.get("sentence_count"),
             )
         )
 

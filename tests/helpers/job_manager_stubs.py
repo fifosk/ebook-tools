@@ -30,7 +30,7 @@ def install_job_manager_stubs() -> None:
             output_html: bool = False
             output_pdf: bool = False
             generate_video: bool = False
-            include_transliteration: bool = False
+            include_transliteration: bool = True
             tempo: float = 1.0
             book_metadata: Dict[str, Any] = field(default_factory=dict)
 
@@ -52,6 +52,7 @@ def install_job_manager_stubs() -> None:
             success: bool
             book_metadata: Dict[str, Any] = field(default_factory=dict)
             generated_files: Dict[str, Any] = field(default_factory=dict)
+            chunk_manifest: Optional[Dict[str, Any]] = None
 
         def serialize_pipeline_request(request: PipelineRequest) -> Dict[str, Any]:
             return {
@@ -70,6 +71,9 @@ def install_job_manager_stubs() -> None:
                 "success": response.success,
                 "book_metadata": dict(response.book_metadata),
                 "generated_files": dict(response.generated_files),
+                "chunk_manifest": dict(response.chunk_manifest)
+                if isinstance(response.chunk_manifest, dict)
+                else None,
             }
 
         def run_pipeline(request: PipelineRequest) -> PipelineResponse:  # pragma: no cover - defensive stub
@@ -103,7 +107,27 @@ def install_job_manager_stubs() -> None:
         def infer_metadata(*_, **__) -> Dict[str, Any]:
             return {}
 
+        class MetadataLoader:  # pragma: no cover - test stub
+            def __init__(self, *_: Any, **__: Any) -> None:
+                self._manifest: Dict[str, Any] = {}
+
+            def load_manifest(self, *, refresh: bool = False) -> Dict[str, Any]:
+                return dict(self._manifest)
+
+            def get_generated_files(self) -> Dict[str, Any]:
+                return dict(self._manifest.get("generated_files", {}))
+
+            def iter_chunks(self):
+                return iter(())
+
+            def load_chunks(self, *, include_sentences: bool = True):
+                return []
+
+            def build_chunk_manifest(self) -> Dict[str, Any]:
+                return {"chunk_count": 0, "chunks": []}
+
         metadata_module.infer_metadata = infer_metadata
+        metadata_module.MetadataLoader = MetadataLoader
         sys.modules["modules.metadata_manager"] = metadata_module
 
     if "modules.translation_engine" not in sys.modules:

@@ -5,8 +5,9 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+import tempfile
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Tuple
 
 from ..file_locator import FileLocator
 from ... import config_manager as cfg
@@ -87,7 +88,14 @@ class PipelineJobPersistence:
             else None,
             media_completed=job.media_completed,
         )
-        self._persist_metadata_files(job, snapshot)
+        chunk_manifest = self._persist_metadata_files(job, snapshot)
+        manifest_source = chunk_manifest if chunk_manifest is not None else snapshot.chunk_manifest
+        if manifest_source is not None:
+            snapshot.chunk_manifest = copy.deepcopy(manifest_source)
+            job.chunk_manifest = copy.deepcopy(manifest_source)
+        else:
+            snapshot.chunk_manifest = None
+            job.chunk_manifest = None
         return snapshot
 
     def build_job(self, metadata: PipelineJobMetadata) -> PipelineJob:
@@ -131,6 +139,11 @@ class PipelineJobPersistence:
             if normalized_files is not None
             else None,
         )
+        job.chunk_manifest = (
+            copy.deepcopy(metadata.chunk_manifest)
+            if metadata.chunk_manifest is not None
+            else None
+        )
         job.media_completed = bool(metadata.media_completed)
         if isinstance(normalized_files, Mapping):
             complete_flag = normalized_files.get("complete")
@@ -142,13 +155,17 @@ class PipelineJobPersistence:
 
         return job
 
-    def _persist_metadata_files(self, job: PipelineJob, snapshot: PipelineJobMetadata) -> None:
+    def _persist_metadata_files(
+        self,
+        job: PipelineJob,
+        snapshot: PipelineJobMetadata,
+    ) -> Optional[Dict[str, Any]]:
         try:
             metadata_root = self._file_locator.metadata_root(job.job_id)
             metadata_root.mkdir(parents=True, exist_ok=True)
         except Exception:  # pragma: no cover - defensive logging
             _LOGGER.debug("Unable to prepare metadata directory", exc_info=True)
-            return
+            return None
 
         result_payload_raw = snapshot.result or {}
         if isinstance(result_payload_raw, Mapping):
@@ -198,6 +215,35 @@ class PipelineJobPersistence:
             except Exception:  # pragma: no cover - defensive logging
                 _LOGGER.debug("Unable to persist refined sentences", exc_info=True)
 
+        chunk_manifest = None
+        generated_payload = snapshot.generated_files
+        if isinstance(generated_payload, Mapping):
+            updated_generated, chunk_manifest = self._write_chunk_metadata(
+                job.job_id,
+                metadata_root,
+                generated_payload,
+            )
+            snapshot.generated_files = copy.deepcopy(updated_generated)
+            if isinstance(result_payload, Mapping):
+                result_payload["generated_files"] = copy.deepcopy(updated_generated)
+            if job.result_payload is not None:
+                job.result_payload["generated_files"] = copy.deepcopy(updated_generated)
+            if job.result is not None:
+                job.result.generated_files = copy.deepcopy(updated_generated)
+            job.generated_files = copy.deepcopy(updated_generated)
+
+        if chunk_manifest is not None:
+            if isinstance(result_payload, Mapping):
+                result_payload["chunk_manifest"] = copy.deepcopy(chunk_manifest)
+            if job.result_payload is not None:
+                job.result_payload["chunk_manifest"] = copy.deepcopy(chunk_manifest)
+            if job.result is not None:
+                job.result.chunk_manifest = copy.deepcopy(chunk_manifest)
+            job.chunk_manifest = copy.deepcopy(chunk_manifest)
+            snapshot.chunk_manifest = copy.deepcopy(chunk_manifest)
+
+        return chunk_manifest
+
     def apply_event(self, job: PipelineJob, event: ProgressEvent) -> PipelineJobMetadata:
         """Update ``job`` using ``event`` and return the persisted metadata."""
 
@@ -209,6 +255,7 @@ class PipelineJobPersistence:
                 job.generated_files = copy.deepcopy(generated)
                 if isinstance(generated, Mapping) and "complete" in generated:
                     job.media_completed = bool(generated.get("complete"))
+                job.chunk_manifest = None
 
         return self.snapshot(job)
 
@@ -338,6 +385,142 @@ class PipelineJobPersistence:
             except OSError:
                 _LOGGER.debug("Unable to remove cover asset %s", existing, exc_info=True)
 
+    def _write_chunk_metadata(
+        self,
+        job_id: str,
+        metadata_root: Path,
+        generated: Mapping[str, Any],
+    ) -> Tuple[Dict[str, Any], Optional[Dict[str, Any]]]:
+        chunks_raw = generated.get("chunks")
+        payload = dict(generated)
+        if not isinstance(chunks_raw, list):
+            payload["chunks"] = []
+            self._cleanup_unused_chunk_files(metadata_root, set())
+            return payload, None
+
+        updated_chunks: list[Dict[str, Any]] = []
+        manifest_entries: list[Dict[str, Any]] = []
+        preserved_files: set[str] = set()
+
+        for index, chunk in enumerate(chunks_raw):
+            if not isinstance(chunk, Mapping):
+                continue
+            chunk_entry = {
+                key: copy.deepcopy(value)
+                for key, value in chunk.items()
+                if key != "sentences"
+            }
+            sentences_raw = chunk.get("sentences")
+            sentences: list[Any]
+            if isinstance(sentences_raw, list):
+                sentences = copy.deepcopy(sentences_raw)
+            else:
+                sentences = []
+
+            metadata_path_str = chunk_entry.get("metadata_path")
+            metadata_url_str = chunk_entry.get("metadata_url")
+
+            sentence_count = chunk_entry.get("sentence_count")
+            if not isinstance(sentence_count, int):
+                sentence_count = len(sentences)
+
+            wrote_chunk_file = False
+            if sentences:
+                filename = self._format_chunk_filename(index)
+                destination = metadata_root / filename
+                chunk_payload = {
+                    "version": 1,
+                    "chunk_id": chunk_entry.get("chunk_id"),
+                    "range_fragment": chunk_entry.get("range_fragment"),
+                    "start_sentence": chunk_entry.get("start_sentence"),
+                    "end_sentence": chunk_entry.get("end_sentence"),
+                    "sentence_count": len(sentences),
+                    "sentences": sentences,
+                }
+                try:
+                    self._write_chunk_file(destination, chunk_payload)
+                except Exception:  # pragma: no cover - defensive logging
+                    _LOGGER.debug(
+                        "Unable to persist chunk metadata for job %s", job_id, exc_info=True
+                    )
+                    chunk_entry["sentences"] = sentences
+                else:
+                    metadata_rel = Path("metadata") / filename
+                    metadata_path_str = metadata_rel.as_posix()
+                    chunk_entry["metadata_path"] = metadata_path_str
+                    url_candidate = self._file_locator.resolve_url(job_id, metadata_path_str)
+                    if url_candidate:
+                        chunk_entry["metadata_url"] = url_candidate
+                        metadata_url_str = url_candidate
+                    sentence_count = len(sentences)
+                    preserved_files.add(destination.name)
+                    wrote_chunk_file = True
+            elif isinstance(metadata_path_str, str):
+                preserved_files.add(Path(metadata_path_str).name)
+                if not metadata_url_str:
+                    url_candidate = self._file_locator.resolve_url(job_id, metadata_path_str)
+                    if url_candidate:
+                        chunk_entry["metadata_url"] = url_candidate
+                        metadata_url_str = url_candidate
+
+            chunk_entry["sentence_count"] = sentence_count
+
+            manifest_entries.append(
+                {
+                    "index": index,
+                    "chunk_id": chunk_entry.get("chunk_id"),
+                    "path": metadata_path_str if isinstance(metadata_path_str, str) else None,
+                    "url": metadata_url_str if isinstance(metadata_url_str, str) else None,
+                    "sentence_count": chunk_entry.get("sentence_count"),
+                }
+            )
+            updated_chunks.append(chunk_entry)
+
+        self._cleanup_unused_chunk_files(metadata_root, preserved_files)
+
+        payload["chunks"] = updated_chunks
+        chunk_manifest: Optional[Dict[str, Any]]
+        if updated_chunks:
+            chunk_manifest = {
+                "chunk_count": len(updated_chunks),
+                "chunks": manifest_entries,
+            }
+        else:
+            chunk_manifest = None
+        return payload, chunk_manifest
+
+    def _write_chunk_file(self, destination: Path, payload: Mapping[str, Any]) -> None:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        serialized = json.dumps(payload, ensure_ascii=False, indent=2)
+        tmp_handle = tempfile.NamedTemporaryFile(
+            "w", encoding="utf-8", dir=destination.parent, delete=False
+        )
+        try:
+            with tmp_handle as handle:
+                handle.write(serialized)
+                handle.flush()
+            Path(tmp_handle.name).replace(destination)
+        except Exception:
+            Path(tmp_handle.name).unlink(missing_ok=True)
+            raise
+
+    def _cleanup_unused_chunk_files(self, metadata_root: Path, preserved: set[str]) -> None:
+        for existing in metadata_root.glob("chunk_*.json"):
+            if existing.name in preserved:
+                continue
+            try:
+                existing.unlink()
+            except FileNotFoundError:
+                continue
+            except OSError:  # pragma: no cover - defensive logging
+                _LOGGER.debug(
+                    "Unable to remove stale chunk metadata file %s", existing, exc_info=True
+                )
+
+    @staticmethod
+    def _format_chunk_filename(index: int) -> str:
+        return f"chunk_{index:04d}.json"
+
     def _normalize_generated_files(
         self, job_id: str, raw: Optional[Any]
     ) -> Optional[Dict[str, Any]]:
@@ -362,6 +545,15 @@ class PipelineJobPersistence:
                 "end_sentence": chunk.get("end_sentence"),
                 "files": [],
             }
+            metadata_path = chunk.get("metadata_path")
+            if isinstance(metadata_path, str) and metadata_path.strip():
+                chunk_entry["metadata_path"] = metadata_path
+            metadata_url = chunk.get("metadata_url")
+            if isinstance(metadata_url, str) and metadata_url.strip():
+                chunk_entry["metadata_url"] = metadata_url
+            sentence_count = chunk.get("sentence_count")
+            if isinstance(sentence_count, int):
+                chunk_entry["sentence_count"] = sentence_count
             sentences_raw = chunk.get("sentences")
             if isinstance(sentences_raw, list):
                 chunk_entry["sentences"] = copy.deepcopy(sentences_raw)

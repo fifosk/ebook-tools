@@ -748,11 +748,22 @@ class PipelineJobManager:
     ) -> PipelineJob:
         """Remove ``job_id`` from in-memory tracking and persistence."""
 
-        return self._transitions.delete_job(
+        job = self._transitions.delete_job(
             job_id,
             user_id=user_id,
             user_role=user_role,
         )
+        job_root = self._file_locator.job_root(job.job_id)
+        try:
+            shutil.rmtree(job_root)
+        except FileNotFoundError:
+            pass
+        except OSError:  # pragma: no cover - defensive logging
+            logger.debug(
+                "Unable to remove job directory %s during delete", job_root,
+                exc_info=True,
+            )
+        return job
 
     def finish_job(
         self,

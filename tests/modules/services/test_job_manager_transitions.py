@@ -194,6 +194,32 @@ def test_delete_paused_job(manager: PipelineJobManager) -> None:
     assert deleted.status == PipelineJobStatus.PAUSED
 
 
+def test_delete_job_removes_job_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    storage_root = tmp_path / "storage"
+    monkeypatch.setenv("JOB_STORAGE_DIR", str(storage_root))
+    local_manager = PipelineJobManager(
+        max_workers=1,
+        store=InMemoryJobStore(),
+        worker_pool_factory=lambda _: _DummyWorkerPool(),
+    )
+    try:
+        job = local_manager.submit(_build_request(), user_id="alice", user_role="editor")
+        job.status = PipelineJobStatus.RUNNING
+        local_manager._jobs[job.job_id] = job
+
+        job_root = local_manager._file_locator.job_root(job.job_id)
+        data_dir = job_root / "metadata"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        (data_dir / "placeholder.json").write_text("{}", encoding="utf-8")
+
+        local_manager.cancel_job(job.job_id, user_id="alice", user_role="editor")
+        local_manager.delete_job(job.job_id, user_id="alice", user_role="editor")
+
+        assert not job_root.exists()
+    finally:
+        local_manager._executor.shutdown()
+
+
 def test_finish_job_requires_supported_terminal_status(manager: PipelineJobManager) -> None:
     job = manager.submit(_build_request(), user_id="alice", user_role="editor")
 
