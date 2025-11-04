@@ -13,6 +13,7 @@ interface AudioPlayerProps {
   playbackPosition?: number | null;
   onPlaybackPositionChange?: (position: number) => void;
   onRegisterControls?: (controls: { pause: () => void; play: () => void } | null) => void;
+  onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -26,6 +27,7 @@ export default function AudioPlayer({
   playbackPosition = null,
   onPlaybackPositionChange,
   onRegisterControls,
+  onPlaybackStateChange,
 }: AudioPlayerProps) {
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const labels = files.map((file, index) => ({
@@ -50,6 +52,7 @@ export default function AudioPlayer({
         } catch (error) {
           // Ignore failures triggered in environments without media support.
         }
+        onPlaybackStateChange?.('paused');
       },
       play: () => {
         const element = elementRef.current;
@@ -58,11 +61,15 @@ export default function AudioPlayer({
         }
         try {
           const playResult = element.play();
+          onPlaybackStateChange?.('playing');
           if (playResult && typeof playResult.catch === 'function') {
-            playResult.catch(() => undefined);
+            playResult.catch(() => {
+              onPlaybackStateChange?.('paused');
+            });
           }
         } catch (error) {
           // Ignore play failures triggered by autoplay restrictions.
+          onPlaybackStateChange?.('paused');
         }
       },
     };
@@ -70,7 +77,11 @@ export default function AudioPlayer({
     return () => {
       onRegisterControls(null);
     };
-  }, [onRegisterControls, activeFile?.id]);
+  }, [onRegisterControls, onPlaybackStateChange, activeFile?.id]);
+
+  useEffect(() => {
+    onPlaybackStateChange?.('paused');
+  }, [activeFile?.id, onPlaybackStateChange]);
 
   const attemptAutoplay = useCallback(() => {
     if (!autoPlay) {
@@ -126,6 +137,19 @@ export default function AudioPlayer({
     onPlaybackPositionChange?.(element.currentTime ?? 0);
   }, [onPlaybackPositionChange]);
 
+  const handlePlay = useCallback(() => {
+    onPlaybackStateChange?.('playing');
+  }, [onPlaybackStateChange]);
+
+  const handlePause = useCallback(() => {
+    onPlaybackStateChange?.('paused');
+  }, [onPlaybackStateChange]);
+
+  const handleEnded = useCallback(() => {
+    onPlaybackStateChange?.('paused');
+    onPlaybackEnded?.();
+  }, [onPlaybackEnded, onPlaybackStateChange]);
+
   if (files.length === 0) {
     return (
       <div className="audio-player" role="status">
@@ -152,7 +176,9 @@ export default function AudioPlayer({
         controls
         src={activeFile.url}
         autoPlay={autoPlay}
-        onEnded={onPlaybackEnded}
+        onPlay={handlePlay}
+        onPause={handlePause}
+        onEnded={handleEnded}
         onLoadedData={attemptAutoplay}
         onTimeUpdate={handleTimeUpdate}
       >

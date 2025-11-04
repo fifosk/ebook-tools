@@ -110,6 +110,7 @@ interface InteractiveTextViewerProps {
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
   onRegisterInlineAudioControls?: (controls: InlineAudioControls | null) => void;
+  onInlineAudioPlaybackStateChange?: (state: 'playing' | 'paused') => void;
   onRequestAdvanceChunk?: () => void;
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
@@ -300,6 +301,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onAudioProgress,
     getStoredAudioPosition,
     onRegisterInlineAudioControls,
+    onInlineAudioPlaybackStateChange,
     onRequestAdvanceChunk,
     isFullscreen = false,
     onRequestExitFullscreen,
@@ -758,10 +760,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const audioRef = useRef<HTMLAudioElement | null>(null);
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
+      if (!activeAudioUrl) {
+        onInlineAudioPlaybackStateChange?.('paused');
+      }
       return;
     }
     if (!activeAudioUrl) {
       onRegisterInlineAudioControls(null);
+      onInlineAudioPlaybackStateChange?.('paused');
       return () => {
         onRegisterInlineAudioControls(null);
       };
@@ -776,6 +782,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       } catch (error) {
         // Ignore pause failures triggered by browsers blocking programmatic control.
       }
+      onInlineAudioPlaybackStateChange?.('paused');
     };
     const playHandler = () => {
       const element = audioRef.current;
@@ -784,18 +791,22 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       }
       try {
         const result = element.play();
+        onInlineAudioPlaybackStateChange?.('playing');
         if (result && typeof result.catch === 'function') {
-          result.catch(() => undefined);
+          result.catch(() => {
+            onInlineAudioPlaybackStateChange?.('paused');
+          });
         }
       } catch (error) {
         // Swallow play failures caused by autoplay restrictions.
+        onInlineAudioPlaybackStateChange?.('paused');
       }
     };
     onRegisterInlineAudioControls({ pause: pauseHandler, play: playHandler });
     return () => {
       onRegisterInlineAudioControls(null);
     };
-  }, [onRegisterInlineAudioControls, activeAudioUrl]);
+  }, [activeAudioUrl, onInlineAudioPlaybackStateChange, onRegisterInlineAudioControls]);
   const pendingInitialSeek = useRef<number | null>(null);
   const lastReportedPosition = useRef(0);
 
@@ -1015,6 +1026,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [rawSentences, sentenceWeightSummary],
   );
 
+  const handleInlineAudioPlay = useCallback(() => {
+    onInlineAudioPlaybackStateChange?.('playing');
+  }, [onInlineAudioPlaybackStateChange]);
+
+  const handleInlineAudioPause = useCallback(() => {
+    onInlineAudioPlaybackStateChange?.('paused');
+  }, [onInlineAudioPlaybackStateChange]);
+
   const handleLoadedMetadata = useCallback(() => {
     const element = audioRef.current;
     if (!element) {
@@ -1061,6 +1080,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
 
   const handleAudioEnded = useCallback(() => {
+    onInlineAudioPlaybackStateChange?.('paused');
     if (hasTimeline && timelineDisplay) {
       setChunkTime((prev) => (audioDuration ? audioDuration : prev));
       setActiveSentenceIndex(timelineDisplay.activeIndex);
@@ -1072,7 +1092,15 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     emitAudioProgress(0);
     onRequestAdvanceChunk?.();
-  }, [audioDuration, emitAudioProgress, hasTimeline, onRequestAdvanceChunk, timelineDisplay, totalSentences]);
+  }, [
+    audioDuration,
+    emitAudioProgress,
+    hasTimeline,
+    onInlineAudioPlaybackStateChange,
+    onRequestAdvanceChunk,
+    timelineDisplay,
+    totalSentences,
+  ]);
 
   const handleAudioSeeked = useCallback(() => {
     const element = audioRef.current;
@@ -1133,6 +1161,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
               controls
               preload="metadata"
               autoPlay
+              onPlay={handleInlineAudioPlay}
+              onPause={handleInlineAudioPause}
               onLoadedMetadata={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleAudioEnded}

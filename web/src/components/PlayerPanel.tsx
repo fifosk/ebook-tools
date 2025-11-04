@@ -54,16 +54,15 @@ interface NavigationControlsProps {
   context: 'panel' | 'fullscreen';
   onNavigate: (intent: NavigationIntent) => void;
   onToggleFullscreen: () => void;
-  onPlay: () => void;
-  onPause: () => void;
+  onTogglePlayback: () => void;
   disableFirst: boolean;
   disablePrevious: boolean;
   disableNext: boolean;
   disableLast: boolean;
-  disablePlay: boolean;
-  disablePause: boolean;
+  disablePlayback: boolean;
   disableFullscreen: boolean;
   isFullscreen: boolean;
+  isPlaying: boolean;
   fullscreenLabel: string;
   inlineAudioOptions: { url: string; label: string }[];
   inlineAudioSelection: string | null;
@@ -75,16 +74,15 @@ function NavigationControls({
   context,
   onNavigate,
   onToggleFullscreen,
-  onPlay,
-  onPause,
+  onTogglePlayback,
   disableFirst,
   disablePrevious,
   disableNext,
   disableLast,
-  disablePlay,
-  disablePause,
+  disablePlayback,
   disableFullscreen,
   isFullscreen,
+  isPlaying,
   fullscreenLabel,
   inlineAudioOptions,
   inlineAudioSelection,
@@ -106,6 +104,8 @@ function NavigationControls({
       ? 'player-panel__inline-audio player-panel__inline-audio--fullscreen'
       : 'player-panel__inline-audio';
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
+  const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
+  const playbackIcon = isPlaying ? '⏸' : '▶';
 
   return (
     <div className={groupClassName}>
@@ -131,20 +131,12 @@ function NavigationControls({
         <button
           type="button"
           className="player-panel__nav-button"
-          onClick={onPlay}
-          disabled={disablePlay}
-          aria-label="Play playback"
+          onClick={onTogglePlayback}
+          disabled={disablePlayback}
+          aria-label={playbackLabel}
+          aria-pressed={isPlaying ? 'true' : 'false'}
         >
-          <span aria-hidden="true">▶</span>
-        </button>
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={onPause}
-          disabled={disablePause}
-          aria-label="Pause playback"
-        >
-          <span aria-hidden="true">⏸</span>
+          <span aria-hidden="true">{playbackIcon}</span>
         </button>
         <button
           type="button"
@@ -548,6 +540,8 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const chunkMetadataStoreRef = useRef(chunkMetadataStore);
   const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState(false);
@@ -1544,8 +1538,15 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       : selectedMediaType === 'text'
       ? hasInlineAudioControls
       : false;
-  const isPauseDisabled = !playbackControlsAvailable;
-  const isPlayDisabled = !playbackControlsAvailable;
+  const isActiveMediaPlaying =
+    selectedMediaType === 'audio'
+      ? isAudioPlaying
+      : selectedMediaType === 'video'
+      ? isVideoPlaying
+      : selectedMediaType === 'text'
+      ? isInlineAudioPlaying
+      : false;
+  const isPlaybackDisabled = !playbackControlsAvailable;
   const isFullscreenDisabled = !isTextTabActive || !canRenderInteractiveViewer;
 
   const handleAdvanceMedia = useCallback(
@@ -1558,11 +1559,17 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const handleAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     audioControlsRef.current = controls;
     setHasAudioControls(Boolean(controls));
+    if (!controls) {
+      setIsAudioPlaying(false);
+    }
   }, []);
 
   const handleVideoControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     videoControlsRef.current = controls;
     setHasVideoControls(Boolean(controls));
+    if (!controls) {
+      setIsVideoPlaying(false);
+    }
   }, []);
 
   const syncInteractiveSelection = useCallback(
@@ -1602,9 +1609,20 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     [syncInteractiveSelection],
   );
 
+  const handleAudioPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
+    setIsAudioPlaying(state === 'playing');
+  }, []);
+
+  const handleInlineAudioPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
+    setIsInlineAudioPlaying(state === 'playing');
+  }, []);
+
   const handleInlineAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     inlineAudioControlsRef.current = controls;
     setHasInlineAudioControls(Boolean(controls));
+    if (!controls) {
+      setIsInlineAudioPlaying(false);
+    }
   }, []);
 
   const handleNavigate = useCallback(
@@ -1677,22 +1695,36 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const handlePauseActiveMedia = useCallback(() => {
     if (selectedMediaType === 'audio') {
       audioControlsRef.current?.pause();
+      setIsAudioPlaying(false);
     } else if (selectedMediaType === 'video') {
       videoControlsRef.current?.pause();
+      setIsVideoPlaying(false);
     } else if (selectedMediaType === 'text') {
       inlineAudioControlsRef.current?.pause();
+      setIsInlineAudioPlaying(false);
     }
   }, [selectedMediaType]);
 
   const handlePlayActiveMedia = useCallback(() => {
     if (selectedMediaType === 'audio') {
       audioControlsRef.current?.play();
+      setIsAudioPlaying(true);
     } else if (selectedMediaType === 'video') {
       videoControlsRef.current?.play();
+      setIsVideoPlaying(true);
     } else if (selectedMediaType === 'text') {
       inlineAudioControlsRef.current?.play();
+      setIsInlineAudioPlaying(true);
     }
   }, [selectedMediaType]);
+
+  const handleToggleActiveMedia = useCallback(() => {
+    if (isActiveMediaPlaying) {
+      handlePauseActiveMedia();
+    } else {
+      handlePlayActiveMedia();
+    }
+  }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
 
   const handleTextScroll = useCallback(
     (event: UIEvent<HTMLElement>) => {
@@ -2115,16 +2147,15 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       context="panel"
       onNavigate={handleNavigate}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
-      onPlay={handlePlayActiveMedia}
-      onPause={handlePauseActiveMedia}
+      onTogglePlayback={handleToggleActiveMedia}
       disableFirst={isFirstDisabled}
       disablePrevious={isPreviousDisabled}
       disableNext={isNextDisabled}
       disableLast={isLastDisabled}
-      disablePlay={isPlayDisabled}
-      disablePause={isPauseDisabled}
+      disablePlayback={isPlaybackDisabled}
       disableFullscreen={isFullscreenDisabled}
       isFullscreen={isInteractiveFullscreen}
+      isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
       inlineAudioOptions={inlineAudioOptions}
       inlineAudioSelection={inlineAudioSelection}
@@ -2137,16 +2168,15 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       context="fullscreen"
       onNavigate={handleNavigate}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
-      onPlay={handlePlayActiveMedia}
-      onPause={handlePauseActiveMedia}
+      onTogglePlayback={handleToggleActiveMedia}
       disableFirst={isFirstDisabled}
       disablePrevious={isPreviousDisabled}
       disableNext={isNextDisabled}
       disableLast={isLastDisabled}
-      disablePlay={isPlayDisabled}
-      disablePause={isPauseDisabled}
+      disablePlayback={isPlaybackDisabled}
       disableFullscreen={isFullscreenDisabled}
       isFullscreen={isInteractiveFullscreen}
+      isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
       inlineAudioOptions={inlineAudioOptions}
       inlineAudioSelection={inlineAudioSelection}
@@ -2275,31 +2305,32 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                     ) : null}
                     <div className="player-panel__viewer">
                       {tab.key === 'audio' ? (
-                      <AudioPlayer
-                        files={audioFiles}
-                        activeId={selectedItemIds.audio}
-                        onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
-                        autoPlay
-                        onPlaybackEnded={() => handleAdvanceMedia('audio')}
-                        playbackPosition={audioPlaybackPosition}
-                        onPlaybackPositionChange={handleAudioProgress}
-                        onRegisterControls={handleAudioControlsRegistration}
-                      />
+                        <AudioPlayer
+                          files={audioFiles}
+                          activeId={selectedItemIds.audio}
+                          onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
+                          autoPlay
+                          onPlaybackEnded={() => handleAdvanceMedia('audio')}
+                          playbackPosition={audioPlaybackPosition}
+                          onPlaybackPositionChange={handleAudioProgress}
+                          onRegisterControls={handleAudioControlsRegistration}
+                          onPlaybackStateChange={handleAudioPlaybackStateChange}
+                        />
                       ) : null}
                       {tab.key === 'video' ? (
-                      <VideoPlayer
-                        files={videoFiles}
-                        activeId={selectedItemIds.video}
-                        onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
-                        autoPlay
-                        onPlaybackEnded={() => handleAdvanceMedia('video')}
-                        playbackPosition={videoPlaybackPosition}
-                        onPlaybackPositionChange={handleVideoProgress}
-                        onPlaybackStateChange={handleVideoPlaybackStateChange}
-                        isTheaterMode={isImmersiveMode}
-                        onExitTheaterMode={handleExitImmersiveMode}
-                        onRegisterControls={handleVideoControlsRegistration}
-                      />
+                        <VideoPlayer
+                          files={videoFiles}
+                          activeId={selectedItemIds.video}
+                          onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
+                          autoPlay
+                          onPlaybackEnded={() => handleAdvanceMedia('video')}
+                          playbackPosition={videoPlaybackPosition}
+                          onPlaybackPositionChange={handleVideoProgress}
+                          onPlaybackStateChange={handleVideoPlaybackStateChange}
+                          isTheaterMode={isImmersiveMode}
+                          onExitTheaterMode={handleExitImmersiveMode}
+                          onRegisterControls={handleVideoControlsRegistration}
+                        />
                       ) : null}
                       {tab.key === 'text' ? (
                         <div className="player-panel__document">
@@ -2316,24 +2347,25 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                               {textError}
                             </div>
                           ) : canRenderInteractiveViewer ? (
-                          <InteractiveTextViewer
-                            ref={textScrollRef}
-                            content={interactiveViewerContent}
-                            rawContent={interactiveViewerRaw}
-                            chunk={resolvedActiveTextChunk}
-                            activeAudioUrl={inlineAudioSelection}
-                            noAudioAvailable={inlineAudioUnavailable}
-                            onScroll={handleTextScroll}
-                            onAudioProgress={handleInlineAudioProgress}
-                            getStoredAudioPosition={getInlineAudioPosition}
-                          onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
-                          onRequestAdvanceChunk={handleInlineAudioEnded}
-                          isFullscreen={isInteractiveFullscreen}
-                          onRequestExitFullscreen={handleExitInteractiveFullscreen}
-                            fullscreenControls={
-                              isInteractiveFullscreen ? (
-                                <>
-                                  {fullscreenHeader}
+                            <InteractiveTextViewer
+                              ref={textScrollRef}
+                              content={interactiveViewerContent}
+                              rawContent={interactiveViewerRaw}
+                              chunk={resolvedActiveTextChunk}
+                              activeAudioUrl={inlineAudioSelection}
+                              noAudioAvailable={inlineAudioUnavailable}
+                              onScroll={handleTextScroll}
+                              onAudioProgress={handleInlineAudioProgress}
+                              getStoredAudioPosition={getInlineAudioPosition}
+                              onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
+                              onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
+                              onRequestAdvanceChunk={handleInlineAudioEnded}
+                              isFullscreen={isInteractiveFullscreen}
+                              onRequestExitFullscreen={handleExitInteractiveFullscreen}
+                              fullscreenControls={
+                                isInteractiveFullscreen ? (
+                                  <>
+                                    {fullscreenHeader}
                                   {fullscreenNavigationGroup}
                                 </>
                               ) : null

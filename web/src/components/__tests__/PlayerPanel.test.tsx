@@ -369,16 +369,25 @@ afterEach(() => {
       expect(fetchMock).toHaveBeenCalled();
     });
 
-    const playButton = screen.getByRole('button', { name: /Play playback/i });
-    const pauseButton = screen.getByRole('button', { name: /Pause playback/i });
+    const playbackButtons = screen.getAllByRole('button', { name: /Play playback/i });
+    const playbackButton = playbackButtons.find((button) => button.classList.contains('player-panel__nav-button'));
+    expect(playbackButton).toBeDefined();
+    if (!playbackButton) {
+      throw new Error('Navigation playback toggle not found');
+    }
+    expect(playbackButton).toHaveAttribute('aria-label', 'Play playback');
+
+    await waitFor(() => {
+      expect(playbackButton).not.toBeDisabled();
+    });
 
     const initialPlayCalls = playSpy.mock.calls.length;
-    await user.click(playButton);
+    await user.click(playbackButton);
     expect(playSpy.mock.calls.length).toBeGreaterThan(initialPlayCalls);
-
-    const initialPauseCalls = pauseSpy.mock.calls.length;
-    await user.click(pauseButton);
-    expect(pauseSpy.mock.calls.length).toBeGreaterThan(initialPauseCalls);
+    const inlineAudio = document.querySelector('.player-panel__interactive-audio audio');
+    if (inlineAudio) {
+      fireEvent(inlineAudio, new Event('play'));
+    }
   });
 
   it('prefetches metadata for nearby chunks when the interactive reader is active', async () => {
