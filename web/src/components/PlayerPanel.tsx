@@ -418,6 +418,8 @@ function chunkCacheKey(chunk: LiveMediaChunk): string | null {
   return null;
 }
 
+const CHUNK_METADATA_PREFETCH_RADIUS = 2;
+
 async function requestChunkMetadata(
   jobId: string,
   chunk: LiveMediaChunk,
@@ -474,7 +476,10 @@ export default function PlayerPanel({
   origin = 'job',
   onOpenLibraryItem,
 }: PlayerPanelProps) {
-  const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() => selectInitialTab(media));
+  const interactiveViewerAvailable = chunks.length > 0;
+  const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() =>
+    interactiveViewerAvailable ? 'text' : selectInitialTab(media),
+  );
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
     const initial: Record<MediaCategory, string | null> = {
       text: null,
@@ -514,6 +519,7 @@ export default function PlayerPanel({
   const videoControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const hasSkippedInitialRememberRef = useRef(false);
+  const inlineAudioBaseRef = useRef<string | null>(null);
   const [hasAudioControls, setHasAudioControls] = useState(false);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
@@ -721,14 +727,32 @@ export default function PlayerPanel({
 
   const activeItemId = selectedItemIds[selectedMediaType];
 
+  const hasResolvedInitialTabRef = useRef(false);
+
   useEffect(() => {
     setSelectedMediaType((current) => {
-      if (current && media[current].length > 0) {
+      const currentHasContent = current ? media[current].length > 0 : false;
+
+      if (!hasResolvedInitialTabRef.current) {
+        hasResolvedInitialTabRef.current = true;
+        if (interactiveViewerAvailable) {
+          return 'text';
+        }
+        if (current && currentHasContent) {
+          return current;
+        }
+        return selectInitialTab(media);
+      }
+
+      if (current && currentHasContent) {
         return current;
+      }
+      if (interactiveViewerAvailable) {
+        return 'text';
       }
       return selectInitialTab(media);
     });
-  }, [media]);
+  }, [interactiveViewerAvailable, media]);
 
   useEffect(() => {
     if (media.video.length > 0 || selectedMediaType !== 'video') {
@@ -948,6 +972,22 @@ export default function PlayerPanel({
 
     return filteredMedia.find((item) => item.url === selectedItemId) ?? filteredMedia[0];
   }, [filteredMedia, selectedItemId]);
+  const hasInteractiveChunks = useMemo(() => {
+    return chunks.some((chunk) => {
+      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
+        return true;
+      }
+      if (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0) {
+        return true;
+      }
+      const cacheKey = chunkCacheKey(chunk);
+      if (!cacheKey) {
+        return false;
+      }
+      const cached = chunkMetadataStore[cacheKey];
+      return cached !== undefined;
+    });
+  }, [chunks, chunkMetadataStore]);
   const selectedChunk = useMemo(() => {
     if (!selectedItem) {
       return null;
@@ -972,13 +1012,6 @@ export default function PlayerPanel({
     nameMap: interactiveAudioNameMap,
     chunkIndexMap: audioChunkIndexMap,
   } = useMemo(() => buildInteractiveAudioCatalog(chunks, media.audio), [chunks, media.audio]);
-  const hasInteractiveChunks = useMemo(
-    () =>
-      chunks.some(
-        (chunk) => Array.isArray(chunk.sentences) && chunk.sentences.length > 0,
-      ),
-    [chunks],
-  );
   const activeTextChunk = useMemo(() => {
     if (selectedChunk) {
       return selectedChunk;
@@ -1015,42 +1048,73 @@ export default function PlayerPanel({
     [activeTextChunk, chunks],
   );
 
+  const queueChunkMetadataFetch = useCallback(
+    (chunk: LiveMediaChunk | null | undefined) => {
+      if (!jobId || !chunk) {
+        return;
+      }
+      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
+        return;
+      }
+      const cacheKey = chunkCacheKey(chunk);
+      if (!cacheKey) {
+        return;
+      }
+      if (chunkMetadataStoreRef.current[cacheKey] !== undefined) {
+        return;
+      }
+      if (chunkMetadataLoadingRef.current.has(cacheKey)) {
+        return;
+      }
+      chunkMetadataLoadingRef.current.add(cacheKey);
+      requestChunkMetadata(jobId, chunk)
+        .then((sentences) => {
+          if (sentences !== null) {
+            setChunkMetadataStore((current) => {
+              if (current[cacheKey] !== undefined) {
+                return current;
+              }
+              return { ...current, [cacheKey]: sentences };
+            });
+          }
+        })
+        .catch((error) => {
+          console.warn('Unable to load interactive chunk metadata', error);
+        })
+        .finally(() => {
+          chunkMetadataLoadingRef.current.delete(cacheKey);
+        });
+    },
+    [jobId],
+  );
+
   useEffect(() => {
-    if (!jobId || !activeTextChunk) {
+    if (!jobId) {
       return;
     }
-    if (Array.isArray(activeTextChunk.sentences) && activeTextChunk.sentences.length > 0) {
-      return;
+    const targets = new Set<LiveMediaChunk>();
+
+    if (activeTextChunk) {
+      targets.add(activeTextChunk);
     }
-    const cacheKey = chunkCacheKey(activeTextChunk);
-    if (!cacheKey) {
-      return;
-    }
-    if (chunkMetadataStoreRef.current[cacheKey] !== undefined) {
-      return;
-    }
-    if (chunkMetadataLoadingRef.current.has(cacheKey)) {
-      return;
-    }
-    chunkMetadataLoadingRef.current.add(cacheKey);
-    requestChunkMetadata(jobId, activeTextChunk)
-      .then((sentences) => {
-        if (sentences !== null) {
-          setChunkMetadataStore((current) => {
-            if (current[cacheKey] !== undefined) {
-              return current;
-            }
-            return { ...current, [cacheKey]: sentences };
-          });
+
+    if (activeTextChunkIndex >= 0) {
+      for (let offset = -CHUNK_METADATA_PREFETCH_RADIUS; offset <= CHUNK_METADATA_PREFETCH_RADIUS; offset += 1) {
+        const neighbourIndex = activeTextChunkIndex + offset;
+        if (neighbourIndex < 0 || neighbourIndex >= chunks.length) {
+          continue;
         }
-      })
-      .catch((error) => {
-        console.warn('Unable to load interactive chunk metadata', error);
-      })
-      .finally(() => {
-        chunkMetadataLoadingRef.current.delete(cacheKey);
-      });
-  }, [jobId, activeTextChunk]);
+        const neighbour = chunks[neighbourIndex];
+        if (neighbour) {
+          targets.add(neighbour);
+        }
+      }
+    }
+
+    targets.forEach((chunk) => {
+      queueChunkMetadataFetch(chunk);
+    });
+  }, [jobId, chunks, activeTextChunk, activeTextChunkIndex, queueChunkMetadataFetch]);
 
   const resolvedActiveTextChunk = useMemo(() => {
     if (!activeTextChunk) {
@@ -1603,22 +1667,126 @@ export default function PlayerPanel({
 
   useEffect(() => {
     if (inlineAudioOptions.length === 0) {
-      if (inlineAudioSelection !== null) {
-        setInlineAudioSelection(null);
+      if (inlineAudioSelection) {
+        const currentAudio = getMediaItem('audio', inlineAudioSelection);
+        if (!currentAudio) {
+          setInlineAudioSelection(null);
+        }
       }
       return;
     }
 
-    if (!inlineAudioSelection || !inlineAudioOptions.some((option) => option.url === inlineAudioSelection)) {
-      const nextUrl = inlineAudioOptions[0]?.url ?? null;
-      if (nextUrl) {
-        setInlineAudioSelection(nextUrl);
-        syncInteractiveSelection(nextUrl);
-      } else if (inlineAudioSelection !== null) {
-        setInlineAudioSelection(null);
+    if (inlineAudioSelection) {
+      const hasExactMatch = inlineAudioOptions.some((option) => option.url === inlineAudioSelection);
+      if (hasExactMatch) {
+        return;
+      }
+
+      const currentAudio = getMediaItem('audio', inlineAudioSelection);
+      const currentBaseId =
+        currentAudio ? deriveBaseId(currentAudio) : inlineAudioBaseRef.current ?? deriveBaseIdFromReference(inlineAudioSelection);
+
+      if (currentBaseId) {
+        const remapped = inlineAudioOptions.find((option) => {
+          const optionAudio = getMediaItem('audio', option.url);
+          if (optionAudio) {
+            return deriveBaseId(optionAudio) === currentBaseId;
+          }
+          return deriveBaseIdFromReference(option.url) === currentBaseId;
+        });
+
+        if (remapped?.url) {
+          setInlineAudioSelection((current) => (current === remapped.url ? current : remapped.url));
+          if (remapped.url !== inlineAudioSelection) {
+            syncInteractiveSelection(remapped.url);
+          }
+          return;
+        }
       }
     }
-  }, [inlineAudioOptions, inlineAudioSelection, syncInteractiveSelection]);
+
+    const desiredBaseId = inlineAudioBaseRef.current;
+    if (!inlineAudioSelection) {
+      const fallbackUrl = inlineAudioOptions[0]?.url ?? null;
+      if (fallbackUrl) {
+        setInlineAudioSelection(fallbackUrl);
+        syncInteractiveSelection(fallbackUrl);
+      }
+      return;
+    }
+
+    if (!desiredBaseId) {
+      return;
+    }
+
+    const preferredOption = inlineAudioOptions.find((option) => {
+      const optionAudio = getMediaItem('audio', option.url);
+      if (optionAudio) {
+        return deriveBaseId(optionAudio) === desiredBaseId;
+      }
+      return deriveBaseIdFromReference(option.url) === desiredBaseId;
+    });
+
+    if (!preferredOption?.url || preferredOption.url === inlineAudioSelection) {
+      return;
+    }
+
+    setInlineAudioSelection(preferredOption.url);
+    syncInteractiveSelection(preferredOption.url);
+  }, [
+    deriveBaseId,
+    getMediaItem,
+    inlineAudioOptions,
+    inlineAudioSelection,
+    syncInteractiveSelection,
+  ]);
+
+  useEffect(() => {
+    if (!inlineAudioSelection) {
+      inlineAudioBaseRef.current = null;
+      return;
+    }
+    const currentAudio = getMediaItem('audio', inlineAudioSelection);
+    const baseId = currentAudio ? deriveBaseId(currentAudio) : deriveBaseIdFromReference(inlineAudioSelection);
+    inlineAudioBaseRef.current = baseId;
+  }, [deriveBaseId, getMediaItem, inlineAudioSelection]);
+
+  useEffect(() => {
+    if (!inlineAudioSelection) {
+      return;
+    }
+    const currentAudio = getMediaItem('audio', inlineAudioSelection);
+    if (currentAudio) {
+      return;
+    }
+    const baseId = inlineAudioBaseRef.current ?? deriveBaseIdFromReference(inlineAudioSelection);
+    if (!baseId) {
+      return;
+    }
+
+    const replacement = media.audio.find((item) => {
+      if (!item.url) {
+        return false;
+      }
+      const optionAudio = getMediaItem('audio', item.url);
+      if (optionAudio) {
+        return deriveBaseId(optionAudio) === baseId;
+      }
+      return deriveBaseIdFromReference(item.url) === baseId;
+    });
+
+    if (replacement?.url) {
+      setInlineAudioSelection(replacement.url);
+      syncInteractiveSelection(replacement.url);
+    }
+  }, [
+    deriveBaseId,
+    deriveBaseIdFromReference,
+    getMediaItem,
+    inlineAudioSelection,
+    media.audio,
+    syncInteractiveSelection,
+  ]);
 
   const handleVideoProgress = useCallback(
     (position: number) => {
