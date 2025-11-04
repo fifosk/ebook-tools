@@ -44,7 +44,7 @@
 }
 
 .lineLabel {
-  font-size: 0.7rem;
+  font-size: var(--tp-line-label-size, 0.7rem);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
@@ -61,7 +61,7 @@
 .lineContentOriginal,
 .lineContentTranslit,
 .lineContentTranslation {
-  font-size: 1.08rem;
+  font-size: var(--tp-sentence-font-size, 1.08rem);
 }
 
 .lineContentOriginal {
@@ -80,7 +80,7 @@
 .sentenceActive .lineContentOriginal,
 .sentenceActive .lineContentTranslit,
 .sentenceActive .lineContentTranslation {
-  font-size: 1.28rem;
+  font-size: var(--tp-sentence-active-font-size, 1.28rem);
 }
 
 

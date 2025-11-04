@@ -12,7 +12,7 @@ interface AudioPlayerProps {
   onPlaybackEnded?: () => void;
   playbackPosition?: number | null;
   onPlaybackPositionChange?: (position: number) => void;
-  onRegisterControls?: (controls: { pause: () => void } | null) => void;
+  onRegisterControls?: (controls: { pause: () => void; play: () => void } | null) => void;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -49,6 +49,20 @@ export default function AudioPlayer({
           element.pause();
         } catch (error) {
           // Ignore failures triggered in environments without media support.
+        }
+      },
+      play: () => {
+        const element = elementRef.current;
+        if (!element) {
+          return;
+        }
+        try {
+          const playResult = element.play();
+          if (playResult && typeof playResult.catch === 'function') {
+            playResult.catch(() => undefined);
+          }
+        } catch (error) {
+          // Ignore play failures triggered by autoplay restrictions.
         }
       },
     };
