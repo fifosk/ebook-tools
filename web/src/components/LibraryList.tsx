@@ -6,9 +6,7 @@ type Props = {
   items: LibraryItem[];
   view: LibraryViewMode;
   onOpen: (item: LibraryItem) => void;
-  onRemoveMedia: (item: LibraryItem) => void;
   onRemove: (item: LibraryItem) => void;
-  onRefreshMetadata: (item: LibraryItem) => void;
   onEditMetadata: (item: LibraryItem) => void;
   selectedJobId?: string | null;
   mutating?: Record<string, boolean>;
@@ -196,9 +194,7 @@ function LibraryList({
   items,
   view,
   onOpen,
-  onRemoveMedia,
   onRemove,
-  onRefreshMetadata,
   onEditMetadata,
   selectedJobId,
   mutating = {}
@@ -215,23 +211,7 @@ function LibraryList({
         onClick={() => onOpen(item)}
         disabled={Boolean(mutating[item.jobId])}
       >
-        Open
-      </button>
-      <button
-        type="button"
-        className={styles.actionButton}
-        onClick={() => onRemoveMedia(item)}
-        disabled={Boolean(mutating[item.jobId])}
-      >
-        Remove media
-      </button>
-      <button
-        type="button"
-        className={styles.actionButton}
-        onClick={() => onRefreshMetadata(item)}
-        disabled={Boolean(mutating[item.jobId])}
-      >
-        Refetch cover
+        Play
       </button>
       <button
         type="button"
@@ -239,7 +219,7 @@ function LibraryList({
         onClick={() => onEditMetadata(item)}
         disabled={Boolean(mutating[item.jobId])}
       >
-        Edit / Reupload
+        Edit
       </button>
       <button
         type="button"
@@ -247,7 +227,7 @@ function LibraryList({
         onClick={() => onRemove(item)}
         disabled={Boolean(mutating[item.jobId])}
       >
-        Remove entry
+        Delete
       </button>
     </div>
   );

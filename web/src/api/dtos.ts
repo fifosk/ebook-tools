@@ -362,6 +362,8 @@ export interface MediaSearchResult {
   job_label: string | null;
   base_id: string | null;
   chunk_id: string | null;
+  chunk_index?: number | null;
+  chunk_total?: number | null;
   range_fragment: string | null;
   start_sentence: number | null;
   end_sentence: number | null;

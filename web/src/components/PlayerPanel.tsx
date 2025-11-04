@@ -1,33 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIEvent } from 'react';
-import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
 import MediaSearchPanel from './MediaSearchPanel';
-import type { ChunkSentenceMetadata, LibraryItem, MediaSearchResult } from '../api/dtos';
+import type { ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
+import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
 type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
-type SearchCategory = MediaCategory | 'library';
+type SearchCategory = Exclude<MediaCategory, 'audio'> | 'library';
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 type PlaybackControls = {
   pause: () => void;
   play: () => void;
 };
-
-interface MediaSelectionRequest {
-  baseId: string | null;
-  preferredType?: MediaCategory | null;
-  offsetRatio?: number | null;
-  approximateTime?: number | null;
-  token?: number;
-}
 
 interface PlayerPanelProps {
   jobId: string;
@@ -39,7 +31,8 @@ interface PlayerPanelProps {
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   origin?: 'job' | 'library';
-  onOpenLibraryItem?: (item: LibraryItem | string) => void;
+  onOpenLibraryItem?: (item: LibraryOpenInput) => void;
+  selectionRequest?: MediaSelectionRequest | null;
 }
 
 interface TabDefinition {
@@ -50,7 +43,6 @@ interface TabDefinition {
 
 const TAB_DEFINITIONS: TabDefinition[] = [
   { key: 'text', label: 'Interactive Reader', emptyMessage: 'No interactive reader media yet.' },
-  { key: 'audio', label: 'Audio', emptyMessage: 'No audio media yet.' },
   { key: 'video', label: 'Video', emptyMessage: 'No video media yet.' },
 ];
 
@@ -60,16 +52,15 @@ interface NavigationControlsProps {
   context: 'panel' | 'fullscreen';
   onNavigate: (intent: NavigationIntent) => void;
   onToggleFullscreen: () => void;
-  onPlay: () => void;
-  onPause: () => void;
+  onTogglePlayback: () => void;
   disableFirst: boolean;
   disablePrevious: boolean;
   disableNext: boolean;
   disableLast: boolean;
-  disablePlay: boolean;
-  disablePause: boolean;
+  disablePlayback: boolean;
   disableFullscreen: boolean;
   isFullscreen: boolean;
+  isPlaying: boolean;
   fullscreenLabel: string;
   inlineAudioOptions: { url: string; label: string }[];
   inlineAudioSelection: string | null;
@@ -81,16 +72,15 @@ function NavigationControls({
   context,
   onNavigate,
   onToggleFullscreen,
-  onPlay,
-  onPause,
+  onTogglePlayback,
   disableFirst,
   disablePrevious,
   disableNext,
   disableLast,
-  disablePlay,
-  disablePause,
+  disablePlayback,
   disableFullscreen,
   isFullscreen,
+  isPlaying,
   fullscreenLabel,
   inlineAudioOptions,
   inlineAudioSelection,
@@ -112,6 +102,8 @@ function NavigationControls({
       ? 'player-panel__inline-audio player-panel__inline-audio--fullscreen'
       : 'player-panel__inline-audio';
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
+  const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
+  const playbackIcon = isPlaying ? '⏸' : '▶';
 
   return (
     <div className={groupClassName}>
@@ -137,20 +129,12 @@ function NavigationControls({
         <button
           type="button"
           className="player-panel__nav-button"
-          onClick={onPlay}
-          disabled={disablePlay}
-          aria-label="Play playback"
+          onClick={onTogglePlayback}
+          disabled={disablePlayback}
+          aria-label={playbackLabel}
+          aria-pressed={isPlaying ? 'true' : 'false'}
         >
-          <span aria-hidden="true">▶</span>
-        </button>
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={onPause}
-          disabled={disablePause}
-          aria-label="Pause playback"
-        >
-          <span aria-hidden="true">⏸</span>
+          <span aria-hidden="true">{playbackIcon}</span>
         </button>
         <button
           type="button"
@@ -210,16 +194,6 @@ function selectInitialTab(media: LiveMediaState): MediaCategory {
   return populated?.key ?? 'text';
 }
 
-function toAudioFiles(media: LiveMediaState['audio']) {
-  return media
-    .filter((item) => typeof item.url === 'string' && item.url.length > 0)
-    .map((item, index) => ({
-      id: item.url ?? `${item.type}-${index}`,
-      url: item.url ?? '',
-      name: item.name,
-    }));
-}
-
 function toVideoFiles(media: LiveMediaState['video']) {
   return media
     .filter((item) => typeof item.url === 'string' && item.url.length > 0)
@@ -277,6 +251,57 @@ function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCate
   }
 
   return null;
+}
+
+function normaliseLookupToken(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const derived = deriveBaseIdFromReference(trimmed);
+  if (derived) {
+    return derived;
+  }
+  return trimmed.toLowerCase();
+}
+
+function findChunkIndexForBaseId(baseId: string | null, chunks: LiveMediaChunk[]): number {
+  const target = normaliseLookupToken(baseId);
+  if (!target) {
+    return -1;
+  }
+
+  const matches = (candidate: string | null | undefined): boolean => {
+    const normalised = normaliseLookupToken(candidate);
+    return normalised !== null && normalised === target;
+  };
+
+  for (let index = 0; index < chunks.length; index += 1) {
+    const chunk = chunks[index];
+    if (
+      matches(chunk.chunkId) ||
+      matches(chunk.rangeFragment) ||
+      matches(chunk.metadataPath) ||
+      matches(chunk.metadataUrl)
+    ) {
+      return index;
+    }
+    for (const file of chunk.files) {
+      if (
+        matches(file.relative_path) ||
+        matches(file.path) ||
+        matches(file.url) ||
+        matches(file.name)
+      ) {
+        return index;
+      }
+    }
+  }
+
+  return -1;
 }
 
 function normaliseMetadataText(value: unknown): string | null {
@@ -475,6 +500,7 @@ export default function PlayerPanel({
   onVideoPlaybackStateChange,
   origin = 'job',
   onOpenLibraryItem,
+  selectionRequest = null,
 }: PlayerPanelProps) {
   const interactiveViewerAvailable = chunks.length > 0;
   const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() =>
@@ -490,17 +516,19 @@ export default function PlayerPanel({
     MEDIA_CATEGORIES.forEach((category) => {
       const firstItem = media[category][0];
       initial[category] = firstItem?.url ?? null;
-    });
-
-    return initial;
   });
-  const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
-  const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
+
+  return initial;
+});
+const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
+const [pendingChunkSelection, setPendingChunkSelection] = useState<{ index: number; token: number } | null>(null);
+const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
   const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
   const chunkMetadataStoreRef = useRef(chunkMetadataStore);
   const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState(false);
@@ -515,14 +543,25 @@ export default function PlayerPanel({
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
   const textScrollRef = useRef<HTMLDivElement | null>(null);
-  const audioControlsRef = useRef<PlaybackControls | null>(null);
   const videoControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const hasSkippedInitialRememberRef = useRef(false);
   const inlineAudioBaseRef = useRef<string | null>(null);
-  const [hasAudioControls, setHasAudioControls] = useState(false);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
+
+  useEffect(() => {
+    if (!selectionRequest) {
+      return;
+    }
+    setPendingSelection({
+      baseId: selectionRequest.baseId,
+      preferredType: selectionRequest.preferredType ?? null,
+      offsetRatio: selectionRequest.offsetRatio ?? null,
+      approximateTime: selectionRequest.approximateTime ?? null,
+      token: selectionRequest.token ?? Date.now(),
+    });
+  }, [selectionRequest]);
 
   useEffect(() => {
     chunkMetadataStoreRef.current = chunkMetadataStore;
@@ -689,10 +728,33 @@ export default function PlayerPanel({
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: SearchCategory) => {
+      const preferredCategory: MediaCategory | null = category === 'library' ? 'text' : category;
+      const baseId = resolveBaseIdFromResult(result, preferredCategory);
+      const offsetRatio = typeof result.offset_ratio === 'number' ? result.offset_ratio : null;
+      const approximateTime =
+        typeof result.approximate_time_seconds === 'number' ? result.approximate_time_seconds : null;
+      const selection: MediaSelectionRequest = {
+        baseId,
+        preferredType: preferredCategory,
+        offsetRatio,
+        approximateTime,
+        token: Date.now(),
+      };
+
       if (category === 'library') {
-        if (result.job_id) {
-          onOpenLibraryItem?.(result.job_id);
+        if (!result.job_id) {
+          return;
         }
+        if (result.job_id === jobId) {
+          setPendingSelection(selection);
+          return;
+        }
+        const payload: LibraryOpenRequest = {
+          kind: 'library-open',
+          jobId: result.job_id,
+          selection,
+        };
+        onOpenLibraryItem?.(payload);
         return;
       }
 
@@ -700,17 +762,7 @@ export default function PlayerPanel({
         return;
       }
 
-      const baseId = resolveBaseIdFromResult(result, category);
-      const offsetRatio = typeof result.offset_ratio === 'number' ? result.offset_ratio : null;
-      const approximateTime = typeof result.approximate_time_seconds === 'number' ? result.approximate_time_seconds : null;
-      setPendingSelection({
-        baseId,
-        preferredType: category,
-        offsetRatio,
-        approximateTime,
-        token: Date.now(),
-      });
-
+      setPendingSelection(selection);
     },
     [jobId, onOpenLibraryItem],
   );
@@ -925,7 +977,6 @@ export default function PlayerPanel({
     [media],
   );
 
-  const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
   useEffect(() => {
     if (videoFiles.length === 0 && isVideoPlaying) {
@@ -958,7 +1009,6 @@ export default function PlayerPanel({
     [combinedMedia, selectedMediaType],
   );
   const selectedItemId = selectedItemIds[selectedMediaType];
-  const audioPlaybackPosition = getPosition(selectedItemIds.audio);
   const videoPlaybackPosition = getPosition(selectedItemIds.video);
   const textPlaybackPosition = getPosition(selectedItemIds.text);
   const selectedItem = useMemo(() => {
@@ -1176,15 +1226,22 @@ export default function PlayerPanel({
       return;
     }
 
-    const { baseId, preferredType, offsetRatio = null, approximateTime = null } = pendingSelection;
+    const hasLoadedMedia = MEDIA_CATEGORIES.some((category) => media[category].length > 0);
+    if (!hasLoadedMedia) {
+      return;
+    }
 
-    const candidates: MediaCategory[] = [];
+    const { baseId, preferredType, offsetRatio = null, approximateTime = null } = pendingSelection;
+    const selectionToken = pendingSelection.token ?? Date.now();
+    const chunkMatchIndex = findChunkIndexForBaseId(baseId, chunks);
+
+    const candidateOrder: MediaCategory[] = [];
     if (preferredType) {
-      candidates.push(preferredType);
+      candidateOrder.push(preferredType);
     }
     MEDIA_CATEGORIES.forEach((category) => {
-      if (!candidates.includes(category)) {
-        candidates.push(category);
+      if (!candidateOrder.includes(category)) {
+        candidateOrder.push(category);
       }
     });
 
@@ -1194,10 +1251,28 @@ export default function PlayerPanel({
       video: baseId ? findMatchingMediaId(baseId, 'video', media.video) : null,
     };
 
+    if (matchByCategory.audio) {
+      setSelectedItemIds((current) =>
+        current.audio === matchByCategory.audio ? current : { ...current, audio: matchByCategory.audio },
+      );
+    }
+
+    const tabCandidates = candidateOrder.filter(
+      (category): category is Extract<MediaCategory, 'text' | 'video'> =>
+        category === 'text' || category === 'video',
+    );
+
     let appliedCategory: MediaCategory | null = null;
 
-    for (const category of candidates) {
-      const matchId = matchByCategory[category] ?? null;
+    for (const category of tabCandidates) {
+      if (category === 'text' && !matchByCategory.text && chunkMatchIndex >= 0) {
+        setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+        setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
+        appliedCategory = 'text';
+        break;
+      }
+
+      const matchId = matchByCategory[category];
       if (!matchId) {
         continue;
       }
@@ -1214,20 +1289,70 @@ export default function PlayerPanel({
     }
 
     if (!appliedCategory && preferredType) {
-      const category = preferredType;
-      setSelectedMediaType((current) => (current === category ? current : category));
-      setSelectedItemIds((current) => {
-        const hasCurrent = current[category] !== null;
-        if (hasCurrent) {
-          return current;
+      if (preferredType === 'audio') {
+        setSelectedItemIds((current) => {
+          if (current.audio !== null) {
+            return current;
+          }
+          const firstAudio = media.audio.find((item) => item.url);
+          if (!firstAudio?.url) {
+            return current;
+          }
+          return { ...current, audio: firstAudio.url };
+        });
+
+        if (chunkMatchIndex >= 0) {
+          setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+          setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
+          appliedCategory = 'text';
+        } else if (media.text.length > 0) {
+          setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+          setSelectedItemIds((current) => {
+            if (current.text) {
+              return current;
+            }
+            const firstText = media.text.find((item) => item.url);
+            if (!firstText?.url) {
+              return current;
+            }
+            return { ...current, text: firstText.url };
+          });
+          appliedCategory = 'text';
+        } else if (media.video.length > 0) {
+          setSelectedMediaType((current) => (current === 'video' ? current : 'video'));
+          setSelectedItemIds((current) => {
+            if (current.video) {
+              return current;
+            }
+            const firstVideo = media.video.find((item) => item.url);
+            if (!firstVideo?.url) {
+              return current;
+            }
+            return { ...current, video: firstVideo.url };
+          });
+          appliedCategory = 'video';
         }
-        const firstItem = media[category].find((item) => item.url);
-        if (!firstItem?.url) {
-          return current;
+      } else {
+        const category = preferredType;
+        setSelectedMediaType((current) => (current === category ? current : category));
+        if (category === 'text' && chunkMatchIndex >= 0) {
+          setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
+          appliedCategory = 'text';
+        } else {
+          setSelectedItemIds((current) => {
+            const hasCurrent = current[category] !== null;
+            if (hasCurrent) {
+              return current;
+            }
+            const firstItem = media[category].find((item) => item.url);
+            if (!firstItem?.url) {
+              return current;
+            }
+            return { ...current, [category]: firstItem.url };
+          });
+          appliedCategory = media[category].length > 0 ? category : null;
         }
-        return { ...current, [category]: firstItem.url };
-      });
-      appliedCategory = media[category].length > 0 ? category : null;
+      }
     }
 
     if (matchByCategory.audio && approximateTime != null && Number.isFinite(approximateTime)) {
@@ -1252,7 +1377,7 @@ export default function PlayerPanel({
       });
     }
 
-    if (matchByCategory.text && offsetRatio != null && Number.isFinite(offsetRatio)) {
+    if ((matchByCategory.text || chunkMatchIndex >= 0) && offsetRatio != null && Number.isFinite(offsetRatio)) {
       setPendingTextScrollRatio(Math.max(Math.min(offsetRatio, 1), 0));
     } else {
       setPendingTextScrollRatio(null);
@@ -1271,7 +1396,37 @@ export default function PlayerPanel({
     deriveBaseId,
     rememberPosition,
     inlineAudioOptions,
+    chunks,
+    setPendingChunkSelection,
   ]);
+
+  useEffect(() => {
+    if (!pendingChunkSelection) {
+      return;
+    }
+
+    const { index } = pendingChunkSelection;
+    if (index < 0 || index >= chunks.length) {
+      setPendingChunkSelection(null);
+      return;
+    }
+
+    const targetChunk = chunks[index];
+    setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+
+    const audioFile = targetChunk.files.find(
+      (file) => file.type === 'audio' && typeof file.url === 'string' && file.url.length > 0,
+    );
+    if (audioFile?.url) {
+      setSelectedItemIds((current) =>
+        current.audio === audioFile.url ? current : { ...current, audio: audioFile.url },
+      );
+      setInlineAudioSelection((current) => (current === audioFile.url ? current : audioFile.url));
+    }
+
+    setPendingChunkSelection(null);
+  }, [pendingChunkSelection, chunks, setSelectedMediaType, setSelectedItemIds, setInlineAudioSelection]);
+
   const fallbackTextContent = useMemo(() => {
     if (!resolvedActiveTextChunk || !Array.isArray(resolvedActiveTextChunk.sentences)) {
       return '';
@@ -1415,15 +1570,18 @@ export default function PlayerPanel({
   const isLastDisabled =
     derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
   const playbackControlsAvailable =
-    selectedMediaType === 'audio'
-      ? hasAudioControls
-      : selectedMediaType === 'video'
+    selectedMediaType === 'video'
       ? hasVideoControls
       : selectedMediaType === 'text'
       ? hasInlineAudioControls
       : false;
-  const isPauseDisabled = !playbackControlsAvailable;
-  const isPlayDisabled = !playbackControlsAvailable;
+  const isActiveMediaPlaying =
+    selectedMediaType === 'video'
+      ? isVideoPlaying
+      : selectedMediaType === 'text'
+      ? isInlineAudioPlaying
+      : false;
+  const isPlaybackDisabled = !playbackControlsAvailable;
   const isFullscreenDisabled = !isTextTabActive || !canRenderInteractiveViewer;
 
   const handleAdvanceMedia = useCallback(
@@ -1433,14 +1591,12 @@ export default function PlayerPanel({
     [updateSelection],
   );
 
-  const handleAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
-    audioControlsRef.current = controls;
-    setHasAudioControls(Boolean(controls));
-  }, []);
-
   const handleVideoControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     videoControlsRef.current = controls;
     setHasVideoControls(Boolean(controls));
+    if (!controls) {
+      setIsVideoPlaying(false);
+    }
   }, []);
 
   const syncInteractiveSelection = useCallback(
@@ -1480,9 +1636,16 @@ export default function PlayerPanel({
     [syncInteractiveSelection],
   );
 
+  const handleInlineAudioPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
+    setIsInlineAudioPlaying(state === 'playing');
+  }, []);
+
   const handleInlineAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     inlineAudioControlsRef.current = controls;
     setHasInlineAudioControls(Boolean(controls));
+    if (!controls) {
+      setIsInlineAudioPlaying(false);
+    }
   }, []);
 
   const handleNavigate = useCallback(
@@ -1553,24 +1716,32 @@ export default function PlayerPanel({
   );
 
   const handlePauseActiveMedia = useCallback(() => {
-    if (selectedMediaType === 'audio') {
-      audioControlsRef.current?.pause();
-    } else if (selectedMediaType === 'video') {
+    if (selectedMediaType === 'video') {
       videoControlsRef.current?.pause();
+      setIsVideoPlaying(false);
     } else if (selectedMediaType === 'text') {
       inlineAudioControlsRef.current?.pause();
+      setIsInlineAudioPlaying(false);
     }
   }, [selectedMediaType]);
 
   const handlePlayActiveMedia = useCallback(() => {
-    if (selectedMediaType === 'audio') {
-      audioControlsRef.current?.play();
-    } else if (selectedMediaType === 'video') {
+    if (selectedMediaType === 'video') {
       videoControlsRef.current?.play();
+      setIsVideoPlaying(true);
     } else if (selectedMediaType === 'text') {
       inlineAudioControlsRef.current?.play();
+      setIsInlineAudioPlaying(true);
     }
   }, [selectedMediaType]);
+
+  const handleToggleActiveMedia = useCallback(() => {
+    if (isActiveMediaPlaying) {
+      handlePauseActiveMedia();
+    } else {
+      handlePlayActiveMedia();
+    }
+  }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
 
   const handleTextScroll = useCallback(
     (event: UIEvent<HTMLElement>) => {
@@ -1585,20 +1756,6 @@ export default function PlayerPanel({
       rememberPosition({ mediaId, mediaType: 'text', baseId, position: target.scrollTop ?? 0 });
     },
     [selectedItemIds.text, getMediaItem, deriveBaseId, rememberPosition],
-  );
-
-  const handleAudioProgress = useCallback(
-    (position: number) => {
-      const mediaId = selectedItemIds.audio;
-      if (!mediaId) {
-        return;
-      }
-
-      const current = getMediaItem('audio', mediaId);
-      const baseId = current ? deriveBaseId(current) : null;
-      rememberPosition({ mediaId, mediaType: 'audio', baseId, position });
-    },
-    [selectedItemIds.audio, getMediaItem, deriveBaseId, rememberPosition],
   );
 
   const handleInlineAudioProgress = useCallback(
@@ -1956,6 +2113,9 @@ export default function PlayerPanel({
   useEffect(() => {
     setIsImmersiveMode(false);
     setIsInteractiveFullscreen(false);
+    setPendingSelection(null);
+    setPendingChunkSelection(null);
+    setPendingTextScrollRatio(null);
   }, [normalisedJobId]);
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
@@ -1990,16 +2150,15 @@ export default function PlayerPanel({
       context="panel"
       onNavigate={handleNavigate}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
-      onPlay={handlePlayActiveMedia}
-      onPause={handlePauseActiveMedia}
+      onTogglePlayback={handleToggleActiveMedia}
       disableFirst={isFirstDisabled}
       disablePrevious={isPreviousDisabled}
       disableNext={isNextDisabled}
       disableLast={isLastDisabled}
-      disablePlay={isPlayDisabled}
-      disablePause={isPauseDisabled}
+      disablePlayback={isPlaybackDisabled}
       disableFullscreen={isFullscreenDisabled}
       isFullscreen={isInteractiveFullscreen}
+      isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
       inlineAudioOptions={inlineAudioOptions}
       inlineAudioSelection={inlineAudioSelection}
@@ -2012,16 +2171,15 @@ export default function PlayerPanel({
       context="fullscreen"
       onNavigate={handleNavigate}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
-      onPlay={handlePlayActiveMedia}
-      onPause={handlePauseActiveMedia}
+      onTogglePlayback={handleToggleActiveMedia}
       disableFirst={isFirstDisabled}
       disablePrevious={isPreviousDisabled}
       disableNext={isNextDisabled}
       disableLast={isLastDisabled}
-      disablePlay={isPlayDisabled}
-      disablePause={isPauseDisabled}
+      disablePlayback={isPlaybackDisabled}
       disableFullscreen={isFullscreenDisabled}
       isFullscreen={isInteractiveFullscreen}
+      isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
       inlineAudioOptions={inlineAudioOptions}
       inlineAudioSelection={inlineAudioSelection}
@@ -2110,8 +2268,11 @@ export default function PlayerPanel({
               </button>
             ) : null}
             <TabsList className="player-panel__tabs" aria-label="Media categories">
-              {visibleTabs.map((tab) => {
-                const count = media[tab.key].length;
+            {visibleTabs.map((tab) => {
+                const count =
+                  tab.key === 'text'
+                    ? (chunks.length > 0 ? chunks.length : media[tab.key].length)
+                    : media[tab.key].length;
                 return (
                   <TabsTrigger
                     key={tab.key}
@@ -2146,32 +2307,20 @@ export default function PlayerPanel({
                       </div>
                     ) : null}
                     <div className="player-panel__viewer">
-                      {tab.key === 'audio' ? (
-                      <AudioPlayer
-                        files={audioFiles}
-                        activeId={selectedItemIds.audio}
-                        onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
-                        autoPlay
-                        onPlaybackEnded={() => handleAdvanceMedia('audio')}
-                        playbackPosition={audioPlaybackPosition}
-                        onPlaybackPositionChange={handleAudioProgress}
-                        onRegisterControls={handleAudioControlsRegistration}
-                      />
-                      ) : null}
                       {tab.key === 'video' ? (
-                      <VideoPlayer
-                        files={videoFiles}
-                        activeId={selectedItemIds.video}
-                        onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
-                        autoPlay
-                        onPlaybackEnded={() => handleAdvanceMedia('video')}
-                        playbackPosition={videoPlaybackPosition}
-                        onPlaybackPositionChange={handleVideoProgress}
-                        onPlaybackStateChange={handleVideoPlaybackStateChange}
-                        isTheaterMode={isImmersiveMode}
-                        onExitTheaterMode={handleExitImmersiveMode}
-                        onRegisterControls={handleVideoControlsRegistration}
-                      />
+                        <VideoPlayer
+                          files={videoFiles}
+                          activeId={selectedItemIds.video}
+                          onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
+                          autoPlay
+                          onPlaybackEnded={() => handleAdvanceMedia('video')}
+                          playbackPosition={videoPlaybackPosition}
+                          onPlaybackPositionChange={handleVideoProgress}
+                          onPlaybackStateChange={handleVideoPlaybackStateChange}
+                          isTheaterMode={isImmersiveMode}
+                          onExitTheaterMode={handleExitImmersiveMode}
+                          onRegisterControls={handleVideoControlsRegistration}
+                        />
                       ) : null}
                       {tab.key === 'text' ? (
                         <div className="player-panel__document">
@@ -2188,24 +2337,25 @@ export default function PlayerPanel({
                               {textError}
                             </div>
                           ) : canRenderInteractiveViewer ? (
-                          <InteractiveTextViewer
-                            ref={textScrollRef}
-                            content={interactiveViewerContent}
-                            rawContent={interactiveViewerRaw}
-                            chunk={resolvedActiveTextChunk}
-                            activeAudioUrl={inlineAudioSelection}
-                            noAudioAvailable={inlineAudioUnavailable}
-                            onScroll={handleTextScroll}
-                            onAudioProgress={handleInlineAudioProgress}
-                            getStoredAudioPosition={getInlineAudioPosition}
-                          onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
-                          onRequestAdvanceChunk={handleInlineAudioEnded}
-                          isFullscreen={isInteractiveFullscreen}
-                          onRequestExitFullscreen={handleExitInteractiveFullscreen}
-                            fullscreenControls={
-                              isInteractiveFullscreen ? (
-                                <>
-                                  {fullscreenHeader}
+                            <InteractiveTextViewer
+                              ref={textScrollRef}
+                              content={interactiveViewerContent}
+                              rawContent={interactiveViewerRaw}
+                              chunk={resolvedActiveTextChunk}
+                              activeAudioUrl={inlineAudioSelection}
+                              noAudioAvailable={inlineAudioUnavailable}
+                              onScroll={handleTextScroll}
+                              onAudioProgress={handleInlineAudioProgress}
+                              getStoredAudioPosition={getInlineAudioPosition}
+                              onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
+                              onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
+                              onRequestAdvanceChunk={handleInlineAudioEnded}
+                              isFullscreen={isInteractiveFullscreen}
+                              onRequestExitFullscreen={handleExitInteractiveFullscreen}
+                              fullscreenControls={
+                                isInteractiveFullscreen ? (
+                                  <>
+                                    {fullscreenHeader}
                                   {fullscreenNavigationGroup}
                                 </>
                               ) : null

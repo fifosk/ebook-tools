@@ -1,16 +1,17 @@
 import { useEffect } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
 import { useLiveMedia } from '../hooks/useLiveMedia';
-import type { LibraryItem } from '../api/dtos';
+import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
 
 export interface JobDetailProps {
   jobId: string | null | undefined;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   bookMetadata?: Record<string, unknown> | null;
-  onOpenLibraryItem?: (item: LibraryItem | string) => void;
+  onOpenLibraryItem?: (item: LibraryOpenInput) => void;
+  selectionRequest?: MediaSelectionRequest | null;
 }
 
-export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null, onOpenLibraryItem }: JobDetailProps) {
+export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetadata = null, onOpenLibraryItem, selectionRequest = null }: JobDetailProps) {
   const normalisedJobId = jobId ?? null;
   const { media, chunks, isComplete, isLoading, error } = useLiveMedia(normalisedJobId, {
     enabled: Boolean(normalisedJobId),
@@ -48,6 +49,7 @@ export default function JobDetail({ jobId, onVideoPlaybackStateChange, bookMetad
         bookMetadata={bookMetadata}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         onOpenLibraryItem={onOpenLibraryItem}
+        selectionRequest={selectionRequest}
       />
     </section>
   );

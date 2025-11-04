@@ -1862,6 +1862,9 @@ button.link-button:focus {
   height: 5.75rem;
   flex: 0 0 auto;
   border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
   background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), rgba(148, 163, 184, 0.4));
   box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
@@ -1869,8 +1872,9 @@ button.link-button:focus {
 
 .player-panel__cover img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
   display: block;
   background: #0f172a;
 }

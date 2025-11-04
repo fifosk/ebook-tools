@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, List, Mapping, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -100,7 +101,7 @@ def _build_library_search_snippet(item: Mapping[str, Any], query: str) -> str:
 class _LibrarySearchJobAdapter:
     """Minimal adapter that exposes library metadata to the media search helpers."""
 
-    __slots__ = ("job_id", "generated_files", "request", "resume_context", "request_payload")
+    __slots__ = ("job_id", "generated_files", "request", "resume_context", "request_payload", "job_root")
 
     def __init__(
         self,
@@ -108,6 +109,7 @@ class _LibrarySearchJobAdapter:
         generated_files: Mapping[str, Any],
         *,
         label: Optional[str] = None,
+        job_root: Optional[Path] = None,
     ) -> None:
         self.job_id = job_id
         self.generated_files = generated_files
@@ -119,6 +121,7 @@ class _LibrarySearchJobAdapter:
             }
         else:
             self.request_payload = None
+        self.job_root = job_root
 
 
 @router.get("/search", response_model=MediaSearchResponse)
@@ -165,11 +168,18 @@ async def search_pipeline_media(
         )
         if isinstance(generated_files, Mapping):
             label = serialized_item.get("book_title") or metadata_payload.get("book_title")
+            library_path_value = serialized_item.get("library_path")
+            job_root_path: Optional[Path]
+            if isinstance(library_path_value, str) and library_path_value.strip():
+                job_root_path = Path(library_path_value).expanduser()
+            else:
+                job_root_path = None
             jobs_to_search.append(
                 _LibrarySearchJobAdapter(
                     job_id=job_id,
                     generated_files=generated_files,
                     label=label if isinstance(label, str) and label.strip() else None,
+                    job_root=job_root_path,
                 )
             )
             library_job_ids.add(job_id)
@@ -213,6 +223,8 @@ async def search_pipeline_media(
                 job_label=hit.job_label,
                 base_id=hit.base_id,
                 chunk_id=hit.chunk_id,
+                chunk_index=hit.chunk_index,
+                chunk_total=hit.chunk_total,
                 range_fragment=hit.range_fragment,
                 start_sentence=hit.start_sentence,
                 end_sentence=hit.end_sentence,

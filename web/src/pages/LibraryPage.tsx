@@ -5,9 +5,7 @@ import {
   appendAccessToken,
   lookupLibraryIsbnMetadata,
   removeLibraryEntry,
-  removeLibraryMedia,
   reindexLibrary,
-  refreshLibraryMetadata,
   searchLibrary,
   updateLibraryMetadata,
   uploadLibrarySource,
@@ -17,11 +15,12 @@ import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
+import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
 
 const PAGE_SIZE = 25;
 
 type LibraryPageProps = {
-  onPlay?: (item: LibraryItem | string) => void;
+  onPlay?: (item: LibraryOpenInput) => void;
 };
 
 function LibraryPage({ onPlay }: LibraryPageProps) {
@@ -124,39 +123,31 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     }
   }, [selectedItem]);
 
-  const handleOpen = useCallback((item: LibraryItem) => {
+  const selectLibraryItem = useCallback((item: LibraryItem) => {
     setIsEditing(false);
     setEditError(null);
     setSelectedItem(item);
   }, []);
 
-  const handleRemoveMedia = useCallback(async (item: LibraryItem) => {
-    setMutating((previous) => ({ ...previous, [item.jobId]: true }));
-    try {
-      const response = await removeLibraryMedia(item.jobId);
-      if (response.item) {
-        setItems((previous) =>
-          previous.map((entry) => (entry.jobId === response.item!.jobId ? response.item! : entry))
-        );
-        setSelectedItem((current) =>
-          current && response.item && current.jobId === response.item.jobId
-            ? response.item
-            : current
-        );
-      }
-    } catch (actionError) {
-      const message =
-        actionError instanceof Error ? actionError.message : 'Unable to remove generated media.';
-      window.alert(message);
-    } finally {
-      setMutating((previous) => {
-        const next = { ...previous };
-        delete next[item.jobId];
-        return next;
-      });
-      setRefreshKey((key) => key + 1);
+  const handleOpen = useCallback((item: LibraryItem) => {
+    selectLibraryItem(item);
+
+    if (onPlay) {
+      const payload: LibraryOpenRequest = {
+        kind: 'library-open',
+        jobId: item.jobId,
+        item,
+        selection: {
+          baseId: null,
+          preferredType: 'text',
+          offsetRatio: null,
+          approximateTime: null,
+          token: Date.now()
+        }
+      };
+      onPlay(payload);
     }
-  }, []);
+  }, [onPlay, selectLibraryItem]);
 
   const handleRemoveEntry = useCallback(
     async (item: LibraryItem) => {
@@ -202,31 +193,9 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     }
   }, []);
 
-  const handleRefreshMetadata = useCallback(async (item: LibraryItem) => {
-    setMutating((previous) => ({ ...previous, [item.jobId]: true }));
-    try {
-      const updated = await refreshLibraryMetadata(item.jobId);
-      setItems((previous) =>
-        previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
-      );
-      setSelectedItem((current) => (current && current.jobId === updated.jobId ? updated : current));
-    } catch (actionError) {
-      const message =
-        actionError instanceof Error ? actionError.message : 'Unable to refresh metadata.';
-      window.alert(message);
-    } finally {
-      setMutating((previous) => {
-        const next = { ...previous };
-        delete next[item.jobId];
-        return next;
-      });
-    }
-  }, []);
-
   const startEditingItem = useCallback(
     (item: LibraryItem) => {
-      handleOpen(item);
-      setEditError(null);
+      selectLibraryItem(item);
       setEditValues({
         title: item.bookTitle ?? '',
         author: item.author ?? '',
@@ -240,7 +209,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
       setIsbnFetchError(null);
       setIsEditing(true);
     },
-    [handleOpen]
+    [selectLibraryItem]
   );
 
   const handleEditMetadata = useCallback(
@@ -438,9 +407,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
             items={items}
             view={view}
             onOpen={handleOpen}
-            onRemoveMedia={handleRemoveMedia}
             onRemove={handleRemoveEntry}
-            onRefreshMetadata={handleRefreshMetadata}
             onEditMetadata={handleEditMetadata}
             selectedJobId={selectedItem?.jobId}
             mutating={mutating}
@@ -478,15 +445,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   className={styles.primaryButton}
                   onClick={handlePlay}
                 >
-                  Open in Player
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={() => handleRefreshMetadata(selectedItem)}
-                  disabled={Boolean(mutating[selectedItem.jobId]) || isSaving}
-                >
-                  Refetch Cover
+                  Play
                 </button>
                 <button
                   type="button"
@@ -494,7 +453,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   onClick={() => startEditingItem(selectedItem)}
                   disabled={isSaving || Boolean(mutating[selectedItem.jobId])}
                 >
-                  Edit Metadata
+                  Edit
                 </button>
                 {!selectedItem.mediaCompleted ? (
                   <span className={styles.actionHint}>

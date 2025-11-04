@@ -19,6 +19,7 @@ interface AudioStageProps {
   playbackPosition: number;
   onPlaybackPositionChange: (position: number) => void;
   onRegisterControls: (controls: PlaybackControls | null) => void;
+  onPlaybackStateChange: (state: 'playing' | 'paused') => void;
 }
 
 interface VideoStageProps {
@@ -50,6 +51,7 @@ interface TextStageProps {
   onAudioProgress: (audioUrl: string, position: number) => void;
   getStoredAudioPosition: (audioUrl: string) => number;
   onRegisterInlineAudioControls: (controls: PlaybackControls | null) => void;
+  onInlineAudioPlaybackStateChange: (state: 'playing' | 'paused') => void;
   onRequestAdvanceChunk: () => void;
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
@@ -125,6 +127,7 @@ export function PlayerPanelStage({
                         playbackPosition={audio.playbackPosition}
                         onPlaybackPositionChange={audio.onPlaybackPositionChange}
                         onRegisterControls={audio.onRegisterControls}
+                        onPlaybackStateChange={audio.onPlaybackStateChange}
                       />
                     ) : null}
                     {tab.key === 'video' ? (
@@ -168,6 +171,7 @@ export function PlayerPanelStage({
                           onAudioProgress={text.onAudioProgress}
                           getStoredAudioPosition={text.getStoredAudioPosition}
                           onRegisterInlineAudioControls={text.onRegisterInlineAudioControls}
+                          onInlineAudioPlaybackStateChange={text.onInlineAudioPlaybackStateChange}
                           onRequestAdvanceChunk={text.onRequestAdvanceChunk}
                           isFullscreen={text.isFullscreen}
                           onRequestExitFullscreen={text.onRequestExitFullscreen}
