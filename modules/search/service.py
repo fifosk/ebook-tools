@@ -10,6 +10,7 @@ from html import unescape
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List, Mapping, MutableMapping, Optional, Sequence, Tuple
 
+from ..metadata_manager import MetadataLoader
 from ..services.file_locator import FileLocator
 from ..services.job_manager.job import PipelineJob
 
@@ -50,6 +51,8 @@ class SearchMediaResult:
     job_label: str | None
     base_id: str | None
     chunk_id: str | None
+    chunk_index: int | None
+    chunk_total: int | None
     range_fragment: str | None
     start_sentence: int | None
     end_sentence: int | None
@@ -305,6 +308,82 @@ def _gather_media_entries(
     return buckets
 
 
+def _coerce_existing_path(raw: object) -> Optional[Path]:
+    if isinstance(raw, Path):
+        candidate = raw.expanduser()
+    elif isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return None
+        candidate = Path(text).expanduser()
+    else:
+        return None
+    try:
+        return candidate if candidate.exists() else None
+    except OSError:
+        return None
+
+
+def _resolve_job_root(job: PipelineJob, locator: FileLocator) -> Optional[Path]:
+    override = getattr(job, "job_root", None)
+    if override is None:
+        override = getattr(job, "library_path", None)
+    candidate = _coerce_existing_path(override)
+    if candidate is not None:
+        return candidate
+
+    try:
+        default_root = locator.job_root(job.job_id)
+    except Exception:
+        return None
+    return default_root if default_root.exists() else None
+
+
+def _load_text_from_chunk_metadata(loader: MetadataLoader, chunk: Mapping[str, object]) -> Optional[str]:
+    try:
+        payload = loader.load_chunk(chunk, include_sentences=True)
+    except Exception:
+        return None
+
+    sentences = payload.get("sentences")
+    if not isinstance(sentences, list) or not sentences:
+        return None
+
+    fragments: List[str] = []
+    for sentence in sentences:
+        texts: List[str] = []
+        if isinstance(sentence, Mapping):
+            original = sentence.get("original")
+            if isinstance(original, Mapping):
+                value = original.get("text")
+                if isinstance(value, str):
+                    texts.append(value)
+            translation = sentence.get("translation")
+            if isinstance(translation, Mapping):
+                value = translation.get("text")
+                if isinstance(value, str):
+                    texts.append(value)
+            transliteration = sentence.get("transliteration")
+            if isinstance(transliteration, Mapping):
+                value = transliteration.get("text")
+                if isinstance(value, str):
+                    texts.append(value)
+            direct_text = sentence.get("text")
+            if isinstance(direct_text, str):
+                texts.append(direct_text)
+        elif isinstance(sentence, str):
+            texts.append(sentence)
+
+        for text in texts:
+            trimmed = text.strip()
+            if trimmed:
+                fragments.append(trimmed)
+
+    if not fragments:
+        return None
+    return " ".join(fragments)
+
+
 def search_generated_media(
     *,
     query: str,
@@ -327,7 +406,22 @@ def search_generated_media(
         if not isinstance(generated, Mapping):
             continue
 
-        for chunk in _iterate_chunk_entries(generated):
+        job_root = _resolve_job_root(job, locator)
+        metadata_loader: Optional[MetadataLoader] = None
+        loader_attempted = False
+
+        raw_chunks = generated.get("chunks") if isinstance(generated, Mapping) else None
+        if isinstance(raw_chunks, list):
+            chunk_entries = [chunk for chunk in raw_chunks if isinstance(chunk, Mapping)]
+        else:
+            chunk_entries = list(_iterate_chunk_entries(generated))
+
+        if not chunk_entries:
+            continue
+
+        chunk_total = len(chunk_entries)
+
+        for chunk_index, chunk in enumerate(chunk_entries):
             files = chunk.get("files")
             if not isinstance(files, Iterable):
                 continue
@@ -340,9 +434,23 @@ def search_generated_media(
                     text_entry = candidate
                     break
             if text_entry is None:
-                continue
+                text_content = None
+            else:
+                text_content = _load_text_from_entry(job.job_id, text_entry, locator)
 
-            text_content = _load_text_from_entry(job.job_id, text_entry, locator)
+            if text_content is None:
+                if not loader_attempted:
+                    loader_attempted = True
+                    if job_root is not None:
+                        manifest_path = job_root / "metadata" / "job.json"
+                        if manifest_path.exists():
+                            try:
+                                metadata_loader = MetadataLoader(job_root)
+                            except Exception:
+                                metadata_loader = None
+                if metadata_loader is not None:
+                    text_content = _load_text_from_chunk_metadata(metadata_loader, chunk)
+
             if text_content is None:
                 continue
 
@@ -350,7 +458,7 @@ def search_generated_media(
             if not matches:
                 continue
 
-            relative_value = text_entry.get("relative_path")
+            relative_value = text_entry.get("relative_path") if text_entry is not None else None
             base_id: Optional[str] = None
             if isinstance(relative_value, str) and relative_value.strip():
                 base_candidate = Path(relative_value).name or relative_value
@@ -386,6 +494,8 @@ def search_generated_media(
                     job_label=_resolve_job_label(job),
                     base_id=base_id,
                     chunk_id=str(chunk.get("chunk_id")) if chunk.get("chunk_id") is not None else None,
+                    chunk_index=chunk_index,
+                    chunk_total=chunk_total,
                     range_fragment=str(chunk.get("range_fragment"))
                     if chunk.get("range_fragment") is not None
                     else None,

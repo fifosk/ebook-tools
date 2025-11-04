@@ -17,11 +17,12 @@ import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
+import type { LibraryOpenInput } from '../types/player';
 
 const PAGE_SIZE = 25;
 
 type LibraryPageProps = {
-  onPlay?: (item: LibraryItem | string) => void;
+  onPlay?: (item: LibraryOpenInput) => void;
 };
 
 function LibraryPage({ onPlay }: LibraryPageProps) {

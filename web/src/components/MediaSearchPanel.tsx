@@ -228,6 +228,66 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                   }
                 });
                 const isActiveJob = currentJobId === result.job_id;
+                const chunkIndexValue =
+                  typeof result.chunk_index === 'number' && Number.isFinite(result.chunk_index)
+                    ? result.chunk_index
+                    : null;
+                const chunkTotalValue =
+                  typeof result.chunk_total === 'number' && Number.isFinite(result.chunk_total)
+                    ? result.chunk_total
+                    : null;
+                const chunkPositionLabel = (() => {
+                  if (chunkIndexValue === null) {
+                    return null;
+                  }
+                  const humanIndex = chunkIndexValue + 1;
+                  if (chunkTotalValue && chunkTotalValue > 0) {
+                    return `Chunk ${humanIndex} of ${chunkTotalValue}`;
+                  }
+                  return `Chunk ${humanIndex}`;
+                })();
+                const chunkRangeLabel = result.range_fragment ? `Sentences ${result.range_fragment}` : null;
+
+                let metaText: string;
+                if (isLibraryResult) {
+                  const libraryParts = [
+                    result.libraryAuthor ? `Author ${result.libraryAuthor}` : null,
+                    result.libraryLanguage ? `Language ${result.libraryLanguage}` : null,
+                    result.libraryGenre ? `Genre ${result.libraryGenre}` : null
+                  ].filter((entry): entry is string => Boolean(entry));
+
+                  const chunkSummary =
+                    chunkPositionLabel && chunkRangeLabel
+                      ? `${chunkPositionLabel} (${chunkRangeLabel})`
+                      : chunkPositionLabel ?? chunkRangeLabel;
+                  if (chunkSummary) {
+                    libraryParts.push(chunkSummary);
+                  }
+
+                  metaText = libraryParts.join(' · ');
+                  if (!metaText) {
+                    metaText = 'Library entry';
+                  }
+                } else {
+                  const pipelineParts: string[] = [];
+                  if (chunkPositionLabel) {
+                    pipelineParts.push(chunkPositionLabel);
+                  }
+                  if (chunkRangeLabel) {
+                    pipelineParts.push(chunkRangeLabel);
+                  }
+                  let pipelineMeta = pipelineParts.join(' • ');
+                  if (!pipelineMeta) {
+                    pipelineMeta = 'Chunk';
+                  }
+                  if (
+                    typeof result.occurrence_count === 'number' &&
+                    result.occurrence_count > 1
+                  ) {
+                    pipelineMeta = `${pipelineMeta} • ${result.occurrence_count} matches`;
+                  }
+                  metaText = pipelineMeta;
+                }
 
                 return (
                   <article
@@ -242,24 +302,7 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                           ? result.job_label ?? `Library ${result.job_id}`
                           : result.job_label ?? `Job ${result.job_id}`}
                       </div>
-                      <div className={styles.resultMeta}>
-                        {isLibraryResult
-                          ? [
-                              result.libraryAuthor ? `Author ${result.libraryAuthor}` : null,
-                              result.libraryLanguage ? `Language ${result.libraryLanguage}` : null,
-                              result.libraryGenre ? `Genre ${result.libraryGenre}` : null
-                            ]
-                              .filter(Boolean)
-                              .join(' · ')
-                          : result.range_fragment
-                          ? `Chunk ${result.range_fragment}`
-                          : 'Chunk'}
-                        {!isLibraryResult &&
-                        typeof result.occurrence_count === 'number' &&
-                        result.occurrence_count > 1
-                          ? ` • ${result.occurrence_count} matches`
-                          : ''}
-                      </div>
+                      <div className={styles.resultMeta}>{metaText}</div>
                     </header>
                     <p className={styles.snippet}>{highlightSnippet(result.snippet, activeQuery)}</p>
                     {categories.length > 0 ? (
@@ -281,7 +324,7 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                             {category === 'text' ? 'Open text' : null}
                             {category === 'audio' ? 'Play audio' : null}
                             {category === 'video' ? 'Play video' : null}
-                            {category === 'library' ? 'Open in Library' : null}
+                            {category === 'library' ? 'Open in Reader' : null}
                           </button>
                         ))}
                       </div>

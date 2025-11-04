@@ -505,6 +505,8 @@ class MediaSearchHit(BaseModel):
     job_label: Optional[str] = None
     base_id: Optional[str] = None
     chunk_id: Optional[str] = None
+    chunk_index: Optional[int] = None
+    chunk_total: Optional[int] = None
     range_fragment: Optional[str] = None
     start_sentence: Optional[int] = None
     end_sentence: Optional[int] = None
