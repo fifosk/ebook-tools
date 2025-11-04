@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import time
 from pathlib import Path
-from typing import Annotated, Iterable, Mapping
+from typing import Annotated, Iterable, Mapping, Any, Optional
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Request, status
+from fastapi import APIRouter, Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
@@ -16,17 +16,23 @@ from modules import logging_manager as log_mgr
 from modules.audio.api import AudioService
 from modules.media.exceptions import MediaBackendError
 from modules.observability import record_metric
+from modules.metadata_manager import MetadataLoader
 from modules.services.file_locator import FileLocator
+from modules.services.pipeline_service import PipelineService
 from modules.services.video_service import VideoService
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
 
+from .routes.media_routes import _stream_local_file
 from .audio_utils import resolve_language, resolve_speed, resolve_voice
 from .dependencies import (
     get_audio_service,
     get_auth_service,
+    get_pipeline_service,
     get_file_locator,
+    get_request_user,
     get_video_service,
+    RequestUserContext,
 )
 from .schemas import (
     AudioGenerationParameters,
@@ -121,6 +127,155 @@ def _select_audio_filename(candidate: str | None) -> str:
     if not name.lower().endswith(".mp3"):
         name = f"{name}.mp3"
     return name
+
+
+def _extract_track_path_from_chunks(
+    chunks: Iterable[Mapping[str, Any]] | None, chunk_id: str, track: str
+) -> Optional[str]:
+    if not chunks:
+        return None
+    for entry in chunks:
+        if not isinstance(entry, Mapping):
+            continue
+        entry_chunk_id = str(entry.get("chunk_id") or "")
+        if entry_chunk_id != chunk_id:
+            continue
+        audio_tracks = entry.get("audio_tracks")
+        if not isinstance(audio_tracks, Mapping):
+            continue
+        value = audio_tracks.get(track)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+@router.get("/{job_id}/{chunk_id}")
+async def stream_chunk_audio_track(
+    job_id: str,
+    chunk_id: str,
+    track: str = Query(default="trans"),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    file_locator: FileLocator = Depends(get_file_locator),
+    request_user: RequestUserContext = Depends(get_request_user),
+    range_header: str | None = Header(default=None, alias="Range"),
+):
+    """Stream the requested audio track for a generated pipeline chunk."""
+
+    normalized_track = (track or "trans").strip().lower()
+    if normalized_track not in {"orig", "trans", "orig_trans"}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid track specified.",
+        )
+
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    try:
+        job_root = file_locator.resolve_path(job.job_id)
+    except ValueError:
+        job_root = None
+
+    generated_files = job.generated_files if isinstance(job.generated_files, Mapping) else {}
+    raw_chunks = generated_files.get("chunks") if isinstance(generated_files, Mapping) else None
+    track_path = _extract_track_path_from_chunks(raw_chunks, chunk_id, normalized_track)
+
+    if track_path is None:
+        loader: Optional[MetadataLoader]
+        if job_root is not None:
+            try:
+                loader = MetadataLoader(job_root)
+            except Exception:  # pragma: no cover - defensive
+                loader = None
+            if loader is not None:
+                summaries = loader.load_chunks(include_sentences=False)
+                track_path = _extract_track_path_from_chunks(summaries, chunk_id, normalized_track)
+
+    if track_path is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio track not found")
+
+    chunk_base_dir: Optional[str] = None
+    if "_" in chunk_id:
+        _, base_candidate = chunk_id.split("_", 1)
+        chunk_base_dir = base_candidate.strip() or None
+
+    def _resolve_candidate_path(candidate_path: str | Path) -> Optional[Path]:
+        candidate_path_obj = Path(candidate_path)
+        if candidate_path_obj.is_absolute():
+            return candidate_path_obj if candidate_path_obj.exists() else None
+        if job_root is None:
+            return None
+        candidate_variants = [candidate_path_obj]
+        if candidate_path_obj.parts[:1] != ("media",):
+            candidate_variants.append(Path("media") / candidate_path_obj)
+            if chunk_base_dir:
+                candidate_variants.append(Path("media") / chunk_base_dir / candidate_path_obj)
+        if chunk_base_dir and candidate_path_obj.parts[:1] != (chunk_base_dir,):
+            candidate_variants.append(Path("media") / chunk_base_dir / candidate_path_obj)
+
+        seen: set[str] = set()
+        for variant in candidate_variants:
+            key = variant.as_posix()
+            if key in seen:
+                continue
+            seen.add(key)
+            direct_path = job_root / variant
+            if direct_path.exists():
+                return direct_path
+        return None
+
+    resolved_path: Optional[Path]
+    try:
+        resolved_path = file_locator.resolve_path(job.job_id, track_path)
+    except ValueError:
+        resolved_path = _resolve_candidate_path(track_path)
+
+    if resolved_path is None or not resolved_path.exists():
+        chunk_entry = None
+        if isinstance(raw_chunks, list):
+            for entry in raw_chunks:
+                if isinstance(entry, Mapping) and str(entry.get("chunk_id") or "") == chunk_id:
+                    chunk_entry = entry
+                    break
+        desired_type = "audio" if normalized_track == "trans" else "audio_orig"
+        candidate_path: Optional[str] = None
+        if isinstance(chunk_entry, Mapping):
+            files_section = chunk_entry.get("files")
+            if isinstance(files_section, list):
+                for file_entry in files_section:
+                    if not isinstance(file_entry, Mapping):
+                        continue
+                    raw_type = str(file_entry.get("type") or "").strip()
+                    if raw_type != desired_type:
+                        continue
+                    rel_value = file_entry.get("relative_path")
+                    path_value = file_entry.get("path")
+                    if isinstance(rel_value, str) and rel_value.strip():
+                        candidate_path = rel_value.strip()
+                        break
+                    if isinstance(path_value, str) and path_value.strip():
+                        candidate_path = path_value.strip()
+                        break
+        if candidate_path:
+            resolved_path = _resolve_candidate_path(candidate_path)
+        elif resolved_path is None and job_root is not None:
+            direct_fallback = job_root / Path(track_path)
+            if direct_fallback.exists():
+                resolved_path = direct_fallback
+
+    if resolved_path is None or not resolved_path.exists() or not resolved_path.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Audio track not found")
+
+
+    return _stream_local_file(resolved_path, range_header)
 
 
 def _prepare_audio_request(

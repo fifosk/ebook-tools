@@ -66,6 +66,10 @@ interface NavigationControlsProps {
   inlineAudioSelection: string | null;
   onSelectInlineAudio: (audioUrl: string) => void;
   showInlineAudio: boolean;
+  showOriginalAudioToggle?: boolean;
+  onToggleOriginalAudio?: () => void;
+  originalAudioEnabled?: boolean;
+  disableOriginalAudioToggle?: boolean;
 }
 
 function NavigationControls({
@@ -86,6 +90,10 @@ function NavigationControls({
   inlineAudioSelection,
   onSelectInlineAudio,
   showInlineAudio,
+  showOriginalAudioToggle = false,
+  onToggleOriginalAudio,
+  originalAudioEnabled = false,
+  disableOriginalAudioToggle = false,
 }: NavigationControlsProps) {
   const inlineAudioId =
     context === 'fullscreen' ? 'player-panel-inline-audio-fullscreen' : 'player-panel-inline-audio';
@@ -104,6 +112,10 @@ function NavigationControls({
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
   const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
   const playbackIcon = isPlaying ? '⏸' : '▶';
+  const originalToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', originalAudioEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
+  const originalToggleTitle = disableOriginalAudioToggle
+    ? 'Original audio will appear after interactive assets regenerate'
+    : 'Toggle Original Audio';
 
   return (
     <div className={groupClassName}>
@@ -154,6 +166,24 @@ function NavigationControls({
         >
           <span aria-hidden="true">⏭</span>
         </button>
+        {showOriginalAudioToggle ? (
+          <button
+            type="button"
+            className={originalToggleClassName}
+            onClick={onToggleOriginalAudio}
+            disabled={disableOriginalAudioToggle}
+            aria-label="Toggle Original Audio"
+            aria-pressed={originalAudioEnabled}
+            title={originalToggleTitle}
+          >
+            <span aria-hidden="true" className="player-panel__nav-button-icon">
+              {originalAudioEnabled ? '🎧' : '🎵'}
+            </span>
+            <span aria-hidden="true" className="player-panel__nav-button-text">
+              Orig
+            </span>
+          </button>
+        ) : null}
         <button
           type="button"
           className="player-panel__nav-button"
@@ -523,6 +553,16 @@ export default function PlayerPanel({
 const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
 const [pendingChunkSelection, setPendingChunkSelection] = useState<{ index: number; token: number } | null>(null);
 const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
+  const [showOriginalAudio, setShowOriginalAudio] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    const stored = window.localStorage.getItem('player.showOriginalAudio');
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
+  });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
   const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
   const chunkMetadataStoreRef = useRef(chunkMetadataStore);
@@ -1187,6 +1227,75 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     }
     return activeTextChunk;
   }, [activeTextChunk, chunkMetadataStore]);
+  const activeAudioTracks = useMemo(() => {
+    const chunkId = resolvedActiveTextChunk?.chunkId;
+    if (!chunkId || !normalisedJobId) {
+      return null;
+    }
+    const tracks = resolvedActiveTextChunk.audioTracks ?? null;
+    const files = resolvedActiveTextChunk.files ?? [];
+    const mapping: Record<string, string> = {};
+
+    const normaliseSource = (source: string | null | undefined) => {
+      if (!source) {
+        return null;
+      }
+      const trimmed = source.trim();
+      if (!trimmed) {
+        return null;
+      }
+      if (trimmed.includes('://') || trimmed.startsWith('/')) {
+        return trimmed;
+      }
+      return buildStorageUrl(trimmed, normalisedJobId);
+    };
+
+    const registerTrack = (key: string, source: string | null | undefined) => {
+      const normalised = normaliseSource(source);
+      if (!normalised) {
+        return;
+      }
+      mapping[key] = normalised;
+    };
+
+    if (tracks) {
+      if (typeof tracks.orig_trans === 'string' && tracks.orig_trans.trim()) {
+        registerTrack('orig_trans', tracks.orig_trans.trim());
+      }
+      if (typeof tracks.trans === 'string' && tracks.trans.trim()) {
+        registerTrack('trans', tracks.trans.trim());
+      }
+      if (typeof tracks.orig === 'string' && tracks.orig.trim()) {
+        registerTrack('orig', tracks.orig.trim());
+      }
+    }
+
+    files.forEach((file) => {
+      if (!file || typeof file !== 'object') {
+        return;
+      }
+      if (file.type !== 'audio') {
+        return;
+      }
+      const relativePath = typeof file.relative_path === 'string' ? file.relative_path.toLowerCase() : '';
+      const displayName = typeof file.name === 'string' ? file.name.toLowerCase() : '';
+      const isCombinedCandidate = relativePath.includes('_orig-trans') || displayName.includes('_orig-trans');
+      if (isCombinedCandidate && typeof file.url === 'string') {
+        registerTrack('orig_trans', file.url);
+        return;
+      }
+      const isOriginalCandidate = relativePath.includes('_orig') || displayName.includes('_orig');
+      if (isOriginalCandidate && typeof file.url === 'string') {
+        registerTrack('orig', file.url);
+        return;
+      }
+      if (!mapping.trans && typeof file.url === 'string') {
+        registerTrack('trans', file.url);
+      }
+    });
+
+    return Object.keys(mapping).length > 0 ? mapping : null;
+  }, [normalisedJobId, resolvedActiveTextChunk]);
   const inlineAudioOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { url: string; label: string }[] = [];
@@ -1207,6 +1316,11 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         if (file.type !== 'audio' || !file.url) {
           return;
         }
+        const relativePath = typeof file.relative_path === 'string' ? file.relative_path.toLowerCase() : '';
+        const displayName = typeof file.name === 'string' ? file.name.toLowerCase() : '';
+        if (relativePath.includes('_orig') || displayName.includes('_orig')) {
+          return;
+        }
         const label =
           interactiveAudioNameMap.get(file.url) ??
           (typeof file.name === 'string' ? file.name.trim() : '') ??
@@ -1221,6 +1335,45 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   }, [activeTextChunk, activeTextChunkIndex, interactiveAudioNameMap, interactiveAudioPlaylist, resolvedActiveTextChunk]);
 
   const inlineAudioUnavailable = inlineAudioOptions.length === 0;
+  const hasCombinedAudio = Boolean(activeAudioTracks?.orig_trans);
+  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig);
+  const canToggleOriginalAudio = hasCombinedAudio || hasLegacyOriginal;
+  const effectiveOriginalAudioEnabled = showOriginalAudio && hasCombinedAudio;
+  const handleOriginalAudioToggle = useCallback(() => {
+    if (!hasCombinedAudio) {
+      return;
+    }
+    setShowOriginalAudio((current) => !current);
+  }, [hasCombinedAudio]);
+
+  useEffect(() => {
+    if (!hasCombinedAudio && showOriginalAudio) {
+      setShowOriginalAudio(false);
+    }
+  }, [hasCombinedAudio, showOriginalAudio]);
+
+  useEffect(() => {
+    if (!hasCombinedAudio) {
+      return;
+    }
+    const combinedUrl = activeAudioTracks?.orig_trans ?? null;
+    const translationUrl = activeAudioTracks?.trans ?? null;
+    setInlineAudioSelection((current) => {
+      if (showOriginalAudio) {
+        if (combinedUrl && current !== combinedUrl) {
+          return combinedUrl;
+        }
+        return combinedUrl ?? current;
+      }
+      if (combinedUrl && current === combinedUrl) {
+        if (translationUrl) {
+          return translationUrl;
+        }
+        return null;
+      }
+      return current;
+    });
+  }, [activeAudioTracks?.orig_trans, activeAudioTracks?.trans, hasCombinedAudio, showOriginalAudio]);
   useEffect(() => {
     if (!pendingSelection) {
       return;
@@ -2118,6 +2271,13 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     setPendingTextScrollRatio(null);
   }, [normalisedJobId]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
+  }, [showOriginalAudio]);
+
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
   const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
@@ -2164,6 +2324,10 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       inlineAudioSelection={inlineAudioSelection}
       onSelectInlineAudio={handleInlineAudioSelect}
       showInlineAudio={selectedMediaType === 'text'}
+      showOriginalAudioToggle={selectedMediaType === 'text' && canToggleOriginalAudio}
+      onToggleOriginalAudio={handleOriginalAudioToggle}
+      originalAudioEnabled={effectiveOriginalAudioEnabled}
+      disableOriginalAudioToggle={!hasCombinedAudio}
     />
   );
   const fullscreenNavigationGroup = isInteractiveFullscreen ? (
@@ -2185,6 +2349,10 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       inlineAudioSelection={inlineAudioSelection}
       onSelectInlineAudio={handleInlineAudioSelect}
       showInlineAudio={selectedMediaType === 'text'}
+      showOriginalAudioToggle={selectedMediaType === 'text' && canToggleOriginalAudio}
+      onToggleOriginalAudio={handleOriginalAudioToggle}
+      originalAudioEnabled={effectiveOriginalAudioEnabled}
+      disableOriginalAudioToggle={!hasCombinedAudio}
     />
   ) : null;
 
@@ -2360,6 +2528,8 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                                 </>
                               ) : null
                             }
+                              audioTracks={activeAudioTracks}
+                              originalAudioEnabled={effectiveOriginalAudioEnabled}
                           />
                           ) : (
                             <div className="player-panel__document-status" role="status">

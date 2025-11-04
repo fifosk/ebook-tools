@@ -115,6 +115,8 @@ interface InteractiveTextViewerProps {
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
   fullscreenControls?: ReactNode;
+  audioTracks?: Record<string, string> | null;
+  originalAudioEnabled?: boolean;
 }
 
 type SegmenterInstance = {
@@ -306,6 +308,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     isFullscreen = false,
     onRequestExitFullscreen,
     fullscreenControls,
+    audioTracks = null,
+    originalAudioEnabled = false,
   },
   forwardedRef,
 ) {
@@ -315,6 +319,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
+  const useCombinedPhases = Boolean(originalAudioEnabled && audioTracks?.orig_trans);
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
   const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
@@ -339,6 +344,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const translationReveal: number[] = [];
       const transliterationReveal: number[] = [];
 
+      const phaseDurations = useCombinedPhases ? metadata.phase_durations ?? null : null;
+      const originalPhaseDuration = phaseDurations && typeof phaseDurations.original === 'number' ? Math.max(phaseDurations.original, 0) : 0;
+      const gapBeforeTranslation = phaseDurations && typeof phaseDurations.gap === 'number' ? Math.max(phaseDurations.gap, 0) : 0;
+      const tailPhaseDuration = phaseDurations && typeof phaseDurations.tail === 'number' ? Math.max(phaseDurations.tail, 0) : 0;
+      const translationPhaseDurationOverride = phaseDurations && typeof phaseDurations.translation === 'number'
+        ? Math.max(phaseDurations.translation, 0)
+        : null;
+
       const eventDurationTotal = events.reduce((total, event) => {
         const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
         return total + duration;
@@ -362,18 +375,28 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         return 0.5;
       })();
 
+      let effectiveDeclaredDuration = declaredDuration;
+      if (translationPhaseDurationOverride !== null && translationPhaseDurationOverride > 0) {
+        effectiveDeclaredDuration = translationPhaseDurationOverride;
+      }
+
       const durationScale =
-        eventDurationTotal > 0 && declaredDuration > 0 ? declaredDuration / eventDurationTotal : 1;
+        eventDurationTotal > 0 && effectiveDeclaredDuration > 0 ? effectiveDeclaredDuration / eventDurationTotal : 1;
 
       let prevOriginal = 0;
       let prevTranslation = 0;
       let prevTranslit = 0;
-      let elapsed = 0;
+      let translationElapsed = 0;
+
+      const sentenceStart = offset;
+      const translationStart = useCombinedPhases
+        ? sentenceStart + originalPhaseDuration + gapBeforeTranslation
+        : sentenceStart;
 
       events.forEach((event) => {
         const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
         const adjustedDuration = baseDuration * durationScale;
-        const eventStart = offset + elapsed;
+        const eventStart = translationStart + translationElapsed;
         const nextOriginal = Math.min(
           typeof event.original_index === 'number' ? Math.max(event.original_index, 0) : prevOriginal,
           originalTokens.length,
@@ -414,26 +437,43 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         prevOriginal = nextOriginal;
         prevTranslation = nextTranslation;
         prevTranslit = nextTranslit;
-        elapsed += adjustedDuration;
+        translationElapsed += adjustedDuration;
       });
 
-      let sentenceDuration = declaredDuration;
-      if (!(sentenceDuration > 0)) {
-        sentenceDuration = elapsed;
-      } else if (elapsed > sentenceDuration) {
-        sentenceDuration = elapsed;
+      let translationDuration = effectiveDeclaredDuration;
+      if (!(translationDuration > 0)) {
+        translationDuration = translationElapsed;
+      } else if (translationElapsed > translationDuration) {
+        translationDuration = translationElapsed;
+      }
+      if (!(translationDuration > 0)) {
+        translationDuration = 0;
       }
 
-      const endTime = offset + sentenceDuration;
+      const sentenceDuration = useCombinedPhases
+        ? originalPhaseDuration + gapBeforeTranslation + translationDuration + tailPhaseDuration
+        : translationDuration;
+      const originalEnd = sentenceStart + (useCombinedPhases ? originalPhaseDuration : sentenceDuration);
+      const translationEnd = translationStart + translationDuration;
+      const endTime = sentenceStart + sentenceDuration;
 
-      fillRemainTimes(originalReveal, originalTokens.length, endTime);
-      fillRemainTimes(translationReveal, translationTokens.length, endTime);
-      fillRemainTimes(transliterationReveal, transliterationTokens.length, endTime);
+      if (useCombinedPhases && originalPhaseDuration > 0 && originalTokens.length > 0) {
+        originalReveal.length = 0;
+        const step = originalPhaseDuration / originalTokens.length;
+        for (let i = 1; i <= originalTokens.length; i += 1) {
+          const revealTime = sentenceStart + Math.min(originalPhaseDuration, step * i);
+          originalReveal.push(revealTime);
+        }
+      }
+
+      fillRemainTimes(originalReveal, originalTokens.length, useCombinedPhases && originalPhaseDuration > 0 ? originalEnd : endTime);
+      fillRemainTimes(translationReveal, translationTokens.length, useCombinedPhases ? translationEnd : endTime);
+      fillRemainTimes(transliterationReveal, transliterationTokens.length, useCombinedPhases ? translationEnd : endTime);
 
       result.push({
         index,
         sentenceNumber: metadata.sentence_number ?? null,
-        startTime: offset,
+        startTime: sentenceStart,
         endTime,
         variants: {
           original: {
@@ -459,7 +499,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     });
 
     return result;
-  }, [chunk?.sentences, hasTimeline]);
+  }, [chunk?.sentences, hasTimeline, useCombinedPhases]);
   const timelineDisplay = useMemo(() => {
     if (!timelineSentences) {
       return null;
@@ -758,14 +798,35 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   );
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const effectiveAudioUrl = useMemo(() => {
+    if (originalAudioEnabled && audioTracks?.orig_trans) {
+      return audioTracks.orig_trans;
+    }
+    if (activeAudioUrl) {
+      return activeAudioUrl;
+    }
+    if (audioTracks?.trans) {
+      return audioTracks.trans;
+    }
+    if (audioTracks?.orig_trans) {
+      return audioTracks.orig_trans;
+    }
+    return null;
+  }, [activeAudioUrl, audioTracks, originalAudioEnabled]);
+
+  const resolvedAudioUrl = useMemo(
+    () => (effectiveAudioUrl ? appendAccessToken(effectiveAudioUrl) : null),
+    [effectiveAudioUrl],
+  );
+
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
-      if (!activeAudioUrl) {
+      if (!effectiveAudioUrl) {
         onInlineAudioPlaybackStateChange?.('paused');
       }
       return;
     }
-    if (!activeAudioUrl) {
+    if (!effectiveAudioUrl) {
       onRegisterInlineAudioControls(null);
       onInlineAudioPlaybackStateChange?.('paused');
       return () => {
@@ -806,7 +867,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     return () => {
       onRegisterInlineAudioControls(null);
     };
-  }, [activeAudioUrl, onInlineAudioPlaybackStateChange, onRegisterInlineAudioControls]);
+  }, [effectiveAudioUrl, onInlineAudioPlaybackStateChange, onRegisterInlineAudioControls]);
   const pendingInitialSeek = useRef<number | null>(null);
   const lastReportedPosition = useRef(0);
 
@@ -855,7 +916,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [timelineDisplay, activeSentenceIndex, timelineSentences]);
 
   useEffect(() => {
-    if (!activeAudioUrl) {
+    if (!effectiveAudioUrl) {
       pendingInitialSeek.current = null;
       lastReportedPosition.current = 0;
       setActiveSentenceIndex(0);
@@ -863,7 +924,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       setAudioDuration(null);
       return;
     }
-    const stored = getStoredAudioPosition?.(activeAudioUrl);
+    const stored = getStoredAudioPosition?.(effectiveAudioUrl);
     if (typeof stored === 'number' && stored > 0) {
       pendingInitialSeek.current = stored;
     } else {
@@ -873,18 +934,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     setActiveSentenceIndex(0);
     setActiveSentenceProgress(0);
     setAudioDuration(null);
-  }, [activeAudioUrl, getStoredAudioPosition]);
+  }, [effectiveAudioUrl, getStoredAudioPosition]);
 
   const handleScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
       onScroll?.(event);
     },
     [onScroll],
-  );
-
-  const resolvedAudioUrl = useMemo(
-    () => (activeAudioUrl ? appendAccessToken(activeAudioUrl) : null),
-    [activeAudioUrl],
   );
 
   useEffect(() => {
@@ -984,16 +1040,16 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
   const emitAudioProgress = useCallback(
     (position: number) => {
-      if (!activeAudioUrl || !onAudioProgress) {
+      if (!effectiveAudioUrl || !onAudioProgress) {
         return;
       }
       if (Math.abs(position - lastReportedPosition.current) < 0.25) {
         return;
       }
       lastReportedPosition.current = position;
-      onAudioProgress(activeAudioUrl, position);
+      onAudioProgress(effectiveAudioUrl, position);
     },
-    [activeAudioUrl, onAudioProgress],
+    [effectiveAudioUrl, onAudioProgress],
   );
 
   const updateSentenceForTime = useCallback(
@@ -1145,6 +1201,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       ref={rootRef}
       className={rootClassName}
       data-fullscreen={isFullscreen ? 'true' : 'false'}
+      data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
     >
       {isFullscreen && fullscreenControls ? (
         <div className="player-panel__interactive-fullscreen-controls">

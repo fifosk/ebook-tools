@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, is_dataclass
 from datetime import datetime, timezone
 import re
 import textwrap
@@ -64,6 +64,20 @@ class SearchMediaResult:
     offset_ratio: float | None
     approximate_time_seconds: float | None
     media: MediaBucket
+def _coerce_inputs_mapping(candidate: object) -> Optional[Mapping[str, object]]:
+    if candidate is None:
+        return None
+    if isinstance(candidate, Mapping):
+        return candidate
+    if is_dataclass(candidate):
+        try:
+            return asdict(candidate)
+        except TypeError:
+            pass
+    namespace = getattr(candidate, "__dict__", None)
+    if isinstance(namespace, Mapping):
+        return dict(namespace)
+    return None
 
 
 def _normalise_media_type(raw_type: object) -> Optional[str]:
@@ -84,7 +98,7 @@ def _resolve_job_label(job: PipelineJob) -> str | None:
 
     inputs: Mapping[str, object] | None = None
     if job.request is not None and getattr(job.request, "inputs", None) is not None:
-        inputs = job.request.inputs.__dict__  # type: ignore[assignment]
+        inputs = _coerce_inputs_mapping(job.request.inputs)
     elif job.resume_context and isinstance(job.resume_context, Mapping):
         candidate = job.resume_context.get("inputs")
         if isinstance(candidate, Mapping):

@@ -474,6 +474,7 @@ class ChunkSentenceMetadata(BaseModel):
     total_duration: Optional[float] = None
     highlight_granularity: Optional[str] = None
     counts: Dict[str, int] = Field(default_factory=dict)
+    phase_durations: Dict[str, float] = Field(default_factory=dict)
 
 
 class PipelineMediaChunk(BaseModel):
@@ -488,6 +489,7 @@ class PipelineMediaChunk(BaseModel):
     metadata_path: Optional[str] = None
     metadata_url: Optional[str] = None
     sentence_count: Optional[int] = None
+    audio_tracks: Dict[str, str] = Field(default_factory=dict)
 
 
 class PipelineMediaResponse(BaseModel):
