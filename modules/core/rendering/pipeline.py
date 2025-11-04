@@ -6,6 +6,7 @@ import concurrent.futures
 import queue
 import threading
 from dataclasses import dataclass, field
+from functools import partial
 from typing import Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from PIL import Image
@@ -306,6 +307,26 @@ class RenderPipeline:
                 files=result.artifacts,
                 sentences=result.sentences,
             )
+
+    def _handle_export_future_completion(
+        self,
+        state: PipelineState,
+        future: concurrent.futures.Future[Optional[BatchExportResult]],
+    ) -> None:
+        """Register export results as soon as the background task finishes."""
+
+        exception = future.exception()
+        if exception is not None:
+            return
+
+        result = future.result()
+        try:
+            self._register_export_result(state, result)
+        except Exception:  # pragma: no cover - defensive logging
+            chunk_label = getattr(result, "chunk_id", "unknown") if result else "unknown"
+            logger.error("Failed to record generated chunk %s", chunk_label, exc_info=True)
+        finally:
+            setattr(future, "_pipeline_result_recorded", True)
 
     def _initial_state(
         self,
@@ -820,6 +841,9 @@ class RenderPipeline:
                         )
                         future = finalize_executor.submit(exporter.export, request)
                         export_futures.append(future)
+                        future.add_done_callback(
+                            partial(self._handle_export_future_completion, state)
+                        )
                         state.written_blocks.clear()
                         state.video_blocks.clear()
                         if state.current_audio_segments is not None:
@@ -853,4 +877,5 @@ class RenderPipeline:
                 except Exception as exc:  # pragma: no cover - defensive logging
                     logger.error("Failed to finalize batch export: %s", exc)
                 else:
-                    self._register_export_result(state, export_result)
+                    if not getattr(future, "_pipeline_result_recorded", False):
+                        self._register_export_result(state, export_result)

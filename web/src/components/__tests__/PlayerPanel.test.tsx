@@ -381,6 +381,58 @@ afterEach(() => {
     expect(pauseSpy.mock.calls.length).toBeGreaterThan(initialPauseCalls);
   });
 
+  it('prefetches metadata for nearby chunks when the interactive reader is active', async () => {
+    const chunks: LiveMediaChunk[] = Array.from({ length: 5 }, (_, index) => {
+      const chunkIndex = index + 1;
+      return {
+        chunkId: `chunk-${chunkIndex}`,
+        rangeFragment: `Chunk ${chunkIndex}`,
+        startSentence: chunkIndex * 2 - 1,
+        endSentence: chunkIndex * 2,
+        files: [],
+        metadataUrl: `https://example.com/chunks/chunk-${chunkIndex}.json`,
+      };
+    });
+
+    const fetchMock = vi.fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>().mockImplementation(() =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            sentences: [],
+          }),
+      } as Response),
+    );
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    render(
+      <PlayerPanel
+        jobId="job-prefetch"
+        media={createMediaState({ text: [], audio: [], video: [] })}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/chunks/chunk-1.json', {
+      credentials: 'include',
+    });
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/chunks/chunk-2.json', {
+      credentials: 'include',
+    });
+    expect(fetchMock).toHaveBeenCalledWith('https://example.com/chunks/chunk-3.json', {
+      credentials: 'include',
+    });
+  });
+
   it('advances chunks automatically while interactive fullscreen is enabled', async () => {
     const { media, chunks } = buildInteractiveFixtures();
     const fetchMock = vi
@@ -697,4 +749,67 @@ afterEach(() => {
     });
     expect(document.querySelector('.player-panel--immersive')).toBeNull();
   });
+
+  it('keeps the text tab active when interactive chunks exist without text files', async () => {
+    globalThis.fetch = vi.fn();
+
+    const audioItem: LiveMediaItem = {
+      type: 'audio',
+      name: 'chunk-1.mp3',
+      url: 'https://example.com/audio/chunk-1.mp3',
+      source: 'live',
+    };
+
+    const chunk: LiveMediaChunk = {
+      chunkId: 'chunk-1',
+      rangeFragment: 'Chunk 1',
+      startSentence: 1,
+      endSentence: 2,
+      files: [audioItem],
+      sentences: [
+        {
+          sentence_number: 1,
+          original: { text: 'Hello world', tokens: ['Hello', 'world'] },
+          translation: null,
+          transliteration: null,
+          timeline: [],
+          total_duration: 2,
+        },
+      ],
+    };
+
+    const media = createMediaState({ text: [], audio: [audioItem], video: [] });
+    const user = userEvent.setup();
+    const { rerender } = render(
+      <PlayerPanel
+        jobId="job-keep-text"
+        media={media}
+        chunks={[chunk]}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    await user.click(screen.getByRole('tab', { name: /interactive reader/i }));
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /interactive reader/i })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    rerender(
+      <PlayerPanel
+        jobId="job-keep-text"
+        media={media}
+        chunks={[chunk]}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /interactive reader/i })).toHaveAttribute('aria-selected', 'true');
+    });
+  });
+
 });

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
 import {
   PipelineMediaFile,
@@ -576,53 +576,6 @@ function hasChunkSentences(chunks: LiveMediaChunk[]): boolean {
   );
 }
 
-async function fetchChunkMetadata(
-  jobId: string | null | undefined,
-  chunk: LiveMediaChunk,
-): Promise<ChunkSentenceMetadata[] | null> {
-  const explicitUrl = chunk.metadataUrl ?? null;
-  let targetUrl = explicitUrl ?? null;
-
-  if (!targetUrl) {
-    const metadataPath = chunk.metadataPath ?? null;
-    if (metadataPath) {
-      try {
-        targetUrl = resolveStoragePath(jobId ?? null, metadataPath);
-      } catch (error) {
-        if (jobId) {
-          const encodedJobId = encodeURIComponent(jobId);
-          const sanitizedPath = metadataPath.replace(/^\/+/, '');
-          targetUrl = `/pipelines/jobs/${encodedJobId}/${encodeURI(sanitizedPath)}`;
-        } else {
-          console.warn('Unable to resolve chunk metadata path', metadataPath, error);
-        }
-      }
-    }
-  }
-
-  if (!targetUrl) {
-    return null;
-  }
-
-  try {
-    const response = await fetch(targetUrl, {
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      throw new Error(`Chunk metadata request failed with status ${response.status}`);
-    }
-    const payload = await response.json();
-    const sentences = payload?.sentences;
-    if (Array.isArray(sentences)) {
-      return sentences as ChunkSentenceMetadata[];
-    }
-    return [];
-  } catch (error) {
-    console.warn('Unable to load chunk metadata', targetUrl, error);
-    return null;
-  }
-}
-
 export function useLiveMedia(
   jobId: string | null | undefined,
   options: UseLiveMediaOptions = {},
@@ -633,8 +586,6 @@ export function useLiveMedia(
   const [isComplete, setIsComplete] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const loadedChunksRef = useRef<Set<string>>(new Set());
-  const loadingChunksRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!enabled || !jobId) {
@@ -643,16 +594,12 @@ export function useLiveMedia(
       setIsComplete(false);
       setIsLoading(false);
       setError(null);
-      loadedChunksRef.current.clear();
-      loadingChunksRef.current.clear();
       return;
     }
 
     let cancelled = false;
     setIsLoading(true);
     setError(null);
-    loadedChunksRef.current.clear();
-    loadingChunksRef.current.clear();
 
     fetchLiveJobMedia(jobId)
       .then((response: PipelineMediaResponse) => {
@@ -742,64 +689,6 @@ export function useLiveMedia(
       }
     });
   }, [enabled, jobId]);
-
-  useEffect(() => {
-    if (!enabled || !jobId) {
-      return;
-    }
-
-    let cancelled = false;
-
-    const ensureChunkLoaded = (chunk: LiveMediaChunk) => {
-      const key = chunkKey(chunk);
-      if (loadedChunksRef.current.has(key) || loadingChunksRef.current.has(key)) {
-        return;
-      }
-      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
-        loadedChunksRef.current.add(key);
-        return;
-      }
-      if (!chunk.metadataUrl && !chunk.metadataPath) {
-        return;
-      }
-      loadingChunksRef.current.add(key);
-      fetchChunkMetadata(jobId, chunk)
-        .then((sentences) => {
-          if (cancelled) {
-            return;
-          }
-          if (sentences !== null) {
-            const update: LiveMediaChunk = {
-              ...chunk,
-              sentences: sentences.length > 0 ? sentences : [],
-              sentenceCount:
-                sentences.length > 0
-                  ? sentences.length
-                  : typeof chunk.sentenceCount === 'number'
-                    ? chunk.sentenceCount
-                    : 0,
-            };
-            setChunks((current) => mergeChunkCollections(current, [update]));
-          }
-          loadedChunksRef.current.add(key);
-        })
-        .catch((error) => {
-          if (!cancelled) {
-            console.warn('Unable to retrieve chunk metadata', error);
-          }
-          loadedChunksRef.current.add(key);
-        })
-        .finally(() => {
-          loadingChunksRef.current.delete(key);
-        });
-    };
-
-    chunks.forEach(ensureChunkLoaded);
-
-    return () => {
-      cancelled = true;
-    };
-  }, [chunks, enabled, jobId]);
 
   return useMemo(
     () => ({
