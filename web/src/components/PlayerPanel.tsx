@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { UIEvent } from 'react';
-import AudioPlayer from './AudioPlayer';
 import VideoPlayer from './VideoPlayer';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
@@ -15,7 +14,7 @@ import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
 type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
-type SearchCategory = MediaCategory | 'library';
+type SearchCategory = Exclude<MediaCategory, 'audio'> | 'library';
 type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 type PlaybackControls = {
   pause: () => void;
@@ -44,7 +43,6 @@ interface TabDefinition {
 
 const TAB_DEFINITIONS: TabDefinition[] = [
   { key: 'text', label: 'Interactive Reader', emptyMessage: 'No interactive reader media yet.' },
-  { key: 'audio', label: 'Audio', emptyMessage: 'No audio media yet.' },
   { key: 'video', label: 'Video', emptyMessage: 'No video media yet.' },
 ];
 
@@ -194,16 +192,6 @@ function NavigationControls({
 function selectInitialTab(media: LiveMediaState): MediaCategory {
   const populated = TAB_DEFINITIONS.find((tab) => media[tab.key].length > 0);
   return populated?.key ?? 'text';
-}
-
-function toAudioFiles(media: LiveMediaState['audio']) {
-  return media
-    .filter((item) => typeof item.url === 'string' && item.url.length > 0)
-    .map((item, index) => ({
-      id: item.url ?? `${item.type}-${index}`,
-      url: item.url ?? '',
-      name: item.name,
-    }));
 }
 
 function toVideoFiles(media: LiveMediaState['video']) {
@@ -540,7 +528,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const chunkMetadataStoreRef = useRef(chunkMetadataStore);
   const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
@@ -556,12 +543,10 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
   const textScrollRef = useRef<HTMLDivElement | null>(null);
-  const audioControlsRef = useRef<PlaybackControls | null>(null);
   const videoControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const hasSkippedInitialRememberRef = useRef(false);
   const inlineAudioBaseRef = useRef<string | null>(null);
-  const [hasAudioControls, setHasAudioControls] = useState(false);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
 
@@ -992,7 +977,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     [media],
   );
 
-  const audioFiles = useMemo(() => toAudioFiles(media.audio), [media.audio]);
   const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
   useEffect(() => {
     if (videoFiles.length === 0 && isVideoPlaying) {
@@ -1025,7 +1009,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     [combinedMedia, selectedMediaType],
   );
   const selectedItemId = selectedItemIds[selectedMediaType];
-  const audioPlaybackPosition = getPosition(selectedItemIds.audio);
   const videoPlaybackPosition = getPosition(selectedItemIds.video);
   const textPlaybackPosition = getPosition(selectedItemIds.text);
   const selectedItem = useMemo(() => {
@@ -1252,13 +1235,13 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     const selectionToken = pendingSelection.token ?? Date.now();
     const chunkMatchIndex = findChunkIndexForBaseId(baseId, chunks);
 
-    const candidates: MediaCategory[] = [];
+    const candidateOrder: MediaCategory[] = [];
     if (preferredType) {
-      candidates.push(preferredType);
+      candidateOrder.push(preferredType);
     }
     MEDIA_CATEGORIES.forEach((category) => {
-      if (!candidates.includes(category)) {
-        candidates.push(category);
+      if (!candidateOrder.includes(category)) {
+        candidateOrder.push(category);
       }
     });
 
@@ -1268,9 +1251,20 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       video: baseId ? findMatchingMediaId(baseId, 'video', media.video) : null,
     };
 
+    if (matchByCategory.audio) {
+      setSelectedItemIds((current) =>
+        current.audio === matchByCategory.audio ? current : { ...current, audio: matchByCategory.audio },
+      );
+    }
+
+    const tabCandidates = candidateOrder.filter(
+      (category): category is Extract<MediaCategory, 'text' | 'video'> =>
+        category === 'text' || category === 'video',
+    );
+
     let appliedCategory: MediaCategory | null = null;
 
-    for (const category of candidates) {
+    for (const category of tabCandidates) {
       if (category === 'text' && !matchByCategory.text && chunkMatchIndex >= 0) {
         setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
         setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
@@ -1278,7 +1272,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         break;
       }
 
-      const matchId = matchByCategory[category] ?? null;
+      const matchId = matchByCategory[category];
       if (!matchId) {
         continue;
       }
@@ -1295,24 +1289,69 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     }
 
     if (!appliedCategory && preferredType) {
-      const category = preferredType;
-      setSelectedMediaType((current) => (current === category ? current : category));
-      if (category === 'text' && chunkMatchIndex >= 0) {
-        setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
-        appliedCategory = 'text';
-      } else {
+      if (preferredType === 'audio') {
         setSelectedItemIds((current) => {
-          const hasCurrent = current[category] !== null;
-          if (hasCurrent) {
+          if (current.audio !== null) {
             return current;
           }
-          const firstItem = media[category].find((item) => item.url);
-          if (!firstItem?.url) {
+          const firstAudio = media.audio.find((item) => item.url);
+          if (!firstAudio?.url) {
             return current;
           }
-          return { ...current, [category]: firstItem.url };
+          return { ...current, audio: firstAudio.url };
         });
-        appliedCategory = media[category].length > 0 ? category : null;
+
+        if (chunkMatchIndex >= 0) {
+          setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+          setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
+          appliedCategory = 'text';
+        } else if (media.text.length > 0) {
+          setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+          setSelectedItemIds((current) => {
+            if (current.text) {
+              return current;
+            }
+            const firstText = media.text.find((item) => item.url);
+            if (!firstText?.url) {
+              return current;
+            }
+            return { ...current, text: firstText.url };
+          });
+          appliedCategory = 'text';
+        } else if (media.video.length > 0) {
+          setSelectedMediaType((current) => (current === 'video' ? current : 'video'));
+          setSelectedItemIds((current) => {
+            if (current.video) {
+              return current;
+            }
+            const firstVideo = media.video.find((item) => item.url);
+            if (!firstVideo?.url) {
+              return current;
+            }
+            return { ...current, video: firstVideo.url };
+          });
+          appliedCategory = 'video';
+        }
+      } else {
+        const category = preferredType;
+        setSelectedMediaType((current) => (current === category ? current : category));
+        if (category === 'text' && chunkMatchIndex >= 0) {
+          setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
+          appliedCategory = 'text';
+        } else {
+          setSelectedItemIds((current) => {
+            const hasCurrent = current[category] !== null;
+            if (hasCurrent) {
+              return current;
+            }
+            const firstItem = media[category].find((item) => item.url);
+            if (!firstItem?.url) {
+              return current;
+            }
+            return { ...current, [category]: firstItem.url };
+          });
+          appliedCategory = media[category].length > 0 ? category : null;
+        }
       }
     }
 
@@ -1531,17 +1570,13 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const isLastDisabled =
     derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
   const playbackControlsAvailable =
-    selectedMediaType === 'audio'
-      ? hasAudioControls
-      : selectedMediaType === 'video'
+    selectedMediaType === 'video'
       ? hasVideoControls
       : selectedMediaType === 'text'
       ? hasInlineAudioControls
       : false;
   const isActiveMediaPlaying =
-    selectedMediaType === 'audio'
-      ? isAudioPlaying
-      : selectedMediaType === 'video'
+    selectedMediaType === 'video'
       ? isVideoPlaying
       : selectedMediaType === 'text'
       ? isInlineAudioPlaying
@@ -1555,14 +1590,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     },
     [updateSelection],
   );
-
-  const handleAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
-    audioControlsRef.current = controls;
-    setHasAudioControls(Boolean(controls));
-    if (!controls) {
-      setIsAudioPlaying(false);
-    }
-  }, []);
 
   const handleVideoControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     videoControlsRef.current = controls;
@@ -1608,10 +1635,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     },
     [syncInteractiveSelection],
   );
-
-  const handleAudioPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
-    setIsAudioPlaying(state === 'playing');
-  }, []);
 
   const handleInlineAudioPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
     setIsInlineAudioPlaying(state === 'playing');
@@ -1693,10 +1716,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   );
 
   const handlePauseActiveMedia = useCallback(() => {
-    if (selectedMediaType === 'audio') {
-      audioControlsRef.current?.pause();
-      setIsAudioPlaying(false);
-    } else if (selectedMediaType === 'video') {
+    if (selectedMediaType === 'video') {
       videoControlsRef.current?.pause();
       setIsVideoPlaying(false);
     } else if (selectedMediaType === 'text') {
@@ -1706,10 +1726,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   }, [selectedMediaType]);
 
   const handlePlayActiveMedia = useCallback(() => {
-    if (selectedMediaType === 'audio') {
-      audioControlsRef.current?.play();
-      setIsAudioPlaying(true);
-    } else if (selectedMediaType === 'video') {
+    if (selectedMediaType === 'video') {
       videoControlsRef.current?.play();
       setIsVideoPlaying(true);
     } else if (selectedMediaType === 'text') {
@@ -1739,20 +1756,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       rememberPosition({ mediaId, mediaType: 'text', baseId, position: target.scrollTop ?? 0 });
     },
     [selectedItemIds.text, getMediaItem, deriveBaseId, rememberPosition],
-  );
-
-  const handleAudioProgress = useCallback(
-    (position: number) => {
-      const mediaId = selectedItemIds.audio;
-      if (!mediaId) {
-        return;
-      }
-
-      const current = getMediaItem('audio', mediaId);
-      const baseId = current ? deriveBaseId(current) : null;
-      rememberPosition({ mediaId, mediaType: 'audio', baseId, position });
-    },
-    [selectedItemIds.audio, getMediaItem, deriveBaseId, rememberPosition],
   );
 
   const handleInlineAudioProgress = useCallback(
@@ -2304,19 +2307,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                       </div>
                     ) : null}
                     <div className="player-panel__viewer">
-                      {tab.key === 'audio' ? (
-                        <AudioPlayer
-                          files={audioFiles}
-                          activeId={selectedItemIds.audio}
-                          onSelectFile={(fileId) => handleSelectMedia('audio', fileId)}
-                          autoPlay
-                          onPlaybackEnded={() => handleAdvanceMedia('audio')}
-                          playbackPosition={audioPlaybackPosition}
-                          onPlaybackPositionChange={handleAudioProgress}
-                          onRegisterControls={handleAudioControlsRegistration}
-                          onPlaybackStateChange={handleAudioPlaybackStateChange}
-                        />
-                      ) : null}
                       {tab.key === 'video' ? (
                         <VideoPlayer
                           files={videoFiles}

@@ -11,8 +11,8 @@ import { MediaSearchResponse, MediaSearchResult } from '../api/dtos';
 import { searchMedia } from '../api/client';
 import styles from './MediaSearchPanel.module.css';
 
-type MediaCategory = 'text' | 'audio' | 'video' | 'library';
-const BASE_MEDIA_CATEGORIES: Array<Exclude<MediaCategory, 'library'>> = ['text', 'audio', 'video'];
+type MediaCategory = 'text' | 'video' | 'library';
+const BASE_MEDIA_CATEGORIES: Array<Exclude<MediaCategory, 'library'>> = ['text', 'video'];
 
 interface MediaSearchPanelProps {
   onResultAction: (result: MediaSearchResult, category: MediaCategory) => void;
@@ -322,7 +322,6 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                             }}
                           >
                             {category === 'text' ? 'Open text' : null}
-                            {category === 'audio' ? 'Play audio' : null}
                             {category === 'video' ? 'Play video' : null}
                             {category === 'library' ? 'Open in Reader' : null}
                           </button>

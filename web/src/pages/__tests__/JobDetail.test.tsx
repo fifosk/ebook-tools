@@ -1,5 +1,4 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import JobDetail from '../JobDetail';
 import type { PipelineMediaResponse, ProgressEventPayload, VideoGenerationResponse } from '../../api/dtos';
@@ -114,8 +113,8 @@ describe('JobDetail', () => {
       expect(screen.getByText(/Selected media: 001-010_output\.html/i)).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('tab', { name: /Text \(1\)/i })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: /Audio \(0\)/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Interactive Reader \(1\)/i })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tab', { name: /Audio/i })).toBeNull();
 
     const payload: ProgressEventPayload = {
       event_type: 'file_chunk_generated',
@@ -143,17 +142,10 @@ describe('JobDetail', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /Audio \(1\)/i })).toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: /Audio/i })).toBeNull();
     });
 
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /Audio \(1\)/i }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('audio-player')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText(/Selected media: 001-010_output\.mp3/i)).toBeInTheDocument();
+    expect(screen.getByText(/Selected media: 001-010_output\.html/i)).toBeInTheDocument();
   });
 
   it('defaults to populated media tab and shows empty messages for empty categories', async () => {
@@ -180,16 +172,9 @@ describe('JobDetail', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('audio-player')).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /Interactive Reader \(0\)/i })).toHaveAttribute('aria-selected', 'true');
     });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-
-    expect(screen.getByRole('tab', { name: /Audio \(1\)/i })).toHaveAttribute('aria-selected', 'true');
-
-    const user = userEvent.setup();
-    await user.click(screen.getByRole('tab', { name: /Interactive Reader \(0\)/i }));
-
+    expect(screen.queryByRole('tab', { name: /Audio/i })).toBeNull();
     expect(screen.getByText('No interactive reader media yet.')).toBeInTheDocument();
   });
 });

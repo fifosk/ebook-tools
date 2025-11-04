@@ -12,7 +12,6 @@ export interface TabDefinition {
 
 export const TAB_DEFINITIONS: TabDefinition[] = [
   { key: 'text', label: 'Interactive Reader', emptyMessage: 'No interactive reader media yet.' },
-  { key: 'audio', label: 'Audio', emptyMessage: 'No audio media yet.' },
   { key: 'video', label: 'Video', emptyMessage: 'No video media yet.' },
 ];
 

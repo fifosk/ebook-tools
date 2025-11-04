@@ -549,6 +549,8 @@ afterEach(() => {
       <PlayerPanel jobId="job-123" media={media} chunks={[]} mediaComplete={false} isLoading={false} error={null} />,
     );
 
+    expect(screen.queryByTestId('media-tab-audio')).not.toBeInTheDocument();
+
     const article = await screen.findByTestId('player-panel-document');
 
     article.scrollTop = 150;
@@ -561,15 +563,6 @@ afterEach(() => {
       const entry = parsed.entries?.['https://example.com/text/chapter-one.html'];
       expect(entry?.position).toBeCloseTo(150, 0);
     });
-
-    await user.click(screen.getByTestId('media-tab-audio'));
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'chapter-one.mp3' })).toHaveAttribute('aria-pressed', 'true');
-    });
-
-    const audioElement = screen.getByTestId('audio-player') as HTMLMediaElement;
-    audioElement.currentTime = 12;
-    fireEvent.timeUpdate(audioElement);
 
     await user.click(screen.getByTestId('media-tab-video'));
     await waitFor(() => {
@@ -588,13 +581,6 @@ afterEach(() => {
 
     await waitFor(() => {
       expect(restoredArticle.scrollTop).toBeCloseTo(150, 0);
-    });
-
-    await user.click(screen.getByTestId('media-tab-audio'));
-    const audioElementAfter = screen.getByTestId('audio-player') as HTMLMediaElement;
-
-    await waitFor(() => {
-      expect(audioElementAfter.currentTime).toBeCloseTo(12, 0);
     });
 
     await user.click(screen.getByTestId('media-tab-video'));
