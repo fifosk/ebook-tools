@@ -324,6 +324,7 @@ export interface ChunkSentenceMetadata {
   total_duration?: number | null;
   highlight_granularity?: string | null;
   counts?: Record<string, number>;
+  phase_durations?: Record<string, number> | null;
 }
 
 export interface PipelineMediaChunk {
@@ -336,6 +337,7 @@ export interface PipelineMediaChunk {
   metadata_path?: string | null;
   metadata_url?: string | null;
   sentence_count?: number | null;
+  audio_tracks?: Record<string, string> | null;
 }
 
 export interface PipelineMediaResponse {

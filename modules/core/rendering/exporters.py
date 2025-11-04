@@ -12,7 +12,7 @@ from pydub import AudioSegment
 from modules import audio_video_generator as av_gen
 from modules import config_manager as cfg
 from modules import output_formatter
-from modules.audio.tts import get_voice_display_name
+from modules.audio.tts import SILENCE_DURATION_MS, get_voice_display_name
 from modules.config.loader import get_rendering_config
 from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.render.context import RenderBatchContext
@@ -92,6 +92,7 @@ class BatchExportRequest:
     voice_metadata: Mapping[str, Mapping[str, Sequence[str]]] = field(
         default_factory=dict
     )
+    audio_tracks: Mapping[str, Sequence[AudioSegment]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -104,6 +105,7 @@ class BatchExportResult:
     range_fragment: str
     artifacts: Dict[str, str] = field(default_factory=dict)
     sentences: List[Dict[str, object]] = field(default_factory=list)
+    audio_tracks: Dict[str, str] = field(default_factory=dict)
 
 
 class BatchExporter:
@@ -116,12 +118,38 @@ class BatchExporter:
             backend_settings=context.video_backend_settings,
         )
 
+    def _job_relative_path(self, candidate: Path) -> str:
+        path_obj = candidate
+        base_dir_path = Path(self._context.base_dir)
+        for parent in base_dir_path.parents:
+            if parent.name.lower() == "media" and parent.parent != parent:
+                try:
+                    relative = path_obj.relative_to(parent.parent)
+                except ValueError:
+                    continue
+                if relative.as_posix():
+                    return relative.as_posix()
+        job_root_candidates = list(base_dir_path.parents[:4])
+        job_root_candidates.append(base_dir_path)
+        for root_candidate in job_root_candidates:
+            try:
+                relative = path_obj.relative_to(root_candidate)
+            except ValueError:
+                continue
+            if relative.as_posix():
+                return relative.as_posix()
+        return path_obj.name
+
     def _build_sentence_metadata(
         self,
         *,
         block: str,
         audio_segment: Optional[AudioSegment],
         sentence_number: int,
+        original_phase_duration: float = 0.0,
+        translation_phase_duration: float = 0.0,
+        gap_before_translation: float = 0.0,
+        gap_after_translation: float = 0.0,
     ) -> Dict[str, object]:
         header, original_text, translation_text, transliteration_text = _parse_sentence_block(block)
 
@@ -185,6 +213,18 @@ class BatchExporter:
             "translation": len(translation_units),
             "transliteration": len(transliteration_tokens),
         }
+
+        phase_payload: Dict[str, float] = {}
+        if original_phase_duration > 0:
+            phase_payload["original"] = float(original_phase_duration)
+        if gap_before_translation > 0:
+            phase_payload["gap"] = float(gap_before_translation)
+        if translation_phase_duration > 0:
+            phase_payload["translation"] = float(translation_phase_duration)
+        if gap_after_translation > 0:
+            phase_payload["tail"] = float(gap_after_translation)
+        if phase_payload:
+            payload["phase_durations"] = phase_payload
 
         return payload
 
@@ -262,18 +302,79 @@ class BatchExporter:
         audio_segments: List[AudioSegment] = (
             list(request.audio_segments) if request.generate_audio else []
         )
+        audio_track_segments: Dict[str, List[AudioSegment]] = {}
+        silence_ms = max(int(SILENCE_DURATION_MS), 0)
+        silence = AudioSegment.silent(duration=silence_ms)
+        silence_seconds = silence_ms / 1000.0 if silence_ms > 0 else 0.0
+        if request.generate_audio and request.audio_tracks:
+            audio_track_segments = {
+                key: list(segments)
+                for key, segments in request.audio_tracks.items()
+                if segments
+            }
+            orig_segments = audio_track_segments.get("orig")
+            trans_segments = audio_track_segments.get("trans")
+            if orig_segments and trans_segments:
+                combined_segments: List[AudioSegment] = []
+                max_len = max(len(orig_segments), len(trans_segments))
+                for index in range(max_len):
+                    merged = AudioSegment.silent(duration=0)
+                    if index < len(orig_segments):
+                        segment = orig_segments[index]
+                        if segment:
+                            merged += segment
+                    if index < len(orig_segments) and index < len(trans_segments):
+                        merged += silence
+                    if index < len(trans_segments):
+                        segment = trans_segments[index]
+                        if segment:
+                            merged += segment
+                    if index < max_len - 1:
+                        merged += silence
+                    combined_segments.append(merged)
+                if combined_segments:
+                    audio_track_segments["orig_trans"] = combined_segments
         video_blocks: List[str] = list(request.video_blocks)
         sentence_payloads: List[Dict[str, object]] = []
+
+        orig_track_segments = audio_track_segments.get("orig") if audio_track_segments else None
+        trans_track_segments = audio_track_segments.get("trans") if audio_track_segments else None
+        max_track_len = max(
+            len(orig_track_segments) if orig_track_segments else 0,
+            len(trans_track_segments) if trans_track_segments else 0,
+        )
 
         for offset, block in enumerate(video_blocks):
             sentence_number = request.start_sentence + offset
             audio_segment = audio_segments[offset] if offset < len(audio_segments) else None
+            original_phase = 0.0
+            translation_phase = 0.0
+            gap_before_translation = 0.0
+            gap_after_translation = 0.0
+            if orig_track_segments and offset < len(orig_track_segments):
+                segment = orig_track_segments[offset]
+                if segment is not None:
+                    original_phase = float(segment.duration_seconds)
+            if trans_track_segments and offset < len(trans_track_segments):
+                segment = trans_track_segments[offset]
+                if segment is not None:
+                    translation_phase = float(segment.duration_seconds)
+            if original_phase > 0 and translation_phase > 0 and silence_seconds > 0:
+                gap_before_translation = silence_seconds
+            if offset < max_track_len - 1 and silence_seconds > 0 and (original_phase > 0 or translation_phase > 0):
+                gap_after_translation = silence_seconds
             metadata = self._build_sentence_metadata(
                 block=block,
                 audio_segment=audio_segment,
                 sentence_number=sentence_number,
+                original_phase_duration=original_phase,
+                translation_phase_duration=translation_phase,
+                gap_before_translation=gap_before_translation,
+                gap_after_translation=gap_after_translation,
             )
             sentence_payloads.append(metadata)
+
+        track_artifacts: Dict[str, str] = {}
 
         try:
             document_paths = output_formatter.export_batch_documents(
@@ -291,14 +392,37 @@ class BatchExporter:
                 staged_path = writer.stage(Path(created_path))
                 artifacts[kind] = str(staged_path)
 
-            if request.generate_audio and audio_segments:
+            if request.generate_audio and audio_track_segments:
+                for track_key, segments in audio_track_segments.items():
+                    if not segments:
+                        continue
+                    combined_track = AudioSegment.empty()
+                    for segment in segments:
+                        combined_track += segment
+                    suffix = "trans" if track_key == "trans" else track_key
+                    audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}_{suffix}.mp3"
+                    combined_track.export(str(audio_filename), format="mp3", bitrate="320k")
+                    staged_audio = writer.stage(audio_filename)
+                    staged_path = Path(staged_audio)
+                    relative_path = self._job_relative_path(staged_path)
+                    track_artifacts[track_key] = relative_path
+                    if track_key != "trans":
+                        artifacts[f"audio_{track_key}"] = relative_path
+                translation_path = track_artifacts.get("trans")
+                if translation_path:
+                    artifacts.setdefault("audio", translation_path)
+
+            if request.generate_audio and audio_segments and "audio" not in artifacts:
                 combined = AudioSegment.empty()
                 for segment in audio_segments:
                     combined += segment
                 audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}.mp3"
                 combined.export(str(audio_filename), format="mp3", bitrate="320k")
                 staged_audio = writer.stage(audio_filename)
-                artifacts["audio"] = str(staged_audio)
+                staged_path = Path(staged_audio)
+                relative_path = self._job_relative_path(staged_path)
+                artifacts["audio"] = relative_path
+                track_artifacts.setdefault("trans", relative_path)
 
             if request.generate_video and audio_segments and video_blocks:
                 video_output = av_gen.render_video_slides(
@@ -342,6 +466,7 @@ class BatchExporter:
             range_fragment=range_fragment,
             artifacts=artifacts,
             sentences=sentence_payloads,
+            audio_tracks=track_artifacts,
         )
 
 
