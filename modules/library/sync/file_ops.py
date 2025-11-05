@@ -706,6 +706,38 @@ def serialize_media_entries(
                 "files": chunk_files,
                 "sentences": sentences_payload,
             }
+
+            audio_tracks_raw: Optional[Mapping[str, Any]] = None
+            candidate_tracks = summary.get("audio_tracks") or summary.get("audioTracks")
+            if isinstance(candidate_tracks, Mapping):
+                audio_tracks_raw = candidate_tracks
+            else:
+                chunk_audio_tracks = chunk.get("audio_tracks")
+                if isinstance(chunk_audio_tracks, Mapping):
+                    audio_tracks_raw = chunk_audio_tracks
+                else:
+                    chunk_audio_tracks = chunk.get("audioTracks")
+                    if isinstance(chunk_audio_tracks, Mapping):
+                        audio_tracks_raw = chunk_audio_tracks
+
+            if audio_tracks_raw:
+                normalized_tracks: Dict[str, str] = {}
+                for key, value in audio_tracks_raw.items():
+                    if not isinstance(key, str) or not isinstance(value, str):
+                        continue
+                    candidate = value.strip()
+                    if not candidate:
+                        continue
+                    if candidate.startswith("/api/library/"):
+                        normalized_tracks[key] = candidate
+                        continue
+                    sanitized = candidate.lstrip("/")
+                    if not sanitized:
+                        continue
+                    normalized_tracks[key] = build_library_media_url(job_id, sanitized)
+                if normalized_tracks:
+                    chunk_record["audio_tracks"] = normalized_tracks
+
             if isinstance(metadata_path, str) and metadata_path.strip():
                 chunk_record["metadata_path"] = metadata_path
                 chunk_record["metadata_url"] = build_library_media_url(job_id, metadata_path)

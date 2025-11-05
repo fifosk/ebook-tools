@@ -12,6 +12,8 @@ interface PlayerViewProps {
   context: PlayerContext | null;
   jobBookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  onPlaybackStateChange?: (isPlaying: boolean) => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
   onOpenLibraryItem?: (item: LibraryOpenInput) => void;
   selectionRequest?: MediaSelectionRequest | null;
 }
@@ -20,6 +22,8 @@ export default function PlayerView({
   context,
   jobBookMetadata = null,
   onVideoPlaybackStateChange,
+  onPlaybackStateChange,
+  onFullscreenChange,
   onOpenLibraryItem,
   selectionRequest = null
 }: PlayerViewProps) {
@@ -38,6 +42,8 @@ export default function PlayerView({
       <JobDetail
         jobId={context.jobId}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
+        onPlaybackStateChange={onPlaybackStateChange}
+        onFullscreenChange={onFullscreenChange}
         bookMetadata={jobBookMetadata}
         onOpenLibraryItem={onOpenLibraryItem}
         selectionRequest={selectionRequest}
@@ -49,10 +55,12 @@ export default function PlayerView({
 
   useEffect(() => {
     onVideoPlaybackStateChange?.(false);
+    onPlaybackStateChange?.(false);
     return () => {
       onVideoPlaybackStateChange?.(false);
+      onPlaybackStateChange?.(false);
     };
-  }, [context.jobId, onVideoPlaybackStateChange]);
+  }, [context.jobId, onPlaybackStateChange, onVideoPlaybackStateChange]);
 
   return (
     <section className="job-detail" aria-label={`Player for library job ${context.jobId}`}>
@@ -65,6 +73,8 @@ export default function PlayerView({
         error={error}
         bookMetadata={context.bookMetadata ?? null}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
+        onPlaybackStateChange={onPlaybackStateChange}
+        onFullscreenChange={onFullscreenChange}
         origin="library"
         onOpenLibraryItem={onOpenLibraryItem}
         selectionRequest={selectionRequest}

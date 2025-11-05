@@ -1,10 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { UIEvent } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import type { ChangeEvent, UIEvent } from 'react';
 import VideoPlayer from './VideoPlayer';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
-import { extractTextFromHtml, formatFileSize, formatTimestamp } from '../utils/mediaFormatters';
+import { extractTextFromHtml } from '../utils/mediaFormatters';
+import {
+  DEFAULT_TRANSLATION_SPEED,
+  TRANSLATION_SPEED_MAX,
+  TRANSLATION_SPEED_MIN,
+  TRANSLATION_SPEED_STEP,
+  formatTranslationSpeedLabel,
+  normaliseTranslationSpeed,
+  type TranslationSpeed,
+} from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
@@ -30,6 +39,8 @@ interface PlayerPanelProps {
   error: Error | null;
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  onPlaybackStateChange?: (isPlaying: boolean) => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
   origin?: 'job' | 'library';
   onOpenLibraryItem?: (item: LibraryOpenInput) => void;
   selectionRequest?: MediaSelectionRequest | null;
@@ -70,6 +81,12 @@ interface NavigationControlsProps {
   onToggleOriginalAudio?: () => void;
   originalAudioEnabled?: boolean;
   disableOriginalAudioToggle?: boolean;
+  showTranslationSpeed: boolean;
+  translationSpeed: TranslationSpeed;
+  translationSpeedMin: number;
+  translationSpeedMax: number;
+  translationSpeedStep: number;
+  onTranslationSpeedChange: (value: TranslationSpeed) => void;
 }
 
 function NavigationControls({
@@ -94,6 +111,12 @@ function NavigationControls({
   onToggleOriginalAudio,
   originalAudioEnabled = false,
   disableOriginalAudioToggle = false,
+  showTranslationSpeed,
+  translationSpeed,
+  translationSpeedMin,
+  translationSpeedMax,
+  translationSpeedStep,
+  onTranslationSpeedChange,
 }: NavigationControlsProps) {
   const inlineAudioId =
     context === 'fullscreen' ? 'player-panel-inline-audio-fullscreen' : 'player-panel-inline-audio';
@@ -116,6 +139,15 @@ function NavigationControls({
   const originalToggleTitle = disableOriginalAudioToggle
     ? 'Original audio will appear after interactive assets regenerate'
     : 'Toggle Original Audio';
+  const sliderId = useId();
+  const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
+  const handleSpeedChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const raw = Number.parseFloat(event.target.value);
+    if (!Number.isFinite(raw)) {
+      return;
+    }
+    onTranslationSpeedChange(raw);
+  };
 
   return (
     <div className={groupClassName}>
@@ -196,6 +228,34 @@ function NavigationControls({
           <span aria-hidden="true">⛶</span>
         </button>
       </div>
+      {showTranslationSpeed ? (
+        <div className="player-panel__nav-speed" data-testid="player-panel-speed">
+          <label className="player-panel__nav-speed-label" htmlFor={sliderId}>
+            Translation speed
+          </label>
+          <div className="player-panel__nav-speed-control">
+            <input
+              id={sliderId}
+              type="range"
+              className="player-panel__nav-speed-slider"
+              min={translationSpeedMin}
+              max={translationSpeedMax}
+              step={translationSpeedStep}
+              value={translationSpeed}
+              onChange={handleSpeedChange}
+              aria-label="Translation speed"
+              aria-valuetext={formattedSpeed}
+            />
+            <span className="player-panel__nav-speed-value" aria-live="polite">
+              {formattedSpeed}
+            </span>
+          </div>
+          <div className="player-panel__nav-speed-scale" aria-hidden="true">
+            <span>{formatTranslationSpeedLabel(translationSpeedMin)}</span>
+            <span>{formatTranslationSpeedLabel(translationSpeedMax)}</span>
+          </div>
+        </div>
+      ) : null}
       {showInlineAudio && inlineAudioOptions.length > 0 ? (
         <div className={inlineAudioClassName} role="group" aria-label="Synchronized audio">
           <label className="player-panel__inline-audio-label" htmlFor={inlineAudioId}>
@@ -296,6 +356,24 @@ function normaliseLookupToken(value: string | null | undefined): string | null {
     return derived;
   }
   return trimmed.toLowerCase();
+}
+
+function normaliseAudioSignature(value: string | null | undefined): string {
+  if (!value) {
+    return '';
+  }
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
+
+function isCombinedAudioCandidate(...values: (string | null | undefined)[]): boolean {
+  return values.some((value) => normaliseAudioSignature(value).includes('origtrans'));
+}
+
+function isOriginalAudioCandidate(...values: (string | null | undefined)[]): boolean {
+  return values.some((value) => {
+    const signature = normaliseAudioSignature(value);
+    return signature.includes('orig') && !signature.includes('origtrans');
+  });
 }
 
 function findChunkIndexForBaseId(baseId: string | null, chunks: LiveMediaChunk[]): number {
@@ -528,6 +606,8 @@ export default function PlayerPanel({
   error,
   bookMetadata = null,
   onVideoPlaybackStateChange,
+  onPlaybackStateChange,
+  onFullscreenChange,
   origin = 'job',
   onOpenLibraryItem,
   selectionRequest = null,
@@ -570,8 +650,23 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
+  const resolveStoredInteractiveFullscreenPreference = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.localStorage.getItem('player.textFullscreenPreferred') === 'true';
+  };
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
-  const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState(false);
+  const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState<boolean>(() =>
+    resolveStoredInteractiveFullscreenPreference(),
+  );
+  const interactiveFullscreenPreferenceRef = useRef<boolean>(isInteractiveFullscreen);
+  const updateInteractiveFullscreenPreference = useCallback((next: boolean) => {
+    interactiveFullscreenPreferenceRef.current = next;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('player.textFullscreenPreferred', next ? 'true' : 'false');
+    }
+  }, []);
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
@@ -589,6 +684,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const inlineAudioBaseRef = useRef<string | null>(null);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
+  const [translationSpeed, setTranslationSpeed] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
 
   useEffect(() => {
     if (!selectionRequest) {
@@ -1031,6 +1127,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   useEffect(() => {
     onVideoPlaybackStateChange?.(isVideoPlaying);
   }, [isVideoPlaying, onVideoPlaybackStateChange]);
+  useEffect(() => {
+    onPlaybackStateChange?.(isVideoPlaying || isInlineAudioPlaying);
+  }, [isInlineAudioPlaying, isVideoPlaying, onPlaybackStateChange]);
 
   useEffect(() => {
     if (!isVideoTabActive && isVideoPlaying) {
@@ -1228,12 +1327,12 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     return activeTextChunk;
   }, [activeTextChunk, chunkMetadataStore]);
   const activeAudioTracks = useMemo(() => {
-    const chunkId = resolvedActiveTextChunk?.chunkId;
-    if (!chunkId || !normalisedJobId) {
+    const chunkRef = resolvedActiveTextChunk;
+    if (!normalisedJobId || !chunkRef) {
       return null;
     }
-    const tracks = resolvedActiveTextChunk.audioTracks ?? null;
-    const files = resolvedActiveTextChunk.files ?? [];
+    const tracks = chunkRef.audioTracks ?? null;
+    const files = chunkRef.files ?? [];
     const mapping: Record<string, string> = {};
 
     const normaliseSource = (source: string | null | undefined) => {
@@ -1244,8 +1343,18 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       if (!trimmed) {
         return null;
       }
-      if (trimmed.includes('://') || trimmed.startsWith('/')) {
+      if (trimmed.includes('://')) {
         return trimmed;
+      }
+      if (trimmed.startsWith('/')) {
+        if (origin === 'library') {
+          return appendAccessToken(trimmed);
+        }
+        return trimmed;
+      }
+      if (origin === 'library') {
+        const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);
+        return resolved ?? appendAccessToken(trimmed);
       }
       return buildStorageUrl(trimmed, normalisedJobId);
     };
@@ -1277,14 +1386,14 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       if (file.type !== 'audio') {
         return;
       }
-      const relativePath = typeof file.relative_path === 'string' ? file.relative_path.toLowerCase() : '';
-      const displayName = typeof file.name === 'string' ? file.name.toLowerCase() : '';
-      const isCombinedCandidate = relativePath.includes('_orig-trans') || displayName.includes('_orig-trans');
+      const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
+      const displayName = typeof file.name === 'string' ? file.name : '';
+      const isCombinedCandidate = isCombinedAudioCandidate(relativePath, displayName);
       if (isCombinedCandidate && typeof file.url === 'string') {
         registerTrack('orig_trans', file.url);
         return;
       }
-      const isOriginalCandidate = relativePath.includes('_orig') || displayName.includes('_orig');
+      const isOriginalCandidate = isOriginalAudioCandidate(relativePath, displayName);
       if (isOriginalCandidate && typeof file.url === 'string') {
         registerTrack('orig', file.url);
         return;
@@ -1295,7 +1404,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     });
 
     return Object.keys(mapping).length > 0 ? mapping : null;
-  }, [normalisedJobId, resolvedActiveTextChunk]);
+  }, [normalisedJobId, origin, resolvedActiveTextChunk]);
   const inlineAudioOptions = useMemo(() => {
     const seen = new Set<string>();
     const options: { url: string; label: string }[] = [];
@@ -1316,9 +1425,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         if (file.type !== 'audio' || !file.url) {
           return;
         }
-        const relativePath = typeof file.relative_path === 'string' ? file.relative_path.toLowerCase() : '';
-        const displayName = typeof file.name === 'string' ? file.name.toLowerCase() : '';
-        if (relativePath.includes('_orig') || displayName.includes('_orig')) {
+        const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
+        const displayName = typeof file.name === 'string' ? file.name : '';
+        if (isOriginalAudioCandidate(relativePath, displayName) && !isCombinedAudioCandidate(relativePath, displayName)) {
           return;
         }
         const label =
@@ -1610,73 +1719,43 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
   const handleInteractiveFullscreenToggle = useCallback(() => {
     if (!isTextTabActive || !canRenderInteractiveViewer) {
+      updateInteractiveFullscreenPreference(false);
       setIsInteractiveFullscreen(false);
       return;
     }
-    setIsInteractiveFullscreen((current) => !current);
-  }, [canRenderInteractiveViewer, isTextTabActive]);
+    setIsInteractiveFullscreen((current) => {
+      const next = !current;
+      updateInteractiveFullscreenPreference(next);
+      return next;
+    });
+  }, [canRenderInteractiveViewer, isTextTabActive, updateInteractiveFullscreenPreference]);
 
   const handleExitInteractiveFullscreen = useCallback(() => {
+    updateInteractiveFullscreenPreference(false);
     setIsInteractiveFullscreen(false);
-  }, []);
+  }, [updateInteractiveFullscreenPreference]);
   const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
   const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
   useEffect(() => {
     if (!isTextTabActive) {
-      setIsInteractiveFullscreen(false);
+      if (isInteractiveFullscreen) {
+        setIsInteractiveFullscreen(false);
+      }
     }
-  }, [isTextTabActive]);
+  }, [isInteractiveFullscreen, isTextTabActive]);
 
   useEffect(() => {
     if (!canRenderInteractiveViewer) {
-      setIsInteractiveFullscreen(false);
-    }
-  }, [canRenderInteractiveViewer]);
-  const selectedTimestamp = selectedItem ? formatTimestamp(selectedItem.updated_at ?? null) : null;
-  const selectedSize = selectedItem ? formatFileSize(selectedItem.size ?? null) : null;
-  const activeChunkLabel = useMemo(() => {
-    if (!resolvedActiveTextChunk) {
-      return null;
-    }
-    if (inlineAudioSelection) {
-      const mappedName = interactiveAudioNameMap.get(inlineAudioSelection);
-      if (mappedName) {
-        return mappedName;
+      if (isInteractiveFullscreen) {
+        setIsInteractiveFullscreen(false);
       }
+      return;
     }
-    if (activeTextChunkIndex >= 0) {
-      const chunkAudioLabel = resolvedActiveTextChunk.files
-        .filter((file) => file.type === 'audio' && file.url)
-        .map((file) => {
-          const byMap = interactiveAudioNameMap.get(file.url ?? '');
-          if (byMap) {
-            return byMap;
-          }
-          return typeof file.name === 'string' ? file.name.trim() : '';
-        })
-        .find((value) => value && value.length > 0);
-      if (chunkAudioLabel) {
-        return chunkAudioLabel;
-      }
-      return formatChunkLabel(resolvedActiveTextChunk, activeTextChunkIndex);
+    if (interactiveFullscreenPreferenceRef.current && !isInteractiveFullscreen) {
+      updateInteractiveFullscreenPreference(true);
+      setIsInteractiveFullscreen(true);
     }
-    return resolvedActiveTextChunk.rangeFragment ?? null;
-  }, [activeTextChunkIndex, inlineAudioSelection, interactiveAudioNameMap, resolvedActiveTextChunk]);
-  const activeChunkRange = resolvedActiveTextChunk
-    ? formatSentenceRange(
-        resolvedActiveTextChunk.startSentence ?? null,
-        resolvedActiveTextChunk.endSentence ?? null,
-      )
-    : null;
-  const selectionTitle =
-    selectedItem?.name ??
-    activeChunkLabel ??
-    (resolvedActiveTextChunk ? 'Interactive chunk' : 'No media selected');
-  const selectionLabel = selectedItem
-    ? `Selected media: ${selectedItem.name}`
-    : resolvedActiveTextChunk
-    ? `Interactive chunk: ${activeChunkLabel ?? 'Chunk'}`
-    : 'No media selected';
+  }, [canRenderInteractiveViewer, isInteractiveFullscreen, updateInteractiveFullscreenPreference]);
   const hasTextItems = media.text.length > 0;
   const navigableItems = useMemo(
     () =>
@@ -1736,6 +1815,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       : false;
   const isPlaybackDisabled = !playbackControlsAvailable;
   const isFullscreenDisabled = !isTextTabActive || !canRenderInteractiveViewer;
+  const handleTranslationSpeedChange = useCallback((speed: TranslationSpeed) => {
+    setTranslationSpeed(normaliseTranslationSpeed(speed));
+  }, []);
 
   const handleAdvanceMedia = useCallback(
     (category: MediaCategory) => {
@@ -2272,6 +2354,11 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   }, [normalisedJobId]);
 
   useEffect(() => {
+    const fullscreenActive = isInteractiveFullscreen || isImmersiveMode;
+    onFullscreenChange?.(fullscreenActive);
+  }, [isInteractiveFullscreen, isImmersiveMode, onFullscreenChange]);
+
+  useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -2328,6 +2415,12 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
       disableOriginalAudioToggle={!hasCombinedAudio}
+      showTranslationSpeed={selectedMediaType === 'text'}
+      translationSpeed={translationSpeed}
+      translationSpeedMin={TRANSLATION_SPEED_MIN}
+      translationSpeedMax={TRANSLATION_SPEED_MAX}
+      translationSpeedStep={TRANSLATION_SPEED_STEP}
+      onTranslationSpeedChange={handleTranslationSpeedChange}
     />
   );
   const fullscreenNavigationGroup = isInteractiveFullscreen ? (
@@ -2353,6 +2446,12 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
       disableOriginalAudioToggle={!hasCombinedAudio}
+      showTranslationSpeed={selectedMediaType === 'text'}
+      translationSpeed={translationSpeed}
+      translationSpeedMin={TRANSLATION_SPEED_MIN}
+      translationSpeedMax={TRANSLATION_SPEED_MAX}
+      translationSpeedStep={TRANSLATION_SPEED_STEP}
+      onTranslationSpeedChange={handleTranslationSpeedChange}
     />
   ) : null;
 
@@ -2528,8 +2627,10 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                                 </>
                               ) : null
                             }
+                              translationSpeed={translationSpeed}
                               audioTracks={activeAudioTracks}
                               originalAudioEnabled={effectiveOriginalAudioEnabled}
+                              fontScale={isInteractiveFullscreen ? 1.35 : 1}
                           />
                           ) : (
                             <div className="player-panel__document-status" role="status">
@@ -2538,28 +2639,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                           )}
                         </div>
                       ) : null}
-                    </div>
-                    <div className="player-panel__selection-header" data-testid="player-panel-selection">
-                      <div
-                        className="player-panel__selection-name"
-                        title={selectionTitle}
-                      >
-                        {selectionLabel}
-                      </div>
-                      <dl className="player-panel__selection-meta">
-                        <div className="player-panel__selection-meta-item">
-                          <dt>Created</dt>
-                          <dd>{selectedTimestamp ?? '—'}</dd>
-                        </div>
-                        <div className="player-panel__selection-meta-item">
-                          <dt>File size</dt>
-                          <dd>{selectedSize ?? '—'}</dd>
-                        </div>
-                        <div className="player-panel__selection-meta-item">
-                          <dt>Sentences</dt>
-                          <dd>{formatSentenceRange(resolvedActiveTextChunk?.startSentence ?? null, resolvedActiveTextChunk?.endSentence ?? null)}</dd>
-                        </div>
-                      </dl>
                     </div>
                   </div>
                 ) : null

@@ -5,7 +5,7 @@ from __future__ import annotations
 import mimetypes
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Literal, Optional
+from typing import Any, Dict, Literal, Mapping, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
@@ -279,6 +279,8 @@ async def get_library_media(
     serialized_chunks: list[PipelineMediaChunk] = []
     for chunk in chunk_records:
         files = [PipelineMediaFile.model_validate(entry) for entry in chunk.get("files", [])]
+        raw_tracks = chunk.get("audio_tracks") or {}
+        audio_tracks = dict(raw_tracks) if isinstance(raw_tracks, Mapping) else {}
         serialized_chunks.append(
             PipelineMediaChunk(
                 chunk_id=chunk.get("chunk_id"),
@@ -290,6 +292,7 @@ async def get_library_media(
                 metadata_path=chunk.get("metadata_path"),
                 metadata_url=chunk.get("metadata_url"),
                 sentence_count=chunk.get("sentence_count"),
+                audio_tracks=audio_tracks,
             )
         )
 
