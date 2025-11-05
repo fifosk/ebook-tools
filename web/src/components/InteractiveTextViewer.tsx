@@ -117,6 +117,8 @@ interface InteractiveTextViewerProps {
   fullscreenControls?: ReactNode;
   audioTracks?: Record<string, string> | null;
   originalAudioEnabled?: boolean;
+  translationSpeed?: number;
+  fontScale?: number;
 }
 
 type SegmenterInstance = {
@@ -310,9 +312,19 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     fullscreenControls,
     audioTracks = null,
     originalAudioEnabled = false,
+    translationSpeed = 1,
+    fontScale = 1,
   },
   forwardedRef,
 ) {
+  void translationSpeed;
+  const safeFontScale = useMemo(() => {
+    if (!Number.isFinite(fontScale) || fontScale <= 0) {
+      return 1;
+    }
+    const clamped = Math.min(Math.max(fontScale, 0.5), 3);
+    return Math.round(clamped * 100) / 100;
+  }, [fontScale]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
@@ -1237,6 +1249,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         className="player-panel__document-body player-panel__interactive-body"
         data-testid="player-panel-document"
         onScroll={handleScroll}
+        style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
       >
         {textPlayerSentences && textPlayerSentences.length > 0 ? (
           <TextPlayer sentences={textPlayerSentences} onSeek={handleTokenSeek} />
