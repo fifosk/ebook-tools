@@ -31,6 +31,7 @@ export interface LiveMediaChunk {
   metadataPath?: string | null;
   metadataUrl?: string | null;
   sentenceCount?: number | null;
+  audioTracks?: Record<string, string> | null;
 }
 
 export interface UseLiveMediaOptions {
@@ -115,6 +116,52 @@ function groupFilesByType(filesSection: unknown): Record<string, unknown[]> {
   return grouped;
 }
 
+function extractAudioTracks(source: unknown): Record<string, string> | null {
+  if (!source || typeof source !== 'object') {
+    return null;
+  }
+  const entries: Record<string, string> = {};
+  const register = (key: string | null, value: unknown) => {
+    if (!key || typeof value !== 'string') {
+      return;
+    }
+    const trimmedKey = key.trim();
+    const trimmedValue = value.trim();
+    if (!trimmedKey || !trimmedValue) {
+      return;
+    }
+    entries[trimmedKey] = trimmedValue;
+  };
+
+  if (Array.isArray(source)) {
+    source.forEach((entry) => {
+      if (!entry || typeof entry !== 'object') {
+        return;
+      }
+      const record = entry as Record<string, unknown>;
+      const key =
+        typeof record.key === 'string'
+          ? record.key
+          : typeof record.kind === 'string'
+            ? record.kind
+            : null;
+      register(key, record.url);
+    });
+  } else {
+    Object.entries(source as Record<string, unknown>).forEach(([key, value]) => {
+      register(key, value);
+    });
+  }
+
+  return Object.keys(entries).length > 0 ? entries : null;
+}
+
+function hasAudioTracks(
+  tracks: Record<string, string> | null | undefined,
+): tracks is Record<string, string> {
+  return Boolean(tracks && Object.keys(tracks).length > 0);
+}
+
 function buildStateFromSections(
   mediaSection: Record<string, unknown[] | undefined>,
   chunkSection: unknown,
@@ -188,6 +235,11 @@ function buildStateFromSections(
       const sentences = Array.isArray(sentencesRaw)
         ? (sentencesRaw as ChunkSentenceMetadata[])
         : [];
+      const audioTracks =
+        extractAudioTracks(
+          (payload.audio_tracks as Record<string, unknown> | undefined) ??
+            (payload.audioTracks as Record<string, unknown> | undefined),
+        ) ?? null;
       const sentenceCount =
         typeof rawSentenceCount === 'number' && Number.isFinite(rawSentenceCount)
           ? rawSentenceCount
@@ -204,6 +256,7 @@ function buildStateFromSections(
         metadataPath,
         metadataUrl,
         sentenceCount,
+        audioTracks,
       });
     });
   }
@@ -512,6 +565,14 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
             : mergedSentences && mergedSentences.length > 0
               ? mergedSentences.length
               : null;
+    let mergedAudioTracks: Record<string, string> | null = null;
+    if (hasAudioTracks(update.audioTracks)) {
+      mergedAudioTracks = update.audioTracks;
+    } else if (hasAudioTracks(current.audioTracks)) {
+      mergedAudioTracks = current.audioTracks;
+    } else if (update.audioTracks === null || current.audioTracks === null) {
+      mergedAudioTracks = null;
+    }
 
     return {
       ...current,
@@ -519,6 +580,7 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
       files: mergedFiles,
       sentences: mergedSentences,
       sentenceCount,
+      audioTracks: mergedAudioTracks ?? null,
     };
   };
 
