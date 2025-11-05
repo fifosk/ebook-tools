@@ -97,6 +97,7 @@ export function App() {
   const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
+  const [isPlayerFullscreen, setIsPlayerFullscreen] = useState(false);
   const [isAccountExpanded, setIsAccountExpanded] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -558,18 +559,35 @@ export function App() {
     [isAdmin, jobs, refreshJobs, sessionUsername]
   );
 
-  const handleVideoPlaybackStateChange = useCallback((isPlaying: boolean) => {
-    setIsImmersiveMode((previous) => {
-      if (previous === isPlaying) {
-        return previous;
+  const handleVideoPlaybackStateChange = useCallback(
+    (isPlaying: boolean) => {
+      if (isPlayerFullscreen) {
+        return;
       }
-      return isPlaying;
-    });
-  }, []);
+      setIsImmersiveMode((previous) => {
+        if (previous === isPlaying) {
+          return previous;
+        }
+        return isPlaying;
+      });
+    },
+    [isPlayerFullscreen]
+  );
 
   const handleSidebarToggle = useCallback(() => {
+    if (isPlayerFullscreen) {
+      return;
+    }
     setIsSidebarOpen((previous) => !previous);
-  }, []);
+  }, [isPlayerFullscreen]);
+
+  const handlePlayerFullscreenChange = useCallback(
+    (isFullscreen: boolean) => {
+      setIsPlayerFullscreen(isFullscreen);
+      setIsImmersiveMode(isFullscreen);
+    },
+    []
+  );
 
   const handlePauseJob = useCallback(
     async (jobId: string) => {
@@ -1220,6 +1238,7 @@ export function App() {
                     context={playerContext}
                     jobBookMetadata={playerJobMetadata}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
+                    onFullscreenChange={handlePlayerFullscreenChange}
                     onOpenLibraryItem={handlePlayLibraryItem}
                     selectionRequest={playerSelection}
                   />

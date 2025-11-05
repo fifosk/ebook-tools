@@ -40,6 +40,7 @@ interface PlayerPanelProps {
   bookMetadata?: Record<string, unknown> | null;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
+  onFullscreenChange?: (isFullscreen: boolean) => void;
   origin?: 'job' | 'library';
   onOpenLibraryItem?: (item: LibraryOpenInput) => void;
   selectionRequest?: MediaSelectionRequest | null;
@@ -606,6 +607,7 @@ export default function PlayerPanel({
   bookMetadata = null,
   onVideoPlaybackStateChange,
   onPlaybackStateChange,
+  onFullscreenChange,
   origin = 'job',
   onOpenLibraryItem,
   selectionRequest = null,
@@ -648,9 +650,23 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
+  const resolveStoredInteractiveFullscreenPreference = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    return window.localStorage.getItem('player.textFullscreenPreferred') === 'true';
+  };
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
-  const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState(false);
-  const interactiveFullscreenPreferenceRef = useRef(false);
+  const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState<boolean>(() =>
+    resolveStoredInteractiveFullscreenPreference(),
+  );
+  const interactiveFullscreenPreferenceRef = useRef<boolean>(isInteractiveFullscreen);
+  const updateInteractiveFullscreenPreference = useCallback((next: boolean) => {
+    interactiveFullscreenPreferenceRef.current = next;
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('player.textFullscreenPreferred', next ? 'true' : 'false');
+    }
+  }, []);
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
   const isVideoTabActive = selectedMediaType === 'video';
@@ -1703,21 +1719,21 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
   const handleInteractiveFullscreenToggle = useCallback(() => {
     if (!isTextTabActive || !canRenderInteractiveViewer) {
-      interactiveFullscreenPreferenceRef.current = false;
+      updateInteractiveFullscreenPreference(false);
       setIsInteractiveFullscreen(false);
       return;
     }
     setIsInteractiveFullscreen((current) => {
       const next = !current;
-      interactiveFullscreenPreferenceRef.current = next;
+      updateInteractiveFullscreenPreference(next);
       return next;
     });
-  }, [canRenderInteractiveViewer, isTextTabActive]);
+  }, [canRenderInteractiveViewer, isTextTabActive, updateInteractiveFullscreenPreference]);
 
   const handleExitInteractiveFullscreen = useCallback(() => {
-    interactiveFullscreenPreferenceRef.current = false;
+    updateInteractiveFullscreenPreference(false);
     setIsInteractiveFullscreen(false);
-  }, []);
+  }, [updateInteractiveFullscreenPreference]);
   const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
   const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
   useEffect(() => {
@@ -1725,7 +1741,6 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       if (isInteractiveFullscreen) {
         setIsInteractiveFullscreen(false);
       }
-      interactiveFullscreenPreferenceRef.current = false;
     }
   }, [isInteractiveFullscreen, isTextTabActive]);
 
@@ -1737,9 +1752,10 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       return;
     }
     if (interactiveFullscreenPreferenceRef.current && !isInteractiveFullscreen) {
+      updateInteractiveFullscreenPreference(true);
       setIsInteractiveFullscreen(true);
     }
-  }, [canRenderInteractiveViewer, isInteractiveFullscreen]);
+  }, [canRenderInteractiveViewer, isInteractiveFullscreen, updateInteractiveFullscreenPreference]);
   const hasTextItems = media.text.length > 0;
   const navigableItems = useMemo(
     () =>
@@ -2332,11 +2348,15 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   useEffect(() => {
     setIsImmersiveMode(false);
     setIsInteractiveFullscreen(false);
-    interactiveFullscreenPreferenceRef.current = false;
     setPendingSelection(null);
     setPendingChunkSelection(null);
     setPendingTextScrollRatio(null);
   }, [normalisedJobId]);
+
+  useEffect(() => {
+    const fullscreenActive = isInteractiveFullscreen || isImmersiveMode;
+    onFullscreenChange?.(fullscreenActive);
+  }, [isInteractiveFullscreen, isImmersiveMode, onFullscreenChange]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
