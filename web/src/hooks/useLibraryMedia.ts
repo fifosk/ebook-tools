@@ -104,11 +104,45 @@ function tokeniseChunks(
       metadataUrl = resolveLibraryMediaUrl(normalisedJobId, chunk.metadataPath);
     }
     const tokenisedMetadataUrl = tokeniseUrl(metadataUrl);
+    const sourceTracks = chunk.audioTracks ?? null;
+    let tokenisedTracks: Record<string, string> | undefined;
+    if (sourceTracks && typeof sourceTracks === 'object') {
+      const entries: Record<string, string> = {};
+      Object.entries(sourceTracks).forEach(([key, rawValue]) => {
+        if (typeof rawValue !== 'string') {
+          return;
+        }
+        const trimmed = rawValue.trim();
+        if (!trimmed) {
+          return;
+        }
+        let resolved = trimmed;
+        if (normalisedJobId && !trimmed.includes('://')) {
+          if (trimmed.startsWith('/api/library/')) {
+            resolved = trimmed;
+          } else {
+            const relative = trimmed.replace(/^\/+/, '');
+            const libraryResolved = resolveLibraryMediaUrl(normalisedJobId, relative);
+            if (libraryResolved) {
+              resolved = libraryResolved;
+            }
+          }
+        }
+        const tokenised = tokeniseUrl(resolved);
+        if (tokenised) {
+          entries[key] = tokenised;
+        }
+      });
+      if (Object.keys(entries).length > 0) {
+        tokenisedTracks = entries;
+      }
+    }
 
     return {
       ...chunk,
       metadataUrl: tokenisedMetadataUrl,
       files: chunk.files.map((file) => ({ ...file, url: tokeniseUrl(file.url) })),
+      audioTracks: tokenisedTracks ?? chunk.audioTracks,
     };
   });
 }

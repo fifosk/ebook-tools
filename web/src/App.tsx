@@ -33,6 +33,8 @@ import ChangePasswordForm from './components/ChangePasswordForm';
 import UserManagementPanel from './components/admin/UserManagementPanel';
 import { resolveMediaCompletion } from './utils/mediaFormatters';
 import { buildLibraryBookMetadata } from './utils/libraryMetadata';
+import type { LibraryOpenInput, MediaSelectionRequest } from './types/player';
+import { isLibraryOpenRequest } from './types/player';
 
 interface JobRegistryEntry {
   status: PipelineStatusResponse;
@@ -91,6 +93,7 @@ export function App() {
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
+  const [playerSelection, setPlayerSelection] = useState<MediaSelectionRequest | null>(null);
   const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
@@ -222,6 +225,7 @@ export function App() {
       setMutatingJobs({});
       setActiveJobId(null);
       setPlayerContext(null);
+      setPlayerSelection(null);
       setSelectedView('pipeline:source');
       return;
     }
@@ -277,6 +281,7 @@ export function App() {
       }
       if (playerContext.type === 'job' && !jobs[playerContext.jobId]) {
         setPlayerContext(null);
+        setPlayerSelection(null);
         setSelectedView('pipeline:submit');
       }
     }
@@ -289,6 +294,7 @@ export function App() {
     }
     if (selectedView === JOB_MEDIA_VIEW && playerContext?.type === 'job' && !activeJobId) {
       setPlayerContext(null);
+      setPlayerSelection(null);
       setSelectedView('pipeline:submit');
     }
   }, [activeJobId, playerContext, selectedView]);
@@ -302,6 +308,7 @@ export function App() {
     }
     if (activeJobId && playerContext.jobId !== activeJobId) {
       setPlayerContext({ type: 'job', jobId: activeJobId });
+      setPlayerSelection(null);
     }
   }, [activeJobId, playerContext, selectedView]);
 
@@ -560,6 +567,10 @@ export function App() {
     });
   }, []);
 
+  const handleSidebarToggle = useCallback(() => {
+    setIsSidebarOpen((previous) => !previous);
+  }, []);
+
   const handlePauseJob = useCallback(
     async (jobId: string) => {
       await performJobAction(jobId, 'pause');
@@ -650,26 +661,51 @@ export function App() {
       return;
     }
     setPlayerContext({ type: 'job', jobId: activeJobId });
+    setPlayerSelection(null);
     setSelectedView(JOB_MEDIA_VIEW);
     setIsImmersiveMode(false);
   }, [activeJobId]);
 
   const handlePlayLibraryItem = useCallback(
-    (entry: LibraryItem | string) => {
+    (entry: LibraryOpenInput) => {
+      let jobId: string | null = null;
+      let metadata: Record<string, unknown> | null = null;
+      let selection: MediaSelectionRequest | null = null;
+
       if (typeof entry === 'string') {
-        setPlayerContext({
-          type: 'library',
-          jobId: entry,
-          bookMetadata: null
-        });
+        jobId = entry;
+      } else if (isLibraryOpenRequest(entry)) {
+        jobId = entry.jobId;
+        selection = entry.selection ?? null;
+        if (entry.item) {
+          metadata = buildLibraryBookMetadata(entry.item);
+        }
       } else {
-        const metadata = buildLibraryBookMetadata(entry);
-        setPlayerContext({
-          type: 'library',
-          jobId: entry.jobId,
-          bookMetadata: metadata
-        });
+        const item = entry as LibraryItem;
+        jobId = item.jobId;
+        metadata = buildLibraryBookMetadata(item);
       }
+
+      if (!jobId) {
+        return;
+      }
+
+      setPlayerContext({
+        type: 'library',
+        jobId,
+        bookMetadata: metadata
+      });
+      setPlayerSelection(
+        selection
+          ? {
+              baseId: selection.baseId,
+              preferredType: selection.preferredType ?? null,
+              offsetRatio: selection.offsetRatio ?? null,
+              approximateTime: selection.approximateTime ?? null,
+              token: selection.token ?? Date.now()
+            }
+          : null
+      );
       setActiveJobId(null);
       setSelectedView(JOB_MEDIA_VIEW);
       setIsImmersiveMode(false);
@@ -931,7 +967,7 @@ export function App() {
           <button
             type="button"
             className="sidebar__collapse-toggle"
-            onClick={() => setIsSidebarOpen((previous) => !previous)}
+            onClick={handleSidebarToggle}
             aria-expanded={isSidebarOpen}
             aria-controls="dashboard-sidebar"
           >
@@ -1185,6 +1221,7 @@ export function App() {
                     jobBookMetadata={playerJobMetadata}
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
                     onOpenLibraryItem={handlePlayLibraryItem}
+                    selectionRequest={playerSelection}
                   />
                 </section>
               ) : null}
