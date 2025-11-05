@@ -363,6 +363,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const translationPhaseDurationOverride = phaseDurations && typeof phaseDurations.translation === 'number'
         ? Math.max(phaseDurations.translation, 0)
         : null;
+      const highlightOriginal = useCombinedPhases && originalTokens.length > 0 && originalPhaseDuration > 0;
 
       const eventDurationTotal = events.reduce((total, event) => {
         const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
@@ -425,13 +426,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         );
 
         distributeRevealTimes(
-          prevOriginal,
-          nextOriginal,
-          eventStart,
-          adjustedDuration,
-          originalReveal,
-        );
-        distributeRevealTimes(
           prevTranslation,
           nextTranslation,
           eventStart,
@@ -469,7 +463,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const translationEnd = translationStart + translationDuration;
       const endTime = sentenceStart + sentenceDuration;
 
-      if (useCombinedPhases && originalPhaseDuration > 0 && originalTokens.length > 0) {
+      if (highlightOriginal) {
         originalReveal.length = 0;
         const step = originalPhaseDuration / originalTokens.length;
         for (let i = 1; i <= originalTokens.length; i += 1) {
@@ -478,7 +472,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         }
       }
 
-      fillRemainTimes(originalReveal, originalTokens.length, useCombinedPhases && originalPhaseDuration > 0 ? originalEnd : endTime);
+      if (highlightOriginal) {
+        fillRemainTimes(originalReveal, originalTokens.length, originalEnd);
+      } else {
+        originalReveal.length = 0;
+      }
       fillRemainTimes(translationReveal, translationTokens.length, useCombinedPhases ? translationEnd : endTime);
       fillRemainTimes(transliterationReveal, transliterationTokens.length, useCombinedPhases ? translationEnd : endTime);
 

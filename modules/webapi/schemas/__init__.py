@@ -6,7 +6,7 @@ from datetime import datetime
 import copy
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from ...core.config import PipelineConfig
 from ...progress_tracker import ProgressEvent, ProgressSnapshot
@@ -451,6 +451,12 @@ class PipelineMediaFile(BaseModel):
     start_sentence: Optional[int] = None
     end_sentence: Optional[int] = None
     type: Optional[str] = None
+
+    @field_serializer("updated_at")
+    def _serialize_updated_at(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        return value.isoformat()
 
 
 class ChunkSentenceTimelineEvent(BaseModel):

@@ -268,6 +268,7 @@ def create_app() -> FastAPI:
     app.include_router(video_router, prefix="/api/video", tags=["video"])
     app.include_router(subtitles_router)
     app.include_router(router, prefix="/api/pipelines", tags=["pipelines"])
+    app.include_router(router, prefix="/pipelines", tags=["pipelines"], include_in_schema=False)
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
 
     static_enabled = _configure_static_assets(app)

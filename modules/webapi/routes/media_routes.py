@@ -6,7 +6,7 @@ import copy
 import mimetypes
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -248,6 +248,47 @@ def _serialize_media_entries(
                 if sentence_count is None:
                     sentence_count = len(sentences_payload)
 
+            audio_tracks_payload: Dict[str, str] = {}
+
+            def _register_track(raw_key: Any, raw_value: Any) -> None:
+                if not isinstance(raw_key, str):
+                    return
+                key = raw_key.strip()
+                if not key or key in audio_tracks_payload:
+                    return
+
+                value: Optional[str] = None
+                if isinstance(raw_value, str):
+                    value = raw_value.strip()
+                elif isinstance(raw_value, Mapping):
+                    candidate = raw_value.get("url") or raw_value.get("path")
+                    if isinstance(candidate, str):
+                        value = candidate.strip()
+
+                if not value:
+                    return
+
+                audio_tracks_payload[key] = value
+
+            def _ingest_tracks(candidate: Any) -> None:
+                if isinstance(candidate, Mapping):
+                    for track_key, track_value in candidate.items():
+                        _register_track(track_key, track_value)
+                elif isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
+                    for entry in candidate:
+                        if not isinstance(entry, Mapping):
+                            continue
+                        track_key = entry.get("key") or entry.get("kind")
+                        track_value = entry.get("url") or entry.get("path")
+                        if track_value is None:
+                            track_value = entry.get("source")
+                        _register_track(track_key, track_value)
+
+            _ingest_tracks(summary.get("audio_tracks"))
+            _ingest_tracks(summary.get("audioTracks"))
+            _ingest_tracks(chunk.get("audio_tracks"))
+            _ingest_tracks(chunk.get("audioTracks"))
+
             chunk_records.append(
                 PipelineMediaChunk(
                     chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
@@ -261,6 +302,7 @@ def _serialize_media_entries(
                     metadata_path=metadata_path if isinstance(metadata_path, str) else None,
                     metadata_url=metadata_url if isinstance(metadata_url, str) else None,
                     sentence_count=sentence_count,
+                    audio_tracks=audio_tracks_payload,
                 )
             )
 

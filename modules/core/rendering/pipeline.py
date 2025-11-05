@@ -306,6 +306,7 @@ class RenderPipeline:
                 range_fragment=result.range_fragment,
                 files=result.artifacts,
                 sentences=result.sentences,
+                audio_tracks=result.audio_tracks,
             )
 
     def _handle_export_future_completion(

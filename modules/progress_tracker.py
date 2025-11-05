@@ -215,6 +215,7 @@ class ProgressTracker:
         range_fragment: str,
         files: Mapping[str, object],
         sentences: Optional[Sequence[Mapping[str, object]]] = None,
+        audio_tracks: Optional[Mapping[str, object]] = None,
     ) -> None:
         """Record metadata about files produced for a completed chunk."""
 
@@ -224,6 +225,24 @@ class ProgressTracker:
             if path is not None and str(path)
         ]
         normalized_sentences = copy.deepcopy(list(sentences)) if sentences else []
+        normalized_tracks: Dict[str, str] = {}
+        if audio_tracks:
+            for raw_key, raw_value in audio_tracks.items():
+                if not isinstance(raw_key, str):
+                    continue
+                key = raw_key.strip()
+                if not key or key in normalized_tracks:
+                    continue
+                if isinstance(raw_value, str):
+                    value = raw_value.strip()
+                    if value:
+                        normalized_tracks[key] = value
+                elif isinstance(raw_value, Mapping):
+                    candidate = raw_value.get("url") or raw_value.get("path")
+                    if isinstance(candidate, str):
+                        value = candidate.strip()
+                        if value:
+                            normalized_tracks[key] = value
         with self._lock:
             chunk_entry: Dict[str, object] = {
                 "chunk_id": chunk_id,
@@ -234,6 +253,8 @@ class ProgressTracker:
             }
             if normalized_sentences:
                 chunk_entry["sentences"] = normalized_sentences
+            if normalized_tracks:
+                chunk_entry["audio_tracks"] = normalized_tracks
             for index, existing in enumerate(self._generated_chunks):
                 if existing.get("chunk_id") == chunk_id:
                     self._generated_chunks[index] = chunk_entry

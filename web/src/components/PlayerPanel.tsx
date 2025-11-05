@@ -19,6 +19,7 @@ import type { ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
+import { isAudioFileType } from './player-panel/utils';
 import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
@@ -513,7 +514,7 @@ function buildInteractiveAudioCatalog(
   chunks.forEach((chunk, index) => {
     const chunkLabel = formatChunkLabel(chunk, index);
     chunk.files.forEach((file) => {
-      if (file.type !== 'audio') {
+      if (!isAudioFileType(file.type)) {
         return;
       }
       register(file, index, chunkLabel);
@@ -544,7 +545,7 @@ function chunkCacheKey(chunk: LiveMediaChunk): string | null {
   if (chunk.metadataUrl) {
     return `url:${chunk.metadataUrl}`;
   }
-  const audioUrl = chunk.files.find((file) => file.type === 'audio' && file.url)?.url;
+  const audioUrl = chunk.files.find((file) => isAudioFileType(file.type) && file.url)?.url;
   if (audioUrl) {
     return `audio:${audioUrl}`;
   }
@@ -1221,7 +1222,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         return chunks[mappedIndex];
       }
       const matchedByAudio = chunks.find((chunk) =>
-        chunk.files.some((file) => file.type === 'audio' && file.url === audioId),
+    chunk.files.some((file) => isAudioFileType(file.type) && file.url === audioId),
       );
       if (matchedByAudio) {
         return matchedByAudio;
@@ -1383,7 +1384,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       if (!file || typeof file !== 'object') {
         return;
       }
-      if (file.type !== 'audio') {
+      if (!isAudioFileType(file.type)) {
         return;
       }
       const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
@@ -1422,7 +1423,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     const chunkForOptions = resolvedActiveTextChunk ?? activeTextChunk;
     if (chunkForOptions && activeTextChunkIndex >= 0) {
       chunkForOptions.files.forEach((file) => {
-        if (file.type !== 'audio' || !file.url) {
+        if (!isAudioFileType(file.type) || !file.url) {
           return;
         }
         const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
@@ -1677,7 +1678,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
 
     const audioFile = targetChunk.files.find(
-      (file) => file.type === 'audio' && typeof file.url === 'string' && file.url.length > 0,
+      (file) => isAudioFileType(file.type) && typeof file.url === 'string' && file.url.length > 0,
     );
     if (audioFile?.url) {
       setSelectedItemIds((current) =>
@@ -1919,7 +1920,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         if (!targetChunk) {
           return;
         }
-        const nextAudio = targetChunk.files.find((file) => file.type === 'audio' && file.url);
+        const nextAudio = targetChunk.files.find((file) => isAudioFileType(file.type) && file.url);
         if (nextAudio?.url) {
           setInlineAudioSelection((current) => (current === nextAudio.url ? current : nextAudio.url));
           syncInteractiveSelection(nextAudio.url);
@@ -2026,7 +2027,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       return false;
     }
     const nextChunk = chunks[nextIndex];
-    const nextAudio = nextChunk.files.find((file) => file.type === 'audio' && file.url);
+    const nextAudio = nextChunk.files.find((file) => isAudioFileType(file.type) && file.url);
     if (nextAudio?.url) {
       setInlineAudioSelection(nextAudio.url);
       syncInteractiveSelection(nextAudio.url);
