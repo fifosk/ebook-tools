@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { RefObject } from 'react';
 import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
 import {
   PipelineMediaFile,
   PipelineMediaResponse,
   ProgressEventPayload,
   ChunkSentenceMetadata,
+  TrackTimingPayload,
+  WordTiming,
+  PauseTiming,
 } from '../api/dtos';
 import { subscribeToJobEvents } from '../services/api';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
@@ -32,6 +36,7 @@ export interface LiveMediaChunk {
   metadataUrl?: string | null;
   sentenceCount?: number | null;
   audioTracks?: Record<string, string> | null;
+  timingTracks?: TrackTimingPayload[] | null;
 }
 
 export interface UseLiveMediaOptions {
@@ -162,6 +167,165 @@ function hasAudioTracks(
   return Boolean(tracks && Object.keys(tracks).length > 0);
 }
 
+const VALID_TRACK_TYPES: Set<TrackTimingPayload['trackType']> = new Set([
+  'translated',
+  'original_translated',
+]);
+
+function normaliseTrackType(value: unknown): TrackTimingPayload['trackType'] | null {
+  const raw = toStringOrNull(value)?.toLowerCase();
+  if (!raw) {
+    return null;
+  }
+  if (VALID_TRACK_TYPES.has(raw as TrackTimingPayload['trackType'])) {
+    return raw as TrackTimingPayload['trackType'];
+  }
+  if (raw === 'original-translated' || raw === 'originaltranslated') {
+    return 'original_translated';
+  }
+  if (raw === 'translation' || raw === 'translated') {
+    return 'translated';
+  }
+  return null;
+}
+
+function normaliseWordLanguage(value: unknown): WordTiming['lang'] | null {
+  const raw = toStringOrNull(value)?.toLowerCase();
+  if (!raw) {
+    return null;
+  }
+  if (raw === 'orig' || raw === 'original') {
+    return 'orig';
+  }
+  if (raw === 'xlit' || raw === 'translit' || raw === 'transliteration') {
+    return 'xlit';
+  }
+  if (raw === 'trans' || raw === 'translation') {
+    return 'trans';
+  }
+  return null;
+}
+
+function normaliseWordTimings(source: unknown): WordTiming[] {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+  const result: WordTiming[] = [];
+  source.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const record = entry as Record<string, unknown>;
+    const id = toStringOrNull(record.id);
+    const sentenceId = toNumberOrNull(record.sentence_id ?? record.sentenceId);
+    const tokenIdx = toNumberOrNull(record.token_idx ?? record.tokenIdx);
+    const lang = normaliseWordLanguage(record.lang);
+    const t0 = toNumberOrNull(record.t0);
+    const t1 = toNumberOrNull(record.t1);
+    if (!id || sentenceId === null || tokenIdx === null || !lang || t0 === null || t1 === null) {
+      return;
+    }
+    result.push({
+      id,
+      sentenceId,
+      tokenIdx,
+      lang,
+      text: toStringOrNull(record.text) ?? '',
+      t0,
+      t1,
+    });
+  });
+
+  result.sort((left, right) => {
+    const timeDelta = left.t0 - right.t0;
+    if (timeDelta !== 0) {
+      return timeDelta;
+    }
+    const endDelta = left.t1 - right.t1;
+    if (endDelta !== 0) {
+      return endDelta;
+    }
+    if (left.sentenceId !== right.sentenceId) {
+      return left.sentenceId - right.sentenceId;
+    }
+    if (left.tokenIdx !== right.tokenIdx) {
+      return left.tokenIdx - right.tokenIdx;
+    }
+    return left.id.localeCompare(right.id);
+  });
+
+  return result;
+}
+
+function normalisePauseTimings(source: unknown): PauseTiming[] {
+  if (!Array.isArray(source)) {
+    return [];
+  }
+  const result: PauseTiming[] = [];
+  source.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const record = entry as Record<string, unknown>;
+    const t0 = toNumberOrNull(record.t0);
+    const t1 = toNumberOrNull(record.t1);
+    if (t0 === null || t1 === null) {
+      return;
+    }
+    const reasonRaw = toStringOrNull(record.reason);
+    const reason =
+      reasonRaw === 'silence' || reasonRaw === 'tempo' || reasonRaw === 'gap' ? reasonRaw : undefined;
+    result.push({
+      t0,
+      t1,
+      reason,
+    });
+  });
+  result.sort((left, right) => {
+    const delta = left.t0 - right.t0;
+    if (delta !== 0) {
+      return delta;
+    }
+    return left.t1 - right.t1;
+  });
+  return result;
+}
+
+function normaliseTrackTimingCollection(source: unknown): TrackTimingPayload[] | null {
+  if (!source) {
+    return null;
+  }
+  const list = Array.isArray(source) ? source : [source];
+  const result: TrackTimingPayload[] = [];
+  list.forEach((entry) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const record = entry as Record<string, unknown>;
+    const trackType = normaliseTrackType(record.track_type ?? record.trackType);
+    if (!trackType) {
+      return;
+    }
+    const chunkId = toStringOrNull(record.chunk_id ?? record.chunkId) ?? '';
+    const words = normaliseWordTimings(record.words);
+    const pauses = normalisePauseTimings(record.pauses);
+    const trackOffset = toNumberOrNull(record.track_offset ?? record.trackOffset) ?? 0;
+    const tempoFactorRaw = toNumberOrNull(record.tempo_factor ?? record.tempoFactor);
+    const tempoFactor = tempoFactorRaw && tempoFactorRaw > 0 ? tempoFactorRaw : 1;
+    const version = toStringOrNull(record.version) ?? '1';
+    result.push({
+      trackType,
+      chunkId,
+      words,
+      pauses,
+      trackOffset,
+      tempoFactor,
+      version,
+    });
+  });
+  return result.length > 0 ? result : null;
+}
+
 function buildStateFromSections(
   mediaSection: Record<string, unknown[] | undefined>,
   chunkSection: unknown,
@@ -240,6 +404,9 @@ function buildStateFromSections(
           (payload.audio_tracks as Record<string, unknown> | undefined) ??
             (payload.audioTracks as Record<string, unknown> | undefined),
         ) ?? null;
+      const timingTracks = normaliseTrackTimingCollection(
+        (payload.timing_tracks as unknown) ?? (payload.timingTracks as unknown),
+      );
       const sentenceCount =
         typeof rawSentenceCount === 'number' && Number.isFinite(rawSentenceCount)
           ? rawSentenceCount
@@ -257,6 +424,7 @@ function buildStateFromSections(
         metadataUrl,
         sentenceCount,
         audioTracks,
+        timingTracks: timingTracks ?? null,
       });
     });
   }
@@ -573,6 +741,14 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
     } else if (update.audioTracks === null || current.audioTracks === null) {
       mergedAudioTracks = null;
     }
+    let mergedTimingTracks: TrackTimingPayload[] | null | undefined = undefined;
+    if (Array.isArray(update.timingTracks) && update.timingTracks.length > 0) {
+      mergedTimingTracks = update.timingTracks;
+    } else if (Array.isArray(current.timingTracks) && current.timingTracks.length > 0) {
+      mergedTimingTracks = current.timingTracks;
+    } else if (update.timingTracks === null || current.timingTracks === null) {
+      mergedTimingTracks = null;
+    }
 
     return {
       ...current,
@@ -581,6 +757,7 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
       sentences: mergedSentences,
       sentenceCount,
       audioTracks: mergedAudioTracks ?? null,
+      timingTracks: mergedTimingTracks ?? null,
     };
   };
 
@@ -614,6 +791,10 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
             : chunk.sentences && chunk.sentences.length > 0
               ? chunk.sentences.length
               : null,
+        timingTracks:
+          Array.isArray(chunk.timingTracks) && chunk.timingTracks.length > 0
+            ? chunk.timingTracks
+            : chunk.timingTracks ?? null,
       });
     }
   });
@@ -761,5 +942,68 @@ export function useLiveMedia(
       error
     }),
     [media, chunks, isComplete, isLoading, error]
+  );
+}
+
+export interface MediaClock {
+  mediaTime: () => number;
+  playbackRate: () => number;
+  effectiveTime: (track: Pick<TrackTimingPayload, 'trackOffset' | 'tempoFactor'>) => number;
+}
+
+function sanitiseRate(value: number | null | undefined): number {
+  if (typeof value !== 'number' || Number.isNaN(value) || !Number.isFinite(value) || value <= 0) {
+    return 1;
+  }
+  return value;
+}
+
+export function useMediaClock(audioRef: RefObject<HTMLAudioElement | null>): MediaClock {
+  const mediaTime = useCallback(() => {
+    const element = audioRef.current;
+    if (!element) {
+      return 0;
+    }
+    const raw = element.currentTime;
+    if (typeof raw !== 'number' || Number.isNaN(raw) || !Number.isFinite(raw)) {
+      return 0;
+    }
+    return raw;
+  }, [audioRef]);
+
+  const playbackRate = useCallback(() => {
+    const element = audioRef.current;
+    return sanitiseRate(element?.playbackRate ?? 1);
+  }, [audioRef]);
+
+  const effectiveTime = useCallback(
+    (track: Pick<TrackTimingPayload, 'trackOffset' | 'tempoFactor'>) => {
+      const offset =
+        typeof track.trackOffset === 'number' && Number.isFinite(track.trackOffset)
+          ? track.trackOffset
+          : 0;
+      // Current timing payloads already incorporate render-time tempo adjustments,
+      // so we map the media clock to timeline space using playback rate + offset only.
+      const rate = playbackRate();
+      const adjustedRate = sanitiseRate(rate);
+      if (adjustedRate === 0) {
+        return 0;
+      }
+      const adjusted = (mediaTime() - offset) / adjustedRate;
+      if (!Number.isFinite(adjusted) || Number.isNaN(adjusted)) {
+        return 0;
+      }
+      return adjusted < 0 ? 0 : adjusted;
+    },
+    [mediaTime, playbackRate]
+  );
+
+  return useMemo(
+    () => ({
+      mediaTime,
+      playbackRate,
+      effectiveTime
+    }),
+    [mediaTime, playbackRate, effectiveTime]
   );
 }

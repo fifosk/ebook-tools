@@ -315,6 +315,34 @@ export interface ChunkSentenceVariant {
   tokens: string[];
 }
 
+export type WordTimingLanguage = 'orig' | 'trans' | 'xlit';
+
+export interface WordTiming {
+  id: string;
+  sentenceId: number;
+  tokenIdx: number;
+  text: string;
+  lang: WordTimingLanguage;
+  t0: number;
+  t1: number;
+}
+
+export interface PauseTiming {
+  t0: number;
+  t1: number;
+  reason?: 'silence' | 'tempo' | 'gap';
+}
+
+export interface TrackTimingPayload {
+  trackType: 'translated' | 'original_translated';
+  chunkId: string;
+  words: WordTiming[];
+  pauses: PauseTiming[];
+  trackOffset: number;
+  tempoFactor: number;
+  version: string;
+}
+
 export interface ChunkSentenceMetadata {
   sentence_number?: number | null;
   original: ChunkSentenceVariant;

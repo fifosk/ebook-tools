@@ -7,14 +7,18 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { ReactNode, UIEvent } from 'react';
+import type { MutableRefObject, ReactNode, UIEvent } from 'react';
 import { appendAccessToken } from '../api/client';
-import type { LiveMediaChunk } from '../hooks/useLiveMedia';
+import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
+import { useMediaClock } from '../hooks/useLiveMedia';
 import TextPlayer, {
   type TextPlayerSentence,
   type TextPlayerVariantDisplay,
   type TextPlayerVariantKind,
 } from '../text-player/TextPlayer';
+import type { ChunkSentenceMetadata, TrackTimingPayload, WordTiming } from '../api/dtos';
+import { buildWordIndex, collectActiveWordIds, lowerBound, type WordIndex } from '../lib/timing/wordSync';
+import { WORD_SYNC } from './player-panel/constants';
 
 type SentenceFragment = {
   index: number;
@@ -29,6 +33,40 @@ type SentenceFragment = {
 type ParagraphFragment = {
   id: string;
   sentences: SentenceFragment[];
+};
+
+type WordSyncLane = WordTiming['lang'];
+
+type WordSyncRenderableToken = WordTiming & {
+  displayText: string;
+};
+
+type WordSyncSentence = {
+  id: string;
+  sentenceId: number;
+  tokens: Record<WordSyncLane, WordSyncRenderableToken[]>;
+};
+
+type WordSyncController = {
+  setTrack: (track: TrackTimingPayload | null, index: WordIndex | null) => void;
+  start: () => void;
+  stop: () => void;
+  destroy: () => void;
+  snap: () => void;
+  handleSeeking: () => void;
+  handleSeeked: () => void;
+  handleWaiting: () => void;
+  handlePlaying: () => void;
+  handleRateChange: () => void;
+  handlePause: () => void;
+  handlePlay: () => void;
+  setFollowHighlight: (value: boolean) => void;
+};
+
+const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
+  orig: 'Original',
+  trans: 'Translation',
+  xlit: 'Transliteration',
 };
 
 type TimelineVariantRuntime = {
@@ -65,6 +103,25 @@ function normaliseTokens(variant?: { tokens?: string[]; text?: string | null }):
   return [];
 }
 
+function buildUniformRevealTimes(count: number, startTime: number, duration: number): number[] {
+  const tokenCount = Math.max(0, count);
+  if (tokenCount === 0) {
+    return [];
+  }
+  const safeDuration = duration > 0 ? duration : 0;
+  if (safeDuration === 0) {
+    return Array(tokenCount).fill(startTime);
+  }
+  const step = safeDuration / tokenCount;
+  const reveals: number[] = [];
+  for (let index = 1; index <= tokenCount; index += 1) {
+    const offset = step > 0 ? step * (index - 1) : 0;
+    const reveal = startTime + Math.max(0, Math.min(safeDuration, offset));
+    reveals.push(reveal);
+  }
+  return reveals;
+}
+
 function distributeRevealTimes(
   previousCount: number,
   nextCount: number,
@@ -80,8 +137,9 @@ function distributeRevealTimes(
   }
   const safeDuration = duration > 0 ? duration : 0;
   const step = delta > 0 ? safeDuration / delta : 0;
-  for (let i = 1; i <= delta; i += 1) {
-    collector.push(startTime + step * i);
+  for (let index = 1; index <= delta; index += 1) {
+    const offset = step > 0 ? step * (index - 1) : 0;
+    collector.push(startTime + Math.max(0, Math.min(safeDuration, offset)));
   }
 }
 
@@ -327,6 +385,60 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [fontScale]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const tokenElementsRef = useRef<Map<string, HTMLElement>>(new Map());
+  const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
+  const wordSyncControllerRef = useRef<WordSyncController | null>(null);
+  const clock = useMediaClock(audioRef);
+  const clockRef = useRef<MediaClock>(clock);
+  useEffect(() => {
+    clockRef.current = clock;
+  }, [clock]);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return false;
+    }
+    try {
+      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+    let mounted = true;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => {
+      if (!mounted) {
+        return;
+      }
+      setPrefersReducedMotion(media.matches);
+    };
+    update();
+    try {
+      if (typeof media.addEventListener === 'function') {
+        media.addEventListener('change', update);
+        return () => {
+          mounted = false;
+          media.removeEventListener('change', update);
+        };
+      }
+      if (typeof media.addListener === 'function') {
+        media.addListener(update);
+        return () => {
+          mounted = false;
+          media.removeListener(update);
+        };
+      }
+    } catch {
+      // Ignore listener registration errors.
+    }
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const fullscreenRequestedRef = useRef(false);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
@@ -335,6 +447,26 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
   const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
+  const wordSyncQueryState = useMemo<boolean | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get('wordsync');
+      if (raw === null) {
+        return null;
+      }
+      if (raw === '0' || raw.toLowerCase() === 'false') {
+        return false;
+      }
+      return true;
+    } catch {
+      return null;
+    }
+  }, []);
+  const wordSyncAllowed = (wordSyncQueryState ?? WORD_SYNC.FEATURE) === true;
+  const followHighlightEnabled = !prefersReducedMotion;
 
   const paragraphs = useMemo(() => buildParagraphs(content), [content]);
   const timelineSentences = useMemo(() => {
@@ -353,8 +485,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const events = Array.isArray(metadata.timeline) ? metadata.timeline : [];
 
       const originalReveal: number[] = [];
-      const translationReveal: number[] = [];
-      const transliterationReveal: number[] = [];
 
       const phaseDurations = useCombinedPhases ? metadata.phase_durations ?? null : null;
       const originalPhaseDuration = phaseDurations && typeof phaseDurations.original === 'number' ? Math.max(phaseDurations.original, 0) : 0;
@@ -388,97 +518,111 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         return 0.5;
       })();
 
-      let effectiveDeclaredDuration = declaredDuration;
-      if (translationPhaseDurationOverride !== null && translationPhaseDurationOverride > 0) {
-        effectiveDeclaredDuration = translationPhaseDurationOverride;
-      }
-
-      const durationScale =
-        eventDurationTotal > 0 && effectiveDeclaredDuration > 0 ? effectiveDeclaredDuration / eventDurationTotal : 1;
-
-      let prevOriginal = 0;
-      let prevTranslation = 0;
-      let prevTranslit = 0;
-      let translationElapsed = 0;
-
       const sentenceStart = offset;
-      const translationStart = useCombinedPhases
-        ? sentenceStart + originalPhaseDuration + gapBeforeTranslation
-        : sentenceStart;
+
+      const translationPhaseDuration = (() => {
+        if (translationPhaseDurationOverride !== null && translationPhaseDurationOverride > 0) {
+          return translationPhaseDurationOverride;
+        }
+        if (declaredDuration > 0) {
+          return declaredDuration;
+        }
+        if (translationTokens.length > 0 || transliterationTokens.length > 0) {
+          return Math.max(translationTokens.length, transliterationTokens.length) * 0.35;
+        }
+        return 0.5;
+      })();
+
+      const translationTrackStart = sentenceStart + (useCombinedPhases ? originalPhaseDuration + gapBeforeTranslation : 0);
+
+      const translationDurationsRaw: number[] = [];
+      let prevTranslationCount = 0;
 
       events.forEach((event) => {
         const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
-        const adjustedDuration = baseDuration * durationScale;
-        const eventStart = translationStart + translationElapsed;
-        const nextOriginal = Math.min(
-          typeof event.original_index === 'number' ? Math.max(event.original_index, 0) : prevOriginal,
-          originalTokens.length,
-        );
-        const nextTranslation = Math.min(
-          typeof event.translation_index === 'number' ? Math.max(event.translation_index, 0) : prevTranslation,
+        if (!(baseDuration > 0)) {
+          return;
+        }
+        const targetTranslationIndex = typeof event.translation_index === 'number' ? Math.max(0, event.translation_index) : prevTranslationCount;
+        const nextTranslationCount = Math.min(
           translationTokens.length,
+          Math.max(prevTranslationCount, targetTranslationIndex),
         );
-        const nextTranslit = Math.min(
-          typeof event.transliteration_index === 'number'
-            ? Math.max(event.transliteration_index, 0)
-            : prevTranslit,
-          transliterationTokens.length,
-        );
-
-        distributeRevealTimes(
-          prevTranslation,
-          nextTranslation,
-          eventStart,
-          adjustedDuration,
-          translationReveal,
-        );
-        distributeRevealTimes(
-          prevTranslit,
-          nextTranslit,
-          eventStart,
-          adjustedDuration,
-          transliterationReveal,
-        );
-
-        prevOriginal = nextOriginal;
-        prevTranslation = nextTranslation;
-        prevTranslit = nextTranslit;
-        translationElapsed += adjustedDuration;
+        const delta = nextTranslationCount - prevTranslationCount;
+        if (delta <= 0) {
+          return;
+        }
+        const perToken = baseDuration / delta;
+        for (let idx = 0; idx < delta; idx += 1) {
+          translationDurationsRaw.push(perToken);
+        }
+        prevTranslationCount = nextTranslationCount;
       });
 
-      let translationDuration = effectiveDeclaredDuration;
-      if (!(translationDuration > 0)) {
-        translationDuration = translationElapsed;
-      } else if (translationElapsed > translationDuration) {
-        translationDuration = translationElapsed;
+      const totalTranslationDurationRaw = translationDurationsRaw.reduce((sum, value) => sum + value, 0);
+      const translationSpeechDuration = totalTranslationDurationRaw > 0 ? totalTranslationDurationRaw : translationPhaseDuration;
+      const translationTotalDuration = translationSpeechDuration + tailPhaseDuration;
+      const translationPhaseEndAbsolute = translationTrackStart + translationTotalDuration;
+
+      let translationRevealTimes: number[] = [];
+      if (translationDurationsRaw.length > 0) {
+        let cumulativeTranslation = 0;
+        translationDurationsRaw.forEach((rawDuration) => {
+          translationRevealTimes.push(translationTrackStart + cumulativeTranslation);
+          cumulativeTranslation += rawDuration;
+        });
       }
-      if (!(translationDuration > 0)) {
-        translationDuration = 0;
+
+      if (translationRevealTimes.length !== translationTokens.length && translationTokens.length > 0) {
+        translationRevealTimes = buildUniformRevealTimes(
+          translationTokens.length,
+          translationTrackStart,
+          translationSpeechDuration,
+        );
+      }
+
+      const transliterationRevealTimes = transliterationTokens.length > 0
+        ? transliterationTokens.map((_, idx) => {
+            if (translationRevealTimes.length === 0) {
+              return translationTrackStart;
+            }
+            if (translationRevealTimes.length === 1) {
+              return translationRevealTimes[0];
+            }
+            const ratio = transliterationTokens.length > 1 ? idx / (transliterationTokens.length - 1) : 0;
+            const mappedIndex = Math.min(
+              translationRevealTimes.length - 1,
+              Math.round(ratio * (translationRevealTimes.length - 1)),
+            );
+            return translationRevealTimes[mappedIndex];
+          })
+        : [];
+
+      if (translationRevealTimes.length > 0) {
+        translationRevealTimes[0] = translationTrackStart;
+        translationRevealTimes[translationRevealTimes.length - 1] = translationPhaseEndAbsolute;
+      }
+      if (transliterationRevealTimes.length > 0) {
+        transliterationRevealTimes[0] = translationTrackStart;
+        transliterationRevealTimes[transliterationRevealTimes.length - 1] = translationPhaseEndAbsolute;
+      }
+
+      if (translationRevealTimes.length > 0) {
+        translationRevealTimes[translationRevealTimes.length - 1] = translationPhaseEndAbsolute;
+      }
+      if (transliterationRevealTimes.length > 0) {
+        transliterationRevealTimes[transliterationRevealTimes.length - 1] = translationPhaseEndAbsolute;
+      }
+
+      if (highlightOriginal) {
+        const reveals = buildUniformRevealTimes(originalTokens.length, sentenceStart, originalPhaseDuration);
+        originalReveal.splice(0, originalReveal.length, ...reveals);
       }
 
       const sentenceDuration = useCombinedPhases
-        ? originalPhaseDuration + gapBeforeTranslation + translationDuration + tailPhaseDuration
-        : translationDuration;
-      const originalEnd = sentenceStart + (useCombinedPhases ? originalPhaseDuration : sentenceDuration);
-      const translationEnd = translationStart + translationDuration;
+        ? originalPhaseDuration + gapBeforeTranslation + translationTotalDuration
+        : translationTotalDuration;
       const endTime = sentenceStart + sentenceDuration;
-
-      if (highlightOriginal) {
-        originalReveal.length = 0;
-        const step = originalPhaseDuration / originalTokens.length;
-        for (let i = 1; i <= originalTokens.length; i += 1) {
-          const revealTime = sentenceStart + Math.min(originalPhaseDuration, step * i);
-          originalReveal.push(revealTime);
-        }
-      }
-
-      if (highlightOriginal) {
-        fillRemainTimes(originalReveal, originalTokens.length, originalEnd);
-      } else {
-        originalReveal.length = 0;
-      }
-      fillRemainTimes(translationReveal, translationTokens.length, useCombinedPhases ? translationEnd : endTime);
-      fillRemainTimes(transliterationReveal, transliterationTokens.length, useCombinedPhases ? translationEnd : endTime);
 
       result.push({
         index,
@@ -493,13 +637,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           translation: translationTokens.length
             ? {
                 tokens: translationTokens,
-                revealTimes: translationReveal,
+                revealTimes: translationRevealTimes,
               }
             : undefined,
           transliteration: transliterationTokens.length
             ? {
                 tokens: transliterationTokens,
-                revealTimes: transliterationReveal,
+                revealTimes: transliterationRevealTimes,
               }
             : undefined,
         },
@@ -508,8 +652,47 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       offset = endTime;
     });
 
+    if (!useCombinedPhases && audioDuration && audioDuration > 0 && result.length > 0) {
+      const totalTimelineDuration = result[result.length - 1].endTime;
+      if (totalTimelineDuration > 0) {
+        const scale = audioDuration / totalTimelineDuration;
+        const scaled = result.map((sentence) => {
+          const originalVariant = {
+            ...sentence.variants.original,
+            revealTimes: sentence.variants.original.revealTimes.map((time) => time * scale),
+          };
+
+          const translationVariant = sentence.variants.translation
+            ? {
+                ...sentence.variants.translation,
+                revealTimes: sentence.variants.translation.revealTimes.map((time) => time * scale),
+              }
+            : undefined;
+
+          const transliterationVariant = sentence.variants.transliteration
+            ? {
+                ...sentence.variants.transliteration,
+                revealTimes: sentence.variants.transliteration.revealTimes.map((time) => time * scale),
+              }
+            : undefined;
+
+          return {
+            ...sentence,
+            startTime: sentence.startTime * scale,
+            endTime: sentence.endTime * scale,
+            variants: {
+              original: originalVariant,
+              translation: translationVariant,
+              transliteration: transliterationVariant,
+            },
+          };
+        });
+        return scaled;
+      }
+    }
+
     return result;
-  }, [chunk?.sentences, hasTimeline, useCombinedPhases]);
+  }, [audioDuration, chunk?.sentences, hasTimeline, useCombinedPhases]);
   const timelineDisplay = useMemo(() => {
     if (!timelineSentences) {
       return null;
@@ -522,6 +705,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const effectiveTime = (() => {
       if (!timelineTotalDuration || !audioDuration || audioDuration <= 0 || timelineTotalDuration <= 0) {
         return Math.max(chunkTime, 0);
+      }
+      const ratio = timelineTotalDuration / audioDuration;
+      if (ratio > 0.98 && ratio < 1.02) {
+        return Math.min(chunkTime, timelineTotalDuration);
       }
       const scaled = (chunkTime / audioDuration) * timelineTotalDuration;
       if (!Number.isFinite(scaled) || scaled < 0) {
@@ -807,7 +994,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [paragraphs],
   );
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const effectiveAudioUrl = useMemo(() => {
     if (originalAudioEnabled && audioTracks?.orig_trans) {
       return audioTracks.orig_trans;
@@ -828,6 +1014,231 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     () => (effectiveAudioUrl ? appendAccessToken(effectiveAudioUrl) : null),
     [effectiveAudioUrl],
   );
+  const chunkSentenceMap = useMemo(() => {
+    const map = new Map<number, ChunkSentenceMetadata>();
+    if (!chunk?.sentences || chunk.sentences.length === 0) {
+      return map;
+    }
+    chunk.sentences.forEach((metadata, index) => {
+      const rawId = metadata?.sentence_number;
+      const sentenceId =
+        typeof rawId === 'number' && Number.isFinite(rawId) ? rawId : index;
+      map.set(sentenceId, metadata);
+    });
+    return map;
+  }, [chunk?.sentences]);
+  const wordSyncTracks = chunk?.timingTracks ?? null;
+  const wordSyncTrackCandidates = useMemo(() => {
+    if (!wordSyncTracks || wordSyncTracks.length === 0) {
+      return [] as TrackTimingPayload[];
+    }
+    const chunkId = chunk?.chunkId ?? null;
+    return wordSyncTracks.filter((track): track is TrackTimingPayload => {
+      if (!track) {
+        return false;
+      }
+      if (!track.chunkId || !chunkId) {
+        return true;
+      }
+      return track.chunkId === chunkId;
+    });
+  }, [chunk?.chunkId, wordSyncTracks]);
+  const wordSyncPreferredTypes = useMemo(() => {
+    const preferences: TrackTimingPayload['trackType'][] = [];
+    const preferred =
+      originalAudioEnabled &&
+      audioTracks?.orig_trans &&
+      effectiveAudioUrl === audioTracks.orig_trans
+        ? 'original_translated'
+        : 'translated';
+    preferences.push(preferred);
+    if (!preferences.includes('translated')) {
+      preferences.push('translated');
+    }
+    if (!preferences.includes('original_translated')) {
+      preferences.push('original_translated');
+    }
+    return preferences;
+  }, [audioTracks, effectiveAudioUrl, originalAudioEnabled]);
+  const selectedWordSyncTrack = useMemo(() => {
+    if (wordSyncTrackCandidates.length === 0) {
+      return null;
+    }
+    for (const type of wordSyncPreferredTypes) {
+      const match = wordSyncTrackCandidates.find((track) => track.trackType === type);
+      if (match) {
+        return match;
+      }
+    }
+    return wordSyncTrackCandidates[0] ?? null;
+  }, [wordSyncPreferredTypes, wordSyncTrackCandidates]);
+  const wordIndex = useMemo(() => {
+    if (!selectedWordSyncTrack) {
+      return null;
+    }
+    return buildWordIndex(selectedWordSyncTrack);
+  }, [selectedWordSyncTrack]);
+  const wordSyncSentences = useMemo<WordSyncSentence[] | null>(() => {
+    if (!wordIndex) {
+      return null;
+    }
+    const sentences = new Map<
+      number,
+      { orig: WordSyncRenderableToken[]; trans: WordSyncRenderableToken[]; xlit: WordSyncRenderableToken[] }
+    >();
+    const ensureBuckets = (sentenceId: number) => {
+      let bucket = sentences.get(sentenceId);
+      if (!bucket) {
+        bucket = { orig: [], trans: [], xlit: [] };
+        sentences.set(sentenceId, bucket);
+      }
+      return bucket;
+    };
+    wordIndex.words.forEach((word) => {
+      const bucket = ensureBuckets(word.sentenceId);
+      const metadata = chunkSentenceMap.get(word.sentenceId);
+      let displayText = typeof word.text === 'string' ? word.text : '';
+      if (metadata) {
+        const variantTokens =
+          word.lang === 'orig'
+            ? metadata.original?.tokens
+            : word.lang === 'trans'
+              ? metadata.translation?.tokens
+              : metadata.transliteration?.tokens;
+        if (Array.isArray(variantTokens)) {
+          const token = variantTokens[word.tokenIdx];
+          if (typeof token === 'string' && token.trim().length > 0) {
+            displayText = token;
+          }
+        }
+      }
+      if (!displayText || !displayText.trim()) {
+        displayText = word.text || '';
+      }
+      const renderable: WordSyncRenderableToken = {
+        ...word,
+        displayText,
+      };
+      bucket[word.lang].push(renderable);
+    });
+    const entries = Array.from(sentences.entries());
+    if (entries.length === 0) {
+      return [];
+    }
+    entries.sort((a, b) => a[0] - b[0]);
+    return entries.map(([sentenceId, lanes]) => {
+      (['orig', 'trans', 'xlit'] as WordSyncLane[]).forEach((lane) => {
+        lanes[lane].sort((left, right) => {
+          if (left.tokenIdx !== right.tokenIdx) {
+            return left.tokenIdx - right.tokenIdx;
+          }
+          if (left.t0 !== right.t0) {
+            return left.t0 - right.t0;
+          }
+          return left.id.localeCompare(right.id);
+        });
+      });
+      return {
+        id: `ws-sentence-${sentenceId}`,
+        sentenceId,
+        tokens: lanes,
+      };
+    });
+  }, [chunkSentenceMap, wordIndex]);
+  const shouldUseWordSync =
+    wordSyncAllowed &&
+    Boolean(selectedWordSyncTrack && wordIndex && wordSyncSentences && wordSyncSentences.length > 0);
+  const activeWordSyncTrack = shouldUseWordSync && selectedWordSyncTrack ? selectedWordSyncTrack : null;
+  const activeWordIndex = shouldUseWordSync && wordIndex ? wordIndex : null;
+  const registerTokenElement = useCallback((id: string, element: HTMLSpanElement | null) => {
+    const map = tokenElementsRef.current;
+    if (!element) {
+      map.delete(id);
+      return;
+    }
+    map.set(id, element);
+  }, []);
+  const registerSentenceElement = useCallback((sentenceId: number, element: HTMLDivElement | null) => {
+    const map = sentenceElementsRef.current;
+    if (!element) {
+      map.delete(sentenceId);
+      return;
+    }
+    map.set(sentenceId, element);
+  }, []);
+  useEffect(() => {
+    const controller = createWordSyncController({
+      containerRef,
+      tokenElementsRef,
+      sentenceElementsRef,
+      clockRef,
+      config: WORD_SYNC,
+      followHighlight: followHighlightEnabled,
+      isPaused: () => {
+        const element = audioRef.current;
+        return !element || element.paused;
+      },
+    });
+    wordSyncControllerRef.current = controller;
+    return () => {
+      controller.destroy();
+      wordSyncControllerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    wordSyncControllerRef.current?.setFollowHighlight(followHighlightEnabled);
+  }, [followHighlightEnabled]);
+  useEffect(() => {
+    const controller = wordSyncControllerRef.current;
+    if (!controller) {
+      return;
+    }
+    if (!shouldUseWordSync || !activeWordSyncTrack || !activeWordIndex) {
+      controller.stop();
+      controller.setTrack(null, null);
+      return;
+    }
+    controller.setTrack(activeWordSyncTrack, activeWordIndex);
+    controller.snap();
+    const element = audioRef.current;
+    if (element && !element.paused) {
+      controller.start();
+    }
+    return () => {
+      controller.stop();
+    };
+  }, [activeWordIndex, activeWordSyncTrack, shouldUseWordSync]);
+  useEffect(() => {
+    if (shouldUseWordSync) {
+      return;
+    }
+    tokenElementsRef.current.forEach((element) => {
+      element.classList.remove('is-active');
+      element.classList.remove('is-visited');
+    });
+    tokenElementsRef.current.clear();
+    sentenceElementsRef.current.clear();
+  }, [shouldUseWordSync]);
+  useEffect(() => {
+    if (!shouldUseWordSync) {
+      return;
+    }
+    const controller = wordSyncControllerRef.current;
+    if (!controller) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      controller.snap();
+      return;
+    }
+    const handle = window.requestAnimationFrame(() => {
+      controller.snap();
+    });
+    return () => {
+      window.cancelAnimationFrame(handle);
+    };
+  }, [shouldUseWordSync, wordSyncSentences]);
 
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
@@ -1093,12 +1504,34 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   );
 
   const handleInlineAudioPlay = useCallback(() => {
+    wordSyncControllerRef.current?.handlePlay();
     onInlineAudioPlaybackStateChange?.('playing');
   }, [onInlineAudioPlaybackStateChange]);
 
   const handleInlineAudioPause = useCallback(() => {
+    wordSyncControllerRef.current?.handlePause();
     onInlineAudioPlaybackStateChange?.('paused');
   }, [onInlineAudioPlaybackStateChange]);
+
+  const handleAudioSeeking = useCallback(() => {
+    wordSyncControllerRef.current?.handleSeeking();
+  }, []);
+
+  const handleAudioWaiting = useCallback(() => {
+    wordSyncControllerRef.current?.handleWaiting();
+  }, []);
+
+  const handleAudioStalled = useCallback(() => {
+    wordSyncControllerRef.current?.handleWaiting();
+  }, []);
+
+  const handleAudioPlaying = useCallback(() => {
+    wordSyncControllerRef.current?.handlePlaying();
+  }, []);
+
+  const handleAudioRateChange = useCallback(() => {
+    wordSyncControllerRef.current?.handleRateChange();
+  }, []);
 
   const handleLoadedMetadata = useCallback(() => {
     const element = audioRef.current;
@@ -1123,9 +1556,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         maybePlay.catch(() => undefined);
       }
       pendingInitialSeek.current = null;
+      wordSyncControllerRef.current?.snap();
       return;
     }
     pendingInitialSeek.current = null;
+    wordSyncControllerRef.current?.snap();
   }, [emitAudioProgress, updateSentenceForTime]);
 
   const handleTimeUpdate = useCallback(() => {
@@ -1143,9 +1578,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       updateSentenceForTime(currentTime, duration);
     }
     emitAudioProgress(currentTime);
+    if (element.paused) {
+      wordSyncControllerRef.current?.snap();
+    }
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
 
   const handleAudioEnded = useCallback(() => {
+    wordSyncControllerRef.current?.stop();
     onInlineAudioPlaybackStateChange?.('paused');
     if (hasTimeline && timelineDisplay) {
       setChunkTime((prev) => (audioDuration ? audioDuration : prev));
@@ -1169,6 +1608,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   ]);
 
   const handleAudioSeeked = useCallback(() => {
+    wordSyncControllerRef.current?.handleSeeked();
     const element = audioRef.current;
     if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
       return;
@@ -1186,6 +1626,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         return;
       }
       try {
+        wordSyncControllerRef.current?.handleSeeking();
         const target = Math.max(0, Math.min(time, Number.isFinite(element.duration) ? element.duration : time));
         element.currentTime = target;
         const maybePlay = element.play?.();
@@ -1234,6 +1675,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
               onTimeUpdate={handleTimeUpdate}
               onEnded={handleAudioEnded}
               onSeeked={handleAudioSeeked}
+              onSeeking={handleAudioSeeking}
+              onWaiting={handleAudioWaiting}
+              onStalled={handleAudioStalled}
+              onPlaying={handleAudioPlaying}
+              onRateChange={handleAudioRateChange}
             />
           </div>
         </div>
@@ -1249,7 +1695,52 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onScroll={handleScroll}
         style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
       >
-        {textPlayerSentences && textPlayerSentences.length > 0 ? (
+        {shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
+          <div
+            className="word-sync"
+            data-track-type={activeWordSyncTrack?.trackType ?? 'none'}
+            data-follow={followHighlightEnabled ? 'true' : 'false'}
+          >
+            {wordSyncSentences.map((sentence) => (
+              <div
+                key={sentence.id}
+                className="word-sync__sentence"
+                data-sentence={sentence.sentenceId}
+                ref={(element) => registerSentenceElement(sentence.sentenceId, element)}
+              >
+                {(['orig', 'trans', 'xlit'] as WordSyncLane[]).map((lane) => {
+                  const tokens = sentence.tokens[lane];
+                  if (!tokens || tokens.length === 0) {
+                    return null;
+                  }
+                  return (
+                    <div
+                      key={`${sentence.id}-${lane}`}
+                      className={`word-sync__lane word-sync__lane--${lane}`}
+                      data-lang={lane}
+                    >
+                      <span className="word-sync__lane-label">{WORD_SYNC_LANE_LABELS[lane]}</span>
+                      <div className="word-sync__lane-content">
+                        {tokens.map((token) => (
+                          <span
+                            key={token.id}
+                            className="word-sync__token"
+                            data-word-id={token.id}
+                            data-lang={token.lang}
+                            data-sentence={token.sentenceId}
+                            ref={(element) => registerTokenElement(token.id, element)}
+                          >
+                            {token.displayText}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        ) : textPlayerSentences && textPlayerSentences.length > 0 ? (
           <TextPlayer sentences={textPlayerSentences} onSeek={handleTokenSeek} />
         ) : paragraphs.length > 0 ? (
           <pre className="player-panel__document-text">{content}</pre>
@@ -1266,5 +1757,369 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     </div>
   );
 });
+
+function createNoopWordSyncController(): WordSyncController {
+  const noop = () => {
+    /* no-op */
+  };
+  return {
+    setTrack: noop,
+    start: noop,
+    stop: noop,
+    destroy: noop,
+    snap: noop,
+    handleSeeking: noop,
+    handleSeeked: noop,
+    handleWaiting: noop,
+    handlePlaying: noop,
+    handleRateChange: noop,
+    handlePause: noop,
+    handlePlay: noop,
+    setFollowHighlight: noop,
+  };
+}
+
+function createWordSyncController(options: {
+  containerRef: MutableRefObject<HTMLDivElement | null>;
+  tokenElementsRef: MutableRefObject<Map<string, HTMLElement>>;
+  sentenceElementsRef: MutableRefObject<Map<number, HTMLElement>>;
+  clockRef: MutableRefObject<MediaClock>;
+  config: typeof WORD_SYNC;
+  followHighlight: boolean;
+  isPaused: () => boolean;
+}): WordSyncController {
+  if (typeof window === 'undefined') {
+    return createNoopWordSyncController();
+  }
+
+  const {
+    containerRef,
+    tokenElementsRef,
+    sentenceElementsRef,
+    clockRef,
+    config,
+  } = options;
+
+  let followHighlights = options.followHighlight;
+  let track: TrackTimingPayload | null = null;
+  let index: WordIndex | null = null;
+  const activeIds = new Set<string>();
+  let cursor = 0;
+  let rafId: number | null = null;
+  let seekTimeoutId: number | null = null;
+  let seeking = false;
+  let stalled = false;
+  let lastApplied = Number.NaN;
+  let lastFollowedSentence: number | null = null;
+
+  const clearSeekTimeout = () => {
+    if (seekTimeoutId !== null) {
+      window.clearTimeout(seekTimeoutId);
+      seekTimeoutId = null;
+    }
+  };
+
+  const clearFrame = () => {
+    if (rafId !== null) {
+      window.cancelAnimationFrame(rafId);
+      rafId = null;
+    }
+  };
+
+  const deactivateToken = (id: string, markVisited: boolean) => {
+    const element = tokenElementsRef.current.get(id);
+    if (!element) {
+      return;
+    }
+    element.classList.remove('is-active');
+    if (markVisited) {
+      element.classList.add('is-visited');
+    }
+  };
+
+  const activateToken = (id: string) => {
+    const element = tokenElementsRef.current.get(id);
+    if (!element) {
+      return;
+    }
+    element.classList.add('is-active');
+    element.classList.remove('is-visited');
+  };
+
+  const clearActive = () => {
+    activeIds.forEach((activeId) => {
+      const element = tokenElementsRef.current.get(activeId);
+      if (element) {
+        element.classList.remove('is-active');
+      }
+    });
+    tokenElementsRef.current.forEach((element) => {
+      element.classList.remove('is-active');
+      element.classList.remove('is-visited');
+    });
+    activeIds.clear();
+    lastFollowedSentence = null;
+  };
+
+  const followSentence = (word: WordTiming) => {
+    if (!followHighlights || !index) {
+      return;
+    }
+    const ids = index.bySentence.get(word.sentenceId);
+    if (!ids || ids[0] !== word.id) {
+      return;
+    }
+    if (lastFollowedSentence === word.sentenceId) {
+      return;
+    }
+    lastFollowedSentence = word.sentenceId;
+    const sentenceElement = sentenceElementsRef.current.get(word.sentenceId);
+    const container = containerRef.current;
+    if (!sentenceElement || !container) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const sentenceRect = sentenceElement.getBoundingClientRect();
+    if (
+      sentenceRect.top >= containerRect.top &&
+      sentenceRect.bottom <= containerRect.bottom
+    ) {
+      return;
+    }
+    try {
+      sentenceElement.scrollIntoView({
+        block: 'center',
+        inline: 'nearest',
+        behavior: followHighlights ? 'smooth' : 'auto',
+      });
+    } catch {
+      // Ignore scroll failures; container may be detached.
+    }
+  };
+
+  const snapToTime = (time: number) => {
+    if (!index || !track) {
+      clearActive();
+      cursor = 0;
+      lastApplied = Number.NaN;
+      return;
+    }
+    const currentIndex = index;
+    const activeNow = collectActiveWordIds(currentIndex, time);
+    const targetSet = new Set(activeNow);
+    activeIds.forEach((id) => {
+      if (!targetSet.has(id)) {
+        activeIds.delete(id);
+        deactivateToken(id, false);
+      }
+    });
+    activeNow.forEach((id) => {
+      if (!activeIds.has(id)) {
+        activeIds.add(id);
+        activateToken(id);
+        const word = currentIndex.byId.get(id);
+        if (word) {
+          followSentence(word);
+        }
+      }
+    });
+    cursor = lowerBound(currentIndex.events, time);
+    lastApplied = time;
+  };
+
+  const applyEvent = (event: { kind: 'on' | 'off'; id: string; t: number }) => {
+    const currentIndex = index;
+    if (!currentIndex) {
+      return;
+    }
+    if (event.kind === 'on') {
+      if (activeIds.has(event.id)) {
+        return;
+      }
+      activeIds.add(event.id);
+      activateToken(event.id);
+      const word = currentIndex.byId.get(event.id);
+      if (word) {
+        followSentence(word);
+      }
+    } else {
+      if (!activeIds.has(event.id)) {
+        deactivateToken(event.id, false);
+        return;
+      }
+      activeIds.delete(event.id);
+      deactivateToken(event.id, true);
+    }
+  };
+
+  const processDueEvents = (time: number) => {
+    if (!index) {
+      return;
+    }
+    const { events } = index;
+    let localCursor = cursor;
+    const budgetOrigin = typeof performance !== 'undefined' ? performance.now() : null;
+    while (localCursor < events.length) {
+      const event = events[localCursor];
+      const delta = (event.t - time) * 1000;
+      if (delta > config.HYSTERESIS_MS) {
+        break;
+      }
+      applyEvent(event);
+      localCursor += 1;
+      lastApplied = event.t;
+      if (
+        budgetOrigin !== null &&
+        typeof performance !== 'undefined' &&
+        performance.now() - budgetOrigin >= config.RA_FRAME_BUDGET_MS
+      ) {
+        break;
+      }
+    }
+    cursor = localCursor;
+  };
+
+  const step = () => {
+    rafId = null;
+    if (!track || !index) {
+      return;
+    }
+    if (seeking || stalled) {
+      rafId = window.requestAnimationFrame(step);
+      return;
+    }
+    const effective = clockRef.current.effectiveTime(track);
+    if (!Number.isFinite(lastApplied)) {
+      snapToTime(effective);
+    } else if (Math.abs((effective - lastApplied) * 1000) > config.MAX_LAG_MS) {
+      snapToTime(effective);
+    } else {
+      processDueEvents(effective);
+    }
+    rafId = window.requestAnimationFrame(step);
+  };
+
+  const start = () => {
+    if (!track || !index) {
+      return;
+    }
+    if (rafId === null) {
+      rafId = window.requestAnimationFrame(step);
+    }
+  };
+
+  const stop = () => {
+    clearFrame();
+  };
+
+  const destroy = () => {
+    clearFrame();
+    clearSeekTimeout();
+    clearActive();
+    track = null;
+    index = null;
+  };
+
+  const setTrack = (nextTrack: TrackTimingPayload | null, nextIndex: WordIndex | null) => {
+    clearFrame();
+    clearSeekTimeout();
+    track = nextTrack;
+    index = nextIndex;
+    cursor = 0;
+    lastApplied = Number.NaN;
+    lastFollowedSentence = null;
+    clearActive();
+    if (track && index) {
+      cursor = lowerBound(index.events, 0);
+      snapToTime(clockRef.current.effectiveTime(track));
+      if (!options.isPaused()) {
+        start();
+      }
+    }
+  };
+
+  const snap = () => {
+    if (!track || !index) {
+      clearActive();
+      lastApplied = Number.NaN;
+      cursor = 0;
+      return;
+    }
+    lastFollowedSentence = null;
+    snapToTime(clockRef.current.effectiveTime(track));
+  };
+
+  const handleSeeking = () => {
+    seeking = true;
+    clearSeekTimeout();
+    stop();
+  };
+
+  const handleSeeked = () => {
+    if (!track || !index) {
+      seeking = false;
+      return;
+    }
+    clearSeekTimeout();
+    seekTimeoutId = window.setTimeout(() => {
+      seeking = false;
+      snap();
+      if (!options.isPaused()) {
+        start();
+      }
+    }, config.SEEK_DEBOUNCE_MS);
+  };
+
+  const handleWaiting = () => {
+    stalled = true;
+    stop();
+  };
+
+  const handlePlaying = () => {
+    stalled = false;
+    seeking = false;
+    clearSeekTimeout();
+    snap();
+    if (!options.isPaused()) {
+      start();
+    }
+  };
+
+  const handleRateChange = () => {
+    lastApplied = Number.NaN;
+    snap();
+  };
+
+  const handlePause = () => {
+    stop();
+  };
+
+  const handlePlay = () => {
+    snap();
+    if (!options.isPaused()) {
+      start();
+    }
+  };
+
+  const setFollowHighlight = (value: boolean) => {
+    followHighlights = value;
+  };
+
+  return {
+    setTrack,
+    start,
+    stop,
+    destroy,
+    snap,
+    handleSeeking,
+    handleSeeked,
+    handleWaiting,
+    handlePlaying,
+    handleRateChange,
+    handlePause,
+    handlePlay,
+    setFollowHighlight,
+  };
+}
 
 export default InteractiveTextViewer;

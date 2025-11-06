@@ -3508,3 +3508,70 @@ button[data-variant='metadata-action'] {
 small {
   color: var(--color-text-muted);
 }
+
+.word-sync {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.word-sync__sentence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.25rem 0;
+}
+
+.word-sync__lane {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.word-sync__lane-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  min-width: 4.5rem;
+}
+
+.word-sync__lane-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.word-sync__token {
+  padding: 0 0.2rem;
+  border-radius: 0.25rem;
+  transition: background-color 120ms ease, color 120ms ease, text-decoration-color 120ms ease;
+  line-height: 1.6;
+}
+
+.word-sync__token.is-active {
+  background-color: rgba(40, 120, 255, 0.18);
+  text-decoration: underline;
+  text-decoration-thickness: 0.12em;
+  text-decoration-skip-ink: auto;
+}
+
+.word-sync__token.is-visited {
+  opacity: 0.6;
+}
+
+.word-sync__lane--trans .word-sync__token {
+  color: inherit;
+}
+
+.word-sync__lane--xlit .word-sync__token {
+  color: inherit;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .word-sync__token {
+    transition: none;
+  }
+}

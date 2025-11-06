@@ -51,3 +51,12 @@ export function formatTranslationSpeedLabel(value: number): string {
       : normalised.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
   return `${formatted}×`;
 }
+
+export const WORD_SYNC = {
+  FEATURE: true,
+  HYSTERESIS_MS: 12,
+  SEEK_DEBOUNCE_MS: 40,
+  RA_FRAME_BUDGET_MS: 8,
+  PREWARM_EVENTS: 32,
+  MAX_LAG_MS: 80,
+} as const;
