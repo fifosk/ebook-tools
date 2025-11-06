@@ -10,6 +10,7 @@ import {
   PipelineRequestPayload,
   PipelineStatusResponse,
   PipelineSubmissionResponse,
+  JobTimingResponse,
   SessionStatusResponse,
   PipelineMediaResponse,
   VideoGenerationRequestPayload,
@@ -349,6 +350,17 @@ export async function refreshPipelineMetadata(jobId: string): Promise<PipelineSt
     method: 'POST'
   });
   return handleResponse<PipelineStatusResponse>(response);
+}
+
+export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promise<JobTimingResponse | null> {
+  const response = await apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/timing`, {
+    signal,
+    cache: 'no-store'
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  return handleResponse<JobTimingResponse>(response);
 }
 
 export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {

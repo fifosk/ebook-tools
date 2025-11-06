@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import copy
+import json
 import mimetypes
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from ... import config_manager as cfg
 from ...metadata_manager import MetadataLoader
@@ -18,13 +19,141 @@ from ...services.pipeline_service import PipelineService
 from ..dependencies import (
     RequestUserContext,
     get_file_locator,
+    get_pipeline_job_manager,
     get_pipeline_service,
     get_request_user,
 )
+
+from ..jobs import PipelineJob
 from ..schemas import PipelineMediaChunk, PipelineMediaFile, PipelineMediaResponse
 
 router = APIRouter()
 storage_router = APIRouter()
+jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+def normalize_timings(
+    tokens: Sequence[Mapping[str, Any]],
+    start_offset: float = 0.0,
+    *,
+    lane: str = "tran",
+    seg_prefix: str = "seg",
+) -> list[dict[str, Any]]:
+    """Normalise timing tokens into the frontend payload format."""
+
+    norm: list[dict[str, Any]] = []
+    for index, token in enumerate(tokens):
+        raw_start = float(token.get("start", 0.0))
+        raw_end = float(token.get("end", raw_start))
+        t0 = round(raw_start - start_offset, 3)
+        t1 = round(raw_end - start_offset, 3)
+        norm.append(
+            {
+                "id": f"{seg_prefix}_{index}",
+                "text": token.get("text", ""),
+                "t0": max(t0, 0.0),
+                "t1": max(t1, 0.0),
+                "lane": lane,
+                "segId": seg_prefix,
+            }
+        )
+    return norm
+
+
+def smooth_token_edges(
+    tokens: Sequence[Mapping[str, Any]], min_len: float = 0.04
+) -> list[dict[str, Any]]:
+    """Ensure every token spans at least ``min_len`` seconds and clamps overlaps."""
+
+    smoothed: list[dict[str, Any]] = []
+    total = len(tokens)
+    for index, token in enumerate(tokens):
+        mutable = dict(token)
+        start_val = float(mutable.get("start", 0.0))
+        end_val = float(mutable.get("end", start_val))
+        duration = end_val - start_val
+        if duration < min_len:
+            if index + 1 < total:
+                next_start = float(tokens[index + 1].get("start", end_val))
+            else:
+                next_start = end_val + min_len
+            end_val = min(next_start, start_val + min_len)
+            mutable["end"] = end_val
+        smoothed.append(mutable)
+    return smoothed
+
+
+@jobs_timing_router.get("/{job_id}/timing", response_class=JSONResponse)
+async def get_job_timing(
+    job_id: str,
+    *,
+    job_manager = Depends(get_pipeline_job_manager),
+    locator: FileLocator = Depends(get_file_locator),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> JSONResponse:
+    """Return flattened per-word timing data for ``job_id``."""
+
+    try:
+        job: PipelineJob = job_manager.get(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    result_payload = job.result_payload if isinstance(job.result_payload, Mapping) else {}
+    timing_tracks = result_payload.get("timing_tracks") if isinstance(result_payload, Mapping) else None
+    if not isinstance(timing_tracks, Mapping):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
+
+    track_path = timing_tracks.get("translation")
+    if not isinstance(track_path, str) or not track_path.strip():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
+
+    try:
+        abs_path = locator.resolve_path(job_id, track_path)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing") from exc
+
+    if not abs_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing")
+
+    try:
+        with abs_path.open("r", encoding="utf-8") as handle:
+            segments = json.load(handle)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing") from exc
+
+    try:
+        stat_result = abs_path.stat()
+        etag = f'W/"{stat_result.st_mtime_ns:x}-{stat_result.st_size:x}"'
+    except OSError:
+        etag = f'W/"{job_id}-{len(segments)}"'
+
+    playback_meta = result_payload.get("timing_meta") if isinstance(result_payload, Mapping) else None
+    playback_rate = 1.0
+    if isinstance(playback_meta, Mapping):
+        try:
+            playback_rate = float(playback_meta.get("playbackRate", 1.0))
+        except (TypeError, ValueError):
+            playback_rate = 1.0
+
+    headers = {
+        "Cache-Control": "public, max-age=60",
+        "ETag": etag,
+    }
+    return JSONResponse(
+        content={
+            "job_id": job_id,
+            "track": "translation",
+            "segments": segments,
+            "playback_rate": playback_rate,
+        },
+        headers=headers,
+    )
 
 def _resolve_media_path(
     job_id: str,
@@ -578,4 +707,4 @@ async def download_cover_file(
     return _stream_local_file(resolved_path, range_header)
 
 
-__all__ = ["router", "storage_router"]
+__all__ = ["router", "storage_router", "jobs_timing_router"]

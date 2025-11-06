@@ -20,6 +20,7 @@ import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryM
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
 import { isAudioFileType } from './player-panel/utils';
+import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
@@ -703,6 +704,12 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   useEffect(() => {
     chunkMetadataStoreRef.current = chunkMetadataStore;
   }, [chunkMetadataStore]);
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      return enableDebugOverlay();
+    }
+    return undefined;
+  }, []);
   const mediaIndex = useMemo(() => {
     const map: Record<MediaCategory, Map<string, LiveMediaItem>> = {
       text: new Map(),
@@ -2612,6 +2619,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                               chunk={resolvedActiveTextChunk}
                               activeAudioUrl={inlineAudioSelection}
                               noAudioAvailable={inlineAudioUnavailable}
+                              jobId={jobId}
                               onScroll={handleTextScroll}
                               onAudioProgress={handleInlineAudioProgress}
                               getStoredAudioPosition={getInlineAudioPosition}

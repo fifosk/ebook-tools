@@ -46,6 +46,7 @@ interface TextStageProps {
   resolvedActiveChunk: LiveMediaChunk | null;
   inlineAudioSelection: string | null;
   inlineAudioUnavailable: boolean;
+  jobId?: string | null;
   textScrollRef: RefObject<HTMLDivElement | null>;
   onScroll: (event: UIEvent<HTMLElement>) => void;
   onAudioProgress: (audioUrl: string, position: number) => void;
@@ -167,16 +168,17 @@ export function PlayerPanelStage({
                             chunk={text.resolvedActiveChunk}
                             activeAudioUrl={text.inlineAudioSelection}
                             noAudioAvailable={text.inlineAudioUnavailable}
-                          onScroll={text.onScroll}
-                          onAudioProgress={text.onAudioProgress}
-                          getStoredAudioPosition={text.getStoredAudioPosition}
-                          onRegisterInlineAudioControls={text.onRegisterInlineAudioControls}
-                          onInlineAudioPlaybackStateChange={text.onInlineAudioPlaybackStateChange}
-                          onRequestAdvanceChunk={text.onRequestAdvanceChunk}
-                          isFullscreen={text.isFullscreen}
-                          onRequestExitFullscreen={text.onRequestExitFullscreen}
-                          fullscreenControls={text.fullscreenControls}
-                        />
+                            jobId={text.jobId ?? undefined}
+                            onScroll={text.onScroll}
+                            onAudioProgress={text.onAudioProgress}
+                            getStoredAudioPosition={text.getStoredAudioPosition}
+                            onRegisterInlineAudioControls={text.onRegisterInlineAudioControls}
+                            onInlineAudioPlaybackStateChange={text.onInlineAudioPlaybackStateChange}
+                            onRequestAdvanceChunk={text.onRequestAdvanceChunk}
+                            isFullscreen={text.isFullscreen}
+                            onRequestExitFullscreen={text.onRequestExitFullscreen}
+                            fullscreenControls={text.fullscreenControls}
+                          />
                         ) : (
                           <div className="player-panel__document-status" role="status">
                             Interactive reader assets are still being prepared.

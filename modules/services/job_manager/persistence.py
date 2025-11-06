@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import copy
+import glob
 import json
+import os
 import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
@@ -22,6 +24,107 @@ from .progress import deserialize_progress_event, serialize_progress_event
 from ...progress_tracker import ProgressEvent
 
 _LOGGER = logging_manager.get_logger().getChild("job_manager.persistence")
+
+
+def _iterate_sentence_entries(payload: Any) -> list[Mapping[str, Any]]:
+    """Return flattened sentence entries from a chunk payload."""
+
+    entries: list[Mapping[str, Any]] = []
+    if isinstance(payload, list):
+        for item in payload:
+            entries.extend(_iterate_sentence_entries(item))
+    elif isinstance(payload, Mapping):
+        sentences = payload.get("sentences")
+        if isinstance(sentences, list):
+            for sentence in sentences:
+                entries.extend(_iterate_sentence_entries(sentence))
+        else:
+            entries.append(payload)  # Treat mapping as a sentence-level entry
+        chunks = payload.get("chunks")
+        if isinstance(chunks, list):
+            for chunk in chunks:
+                entries.extend(_iterate_sentence_entries(chunk))
+    return entries
+
+
+def build_timing_index(job_dir: str | os.PathLike[str]) -> list[Dict[str, Any]]:
+    """
+    Scan ``storage/<job_id>/metadata/chunk_*.json`` and aggregate word timings.
+    """
+
+    job_path = Path(job_dir)
+    metadata_dir = job_path / "metadata"
+    if not metadata_dir.exists():
+        return []
+
+    timing_index: list[Dict[str, Any]] = []
+    pattern = metadata_dir / "chunk_*.json"
+    for chunk_path in sorted(glob.glob(os.fspath(pattern))):
+        try:
+            with open(chunk_path, "r", encoding="utf-8") as handle:
+                chunk_payload = json.load(handle)
+        except (OSError, json.JSONDecodeError):  # pragma: no cover - defensive guard
+            continue
+
+        for entry in _iterate_sentence_entries(chunk_payload):
+            timing_tracks = entry.get("timingTracks")
+            if not isinstance(timing_tracks, Mapping):
+                continue
+            translation_track = timing_tracks.get("translation")
+            if not isinstance(translation_track, list):
+                continue
+
+            sentence_id = entry.get("sentence_id") or entry.get("id") or entry.get("sentence_number")
+            sentence_id_str = str(sentence_id) if sentence_id is not None else None
+
+            for token_entry in translation_track:
+                if not isinstance(token_entry, Mapping):
+                    continue
+                token_text = token_entry.get("token")
+                start = token_entry.get("t0")
+                end = token_entry.get("t1")
+                if token_text is None or start is None or end is None:
+                    continue
+                try:
+                    start_val = float(start)
+                    end_val = float(end)
+                except (TypeError, ValueError):
+                    continue
+                record: Dict[str, Any] = {
+                    "token": str(token_text),
+                    "t0": round(start_val, 3),
+                    "t1": round(end_val, 3),
+                }
+                if sentence_id_str is not None:
+                    record["sentence_id"] = sentence_id_str
+                timing_index.append(record)
+    return timing_index
+
+
+def ensure_timing_manifest(
+    manifest: Mapping[str, Any] | None,
+    job_dir: str | os.PathLike[str],
+) -> Dict[str, Any]:
+    """
+    Attach aggregated timing index and playback metadata to ``manifest``.
+    """
+
+    manifest_payload = dict(manifest or {})
+    job_path = Path(job_dir)
+    index = build_timing_index(job_path)
+    if index:
+        metadata_dir = job_path / "metadata"
+        metadata_dir.mkdir(parents=True, exist_ok=True)
+        timing_path = metadata_dir / "timing_index.json"
+        try:
+            with timing_path.open("w", encoding="utf-8") as handle:
+                json.dump(index, handle, ensure_ascii=False, indent=2)
+        except OSError:  # pragma: no cover - defensive guard
+            _LOGGER.debug("Unable to persist timing index at %s", timing_path, exc_info=True)
+        else:
+            tracks = manifest_payload.setdefault("timing_tracks", {})
+            tracks["translation"] = "metadata/timing_index.json"
+    return manifest_payload
 
 
 class PipelineJobPersistence:
@@ -163,6 +266,7 @@ class PipelineJobPersistence:
         try:
             metadata_root = self._file_locator.metadata_root(job.job_id)
             metadata_root.mkdir(parents=True, exist_ok=True)
+            job_root = self._file_locator.job_root(job.job_id)
         except Exception:  # pragma: no cover - defensive logging
             _LOGGER.debug("Unable to prepare metadata directory", exc_info=True)
             return None
@@ -241,6 +345,19 @@ class PipelineJobPersistence:
                 job.result.chunk_manifest = copy.deepcopy(chunk_manifest)
             job.chunk_manifest = copy.deepcopy(chunk_manifest)
             snapshot.chunk_manifest = copy.deepcopy(chunk_manifest)
+
+        manifest_payload = ensure_timing_manifest(snapshot.result, job_root)
+        snapshot.result = manifest_payload
+        timing_tracks = manifest_payload.get("timing_tracks")
+        snapshot.timing_tracks = copy.deepcopy(timing_tracks) if timing_tracks else None
+
+        if job.result_payload is not None:
+            job.result_payload = ensure_timing_manifest(job.result_payload, job_root)
+        if job.result is not None and timing_tracks:
+            try:
+                job.result.metadata.update({"timing_tracks": copy.deepcopy(timing_tracks)})
+            except Exception:  # pragma: no cover - defensive logging
+                _LOGGER.debug("Unable to attach timing tracks to job result", exc_info=True)
 
         return chunk_manifest
 

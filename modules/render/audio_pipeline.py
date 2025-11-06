@@ -6,7 +6,7 @@ import threading
 import time
 from dataclasses import dataclass
 from queue import Empty, Full, Queue
-from typing import Callable, Mapping, Optional, Protocol, TYPE_CHECKING
+from typing import Any, Callable, Dict, List, Mapping, Optional, Protocol, Sequence, TYPE_CHECKING
 
 from pydub import AudioSegment
 
@@ -57,6 +57,8 @@ class MediaResultFactory(Protocol):
         translation: str,
         transliteration: str,
         audio_segment: Optional[AudioSegment],
+        voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
     ) -> "MediaPipelineResult":
         """Return a media result instance."""
 
@@ -106,6 +108,214 @@ class VideoWorker(_SimpleWorker):
 
 class TextWorker(_SimpleWorker):
     """Wrapper for text worker coroutines."""
+
+
+def _coerce_float(value: object) -> Optional[float]:
+    """Best-effort conversion of arbitrary values to floats."""
+
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _time_from_entry(entry: Mapping[str, object], keys: Sequence[str]) -> Optional[float]:
+    """Extract a timing value in seconds from a metadata entry."""
+
+    for raw_key in keys:
+        key = str(raw_key)
+        if key not in entry:
+            continue
+        value = _coerce_float(entry.get(key))
+        if value is None:
+            continue
+        if key.lower().endswith("_ms"):
+            return value / 1000.0
+        return value
+    return None
+
+
+def _normalize_char_timing(entry: Mapping[str, object]) -> tuple[Optional[float], Optional[float]]:
+    """Return normalized (start, end) timings in seconds for a single character."""
+
+    start = _time_from_entry(
+        entry,
+        (
+            "start_ms",
+            "offset_ms",
+            "begin_ms",
+            "start",
+            "offset",
+            "begin",
+            "time",
+        ),
+    )
+    end = _time_from_entry(
+        entry,
+        ("end_ms", "stop_ms", "finish_ms", "end", "stop", "finish"),
+    )
+    duration = _time_from_entry(
+        entry,
+        (
+            "duration_ms",
+            "length_ms",
+            "time_span_ms",
+            "duration",
+            "length",
+            "time_span",
+        ),
+    )
+
+    if start is None and end is not None and duration is not None:
+        start = end - duration
+    if start is not None and duration is not None and end is None:
+        end = start + duration
+    if start is not None:
+        start = max(start, 0.0)
+    if end is not None:
+        end = max(end, 0.0)
+    if start is not None and end is not None and end < start:
+        end = start
+    return start, end
+
+
+def _segment_char_timings(audio_segment: Optional[AudioSegment]) -> Optional[Sequence[Mapping[str, object]]]:
+    """Retrieve per-character timing metadata from an audio segment if available."""
+
+    if audio_segment is None:
+        return None
+    for attr in ("char_timings", "character_timing", "highlight_character_timing", "alignment"):
+        candidate = getattr(audio_segment, attr, None)
+        if isinstance(candidate, Sequence):
+            return candidate  # type: ignore[return-value]
+    provider = getattr(audio_segment, "get_alignment_metadata", None)
+    if callable(provider):
+        try:
+            result = provider()
+        except TypeError:
+            result = provider(audio_segment)  # type: ignore[misc]
+        if isinstance(result, Sequence):
+            return result  # type: ignore[return-value]
+    return None
+
+
+def _tokens_from_char_timings(
+    text: str,
+    char_timings: Sequence[Mapping[str, object]],
+) -> List[Dict[str, float | str]]:
+    """Collapse character-level timings into whitespace-delimited tokens."""
+
+    if not text or not char_timings:
+        return []
+
+    normalized: List[tuple[Optional[float], Optional[float]]] = []
+    for entry in char_timings:
+        if isinstance(entry, Mapping):
+            normalized.append(_normalize_char_timing(entry))
+        else:
+            normalized.append((None, None))
+
+    tokens: List[Dict[str, float | str]] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        while index < length and text[index].isspace():
+            index += 1
+        if index >= length:
+            break
+        token_chars: List[str] = []
+        token_start: Optional[float] = None
+        token_end: Optional[float] = None
+        while index < length and not text[index].isspace():
+            token_chars.append(text[index])
+            if index < len(normalized):
+                start, end = normalized[index]
+                if start is not None:
+                    token_start = start if token_start is None else min(token_start, start)
+                if end is not None:
+                    token_end = end if token_end is None else max(token_end, end)
+            index += 1
+        token_text = "".join(token_chars)
+        if token_text:
+            if token_start is not None:
+                token_start = round(max(token_start, 0.0), 6)
+            if token_end is not None:
+                token_end = round(max(token_end, 0.0), 6)
+            tokens.append({"text": token_text, "start": token_start, "end": token_end})
+        while index < length and text[index].isspace():
+            index += 1
+
+    if not tokens or any(token["start"] is None or token["end"] is None for token in tokens):
+        return []
+
+    previous_end = 0.0
+    for token in tokens:
+        start = float(token["start"])  # type: ignore[arg-type]
+        end = float(token["end"])  # type: ignore[arg-type]
+        if start < previous_end:
+            start = previous_end
+            token["start"] = round(start, 6)
+        if end < start:
+            end = start
+            token["end"] = round(end, 6)
+        previous_end = end
+
+    return tokens
+
+
+def _evenly_distributed_tokens(text: str, duration: float) -> List[Dict[str, float | str]]:
+    """Distribute total duration evenly across whitespace-delimited words."""
+
+    words = [word for word in text.split() if word]
+    if not words:
+        return []
+    total_duration = max(duration, 0.0)
+    count = len(words)
+    slice_duration = total_duration / count if count else 0.0
+    tokens: List[Dict[str, float | str]] = []
+    cursor = 0.0
+    for idx, word in enumerate(words):
+        start = cursor
+        if idx == count - 1:
+            end = total_duration
+        else:
+            end = cursor + slice_duration
+        start = round(max(start, 0.0), 6)
+        end = round(max(end, 0.0), 6)
+        tokens.append({"text": word, "start": start, "end": end})
+        cursor = end
+    return tokens
+
+
+def _extract_word_tokens(
+    *,
+    text: str,
+    audio_segment: Optional[AudioSegment],
+    metadata: Mapping[str, object],
+) -> List[Dict[str, float | str]]:
+    """Return per-word timing tokens derived from char timings or equal slices."""
+
+    if not text:
+        return []
+
+    char_timings: Optional[Sequence[Mapping[str, object]]] = None
+    candidate = metadata.get("char_timings") if isinstance(metadata, Mapping) else None
+    if isinstance(candidate, Sequence):
+        char_timings = candidate  # type: ignore[assignment]
+    if char_timings is None:
+        char_timings = _segment_char_timings(audio_segment)
+
+    tokens: List[Dict[str, float | str]] = []
+    if char_timings:
+        tokens = _tokens_from_char_timings(text, char_timings)
+
+    if not tokens:
+        duration = float(audio_segment.duration_seconds) if audio_segment is not None else 0.0
+        tokens = _evenly_distributed_tokens(text, duration)
+
+    return tokens
 
 
 def audio_worker_body(
@@ -204,6 +414,7 @@ def audio_worker_body(
         start_time = time.perf_counter()
         audio_segment: Optional[AudioSegment] = None
         voice_metadata: Mapping[str, Mapping[str, str]] = {}
+        metadata: Dict[str, Any] = {}
         try:
             if generate_audio and audio_generator is not None:
                 audio_output = audio_generator(
@@ -225,6 +436,9 @@ def audio_worker_body(
                 if isinstance(audio_output, SynthesisResult):
                     audio_segment = audio_output.audio
                     voice_metadata = audio_output.voice_metadata
+                    raw_metadata = getattr(audio_output, "metadata", None)
+                    if isinstance(raw_metadata, Mapping):
+                        metadata = dict(raw_metadata)
                 else:
                     audio_segment = audio_output
         except Exception as exc:  # pragma: no cover - defensive logging
@@ -247,6 +461,55 @@ def audio_worker_body(
             elapsed,
         )
 
+        if not isinstance(metadata, dict):
+            try:
+                metadata = dict(metadata)  # type: ignore[arg-type]
+            except Exception:
+                metadata = {}
+
+        translation_text = translation_task.translation or ""
+        char_timings_candidate = metadata.get("char_timings")
+        has_char_timings = isinstance(char_timings_candidate, Sequence) and not isinstance(
+            char_timings_candidate, (str, bytes)
+        )
+        if translation_text and (audio_segment is not None or has_char_timings):
+            word_tokens = _extract_word_tokens(
+                text=translation_text,
+                audio_segment=audio_segment,
+                metadata=metadata,
+            )
+            if word_tokens:
+                metadata["word_tokens"] = word_tokens
+
+        if translation_text:
+            metadata.setdefault("text", translation_text)
+        metadata.setdefault("sentence_number", translation_task.sentence_number)
+        metadata.setdefault("id", str(translation_task.sentence_number))
+        metadata.setdefault("t0", 0.0)
+
+        total_duration: Optional[float] = None
+        if audio_segment is not None:
+            try:
+                total_duration = float(audio_segment.duration_seconds)
+            except Exception:
+                total_duration = None
+        if total_duration is None:
+            tokens = metadata.get("word_tokens")
+            if isinstance(tokens, Sequence) and tokens:
+                last_token = tokens[-1]
+                try:
+                    total_duration = float(last_token.get("end", 0.0))
+                except (TypeError, ValueError, AttributeError):
+                    total_duration = None
+        if total_duration is not None:
+            metadata.setdefault("t1", round(max(total_duration, 0.0), 6))
+
+        if audio_segment is not None and metadata.get("word_tokens"):
+            try:
+                setattr(audio_segment, "word_tokens", metadata["word_tokens"])
+            except Exception:
+                pass
+
         payload = media_result_factory(
             index=translation_task.index,
             sentence_number=translation_task.sentence_number,
@@ -256,6 +519,7 @@ def audio_worker_body(
             transliteration=translation_task.transliteration,
             audio_segment=audio_segment,
             voice_metadata=voice_metadata,
+            metadata=metadata,
         )
 
         while True:

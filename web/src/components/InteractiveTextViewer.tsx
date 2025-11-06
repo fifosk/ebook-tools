@@ -8,9 +8,17 @@ import {
   useState,
 } from 'react';
 import type { MutableRefObject, ReactNode, UIEvent } from 'react';
-import { appendAccessToken } from '../api/client';
+import { appendAccessToken, fetchJobTiming } from '../api/client';
+import type { JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
 import { useMediaClock } from '../hooks/useLiveMedia';
+import PlayerCore from '../player/PlayerCore';
+import { usePlayerCore } from '../hooks/usePlayerCore';
+import { start as startAudioSync, stop as stopAudioSync } from '../player/AudioSyncController';
+import { timingStore } from '../stores/timingStore';
+import type { TimingPayload, Segment, TrackKind, WordToken } from '../types/timing';
+import TranscriptView from './transcript/TranscriptView';
+import { interleaveDual } from '../utils/interleave';
 import TextPlayer, {
   type TextPlayerSentence,
   type TextPlayerVariantDisplay,
@@ -68,6 +76,232 @@ const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
   trans: 'Translation',
   xlit: 'Transliteration',
 };
+
+const EMPTY_TIMING_PAYLOAD: TimingPayload = {
+  trackKind: 'translation_only',
+  segments: [],
+};
+
+function toTrackKind(track: TrackTimingPayload): TrackKind {
+  return track.trackType === 'original_translated'
+    ? 'original_translation_combined'
+    : 'translation_only';
+}
+
+function extractPlaybackRate(track: TrackTimingPayload): number | undefined {
+  const raw = Number(track.tempoFactor);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return undefined;
+  }
+  return Math.round(raw * 1000) / 1000;
+}
+
+function buildTimingPayloadFromWordIndex(
+  track: TrackTimingPayload,
+  index: WordIndex,
+): TimingPayload {
+  const segmentsById = new Map<
+    number,
+    {
+      id: string;
+      tokens: WordToken[];
+      t0: number;
+      t1: number;
+    }
+  >();
+
+  index.words.forEach((word) => {
+    if (word.lang !== 'orig' && word.lang !== 'trans') {
+      return;
+    }
+    const lane: WordToken['lane'] = word.lang === 'orig' ? 'orig' : 'tran';
+    const segmentId = word.sentenceId;
+    const segmentKey = Number.isFinite(segmentId) ? Math.trunc(segmentId) : 0;
+    const segId = String(segmentKey);
+    const token: WordToken = {
+      id: word.id,
+      text: word.text,
+      t0: word.t0,
+      t1: word.t1,
+      lane,
+      segId,
+    };
+    const entry = segmentsById.get(segmentKey);
+    if (entry) {
+      entry.tokens.push(token);
+      if (token.t0 < entry.t0) {
+        entry.t0 = token.t0;
+      }
+      if (token.t1 > entry.t1) {
+        entry.t1 = token.t1;
+      }
+    } else {
+      segmentsById.set(segmentKey, {
+        id: segId,
+        tokens: [token],
+        t0: token.t0,
+        t1: token.t1,
+      });
+    }
+  });
+
+  if (segmentsById.size === 0) {
+    return {
+      trackKind: toTrackKind(track),
+      playbackRate: extractPlaybackRate(track),
+      segments: [],
+    };
+  }
+
+  const segments: Segment[] = Array.from(segmentsById.values()).map((segment) => {
+    segment.tokens.sort((left, right) => {
+      if (left.t0 !== right.t0) {
+        return left.t0 - right.t0;
+      }
+      if (left.t1 !== right.t1) {
+        return left.t1 - right.t1;
+      }
+      if (left.lane !== right.lane) {
+        return left.lane.localeCompare(right.lane);
+      }
+      return left.id.localeCompare(right.id);
+    });
+    return {
+      id: segment.id,
+      t0: segment.t0,
+      t1: segment.t1,
+      tokens: segment.tokens,
+    };
+  });
+
+  segments.sort((left, right) => {
+    if (left.t0 !== right.t0) {
+      return left.t0 - right.t0;
+    }
+    if (left.t1 !== right.t1) {
+      return left.t1 - right.t1;
+    }
+    return left.id.localeCompare(right.id);
+  });
+
+  return {
+    trackKind: toTrackKind(track),
+    playbackRate: extractPlaybackRate(track),
+    segments,
+  };
+}
+
+function buildTimingPayloadFromJobTiming(response: JobTimingResponse): TimingPayload | null {
+  if (!response || !Array.isArray(response.segments) || response.segments.length === 0) {
+    return null;
+  }
+
+  type Bucket = {
+    id: string;
+    tokens: WordToken[];
+    min: number;
+    max: number;
+  };
+
+  const buckets = new Map<string, Bucket>();
+
+  response.segments.forEach((entry, index) => {
+    if (!entry) {
+      return;
+    }
+    const rawT0 = Number(entry.t0);
+    const rawT1 = Number(entry.t1);
+    if (!Number.isFinite(rawT0)) {
+      return;
+    }
+    const t0 = rawT0;
+    const t1 = Number.isFinite(rawT1) ? Math.max(rawT1, rawT0) : rawT0;
+    const rawSentence = entry.sentence_id;
+    const segmentId =
+      rawSentence === null || rawSentence === undefined || rawSentence === ''
+        ? `seg-${index}`
+        : String(rawSentence);
+    let bucket = buckets.get(segmentId);
+    if (!bucket) {
+      bucket = {
+        id: segmentId,
+        tokens: [],
+        min: Number.POSITIVE_INFINITY,
+        max: Number.NEGATIVE_INFINITY,
+      };
+      buckets.set(segmentId, bucket);
+    }
+    const textValue = typeof entry.token === 'string' ? entry.token : String(entry.token ?? '');
+    const tokenId = `${segmentId}-${bucket.tokens.length}`;
+    bucket.tokens.push({
+      id: tokenId,
+      text: textValue,
+      t0,
+      t1,
+      lane: 'tran',
+      segId: segmentId,
+    });
+    if (t0 < bucket.min) {
+      bucket.min = t0;
+    }
+    if (t1 > bucket.max) {
+      bucket.max = t1;
+    }
+  });
+
+  if (buckets.size === 0) {
+    return null;
+  }
+
+  const segments: Segment[] = Array.from(buckets.values()).map((bucket) => {
+    const tokens = bucket.tokens.sort((left, right) => {
+      if (left.t0 !== right.t0) {
+        return left.t0 - right.t0;
+      }
+      if (left.t1 !== right.t1) {
+        return left.t1 - right.t1;
+      }
+      return left.id.localeCompare(right.id);
+    });
+    const first = tokens[0];
+    const last = tokens[tokens.length - 1] ?? first;
+    const resolvedT0 = Number.isFinite(bucket.min) ? bucket.min : first?.t0 ?? 0;
+    const resolvedT1 = Number.isFinite(bucket.max) ? bucket.max : last?.t1 ?? resolvedT0;
+    return {
+      id: bucket.id,
+      t0: resolvedT0,
+      t1: resolvedT1 >= resolvedT0 ? resolvedT1 : resolvedT0,
+      tokens,
+    };
+  });
+
+  segments.sort((left, right) => {
+    if (left.t0 !== right.t0) {
+      return left.t0 - right.t0;
+    }
+    if (left.t1 !== right.t1) {
+      return left.t1 - right.t1;
+    }
+    return left.id.localeCompare(right.id);
+  });
+
+  if (segments.length === 0) {
+    return null;
+  }
+
+  const playbackRateValue = Number(response.playback_rate);
+  const payload: TimingPayload = {
+    trackKind:
+      response.track === 'original_translation' || response.track === 'original_translation_combined'
+        ? 'original_translation_combined'
+        : 'translation_only',
+    segments,
+  };
+  if (Number.isFinite(playbackRateValue) && playbackRateValue > 0) {
+    payload.playbackRate = Math.round(playbackRateValue * 1000) / 1000;
+  }
+  return payload;
+}
 
 type TimelineVariantRuntime = {
   tokens: string[];
@@ -164,6 +398,7 @@ interface InteractiveTextViewerProps {
   chunk: LiveMediaChunk | null;
   activeAudioUrl: string | null;
   noAudioAvailable: boolean;
+  jobId?: string | null;
   onScroll?: (event: UIEvent<HTMLDivElement>) => void;
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
@@ -359,6 +594,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     chunk,
     activeAudioUrl,
     noAudioAvailable,
+    jobId = null,
     onScroll,
     onAudioProgress,
     getStoredAudioPosition,
@@ -385,7 +621,12 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [fontScale]);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const {
+    ref: attachPlayerCore,
+    core: playerCore,
+    elementRef: audioRef,
+    mediaRef: attachMediaElement,
+  } = usePlayerCore();
   const tokenElementsRef = useRef<Map<string, HTMLElement>>(new Map());
   const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
   const wordSyncControllerRef = useRef<WordSyncController | null>(null);
@@ -467,6 +708,45 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, []);
   const wordSyncAllowed = (wordSyncQueryState ?? WORD_SYNC.FEATURE) === true;
   const followHighlightEnabled = !prefersReducedMotion;
+  const [remoteTimingPayload, setRemoteTimingPayload] = useState<TimingPayload | null>(null);
+
+  useEffect(() => {
+    if (!jobId || !wordSyncAllowed) {
+      setRemoteTimingPayload(null);
+      return;
+    }
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    let cancelled = false;
+    setRemoteTimingPayload(null);
+    (async () => {
+      try {
+        const response = await fetchJobTiming(jobId, controller?.signal);
+        if (cancelled || controller?.signal.aborted) {
+          return;
+        }
+        if (!response) {
+          setRemoteTimingPayload(null);
+          return;
+        }
+        const payload = buildTimingPayloadFromJobTiming(response);
+        setRemoteTimingPayload(payload);
+      } catch (error) {
+        if (controller?.signal.aborted || cancelled) {
+          return;
+        }
+        if (import.meta.env.DEV) {
+          console.debug('Failed to load job timing data', error);
+        }
+        setRemoteTimingPayload(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (controller) {
+        controller.abort();
+      }
+    };
+  }, [jobId, wordSyncAllowed]);
 
   const paragraphs = useMemo(() => buildParagraphs(content), [content]);
   const timelineSentences = useMemo(() => {
@@ -1078,7 +1358,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     return buildWordIndex(selectedWordSyncTrack);
   }, [selectedWordSyncTrack]);
+  const legacyWordSyncEnabled = false;
   const wordSyncSentences = useMemo<WordSyncSentence[] | null>(() => {
+    if (!legacyWordSyncEnabled) {
+      return null;
+    }
     if (!wordIndex) {
       return null;
     }
@@ -1144,12 +1428,63 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         tokens: lanes,
       };
     });
-  }, [chunkSentenceMap, wordIndex]);
-  const shouldUseWordSync =
-    wordSyncAllowed &&
-    Boolean(selectedWordSyncTrack && wordIndex && wordSyncSentences && wordSyncSentences.length > 0);
-  const activeWordSyncTrack = shouldUseWordSync && selectedWordSyncTrack ? selectedWordSyncTrack : null;
-  const activeWordIndex = shouldUseWordSync && wordIndex ? wordIndex : null;
+  }, [chunkSentenceMap, legacyWordSyncEnabled, wordIndex]);
+  const hasRemoteTiming = wordSyncAllowed && remoteTimingPayload !== null;
+  const hasLegacyWordSync = wordSyncAllowed && Boolean(selectedWordSyncTrack && wordIndex);
+  const hasWordSyncData =
+    hasRemoteTiming ||
+    (hasLegacyWordSync &&
+      (legacyWordSyncEnabled ? Boolean(wordSyncSentences && wordSyncSentences.length > 0) : true));
+  const shouldUseWordSync = hasWordSyncData;
+  const useTranscriptView = shouldUseWordSync && (!legacyWordSyncEnabled || hasRemoteTiming);
+  const activeWordSyncTrack =
+    !hasRemoteTiming && shouldUseWordSync && selectedWordSyncTrack ? selectedWordSyncTrack : null;
+  const activeWordIndex =
+    !hasRemoteTiming && shouldUseWordSync && wordIndex ? wordIndex : null;
+  const timingPayload = useMemo<TimingPayload | null>(() => {
+    if (hasRemoteTiming && remoteTimingPayload) {
+      return remoteTimingPayload;
+    }
+    if (!hasLegacyWordSync || !activeWordSyncTrack || !activeWordIndex) {
+      return null;
+    }
+    return buildTimingPayloadFromWordIndex(activeWordSyncTrack, activeWordIndex);
+  }, [activeWordIndex, activeWordSyncTrack, hasLegacyWordSync, hasRemoteTiming, remoteTimingPayload]);
+  const transcriptSegments = useMemo<Segment[] | null>(() => {
+    if (!timingPayload) {
+      return null;
+    }
+    const origSegments: Segment[] = [];
+    const tranSegments: Segment[] = [];
+    timingPayload.segments.forEach((segment) => {
+      const baseSegment = {
+        t0: segment.t0,
+        t1: segment.t1,
+      };
+      const origTokens = segment.tokens
+        .filter((token) => token.lane === 'orig')
+        .map((token) => ({ ...token }));
+      if (origTokens.length > 0) {
+        origSegments.push({
+          id: `${segment.id}-orig`,
+          ...baseSegment,
+          tokens: origTokens,
+        });
+      }
+      const tranTokens = segment.tokens
+        .filter((token) => token.lane === 'tran')
+        .map((token) => ({ ...token }));
+      if (tranTokens.length > 0) {
+        tranSegments.push({
+          id: `${segment.id}-tran`,
+          ...baseSegment,
+          tokens: tranTokens,
+        });
+      }
+    });
+    const merged = interleaveDual(origSegments, tranSegments);
+    return merged.length > 0 ? merged : null;
+  }, [timingPayload]);
   const registerTokenElement = useCallback((id: string, element: HTMLSpanElement | null) => {
     const map = tokenElementsRef.current;
     if (!element) {
@@ -1167,6 +1502,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     map.set(sentenceId, element);
   }, []);
   useEffect(() => {
+    if (!legacyWordSyncEnabled) {
+      wordSyncControllerRef.current = null;
+      return;
+    }
     const controller = createWordSyncController({
       containerRef,
       tokenElementsRef,
@@ -1184,12 +1523,17 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       controller.destroy();
       wordSyncControllerRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [clockRef, containerRef, followHighlightEnabled, legacyWordSyncEnabled]);
   useEffect(() => {
+    if (!legacyWordSyncEnabled) {
+      return;
+    }
     wordSyncControllerRef.current?.setFollowHighlight(followHighlightEnabled);
-  }, [followHighlightEnabled]);
+  }, [followHighlightEnabled, legacyWordSyncEnabled]);
   useEffect(() => {
+    if (!legacyWordSyncEnabled) {
+      return;
+    }
     const controller = wordSyncControllerRef.current;
     if (!controller) {
       return;
@@ -1208,8 +1552,44 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     return () => {
       controller.stop();
     };
-  }, [activeWordIndex, activeWordSyncTrack, shouldUseWordSync]);
+  }, [activeWordIndex, activeWordSyncTrack, shouldUseWordSync, legacyWordSyncEnabled]);
   useEffect(() => {
+    const clearTiming = () => {
+      timingStore.setPayload(EMPTY_TIMING_PAYLOAD);
+      timingStore.setLast(null);
+    };
+    if (!shouldUseWordSync || !timingPayload) {
+      clearTiming();
+      return clearTiming;
+    }
+    timingStore.setPayload(timingPayload);
+    timingStore.setLast(null);
+    if (typeof timingPayload.playbackRate === 'number' && timingPayload.playbackRate > 0) {
+      timingStore.setRate(timingPayload.playbackRate);
+    }
+    return clearTiming;
+  }, [shouldUseWordSync, timingPayload]);
+  useEffect(() => {
+    if (!playerCore || !shouldUseWordSync || !timingPayload) {
+      stopAudioSync();
+      return () => {
+        stopAudioSync();
+      };
+    }
+    if (typeof timingPayload.playbackRate === 'number' && timingPayload.playbackRate > 0) {
+      playerCore.setRate(timingPayload.playbackRate);
+    }
+    startAudioSync(playerCore);
+    return () => {
+      stopAudioSync();
+    };
+  }, [playerCore, shouldUseWordSync, timingPayload]);
+  useEffect(() => {
+    if (!legacyWordSyncEnabled) {
+      tokenElementsRef.current.clear();
+      sentenceElementsRef.current.clear();
+      return;
+    }
     if (shouldUseWordSync) {
       return;
     }
@@ -1219,9 +1599,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     });
     tokenElementsRef.current.clear();
     sentenceElementsRef.current.clear();
-  }, [shouldUseWordSync]);
+  }, [legacyWordSyncEnabled, shouldUseWordSync]);
   useEffect(() => {
-    if (!shouldUseWordSync) {
+    if (!legacyWordSyncEnabled || !shouldUseWordSync) {
       return;
     }
     const controller = wordSyncControllerRef.current;
@@ -1238,7 +1618,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     return () => {
       window.cancelAnimationFrame(handle);
     };
-  }, [shouldUseWordSync, wordSyncSentences]);
+  }, [legacyWordSyncEnabled, shouldUseWordSync, wordSyncSentences]);
 
   useEffect(() => {
     if (!onRegisterInlineAudioControls) {
@@ -1640,6 +2020,16 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [],
   );
 
+  const handleTranscriptWordClick = useCallback(
+    (_tokenId: string, token: WordToken) => {
+      if (!Number.isFinite(token.t0)) {
+        return;
+      }
+      handleTokenSeek(token.t0);
+    },
+    [handleTokenSeek],
+  );
+
   const rootClassName = [
     'player-panel__interactive',
     isFullscreen ? 'player-panel__interactive--fullscreen' : null,
@@ -1663,9 +2053,12 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         <div className="player-panel__interactive-audio">
           <span className="player-panel__interactive-label">Synchronized audio</span>
           <div className="player-panel__interactive-audio-controls">
-            <audio
-              ref={audioRef}
+            <PlayerCore
+              key={resolvedAudioUrl ?? 'inline-audio'}
+              ref={attachPlayerCore}
+              mediaRef={attachMediaElement}
               src={resolvedAudioUrl ?? undefined}
+              id="main-audio"
               controls
               preload="metadata"
               autoPlay
@@ -1695,7 +2088,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onScroll={handleScroll}
         style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
       >
-        {shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
+        {useTranscriptView && transcriptSegments && transcriptSegments.length > 0 ? (
+          <TranscriptView
+            segments={transcriptSegments}
+            player={playerCore}
+            onWordClick={handleTranscriptWordClick}
+          />
+        ) : legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
           <div
             className="word-sync"
             data-track-type={activeWordSyncTrack?.trackType ?? 'none'}

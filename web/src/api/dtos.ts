@@ -343,6 +343,20 @@ export interface TrackTimingPayload {
   version: string;
 }
 
+export interface JobTimingEntry {
+  token: string;
+  t0: number;
+  t1: number;
+  sentence_id?: string | number | null;
+}
+
+export interface JobTimingResponse {
+  job_id: string;
+  track: string;
+  segments: JobTimingEntry[];
+  playback_rate?: number | null;
+}
+
 export interface ChunkSentenceMetadata {
   sentence_number?: number | null;
   original: ChunkSentenceVariant;

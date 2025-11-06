@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Dict, List, Mapping, Optional, Sequence
+from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from PIL import Image
 from pydub import AudioSegment
@@ -15,6 +15,7 @@ from modules import output_formatter
 from modules.audio.tts import SILENCE_DURATION_MS, get_voice_display_name
 from modules.config.loader import get_rendering_config
 from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.core.rendering.timeline import build_word_events
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
 from modules.video.api import VideoService
@@ -47,6 +48,59 @@ def _tokenize_words(text: str) -> List[str]:
     if not text:
         return []
     return [token for token in text.split() if token]
+
+
+def serialize_sentence_chunk(sentence_meta: Mapping[str, Any]) -> Dict[str, Any]:
+    """
+    Normalise sentence-level metadata for chunk payloads.
+
+    Builds a backward-compatible structure that keeps sentence timing while
+    exposing detailed word-level tracks when available.
+    """
+
+    if not isinstance(sentence_meta, Mapping):
+        raise TypeError("sentence_meta must be a mapping")
+
+    sentence_id = (
+        sentence_meta.get("id")
+        or sentence_meta.get("sentence_id")
+        or sentence_meta.get("sentence_number")
+        or ""
+    )
+    sentence_id_str = str(sentence_id) if sentence_id is not None else ""
+    if not sentence_id_str:
+        sentence_number_val = sentence_meta.get("sentence_number")
+        if sentence_number_val is not None:
+            sentence_id_str = str(sentence_number_val)
+
+    text_value = sentence_meta.get("text")
+    text_str = str(text_value) if text_value is not None else ""
+
+    try:
+        t0 = round(float(sentence_meta.get("t0", 0.0)), 3)
+    except (TypeError, ValueError):
+        t0 = 0.0
+
+    duration_candidate = sentence_meta.get("t1", sentence_meta.get("duration", 0.0))
+    try:
+        t1 = round(float(duration_candidate), 3)
+    except (TypeError, ValueError):
+        t1 = t0
+    if t1 < t0:
+        t1 = t0
+
+    word_events = build_word_events(sentence_meta)
+
+    chunk_entry: Dict[str, Any] = {
+        "sentence_id": sentence_id_str,
+        "text": text_str,
+        "t0": t0,
+        "t1": t1,
+        "timing": {"t0": t0, "t1": t1},
+    }
+    if word_events:
+        chunk_entry["timingTracks"] = {"translation": word_events}
+    return chunk_entry
 
 
 def _slice_audio_region(audio: AudioSegment, *, start: float, duration: float) -> AudioSegment:
@@ -164,6 +218,7 @@ class BatchExportRequest:
     audio_segments: Sequence[AudioSegment]
     generate_video: bool
     video_blocks: Sequence[str]
+    sentence_metadata: Sequence[Mapping[str, Any]] = field(default_factory=list)
     voice_metadata: Mapping[str, Mapping[str, Sequence[str]]] = field(
         default_factory=dict
     )
@@ -225,6 +280,7 @@ class BatchExporter:
         translation_phase_duration: float = 0.0,
         gap_before_translation: float = 0.0,
         gap_after_translation: float = 0.0,
+        word_meta: Optional[Mapping[str, Any]] = None,
     ) -> Dict[str, object]:
         header, original_text, translation_text, transliteration_text = _parse_sentence_block(block)
 
@@ -300,6 +356,42 @@ class BatchExporter:
             phase_payload["tail"] = float(gap_after_translation)
         if phase_payload:
             payload["phase_durations"] = phase_payload
+
+        meta_payload: Dict[str, Any]
+        if isinstance(word_meta, Mapping):
+            meta_payload = dict(word_meta)
+        else:
+            meta_payload = {}
+        meta_payload.setdefault("sentence_number", sentence_number)
+        meta_payload.setdefault(
+            "id",
+            str(meta_payload.get("sentence_number", sentence_number)),
+        )
+        meta_payload.setdefault(
+            "text",
+            meta_payload.get("text") or translation_text or original_text,
+        )
+        meta_payload.setdefault("t0", meta_payload.get("t0", 0.0))
+        if "word_tokens" not in meta_payload or not meta_payload.get("word_tokens"):
+            tokens_attr = getattr(audio_segment, "word_tokens", None) if audio_segment is not None else None
+            if isinstance(tokens_attr, Sequence):
+                meta_payload["word_tokens"] = list(tokens_attr)
+        if "t1" not in meta_payload:
+            meta_payload["t1"] = round(audio_duration, 6)
+        else:
+            try:
+                meta_payload["t1"] = round(float(meta_payload["t1"]), 6)
+            except (TypeError, ValueError):
+                meta_payload["t1"] = round(audio_duration, 6)
+
+        chunk_entry = serialize_sentence_chunk(meta_payload)
+        payload["sentence_id"] = chunk_entry["sentence_id"]
+        payload["text"] = chunk_entry["text"]
+        payload["t0"] = chunk_entry["t0"]
+        payload["t1"] = chunk_entry["t1"]
+        payload["timing"] = chunk_entry["timing"]
+        if "timingTracks" in chunk_entry:
+            payload["timingTracks"] = chunk_entry["timingTracks"]
 
         return payload
 
@@ -378,6 +470,7 @@ class BatchExporter:
             list(request.audio_segments) if request.generate_audio else []
         )
         audio_track_segments: Dict[str, List[AudioSegment]] = {}
+        combined_track_available = False
         orig_track_segments: Optional[List[AudioSegment]] = None
         trans_track_segments: Optional[List[AudioSegment]] = None
         silence_ms = max(int(SILENCE_DURATION_MS), 0)
@@ -399,6 +492,7 @@ class BatchExporter:
                     }
             orig_track_segments = audio_track_segments.get("orig")
             trans_track_segments = audio_track_segments.get("trans")
+            combined_track_available = bool(orig_track_segments and trans_track_segments)
             if orig_track_segments and trans_track_segments:
                 combined_segments: List[AudioSegment] = []
                 max_len = max(len(orig_track_segments), len(trans_track_segments))
@@ -446,10 +540,17 @@ class BatchExporter:
                 segment = trans_track_segments[offset]
                 if segment is not None:
                     translation_phase = float(segment.duration_seconds)
-            if original_phase > 0 and translation_phase > 0 and silence_seconds > 0:
+            if combined_track_available and original_phase > 0 and translation_phase > 0 and silence_seconds > 0:
                 gap_before_translation = silence_seconds
-            if offset < max_track_len - 1 and silence_seconds > 0 and (original_phase > 0 or translation_phase > 0):
+            if combined_track_available and offset < max_track_len - 1 and silence_seconds > 0 and (
+                original_phase > 0 or translation_phase > 0
+            ):
                 gap_after_translation = silence_seconds
+            word_meta_entry: Optional[Mapping[str, Any]] = None
+            if offset < len(request.sentence_metadata):
+                candidate_meta = request.sentence_metadata[offset]
+                if isinstance(candidate_meta, Mapping):
+                    word_meta_entry = candidate_meta
             metadata = self._build_sentence_metadata(
                 block=block,
                 audio_segment=audio_segment,
@@ -458,6 +559,7 @@ class BatchExporter:
                 translation_phase_duration=translation_phase,
                 gap_before_translation=gap_before_translation,
                 gap_after_translation=gap_after_translation,
+                word_meta=word_meta_entry,
             )
             sentence_payloads.append(metadata)
 
