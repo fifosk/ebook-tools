@@ -29,6 +29,27 @@ not specify a backend, the resolver chooses `macos_say` on Darwin systems and
 can be registered at import time using `register_backend()` before the pipeline
 spins up workers.【F:modules/audio/backends/__init__.py†L10-L95】
 
+#### Audio worker lifecycle
+
+Audio rendering happens inside `modules/render/audio_pipeline.py`. Translation
+tasks are queued per sentence; dedicated `AudioWorker` instances consume them
+and call the selected backend via the shared `AudioGenerator` protocol. Each
+worker receives the sentence, translation, language metadata, tempo, and voice
+selection. The synthesizer returns a `pydub.AudioSegment` (or the richer
+`SynthesisResult` wrapper when voice metadata is available). The worker hands
+the resulting `AudioSegment` to `MediaPipelineResult`, which is later persisted
+through the job manager. No word-level tokens are emitted at this stage—timing
+information is inferred later from the rendered audio if a backend embeds
+character timings, otherwise sentence-level durations are used.【F:modules/render/audio_pipeline.py†L200-L283】
+
+Timing metadata for highlights therefore originates from the rendering layer,
+not from forced alignment. `modules/core/rendering/timeline.py` inspects the
+per-sentence audio segment, collapses any embedded character timing data into a
+sequence of timeline events, and falls back to evenly distributing tokens when
+necessary. The resulting events are stored alongside the text metadata inside
+`metadata/chunk_*.json`, giving the frontend a declarative description of when
+to reveal words.【F:modules/core/rendering/exporters.py†L213-L310】
+
 Video slide rendering uses a comparable pattern. `modules/config/loader.py`
 resolves the selected `video_backend` and optional `video_backend_settings`
 mapping, then the rendering layer instantiates the appropriate renderer through
@@ -73,3 +94,26 @@ flowchart TD
 - `App.tsx` orchestrates the pipeline form sections, job registry, SSE subscriptions, and admin panel toggle based on the authenticated user's role.【F:web/src/App.tsx†L1-L215】
 - `SubtitlesPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs.【F:web/src/pages/SubtitlesPage.tsx†L1-L240】
 - Build artifacts (`web/dist/`) can be served by the API when `EBOOK_API_STATIC_ROOT` points to the directory.
+
+### Word highlighting on the web client
+
+Interactive playback lives under `web/src/components/InteractiveTextViewer.tsx`.
+Chunks supplied by the API ship with timing tracks (`timingTracks`) and chunked
+sentence metadata. The viewer resolves the preferred track (translated audio or
+original/translated mix), builds a word index, and uses it to drive the
+highlighting experience. The current implementation supports two rendering
+modes:
+
+1. **Legacy word-sync DOM** — mirrors the older experience where spans receive
+   `is-active`/`is-visited` classes driven by a `WordSyncController`.
+2. **Transcript view** — the new default, backed by `TranscriptView` and
+   `timingStore`, renders interleaved original/translation lanes with virtual
+   scrolling support. Playback progress is sampled from the `<audio>` element,
+   mapped to the nearest token via utilities in `web/src/utils/timingSearch.ts`,
+   and stored in `timingStore`. Components subscribe to the store to react to
+   highlight changes.
+
+Because the backend emits timeline events per sentence, the frontend does not
+expect forced-alignment-grade precision. If a backend provides detailed word
+timings they are preserved; otherwise tokens are distributed uniformly across
+each sentence duration while maintaining monotonic progression.

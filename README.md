@@ -45,6 +45,16 @@ See `conf/config.json` for the canonical defaults and `modules/conf/config.local
 for a macOS-centric example config that pins the `say` binary and a Homebrew
 FFmpeg install.【F:conf/config.json†L70-L111】【F:modules/conf/config.local.json†L1-L66】
 
+#### Optional forced alignment
+
+Word-level timelines benefit from light smoothing. Flip
+`"forced_alignment_enabled": true` and calibrate
+`"forced_alignment_smoothing"` (e.g. `0.35`) inside `config/config.local.json`
+to let the decoder stretch sentence offsets before they are written to
+`storage/<job_id>/metadata/`. The transcript/highlighting engine remains
+functional without alignment, but enabling it significantly reduces jitter at
+word boundaries.
+
 ### Install dependencies
 
 1. Ensure Python 3.10 or newer is available on your system (the project is
@@ -356,6 +366,14 @@ The SPA composes several providers to offer a multi-user dashboard:
   performance, and advanced sections. It draws defaults from
   `/pipelines/defaults`, lets users upload EPUBs, and validates overrides before
   calling `submitPipeline`.【F:web/src/App.tsx†L1-L89】
+- `useWordHighlighting` together with the new transcript components
+  (`TranscriptView`, `SegmentBlock`, and `Word`) consume the chunked timing
+  manifests stored under `storage/<job_id>/metadata/` to render interleaved
+  original/translation lanes. The hook enforces monotonic reveal fences while
+  `TranscriptView` virtualises the DOM for large books; opt in by swapping the
+  legacy word-sync container for `<TranscriptView />` (or guarding it behind a
+  rollout flag). Flip `window.__HL_DEBUG__.enabled = true` during development to
+  surface the large-seek and drift counters emitted by `AudioSyncController`.
 - The job board renders active and historical jobs, keeps a registry of the
   latest SSE events per job, and exposes pause/resume/cancel/delete actions that
   map to `/pipelines/jobs/{job_id}/…` endpoints. Selecting a job opens
@@ -363,6 +381,26 @@ The SPA composes several providers to offer a multi-user dashboard:
 - Administrators gain access to the `UserManagementPanel`, a CRUD surface that
   lists accounts, normalises profile metadata, and issues suspend/activate or
   password-reset operations against the admin API.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
+
+#### Audio generation + word highlighting
+
+Audio narration is synthesised sentence-by-sentence inside
+`modules/render/audio_pipeline.py`. Each worker sends the translated sentence,
+target language, tempo, and voice selection to the configured TTS backend
+(`macos_say` or `gtts` out of the box). The backend returns a
+`pydub.AudioSegment`, which is bundled with the translation and queued for
+persistence. If the backend embeds character timings (some engines expose
+`char_timings` metadata), the rendering layer converts them into per-word events
+and stores them in the chunk metadata (`metadata/chunk_*.json`). Otherwise the
+renderer falls back to distributing word durations evenly across the sentence.
+
+On the frontend the interactive reader pulls those chunk metadata files, builds
+an in-memory index of tokens, and maps `<audio>` playback time to the nearest
+token. The `timingStore` publishes the current token, the transcript components
+subscribe to it, and `AudioSyncController` keeps the state in sync by querying
+`HTMLAudioElement.currentTime` on each animation frame. No forced alignment is
+required: the highlight engine is designed to work with sentence-level timing
+when detailed per-word offsets are not available.
 
 #### Frontend user journey
 
