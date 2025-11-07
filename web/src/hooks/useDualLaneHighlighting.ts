@@ -7,7 +7,6 @@ type ControllerBridge = {
   stop: () => void;
   setAudios: (o?: HTMLAudioElement | null, t?: HTMLAudioElement | null) => void;
   setMode: (mode: Mode) => void;
-  setSimultaneous: (value: boolean) => void;
   onWordChange?: (lane: 'orig' | 'trans', wordIdx: number | null) => void;
   onGateChange?: (slideIdx: number, phase: 'idle' | 'running' | 'ended') => void;
 };

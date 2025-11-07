@@ -15,7 +15,7 @@ type GateState = {
 };
 
 export const useGateStore = create<GateState>()((set) => ({
-  mode: 'orig+trans',
+  mode: 'orig+trans+translit',
   slides: [],
   activeSlideIdx: 0,
   laneWordIdx: { orig: null, trans: null },

@@ -18,12 +18,13 @@ export type TrackTiming = {
   qa?: any;
 };
 
-export type Mode = 'orig+trans' | 'trans-only';
+export type Mode = 'orig+trans' | 'orig+trans+translit' | 'trans-only';
 
 export type Slide = {
   idx: number;
   orig?: SentT;
   trans?: SentT;
+  translit?: SentT;
   gate: { start: number; end: number }; // UI time window
 };
 
@@ -36,7 +37,7 @@ export type WordToken = {
   text: string;
   t0: number;
   t1: number;
-  lane: 'orig' | 'tran' | 'mix' | 'translation';
+  lane: 'orig' | 'tran' | 'mix' | 'translation' | 'xlit';
   segId: string;
   sentenceIdx?: number;
   startGate?: number;

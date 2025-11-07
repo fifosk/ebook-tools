@@ -31,7 +31,8 @@ function estimateGate(
 export function buildSlides(
   orig: TrackTiming | null,
   trans: TrackTiming | null,
-  opts: BuildSlidesOpts
+  opts: BuildSlidesOpts,
+  translit?: TrackTiming | null
 ): Slide[] {
   const n = Math.max(orig?.sentences.length || 0, trans?.sentences.length || 0);
   const slides: Slide[] = [];
@@ -39,11 +40,13 @@ export function buildSlides(
   for (let i = 0; i < n; i++) {
     const o = orig?.sentences[i];
     const t = trans?.sentences[i];
+    const xl = translit?.sentences[i];
     const dur = estimateGate(o, t, opts.strategy, opts.fixedSeconds, opts.scale ?? 1);
     slides.push({
       idx: i,
       orig: o,
       trans: t,
+      translit: xl,
       gate: { start: cursor, end: cursor + dur },
     });
     cursor += dur + (opts.pauseMs ?? 0) / 1000;
