@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import DualLaneSandbox from "@/components/demo/DualLaneSandbox";
-import type { TrackTiming } from "@/types/timing";
+import DualLaneSandbox from '../components/demo/DualLaneSandbox';
+import type { TrackTiming } from '../types/timing';
 
 /**
  * Demo route loading generated sample assets (c_demo).

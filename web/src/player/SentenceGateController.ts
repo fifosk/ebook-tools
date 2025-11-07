@@ -1,4 +1,4 @@
-import type { Slide, Mode, SentT } from "@/types/timing";
+import type { Slide, Mode, SentT } from '../types/timing';
 
 export type Lane = "orig" | "trans";
 export type GatePhase = "idle" | "running" | "ended";
@@ -51,9 +51,10 @@ export class SentenceGateController {
 
   private activeWordIdx(s: SentT | undefined, tSec: number): number | null {
     if (!s?.words?.length) return null;
-    const i = s.words.findIndex(w => tSec >= w.s && tSec < w.e);
+    const i = s.words.findIndex((w) => tSec >= w.s && tSec < w.e);
     if (i >= 0) return i;
-    if (tSec >= (s.words.at(-1)?.e ?? s.end)) return s.words.length - 1;
+    const lastWord = s.words.length ? s.words[s.words.length - 1] : undefined;
+    if (tSec >= (lastWord?.e ?? s.end)) return s.words.length - 1;
     return null;
   }
 

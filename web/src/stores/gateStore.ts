@@ -1,5 +1,7 @@
-import { create } from "zustand";
-import type { Mode, Slide } from "@/types/timing";
+import { create } from 'zustand';
+import type { Mode, Slide } from '../types/timing';
+
+type Lane = 'orig' | 'trans';
 
 type GateState = {
   mode: Mode;
@@ -7,19 +9,19 @@ type GateState = {
   activeSlideIdx: number;
   laneWordIdx: { orig: number | null; trans: number | null };
   setMode: (m: Mode) => void;
-  setSlides: (s: Slide[]) => void;
-  setActiveSlide: (i: number) => void;
-  setLaneWord: (lane: "orig" | "trans", idx: number | null) => void;
+  setSlides: (slides: Slide[]) => void;
+  setActiveSlide: (idx: number) => void;
+  setLaneWord: (lane: Lane, idx: number | null) => void;
 };
 
-export const useGateStore = create<GateState>((set) => ({
-  mode: "orig+trans",
+export const useGateStore = create<GateState>()((set) => ({
+  mode: 'orig+trans',
   slides: [],
   activeSlideIdx: 0,
   laneWordIdx: { orig: null, trans: null },
-  setMode: (m) => set({ mode: m }),
-  setSlides: (slides) => set({ slides }),
-  setActiveSlide: (i) => set({ activeSlideIdx: i }),
-  setLaneWord: (lane, idx) =>
-    set((s) => ({ laneWordIdx: { ...s.laneWordIdx, [lane]: idx } })),
+  setMode: (mode: Mode) => set({ mode }),
+  setSlides: (slides: Slide[]) => set({ slides }),
+  setActiveSlide: (activeSlideIdx: number) => set({ activeSlideIdx }),
+  setLaneWord: (lane: Lane, idx: number | null) =>
+    set((state: GateState) => ({ laneWordIdx: { ...state.laneWordIdx, [lane]: idx } })),
 }));

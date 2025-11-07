@@ -18,11 +18,54 @@ export type TrackTiming = {
   qa?: any;
 };
 
-export type Mode = "orig+trans" | "trans-only";
+export type Mode = 'orig+trans' | 'trans-only';
 
 export type Slide = {
   idx: number;
   orig?: SentT;
   trans?: SentT;
   gate: { start: number; end: number }; // UI time window
+};
+
+// ---- legacy player timing contracts ---------------------------------------
+
+export type TrackKind = 'translation_only' | 'original_translation_combined';
+
+export type WordToken = {
+  id: string;
+  text: string;
+  t0: number;
+  t1: number;
+  lane: 'orig' | 'tran' | 'mix' | 'translation';
+  segId: string;
+  sentenceIdx?: number;
+  startGate?: number;
+  endGate?: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
+  validation?: { drift?: number; count?: number };
+};
+
+export type Segment = {
+  id: string;
+  t0: number;
+  t1: number;
+  tokens: WordToken[];
+  sentenceIdx?: number;
+  gateStart?: number;
+  gateEnd?: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
+};
+
+export type TimingPayload = {
+  trackKind: TrackKind;
+  playbackRate?: number;
+  segments: Segment[];
+};
+
+export type Hit = {
+  segIndex: number;
+  tokIndex: number;
+  lane?: 'mix' | 'translation';
 };

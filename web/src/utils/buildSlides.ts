@@ -1,4 +1,4 @@
-import type { TrackTiming, Slide, SentT } from "@/types/timing";
+import type { TrackTiming, Slide, SentT } from '../types/timing';
 
 export type GateStrategy = "lane-longer" | "lane-shorter" | "fixed";
 export type BuildSlidesOpts = {

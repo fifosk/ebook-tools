@@ -1,9 +1,9 @@
-import React, { useEffect, useMemo, useRef } from "react";
-import type { TrackTiming } from "@/types/timing";
-import { buildSlides } from "@/utils/buildSlides";
-import { useGateStore } from "@/stores/gateStore";
-import { SentenceGateController } from "@/player/SentenceGateController";
-import { useDualLaneHighlighting } from "@/hooks/useDualLaneHighlighting";
+import React, { useEffect, useMemo, useRef } from 'react';
+import type { TrackTiming, Slide } from '../../types/timing';
+import { buildSlides } from '../../utils/buildSlides';
+import { useGateStore } from '../../stores/gateStore';
+import { SentenceGateController } from '../../player/SentenceGateController';
+import { useDualLaneHighlighting } from '../../hooks/useDualLaneHighlighting';
 
 type Props = {
   origTiming: TrackTiming;
@@ -12,16 +12,21 @@ type Props = {
   transAudioSrc: string;
 };
 
-export default function DualLaneSandbox({ origTiming, transTiming, origAudioSrc, transAudioSrc }: Props) {
+export default function DualLaneSandbox({
+  origTiming,
+  transTiming,
+  origAudioSrc,
+  transAudioSrc,
+}: Props) {
   const origRef = useRef<HTMLAudioElement>(null);
   const transRef = useRef<HTMLAudioElement>(null);
   const controllerRef = useRef<SentenceGateController>();
   const { setSlides, laneWordIdx, mode, setMode } = useGateStore();
 
-  const slides = useMemo(
+  const slides = useMemo<Slide[]>(
     () =>
       buildSlides(origTiming, transTiming, {
-        strategy: "lane-longer",
+        strategy: 'lane-longer',
         pauseMs: 250,
         scale: 1,
       }),
@@ -45,16 +50,16 @@ export default function DualLaneSandbox({ origTiming, transTiming, origAudioSrc,
 
   useEffect(() => {
     controllerRef.current?.setAudios(origRef.current, transRef.current);
-  }, [origRef.current, transRef.current]);
+  }, [origAudioSrc, transAudioSrc]);
 
-  useDualLaneHighlighting(controllerRef.current!);
+  useDualLaneHighlighting(controllerRef.current);
 
   return (
     <div className="p-4 space-y-4">
       <div className="flex items-center gap-3">
         <button
           className="px-3 py-1 rounded bg-gray-200"
-          onClick={() => setMode(mode === "orig+trans" ? "trans-only" : "orig+trans")}
+          onClick={() => setMode(mode === 'orig+trans' ? 'trans-only' : 'orig+trans')}
         >
           Mode: {mode}
         </button>
@@ -82,13 +87,14 @@ export default function DualLaneSandbox({ origTiming, transTiming, origAudioSrc,
                     key={i}
                     className={
                       active
-                        ? "bg-yellow-200"
+                        ? 'bg-yellow-200'
                         : revealed
-                        ? "opacity-100"
-                        : "opacity-50"
+                        ? 'opacity-100'
+                        : 'opacity-50'
                     }
                   >
-                    {" "}{w.w}
+                    {' '}
+                    {w.w}
                   </span>
                 );
               })}
@@ -107,13 +113,14 @@ export default function DualLaneSandbox({ origTiming, transTiming, origAudioSrc,
                     key={i}
                     className={
                       active
-                        ? "bg-yellow-200"
+                        ? 'bg-yellow-200'
                         : revealed
-                        ? "opacity-100"
-                        : "opacity-50"
+                        ? 'opacity-100'
+                        : 'opacity-50'
                     }
                   >
-                    {" "}{w.w}
+                    {' '}
+                    {w.w}
                   </span>
                 );
               })}

@@ -1,33 +1,39 @@
-import { useEffect } from "react";
-import type { Mode } from "@/types/timing";
-import { useGateStore } from "@/stores/gateStore";
+import { useEffect } from 'react';
+import type { Mode } from '../types/timing';
+import { useGateStore } from '../stores/gateStore';
 
-export function useDualLaneHighlighting(controller: {
+type ControllerBridge = {
   startAt: (idx: number) => void;
   stop: () => void;
   setAudios: (o?: HTMLAudioElement | null, t?: HTMLAudioElement | null) => void;
-  setMode: (m: Mode) => void;
-  setSimultaneous: (b: boolean) => void;
-  onWordChange?: (lane: "orig" | "trans", wordIdx: number | null) => void;
-  onGateChange?: (slideIdx: number, phase: "idle" | "running" | "ended") => void;
-}) {
+  setMode: (mode: Mode) => void;
+  setSimultaneous: (value: boolean) => void;
+  onWordChange?: (lane: 'orig' | 'trans', wordIdx: number | null) => void;
+  onGateChange?: (slideIdx: number, phase: 'idle' | 'running' | 'ended') => void;
+};
+
+export function useDualLaneHighlighting(controller: ControllerBridge | null | undefined) {
   const { mode, slides, activeSlideIdx, setLaneWord } = useGateStore();
 
-  // keep controller in sync with store mode
   useEffect(() => {
+    if (!controller) {
+      return;
+    }
     controller.setMode(mode);
-  }, [mode]);
+  }, [controller, mode]);
 
-  // wire word updates to store
   useEffect(() => {
+    if (!controller) {
+      return;
+    }
     controller.onWordChange = (lane, idx) => setLaneWord(lane, idx);
-  }, [setLaneWord]);
+  }, [controller, setLaneWord]);
 
-  // start controller when slides change
   useEffect(() => {
-    if (!slides.length) return;
+    if (!controller || !slides.length) {
+      return;
+    }
     controller.startAt(activeSlideIdx);
     return () => controller.stop();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slides, activeSlideIdx]);
+  }, [controller, slides, activeSlideIdx]);
 }
