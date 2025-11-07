@@ -106,35 +106,43 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
         "22. Word highlighting for video slides: %s",
         "Yes" if config.get("word_highlighting", True) else "No",
     )
-    console_info("23. Debug mode: %s", config.get("debug", False))
-    console_info("24. HTML output: %s", config.get("output_html", True))
-    console_info("25. PDF output: %s", config.get("output_pdf", False))
-    console_info("26. Generate stitched full output file: %s", config.get("stitch_full", False))
+    highlight_mode_label = "Uniform inference"
+    if config.get("char_weighted_highlighting_default"):
+        highlight_mode_label = (
+            "Punctuation-weighted char timings"
+            if config.get("char_weighted_punctuation_boost")
+            else "Char-weighted timings"
+        )
+    console_info("23. Highlight inference mode: %s", highlight_mode_label)
+    console_info("24. Debug mode: %s", config.get("debug", False))
+    console_info("25. HTML output: %s", config.get("output_html", True))
+    console_info("26. PDF output: %s", config.get("output_pdf", False))
+    console_info("27. Generate stitched full output file: %s", config.get("stitch_full", False))
 
     console_info("\n--- Book Metadata ---")
-    console_info("27. Book Title: %s", config.get("book_title"))
-    console_info("28. Author: %s", config.get("book_author"))
-    console_info("29. Year: %s", config.get("book_year"))
-    console_info("30. Summary: %s", config.get("book_summary"))
-    console_info("31. Book Cover File: %s", config.get("book_cover_file", "None"))
+    console_info("28. Book Title: %s", config.get("book_title"))
+    console_info("29. Author: %s", config.get("book_author"))
+    console_info("30. Year: %s", config.get("book_year"))
+    console_info("31. Summary: %s", config.get("book_summary"))
+    console_info("32. Book Cover File: %s", config.get("book_cover_file", "None"))
 
     console_info("\n--- Paths and Services ---")
-    console_info("32. Working directory: %s", config.get("working_dir"))
-    console_info("33. Output directory: %s", config.get("output_dir"))
-    console_info("34. Ebooks directory: %s", config.get("ebooks_dir"))
-    console_info("35. Temporary directory: %s", config.get("tmp_dir"))
-    console_info("36. FFmpeg path: %s", config.get("ffmpeg_path"))
+    console_info("33. Working directory: %s", config.get("working_dir"))
+    console_info("34. Output directory: %s", config.get("output_dir"))
+    console_info("35. Ebooks directory: %s", config.get("ebooks_dir"))
+    console_info("36. Temporary directory: %s", config.get("tmp_dir"))
+    console_info("37. FFmpeg path: %s", config.get("ffmpeg_path"))
     console_info(
-        "37. LLM source: %s",
+        "38. LLM source: %s",
         config.get("llm_source", cfg.DEFAULT_LLM_SOURCE),
     )
-    console_info("38. Ollama API URL: %s", config.get("ollama_url"))
+    console_info("39. Ollama API URL: %s", config.get("ollama_url"))
     console_info(
-        "39. Local Ollama URL: %s",
+        "40. Local Ollama URL: %s",
         config.get("ollama_local_url", cfg.DEFAULT_OLLAMA_URL),
     )
     console_info(
-        "40. Ollama Cloud URL: %s",
+        "41. Ollama Cloud URL: %s",
         config.get("ollama_cloud_url", cfg.DEFAULT_OLLAMA_CLOUD_URL),
     )
     console_info(

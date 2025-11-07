@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
 import {
+  AudioTrackMetadata,
   PipelineMediaFile,
   PipelineMediaResponse,
   ProgressEventPayload,
@@ -35,7 +36,7 @@ export interface LiveMediaChunk {
   metadataPath?: string | null;
   metadataUrl?: string | null;
   sentenceCount?: number | null;
-  audioTracks?: Record<string, string> | null;
+  audioTracks?: Record<string, AudioTrackMetadata> | null;
   timingTracks?: TrackTimingPayload[] | null;
 }
 
@@ -121,21 +122,58 @@ function groupFilesByType(filesSection: unknown): Record<string, unknown[]> {
   return grouped;
 }
 
-function extractAudioTracks(source: unknown): Record<string, string> | null {
+function extractAudioTracks(source: unknown): Record<string, AudioTrackMetadata> | null {
   if (!source || typeof source !== 'object') {
     return null;
   }
-  const entries: Record<string, string> = {};
+  const entries: Record<string, AudioTrackMetadata> = {};
   const register = (key: string | null, value: unknown) => {
-    if (!key || typeof value !== 'string') {
+    if (!key) {
       return;
     }
     const trimmedKey = key.trim();
-    const trimmedValue = value.trim();
-    if (!trimmedKey || !trimmedValue) {
+    if (!trimmedKey) {
       return;
     }
-    entries[trimmedKey] = trimmedValue;
+    if (typeof value === 'string') {
+      const trimmedValue = value.trim();
+      if (!trimmedValue) {
+        return;
+      }
+      entries[trimmedKey] = { path: trimmedValue };
+      return;
+    }
+    if (typeof value !== 'object' || value === null) {
+      return;
+    }
+    const record = value as Record<string, unknown>;
+    const path = typeof record.path === 'string' ? record.path.trim() : null;
+    const url = typeof record.url === 'string' ? record.url.trim() : null;
+    const duration =
+      typeof record.duration === 'number' && Number.isFinite(record.duration)
+        ? record.duration
+        : null;
+    const sampleRate =
+      typeof record.sampleRate === 'number' && Number.isFinite(record.sampleRate)
+        ? Math.trunc(record.sampleRate)
+        : null;
+    const payload: AudioTrackMetadata = {};
+    if (path) {
+      payload.path = path;
+    }
+    if (url) {
+      payload.url = url;
+    }
+    if (duration !== null) {
+      payload.duration = duration;
+    }
+    if (sampleRate !== null) {
+      payload.sampleRate = sampleRate;
+    }
+    if (Object.keys(payload).length === 0) {
+      return;
+    }
+    entries[trimmedKey] = payload;
   };
 
   if (Array.isArray(source)) {
@@ -162,8 +200,8 @@ function extractAudioTracks(source: unknown): Record<string, string> | null {
 }
 
 function hasAudioTracks(
-  tracks: Record<string, string> | null | undefined,
-): tracks is Record<string, string> {
+  tracks: Record<string, AudioTrackMetadata> | null | undefined,
+): tracks is Record<string, AudioTrackMetadata> {
   return Boolean(tracks && Object.keys(tracks).length > 0);
 }
 
@@ -469,7 +507,7 @@ function normaliseCategory(type: unknown): MediaCategory | null {
   if (!stringValue) {
     return null;
   }
-  if (stringValue === 'audio') {
+  if (stringValue === 'audio' || stringValue.startsWith('audio_')) {
     return 'audio';
   }
   if (stringValue === 'video') {
@@ -733,9 +771,19 @@ function mergeChunkCollections(base: LiveMediaChunk[], incoming: LiveMediaChunk[
             : mergedSentences && mergedSentences.length > 0
               ? mergedSentences.length
               : null;
-    let mergedAudioTracks: Record<string, string> | null = null;
-    if (hasAudioTracks(update.audioTracks)) {
-      mergedAudioTracks = update.audioTracks;
+    let mergedAudioTracks: Record<string, AudioTrackMetadata> | null | undefined;
+    if (update.audioTracks === null) {
+      mergedAudioTracks = null;
+    } else if (hasAudioTracks(update.audioTracks)) {
+      const baseTracks = hasAudioTracks(current.audioTracks) ? current.audioTracks : undefined;
+      const combined: Record<string, AudioTrackMetadata> = { ...(baseTracks ?? {}) };
+      Object.entries(update.audioTracks).forEach(([key, value]) => {
+        combined[key] = {
+          ...(combined[key] ?? {}),
+          ...value,
+        };
+      });
+      mergedAudioTracks = combined;
     } else if (hasAudioTracks(current.audioTracks)) {
       mergedAudioTracks = current.audioTracks;
     } else if (update.audioTracks === null || current.audioTracks === null) {

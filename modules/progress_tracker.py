@@ -8,7 +8,7 @@ from types import MappingProxyType
 import threading
 import time
 import copy
-from typing import AsyncIterator, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -216,6 +216,7 @@ class ProgressTracker:
         files: Mapping[str, object],
         sentences: Optional[Sequence[Mapping[str, object]]] = None,
         audio_tracks: Optional[Mapping[str, object]] = None,
+        timing_tracks: Optional[Mapping[str, Any]] = None,
     ) -> None:
         """Record metadata about files produced for a completed chunk."""
 
@@ -225,7 +226,7 @@ class ProgressTracker:
             if path is not None and str(path)
         ]
         normalized_sentences = copy.deepcopy(list(sentences)) if sentences else []
-        normalized_tracks: Dict[str, str] = {}
+        normalized_tracks: Dict[str, Dict[str, Any]] = {}
         if audio_tracks:
             for raw_key, raw_value in audio_tracks.items():
                 if not isinstance(raw_key, str):
@@ -233,16 +234,31 @@ class ProgressTracker:
                 key = raw_key.strip()
                 if not key or key in normalized_tracks:
                     continue
+                entry: Dict[str, Any] = {}
                 if isinstance(raw_value, str):
                     value = raw_value.strip()
-                    if value:
-                        normalized_tracks[key] = value
+                    if not value:
+                        continue
+                    entry["path"] = value
                 elif isinstance(raw_value, Mapping):
-                    candidate = raw_value.get("url") or raw_value.get("path")
-                    if isinstance(candidate, str):
-                        value = candidate.strip()
-                        if value:
-                            normalized_tracks[key] = value
+                    path_value = raw_value.get("path")
+                    url_value = raw_value.get("url")
+                    duration_value = raw_value.get("duration")
+                    sample_rate_value = raw_value.get("sampleRate")
+                    if isinstance(path_value, str) and path_value.strip():
+                        entry["path"] = path_value.strip()
+                    if isinstance(url_value, str) and url_value.strip():
+                        entry["url"] = url_value.strip()
+                    try:
+                        entry["duration"] = round(float(duration_value), 6)
+                    except (TypeError, ValueError):
+                        pass
+                    try:
+                        entry["sampleRate"] = int(sample_rate_value)
+                    except (TypeError, ValueError):
+                        pass
+                if entry:
+                    normalized_tracks[key] = entry
         with self._lock:
             chunk_entry: Dict[str, object] = {
                 "chunk_id": chunk_id,
@@ -255,6 +271,8 @@ class ProgressTracker:
                 chunk_entry["sentences"] = normalized_sentences
             if normalized_tracks:
                 chunk_entry["audio_tracks"] = normalized_tracks
+            if timing_tracks and isinstance(timing_tracks, Mapping):
+                chunk_entry["timing_tracks"] = copy.deepcopy(dict(timing_tracks))
             for index, existing in enumerate(self._generated_chunks):
                 if existing.get("chunk_id") == chunk_id:
                     self._generated_chunks[index] = chunk_entry

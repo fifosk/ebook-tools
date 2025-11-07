@@ -30,9 +30,15 @@
     "tempo": 1.0,
     "sync_ratio": 0.9,
     "word_highlighting": true,
+    "char_weighted_highlighting_default": false,
+    "char_weighted_punctuation_boost": false,
     "highlight_granularity": "word",
-    "forced_alignment_enabled": false,
-    "forced_alignment_smoothing": "monotonic_cubic",
+     "forced_alignment_enabled": true,
+     "alignment_backend": "whisperx",
+     "alignment_model": "medium.en",
+     "alignment_model_overrides": {
+       "ar": "large-v2"   // example per-language override
+     },
     "slide_parallelism": "off",
     "slide_parallel_workers": null,
     "prefer_pillow_simd": false,

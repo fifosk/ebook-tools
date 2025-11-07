@@ -47,7 +47,92 @@ def _iterate_sentence_entries(payload: Any) -> list[Mapping[str, Any]]:
     return entries
 
 
-def build_timing_index(job_dir: str | os.PathLike[str]) -> list[Dict[str, Any]]:
+def _normalize_audio_track_entry(value: Any) -> Optional[Dict[str, Any]]:
+    """Return a normalized audio track entry with stable fields."""
+
+    if isinstance(value, Mapping):
+        entry: Dict[str, Any] = {}
+        path = value.get("path")
+        url = value.get("url")
+        duration = value.get("duration")
+        sample_rate = value.get("sampleRate") or value.get("sample_rate")
+        if isinstance(path, str) and path.strip():
+            entry["path"] = path.strip()
+        if isinstance(url, str) and url.strip():
+            entry["url"] = url.strip()
+        try:
+            entry["duration"] = round(float(duration), 6)
+        except (TypeError, ValueError):
+            pass
+        try:
+            entry["sampleRate"] = int(sample_rate)
+        except (TypeError, ValueError):
+            pass
+        return entry or None
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if trimmed:
+            return {"path": trimmed}
+    return None
+
+
+def _normalize_track_token(
+    token_entry: Mapping[str, Any],
+    *,
+    track: str,
+    fallback_sentence: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Return a normalized token record for aggregated timing indexes."""
+
+    try:
+        start_val = float(
+            token_entry.get("start")
+            or token_entry.get("t0")
+            or token_entry.get("begin")
+            or 0.0
+        )
+        end_val = float(
+            token_entry.get("end")
+            or token_entry.get("t1")
+            or token_entry.get("stop")
+            or start_val
+        )
+    except (TypeError, ValueError):
+        return None
+    if end_val < start_val:
+        end_val = start_val
+    lane = token_entry.get("lane")
+    if not isinstance(lane, str) or not lane.strip():
+        lane = "trans" if track == "translation" else "mix"
+    sentence_ref = token_entry.get("sentenceIdx") or token_entry.get("sentence_id") or fallback_sentence
+    if sentence_ref is not None:
+        sentence_ref = str(sentence_ref)
+    record: Dict[str, Any] = {
+        "start": round(start_val, 6),
+        "end": round(end_val, 6),
+        "lane": lane,
+    }
+    if sentence_ref:
+        record["sentenceIdx"] = sentence_ref
+    word_idx = token_entry.get("wordIdx")
+    if isinstance(word_idx, (int, float)):
+        record["wordIdx"] = int(word_idx)
+    text_value = token_entry.get("text") or token_entry.get("token")
+    if isinstance(text_value, str) and text_value:
+        record["text"] = text_value
+    policy_value = token_entry.get("policy")
+    if isinstance(policy_value, str) and policy_value:
+        record["policy"] = policy_value
+    source_value = token_entry.get("source")
+    if isinstance(source_value, str) and source_value:
+        record["source"] = source_value
+    fallback_flag = token_entry.get("fallback")
+    if isinstance(fallback_flag, bool):
+        record["fallback"] = fallback_flag
+    return record
+
+
+def build_timing_index(job_dir: str | os.PathLike[str]) -> Dict[str, List[Dict[str, Any]]]:
     """
     Scan ``storage/<job_id>/metadata/chunk_*.json`` and aggregate word timings.
     """
@@ -55,9 +140,9 @@ def build_timing_index(job_dir: str | os.PathLike[str]) -> list[Dict[str, Any]]:
     job_path = Path(job_dir)
     metadata_dir = job_path / "metadata"
     if not metadata_dir.exists():
-        return []
+        return {"mix": [], "translation": []}
 
-    timing_index: list[Dict[str, Any]] = []
+    aggregated: Dict[str, List[Dict[str, Any]]] = {"mix": [], "translation": []}
     pattern = metadata_dir / "chunk_*.json"
     for chunk_path in sorted(glob.glob(os.fspath(pattern))):
         try:
@@ -66,39 +151,83 @@ def build_timing_index(job_dir: str | os.PathLike[str]) -> list[Dict[str, Any]]:
         except (OSError, json.JSONDecodeError):  # pragma: no cover - defensive guard
             continue
 
+        chunk_tracks = chunk_payload.get("timingTracks")
+        if isinstance(chunk_tracks, Mapping):
+            for track_name in ("mix", "translation"):
+                track_entries = chunk_tracks.get(track_name)
+                if not isinstance(track_entries, list):
+                    continue
+                for token_entry in track_entries:
+                    if not isinstance(token_entry, Mapping):
+                        continue
+                    normalized = _normalize_track_token(token_entry, track=track_name)
+                    if normalized:
+                        aggregated.setdefault(track_name, []).append(normalized)
+            continue
+
+        # Fallback for legacy payloads with per-sentence tracks.
         for entry in _iterate_sentence_entries(chunk_payload):
+            if not isinstance(entry, Mapping):
+                continue
             timing_tracks = entry.get("timingTracks")
             if not isinstance(timing_tracks, Mapping):
                 continue
             translation_track = timing_tracks.get("translation")
             if not isinstance(translation_track, list):
                 continue
-
             sentence_id = entry.get("sentence_id") or entry.get("id") or entry.get("sentence_number")
             sentence_id_str = str(sentence_id) if sentence_id is not None else None
-
             for token_entry in translation_track:
                 if not isinstance(token_entry, Mapping):
                     continue
-                token_text = token_entry.get("token")
-                start = token_entry.get("t0")
-                end = token_entry.get("t1")
-                if token_text is None or start is None or end is None:
-                    continue
-                try:
-                    start_val = float(start)
-                    end_val = float(end)
-                except (TypeError, ValueError):
-                    continue
-                record: Dict[str, Any] = {
-                    "token": str(token_text),
-                    "t0": round(start_val, 3),
-                    "t1": round(end_val, 3),
-                }
-                if sentence_id_str is not None:
-                    record["sentence_id"] = sentence_id_str
-                timing_index.append(record)
-    return timing_index
+                normalized = _normalize_track_token(
+                    token_entry,
+                    track="translation",
+                    fallback_sentence=sentence_id_str,
+                )
+                if normalized:
+                    aggregated.setdefault("translation", []).append(normalized)
+
+    aggregated.setdefault("mix", [])
+    aggregated.setdefault("translation", [])
+    return aggregated
+
+
+def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
+    """Return the highlighting policy encoded on a sentence entry."""
+
+    summary = entry.get("highlighting_summary")
+    if isinstance(summary, Mapping):
+        policy = summary.get("policy")
+        if isinstance(policy, str) and policy.strip():
+            return policy.strip()
+    policy = entry.get("highlighting_policy") or entry.get("alignment_policy")
+    if isinstance(policy, str) and policy.strip():
+        return policy.strip()
+    return None
+
+
+def resolve_highlighting_policy(job_dir: str | os.PathLike[str]) -> Optional[str]:
+    """Inspect chunk metadata files to determine the active highlighting policy."""
+
+    job_path = Path(job_dir)
+    metadata_dir = job_path / "metadata"
+    if not metadata_dir.exists():
+        return None
+
+    pattern = metadata_dir / "chunk_*.json"
+    for chunk_path in sorted(glob.glob(os.fspath(pattern))):
+        try:
+            with open(chunk_path, "r", encoding="utf-8") as handle:
+                chunk_payload = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            continue
+        for entry in _iterate_sentence_entries(chunk_payload):
+            if isinstance(entry, Mapping):
+                policy = _extract_highlighting_policy(entry)
+                if policy:
+                    return policy
+    return None
 
 
 def ensure_timing_manifest(
@@ -112,7 +241,8 @@ def ensure_timing_manifest(
     manifest_payload = dict(manifest or {})
     job_path = Path(job_dir)
     index = build_timing_index(job_path)
-    if index:
+    has_tracks = any(index.get(name) for name in ("mix", "translation"))
+    if has_tracks:
         metadata_dir = job_path / "metadata"
         metadata_dir.mkdir(parents=True, exist_ok=True)
         timing_path = metadata_dir / "timing_index.json"
@@ -124,6 +254,10 @@ def ensure_timing_manifest(
         else:
             tracks = manifest_payload.setdefault("timing_tracks", {})
             tracks["translation"] = "metadata/timing_index.json"
+            tracks["mix"] = "metadata/timing_index.json"
+    policy = resolve_highlighting_policy(job_path)
+    if policy:
+        manifest_payload["highlighting_policy"] = policy
     return manifest_payload
 
 
@@ -554,6 +688,24 @@ class PipelineJobPersistence:
                     "sentence_count": len(sentences),
                     "sentences": sentences,
                 }
+                audio_tracks_raw = chunk_entry.get("audio_tracks") or chunk_entry.get("audioTracks")
+                if isinstance(audio_tracks_raw, Mapping):
+                    normalized_tracks: Dict[str, Dict[str, Any]] = {}
+                    for track_key, track_value in audio_tracks_raw.items():
+                        if not isinstance(track_key, str):
+                            continue
+                        normalized_entry = _normalize_audio_track_entry(track_value)
+                        if normalized_entry:
+                            normalized_tracks[track_key] = normalized_entry
+                    if normalized_tracks:
+                        chunk_payload["audioTracks"] = normalized_tracks
+                        chunk_entry["audio_tracks"] = normalized_tracks
+                        chunk_entry["audioTracks"] = normalized_tracks
+                timing_tracks_raw = chunk_entry.get("timing_tracks") or chunk_entry.get("timingTracks")
+                if isinstance(timing_tracks_raw, Mapping):
+                    normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
+                    chunk_payload["timingTracks"] = normalized_timing
+                    chunk_entry["timing_tracks"] = normalized_timing
                 try:
                     self._write_chunk_file(destination, chunk_payload)
                 except Exception:  # pragma: no cover - defensive logging
@@ -723,6 +875,18 @@ class PipelineJobPersistence:
                 if url:
                     normalized_entry["url"] = url
                 chunk_entry.setdefault("files", []).append(normalized_entry)
+            audio_tracks_raw = chunk.get("audio_tracks") or chunk.get("audioTracks")
+            if isinstance(audio_tracks_raw, Mapping):
+                normalized_tracks: Dict[str, Dict[str, Any]] = {}
+                for track_key, track_value in audio_tracks_raw.items():
+                    if not isinstance(track_key, str):
+                        continue
+                    normalized_entry = _normalize_audio_track_entry(track_value)
+                    if normalized_entry:
+                        normalized_tracks[track_key] = normalized_entry
+                if normalized_tracks:
+                    chunk_entry["audio_tracks"] = normalized_tracks
+                    chunk_entry["audioTracks"] = normalized_tracks
             normalized_chunks.append(chunk_entry)
 
         files_index: list[Dict[str, Any]] = []

@@ -9,16 +9,18 @@ import {
 } from 'react';
 import type { MutableRefObject, ReactNode, UIEvent } from 'react';
 import { appendAccessToken, fetchJobTiming } from '../api/client';
-import type { JobTimingResponse } from '../api/dtos';
+import type { AudioTrackMetadata, JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
 import { useMediaClock } from '../hooks/useLiveMedia';
 import PlayerCore from '../player/PlayerCore';
 import { usePlayerCore } from '../hooks/usePlayerCore';
-import { start as startAudioSync, stop as stopAudioSync } from '../player/AudioSyncController';
+import {
+  start as startAudioSync,
+  stop as stopAudioSync,
+  enableHighlightDebugOverlay,
+} from '../player/AudioSyncController';
 import { timingStore } from '../stores/timingStore';
 import type { TimingPayload, Segment, TrackKind, WordToken } from '../types/timing';
-import TranscriptView from './transcript/TranscriptView';
-import { interleaveDual } from '../utils/interleave';
 import TextPlayer, {
   type TextPlayerSentence,
   type TextPlayerVariantDisplay,
@@ -27,6 +29,8 @@ import TextPlayer, {
 import type { ChunkSentenceMetadata, TrackTimingPayload, WordTiming } from '../api/dtos';
 import { buildWordIndex, collectActiveWordIds, lowerBound, type WordIndex } from '../lib/timing/wordSync';
 import { WORD_SYNC } from './player-panel/constants';
+
+type HighlightDebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean; overlay?: boolean } };
 
 type SentenceFragment = {
   index: number;
@@ -191,8 +195,16 @@ function buildTimingPayloadFromWordIndex(
   };
 }
 
-function buildTimingPayloadFromJobTiming(response: JobTimingResponse): TimingPayload | null {
-  if (!response || !Array.isArray(response.segments) || response.segments.length === 0) {
+function buildTimingPayloadFromJobTiming(
+  response: JobTimingResponse,
+  trackName: 'mix' | 'translation',
+): TimingPayload | null {
+  if (!response || !response.tracks || !response.tracks[trackName]) {
+    return null;
+  }
+  const trackPayload = response.tracks[trackName];
+  const rawSegments = Array.isArray(trackPayload.segments) ? trackPayload.segments : [];
+  if (rawSegments.length === 0) {
     return null;
   }
 
@@ -205,22 +217,24 @@ function buildTimingPayloadFromJobTiming(response: JobTimingResponse): TimingPay
 
   const buckets = new Map<string, Bucket>();
 
-  response.segments.forEach((entry, index) => {
+  rawSegments.forEach((entry, index) => {
     if (!entry) {
       return;
     }
-    const rawT0 = Number(entry.t0);
-    const rawT1 = Number(entry.t1);
-    if (!Number.isFinite(rawT0)) {
+    const rawStart = Number(
+      entry.start ?? entry.t0 ?? entry.begin ?? entry.offset ?? entry.time ?? Number.NaN,
+    );
+    const rawEnd = Number(entry.end ?? entry.t1 ?? entry.stop ?? rawStart);
+    if (!Number.isFinite(rawStart)) {
       return;
     }
-    const t0 = rawT0;
-    const t1 = Number.isFinite(rawT1) ? Math.max(rawT1, rawT0) : rawT0;
-    const rawSentence = entry.sentence_id;
-    const segmentId =
-      rawSentence === null || rawSentence === undefined || rawSentence === ''
-        ? `seg-${index}`
-        : String(rawSentence);
+    const t0 = Math.max(0, rawStart);
+    const t1 = Number.isFinite(rawEnd) ? Math.max(rawEnd, t0) : t0;
+    const sentenceRef =
+      entry.sentenceIdx ?? entry.sentence_id ?? entry.sentenceId ?? entry.id ?? `seg-${index}`;
+    const segmentId = sentenceRef === null || sentenceRef === undefined || sentenceRef === ''
+      ? `seg-${index}`
+      : String(sentenceRef);
     let bucket = buckets.get(segmentId);
     if (!bucket) {
       bucket = {
@@ -231,14 +245,25 @@ function buildTimingPayloadFromJobTiming(response: JobTimingResponse): TimingPay
       };
       buckets.set(segmentId, bucket);
     }
-    const textValue = typeof entry.token === 'string' ? entry.token : String(entry.token ?? '');
+    const textValue =
+      typeof entry.text === 'string'
+        ? entry.text
+        : typeof entry.token === 'string'
+          ? entry.token
+          : '';
+    const lane =
+      trackName === 'mix'
+        ? entry.lane === 'orig'
+          ? 'orig'
+          : 'tran'
+        : 'tran';
     const tokenId = `${segmentId}-${bucket.tokens.length}`;
     bucket.tokens.push({
       id: tokenId,
       text: textValue,
       t0,
       t1,
-      lane: 'tran',
+      lane,
       segId: segmentId,
     });
     if (t0 < bucket.min) {
@@ -253,8 +278,33 @@ function buildTimingPayloadFromJobTiming(response: JobTimingResponse): TimingPay
     return null;
   }
 
-  const segments: Segment[] = Array.from(buckets.values()).map((bucket) => {
-    const tokens = bucket.tokens.sort((left, right) => {
+  const segments: Segment[] = Array.from(buckets.values())
+    .map((bucket) => {
+      const tokens = bucket.tokens.sort((left, right) => {
+        if (left.t0 !== right.t0) {
+          return left.t0 - right.t0;
+        }
+        if (left.t1 !== right.t1) {
+          return left.t1 - right.t1;
+        }
+        return left.id.localeCompare(right.id);
+      });
+      const first = tokens[0];
+      const last = tokens[tokens.length - 1] ?? first;
+      if (!first || !last) {
+        return null;
+      }
+      const resolvedT0 = Number.isFinite(bucket.min) ? bucket.min : first.t0;
+      const resolvedT1 = Number.isFinite(bucket.max) ? bucket.max : last.t1;
+      return {
+        id: bucket.id,
+        t0: resolvedT0,
+        t1: resolvedT1 >= resolvedT0 ? resolvedT1 : resolvedT0,
+        tokens,
+      };
+    })
+    .filter((segment): segment is Segment => segment !== null)
+    .sort((left, right) => {
       if (left.t0 !== right.t0) {
         return left.t0 - right.t0;
       }
@@ -263,44 +313,62 @@ function buildTimingPayloadFromJobTiming(response: JobTimingResponse): TimingPay
       }
       return left.id.localeCompare(right.id);
     });
-    const first = tokens[0];
-    const last = tokens[tokens.length - 1] ?? first;
-    const resolvedT0 = Number.isFinite(bucket.min) ? bucket.min : first?.t0 ?? 0;
-    const resolvedT1 = Number.isFinite(bucket.max) ? bucket.max : last?.t1 ?? resolvedT0;
-    return {
-      id: bucket.id,
-      t0: resolvedT0,
-      t1: resolvedT1 >= resolvedT0 ? resolvedT1 : resolvedT0,
-      tokens,
-    };
-  });
-
-  segments.sort((left, right) => {
-    if (left.t0 !== right.t0) {
-      return left.t0 - right.t0;
-    }
-    if (left.t1 !== right.t1) {
-      return left.t1 - right.t1;
-    }
-    return left.id.localeCompare(right.id);
-  });
 
   if (segments.length === 0) {
     return null;
   }
 
-  const playbackRateValue = Number(response.playback_rate);
+  const playbackRateValue = Number(trackPayload.playback_rate);
   const payload: TimingPayload = {
-    trackKind:
-      response.track === 'original_translation' || response.track === 'original_translation_combined'
-        ? 'original_translation_combined'
-        : 'translation_only',
+    trackKind: trackName === 'mix' ? 'original_translation_combined' : 'translation_only',
     segments,
   };
   if (Number.isFinite(playbackRateValue) && playbackRateValue > 0) {
     payload.playbackRate = Math.round(playbackRateValue * 1000) / 1000;
   }
   return payload;
+}
+
+function computeTimingMetrics(
+  payload: TimingPayload,
+  playbackRate?: number | null,
+): { avgTokenMs: number; uniformVsRealMeanDeltaMs: number; tempoRatio: number; totalDriftMs: number } {
+  if (!payload || !Array.isArray(payload.segments) || payload.segments.length === 0) {
+    return { avgTokenMs: 0, uniformVsRealMeanDeltaMs: 0, tempoRatio: 1, totalDriftMs: 0 };
+  }
+
+  let totalDuration = 0;
+  let tokenCount = 0;
+  let aggregateUniformDelta = 0;
+
+  payload.segments.forEach((segment) => {
+    if (!segment || !Array.isArray(segment.tokens) || segment.tokens.length === 0) {
+      return;
+    }
+    const segmentDuration = Math.max(0, Number(segment.t1) - Number(segment.t0));
+    const uniformDuration = segmentDuration > 0 ? segmentDuration / segment.tokens.length : 0;
+    segment.tokens.forEach((token) => {
+      if (!token) {
+        return;
+      }
+      const tokenDuration = Math.max(0, Number(token.t1) - Number(token.t0));
+      totalDuration += tokenDuration;
+      tokenCount += 1;
+      if (uniformDuration > 0) {
+        aggregateUniformDelta += Math.abs(tokenDuration - uniformDuration);
+      }
+    });
+  });
+
+  const avgTokenMs = tokenCount > 0 ? (totalDuration * 1000) / tokenCount : 0;
+  const uniformVsRealMeanDeltaMs = tokenCount > 0 ? (aggregateUniformDelta * 1000) / tokenCount : 0;
+  const tempoRatio =
+    typeof playbackRate === 'number' && Number.isFinite(playbackRate) && playbackRate > 0
+      ? playbackRate
+      : 1;
+  const totalDriftMs = aggregateUniformDelta * 1000;
+
+  return { avgTokenMs, uniformVsRealMeanDeltaMs, tempoRatio, totalDriftMs };
 }
 
 type TimelineVariantRuntime = {
@@ -408,7 +476,8 @@ interface InteractiveTextViewerProps {
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
   fullscreenControls?: ReactNode;
-  audioTracks?: Record<string, string> | null;
+  audioTracks?: Record<string, AudioTrackMetadata> | null;
+  activeTimingTrack?: 'mix' | 'translation';
   originalAudioEnabled?: boolean;
   translationSpeed?: number;
   fontScale?: number;
@@ -605,6 +674,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onRequestExitFullscreen,
     fullscreenControls,
     audioTracks = null,
+    activeTimingTrack = 'translation',
     originalAudioEnabled = false,
     translationSpeed = 1,
     fontScale = 1,
@@ -632,9 +702,33 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const wordSyncControllerRef = useRef<WordSyncController | null>(null);
   const clock = useMediaClock(audioRef);
   const clockRef = useRef<MediaClock>(clock);
+  const diagnosticsSignatureRef = useRef<string | null>(null);
+  const highlightPolicyRef = useRef<string | null>(null);
+  const [jobTimingResponse, setJobTimingResponse] = useState<JobTimingResponse | null>(null);
+  const [timingDiagnostics, setTimingDiagnostics] = useState<{ policy: string | null; estimated: boolean; punctuation?: boolean } | null>(null);
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const globalWindow = window as HighlightDebugWindow;
+    if (!globalWindow.__HL_DEBUG__?.enabled) {
+      return;
+    }
+    const cleanup = enableHighlightDebugOverlay();
+    return () => {
+      cleanup();
+    };
+  }, []);
+
   useEffect(() => {
     clockRef.current = clock;
   }, [clock]);
+  useEffect(() => {
+    highlightPolicyRef.current = timingDiagnostics?.policy ?? null;
+  }, [timingDiagnostics]);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return false;
@@ -684,7 +778,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
-  const useCombinedPhases = Boolean(originalAudioEnabled && audioTracks?.orig_trans);
+  const useCombinedPhases = Boolean(
+    originalAudioEnabled &&
+      (audioTracks?.orig_trans?.url || audioTracks?.orig_trans?.path),
+  );
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
   const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
@@ -708,16 +805,16 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, []);
   const wordSyncAllowed = (wordSyncQueryState ?? WORD_SYNC.FEATURE) === true;
   const followHighlightEnabled = !prefersReducedMotion;
-  const [remoteTimingPayload, setRemoteTimingPayload] = useState<TimingPayload | null>(null);
-
   useEffect(() => {
     if (!jobId || !wordSyncAllowed) {
-      setRemoteTimingPayload(null);
+      setJobTimingResponse(null);
+      setTimingDiagnostics(null);
       return;
     }
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     let cancelled = false;
-    setRemoteTimingPayload(null);
+    setJobTimingResponse(null);
+    setTimingDiagnostics(null);
     (async () => {
       try {
         const response = await fetchJobTiming(jobId, controller?.signal);
@@ -725,11 +822,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           return;
         }
         if (!response) {
-          setRemoteTimingPayload(null);
+          setJobTimingResponse(null);
+          setTimingDiagnostics(null);
           return;
         }
-        const payload = buildTimingPayloadFromJobTiming(response);
-        setRemoteTimingPayload(payload);
+        setJobTimingResponse(response);
       } catch (error) {
         if (controller?.signal.aborted || cancelled) {
           return;
@@ -737,7 +834,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         if (import.meta.env.DEV) {
           console.debug('Failed to load job timing data', error);
         }
-        setRemoteTimingPayload(null);
+        setJobTimingResponse(null);
+        setTimingDiagnostics(null);
       }
     })();
     return () => {
@@ -1275,17 +1373,19 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   );
 
   const effectiveAudioUrl = useMemo(() => {
-    if (originalAudioEnabled && audioTracks?.orig_trans) {
-      return audioTracks.orig_trans;
+    const combinedUrl = audioTracks?.orig_trans?.url ?? null;
+    const translationUrl = audioTracks?.translation?.url ?? audioTracks?.trans?.url ?? null;
+    if (originalAudioEnabled && combinedUrl) {
+      return combinedUrl;
     }
     if (activeAudioUrl) {
       return activeAudioUrl;
     }
-    if (audioTracks?.trans) {
-      return audioTracks.trans;
+    if (translationUrl) {
+      return translationUrl;
     }
-    if (audioTracks?.orig_trans) {
-      return audioTracks.orig_trans;
+    if (combinedUrl) {
+      return combinedUrl;
     }
     return null;
   }, [activeAudioUrl, audioTracks, originalAudioEnabled]);
@@ -1325,10 +1425,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [chunk?.chunkId, wordSyncTracks]);
   const wordSyncPreferredTypes = useMemo(() => {
     const preferences: TrackTimingPayload['trackType'][] = [];
+    const combinedUrl = audioTracks?.orig_trans?.url ?? null;
     const preferred =
-      originalAudioEnabled &&
-      audioTracks?.orig_trans &&
-      effectiveAudioUrl === audioTracks.orig_trans
+      originalAudioEnabled && combinedUrl && effectiveAudioUrl === combinedUrl
         ? 'original_translated'
         : 'translated';
     preferences.push(preferred);
@@ -1429,62 +1528,92 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       };
     });
   }, [chunkSentenceMap, legacyWordSyncEnabled, wordIndex]);
-  const hasRemoteTiming = wordSyncAllowed && remoteTimingPayload !== null;
+  const hasRemoteTiming = wordSyncAllowed && jobTimingResponse !== null;
   const hasLegacyWordSync = wordSyncAllowed && Boolean(selectedWordSyncTrack && wordIndex);
   const hasWordSyncData =
     hasRemoteTiming ||
     (hasLegacyWordSync &&
       (legacyWordSyncEnabled ? Boolean(wordSyncSentences && wordSyncSentences.length > 0) : true));
   const shouldUseWordSync = hasWordSyncData;
-  const useTranscriptView = shouldUseWordSync && (!legacyWordSyncEnabled || hasRemoteTiming);
   const activeWordSyncTrack =
     !hasRemoteTiming && shouldUseWordSync && selectedWordSyncTrack ? selectedWordSyncTrack : null;
   const activeWordIndex =
     !hasRemoteTiming && shouldUseWordSync && wordIndex ? wordIndex : null;
+  const remoteTrackPayload = useMemo<TimingPayload | null>(() => {
+    if (!hasRemoteTiming || !jobTimingResponse) {
+      return null;
+    }
+    return buildTimingPayloadFromJobTiming(jobTimingResponse, activeTimingTrack);
+  }, [activeTimingTrack, hasRemoteTiming, jobTimingResponse]);
+
   const timingPayload = useMemo<TimingPayload | null>(() => {
-    if (hasRemoteTiming && remoteTimingPayload) {
-      return remoteTimingPayload;
+    if (remoteTrackPayload) {
+      return remoteTrackPayload;
     }
     if (!hasLegacyWordSync || !activeWordSyncTrack || !activeWordIndex) {
       return null;
     }
     return buildTimingPayloadFromWordIndex(activeWordSyncTrack, activeWordIndex);
-  }, [activeWordIndex, activeWordSyncTrack, hasLegacyWordSync, hasRemoteTiming, remoteTimingPayload]);
-  const transcriptSegments = useMemo<Segment[] | null>(() => {
+  }, [activeWordIndex, activeWordSyncTrack, hasLegacyWordSync, remoteTrackPayload]);
+
+  useEffect(() => {
     if (!timingPayload) {
-      return null;
+      setTimingDiagnostics(null);
+      return;
     }
-    const origSegments: Segment[] = [];
-    const tranSegments: Segment[] = [];
-    timingPayload.segments.forEach((segment) => {
-      const baseSegment = {
-        t0: segment.t0,
-        t1: segment.t1,
-      };
-      const origTokens = segment.tokens
-        .filter((token) => token.lane === 'orig')
-        .map((token) => ({ ...token }));
-      if (origTokens.length > 0) {
-        origSegments.push({
-          id: `${segment.id}-orig`,
-          ...baseSegment,
-          tokens: origTokens,
-        });
-      }
-      const tranTokens = segment.tokens
-        .filter((token) => token.lane === 'tran')
-        .map((token) => ({ ...token }));
-      if (tranTokens.length > 0) {
-        tranSegments.push({
-          id: `${segment.id}-tran`,
-          ...baseSegment,
-          tokens: tranTokens,
-        });
-      }
+    const policy =
+      typeof jobTimingResponse?.highlighting_policy === 'string' &&
+      jobTimingResponse.highlighting_policy.trim()
+        ? jobTimingResponse.highlighting_policy.trim()
+        : null;
+    const policyLower = policy ? policy.toLowerCase() : null;
+    const hasEstimatedSegments =
+      jobTimingResponse?.has_estimated_segments === true || policyLower === 'estimated';
+    setTimingDiagnostics({
+      policy,
+      estimated: hasEstimatedSegments,
+      punctuation: policyLower === 'estimated_punct',
     });
-    const merged = interleaveDual(origSegments, tranSegments);
-    return merged.length > 0 ? merged : null;
-  }, [timingPayload]);
+  }, [jobTimingResponse, timingPayload]);
+
+  useEffect(() => {
+    if (!jobId || !timingPayload) {
+      diagnosticsSignatureRef.current = null;
+      return;
+    }
+    const signature = [
+      jobId,
+      timingPayload.trackKind,
+      String(timingPayload.segments.length),
+      activeTimingTrack,
+      jobTimingResponse?.highlighting_policy ?? 'unknown',
+    ].join('|');
+    if (diagnosticsSignatureRef.current === signature) {
+      return;
+    }
+    diagnosticsSignatureRef.current = signature;
+    if (!timingPayload.segments.length) {
+      return;
+    }
+    const policy =
+      typeof jobTimingResponse?.highlighting_policy === 'string' &&
+      jobTimingResponse.highlighting_policy.trim()
+        ? jobTimingResponse.highlighting_policy.trim()
+        : null;
+    const metrics = computeTimingMetrics(timingPayload, timingPayload.playbackRate);
+    if (import.meta.env.DEV) {
+      console.info('[Highlight diagnostics]', {
+        jobId,
+        trackKind: timingPayload.trackKind,
+        policy: policy ?? 'unknown',
+        avgTokenMs: Number(metrics.avgTokenMs.toFixed(2)),
+        tempoRatio: Number(metrics.tempoRatio.toFixed(3)),
+        uniformVsRealMeanDeltaMs: Number(metrics.uniformVsRealMeanDeltaMs.toFixed(2)),
+        totalDriftMs: Number(metrics.totalDriftMs.toFixed(2)),
+        track: activeTimingTrack,
+      });
+    }
+  }, [jobId, timingPayload, activeTimingTrack, jobTimingResponse]);
   const registerTokenElement = useCallback((id: string, element: HTMLSpanElement | null) => {
     const map = tokenElementsRef.current;
     if (!element) {
@@ -1517,6 +1646,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         const element = audioRef.current;
         return !element || element.paused;
       },
+      debugOverlay: { policyRef: highlightPolicyRef },
     });
     wordSyncControllerRef.current = controller;
     return () => {
@@ -1884,8 +2014,32 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   );
 
   const handleInlineAudioPlay = useCallback(() => {
-    wordSyncControllerRef.current?.handlePlay();
-    onInlineAudioPlaybackStateChange?.('playing');
+    timingStore.setLast(null);
+    const startPlayback = () => {
+      wordSyncControllerRef.current?.handlePlay();
+      onInlineAudioPlaybackStateChange?.('playing');
+    };
+    const element = audioRef.current;
+    if (!element) {
+      startPlayback();
+      return;
+    }
+    const scheduleStart = () => {
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(startPlayback);
+      } else {
+        startPlayback();
+      }
+    };
+    if (element.readyState >= element.HAVE_CURRENT_DATA) {
+      scheduleStart();
+      return;
+    }
+    const handleCanPlay = () => {
+      element.removeEventListener('canplay', handleCanPlay);
+      scheduleStart();
+    };
+    element.addEventListener('canplay', handleCanPlay, { once: true });
   }, [onInlineAudioPlaybackStateChange]);
 
   const handleInlineAudioPause = useCallback(() => {
@@ -2020,16 +2174,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [],
   );
 
-  const handleTranscriptWordClick = useCallback(
-    (_tokenId: string, token: WordToken) => {
-      if (!Number.isFinite(token.t0)) {
-        return;
-      }
-      handleTokenSeek(token.t0);
-    },
-    [handleTokenSeek],
-  );
-
   const rootClassName = [
     'player-panel__interactive',
     isFullscreen ? 'player-panel__interactive--fullscreen' : null,
@@ -2088,13 +2232,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onScroll={handleScroll}
         style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
       >
-        {useTranscriptView && transcriptSegments && transcriptSegments.length > 0 ? (
-          <TranscriptView
-            segments={transcriptSegments}
-            player={playerCore}
-            onWordClick={handleTranscriptWordClick}
-          />
-        ) : legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
+        {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
           <div
             className="word-sync"
             data-track-type={activeWordSyncTrack?.trackType ?? 'none'}
@@ -2186,6 +2324,9 @@ function createWordSyncController(options: {
   config: typeof WORD_SYNC;
   followHighlight: boolean;
   isPaused: () => boolean;
+  debugOverlay?: {
+    policyRef: MutableRefObject<string | null>;
+  };
 }): WordSyncController {
   if (typeof window === 'undefined') {
     return createNoopWordSyncController();
@@ -2198,6 +2339,90 @@ function createWordSyncController(options: {
     clockRef,
     config,
   } = options;
+  const overlayPolicyRef = options.debugOverlay?.policyRef;
+  let overlayActiveId: string | null = null;
+
+  const isOverlayEnabled = () => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const dbgWindow = window as HighlightDebugWindow;
+    return Boolean(dbgWindow.__HL_DEBUG__?.overlay);
+  };
+
+  const overlayPalette: Record<string, { bg: string; fg: string }> = {
+    forced: { bg: 'rgba(20,90,50,0.92)', fg: '#e8ffec' },
+    estimated_punct: { bg: 'rgba(219,165,23,0.95)', fg: '#221a00' },
+    inferred: { bg: 'rgba(185,60,50,0.95)', fg: '#fff' },
+    retry_failed_align: { bg: 'rgba(133,20,75,0.95)', fg: '#fff' },
+    default: { bg: 'rgba(45,45,45,0.92)', fg: '#f4f4f4' },
+  };
+
+  const overlayController = (() => {
+    if (typeof document === 'undefined') {
+      return null;
+    }
+    let element: HTMLDivElement | null = null;
+    const ensure = () => {
+      if (!element) {
+        element = document.createElement('div');
+        element.id = 'hl-token-overlay';
+        element.style.cssText =
+          'position:absolute;pointer-events:none;padding:4px 8px;border-radius:4px;font:12px/1.3 monospace;' +
+          'background:rgba(0,0,0,0.85);color:#fff;z-index:99999;opacity:0;transition:opacity 0.12s ease;';
+        document.body.appendChild(element);
+      }
+      return element;
+    };
+    const hide = () => {
+      if (element) {
+        element.style.opacity = '0';
+      }
+    };
+    const destroy = () => {
+      if (element && element.parentNode) {
+        element.parentNode.removeChild(element);
+      }
+      element = null;
+    };
+    return { ensure, hide, destroy };
+  })();
+
+  const hideOverlay = () => {
+    overlayActiveId = null;
+    overlayController?.hide();
+  };
+
+  const showOverlayForWord = (word: WordTiming, anchor: HTMLElement) => {
+    if (!overlayController || !overlayPolicyRef || !track || !isOverlayEnabled()) {
+      hideOverlay();
+      return;
+    }
+    const policy = overlayPolicyRef.current;
+    const now = clockRef.current.effectiveTime(track);
+    if (!Number.isFinite(now)) {
+      hideOverlay();
+      return;
+    }
+    const driftMs = ((now - (word.t0 ?? 0)) * 1000);
+    if (!Number.isFinite(driftMs)) {
+      hideOverlay();
+      return;
+    }
+    const element = overlayController.ensure();
+    const palette = overlayPalette[policy?.toLowerCase() ?? ''] ?? overlayPalette.default;
+    element.style.background = palette.bg;
+    element.style.color = palette.fg;
+    element.textContent = `${word.text} | ${policy ?? 'unknown'} | drift ${driftMs.toFixed(1)}ms`;
+    const rect = anchor.getBoundingClientRect();
+    const scrollX = typeof window !== 'undefined' ? window.scrollX ?? window.pageXOffset ?? 0 : 0;
+    const scrollY = typeof window !== 'undefined' ? window.scrollY ?? window.pageYOffset ?? 0 : 0;
+    element.style.left = `${rect.left + scrollX}px`;
+    const top = rect.top + scrollY - element.offsetHeight - 8;
+    element.style.top = `${top < scrollY ? scrollY : top}px`;
+    element.style.opacity = '1';
+    overlayActiveId = word.id;
+  };
 
   let followHighlights = options.followHighlight;
   let track: TrackTimingPayload | null = null;
@@ -2234,6 +2459,9 @@ function createWordSyncController(options: {
     if (markVisited) {
       element.classList.add('is-visited');
     }
+    if (overlayActiveId === id) {
+      hideOverlay();
+    }
   };
 
   const activateToken = (id: string) => {
@@ -2243,9 +2471,16 @@ function createWordSyncController(options: {
     }
     element.classList.add('is-active');
     element.classList.remove('is-visited');
+    if (overlayPolicyRef && track && index) {
+      const word = index.byId.get(id);
+      if (word) {
+        showOverlayForWord(word, element);
+      }
+    }
   };
 
   const clearActive = () => {
+    hideOverlay();
     activeIds.forEach((activeId) => {
       const element = tokenElementsRef.current.get(activeId);
       if (element) {
@@ -2417,6 +2652,8 @@ function createWordSyncController(options: {
     clearActive();
     track = null;
     index = null;
+    overlayController?.destroy();
+    overlayActiveId = null;
   };
 
   const setTrack = (nextTrack: TrackTimingPayload | null, nextIndex: WordIndex | null) => {

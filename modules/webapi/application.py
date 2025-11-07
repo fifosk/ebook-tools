@@ -28,7 +28,7 @@ from .auth_routes import router as auth_router
 from modules.audio.config import load_media_config
 
 from .dependencies import configure_media_services, get_runtime_context_provider
-from .media_routes import (
+from .routes.media_routes import (
     register_exception_handlers as register_media_exception_handlers,
     router as media_router,
     jobs_timing_router,

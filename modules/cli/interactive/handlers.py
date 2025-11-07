@@ -376,6 +376,36 @@ def _handle_word_highlighting(
     return config, False
 
 
+def _handle_highlight_mode(
+    config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
+) -> Tuple[Dict[str, Any], bool]:
+    current_default = bool(config.get("char_weighted_highlighting_default"))
+    current_punct = bool(config.get("char_weighted_punctuation_boost"))
+    if current_default and current_punct:
+        current_label = "punctuation-weighted"
+    elif current_default:
+        current_label = "char-weighted"
+    else:
+        current_label = "uniform"
+    console_info(
+        "\nSelect highlight inference mode:\n"
+        "1. Uniform (legacy inference)\n"
+        "2. Char-weighted\n"
+        "3. Punctuation-weighted char timing"
+    )
+    inp_val = prompt_user(f"Enter choice (1-3, current {current_label}): ").strip()
+    if inp_val == "2":
+        config["char_weighted_highlighting_default"] = True
+        config["char_weighted_punctuation_boost"] = False
+    elif inp_val == "3":
+        config["char_weighted_highlighting_default"] = True
+        config["char_weighted_punctuation_boost"] = True
+    elif inp_val == "1":
+        config["char_weighted_highlighting_default"] = False
+        config["char_weighted_punctuation_boost"] = False
+    return config, False
+
+
 def _handle_debug(
     config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
 ) -> Tuple[Dict[str, Any], bool]:
@@ -606,24 +636,25 @@ _HANDLERS: Dict[int, EditHandler] = {
     20: _handle_split_on_punctuation,
     21: _handle_transliteration,
     22: _handle_word_highlighting,
-    23: _handle_debug,
-    24: _handle_output_html,
-    25: _handle_output_pdf,
-    26: _handle_stitch_full,
-    27: _handle_book_title,
-    28: _handle_book_author,
-    29: _handle_book_year,
-    30: _handle_book_summary,
-    31: _handle_book_cover,
-    32: _handle_working_dir,
-    33: _handle_output_dir,
-    34: _handle_ebooks_dir,
-    35: _handle_tmp_dir,
-    36: _handle_ffmpeg_path,
-    37: _handle_llm_source,
-    38: _handle_ollama_url,
-    39: _handle_ollama_local_url,
-    40: _handle_ollama_cloud_url,
+    23: _handle_highlight_mode,
+    24: _handle_debug,
+    25: _handle_output_html,
+    26: _handle_output_pdf,
+    27: _handle_stitch_full,
+    28: _handle_book_title,
+    29: _handle_book_author,
+    30: _handle_book_year,
+    31: _handle_book_summary,
+    32: _handle_book_cover,
+    33: _handle_working_dir,
+    34: _handle_output_dir,
+    35: _handle_ebooks_dir,
+    36: _handle_tmp_dir,
+    37: _handle_ffmpeg_path,
+    38: _handle_llm_source,
+    39: _handle_ollama_url,
+    40: _handle_ollama_local_url,
+    41: _handle_ollama_cloud_url,
 }
 
 

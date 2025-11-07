@@ -101,8 +101,13 @@ class PipelineConfig:
     sync_ratio: float = 0.9
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    char_weighted_highlighting_default: bool = False
+    char_weighted_punctuation_boost: bool = False
     forced_alignment_enabled: bool = False
-    forced_alignment_smoothing: str = "monotonic_cubic"
+    forced_alignment_smoothing: float | str = "monotonic_cubic"
+    alignment_backend: Optional[str] = None
+    alignment_model: Optional[str] = None
+    alignment_model_overrides: Optional[Mapping[str, str]] = None
     slide_parallelism: str = "off"
     slide_parallel_workers: Optional[int] = None
     prefer_pillow_simd: bool = False
@@ -322,6 +327,15 @@ def build_pipeline_config(
     if highlight_granularity not in {"word", "char"}:
         highlight_granularity = "word"
 
+    char_weighted_highlighting_default = _coerce_bool(
+        _select_value("char_weighted_highlighting_default", config, overrides, False),
+        False,
+    )
+    char_weighted_punctuation_boost = _coerce_bool(
+        _select_value("char_weighted_punctuation_boost", config, overrides, False),
+        False,
+    )
+
     raw_parallelism = _select_value("slide_parallelism", config, overrides, "off")
     if isinstance(raw_parallelism, str):
         slide_parallelism = raw_parallelism.strip().lower()
@@ -378,7 +392,42 @@ def build_pipeline_config(
             raw_forced_alignment_smoothing.strip().lower() or "monotonic_cubic"
         )
     else:
-        forced_alignment_smoothing = "monotonic_cubic"
+        try:
+            forced_alignment_smoothing = float(raw_forced_alignment_smoothing)
+        except (TypeError, ValueError):
+            forced_alignment_smoothing = "monotonic_cubic"
+
+    raw_alignment_backend = _select_value("alignment_backend", config, overrides, None)
+    if raw_alignment_backend is None:
+        raw_alignment_backend = _select_value("forced_alignment_backend", config, overrides, None)
+    if isinstance(raw_alignment_backend, str):
+        alignment_backend = raw_alignment_backend.strip() or None
+    else:
+        alignment_backend = None
+
+    raw_alignment_model = _select_value("alignment_model", config, overrides, None)
+    if raw_alignment_model is None:
+        raw_alignment_model = _select_value("forced_alignment_model", config, overrides, None)
+    if isinstance(raw_alignment_model, str):
+        alignment_model = raw_alignment_model.strip() or None
+    else:
+        alignment_model = None
+
+    raw_alignment_overrides = _select_value(
+        "alignment_model_overrides", config, overrides, None
+    )
+    if raw_alignment_overrides is None:
+        raw_alignment_overrides = _select_value(
+            "forced_alignment_model_overrides", config, overrides, None
+        )
+    if isinstance(raw_alignment_overrides, Mapping):
+        alignment_model_overrides = {
+            str(key).strip().lower(): str(value).strip()
+            for key, value in raw_alignment_overrides.items()
+            if isinstance(key, str) and isinstance(value, str) and str(value).strip()
+        } or None
+    else:
+        alignment_model_overrides = None
 
     raw_llm_source = _select_value("llm_source", config, overrides, context.llm_source)
     if isinstance(raw_llm_source, str):
@@ -471,8 +520,13 @@ def build_pipeline_config(
         sync_ratio=sync_ratio,
         word_highlighting=word_highlighting,
         highlight_granularity=highlight_granularity,
+        char_weighted_highlighting_default=char_weighted_highlighting_default,
+        char_weighted_punctuation_boost=char_weighted_punctuation_boost,
         forced_alignment_enabled=forced_alignment_enabled,
         forced_alignment_smoothing=forced_alignment_smoothing,
+        alignment_backend=alignment_backend,
+        alignment_model=alignment_model,
+        alignment_model_overrides=alignment_model_overrides,
         slide_parallelism=slide_parallelism,
         slide_parallel_workers=slide_parallel_workers,
         prefer_pillow_simd=prefer_pillow_simd,

@@ -1060,6 +1060,9 @@ export function PipelineSubmissionForm({
       if (Object.keys(sanitizedVoiceOverrides).length > 0) {
         pipelineOverrides.voice_overrides = sanitizedVoiceOverrides;
       }
+      if (typeof formState.audio_mode === 'string' && formState.audio_mode.trim()) {
+        pipelineOverrides.audio_mode = formState.audio_mode.trim();
+      }
 
       const payload: PipelineRequestPayload = {
         config: json.config,

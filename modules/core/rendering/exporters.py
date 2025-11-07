@@ -15,7 +15,11 @@ from modules import output_formatter
 from modules.audio.tts import SILENCE_DURATION_MS, get_voice_display_name
 from modules.config.loader import get_rendering_config
 from modules.core.rendering.constants import LANGUAGE_CODES
-from modules.core.rendering.timeline import build_word_events
+from modules.core.rendering.timeline import (
+    SentenceTimingSpec,
+    build_dual_track_timings,
+    build_word_events,
+)
 from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
 from modules.video.api import VideoService
@@ -100,6 +104,64 @@ def serialize_sentence_chunk(sentence_meta: Mapping[str, Any]) -> Dict[str, Any]
     }
     if word_events:
         chunk_entry["timingTracks"] = {"translation": word_events}
+
+    policy_candidate = sentence_meta.get("highlighting_policy") or sentence_meta.get(
+        "alignment_policy"
+    )
+    normalized_policy: Optional[str] = None
+    if isinstance(policy_candidate, str):
+        normalized_policy = policy_candidate.strip() or None
+    summary_candidate = sentence_meta.get("highlighting_summary")
+    summary_payload: Dict[str, Any] = {}
+    if isinstance(summary_candidate, Mapping):
+        raw_policy = summary_candidate.get("policy")
+        if isinstance(raw_policy, str) and raw_policy.strip():
+            summary_payload["policy"] = raw_policy.strip()
+        elif normalized_policy:
+            summary_payload["policy"] = normalized_policy
+        tempo_value = summary_candidate.get("tempo")
+        try:
+            summary_payload["tempo"] = float(tempo_value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            pass
+        tokens_value = summary_candidate.get("tokens")
+        if tokens_value is None:
+            tokens_value = summary_candidate.get("token_count")
+        token_count: Optional[int] = None
+        try:
+            token_count = int(tokens_value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            token_count = None
+        if token_count is not None:
+            summary_payload["tokens"] = token_count
+            summary_payload.setdefault("token_count", token_count)
+        duration_value = summary_candidate.get("duration") or summary_candidate.get("t1")
+        try:
+            summary_payload["duration"] = round(float(duration_value), 6)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            pass
+        source_value = summary_candidate.get("source") or summary_candidate.get("alignment_source")
+        if isinstance(source_value, str) and source_value.strip():
+            summary_payload["source"] = source_value.strip()
+        method_value = summary_candidate.get("method") or summary_candidate.get("strategy")
+        if isinstance(method_value, str) and method_value.strip():
+            summary_payload["method"] = method_value.strip()
+        char_weighted_flag = summary_candidate.get("char_weighted")
+        if isinstance(char_weighted_flag, bool):
+            summary_payload["char_weighted"] = char_weighted_flag
+        elif isinstance(char_weighted_flag, str):
+            normalized = char_weighted_flag.strip().lower()
+            if normalized in {"1", "true", "yes"}:
+                summary_payload["char_weighted"] = True
+        punctuation_flag = summary_candidate.get("punctuation_weighting")
+        if isinstance(punctuation_flag, bool):
+            summary_payload["punctuation_weighting"] = punctuation_flag
+    if normalized_policy:
+        chunk_entry["highlighting_policy"] = normalized_policy
+        summary_payload.setdefault("policy", normalized_policy)
+    if summary_payload:
+        chunk_entry["highlighting_summary"] = summary_payload
+
     return chunk_entry
 
 
@@ -235,7 +297,8 @@ class BatchExportResult:
     range_fragment: str
     artifacts: Dict[str, str] = field(default_factory=dict)
     sentences: List[Dict[str, object]] = field(default_factory=list)
-    audio_tracks: Dict[str, str] = field(default_factory=dict)
+    audio_tracks: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    timing_tracks: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
 
 
 class BatchExporter:
@@ -344,6 +407,8 @@ class BatchExporter:
             "translation": len(translation_units),
             "transliteration": len(transliteration_tokens),
         }
+        payload["origWords"] = list(original_tokens)
+        payload["transWords"] = list(translation_units)
 
         phase_payload: Dict[str, float] = {}
         if original_phase_duration > 0:
@@ -392,6 +457,21 @@ class BatchExporter:
         payload["timing"] = chunk_entry["timing"]
         if "timingTracks" in chunk_entry:
             payload["timingTracks"] = chunk_entry["timingTracks"]
+        payload["word_tokens"] = list(meta_payload.get("word_tokens") or [])
+        highlighting_summary = chunk_entry.get("highlighting_summary", {})
+        if not isinstance(highlighting_summary, Mapping):
+            highlighting_summary = {}
+        payload["charWeighted"] = {
+            "enabled": bool(highlighting_summary.get("char_weighted")),
+            "punctuationBoost": bool(highlighting_summary.get("punctuation_weighting")),
+        }
+        policy_value = chunk_entry.get("highlighting_policy") or highlighting_summary.get("policy")
+        payload["word_timing"] = {
+            "policy": policy_value,
+            "source": highlighting_summary.get("source"),
+            "char_weighted_enabled": bool(highlighting_summary.get("char_weighted")),
+            "punctuation_boost": bool(highlighting_summary.get("punctuation_weighting")),
+        }
 
         return payload
 
@@ -515,6 +595,7 @@ class BatchExporter:
                     audio_track_segments["orig_trans"] = combined_segments
         video_blocks: List[str] = list(request.video_blocks)
         sentence_payloads: List[Dict[str, object]] = []
+        sentence_specs: List[SentenceTimingSpec] = []
 
         if orig_track_segments is None and audio_track_segments:
             orig_track_segments = audio_track_segments.get("orig")
@@ -562,8 +643,39 @@ class BatchExporter:
                 word_meta=word_meta_entry,
             )
             sentence_payloads.append(metadata)
+            translation_entry = metadata.get("translation") or {}
+            original_entry = metadata.get("original") or {}
+            phase_data = metadata.get("phase_durations")
+            if not isinstance(phase_data, Mapping):
+                phase_data = {}
+            word_timing_meta = metadata.get("word_timing")
+            if not isinstance(word_timing_meta, Mapping):
+                word_timing_meta = {}
+            sentence_specs.append(
+                SentenceTimingSpec(
+                    sentence_idx=sentence_number,
+                    original_text=str(original_entry.get("text") or ""),
+                    translation_text=str(translation_entry.get("text") or ""),
+                    original_words=list(original_entry.get("tokens") or []),
+                    translation_words=list(translation_entry.get("tokens") or []),
+                    word_tokens=metadata.get("word_tokens"),
+                    translation_duration=float(
+                        phase_data.get("translation")
+                        or metadata.get("total_duration")
+                        or metadata.get("t1")
+                        or 0.0
+                    ),
+                    original_duration=float(phase_data.get("original") or 0.0),
+                    gap_before_translation=float(phase_data.get("gap") or 0.0),
+                    gap_after_translation=float(phase_data.get("tail") or 0.0),
+                    char_weighted_enabled=bool(word_timing_meta.get("char_weighted_enabled")),
+                    punctuation_boost=bool(word_timing_meta.get("punctuation_boost")),
+                    policy=word_timing_meta.get("policy"),
+                    source=word_timing_meta.get("source"),
+                )
+            )
 
-        track_artifacts: Dict[str, str] = {}
+        track_artifacts: Dict[str, Dict[str, Any]] = {}
 
         exportable_tracks: Dict[str, List[AudioSegment]] = {
             key: list(segments)
@@ -593,19 +705,32 @@ class BatchExporter:
                         continue
                     combined_track = AudioSegment.empty()
                     for segment in segments:
-                        combined_track += segment
+                        if segment:
+                            combined_track += segment
                     suffix = "trans" if track_key == "trans" else track_key
                     audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}_{suffix}.mp3"
                     combined_track.export(str(audio_filename), format="mp3", bitrate="320k")
                     staged_audio = writer.stage(audio_filename)
                     staged_path = Path(staged_audio)
                     relative_path = self._job_relative_path(staged_path)
-                    track_artifacts[track_key] = relative_path
+                    normalized_key = "translation" if track_key in {"trans", "translation"} else track_key
+                    duration_value = getattr(combined_track, "duration_seconds", 0.0) or 0.0
+                    sample_rate = getattr(combined_track, "frame_rate", None)
+                    if isinstance(sample_rate, (int, float)) and sample_rate > 0:
+                        sample_rate_value = int(sample_rate)
+                    else:
+                        sample_rate_value = 44100
+                    track_artifacts[normalized_key] = {
+                        "path": relative_path,
+                        "duration": round(float(duration_value), 6) if duration_value else 0.0,
+                        "sampleRate": sample_rate_value,
+                    }
                     if track_key == "trans":
                         artifacts.setdefault("audio", relative_path)
                     else:
                         artifacts[f"audio_{track_key}"] = relative_path
-                translation_path = track_artifacts.get("trans")
+                translation_entry = track_artifacts.get("translation") or track_artifacts.get("trans")
+                translation_path = translation_entry.get("path") if isinstance(translation_entry, Mapping) else None
                 if translation_path:
                     artifacts.setdefault("audio", translation_path)
 
@@ -619,7 +744,20 @@ class BatchExporter:
                 staged_path = Path(staged_audio)
                 relative_path = self._job_relative_path(staged_path)
                 artifacts["audio"] = relative_path
-                track_artifacts.setdefault("trans", relative_path)
+                duration_value = getattr(combined, "duration_seconds", 0.0) or 0.0
+                sample_rate = getattr(combined, "frame_rate", None)
+                if isinstance(sample_rate, (int, float)) and sample_rate > 0:
+                    sample_rate_value = int(sample_rate)
+                else:
+                    sample_rate_value = 44100
+                track_artifacts.setdefault(
+                    "translation",
+                    {
+                        "path": relative_path,
+                        "duration": round(float(duration_value), 6) if duration_value else 0.0,
+                        "sampleRate": sample_rate_value,
+                    },
+                )
 
             if request.generate_video and audio_segments and video_blocks:
                 video_output = av_gen.render_video_slides(
@@ -656,6 +794,37 @@ class BatchExporter:
             writer.rollback()
             raise
 
+        translation_duration_fallback = sum(spec.translation_duration for spec in sentence_specs)
+        mix_duration_fallback = sum(
+            spec.original_duration
+            + max(spec.gap_before_translation, 0.0)
+            + spec.translation_duration
+            + max(spec.gap_after_translation, 0.0)
+            for spec in sentence_specs
+        )
+        def _duration_for(track_key: str, fallback: float) -> float:
+            entry = track_artifacts.get(track_key)
+            if isinstance(entry, Mapping):
+                try:
+                    raw_value = float(entry.get("duration", 0.0))
+                except (TypeError, ValueError):
+                    raw_value = 0.0
+                if raw_value > 0:
+                    return raw_value
+            return fallback
+
+        track_durations = {
+            "mix": _duration_for("orig_trans", mix_duration_fallback),
+            "translation": _duration_for("translation", translation_duration_fallback),
+        }
+        timing_tracks: Dict[str, List[Dict[str, Any]]] = {}
+        if sentence_specs:
+            timing_tracks = build_dual_track_timings(
+                sentence_specs,
+                mix_duration=track_durations["mix"],
+                translation_duration=track_durations["translation"],
+            )
+
         return BatchExportResult(
             chunk_id=chunk_id,
             start_sentence=request.start_sentence,
@@ -664,6 +833,7 @@ class BatchExporter:
             artifacts=artifacts,
             sentences=sentence_payloads,
             audio_tracks=track_artifacts,
+            timing_tracks=timing_tracks,
         )
 
 

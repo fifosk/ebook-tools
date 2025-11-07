@@ -15,7 +15,7 @@ import {
   type TranslationSpeed,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
-import type { ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
+import type { AudioTrackMetadata, ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
@@ -1341,7 +1341,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     }
     const tracks = chunkRef.audioTracks ?? null;
     const files = chunkRef.files ?? [];
-    const mapping: Record<string, string> = {};
+    const mapping: Record<string, AudioTrackMetadata> = {};
 
     const normaliseSource = (source: string | null | undefined) => {
       if (!source) {
@@ -1367,24 +1367,34 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       return buildStorageUrl(trimmed, normalisedJobId);
     };
 
-    const registerTrack = (key: string, source: string | null | undefined) => {
-      const normalised = normaliseSource(source);
-      if (!normalised) {
+    const registerTrack = (key: string, descriptor: AudioTrackMetadata | string | null | undefined) => {
+      if (!key || !descriptor) {
         return;
       }
-      mapping[key] = normalised;
+      let payload: AudioTrackMetadata;
+      if (typeof descriptor === 'string') {
+        payload = { path: descriptor };
+      } else {
+        payload = { ...descriptor };
+      }
+      const resolved = normaliseSource(payload.url ?? payload.path ?? null);
+      if (resolved) {
+        payload.url = resolved;
+      }
+      if (payload.path && !payload.url) {
+        payload.url = normaliseSource(payload.path);
+      }
+      const existing = mapping[key] ?? {};
+      mapping[key] = { ...existing, ...payload };
     };
 
     if (tracks) {
-      if (typeof tracks.orig_trans === 'string' && tracks.orig_trans.trim()) {
-        registerTrack('orig_trans', tracks.orig_trans.trim());
-      }
-      if (typeof tracks.trans === 'string' && tracks.trans.trim()) {
-        registerTrack('trans', tracks.trans.trim());
-      }
-      if (typeof tracks.orig === 'string' && tracks.orig.trim()) {
-        registerTrack('orig', tracks.orig.trim());
-      }
+      Object.entries(tracks).forEach(([key, value]) => {
+        const normalisedKey = key === 'trans' ? 'translation' : key;
+        if (typeof value === 'string' || (value && typeof value === 'object')) {
+          registerTrack(normalisedKey, value as AudioTrackMetadata | string);
+        }
+      });
     }
 
     files.forEach((file) => {
@@ -1397,17 +1407,21 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
       const displayName = typeof file.name === 'string' ? file.name : '';
       const isCombinedCandidate = isCombinedAudioCandidate(relativePath, displayName);
-      if (isCombinedCandidate && typeof file.url === 'string') {
-        registerTrack('orig_trans', file.url);
+      const descriptor: AudioTrackMetadata = {
+        path: typeof file.relative_path === 'string' ? file.relative_path : undefined,
+        url: typeof file.url === 'string' ? file.url : undefined,
+      };
+      if (isCombinedCandidate) {
+        registerTrack('orig_trans', descriptor);
         return;
       }
       const isOriginalCandidate = isOriginalAudioCandidate(relativePath, displayName);
-      if (isOriginalCandidate && typeof file.url === 'string') {
-        registerTrack('orig', file.url);
+      if (isOriginalCandidate) {
+        registerTrack('orig', descriptor);
         return;
       }
-      if (!mapping.trans && typeof file.url === 'string') {
-        registerTrack('trans', file.url);
+      if (!mapping.translation) {
+        registerTrack('translation', descriptor);
       }
     });
 
@@ -1445,15 +1459,40 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         register(file.url, label);
       });
     }
+    if (activeAudioTracks) {
+      Object.entries(activeAudioTracks).forEach(([key, metadata]) => {
+        if (!metadata?.url || seen.has(metadata.url)) {
+          return;
+        }
+        const label =
+          key === 'orig_trans'
+            ? 'Original + Translation'
+            : key === 'translation'
+              ? 'Translation'
+              : key === 'orig'
+                ? 'Original'
+                : `Audio (${key})`;
+        register(metadata.url, label);
+      });
+    }
     interactiveAudioPlaylist.forEach((item, index) => {
       register(item.url, item.name ?? `Audio ${index + 1}`);
     });
     return options;
-  }, [activeTextChunk, activeTextChunkIndex, interactiveAudioNameMap, interactiveAudioPlaylist, resolvedActiveTextChunk]);
+  }, [
+    activeAudioTracks,
+    activeTextChunk,
+    activeTextChunkIndex,
+    interactiveAudioNameMap,
+    interactiveAudioPlaylist,
+    resolvedActiveTextChunk,
+  ]);
 
   const inlineAudioUnavailable = inlineAudioOptions.length === 0;
-  const hasCombinedAudio = Boolean(activeAudioTracks?.orig_trans);
-  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig);
+  const hasCombinedAudio = Boolean(
+    activeAudioTracks?.orig_trans?.url || activeAudioTracks?.orig_trans?.path,
+  );
+  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig?.url || activeAudioTracks?.orig?.path);
   const canToggleOriginalAudio = hasCombinedAudio || hasLegacyOriginal;
   const effectiveOriginalAudioEnabled = showOriginalAudio && hasCombinedAudio;
   const handleOriginalAudioToggle = useCallback(() => {
@@ -1473,8 +1512,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     if (!hasCombinedAudio) {
       return;
     }
-    const combinedUrl = activeAudioTracks?.orig_trans ?? null;
-    const translationUrl = activeAudioTracks?.trans ?? null;
+    const combinedUrl = activeAudioTracks?.orig_trans?.url ?? null;
+    const translationUrl =
+      activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
     setInlineAudioSelection((current) => {
       if (showOriginalAudio) {
         if (combinedUrl && current !== combinedUrl) {
@@ -1490,7 +1530,22 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       }
       return current;
     });
-  }, [activeAudioTracks?.orig_trans, activeAudioTracks?.trans, hasCombinedAudio, showOriginalAudio]);
+  }, [
+    activeAudioTracks?.orig_trans?.url,
+    activeAudioTracks?.translation?.url,
+    activeAudioTracks?.trans?.url,
+    hasCombinedAudio,
+    showOriginalAudio,
+  ]);
+  const combinedTrackUrl = activeAudioTracks?.orig_trans?.url ?? null;
+  const translationTrackUrl =
+    activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
+  const activeTimingTrack: 'mix' | 'translation' =
+    combinedTrackUrl &&
+    ((inlineAudioSelection && inlineAudioSelection === combinedTrackUrl) ||
+      (!inlineAudioSelection && effectiveOriginalAudioEnabled))
+      ? 'mix'
+      : 'translation';
   useEffect(() => {
     if (!pendingSelection) {
       return;
@@ -2632,12 +2687,13 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                                 isInteractiveFullscreen ? (
                                   <>
                                     {fullscreenHeader}
-                                  {fullscreenNavigationGroup}
+                                    {fullscreenNavigationGroup}
                                 </>
                               ) : null
                             }
                               translationSpeed={translationSpeed}
                               audioTracks={activeAudioTracks}
+                              activeTimingTrack={activeTimingTrack}
                               originalAudioEnabled={effectiveOriginalAudioEnabled}
                               fontScale={isInteractiveFullscreen ? 1.35 : 1}
                           />

@@ -1,143 +1,257 @@
 import type { PlayerCoreHandle } from './PlayerCore';
 import { timingStore } from '../stores/timingStore';
-import { findNearestToken, isLargeSeek } from '../utils/timingSearch';
-import type { Hit } from '../types/timing';
+import type { Hit, TimingPayload } from '../types/timing';
+import { WORD_SYNC } from '../components/player-panel/constants';
 
 type Unsubscribe = () => void;
 
-let activeCore: PlayerCoreHandle | null = null;
-let unsubscribes: Unsubscribe[] = [];
-let lastHit: Hit | null = null;
-let lastTime = 0;
-let lastWallClock = 0;
-
-type DebugCounterKey = 'driftCorrections' | 'largeSeeks' | 'frameDrops';
-
-type DebugCounters = {
-  driftCorrections: number;
-  largeSeeks: number;
-  frameDrops: number;
-  enabled: boolean;
-  lastLog: number;
+type TimelineEntry = {
+  segIndex: number;
+  tokIndex: number;
+  start: number;
+  end: number;
 };
 
-type DebugWindow = Window & { __HL_DEBUG__?: DebugCounters };
+type TimelineBundle = {
+  entries: TimelineEntry[];
+  origin: number;
+  duration: number;
+};
 
-const debugCounters = initDebugCounters();
+let activeCore: PlayerCoreHandle | null = null;
+let unsubscribes: Unsubscribe[] = [];
+let rafId: number | null = null;
+let fallbackInterval: ReturnType<typeof setInterval> | null = null;
+let payloadCache: TimingPayload | undefined;
+let timelineBundle: TimelineBundle | null = null;
+let timelineCursor = -1;
+let lastHit: Hit | null = null;
+const MAX_DRIFT_SECONDS = WORD_SYNC.MAX_LAG_MS / 1000;
 
-function initDebugCounters(): DebugCounters | null {
-  if (typeof window === 'undefined' || process.env.NODE_ENV === 'production') {
+type DebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean } };
+
+function buildTimeline(payload?: TimingPayload): TimelineBundle | null {
+  if (!payload || payload.segments.length === 0) {
     return null;
   }
-  const globalWindow = window as DebugWindow;
-  if (!globalWindow.__HL_DEBUG__) {
-    globalWindow.__HL_DEBUG__ = {
-      driftCorrections: 0,
-      largeSeeks: 0,
-      frameDrops: 0,
-      enabled: false,
-      lastLog: 0,
-    };
-  }
-  return globalWindow.__HL_DEBUG__;
-}
 
-function incrementCounter(key: DebugCounterKey): void {
-  if (!debugCounters) {
-    return;
-  }
-  debugCounters[key] += 1;
-  maybeLogCounters();
-}
+  const raw: TimelineEntry[] = [];
+  let earliestStart: number | null = null;
 
-function maybeLogCounters(): void {
-  if (!debugCounters || !debugCounters.enabled) {
-    return;
-  }
-  const now =
-    typeof performance !== 'undefined' && typeof performance.now === 'function'
-      ? performance.now()
-      : Date.now();
-  if (now - debugCounters.lastLog < 5000) {
-    return;
-  }
-  debugCounters.lastLog = now;
-  // eslint-disable-next-line no-console
-  console.debug('[HL_DEBUG]', {
-    driftCorrections: debugCounters.driftCorrections,
-    largeSeeks: debugCounters.largeSeeks,
-    frameDrops: debugCounters.frameDrops,
+  payload.segments.forEach((segment, segIndex) => {
+    if (!segment || !Array.isArray(segment.tokens)) {
+      return;
+    }
+    segment.tokens.forEach((token, tokIndex) => {
+      if (!token) {
+        return;
+      }
+      const start = Number(token.t0);
+      const end = Number(token.t1);
+      if (!Number.isFinite(start) || !Number.isFinite(end)) {
+        return;
+      }
+      const safeStart = Math.max(0, start);
+      const safeEnd = Math.max(safeStart + 0.01, end);
+      raw.push({
+        segIndex,
+        tokIndex,
+        start: safeStart,
+        end: safeEnd,
+      });
+      if (earliestStart === null || safeStart < earliestStart) {
+        earliestStart = safeStart;
+      }
+    });
   });
+
+  if (raw.length === 0 || earliestStart === null) {
+    return null;
+  }
+
+  raw.sort((left, right) => {
+    if (left.start !== right.start) {
+      return left.start - right.start;
+    }
+    return left.end - right.end;
+  });
+
+  const origin = earliestStart ?? 0;
+  let lastEnd = 0;
+  const normalized = raw.map((entry, index) => {
+    let start = entry.start - origin;
+    let end = entry.end - origin;
+    if (start < 0) {
+      start = 0;
+      end = Math.max(end, 0.01);
+    }
+    if (end <= start) {
+      end = start + 0.01;
+    }
+    if (index === 0) {
+      lastEnd = end;
+      return { ...entry, start, end };
+    }
+    if (start < lastEnd) {
+      const shift = lastEnd - start;
+      start += shift;
+      end += shift;
+    }
+    lastEnd = Math.max(lastEnd, end);
+    return { ...entry, start, end };
+  });
+
+  const totalDuration = normalized.length ? normalized[normalized.length - 1].end : 0;
+  return {
+    entries: normalized,
+    origin,
+    duration: totalDuration,
+  };
 }
 
-function compareHits(next: Hit, prev: Hit): number {
-  if (next.segIndex !== prev.segIndex) {
-    return next.segIndex - prev.segIndex;
+function ensureTimeline(payload?: TimingPayload): void {
+  if (payloadCache === payload) {
+    return;
   }
-  return next.tokIndex - prev.tokIndex;
+  payloadCache = payload;
+  timelineBundle = buildTimeline(payload);
+  timelineCursor = -1;
+  lastHit = null;
+  timingStore.setLast(null);
+}
+
+function clearLoop(): void {
+  if (typeof window !== 'undefined' && rafId !== null) {
+    window.cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+  if (fallbackInterval !== null) {
+    clearInterval(fallbackInterval);
+    fallbackInterval = null;
+  }
+}
+
+function startLoop(): void {
+  clearLoop();
+  if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+    const step = () => {
+      if (!activeCore) {
+        rafId = null;
+        return;
+      }
+      applyTime(activeCore.getCurrentTime());
+      rafId = window.requestAnimationFrame(step);
+    };
+    rafId = window.requestAnimationFrame(step);
+    return;
+  }
+
+  fallbackInterval = setInterval(() => {
+    if (!activeCore) {
+      if (fallbackInterval !== null) {
+        clearInterval(fallbackInterval);
+        fallbackInterval = null;
+      }
+      return;
+    }
+    applyTime(activeCore.getCurrentTime());
+  }, 16) as ReturnType<typeof setInterval>;
+}
+
+function setActiveHit(hit: Hit | null): void {
+  if (!hit) {
+    if (lastHit) {
+      lastHit = null;
+      timingStore.setLast(null);
+    }
+    return;
+  }
+  if (!lastHit || lastHit.segIndex !== hit.segIndex || lastHit.tokIndex !== hit.tokIndex) {
+    lastHit = hit;
+    timingStore.setLast(hit);
+  }
+}
+
+function locateTimelineIndex(time: number): number {
+  if (!timelineBundle || timelineBundle.entries.length === 0) {
+    return -1;
+  }
+
+  const entries = timelineBundle.entries;
+  let low = 0;
+  let high = entries.length - 1;
+
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2);
+    const entry = entries[mid];
+    if (time < entry.start) {
+      high = mid - 1;
+      continue;
+    }
+    if (time >= entry.end) {
+      low = mid + 1;
+      continue;
+    }
+    timelineCursor = mid;
+    return mid;
+  }
+
+  timelineCursor = Math.max(0, Math.min(low, entries.length - 1));
+  return -1;
 }
 
 function applyTime(time: number): void {
-  if (debugCounters) {
-    const now =
-      typeof performance !== 'undefined' && typeof performance.now === 'function'
-        ? performance.now()
-        : Date.now();
-    if (lastWallClock !== 0 && now - lastWallClock > 120) {
-      incrementCounter('frameDrops');
-    }
-    lastWallClock = now;
-  }
-
   if (!Number.isFinite(time)) {
+    setActiveHit(null);
     return;
   }
   const state = timingStore.get();
-  const payload = state.payload;
-  if (!payload || payload.segments.length === 0) {
-    if (state.last) {
-      incrementCounter('frameDrops');
+  ensureTimeline(state.payload);
+  if (!timelineBundle || timelineBundle.entries.length === 0) {
+    setActiveHit(null);
+    return;
+  }
+  const trackDuration = timelineBundle.duration + timelineBundle.origin;
+  const audioDuration = activeCore ? activeCore.getDuration() : Number.NaN;
+  const maxDuration = Number.isFinite(audioDuration) && audioDuration > 0
+    ? Math.min(audioDuration, trackDuration)
+    : trackDuration;
+  const clampedTime = Math.min(Math.max(time, 0), maxDuration);
+  const localTime = Math.max(0, clampedTime - timelineBundle.origin);
+  const index = locateTimelineIndex(localTime);
+  if (index === -1) {
+    setActiveHit(null);
+    return;
+  }
+  const entry = timelineBundle.entries[index];
+  const withinEntry = localTime >= entry.start && localTime < entry.end;
+  if (!withinEntry) {
+    const driftSeconds = Math.min(
+      Math.abs(localTime - entry.start),
+      Math.abs(localTime - entry.end),
+    );
+    if (driftSeconds > MAX_DRIFT_SECONDS) {
+      timelineCursor = -1;
+      const snapIndex = locateTimelineIndex(localTime);
+      if (snapIndex !== -1) {
+        const snapped = timelineBundle.entries[snapIndex];
+        setActiveHit({ segIndex: snapped.segIndex, tokIndex: snapped.tokIndex });
+        return;
+      }
     }
+    setActiveHit(null);
     return;
   }
-  const hit = findNearestToken(payload, time, lastHit ?? undefined);
-  if (hit.segIndex < 0 || hit.tokIndex < 0) {
-    if (state.last !== null) {
-      incrementCounter('frameDrops');
-      timingStore.setLast(null);
-    }
-    lastHit = null;
-    return;
-  }
-
-  if (lastHit && compareHits(hit, lastHit) < 0) {
-    incrementCounter('driftCorrections');
-    return;
-  }
-
-  if (!state.last || state.last.segIndex !== hit.segIndex || state.last.tokIndex !== hit.tokIndex) {
-    timingStore.setLast(hit);
-  }
-  lastHit = hit;
+  setActiveHit({ segIndex: entry.segIndex, tokIndex: entry.tokIndex });
 }
 
-function handleTime(time: number): void {
-  if (isLargeSeek(lastTime, time)) {
-    if (timingStore.get().last !== null) {
-      timingStore.setLast(null);
-    }
-    lastHit = null;
-    incrementCounter('largeSeeks');
+function handleSeek(): void {
+  if (!activeCore) {
+    return;
   }
-  applyTime(time);
-  lastTime = time;
-}
-
-function handleSeek(time: number): void {
-  timingStore.setLast(null);
-  lastHit = null;
-  lastTime = time;
-  applyTime(time);
+  timelineCursor = -1;
+  setActiveHit(null);
+  applyTime(activeCore.getCurrentTime());
 }
 
 function handleRate(rate: number): void {
@@ -153,32 +267,29 @@ export function start(core: PlayerCoreHandle): void {
   }
   stop();
   activeCore = core;
-  lastTime = core.getCurrentTime();
-  const state = timingStore.get();
-  lastHit = state.last;
   timingStore.setRate(core.getRate());
-  unsubscribes = [
-    core.on('time', handleTime),
-    core.on('seeked', handleSeek),
-    core.on('rate', handleRate),
-  ];
+  applyTime(core.getCurrentTime());
+  startLoop();
+  unsubscribes = [core.on('seeked', handleSeek), core.on('rate', handleRate)];
 }
 
 export function stop(): void {
+  clearLoop();
   if (unsubscribes.length > 0) {
     unsubscribes.forEach((unsubscribe) => {
       try {
         unsubscribe();
       } catch {
-        // Ignore teardown errors.
+        // ignore
       }
     });
   }
   unsubscribes = [];
   activeCore = null;
-  lastHit = null;
-  lastTime = 0;
-  lastWallClock = 0;
+  timelineBundle = null;
+  payloadCache = undefined;
+  timelineCursor = -1;
+  setActiveHit(null);
 }
 
 export function enableDebugOverlay(elementId = 'debug-drift'): () => void {
@@ -202,8 +313,44 @@ export function enableDebugOverlay(elementId = 'debug-drift'): () => void {
   };
 }
 
-declare global {
-  interface Window {
-    __HL_DEBUG__?: DebugCounters;
+export function enableHighlightDebugOverlay(): () => void {
+  if (
+    typeof window === 'undefined' ||
+    typeof document === 'undefined' ||
+    process.env.NODE_ENV === 'production'
+  ) {
+    return () => undefined;
   }
+  const globalWindow = window as DebugWindow;
+  if (!globalWindow.__HL_DEBUG__?.enabled) {
+    return () => undefined;
+  }
+
+  let overlay: HTMLElement | null = document.getElementById('hl-debug-overlay');
+  let created = false;
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'hl-debug-overlay';
+    overlay.style.cssText =
+      'position:fixed;bottom:10px;right:10px;background:#0008;color:#0f0;padding:6px 10px;font:12px monospace;z-index:9999;';
+    document.body.appendChild(overlay);
+    created = true;
+  }
+
+  let frame = 0;
+  const unsubscribe = timingStore.subscribe((state) => {
+    frame += 1;
+    const segIndex = state.last?.segIndex ?? -1;
+    const tokIndex = state.last?.tokIndex ?? -1;
+    if (overlay) {
+      overlay.textContent = `frame:${frame} seg:${segIndex} tok:${tokIndex}`;
+    }
+  });
+
+  return () => {
+    unsubscribe();
+    if (overlay && created && overlay.parentNode) {
+      overlay.parentNode.removeChild(overlay);
+    }
+  };
 }

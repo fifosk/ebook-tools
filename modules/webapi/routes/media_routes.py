@@ -83,6 +83,78 @@ def smooth_token_edges(
     return smoothed
 
 
+def _iter_sentence_payloads(payload: Any) -> Iterator[Mapping[str, Any]]:
+    """Yield flattened sentence entries from chunk payloads."""
+
+    if isinstance(payload, Mapping):
+        sentences = payload.get("sentences")
+        if isinstance(sentences, Sequence) and not isinstance(sentences, (str, bytes)):
+            for entry in sentences:
+                yield from _iter_sentence_payloads(entry)
+            return
+        yield payload
+        return
+    if isinstance(payload, Sequence) and not isinstance(payload, (str, bytes)):
+        for entry in payload:
+            yield from _iter_sentence_payloads(entry)
+
+
+def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
+    """Return the highlighting policy encoded on a sentence entry."""
+
+    summary = entry.get("highlighting_summary")
+    if isinstance(summary, Mapping):
+        policy = summary.get("policy")
+        if isinstance(policy, str) and policy.strip():
+            return policy.strip()
+    candidate = entry.get("highlighting_policy") or entry.get("alignment_policy")
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return None
+
+
+def _is_estimated_policy(policy: Optional[str]) -> bool:
+    if not isinstance(policy, str):
+        return False
+    normalized = policy.strip().lower()
+    return normalized.startswith("estimated")
+
+
+def _probe_highlighting_policy(
+    job_id: str,
+    locator: FileLocator,
+    default_policy: Optional[str],
+) -> tuple[Optional[str], bool]:
+    """Resolve the highlighting policy and whether estimated timings exist."""
+
+    metadata_root = locator.metadata_root(job_id)
+    normalized_default = None
+    if isinstance(default_policy, str) and default_policy.strip():
+        normalized_default = default_policy.strip()
+    estimated_detected = _is_estimated_policy(normalized_default)
+    fallback_policy: Optional[str] = normalized_default
+
+    if metadata_root.exists():
+        for chunk_path in sorted(metadata_root.glob("chunk_*.json")):
+            try:
+                with chunk_path.open("r", encoding="utf-8") as handle:
+                    chunk_payload = json.load(handle)
+            except (OSError, json.JSONDecodeError):
+                continue
+            for entry in _iter_sentence_payloads(chunk_payload):
+                if isinstance(entry, Mapping):
+                    policy = _extract_highlighting_policy(entry)
+                    if policy:
+                        normalized = policy.strip()
+                        if _is_estimated_policy(normalized):
+                            return normalized, True
+                        if fallback_policy is None:
+                            fallback_policy = normalized
+    if fallback_policy is not None:
+        estimated_detected = estimated_detected or _is_estimated_policy(fallback_policy)
+    return fallback_policy, estimated_detected
+
+
 @jobs_timing_router.get("/{job_id}/timing", response_class=JSONResponse)
 async def get_job_timing(
     job_id: str,
@@ -109,29 +181,65 @@ async def get_job_timing(
     if not isinstance(timing_tracks, Mapping):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
 
-    track_path = timing_tracks.get("translation")
-    if not isinstance(track_path, str) or not track_path.strip():
+    requested_tracks = {
+        key: path
+        for key, path in timing_tracks.items()
+        if key in {"mix", "translation"} and isinstance(path, str) and path.strip()
+    }
+    if not requested_tracks:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
 
-    try:
-        abs_path = locator.resolve_path(job_id, track_path)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing") from exc
+    resolved_paths: Dict[str, Path] = {}
+    for track_name, rel_path in requested_tracks.items():
+        try:
+            abs_path = locator.resolve_path(job_id, rel_path)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Timing index missing",
+            ) from exc
+        if not abs_path.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing")
+        resolved_paths[track_name] = abs_path
 
-    if not abs_path.exists():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing")
+    data_cache: Dict[Path, Any] = {}
+    resolved_segments: Dict[str, List[Any]] = {"mix": [], "translation": []}
+    for track_name, abs_path in resolved_paths.items():
+        if abs_path not in data_cache:
+            try:
+                with abs_path.open("r", encoding="utf-8") as handle:
+                    data_cache[abs_path] = json.load(handle)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Timing index missing",
+                ) from exc
+        payload = data_cache[abs_path]
+        segments: list[Any]
+        if isinstance(payload, Mapping):
+            track_entries = payload.get(track_name)
+            if isinstance(track_entries, list):
+                segments = track_entries
+            elif track_name == "translation" and isinstance(payload.get("segments"), list):
+                segments = payload["segments"]  # legacy
+            elif track_name == "translation" and isinstance(payload.get("translation"), list):
+                segments = payload["translation"]
+            else:
+                segments = []
+        elif isinstance(payload, list):
+            segments = payload
+        else:
+            segments = []
+        resolved_segments[track_name] = segments
 
+    unique_paths = sorted({path for path in resolved_paths.values()})
     try:
-        with abs_path.open("r", encoding="utf-8") as handle:
-            segments = json.load(handle)
-    except (OSError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing") from exc
-
-    try:
-        stat_result = abs_path.stat()
-        etag = f'W/"{stat_result.st_mtime_ns:x}-{stat_result.st_size:x}"'
+        stats = [path.stat() for path in unique_paths]
+        digest = "-".join(f"{st.st_mtime_ns:x}-{st.st_size:x}" for st in stats)
+        etag = f'W/"{digest}"'
     except OSError:
-        etag = f'W/"{job_id}-{len(segments)}"'
+        fallback_count = sum(len(resolved_segments.get(name, [])) for name in resolved_segments)
+        etag = f'W/"{job_id}-{fallback_count}"'
 
     playback_meta = result_payload.get("timing_meta") if isinstance(result_payload, Mapping) else None
     playback_rate = 1.0
@@ -141,6 +249,44 @@ async def get_job_timing(
         except (TypeError, ValueError):
             playback_rate = 1.0
 
+    highlighting_policy, has_estimated_segments = _probe_highlighting_policy(
+        job_id,
+        locator,
+        result_payload.get("highlighting_policy") if isinstance(result_payload, Mapping) else None,
+    )
+
+    def _collect_audio_availability() -> Dict[str, Dict[str, Any]]:
+        audio_summary: Dict[str, Dict[str, Any]] = {}
+        generated_payload = result_payload.get("generated_files") if isinstance(result_payload, Mapping) else None
+        chunk_audio_keys: set[str] = set()
+        if isinstance(generated_payload, Mapping):
+            chunks = generated_payload.get("chunks")
+            if isinstance(chunks, list):
+                for chunk in chunks:
+                    if not isinstance(chunk, Mapping):
+                        continue
+                    tracks = chunk.get("audio_tracks") or chunk.get("audioTracks")
+                    if not isinstance(tracks, Mapping):
+                        continue
+                    for raw_key, raw_value in tracks.items():
+                        if not isinstance(raw_key, str):
+                            continue
+                        key = raw_key.strip()
+                        if not key:
+                            continue
+                        if key == "trans":
+                            key = "translation"
+                        chunk_audio_keys.add(key)
+        audio_summary["orig_trans"] = {
+            "track": "mix",
+            "available": "orig_trans" in chunk_audio_keys,
+        }
+        audio_summary["translation"] = {
+            "track": "translation",
+            "available": "translation" in chunk_audio_keys or "trans" in chunk_audio_keys,
+        }
+        return audio_summary
+
     headers = {
         "Cache-Control": "public, max-age=60",
         "ETag": etag,
@@ -148,9 +294,21 @@ async def get_job_timing(
     return JSONResponse(
         content={
             "job_id": job_id,
-            "track": "translation",
-            "segments": segments,
-            "playback_rate": playback_rate,
+            "tracks": {
+                "mix": {
+                    "track": "mix",
+                    "segments": resolved_segments.get("mix", []),
+                    "playback_rate": playback_rate,
+                },
+                "translation": {
+                    "track": "translation",
+                    "segments": resolved_segments.get("translation", []),
+                    "playback_rate": playback_rate,
+                },
+            },
+            "audio": _collect_audio_availability(),
+            "highlighting_policy": highlighting_policy,
+            "has_estimated_segments": has_estimated_segments,
         },
         headers=headers,
     )
@@ -377,27 +535,45 @@ def _serialize_media_entries(
                 if sentence_count is None:
                     sentence_count = len(sentences_payload)
 
-            audio_tracks_payload: Dict[str, str] = {}
+            audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
 
             def _register_track(raw_key: Any, raw_value: Any) -> None:
                 if not isinstance(raw_key, str):
                     return
                 key = raw_key.strip()
-                if not key or key in audio_tracks_payload:
+                if not key:
                     return
 
-                value: Optional[str] = None
+                entry: Dict[str, Any] = {}
                 if isinstance(raw_value, str):
                     value = raw_value.strip()
+                    if not value:
+                        return
+                    entry["path"] = value
                 elif isinstance(raw_value, Mapping):
-                    candidate = raw_value.get("url") or raw_value.get("path")
-                    if isinstance(candidate, str):
-                        value = candidate.strip()
-
-                if not value:
+                    path_value = raw_value.get("path")
+                    url_value = raw_value.get("url")
+                    duration_value = raw_value.get("duration")
+                    sample_rate_value = raw_value.get("sampleRate")
+                    if isinstance(path_value, str) and path_value.strip():
+                        entry["path"] = path_value.strip()
+                    if isinstance(url_value, str) and url_value.strip():
+                        entry["url"] = url_value.strip()
+                    try:
+                        entry["duration"] = round(float(duration_value), 6)
+                    except (TypeError, ValueError):
+                        pass
+                    try:
+                        entry["sampleRate"] = int(sample_rate_value)
+                    except (TypeError, ValueError):
+                        pass
+                if not entry:
                     return
 
-                audio_tracks_payload[key] = value
+                existing = audio_tracks_payload.get(key, {})
+                merged = dict(existing)
+                merged.update(entry)
+                audio_tracks_payload[key] = merged
 
             def _ingest_tracks(candidate: Any) -> None:
                 if isinstance(candidate, Mapping):
@@ -707,4 +883,9 @@ async def download_cover_file(
     return _stream_local_file(resolved_path, range_header)
 
 
-__all__ = ["router", "storage_router", "jobs_timing_router"]
+def register_exception_handlers(app) -> None:
+    """Compatibility shim; legacy media routes register their own handlers."""
+    return None
+
+
+__all__ = ["router", "storage_router", "jobs_timing_router", "register_exception_handlers"]

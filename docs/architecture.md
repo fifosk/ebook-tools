@@ -117,3 +117,12 @@ Because the backend emits timeline events per sentence, the frontend does not
 expect forced-alignment-grade precision. If a backend provides detailed word
 timings they are preserved; otherwise tokens are distributed uniformly across
 each sentence duration while maintaining monotonic progression.
+
+### Word-highlighting metadata flow
+
+1. `modules/render/audio_pipeline.py` emits and smooths `word_tokens` for each sentence.
+2. `modules/core/rendering/exporters.py` serialises `timingTracks.translation` into `chunk_*.json`.
+3. `modules/services/job_manager/persistence.py` aggregates chunk-level tracks into `metadata/timing_index.json`.
+4. `modules/webapi/routes/media_routes.py` serves the consolidated `/api/jobs/{job_id}/timing` endpoint.
+5. `web/src/components/InteractiveTextViewer.tsx` hydrates the track, updates `timingStore`, and keeps highlights in sync with audio playback.
+6. `scripts/validate_word_timing.py` (referenced by CI) ensures drift remains below 50 ms and that timings stay monotonic.

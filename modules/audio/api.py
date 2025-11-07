@@ -9,7 +9,7 @@ from pydub import AudioSegment
 
 from modules import logging_manager as log_mgr, observability
 
-from .backends import BaseTTSBackend, create_backend, get_tts_backend
+from .backends import BaseTTSBackend, SynthesisResult, create_backend, get_tts_backend
 
 logger = log_mgr.logger
 
@@ -95,7 +95,7 @@ class AudioService:
         )
         start_time = time.perf_counter()
         try:
-            segment = backend.synthesize(
+            synthesis = backend.synthesize(
                 text=text,
                 voice=voice,
                 speed=speed,
@@ -134,7 +134,9 @@ class AudioService:
                 "console_suppress": True,
             },
         )
-        return segment
+        if isinstance(synthesis, SynthesisResult):
+            return synthesis.audio
+        return synthesis
 
 
 __all__ = ["AudioService"]

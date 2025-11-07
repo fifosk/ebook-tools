@@ -333,6 +333,50 @@ export interface PauseTiming {
   reason?: 'silence' | 'tempo' | 'gap';
 }
 
+export interface JobTimingEntry {
+  token?: string;
+  text?: string;
+  t0?: number;
+  t1?: number;
+  start?: number;
+  end?: number;
+  begin?: number;
+  offset?: number;
+  time?: number;
+  stop?: number;
+  lane?: WordTimingLanguage;
+  wordIdx?: number;
+  sentence_id?: string | number | null;
+  sentenceIdx?: string | number | null;
+  sentenceId?: string | number | null;
+  id?: string | number | null;
+  policy?: string | null;
+  source?: string | null;
+  fallback?: boolean;
+}
+
+export interface JobTimingTrackPayload {
+  track: 'mix' | 'translation';
+  segments: JobTimingEntry[];
+  playback_rate?: number | null;
+}
+
+export interface JobTimingAudioBinding {
+  track: 'mix' | 'translation';
+  available?: boolean;
+}
+
+export interface JobTimingResponse {
+  job_id: string;
+  tracks: {
+    mix: JobTimingTrackPayload;
+    translation: JobTimingTrackPayload;
+  };
+  audio: Record<string, JobTimingAudioBinding>;
+  highlighting_policy: string | null;
+  has_estimated_segments?: boolean;
+}
+
 export interface TrackTimingPayload {
   trackType: 'translated' | 'original_translated';
   chunkId: string;
@@ -343,18 +387,11 @@ export interface TrackTimingPayload {
   version: string;
 }
 
-export interface JobTimingEntry {
-  token: string;
-  t0: number;
-  t1: number;
-  sentence_id?: string | number | null;
-}
-
-export interface JobTimingResponse {
-  job_id: string;
-  track: string;
-  segments: JobTimingEntry[];
-  playback_rate?: number | null;
+export interface AudioTrackMetadata {
+  path?: string | null;
+  url?: string | null;
+  duration?: number | null;
+  sampleRate?: number | null;
 }
 
 export interface ChunkSentenceMetadata {
@@ -379,7 +416,7 @@ export interface PipelineMediaChunk {
   metadata_path?: string | null;
   metadata_url?: string | null;
   sentence_count?: number | null;
-  audio_tracks?: Record<string, string> | null;
+  audio_tracks?: Record<string, AudioTrackMetadata> | null;
 }
 
 export interface PipelineMediaResponse {

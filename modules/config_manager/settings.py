@@ -78,8 +78,13 @@ class EbookToolsSettings(BaseModel):
     sync_ratio: float = 0.9
     word_highlighting: bool = True
     highlight_granularity: str = "word"
+    char_weighted_highlighting_default: bool = False
+    char_weighted_punctuation_boost: bool = False
     forced_alignment_enabled: bool = False
-    forced_alignment_smoothing: str = "monotonic_cubic"
+    forced_alignment_smoothing: float | str = "monotonic_cubic"
+    alignment_backend: Optional[str] = None
+    alignment_model: Optional[str] = None
+    alignment_model_overrides: Optional[Dict[str, str]] = None
     slide_parallelism: str = "off"
     slide_parallel_workers: Optional[int] = None
     prefer_pillow_simd: bool = False
@@ -197,6 +202,20 @@ class EnvironmentOverrides(BaseSettings):
         default=None,
         validation_alias=AliasChoices(
             "SAY_PATH", "EBOOK_SAY_PATH", "EBOOK_AUDIO_SAY_PATH"
+        ),
+    )
+    char_weighted_punctuation_boost: Optional[bool] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "EBOOK_CHAR_WEIGHTED_PUNCTUATION_BOOST",
+            "EBOOK_CHAR_WEIGHTED_PUNCT",
+        ),
+    )
+    char_weighted_highlighting_default: Optional[bool] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "EBOOK_CHAR_WEIGHTED_HIGHLIGHTING_DEFAULT",
+            "EBOOK_CHAR_WEIGHTED_DEFAULT",
         ),
     )
     audio_api_base_url: Optional[str] = Field(

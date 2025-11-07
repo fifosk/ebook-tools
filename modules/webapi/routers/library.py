@@ -280,7 +280,17 @@ async def get_library_media(
     for chunk in chunk_records:
         files = [PipelineMediaFile.model_validate(entry) for entry in chunk.get("files", [])]
         raw_tracks = chunk.get("audio_tracks") or {}
-        audio_tracks = dict(raw_tracks) if isinstance(raw_tracks, Mapping) else {}
+        audio_tracks: Dict[str, Any] = {}
+        if isinstance(raw_tracks, Mapping):
+            for track_key, track_value in raw_tracks.items():
+                if not isinstance(track_key, str):
+                    continue
+                if isinstance(track_value, Mapping):
+                    audio_tracks[track_key] = dict(track_value)
+                elif isinstance(track_value, str):
+                    trimmed = track_value.strip()
+                    if trimmed:
+                        audio_tracks[track_key] = {"path": trimmed}
         serialized_chunks.append(
             PipelineMediaChunk(
                 chunk_id=chunk.get("chunk_id"),

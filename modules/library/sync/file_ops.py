@@ -721,20 +721,47 @@ def serialize_media_entries(
                         audio_tracks_raw = chunk_audio_tracks
 
             if audio_tracks_raw:
-                normalized_tracks: Dict[str, str] = {}
+                normalized_tracks: Dict[str, Dict[str, Any]] = {}
                 for key, value in audio_tracks_raw.items():
-                    if not isinstance(key, str) or not isinstance(value, str):
+                    if not isinstance(key, str):
                         continue
-                    candidate = value.strip()
-                    if not candidate:
-                        continue
-                    if candidate.startswith("/api/library/"):
-                        normalized_tracks[key] = candidate
-                        continue
-                    sanitized = candidate.lstrip("/")
-                    if not sanitized:
-                        continue
-                    normalized_tracks[key] = build_library_media_url(job_id, sanitized)
+                    entry: Dict[str, Any] = {}
+                    raw_path: Optional[str] = None
+                    raw_url: Optional[str] = None
+                    if isinstance(value, Mapping):
+                        candidate_path = value.get("path")
+                        candidate_url = value.get("url")
+                        duration_value = value.get("duration")
+                        sample_rate_value = value.get("sampleRate")
+                        if isinstance(candidate_path, str) and candidate_path.strip():
+                            raw_path = candidate_path.strip()
+                        if isinstance(candidate_url, str) and candidate_url.strip():
+                            raw_url = candidate_url.strip()
+                        try:
+                            entry["duration"] = round(float(duration_value), 6)
+                        except (TypeError, ValueError):
+                            pass
+                        try:
+                            entry["sampleRate"] = int(sample_rate_value)
+                        except (TypeError, ValueError):
+                            pass
+                    elif isinstance(value, str):
+                        stripped = value.strip()
+                        if stripped:
+                            raw_path = stripped
+                    if raw_path:
+                        entry["path"] = raw_path
+                    if raw_url:
+                        entry["url"] = raw_url
+                    elif raw_path:
+                        if raw_path.startswith("/api/library/"):
+                            entry["url"] = raw_path
+                        else:
+                            sanitized = raw_path.lstrip("/")
+                            if sanitized:
+                                entry["url"] = build_library_media_url(job_id, sanitized)
+                    if entry:
+                        normalized_tracks[key] = entry
                 if normalized_tracks:
                     chunk_record["audio_tracks"] = normalized_tracks
 

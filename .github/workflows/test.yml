@@ -1,0 +1,30 @@
+name: Tests
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  word-timing-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -e .[dev] soundfile
+
+      - name: Validate word-timing accuracy
+        run: |
+          if [ -d storage ]; then
+            for job in $(ls storage | grep job- || true); do
+              python scripts/validate_word_timing.py "$job" || exit 1
+            done
+          fi

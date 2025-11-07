@@ -482,6 +482,14 @@ class ChunkSentenceMetadata(BaseModel):
     counts: Dict[str, int] = Field(default_factory=dict)
     phase_durations: Dict[str, float] = Field(default_factory=dict)
 
+class AudioTrackMetadata(BaseModel):
+    """Metadata about an audio artifact referenced by a chunk."""
+
+    path: Optional[str] = None
+    url: Optional[str] = None
+    duration: Optional[float] = None
+    sampleRate: Optional[int] = None
+
 
 class PipelineMediaChunk(BaseModel):
     """Groups media files produced for a specific chunk."""
@@ -495,7 +503,7 @@ class PipelineMediaChunk(BaseModel):
     metadata_path: Optional[str] = None
     metadata_url: Optional[str] = None
     sentence_count: Optional[int] = None
-    audio_tracks: Dict[str, str] = Field(default_factory=dict)
+    audio_tracks: Dict[str, AudioTrackMetadata] = Field(default_factory=dict)
 
 
 class PipelineMediaResponse(BaseModel):

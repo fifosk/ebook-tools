@@ -70,6 +70,8 @@
     "written_mode": "4",
     "include_transliteration": true,
     "word_highlighting": true,
+    "char_weighted_highlighting_default": false,
+    "char_weighted_punctuation_boost": false,
     "slide_template": "default",
     "forced_alignment_enabled": false,
     "forced_alignment_smoothing": "monotonic_cubic",

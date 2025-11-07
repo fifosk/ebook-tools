@@ -382,6 +382,21 @@ The SPA composes several providers to offer a multi-user dashboard:
   lists accounts, normalises profile metadata, and issues suspend/activate or
   password-reset operations against the admin API.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
 
+### Word-highlighting metadata flow
+
+1. **Audio synthesis** → `modules/render/audio_pipeline.py` produces (and smooths) `word_tokens`.
+2. **Timeline/exporters** → serialise `timingTracks.translation` into each chunk via `modules/core/rendering/exporters.py`.
+3. **Persistence** → aggregated into `metadata/timing_index.json` by the job manager.
+4. **Web API** → `/api/jobs/{job_id}/timing` returns the flattened per-word offsets.
+5. **Frontend** → `InteractiveTextViewer` loads the track, feeds `timingStore`, and syncs highlights to `<audio>` playback.
+6. **Validation** → `scripts/validate_word_timing.py` (plus CI) ensure drift stays below 50 ms with no overlaps.
+
+For live QA you can enable a debug overlay in the browser console:
+
+```js
+window.__HL_DEBUG__ = { enabled: true }; // shows frame/index overlay
+```
+
 #### Audio generation + word highlighting
 
 Audio narration is synthesised sentence-by-sentence inside
