@@ -13,11 +13,13 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, Mapping, Optional, Protocol, Sequence, TYPE_CHECKING
 
 from pydub import AudioSegment
+from pydub.silence import detect_silence
 
 from modules import logging_manager as log_mgr
 from modules import config_manager as cfg
 from modules.audio.backends import get_default_backend_name
 from modules.render.backends.base import SynthesisResult
+from modules.audio.highlight import _get_audio_metadata
 from modules.core.rendering.timeline import smooth_token_boundaries, compute_char_weighted_timings
 from modules.core.rendering.constants import LANGUAGE_CODES as GLOBAL_LANGUAGE_CODES
 from .context import RenderBatchContext
@@ -188,6 +190,42 @@ def _normalize_char_timing(entry: Mapping[str, object]) -> tuple[Optional[float]
     if start is not None and end is not None and end < start:
         end = start
     return start, end
+
+
+def _measure_pause_edges(
+    segment: Optional[AudioSegment],
+    *,
+    threshold_db: float = -40.0,
+    min_len_ms: int = 80,
+) -> tuple[int, int]:
+    """Estimate leading/trailing silence durations (ms) for ``segment``."""
+
+    if segment is None:
+        return 0, 0
+    duration_ms = len(segment)
+    if duration_ms <= 0:
+        return 0, 0
+    min_len = max(int(min_len_ms), 1)
+    tolerance = 4  # ms tolerance for boundary rounding
+    try:
+        silences = detect_silence(
+            segment,
+            min_silence_len=min_len,
+            silence_thresh=threshold_db,
+        )
+    except Exception:
+        return 0, 0
+    if not silences:
+        return 0, 0
+    pause_before = 0
+    pause_after = 0
+    first_start, first_end = silences[0]
+    if first_start <= tolerance:
+        pause_before = max(first_end - first_start, 0)
+    last_start, last_end = silences[-1]
+    if abs(last_end - duration_ms) <= tolerance:
+        pause_after = max(last_end - last_start, 0)
+    return int(pause_before), int(pause_after)
 
 
 def _segment_char_timings(audio_segment: Optional[AudioSegment]) -> Optional[Sequence[Mapping[str, object]]]:
@@ -682,6 +720,19 @@ def audio_worker_body(
             except Exception:
                 metadata = {}
 
+        pause_before_ms = 0
+        pause_after_ms = 0
+        if audio_segment is not None and len(audio_segment) > 0:
+            pause_before_ms, pause_after_ms = _measure_pause_edges(audio_segment)
+            sentence_audio_meta = _get_audio_metadata(audio_segment)
+            if sentence_audio_meta is not None:
+                sentence_audio_meta.pause_before_ms = pause_before_ms
+                sentence_audio_meta.pause_after_ms = pause_after_ms
+        metadata["pause_before_ms"] = pause_before_ms
+        metadata["pause_after_ms"] = pause_after_ms
+        metadata["pauseBeforeMs"] = pause_before_ms
+        metadata["pauseAfterMs"] = pause_after_ms
+
         translation_text = translation_task.translation or ""
         try:
             settings_obj = cfg.get_settings()
@@ -733,10 +784,12 @@ def audio_worker_body(
             duration_hint = duration_hint_cache
             if duration_hint is None or duration_hint <= 0:
                 return False
+            fallback_words = translation_words or [translation_text] if translation_text else []
             estimated_tokens = compute_char_weighted_timings(
-                translation_text,
+                fallback_words,
                 duration_hint,
-                punctuation_boost=use_punctuation,
+                pause_before_ms=pause_before_ms,
+                pause_after_ms=pause_after_ms,
             )
             if not estimated_tokens:
                 return False
@@ -915,10 +968,13 @@ def audio_worker_body(
             "duration": round(highlight_duration, 6) if highlight_duration else highlight_duration,
             "source": alignment_source,
             "punctuation_weighting": bool(char_weighted_punctuation),
+            "pause_before_ms": pause_before_ms,
+            "pause_after_ms": pause_after_ms,
         }
         if char_weighted_used:
             highlighting_summary["method"] = "char_weighted"
             highlighting_summary["char_weighted"] = True
+            highlighting_summary["char_weighted_refined"] = True
         if alignment_model_used:
             highlighting_summary["alignment_model"] = alignment_model_used
         metadata["highlighting_summary"] = highlighting_summary

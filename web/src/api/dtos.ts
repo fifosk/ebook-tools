@@ -353,6 +353,18 @@ export interface JobTimingEntry {
   policy?: string | null;
   source?: string | null;
   fallback?: boolean;
+  start_gate?: number | null;
+  end_gate?: number | null;
+  startGate?: number | null;
+  endGate?: number | null;
+  pause_before_ms?: number | null;
+  pause_after_ms?: number | null;
+  pauseBeforeMs?: number | null;
+  pauseAfterMs?: number | null;
+  validation?: {
+    drift?: number | null;
+    count?: number | null;
+  } | null;
 }
 
 export interface JobTimingTrackPayload {
@@ -385,6 +397,38 @@ export interface TrackTimingPayload {
   trackOffset: number;
   tempoFactor: number;
   version: string;
+}
+
+export interface TimingToken {
+  lane: 'orig' | 'trans';
+  sentenceIdx: number;
+  wordIdx: number;
+  start: number;
+  end: number;
+  text: string;
+  policy?: string;
+  source?: string;
+  fallback?: boolean;
+  startGate?: number;
+  endGate?: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
+  validation?: {
+    drift?: number;
+    count?: number;
+  };
+}
+
+export interface TimingIndexResponse {
+  mix: TimingToken[];
+  translation: TimingToken[];
+  sentences?: Array<{
+    sentenceIdx: number;
+    startGate?: number;
+    endGate?: number;
+    pauseBeforeMs?: number;
+    pauseAfterMs?: number;
+  }>;
 }
 
 export interface AudioTrackMetadata {

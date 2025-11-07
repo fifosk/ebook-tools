@@ -54,6 +54,18 @@ def _tokenize_words(text: str) -> List[str]:
     return [token for token in text.split() if token]
 
 
+def _segment_duration(segment: Optional[AudioSegment]) -> float:
+    """Return ``segment.duration_seconds`` as a positive float."""
+
+    if segment is None:
+        return 0.0
+    duration = getattr(segment, "duration_seconds", 0.0)
+    try:
+        return max(float(duration), 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def serialize_sentence_chunk(sentence_meta: Mapping[str, Any]) -> Dict[str, Any]:
     """
     Normalise sentence-level metadata for chunk payloads.
@@ -448,6 +460,22 @@ class BatchExporter:
                 meta_payload["t1"] = round(float(meta_payload["t1"]), 6)
             except (TypeError, ValueError):
                 meta_payload["t1"] = round(audio_duration, 6)
+        def _coerce_pause_ms(raw_value: object) -> int:
+            try:
+                return int(round(float(raw_value)))
+            except (TypeError, ValueError):
+                return 0
+
+        pause_before_source = meta_payload.get("pause_before_ms")
+        if pause_before_source is None:
+            pause_before_source = meta_payload.get("pauseBeforeMs")
+        pause_after_source = meta_payload.get("pause_after_ms")
+        if pause_after_source is None:
+            pause_after_source = meta_payload.get("pauseAfterMs")
+        pause_before_ms = max(_coerce_pause_ms(pause_before_source), 0)
+        pause_after_ms = max(_coerce_pause_ms(pause_after_source), 0)
+        meta_payload["pause_before_ms"] = pause_before_ms
+        meta_payload["pause_after_ms"] = pause_after_ms
 
         chunk_entry = serialize_sentence_chunk(meta_payload)
         payload["sentence_id"] = chunk_entry["sentence_id"]
@@ -472,6 +500,35 @@ class BatchExporter:
             "char_weighted_enabled": bool(highlighting_summary.get("char_weighted")),
             "punctuation_boost": bool(highlighting_summary.get("punctuation_weighting")),
         }
+        payload["pause_before_ms"] = pause_before_ms
+        payload["pause_after_ms"] = pause_after_ms
+        payload["pauseBeforeMs"] = pause_before_ms
+        payload["pauseAfterMs"] = pause_after_ms
+
+        # Prefer any previously-computed gate metadata but fall back to the
+        # synthesized timing block so downstream code has consistent values.
+        start_gate_value = meta_payload.get("start_gate")
+        if start_gate_value is None:
+            start_gate_value = meta_payload.get("startGate")
+        end_gate_value = meta_payload.get("end_gate")
+        if end_gate_value is None:
+            end_gate_value = meta_payload.get("endGate")
+        if start_gate_value is None or end_gate_value is None:
+            timing_block = chunk_entry.get("timing")
+            if isinstance(timing_block, Mapping):
+                if start_gate_value is None:
+                    start_gate_value = timing_block.get("t0")
+                if end_gate_value is None:
+                    end_gate_value = timing_block.get("t1")
+
+        if isinstance(start_gate_value, (int, float)) and isinstance(end_gate_value, (int, float)):
+            slide_duration = max(float(end_gate_value) - float(start_gate_value), 0.0)
+            payload["slide_duration"] = slide_duration
+            payload["slideDuration"] = slide_duration
+            payload.setdefault("start_gate", float(start_gate_value))
+            payload.setdefault("end_gate", float(end_gate_value))
+            payload.setdefault("startGate", float(start_gate_value))
+            payload.setdefault("endGate", float(end_gate_value))
 
         return payload
 
@@ -596,6 +653,10 @@ class BatchExporter:
         video_blocks: List[str] = list(request.video_blocks)
         sentence_payloads: List[Dict[str, object]] = []
         sentence_specs: List[SentenceTimingSpec] = []
+        chunk_timing_tracks: Dict[str, List[Dict[str, Any]]] = {
+            "translation": [],
+            "mix": [],
+        }
 
         if orig_track_segments is None and audio_track_segments:
             orig_track_segments = audio_track_segments.get("orig")
@@ -605,22 +666,26 @@ class BatchExporter:
             len(orig_track_segments) if orig_track_segments else 0,
             len(trans_track_segments) if trans_track_segments else 0,
         )
+        translation_gate_cursor = 0.0
+        mix_gate_cursor = 0.0
 
         for offset, block in enumerate(video_blocks):
             sentence_number = request.start_sentence + offset
             audio_segment = audio_segments[offset] if offset < len(audio_segments) else None
-            original_phase = 0.0
-            translation_phase = 0.0
             gap_before_translation = 0.0
             gap_after_translation = 0.0
-            if orig_track_segments and offset < len(orig_track_segments):
-                segment = orig_track_segments[offset]
-                if segment is not None:
-                    original_phase = float(segment.duration_seconds)
-            if trans_track_segments and offset < len(trans_track_segments):
-                segment = trans_track_segments[offset]
-                if segment is not None:
-                    translation_phase = float(segment.duration_seconds)
+            original_segment = (
+                orig_track_segments[offset]
+                if orig_track_segments and offset < len(orig_track_segments)
+                else None
+            )
+            translation_segment = (
+                trans_track_segments[offset]
+                if trans_track_segments and offset < len(trans_track_segments)
+                else None
+            )
+            original_phase = _segment_duration(original_segment)
+            translation_phase = _segment_duration(translation_segment)
             if combined_track_available and original_phase > 0 and translation_phase > 0 and silence_seconds > 0:
                 gap_before_translation = silence_seconds
             if combined_track_available and offset < max_track_len - 1 and silence_seconds > 0 and (
@@ -642,29 +707,75 @@ class BatchExporter:
                 gap_after_translation=gap_after_translation,
                 word_meta=word_meta_entry,
             )
-            sentence_payloads.append(metadata)
-            translation_entry = metadata.get("translation") or {}
-            original_entry = metadata.get("original") or {}
+            measured_duration = _segment_duration(translation_segment)
+            if measured_duration <= 0:
+                measured_duration = _segment_duration(audio_segment)
+            if measured_duration <= 0:
+                try:
+                    measured_duration = max(
+                        float(metadata.get("total_duration") or metadata.get("t1") or 0.0),
+                        0.0,
+                    )
+                except (TypeError, ValueError):
+                    measured_duration = 0.0
             phase_data = metadata.get("phase_durations")
             if not isinstance(phase_data, Mapping):
                 phase_data = {}
             word_timing_meta = metadata.get("word_timing")
             if not isinstance(word_timing_meta, Mapping):
                 word_timing_meta = {}
-            sentence_specs.append(
-                SentenceTimingSpec(
+            pause_before_source = metadata.get("pause_before_ms")
+            if pause_before_source is None:
+                pause_before_source = metadata.get("pauseBeforeMs")
+            pause_after_source = metadata.get("pause_after_ms")
+            if pause_after_source is None:
+                pause_after_source = metadata.get("pauseAfterMs")
+            try:
+                pause_before_ms = float(pause_before_source)
+            except (TypeError, ValueError):
+                pause_before_ms = 0.0
+            try:
+                pause_after_ms = float(pause_after_source)
+            except (TypeError, ValueError):
+                pause_after_ms = 0.0
+            translation_duration_value = float(
+                phase_data.get("translation")
+                or metadata.get("total_duration")
+                or metadata.get("t1")
+                or 0.0
+            )
+            if measured_duration > 0:
+                translation_duration_value = measured_duration
+            original_phase = float(phase_data.get("original") or 0.0)
+            gap_before = float(phase_data.get("gap") or 0.0)
+            gap_after = float(phase_data.get("tail") or 0.0)
+            sentence_mix_total = original_phase + gap_before + translation_duration_value + gap_after
+
+            mix_start_gate = round(mix_gate_cursor, 6)
+            mix_end_gate = round(max(mix_start_gate + sentence_mix_total, mix_start_gate), 6)
+            translation_start_gate = round(mix_start_gate + original_phase + gap_before, 6)
+            translation_end_gate = round(max(translation_start_gate + translation_duration_value, translation_start_gate), 6)
+
+            mix_gate_cursor = mix_end_gate
+            translation_gate_cursor = translation_end_gate
+
+            metadata["start_gate"] = translation_start_gate
+            metadata["end_gate"] = translation_end_gate
+            metadata["startGate"] = translation_start_gate
+            metadata["endGate"] = translation_end_gate
+            metadata["mix_start_gate"] = mix_start_gate
+            metadata["mix_end_gate"] = mix_end_gate
+            sentence_payloads.append(metadata)
+            translation_entry = metadata.get("translation") or {}
+            original_entry = metadata.get("original") or {}
+            spec = SentenceTimingSpec(
                     sentence_idx=sentence_number,
                     original_text=str(original_entry.get("text") or ""),
                     translation_text=str(translation_entry.get("text") or ""),
                     original_words=list(original_entry.get("tokens") or []),
                     translation_words=list(translation_entry.get("tokens") or []),
                     word_tokens=metadata.get("word_tokens"),
-                    translation_duration=float(
-                        phase_data.get("translation")
-                        or metadata.get("total_duration")
-                        or metadata.get("t1")
-                        or 0.0
-                    ),
+                    translation_duration=translation_duration_value,
                     original_duration=float(phase_data.get("original") or 0.0),
                     gap_before_translation=float(phase_data.get("gap") or 0.0),
                     gap_after_translation=float(phase_data.get("tail") or 0.0),
@@ -672,8 +783,31 @@ class BatchExporter:
                     punctuation_boost=bool(word_timing_meta.get("punctuation_boost")),
                     policy=word_timing_meta.get("policy"),
                     source=word_timing_meta.get("source"),
+                    start_gate=translation_start_gate,
+                    end_gate=translation_end_gate,
+                    pause_before_ms=pause_before_ms,
+                    pause_after_ms=pause_after_ms,
                 )
-            )
+            sentence_specs.append(spec)
+            spec.mix_start_gate = mix_start_gate
+            spec.mix_end_gate = mix_end_gate
+
+            timing_tracks = metadata.get("timingTracks")
+            if isinstance(timing_tracks, Mapping):
+                for track_name, buffer in chunk_timing_tracks.items():
+                    token_entries = timing_tracks.get(track_name)
+                    if not isinstance(token_entries, list):
+                        continue
+                    for entry in token_entries:
+                        if not isinstance(entry, Mapping):
+                            continue
+                        token_copy = dict(entry)
+                        token_copy.setdefault("sentenceIdx", sentence_number)
+                        if track_name == "translation":
+                            token_copy.setdefault("lane", "trans")
+                        else:
+                            token_copy.setdefault("lane", token_copy.get("lane") or "mix")
+                        buffer.append(token_copy)
 
         track_artifacts: Dict[str, Dict[str, Any]] = {}
 
@@ -795,12 +929,9 @@ class BatchExporter:
             raise
 
         translation_duration_fallback = sum(spec.translation_duration for spec in sentence_specs)
-        mix_duration_fallback = sum(
-            spec.original_duration
-            + max(spec.gap_before_translation, 0.0)
-            + spec.translation_duration
-            + max(spec.gap_after_translation, 0.0)
-            for spec in sentence_specs
+        mix_duration_fallback = max(
+            (float(getattr(spec, "mix_end_gate", getattr(spec, "end_gate", 0.0)) or 0.0) for spec in sentence_specs),
+            default=0.0,
         )
         def _duration_for(track_key: str, fallback: float) -> float:
             entry = track_artifacts.get(track_key)
@@ -810,7 +941,7 @@ class BatchExporter:
                 except (TypeError, ValueError):
                     raw_value = 0.0
                 if raw_value > 0:
-                    return raw_value
+                    return max(raw_value, fallback)
             return fallback
 
         track_durations = {
@@ -824,6 +955,11 @@ class BatchExporter:
                 mix_duration=track_durations["mix"],
                 translation_duration=track_durations["translation"],
             )
+        else:
+            timing_tracks = {
+                "mix": [dict(token) for token in chunk_timing_tracks["mix"]],
+                "translation": [dict(token) for token in chunk_timing_tracks["translation"]],
+            }
 
         return BatchExportResult(
             chunk_id=chunk_id,

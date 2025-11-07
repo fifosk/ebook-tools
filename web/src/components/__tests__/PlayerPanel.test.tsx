@@ -4,6 +4,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Mock, SpyInstance } from 'vitest';
 import PlayerPanel from '../PlayerPanel';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../../hooks/useLiveMedia';
+import { timingStore } from '../../stores/timingStore';
+import type { TimingPayload } from '../../types/timing';
+import { __TESTING__ as AudioSyncTest } from '../../player/AudioSyncController';
 
 function createMediaState(overrides: Partial<LiveMediaState>): LiveMediaState {
   return {
@@ -804,6 +807,120 @@ afterEach(() => {
 
     await waitFor(() => {
       expect(screen.getByRole('tab', { name: /interactive reader/i })).toHaveAttribute('aria-selected', 'true');
+    });
+  });
+
+  it('clamps translation-only highlights to the active sentence gate', () => {
+    const payload: TimingPayload = {
+      trackKind: 'translation_only',
+      segments: [
+        {
+          id: '1',
+          t0: 0,
+          t1: 2,
+          sentenceIdx: 1,
+          tokens: [
+            {
+              id: 's1-w1',
+              text: 'Hello',
+              t0: 0,
+              t1: 0.9,
+              lane: 'tran',
+              segId: '1',
+              sentenceIdx: 1,
+              startGate: 0,
+              endGate: 2,
+            },
+            {
+              id: 's1-w2',
+              text: 'world',
+              t0: 0.9,
+              t1: 2,
+              lane: 'tran',
+              segId: '1',
+              sentenceIdx: 1,
+              startGate: 0,
+              endGate: 2,
+            },
+          ],
+        },
+        {
+          id: '2',
+          t0: 2,
+          t1: 4,
+          sentenceIdx: 2,
+          tokens: [
+            {
+              id: 's2-w1',
+              text: 'Again',
+              t0: 2.5,
+              t1: 3.1,
+              lane: 'tran',
+              segId: '2',
+              sentenceIdx: 2,
+              startGate: 2.5,
+              endGate: 4,
+            },
+            {
+              id: 's2-w2',
+              text: 'Soon',
+              t0: 3.1,
+              t1: 4.0,
+              lane: 'tran',
+              segId: '2',
+              sentenceIdx: 2,
+              startGate: 2.5,
+              endGate: 4,
+            },
+          ],
+        },
+      ],
+    };
+
+    const firstGate = {
+      start: 0,
+      end: 2,
+      sentenceIdx: 1,
+      segmentIndex: 0,
+    };
+    const secondGate = {
+      start: 2.5,
+      end: 4,
+      sentenceIdx: 2,
+      segmentIndex: 1,
+    };
+
+    act(() => {
+      timingStore.setPayload(payload);
+      timingStore.setActiveGate(firstGate);
+      AudioSyncTest.applyTime(2.25);
+    });
+    expect(timingStore.get().last).toMatchObject({ segIndex: 0, tokIndex: 1 });
+
+    act(() => {
+      timingStore.setActiveGate(secondGate);
+      AudioSyncTest.applyTime(2.4);
+    });
+    expect(timingStore.get().last).toBeNull();
+
+    act(() => {
+      AudioSyncTest.applyTime(2.6);
+    });
+    expect(timingStore.get().last).toMatchObject({ segIndex: 1, tokIndex: 0 });
+
+    act(() => {
+      timingStore.setRate(1.5);
+      AudioSyncTest.applyTime(3.2);
+    });
+    expect(timingStore.get().last).toMatchObject({ segIndex: 1, tokIndex: 1 });
+
+    act(() => {
+      timingStore.setActiveGate(null);
+      timingStore.setLast(null);
+      timingStore.setPayload({
+        trackKind: 'translation_only',
+        segments: [],
+      });
     });
   });
 

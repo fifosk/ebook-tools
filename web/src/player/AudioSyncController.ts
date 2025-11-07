@@ -1,7 +1,47 @@
 import type { PlayerCoreHandle } from './PlayerCore';
 import { timingStore } from '../stores/timingStore';
+import type { Gate } from '../stores/timingStore';
 import type { Hit, TimingPayload } from '../types/timing';
 import { WORD_SYNC } from '../components/player-panel/constants';
+
+type DebugToggleConfig = {
+  enabled?: boolean;
+  showGates?: boolean;
+  showPauses?: boolean;
+  showDrift?: boolean;
+};
+
+declare global {
+  interface Window {
+    __HL_DEBUG__?: DebugToggleConfig;
+    __HL_DEBUG_KEYBOUND__?: boolean;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  const globalWindow = window as Window & { __HL_DEBUG_KEYBOUND__?: boolean };
+  if (!globalWindow.__HL_DEBUG_KEYBOUND__) {
+    globalWindow.__HL_DEBUG_KEYBOUND__ = true;
+    window.addEventListener('keydown', (event) => {
+      const key = event.key?.toLowerCase();
+      if (!key || !['g', 'p', 'd'].includes(key)) {
+        return;
+      }
+      const debugState = (window.__HL_DEBUG__ = {
+        ...(window.__HL_DEBUG__ ?? { enabled: false }),
+      });
+      debugState.enabled = true;
+      if (key === 'g') {
+        debugState.showGates = !debugState.showGates;
+      } else if (key === 'p') {
+        debugState.showPauses = !debugState.showPauses;
+      } else if (key === 'd') {
+        debugState.showDrift = !debugState.showDrift;
+      }
+      window.dispatchEvent(new Event('hl_debug_update'));
+    });
+  }
+}
 
 type Unsubscribe = () => void;
 
@@ -26,6 +66,7 @@ let payloadCache: TimingPayload | undefined;
 let timelineBundle: TimelineBundle | null = null;
 let timelineCursor = -1;
 let lastHit: Hit | null = null;
+let detachRateListener: (() => void) | null = null;
 const MAX_DRIFT_SECONDS = WORD_SYNC.MAX_LAG_MS / 1000;
 
 type DebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean } };
@@ -131,6 +172,28 @@ function clearLoop(): void {
   }
 }
 
+function attachRateListener(core: PlayerCoreHandle | null): void {
+  if (detachRateListener) {
+    detachRateListener();
+    detachRateListener = null;
+  }
+  if (!core || typeof core.getElement !== 'function') {
+    return;
+  }
+  const element = core.getElement();
+  if (!element) {
+    return;
+  }
+  const handleRateChange = () => {
+    const rate = Number.isFinite(element.playbackRate) && element.playbackRate > 0 ? element.playbackRate : 1;
+    timingStore.setRate(rate);
+  };
+  element.addEventListener('ratechange', handleRateChange);
+  detachRateListener = () => {
+    element.removeEventListener('ratechange', handleRateChange);
+  };
+}
+
 function startLoop(): void {
   clearLoop();
   if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
@@ -158,7 +221,7 @@ function startLoop(): void {
   }, 16) as ReturnType<typeof setInterval>;
 }
 
-function setActiveHit(hit: Hit | null): void {
+function setActiveHit(hit: (Hit & { lane?: 'mix' | 'translation' }) | null): void {
   if (!hit) {
     if (lastHit) {
       lastHit = null;
@@ -170,6 +233,24 @@ function setActiveHit(hit: Hit | null): void {
     lastHit = hit;
     timingStore.setLast(hit);
   }
+}
+
+function clampHighlightToGateTail(
+  gate: Gate,
+  payload: TimingPayload | undefined,
+  lane: 'mix' | 'translation',
+): void {
+  if (!payload || !payload.segments.length) {
+    setActiveHit(null);
+    return;
+  }
+  const segment = payload.segments[gate.segmentIndex];
+  if (!segment || !Array.isArray(segment.tokens) || segment.tokens.length === 0) {
+    setActiveHit(null);
+    return;
+  }
+  const lastIndex = segment.tokens.length - 1;
+  setActiveHit({ segIndex: gate.segmentIndex, tokIndex: lastIndex, lane });
 }
 
 function locateTimelineIndex(time: number): number {
@@ -206,20 +287,48 @@ function applyTime(time: number): void {
     return;
   }
   const state = timingStore.get();
-  ensureTimeline(state.payload);
+  const { payload, activeGate } = state;
+  ensureTimeline(payload);
   if (!timelineBundle || timelineBundle.entries.length === 0) {
     setActiveHit(null);
     return;
   }
+  const trackLane: 'mix' | 'translation' =
+    payload?.trackKind === 'translation_only' ? 'translation' : 'mix';
   const trackDuration = timelineBundle.duration + timelineBundle.origin;
   const audioDuration = activeCore ? activeCore.getDuration() : Number.NaN;
   const maxDuration = Number.isFinite(audioDuration) && audioDuration > 0
     ? Math.min(audioDuration, trackDuration)
     : trackDuration;
   const clampedTime = Math.min(Math.max(time, 0), maxDuration);
+  if (activeGate) {
+    if (trackLane === 'translation') {
+      if (clampedTime < activeGate.start) {
+        setActiveHit(null);
+        return;
+      }
+      if (clampedTime >= activeGate.end) {
+        clampHighlightToGateTail(activeGate, payload, trackLane);
+        return;
+      }
+    } else {
+      if (clampedTime < activeGate.start) {
+        setActiveHit(null);
+        return;
+      }
+      if (clampedTime >= activeGate.end) {
+        clampHighlightToGateTail(activeGate, payload, trackLane);
+        return;
+      }
+    }
+  }
   const localTime = Math.max(0, clampedTime - timelineBundle.origin);
   const index = locateTimelineIndex(localTime);
   if (index === -1) {
+    if (activeGate && trackLane === 'translation' && clampedTime >= (activeGate?.end ?? 0)) {
+      clampHighlightToGateTail(activeGate, payload, trackLane);
+      return;
+    }
     setActiveHit(null);
     return;
   }
@@ -242,7 +351,7 @@ function applyTime(time: number): void {
     setActiveHit(null);
     return;
   }
-  setActiveHit({ segIndex: entry.segIndex, tokIndex: entry.tokIndex });
+  setActiveHit({ segIndex: entry.segIndex, tokIndex: entry.tokIndex, lane: trackLane });
 }
 
 function handleSeek(): void {
@@ -267,6 +376,7 @@ export function start(core: PlayerCoreHandle): void {
   }
   stop();
   activeCore = core;
+  attachRateListener(core);
   timingStore.setRate(core.getRate());
   applyTime(core.getCurrentTime());
   startLoop();
@@ -286,6 +396,7 @@ export function stop(): void {
   }
   unsubscribes = [];
   activeCore = null;
+  attachRateListener(null);
   timelineBundle = null;
   payloadCache = undefined;
   timelineCursor = -1;
@@ -354,3 +465,7 @@ export function enableHighlightDebugOverlay(): () => void {
     }
   };
 }
+
+export const __TESTING__ = {
+  applyTime,
+};

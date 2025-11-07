@@ -417,6 +417,41 @@ subscribe to it, and `AudioSyncController` keeps the state in sync by querying
 required: the highlight engine is designed to work with sentence-level timing
 when detailed per-word offsets are not available.
 
+#### Metadata creation flow
+
+`modules/services/job_manager/persistence.py` emits three artefacts per job
+whenever a pipeline stage updates metadata: (1) `metadata/job.json`, the compact
+manifest that lists every chunk with its language pair, highlighting policy, and
+media availability; (2) `metadata/chunk_manifest.json`, a helper map used by the
+web UI to lazily fetch the chunk payloads; and (3) `metadata/chunk_XXXX.json`
+files that store the actual sentence timelines, `word_tokens`, diagnostic flags,
+and per-lane audio references. `MetadataLoader` in `modules/metadata_manager.py`
+abstracts the differences between the chunked format and legacy single-file
+payloads so CLI utilities and the FastAPI routers can read either structure
+without branching. Downstream APIs simply call `MetadataLoader.for_job(job_id)`
+and hand the result to the serializer powering `/api/jobs/{job_id}/timing` and
+`/api/pipelines/jobs/{job_id}/media`.
+
+#### Highlighting policy controls
+
+Highlight provenance is controlled via two layers:
+
+- `EBOOK_HIGHLIGHT_POLICY` (or the matching CLI/config knob) enforces whether a
+  job may fall back to inferred timings. Use `forced` to fail the pipeline when
+  neither backend tokens nor forced alignment succeed, `prefer_char_weighted` to
+  allow heuristics, or `allow_uniform` to tolerate evenly spaced tokens.
+- `char_weighted_highlighting_default` and
+  `char_weighted_punctuation_boost` (config keys or the
+  `EBOOK_CHAR_WEIGHTED_HIGHLIGHTING_DEFAULT`/`EBOOK_CHAR_WEIGHTED_PUNCTUATION_BOOST`
+  env vars) toggle the heuristic that distributes durations based on character
+  counts and adds punctuation-aware padding when real tokens are unavailable.
+
+Each chunk’s `highlighting_summary` records which strategy generated its word
+tokens (`backend`, `forced_alignment`, `char_weighted`, or `uniform`) plus the
+selected WhisperX model when forced alignment ran. Expose those diagnostics in
+dashboards or QA scripts to keep tabs on highlighting drift whenever pipeline
+knobs change.
+
 #### Frontend user journey
 
 ```mermaid

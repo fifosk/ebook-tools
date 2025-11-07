@@ -30,7 +30,7 @@ export function useWordHighlighting(): UseWordHighlightingResult {
 
   useEffect(() => {
     const unsubscribe = timingStore.subscribe((nextState) => {
-      const { payload, last } = nextState;
+      const { payload, last, activeGate } = nextState;
 
       if (payloadRef.current !== payload) {
         payloadRef.current = payload;
@@ -67,6 +67,32 @@ export function useWordHighlighting(): UseWordHighlightingResult {
         tokIndex = 0;
       } else {
         tokIndex = Math.floor(tokIndex);
+      }
+
+      if (activeGate && activeGate.segmentIndex === last.segIndex && Array.isArray(segment.tokens)) {
+        const tokens = segment.tokens;
+        let minIndex = 0;
+        let maxIndex = tokens.length - 1;
+        for (let index = 0; index < tokens.length; index += 1) {
+          const token = tokens[index];
+          if (token && (token.t0 >= activeGate.start - 0.001 || token.t1 > activeGate.start)) {
+            minIndex = index;
+            break;
+          }
+        }
+        for (let index = tokens.length - 1; index >= 0; index -= 1) {
+          const token = tokens[index];
+          if (token && token.t1 <= activeGate.end + 0.001) {
+            maxIndex = index;
+            break;
+          }
+        }
+        if (tokIndex < minIndex) {
+          tokIndex = minIndex;
+        }
+        if (maxIndex >= 0 && tokIndex > maxIndex) {
+          tokIndex = maxIndex;
+        }
       }
 
       const fence = fences.get(segId);

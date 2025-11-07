@@ -9,7 +9,7 @@ import {
 } from 'react';
 import type { MutableRefObject, ReactNode, UIEvent } from 'react';
 import { appendAccessToken, fetchJobTiming } from '../api/client';
-import type { AudioTrackMetadata, JobTimingResponse } from '../api/dtos';
+import type { AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
 import { useMediaClock } from '../hooks/useLiveMedia';
 import PlayerCore from '../player/PlayerCore';
@@ -20,7 +20,10 @@ import {
   enableHighlightDebugOverlay,
 } from '../player/AudioSyncController';
 import { timingStore } from '../stores/timingStore';
+import { DebugOverlay } from '../player/DebugOverlay';
+import '../styles/debug-overlay.css';
 import type { TimingPayload, Segment, TrackKind, WordToken } from '../types/timing';
+import { groupBy } from '../utils/groupBy';
 import TextPlayer, {
   type TextPlayerSentence,
   type TextPlayerVariantDisplay,
@@ -73,6 +76,15 @@ type WordSyncController = {
   handlePause: () => void;
   handlePlay: () => void;
   setFollowHighlight: (value: boolean) => void;
+};
+
+type SentenceGate = {
+  start: number;
+  end: number;
+  sentenceIdx: number;
+  segmentIndex: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
 };
 
 const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
@@ -195,6 +207,118 @@ function buildTimingPayloadFromWordIndex(
   };
 }
 
+function normalizeNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined) {
+    return undefined;
+  }
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function normalizeValidation(
+  raw: JobTimingEntry['validation'],
+): { drift?: number; count?: number } | undefined {
+  if (!raw || typeof raw !== 'object') {
+    return undefined;
+  }
+  const drift = normalizeNumber((raw as { drift?: unknown }).drift);
+  const countRaw = normalizeNumber((raw as { count?: unknown }).count);
+  if (drift === undefined && countRaw === undefined) {
+    return undefined;
+  }
+  const payload: { drift?: number; count?: number } = {};
+  if (drift !== undefined) {
+    payload.drift = drift;
+  }
+  if (countRaw !== undefined) {
+    payload.count = Math.max(0, Math.round(countRaw));
+  }
+  return payload;
+}
+
+function buildSentenceGateList(payload?: TimingPayload | null): SentenceGate[] {
+  if (!payload || !Array.isArray(payload.segments) || payload.segments.length === 0) {
+    return [];
+  }
+  const isTranslationTrack = payload.trackKind === 'translation_only';
+  const entries: Array<{ token: WordToken; segmentIndex: number }> = [];
+  payload.segments.forEach((segment, segmentIndex) => {
+    if (!segment || !Array.isArray(segment.tokens)) {
+      return;
+    }
+    segment.tokens.forEach((token) => {
+      if (token) {
+        entries.push({ token, segmentIndex });
+      }
+    });
+  });
+  if (entries.length === 0) {
+    return [];
+  }
+  const grouped = groupBy(entries, (entry) => {
+    if (typeof entry.token.sentenceIdx === 'number' && Number.isFinite(entry.token.sentenceIdx)) {
+      return entry.token.sentenceIdx;
+    }
+    const numericSeg = Number(entry.token.segId);
+    return Number.isFinite(numericSeg) ? numericSeg : entry.token.segId;
+  });
+  const gates: SentenceGate[] = [];
+  for (const [key, group] of grouped.entries()) {
+    if (!group || group.length === 0) {
+      continue;
+    }
+    const candidate = group.find(
+      ({ token }) => Number.isFinite(token.startGate) && Number.isFinite(token.endGate),
+    );
+    if (!candidate) {
+      continue;
+    }
+    let start = Number(candidate.token.startGate);
+    let end = Number(candidate.token.endGate);
+    if (isTranslationTrack) {
+      const firstWord = group.reduce<number>((min, { token }) => {
+        if (token && Number.isFinite(token.t0)) {
+          return Math.min(min, Number(token.t0));
+        }
+        return min;
+      }, Number.POSITIVE_INFINITY);
+      const lastWord = group.reduce<number>((max, { token }) => {
+        if (token && Number.isFinite(token.t1)) {
+          return Math.max(max, Number(token.t1));
+        }
+        return max;
+      }, Number.NEGATIVE_INFINITY);
+      if (Number.isFinite(firstWord) && Number.isFinite(lastWord)) {
+        start = firstWord;
+        end = lastWord;
+      }
+    }
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      continue;
+    }
+    const numericKey = typeof key === 'number' ? key : Number(key);
+    const sentenceIdx =
+      typeof candidate.token.sentenceIdx === 'number' && Number.isFinite(candidate.token.sentenceIdx)
+        ? candidate.token.sentenceIdx
+        : Number.isFinite(numericKey)
+          ? numericKey
+          : undefined;
+    if (sentenceIdx === undefined) {
+      continue;
+    }
+    gates.push({
+      start,
+      end,
+      sentenceIdx,
+      segmentIndex: candidate.segmentIndex,
+      pauseBeforeMs: candidate.token.pauseBeforeMs,
+      pauseAfterMs: candidate.token.pauseAfterMs,
+    });
+  }
+  gates.sort((left, right) => left.start - right.start);
+  return gates;
+}
+
 function buildTimingPayloadFromJobTiming(
   response: JobTimingResponse,
   trackName: 'mix' | 'translation',
@@ -213,6 +337,11 @@ function buildTimingPayloadFromJobTiming(
     tokens: WordToken[];
     min: number;
     max: number;
+    sentenceIdx?: number;
+    gateStart?: number;
+    gateEnd?: number;
+    pauseBeforeMs?: number;
+    pauseAfterMs?: number;
   };
 
   const buckets = new Map<string, Bucket>();
@@ -228,8 +357,19 @@ function buildTimingPayloadFromJobTiming(
     if (!Number.isFinite(rawStart)) {
       return;
     }
-    const t0 = Math.max(0, rawStart);
-    const t1 = Number.isFinite(rawEnd) ? Math.max(rawEnd, t0) : t0;
+    const canonicalStartGate = normalizeNumber(entry.startGate ?? entry.start_gate);
+    const canonicalEndGate = normalizeNumber(entry.endGate ?? entry.end_gate);
+    let t0 = Math.max(0, rawStart);
+    let t1 = Number.isFinite(rawEnd) ? Math.max(rawEnd, t0) : t0;
+    const gateValue = Number(canonicalStartGate);
+    const gateAvailable = Number.isFinite(gateValue);
+    if (trackName === 'translation' && gateAvailable && rawStart >= gateValue - 1e-3) {
+      t0 = Math.max(0, t0 - gateValue);
+      t1 = Math.max(t1 - gateValue, t0);
+    }
+    const sentenceIdxCandidate =
+      entry.sentenceIdx ?? entry.sentence_id ?? entry.sentenceId ?? entry.id ?? null;
+    const sentenceIdxValue = normalizeNumber(sentenceIdxCandidate);
     const sentenceRef =
       entry.sentenceIdx ?? entry.sentence_id ?? entry.sentenceId ?? entry.id ?? `seg-${index}`;
     const segmentId = sentenceRef === null || sentenceRef === undefined || sentenceRef === ''
@@ -245,6 +385,11 @@ function buildTimingPayloadFromJobTiming(
       };
       buckets.set(segmentId, bucket);
     }
+    const startGate = canonicalStartGate;
+    const endGate = canonicalEndGate;
+    const pauseBeforeMs = normalizeNumber(entry.pauseBeforeMs ?? entry.pause_before_ms);
+    const pauseAfterMs = normalizeNumber(entry.pauseAfterMs ?? entry.pause_after_ms);
+    const validation = normalizeValidation(entry.validation);
     const textValue =
       typeof entry.text === 'string'
         ? entry.text
@@ -265,12 +410,33 @@ function buildTimingPayloadFromJobTiming(
       t1,
       lane,
       segId: segmentId,
+      sentenceIdx: sentenceIdxValue,
+      startGate: startGate,
+      endGate: endGate,
+      pauseBeforeMs: pauseBeforeMs,
+      pauseAfterMs: pauseAfterMs,
+      validation,
     });
     if (t0 < bucket.min) {
       bucket.min = t0;
     }
     if (t1 > bucket.max) {
       bucket.max = t1;
+    }
+    if (sentenceIdxValue !== undefined && bucket.sentenceIdx === undefined) {
+      bucket.sentenceIdx = sentenceIdxValue;
+    }
+    if (startGate !== undefined && bucket.gateStart === undefined) {
+      bucket.gateStart = startGate;
+    }
+    if (endGate !== undefined) {
+      bucket.gateEnd = endGate;
+    }
+    if (pauseBeforeMs !== undefined && bucket.pauseBeforeMs === undefined) {
+      bucket.pauseBeforeMs = pauseBeforeMs;
+    }
+    if (pauseAfterMs !== undefined && bucket.pauseAfterMs === undefined) {
+      bucket.pauseAfterMs = pauseAfterMs;
     }
   });
 
@@ -279,7 +445,7 @@ function buildTimingPayloadFromJobTiming(
   }
 
   const segments: Segment[] = Array.from(buckets.values())
-    .map((bucket) => {
+    .map<Segment | null>((bucket) => {
       const tokens = bucket.tokens.sort((left, right) => {
         if (left.t0 !== right.t0) {
           return left.t0 - right.t0;
@@ -296,12 +462,18 @@ function buildTimingPayloadFromJobTiming(
       }
       const resolvedT0 = Number.isFinite(bucket.min) ? bucket.min : first.t0;
       const resolvedT1 = Number.isFinite(bucket.max) ? bucket.max : last.t1;
-      return {
+      const segment: Segment = {
         id: bucket.id,
         t0: resolvedT0,
         t1: resolvedT1 >= resolvedT0 ? resolvedT1 : resolvedT0,
         tokens,
+        sentenceIdx: bucket.sentenceIdx,
+        gateStart: bucket.gateStart,
+        gateEnd: bucket.gateEnd,
+        pauseBeforeMs: bucket.pauseBeforeMs,
+        pauseAfterMs: bucket.pauseAfterMs,
       };
+      return segment;
     })
     .filter((segment): segment is Segment => segment !== null)
     .sort((left, right) => {
@@ -689,17 +861,25 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const clamped = Math.min(Math.max(fontScale, 0.5), 3);
     return Math.round(clamped * 100) / 100;
   }, [fontScale]);
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+const rootRef = useRef<HTMLDivElement | null>(null);
+const containerRef = useRef<HTMLDivElement | null>(null);
   const {
     ref: attachPlayerCore,
     core: playerCore,
     elementRef: audioRef,
-    mediaRef: attachMediaElement,
+    mediaRef: rawAttachMediaElement,
   } = usePlayerCore();
+  const attachMediaElement = useCallback(
+    (element: HTMLAudioElement | null) => {
+      rawAttachMediaElement(element);
+      timingStore.setAudioEl(element);
+    },
+    [rawAttachMediaElement],
+  );
   const tokenElementsRef = useRef<Map<string, HTMLElement>>(new Map());
-  const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
-  const wordSyncControllerRef = useRef<WordSyncController | null>(null);
+const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
+const wordSyncControllerRef = useRef<WordSyncController | null>(null);
+const gateListRef = useRef<SentenceGate[]>([]);
   const clock = useMediaClock(audioRef);
   const clockRef = useRef<MediaClock>(clock);
   const diagnosticsSignatureRef = useRef<string | null>(null);
@@ -729,6 +909,15 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   useEffect(() => {
     highlightPolicyRef.current = timingDiagnostics?.policy ?? null;
   }, [timingDiagnostics]);
+  useEffect(() => {
+    const element = playerCore?.getElement() ?? audioRef.current ?? null;
+    timingStore.setAudioEl(element);
+    return () => {
+      if (timingStore.get().audioEl === element) {
+        timingStore.setAudioEl(null);
+      }
+    };
+  }, [playerCore]);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(() => {
     if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
       return false;
@@ -1413,15 +1602,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       return [] as TrackTimingPayload[];
     }
     const chunkId = chunk?.chunkId ?? null;
-    return wordSyncTracks.filter((track): track is TrackTimingPayload => {
-      if (!track) {
-        return false;
-      }
-      if (!track.chunkId || !chunkId) {
-        return true;
-      }
-      return track.chunkId === chunkId;
-    });
+    if (!chunkId) {
+      return wordSyncTracks.filter((track): track is TrackTimingPayload => Boolean(track));
+    }
+    const matches = wordSyncTracks.filter(
+      (track): track is TrackTimingPayload => Boolean(track && track.chunkId === chunkId)
+    );
+    return matches.length > 0 ? matches : wordSyncTracks.filter((track): track is TrackTimingPayload => Boolean(track));
   }, [chunk?.chunkId, wordSyncTracks]);
   const wordSyncPreferredTypes = useMemo(() => {
     const preferences: TrackTimingPayload['trackType'][] = [];
@@ -1575,6 +1762,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       punctuation: policyLower === 'estimated_punct',
     });
   }, [jobTimingResponse, timingPayload]);
+
+  useEffect(() => {
+    gateListRef.current = buildSentenceGateList(timingPayload);
+    timingStore.setActiveGate(null);
+  }, [timingPayload]);
 
   useEffect(() => {
     if (!jobId || !timingPayload) {
@@ -2013,6 +2205,26 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [rawSentences, sentenceWeightSummary],
   );
 
+  const updateActiveGateFromTime = useCallback((mediaTime: number) => {
+    const gates = gateListRef.current;
+    if (!gates.length) {
+      timingStore.setActiveGate(null);
+      return;
+    }
+    let candidate: SentenceGate | null = null;
+    for (const gate of gates) {
+      if (mediaTime >= gate.start && mediaTime <= gate.end) {
+        candidate = gate;
+        break;
+      }
+      if (mediaTime < gate.start) {
+        candidate = gate;
+        break;
+      }
+    }
+    timingStore.setActiveGate(candidate);
+  }, []);
+
   const handleInlineAudioPlay = useCallback(() => {
     timingStore.setLast(null);
     const startPlayback = () => {
@@ -2084,6 +2296,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       const clamped = Math.min(seek, duration - 0.1);
       element.currentTime = clamped;
       updateSentenceForTime(clamped, duration);
+      updateActiveGateFromTime(clamped);
       emitAudioProgress(clamped);
       const maybePlay = element.play?.();
       if (maybePlay && typeof maybePlay.catch === 'function') {
@@ -2094,8 +2307,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       return;
     }
     pendingInitialSeek.current = null;
+    updateActiveGateFromTime(element.currentTime ?? 0);
     wordSyncControllerRef.current?.snap();
-  }, [emitAudioProgress, updateSentenceForTime]);
+  }, [emitAudioProgress, updateSentenceForTime, updateActiveGateFromTime]);
 
   const handleTimeUpdate = useCallback(() => {
     const element = audioRef.current;
@@ -2112,10 +2326,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       updateSentenceForTime(currentTime, duration);
     }
     emitAudioProgress(currentTime);
+    updateActiveGateFromTime(currentTime);
     if (element.paused) {
       wordSyncControllerRef.current?.snap();
     }
-  }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
+  }, [emitAudioProgress, hasTimeline, updateSentenceForTime, updateActiveGateFromTime]);
 
   const handleAudioEnded = useCallback(() => {
     wordSyncControllerRef.current?.stop();
@@ -2181,13 +2396,16 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     .filter(Boolean)
     .join(' ');
 
+  const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
+
   return (
-    <div
-      ref={rootRef}
-      className={rootClassName}
-      data-fullscreen={isFullscreen ? 'true' : 'false'}
-      data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
-    >
+    <>
+      <div
+        ref={rootRef}
+        className={rootClassName}
+        data-fullscreen={isFullscreen ? 'true' : 'false'}
+        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
+      >
       {isFullscreen && fullscreenControls ? (
         <div className="player-panel__interactive-fullscreen-controls">
           {fullscreenControls}
@@ -2292,6 +2510,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         )}
       </div>
     </div>
+    <DebugOverlay audioEl={overlayAudioEl} />
+    </>
   );
 });
 

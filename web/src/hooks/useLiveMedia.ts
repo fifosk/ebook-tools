@@ -333,17 +333,24 @@ function normaliseTrackTimingCollection(source: unknown): TrackTimingPayload[] |
   if (!source) {
     return null;
   }
-  const list = Array.isArray(source) ? source : [source];
-  const result: TrackTimingPayload[] = [];
-  list.forEach((entry) => {
-    if (!entry || typeof entry !== 'object') {
-      return;
+  const entries = Array.isArray(source) ? source : [source];
+  const payloads: TrackTimingPayload[] = [];
+  entries.forEach((entry) => {
+    const converted = convertTrackTimingEntry(entry);
+    if (converted && converted.length > 0) {
+      payloads.push(...converted);
     }
-    const record = entry as Record<string, unknown>;
-    const trackType = normaliseTrackType(record.track_type ?? record.trackType);
-    if (!trackType) {
-      return;
-    }
+  });
+  return payloads.length > 0 ? payloads : null;
+}
+
+function convertTrackTimingEntry(entry: unknown): TrackTimingPayload[] | null {
+  if (!entry || typeof entry !== 'object') {
+    return null;
+  }
+  const record = entry as Record<string, unknown>;
+  const trackType = normaliseTrackType(record.track_type ?? record.trackType);
+  if (trackType) {
     const chunkId = toStringOrNull(record.chunk_id ?? record.chunkId) ?? '';
     const words = normaliseWordTimings(record.words);
     const pauses = normalisePauseTimings(record.pauses);
@@ -351,17 +358,152 @@ function normaliseTrackTimingCollection(source: unknown): TrackTimingPayload[] |
     const tempoFactorRaw = toNumberOrNull(record.tempo_factor ?? record.tempoFactor);
     const tempoFactor = tempoFactorRaw && tempoFactorRaw > 0 ? tempoFactorRaw : 1;
     const version = toStringOrNull(record.version) ?? '1';
-    result.push({
-      trackType,
+    return [
+      {
+        trackType,
+        chunkId,
+        words,
+        pauses,
+        trackOffset,
+        tempoFactor,
+        version,
+      },
+    ];
+  }
+  return convertLegacyTimingTracks(record);
+}
+
+function convertLegacyTimingTracks(record: Record<string, unknown>): TrackTimingPayload[] | null {
+  const mixEntries = Array.isArray(record.mix) ? (record.mix as unknown[]) : null;
+  const translationEntries = Array.isArray(record.translation)
+    ? (record.translation as unknown[])
+    : null;
+  if (!mixEntries && !translationEntries) {
+    return null;
+  }
+  const chunkId = toStringOrNull(record.chunk_id ?? record.chunkId) ?? '';
+  const trackOffset = toNumberOrNull(record.track_offset ?? record.trackOffset) ?? 0;
+  const tempoFactorRaw = toNumberOrNull(record.tempo_factor ?? record.tempoFactor);
+  const tempoFactor = tempoFactorRaw && tempoFactorRaw > 0 ? tempoFactorRaw : 1;
+  const version = toStringOrNull(record.version) ?? '1';
+  const payloads: TrackTimingPayload[] = [];
+  if (Array.isArray(translationEntries) && translationEntries.length > 0) {
+    const words = buildWordTimingsFromLegacyTokens(
+      translationEntries,
       chunkId,
-      words,
-      pauses,
-      trackOffset,
-      tempoFactor,
-      version,
+      'trans',
+      false,
+      true,
+    );
+    if (words.length > 0) {
+      payloads.push({
+        trackType: 'translated',
+        chunkId,
+        words,
+        pauses: [],
+        trackOffset,
+        tempoFactor,
+        version,
+      });
+    }
+  }
+  if (Array.isArray(mixEntries) && mixEntries.length > 0) {
+    const words = buildWordTimingsFromLegacyTokens(
+      mixEntries,
+      chunkId,
+      'orig',
+      true,
+      false,
+    );
+    if (words.length > 0) {
+      payloads.push({
+        trackType: 'original_translated',
+        chunkId,
+        words,
+        pauses: [],
+        trackOffset,
+        tempoFactor,
+        version,
+      });
+    }
+  }
+  return payloads.length > 0 ? payloads : null;
+}
+
+function buildWordTimingsFromLegacyTokens(
+  tokens: unknown[],
+  chunkId: string,
+  defaultLang: WordTiming['lang'],
+  laneAware: boolean,
+  applyGateOffset: boolean,
+): WordTiming[] {
+  const timings: WordTiming[] = [];
+  tokens.forEach((token) => {
+    if (!token || typeof token !== 'object') {
+      return;
+    }
+    const record = token as Record<string, unknown>;
+    const sentenceId = toNumberOrNull(record.sentenceIdx ?? record.sentence_id ?? record.sentenceId);
+    const tokenIdx = toNumberOrNull(record.wordIdx ?? record.token_idx ?? record.tokenIdx);
+    let start = toNumberOrNull(record.start ?? record.t0);
+    let end = toNumberOrNull(record.end ?? record.t1 ?? start);
+    if (sentenceId === null || tokenIdx === null || start === null || end === null) {
+      return;
+    }
+    if (applyGateOffset) {
+      const gate = toNumberOrNull(record.start_gate ?? record.startGate);
+      if (gate !== null && start >= gate - 1e-3) {
+        start -= gate;
+        end -= gate;
+      }
+    }
+    if (start < 0) {
+      end -= start;
+      start = 0;
+    }
+    if (end < start) {
+      end = start;
+    }
+    let lang: WordTiming['lang'] | null = defaultLang;
+    if (laneAware) {
+      lang = normaliseWordLanguage(record.lane) ?? defaultLang;
+    }
+    if (!lang) {
+      lang = 'trans';
+    }
+    const id = createLegacyWordTimingId(chunkId, lang, sentenceId, tokenIdx);
+    timings.push({
+      id,
+      sentenceId,
+      tokenIdx,
+      lang,
+      text: toStringOrNull(record.text) ?? '',
+      t0: start,
+      t1: end,
     });
   });
-  return result.length > 0 ? result : null;
+  return timings;
+}
+
+function createLegacyWordTimingId(
+  chunkId: string,
+  lang: WordTiming['lang'],
+  sentenceId: number,
+  tokenIdx: number,
+): string {
+  const prefix = chunkId || 'chunk';
+  return `${prefix}:${lang}:${sentenceId}:${tokenIdx}`;
+}
+
+function attachChunkIdToTimingSource(source: unknown, chunkId: string | null): unknown {
+  if (!chunkId || !source || typeof source !== 'object' || Array.isArray(source)) {
+    return source;
+  }
+  const record = source as Record<string, unknown>;
+  if ('chunk_id' in record || 'chunkId' in record) {
+    return source;
+  }
+  return { chunk_id: chunkId, ...record };
 }
 
 function buildStateFromSections(
@@ -442,8 +584,11 @@ function buildStateFromSections(
           (payload.audio_tracks as Record<string, unknown> | undefined) ??
             (payload.audioTracks as Record<string, unknown> | undefined),
         ) ?? null;
+      const chunkId = toStringOrNull(payload.chunk_id ?? payload.chunkId);
+      const rawTimingSource =
+        (payload.timing_tracks as unknown) ?? (payload.timingTracks as unknown);
       const timingTracks = normaliseTrackTimingCollection(
-        (payload.timing_tracks as unknown) ?? (payload.timingTracks as unknown),
+        attachChunkIdToTimingSource(rawTimingSource, chunkId),
       );
       const sentenceCount =
         typeof rawSentenceCount === 'number' && Number.isFinite(rawSentenceCount)
@@ -452,7 +597,7 @@ function buildStateFromSections(
             ? sentences.length
             : null;
       chunkRecords.push({
-        chunkId: toStringOrNull(payload.chunk_id),
+        chunkId,
         rangeFragment: toStringOrNull(payload.range_fragment),
         startSentence: toNumberOrNull(payload.start_sentence),
         endSentence: toNumberOrNull(payload.end_sentence),

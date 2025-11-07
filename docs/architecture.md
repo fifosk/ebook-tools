@@ -58,6 +58,23 @@ settings such as `executable`, `loglevel`, and preset overrides, allowing the
 pipeline to run against system installations or portable builds without code
 changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/ffmpeg_renderer.py†L1-L185】
 
+### Metadata creation & highlighting controls
+
+`modules/services/job_manager/persistence.py` emits every metadata artefact a
+job needs: `metadata/job.json` (global metadata + `chunk_manifest`),
+`metadata/chunk_manifest.json`, per-chunk files (`metadata/chunk_XXXX.json`),
+and the aggregated `metadata/timing_index.json`. `MetadataLoader` in
+`modules/metadata_manager.py` is the canonical read path so CLI helpers, the
+FastAPI routers, and tests can treat the legacy single-file payload and the new
+chunked layout interchangeably. Highlight provenance originates inside
+`modules/render/audio_pipeline.py`, which records whether a sentence used
+backend tokens, WhisperX (`modules/align/backends/whisperx_adapter.py`),
+char-weighted, or uniform inference. `EBOOK_HIGHLIGHT_POLICY`,
+`char_weighted_highlighting_default`, `char_weighted_punctuation_boost`, and the
+forced-alignment settings determine which strategy is permitted; the resulting
+`highlighting_summary` entries surface through `/api/jobs/{job_id}/timing` for
+the frontend and QA tooling.
+
 ### Backend input processing diagram
 
 ```mermaid

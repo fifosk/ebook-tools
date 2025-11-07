@@ -7,6 +7,15 @@ export interface WordToken {
   t1: number; // end time (s)
   lane: 'orig' | 'tran'; // for combined interleaving
   segId: string; // sentence/segment id
+  sentenceIdx?: number;
+  startGate?: number;
+  endGate?: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
+  validation?: {
+    drift?: number;
+    count?: number;
+  };
 }
 
 export interface Segment {
@@ -14,6 +23,11 @@ export interface Segment {
   t0: number;
   t1: number;
   tokens: WordToken[];
+  sentenceIdx?: number;
+  gateStart?: number;
+  gateEnd?: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
 }
 
 export interface TimingPayload {
@@ -25,4 +39,5 @@ export interface TimingPayload {
 export interface Hit {
   segIndex: number;
   tokIndex: number;
+  lane?: 'mix' | 'translation';
 }

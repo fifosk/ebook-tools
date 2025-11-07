@@ -33,6 +33,8 @@ class SentenceAudioMetadata:
 
     parts: List[AudioHighlightPart]
     total_duration: float
+    pause_before_ms: float = 0.0
+    pause_after_ms: float = 0.0
 
 
 @dataclass(frozen=True)

@@ -14,6 +14,7 @@ from modules.core.rendering.timeline import (
     build_word_events,
     smooth_token_boundaries,
     compute_char_weighted_timings,
+    validate_timing_monotonic,
 )
 
 
@@ -92,7 +93,8 @@ def test_build_word_events_stays_within_duration_budget() -> None:
 def test_char_weighted_timings_are_monotonic_and_precise() -> None:
     sentence_text = "Weighted timing fallback ensures contiguous estimates"
     requested_duration = 2.137
-    tokens = compute_char_weighted_timings(sentence_text, requested_duration)
+    words = [word for word in sentence_text.split() if word]
+    tokens = compute_char_weighted_timings(words, requested_duration)
     assert tokens, "Expected char-weighted helper to return tokens"
     words = [word for word in sentence_text.split() if word]
     assert len(tokens) == len(words)
@@ -108,17 +110,17 @@ def test_char_weighted_timings_are_monotonic_and_precise() -> None:
 
     assert math.isclose(prev_end, requested_duration, abs_tol=0.005)
 
+    for token in tokens:
+        assert token["end"] >= token["start"], "Negative delta from char-weighted helper"
+
 
 def test_policy_drift_thresholds() -> None:
     base_text = "Testing highlight drift expectations across policies"
     forced_tokens = smooth_token_boundaries(_make_sample_tokens())
     forced_drift = _drift_ms(forced_tokens)
 
-    estimated_tokens = compute_char_weighted_timings(
-        base_text,
-        3.276,
-        punctuation_boost=True,
-    )
+    words = [word for word in base_text.split() if word]
+    estimated_tokens = compute_char_weighted_timings(words, 3.276)
     estimated_drift = _drift_ms(estimated_tokens)
 
     inferred_tokens = _build_uniform_tokens(base_text, 3.276)
@@ -136,3 +138,24 @@ def test_policy_drift_thresholds() -> None:
     assert forced_drift < 10.0
     assert estimated_drift < 50.0
     assert inferred_drift < 80.0
+
+
+def test_validate_timing_monotonic_clamps_gates() -> None:
+    tokens = [
+        {"text": "Intro", "start": 0.3, "end": 0.1},
+        {"text": "Core", "start": 0.15, "end": 0.4},
+        {"text": "Outro", "start": 0.38, "end": 0.5},
+    ]
+    metrics = validate_timing_monotonic(tokens, start_gate=0.5, end_gate=2.5)
+
+    assert metrics["count"] == 3
+    assert metrics["drift"] < 0.02
+
+    min_start = min(token["start"] for token in tokens)
+    max_end = max(token["end"] for token in tokens)
+
+    assert math.isclose(min_start, 0.5, abs_tol=0.02)
+    assert math.isclose(max_end, 2.5, abs_tol=0.02)
+
+    for token in tokens:
+        assert token["end"] > token["start"], "Validator must eliminate negative deltas"

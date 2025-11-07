@@ -129,6 +129,61 @@ def _normalize_track_token(
     fallback_flag = token_entry.get("fallback")
     if isinstance(fallback_flag, bool):
         record["fallback"] = fallback_flag
+    gate_start_raw = token_entry.get("start_gate")
+    if gate_start_raw is None:
+        gate_start_raw = token_entry.get("startGate")
+    gate_end_raw = token_entry.get("end_gate")
+    if gate_end_raw is None:
+        gate_end_raw = token_entry.get("endGate")
+    try:
+        gate_start_val = round(max(float(gate_start_raw), 0.0), 6)
+    except (TypeError, ValueError):
+        gate_start_val = None
+    try:
+        gate_end_val = round(max(float(gate_end_raw), gate_start_val or 0.0), 6)
+    except (TypeError, ValueError):
+        gate_end_val = None
+    if gate_start_val is not None:
+        record["start_gate"] = gate_start_val
+        record.setdefault("startGate", gate_start_val)
+    if gate_end_val is not None:
+        record["end_gate"] = gate_end_val
+        record.setdefault("endGate", gate_end_val)
+    pause_before_raw = token_entry.get("pause_before_ms")
+    if pause_before_raw is None:
+        pause_before_raw = token_entry.get("pauseBeforeMs")
+    pause_after_raw = token_entry.get("pause_after_ms")
+    if pause_after_raw is None:
+        pause_after_raw = token_entry.get("pauseAfterMs")
+    try:
+        pause_before_val = int(round(float(pause_before_raw)))
+    except (TypeError, ValueError):
+        pause_before_val = None
+    if pause_before_val is not None and pause_before_val >= 0:
+        record["pause_before_ms"] = pause_before_val
+        record.setdefault("pauseBeforeMs", pause_before_val)
+    try:
+        pause_after_val = int(round(float(pause_after_raw)))
+    except (TypeError, ValueError):
+        pause_after_val = None
+    if pause_after_val is not None and pause_after_val >= 0:
+        record["pause_after_ms"] = pause_after_val
+        record.setdefault("pauseAfterMs", pause_after_val)
+    validation = token_entry.get("validation")
+    if isinstance(validation, Mapping):
+        validation_payload: Dict[str, Any] = {}
+        count_value = validation.get("count")
+        drift_value = validation.get("drift")
+        try:
+            validation_payload["count"] = int(count_value)
+        except (TypeError, ValueError):
+            pass
+        try:
+            validation_payload["drift"] = round(float(drift_value), 6)
+        except (TypeError, ValueError):
+            pass
+        if validation_payload:
+            record["validation"] = validation_payload
     return record
 
 
@@ -887,6 +942,12 @@ class PipelineJobPersistence:
                 if normalized_tracks:
                     chunk_entry["audio_tracks"] = normalized_tracks
                     chunk_entry["audioTracks"] = normalized_tracks
+
+            timing_tracks_raw = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            if isinstance(timing_tracks_raw, Mapping):
+                normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
+                chunk_entry["timing_tracks"] = normalized_timing
+                chunk_entry["timingTracks"] = normalized_timing
             normalized_chunks.append(chunk_entry)
 
         files_index: list[Dict[str, Any]] = []
