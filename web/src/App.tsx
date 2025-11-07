@@ -7,6 +7,7 @@ import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
 import SubtitlesPage from './pages/SubtitlesPage';
+import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
 import {
   LibraryItem,
@@ -84,6 +85,13 @@ const PIPELINE_SECTION_TO_VIEW: Record<PipelineFormSection, PipelineMenuView> = 
 };
 
 export function App() {
+  const isDualTrackDemo =
+    typeof window !== 'undefined' && window.location.pathname.startsWith('/demo/dual-track');
+
+  if (isDualTrackDemo) {
+    return <DualTrackDemoRoute />;
+  }
+
   const { session, isLoading: isAuthLoading, logoutReason, login, logout, updatePassword } = useAuth();
   const [jobs, setJobs] = useState<Record<string, JobRegistryEntry>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
