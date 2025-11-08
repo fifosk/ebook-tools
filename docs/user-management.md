@@ -105,6 +105,26 @@ The React SPA consumes the same endpoints via the shared API client:
   resets. It normalises state returned by the admin routes so the UI can display
   consistent status badges and timestamps.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
 
+## Media and metadata responsibilities
+
+- **Audio regeneration.** Users with the `admin` or `media_producer` roles can
+  call `/api/media/generate` to re-run narration or other media for an existing
+  job. The route is implemented in
+  `modules/webapi/media_routes.py` and ultimately reuses
+  `modules/render/audio_pipeline.py` plus the configured TTS backend, so keep
+  those roles restricted to operators who understand the implications of
+  voice/tempo changes.
+- **Metadata verification.** When an operator triggers a regeneration the job
+  manager rewrites `metadata/job.json`, the `chunk_manifest`, and all affected
+  `metadata/chunk_XXXX.json` files. Admins should spot-check those artefacts (or
+  run `MetadataLoader.for_job(job_id)` from `modules/metadata_manager.py`) before
+  promoting the assets so stale highlighting data does not leak to readers.
+- **Highlight policy enforcement.** Only administrators should toggle
+  `EBOOK_HIGHLIGHT_POLICY`, `char_weighted_highlighting_default`, or forced
+  alignment settings because they alter how `highlighting_summary` is generated
+  and what the UI exposes. Document policy changes alongside credential updates
+  so support teams know why audio or highlighting behaviour shifted.
+
 ## Configuration reference
 
 The repository includes `config/config.local.json` and

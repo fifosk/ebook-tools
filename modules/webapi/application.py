@@ -28,8 +28,11 @@ from .auth_routes import router as auth_router
 from modules.audio.config import load_media_config
 
 from .dependencies import configure_media_services, get_runtime_context_provider
-from .media_routes import register_exception_handlers as register_media_exception_handlers
-from .media_routes import router as media_router
+from .routes.media_routes import (
+    register_exception_handlers as register_media_exception_handlers,
+    router as media_router,
+    jobs_timing_router,
+)
 from .routes import router, storage_router
 from .routers.video import router as video_router
 
@@ -265,9 +268,11 @@ def create_app() -> FastAPI:
     app.include_router(create_book_router)
     app.include_router(library_router)
     app.include_router(media_router)
+    app.include_router(jobs_timing_router)
     app.include_router(video_router, prefix="/api/video", tags=["video"])
     app.include_router(subtitles_router)
     app.include_router(router, prefix="/api/pipelines", tags=["pipelines"])
+    app.include_router(router, prefix="/pipelines", tags=["pipelines"], include_in_schema=False)
     app.include_router(storage_router, prefix="/storage", tags=["storage"])
 
     static_enabled = _configure_static_assets(app)

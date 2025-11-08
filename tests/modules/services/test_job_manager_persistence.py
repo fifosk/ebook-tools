@@ -115,6 +115,24 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
                             "counts": {"original": 1},
                         }
                     ],
+                    "timing_tracks": {
+                        "translation": [
+                            {
+                                "start": 1.5,
+                                "end": 2.0,
+                                "sentenceIdx": "1",
+                                "text": "مرحبا",
+                            }
+                        ],
+                        "mix": [
+                            {
+                                "start": 1.0,
+                                "end": 2.5,
+                                "sentenceIdx": "1",
+                                "lane": "mix",
+                            }
+                        ],
+                    },
                 }
             ]
         },
@@ -137,12 +155,20 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     assert chunk_payload.get("sentences")
     first_sentence = chunk_payload["sentences"][0]
     assert first_sentence.get("original", {}).get("text") == "Hello"
+    timing_tracks = chunk_payload.get("timingTracks")
+    assert isinstance(timing_tracks, dict)
+    assert timing_tracks["translation"][0]["start"] == 1.5
 
     chunk_entries = metadata.generated_files.get("chunks")
     assert isinstance(chunk_entries, list)
     manifest_entry = chunk_entries[0]
     assert manifest_entry.get("metadata_path") == "metadata/chunk_0000.json"
     assert manifest_entry.get("sentence_count") == 1
+    assert "sentences" not in manifest_entry
+
+    assert not (metadata_root / "timing_index.json").exists()
+    assert metadata.result is not None
+    assert "timing_tracks" not in metadata.result
 
     restored = persistence.build_job(metadata)
 

@@ -43,6 +43,7 @@ class PipelineJobMetadata:
     generated_files: Optional[Dict[str, Any]] = None
     media_completed: Optional[bool] = None
     chunk_manifest: Optional[Dict[str, Any]] = None
+    timing_tracks: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -77,6 +78,8 @@ class PipelineJobMetadata:
             payload["media_completed"] = bool(self.media_completed)
         if self.chunk_manifest is not None:
             payload["chunk_manifest"] = _stable_copy(self.chunk_manifest)
+        if self.timing_tracks is not None:
+            payload["timing_tracks"] = _stable_copy(self.timing_tracks)
         return payload
 
     def to_json(self) -> str:
@@ -110,6 +113,7 @@ class PipelineJobMetadata:
             generated_files=data.get("generated_files"),
             media_completed=data.get("media_completed"),
             chunk_manifest=data.get("chunk_manifest"),
+            timing_tracks=data.get("timing_tracks"),
         )
 
     @classmethod

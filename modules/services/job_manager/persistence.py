@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import copy
+import glob
 import json
+import os
 import shutil
 import tempfile
 from pathlib import Path, PurePosixPath
@@ -22,6 +24,113 @@ from .progress import deserialize_progress_event, serialize_progress_event
 from ...progress_tracker import ProgressEvent
 
 _LOGGER = logging_manager.get_logger().getChild("job_manager.persistence")
+
+
+def _iterate_sentence_entries(payload: Any) -> list[Mapping[str, Any]]:
+    """Return flattened sentence entries from a chunk payload."""
+
+    entries: list[Mapping[str, Any]] = []
+    if isinstance(payload, list):
+        for item in payload:
+            entries.extend(_iterate_sentence_entries(item))
+    elif isinstance(payload, Mapping):
+        sentences = payload.get("sentences")
+        if isinstance(sentences, list):
+            for sentence in sentences:
+                entries.extend(_iterate_sentence_entries(sentence))
+        else:
+            entries.append(payload)  # Treat mapping as a sentence-level entry
+        chunks = payload.get("chunks")
+        if isinstance(chunks, list):
+            for chunk in chunks:
+                entries.extend(_iterate_sentence_entries(chunk))
+    return entries
+
+
+def _normalize_audio_track_entry(value: Any) -> Optional[Dict[str, Any]]:
+    """Return a normalized audio track entry with stable fields."""
+
+    if isinstance(value, Mapping):
+        entry: Dict[str, Any] = {}
+        path = value.get("path")
+        url = value.get("url")
+        duration = value.get("duration")
+        sample_rate = value.get("sampleRate") or value.get("sample_rate")
+        if isinstance(path, str) and path.strip():
+            entry["path"] = path.strip()
+        if isinstance(url, str) and url.strip():
+            entry["url"] = url.strip()
+        try:
+            entry["duration"] = round(float(duration), 6)
+        except (TypeError, ValueError):
+            pass
+        try:
+            entry["sampleRate"] = int(sample_rate)
+        except (TypeError, ValueError):
+            pass
+        return entry or None
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if trimmed:
+            return {"path": trimmed}
+    return None
+
+
+
+
+def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
+    """Return the highlighting policy encoded on a sentence entry."""
+
+    summary = entry.get("highlighting_summary")
+    if isinstance(summary, Mapping):
+        policy = summary.get("policy")
+        if isinstance(policy, str) and policy.strip():
+            return policy.strip()
+    policy = entry.get("highlighting_policy") or entry.get("alignment_policy")
+    if isinstance(policy, str) and policy.strip():
+        return policy.strip()
+    return None
+
+
+def resolve_highlighting_policy(job_dir: str | os.PathLike[str]) -> Optional[str]:
+    """Inspect chunk metadata files to determine the active highlighting policy."""
+
+    job_path = Path(job_dir)
+    metadata_dir = job_path / "metadata"
+    if not metadata_dir.exists():
+        return None
+
+    pattern = metadata_dir / "chunk_*.json"
+    for chunk_path in sorted(glob.glob(os.fspath(pattern))):
+        try:
+            with open(chunk_path, "r", encoding="utf-8") as handle:
+                chunk_payload = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            continue
+        for entry in _iterate_sentence_entries(chunk_payload):
+            if isinstance(entry, Mapping):
+                policy = _extract_highlighting_policy(entry)
+                if policy:
+                    return policy
+    return None
+
+
+def ensure_timing_manifest(
+    manifest: Mapping[str, Any] | None,
+    job_dir: str | os.PathLike[str],
+) -> Dict[str, Any]:
+    """
+    Attach highlighting metadata to ``manifest`` without persisting timing indexes.
+    """
+
+    manifest_payload = dict(manifest or {})
+    manifest_payload.pop("timing_tracks", None)
+
+    job_path = Path(job_dir)
+    policy = resolve_highlighting_policy(job_path)
+    if policy:
+        manifest_payload["highlighting_policy"] = policy
+    return manifest_payload
 
 
 class PipelineJobPersistence:
@@ -163,6 +272,7 @@ class PipelineJobPersistence:
         try:
             metadata_root = self._file_locator.metadata_root(job.job_id)
             metadata_root.mkdir(parents=True, exist_ok=True)
+            job_root = self._file_locator.job_root(job.job_id)
         except Exception:  # pragma: no cover - defensive logging
             _LOGGER.debug("Unable to prepare metadata directory", exc_info=True)
             return None
@@ -241,6 +351,19 @@ class PipelineJobPersistence:
                 job.result.chunk_manifest = copy.deepcopy(chunk_manifest)
             job.chunk_manifest = copy.deepcopy(chunk_manifest)
             snapshot.chunk_manifest = copy.deepcopy(chunk_manifest)
+
+        manifest_payload = ensure_timing_manifest(snapshot.result, job_root)
+        snapshot.result = manifest_payload
+        timing_tracks = manifest_payload.get("timing_tracks")
+        snapshot.timing_tracks = copy.deepcopy(timing_tracks) if timing_tracks else None
+
+        if job.result_payload is not None:
+            job.result_payload = ensure_timing_manifest(job.result_payload, job_root)
+        if job.result is not None and timing_tracks:
+            try:
+                job.result.metadata.update({"timing_tracks": copy.deepcopy(timing_tracks)})
+            except Exception:  # pragma: no cover - defensive logging
+                _LOGGER.debug("Unable to attach timing tracks to job result", exc_info=True)
 
         return chunk_manifest
 
@@ -437,6 +560,24 @@ class PipelineJobPersistence:
                     "sentence_count": len(sentences),
                     "sentences": sentences,
                 }
+                audio_tracks_raw = chunk_entry.get("audio_tracks") or chunk_entry.get("audioTracks")
+                if isinstance(audio_tracks_raw, Mapping):
+                    normalized_tracks: Dict[str, Dict[str, Any]] = {}
+                    for track_key, track_value in audio_tracks_raw.items():
+                        if not isinstance(track_key, str):
+                            continue
+                        normalized_entry = _normalize_audio_track_entry(track_value)
+                        if normalized_entry:
+                            normalized_tracks[track_key] = normalized_entry
+                    if normalized_tracks:
+                        chunk_payload["audioTracks"] = normalized_tracks
+                        chunk_entry["audio_tracks"] = normalized_tracks
+                        chunk_entry["audioTracks"] = normalized_tracks
+                timing_tracks_raw = chunk_entry.get("timing_tracks") or chunk_entry.get("timingTracks")
+                if isinstance(timing_tracks_raw, Mapping):
+                    normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
+                    chunk_payload["timingTracks"] = normalized_timing
+                    chunk_entry["timing_tracks"] = normalized_timing
                 try:
                     self._write_chunk_file(destination, chunk_payload)
                 except Exception:  # pragma: no cover - defensive logging
@@ -464,6 +605,17 @@ class PipelineJobPersistence:
                         metadata_url_str = url_candidate
 
             chunk_entry["sentence_count"] = sentence_count
+            if isinstance(metadata_path_str, str) and metadata_path_str.strip():
+                for heavy_key in (
+                    "sentences",
+                    "audio_tracks",
+                    "audioTracks",
+                    "timing_tracks",
+                    "timingTracks",
+                ):
+                    chunk_entry.pop(heavy_key, None)
+            if isinstance(metadata_path_str, str) and metadata_path_str:
+                chunk_entry.pop("sentences", None)
 
             manifest_entries.append(
                 {
@@ -538,6 +690,11 @@ class PipelineJobPersistence:
         for chunk in chunks_raw:
             if not isinstance(chunk, Mapping):
                 continue
+            has_metadata_file = False
+            metadata_path = chunk.get("metadata_path")
+            if isinstance(metadata_path, str) and metadata_path.strip():
+                has_metadata_file = True
+
             chunk_entry: Dict[str, Any] = {
                 "chunk_id": chunk.get("chunk_id"),
                 "range_fragment": chunk.get("range_fragment"),
@@ -545,9 +702,8 @@ class PipelineJobPersistence:
                 "end_sentence": chunk.get("end_sentence"),
                 "files": [],
             }
-            metadata_path = chunk.get("metadata_path")
-            if isinstance(metadata_path, str) and metadata_path.strip():
-                chunk_entry["metadata_path"] = metadata_path
+            if has_metadata_file:
+                chunk_entry["metadata_path"] = metadata_path.strip()
             metadata_url = chunk.get("metadata_url")
             if isinstance(metadata_url, str) and metadata_url.strip():
                 chunk_entry["metadata_url"] = metadata_url
@@ -555,7 +711,7 @@ class PipelineJobPersistence:
             if isinstance(sentence_count, int):
                 chunk_entry["sentence_count"] = sentence_count
             sentences_raw = chunk.get("sentences")
-            if isinstance(sentences_raw, list):
+            if isinstance(sentences_raw, list) and not has_metadata_file:
                 chunk_entry["sentences"] = copy.deepcopy(sentences_raw)
             files_raw = chunk.get("files", [])
             if not isinstance(files_raw, list):
@@ -606,6 +762,24 @@ class PipelineJobPersistence:
                 if url:
                     normalized_entry["url"] = url
                 chunk_entry.setdefault("files", []).append(normalized_entry)
+            audio_tracks_raw = chunk.get("audio_tracks") or chunk.get("audioTracks")
+            if isinstance(audio_tracks_raw, Mapping) and not has_metadata_file:
+                normalized_tracks: Dict[str, Dict[str, Any]] = {}
+                for track_key, track_value in audio_tracks_raw.items():
+                    if not isinstance(track_key, str):
+                        continue
+                    normalized_entry = _normalize_audio_track_entry(track_value)
+                    if normalized_entry:
+                        normalized_tracks[track_key] = normalized_entry
+                if normalized_tracks:
+                    chunk_entry["audio_tracks"] = normalized_tracks
+                    chunk_entry["audioTracks"] = normalized_tracks
+
+            timing_tracks_raw = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            if isinstance(timing_tracks_raw, Mapping) and not has_metadata_file:
+                normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
+                chunk_entry["timing_tracks"] = normalized_timing
+                chunk_entry["timingTracks"] = normalized_timing
             normalized_chunks.append(chunk_entry)
 
         files_index: list[Dict[str, Any]] = []

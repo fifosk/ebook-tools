@@ -2,17 +2,26 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import threading
 import time
 from dataclasses import dataclass
 from queue import Empty, Full, Queue
-from typing import Callable, Mapping, Optional, Protocol, TYPE_CHECKING
+from contextlib import suppress
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Mapping, Optional, Protocol, Sequence, TYPE_CHECKING
 
 from pydub import AudioSegment
+from pydub.silence import detect_silence
 
 from modules import logging_manager as log_mgr
+from modules import config_manager as cfg
 from modules.audio.backends import get_default_backend_name
 from modules.render.backends.base import SynthesisResult
+from modules.audio.highlight import _get_audio_metadata
+from modules.core.rendering.timeline import smooth_token_boundaries, compute_char_weighted_timings
+from modules.core.rendering.constants import LANGUAGE_CODES as GLOBAL_LANGUAGE_CODES
 from .context import RenderBatchContext
 
 if TYPE_CHECKING:  # pragma: no cover - imports for static analysis only
@@ -21,6 +30,8 @@ if TYPE_CHECKING:  # pragma: no cover - imports for static analysis only
     from modules.audio_video_generator import MediaPipelineResult
 
 logger = log_mgr.logger
+_REQUIRED_HIGHLIGHT_POLICY = (os.environ.get("EBOOK_HIGHLIGHT_POLICY") or "").strip().lower() or None
+_MULTILINGUAL_ALIGNMENT_MODEL = "large-v2"
 
 
 class AudioGenerator(Protocol):
@@ -57,6 +68,8 @@ class MediaResultFactory(Protocol):
         translation: str,
         transliteration: str,
         audio_segment: Optional[AudioSegment],
+        voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
+        metadata: Optional[Mapping[str, Any]] = None,
     ) -> "MediaPipelineResult":
         """Return a media result instance."""
 
@@ -106,6 +119,450 @@ class VideoWorker(_SimpleWorker):
 
 class TextWorker(_SimpleWorker):
     """Wrapper for text worker coroutines."""
+
+
+def _coerce_float(value: object) -> Optional[float]:
+    """Best-effort conversion of arbitrary values to floats."""
+
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _time_from_entry(entry: Mapping[str, object], keys: Sequence[str]) -> Optional[float]:
+    """Extract a timing value in seconds from a metadata entry."""
+
+    for raw_key in keys:
+        key = str(raw_key)
+        if key not in entry:
+            continue
+        value = _coerce_float(entry.get(key))
+        if value is None:
+            continue
+        if key.lower().endswith("_ms"):
+            return value / 1000.0
+        return value
+    return None
+
+
+def _normalize_char_timing(entry: Mapping[str, object]) -> tuple[Optional[float], Optional[float]]:
+    """Return normalized (start, end) timings in seconds for a single character."""
+
+    start = _time_from_entry(
+        entry,
+        (
+            "start_ms",
+            "offset_ms",
+            "begin_ms",
+            "start",
+            "offset",
+            "begin",
+            "time",
+        ),
+    )
+    end = _time_from_entry(
+        entry,
+        ("end_ms", "stop_ms", "finish_ms", "end", "stop", "finish"),
+    )
+    duration = _time_from_entry(
+        entry,
+        (
+            "duration_ms",
+            "length_ms",
+            "time_span_ms",
+            "duration",
+            "length",
+            "time_span",
+        ),
+    )
+
+    if start is None and end is not None and duration is not None:
+        start = end - duration
+    if start is not None and duration is not None and end is None:
+        end = start + duration
+    if start is not None:
+        start = max(start, 0.0)
+    if end is not None:
+        end = max(end, 0.0)
+    if start is not None and end is not None and end < start:
+        end = start
+    return start, end
+
+
+def _measure_pause_edges(
+    segment: Optional[AudioSegment],
+    *,
+    threshold_db: float = -40.0,
+    min_len_ms: int = 80,
+) -> tuple[int, int]:
+    """Estimate leading/trailing silence durations (ms) for ``segment``."""
+
+    if segment is None:
+        return 0, 0
+    duration_ms = len(segment)
+    if duration_ms <= 0:
+        return 0, 0
+    min_len = max(int(min_len_ms), 1)
+    tolerance = 4  # ms tolerance for boundary rounding
+    try:
+        silences = detect_silence(
+            segment,
+            min_silence_len=min_len,
+            silence_thresh=threshold_db,
+        )
+    except Exception:
+        return 0, 0
+    if not silences:
+        return 0, 0
+    pause_before = 0
+    pause_after = 0
+    first_start, first_end = silences[0]
+    if first_start <= tolerance:
+        pause_before = max(first_end - first_start, 0)
+    last_start, last_end = silences[-1]
+    if abs(last_end - duration_ms) <= tolerance:
+        pause_after = max(last_end - last_start, 0)
+    return int(pause_before), int(pause_after)
+
+
+def _segment_char_timings(audio_segment: Optional[AudioSegment]) -> Optional[Sequence[Mapping[str, object]]]:
+    """Retrieve per-character timing metadata from an audio segment if available."""
+
+    if audio_segment is None:
+        return None
+    for attr in ("char_timings", "character_timing", "highlight_character_timing", "alignment"):
+        candidate = getattr(audio_segment, attr, None)
+        if isinstance(candidate, Sequence):
+            return candidate  # type: ignore[return-value]
+    provider = getattr(audio_segment, "get_alignment_metadata", None)
+    if callable(provider):
+        try:
+            result = provider()
+        except TypeError:
+            result = provider(audio_segment)  # type: ignore[misc]
+        if isinstance(result, Sequence):
+            return result  # type: ignore[return-value]
+    return None
+
+
+def _tokens_from_char_timings(
+    text: str,
+    char_timings: Sequence[Mapping[str, object]],
+) -> List[Dict[str, float | str]]:
+    """Collapse character-level timings into whitespace-delimited tokens."""
+
+    if not text or not char_timings:
+        return []
+
+    normalized: List[tuple[Optional[float], Optional[float]]] = []
+    for entry in char_timings:
+        if isinstance(entry, Mapping):
+            normalized.append(_normalize_char_timing(entry))
+        else:
+            normalized.append((None, None))
+
+    tokens: List[Dict[str, float | str]] = []
+    index = 0
+    length = len(text)
+    while index < length:
+        while index < length and text[index].isspace():
+            index += 1
+        if index >= length:
+            break
+        token_chars: List[str] = []
+        token_start: Optional[float] = None
+        token_end: Optional[float] = None
+        while index < length and not text[index].isspace():
+            token_chars.append(text[index])
+            if index < len(normalized):
+                start, end = normalized[index]
+                if start is not None:
+                    token_start = start if token_start is None else min(token_start, start)
+                if end is not None:
+                    token_end = end if token_end is None else max(token_end, end)
+            index += 1
+        token_text = "".join(token_chars)
+        if token_text:
+            if token_start is not None:
+                token_start = round(max(token_start, 0.0), 6)
+            if token_end is not None:
+                token_end = round(max(token_end, 0.0), 6)
+            tokens.append({"text": token_text, "start": token_start, "end": token_end})
+        while index < length and text[index].isspace():
+            index += 1
+
+    if not tokens or any(token["start"] is None or token["end"] is None for token in tokens):
+        return []
+
+    previous_end = 0.0
+    for token in tokens:
+        start = float(token["start"])  # type: ignore[arg-type]
+        end = float(token["end"])  # type: ignore[arg-type]
+        if start < previous_end:
+            start = previous_end
+            token["start"] = round(start, 6)
+        if end < start:
+            end = start
+            token["end"] = round(end, 6)
+        previous_end = end
+
+    return tokens
+
+
+def _evenly_distributed_tokens(text: str, duration: float) -> List[Dict[str, float | str]]:
+    """Distribute total duration evenly across whitespace-delimited words."""
+
+    words = [word for word in text.split() if word]
+    if not words:
+        return []
+    total_duration = max(duration, 0.0)
+    count = len(words)
+    slice_duration = total_duration / count if count else 0.0
+    tokens: List[Dict[str, float | str]] = []
+    cursor = 0.0
+    for idx, word in enumerate(words):
+        start = cursor
+        if idx == count - 1:
+            end = total_duration
+        else:
+            end = cursor + slice_duration
+        start = round(max(start, 0.0), 6)
+        end = round(max(end, 0.0), 6)
+        tokens.append({"text": word, "start": start, "end": end})
+        cursor = end
+    return tokens
+
+
+def _resolve_sentence_duration_hint(
+    audio_segment: Optional[AudioSegment],
+    metadata: Mapping[str, object],
+) -> Optional[float]:
+    """Best-effort duration estimate for a sentence."""
+
+    if audio_segment is not None:
+        try:
+            duration = float(audio_segment.duration_seconds)
+        except Exception:
+            duration = None
+        if duration is not None and duration > 0:
+            return duration
+        try:
+            length_ms = len(audio_segment)
+        except Exception:
+            length_ms = None
+        if length_ms and length_ms > 0:
+            return length_ms / 1000.0
+
+    tokens = metadata.get("word_tokens")
+    if isinstance(tokens, Sequence) and tokens:
+        last_token = tokens[-1]
+        if isinstance(last_token, Mapping):
+            maybe_end = _coerce_float(last_token.get("end"))
+            if maybe_end and maybe_end > 0:
+                return maybe_end
+
+    for key in ("t1", "duration", "time_span"):
+        value = metadata.get(key)
+        duration_candidate = _coerce_float(value)
+        if duration_candidate and duration_candidate > 0:
+            return duration_candidate
+    return None
+
+
+def _export_audio_for_alignment(audio_segment: AudioSegment) -> Optional[Path]:
+    """Write ``audio_segment`` to a temporary WAV file for alignment backends."""
+
+    try:
+        handle = tempfile.NamedTemporaryFile(prefix="alignment_", suffix=".wav", delete=False)
+    except OSError:
+        return None
+    temp_path = Path(handle.name)
+    handle.close()
+    try:
+        audio_segment.export(temp_path, format="wav")
+    except Exception as exc:  # pragma: no cover - export failures are rare
+        logger.warning("Failed to export audio for alignment: %s", exc, exc_info=True)
+        with suppress(OSError):
+            temp_path.unlink()
+        return None
+    return temp_path
+
+
+def _align_with_whisperx(
+    audio_segment: AudioSegment,
+    text: str,
+    *,
+    model: Optional[str] = None,
+) -> tuple[List[Dict[str, float | str]], bool]:
+    """Invoke the WhisperX CLI to align ``text`` against ``audio_segment``."""
+
+    audio_path = _export_audio_for_alignment(audio_segment)
+    if audio_path is None:
+        return [], False
+    try:
+        try:
+            from modules.align.backends import whisperx_adapter
+        except Exception as exc:  # pragma: no cover - optional dependency
+            logger.warning("WhisperX adapter unavailable: %s", exc)
+            return [], False
+        try:
+            tokens, exhausted = whisperx_adapter.retry_alignment(
+                audio_path, text, model=model
+            )
+            return tokens, exhausted
+        except Exception as exc:  # pragma: no cover - adapter best effort
+            logger.warning("WhisperX alignment failed: %s", exc, exc_info=True)
+            return [], False
+    finally:
+        with suppress(OSError):
+            audio_path.unlink()
+
+
+def _align_with_backend(
+    *,
+    audio_segment: AudioSegment,
+    text: str,
+    backend: str,
+    model: Optional[str],
+) -> tuple[List[Dict[str, float | str]], bool]:
+    """Dispatch to the requested alignment backend.
+
+    Returns a tuple of (tokens, exhausted_retry_flag).
+    """
+
+    backend_key = backend.strip().lower()
+    if not backend_key:
+        return [], False
+    if backend_key == "whisperx":
+        return _align_with_whisperx(audio_segment, text, model=model)
+    logger.warning("Unsupported alignment backend '%s'", backend)
+    return [], False
+
+
+def _lookup_language_code(
+    language_label: Optional[str],
+    language_codes: Mapping[str, str],
+) -> Optional[str]:
+    """Return the ISO-like code for ``language_label`` when available."""
+
+    if not language_label or not isinstance(language_label, str):
+        return None
+    normalized_label = language_label.strip()
+    if not normalized_label:
+        return None
+
+    for mapping in (language_codes, GLOBAL_LANGUAGE_CODES):
+        if not isinstance(mapping, Mapping):
+            continue
+        direct = mapping.get(normalized_label)
+        if isinstance(direct, str) and direct.strip():
+            return direct.strip()
+        lower_label = normalized_label.lower()
+        for key, value in mapping.items():
+            if isinstance(key, str) and key.lower() == lower_label and isinstance(value, str):
+                return value.strip()
+
+    # If the language label already looks like a code (e.g. "en" or "en-US"), trust it.
+    stripped = normalized_label.replace("-", "")
+    if stripped.isalpha() and len(stripped) <= 8:
+        return normalized_label
+    return None
+
+
+def _resolve_alignment_model_choice(
+    settings: Optional[Any],
+    *,
+    language_label: str,
+    iso_code: Optional[str],
+) -> tuple[Optional[str], str]:
+    """Return the alignment model to use plus the selection source label."""
+
+    default_model: Optional[str] = None
+    overrides: Optional[Mapping[str, str]] = None
+    if settings is not None:
+        overrides_candidate = getattr(settings, "alignment_model_overrides", None)
+        if isinstance(overrides_candidate, Mapping):
+            overrides = overrides_candidate
+        default_model = (
+            getattr(settings, "alignment_model", None)
+            or getattr(settings, "forced_alignment_model", None)
+        )
+
+    keys_to_try = []
+    if isinstance(iso_code, str):
+        keys_to_try.extend([iso_code, iso_code.lower()])
+    if language_label:
+        keys_to_try.extend([language_label, language_label.lower()])
+
+    if overrides:
+        for key in keys_to_try:
+            if not isinstance(key, str):
+                continue
+            value = overrides.get(key) or overrides.get(key.lower())
+            if isinstance(value, str) and value.strip():
+                return value.strip(), f"override:{key}"
+
+    if isinstance(default_model, str) and default_model.strip():
+        return default_model.strip(), "default"
+
+    normalized_iso = iso_code.lower() if isinstance(iso_code, str) else ""
+    if normalized_iso.startswith("en"):
+        return "medium.en", "heuristic:en"
+    if normalized_iso:
+        return _MULTILINGUAL_ALIGNMENT_MODEL, "heuristic:multilingual"
+    return None, "unspecified"
+
+
+def _extract_word_tokens(
+    *,
+    text: str,
+    audio_segment: Optional[AudioSegment],
+    metadata: Mapping[str, object],
+) -> tuple[List[Dict[str, float | str]], str, str]:
+    """
+    Return per-word timing tokens plus the alignment policy and source.
+
+    Policy is ``forced`` when explicit character timings are provided,
+    ``inferred`` when timings are derived from audio duration, and ``uniform``
+    when the engine falls back to evenly-spaced tokens because no audio data
+    exists for the sentence.
+    """
+
+    if not text:
+        return [], "uniform", "missing-text"
+
+    char_timings: Optional[Sequence[Mapping[str, object]]] = None
+    char_timing_source = "metadata"
+    candidate = metadata.get("char_timings") if isinstance(metadata, Mapping) else None
+    if isinstance(candidate, Sequence):
+        char_timings = candidate  # type: ignore[assignment]
+    if char_timings is None:
+        char_timings = _segment_char_timings(audio_segment)
+        if char_timings:
+            char_timing_source = "backend"
+
+    tokens: List[Dict[str, float | str]] = []
+    policy = "uniform"
+    source = "unknown"
+    if char_timings:
+        tokens = _tokens_from_char_timings(text, char_timings)
+        policy = "forced"
+        source = char_timing_source or "char_timings"
+
+    if not tokens:
+        duration = float(audio_segment.duration_seconds) if audio_segment is not None else 0.0
+        if duration > 0:
+            policy = "inferred"
+            source = "audio_duration"
+        else:
+            policy = "uniform"
+            source = "fallback"
+        tokens = _evenly_distributed_tokens(text, duration)
+
+    return tokens, policy, source
 
 
 def audio_worker_body(
@@ -204,6 +661,8 @@ def audio_worker_body(
         start_time = time.perf_counter()
         audio_segment: Optional[AudioSegment] = None
         voice_metadata: Mapping[str, Mapping[str, str]] = {}
+        metadata: Dict[str, Any] = {}
+        backend_word_tokens: Optional[List[Mapping[str, object]]] = None
         try:
             if generate_audio and audio_generator is not None:
                 audio_output = audio_generator(
@@ -225,6 +684,14 @@ def audio_worker_body(
                 if isinstance(audio_output, SynthesisResult):
                     audio_segment = audio_output.audio
                     voice_metadata = audio_output.voice_metadata
+                    raw_metadata = getattr(audio_output, "metadata", None)
+                    if isinstance(raw_metadata, Mapping):
+                        metadata = dict(raw_metadata)
+                    tokens_attr = getattr(audio_output, "word_tokens", None)
+                    if isinstance(tokens_attr, Sequence) and not isinstance(tokens_attr, (str, bytes)):
+                        backend_word_tokens = [
+                            token for token in tokens_attr if isinstance(token, Mapping)
+                        ]
                 else:
                     audio_segment = audio_output
         except Exception as exc:  # pragma: no cover - defensive logging
@@ -247,6 +714,297 @@ def audio_worker_body(
             elapsed,
         )
 
+        if not isinstance(metadata, dict):
+            try:
+                metadata = dict(metadata)  # type: ignore[arg-type]
+            except Exception:
+                metadata = {}
+
+        pause_before_ms = 0
+        pause_after_ms = 0
+        if audio_segment is not None and len(audio_segment) > 0:
+            pause_before_ms, pause_after_ms = _measure_pause_edges(audio_segment)
+            sentence_audio_meta = _get_audio_metadata(audio_segment)
+            if sentence_audio_meta is not None:
+                sentence_audio_meta.pause_before_ms = pause_before_ms
+                sentence_audio_meta.pause_after_ms = pause_after_ms
+        metadata["pause_before_ms"] = pause_before_ms
+        metadata["pause_after_ms"] = pause_after_ms
+        metadata["pauseBeforeMs"] = pause_before_ms
+        metadata["pauseAfterMs"] = pause_after_ms
+
+        translation_text = translation_task.translation or ""
+        try:
+            settings_obj = cfg.get_settings()
+        except Exception:
+            settings_obj = None
+        target_language_label = translation_task.target_language or ""
+        target_language_code = _lookup_language_code(target_language_label, language_codes)
+        char_timings_candidate = metadata.get("char_timings")
+        has_char_timings = isinstance(char_timings_candidate, Sequence) and not isinstance(
+            char_timings_candidate, (str, bytes)
+        )
+        if not backend_word_tokens:
+            meta_tokens_candidate = metadata.get("word_tokens")
+            if isinstance(meta_tokens_candidate, Sequence) and not isinstance(
+                meta_tokens_candidate, (str, bytes)
+            ):
+                backend_word_tokens = [
+                    token for token in meta_tokens_candidate if isinstance(token, Mapping)
+                ]
+        alignment_policy = "uniform"
+        alignment_source = "unavailable"
+        alignment_model_used: Optional[str] = None
+        word_tokens: List[Dict[str, float | str]] = []
+        translation_words = [token for token in translation_text.split() if token]
+        char_weighted_used = False
+        char_weighted_punctuation = False
+        duration_hint_cache: Optional[float] = None
+        char_weighted_failure_policy: Optional[str] = None
+        char_weighted_requested = bool(
+            settings_obj
+            and getattr(settings_obj, "char_weighted_highlighting_default", False)
+        )
+        punctuation_boost_enabled = bool(
+            settings_obj
+            and getattr(settings_obj, "char_weighted_punctuation_boost", False)
+        )
+
+        def _apply_char_weighted_timings(
+            *,
+            policy_override: Optional[str] = None,
+            use_punctuation: bool = False,
+        ) -> bool:
+            nonlocal word_tokens, alignment_policy, alignment_source, char_weighted_used
+            nonlocal duration_hint_cache, char_weighted_punctuation
+            if not translation_text:
+                return False
+            if duration_hint_cache is None:
+                duration_hint_cache = _resolve_sentence_duration_hint(audio_segment, metadata)
+            duration_hint = duration_hint_cache
+            if duration_hint is None or duration_hint <= 0:
+                return False
+            fallback_words = translation_words or [translation_text] if translation_text else []
+            estimated_tokens = compute_char_weighted_timings(
+                fallback_words,
+                duration_hint,
+                pause_before_ms=pause_before_ms,
+                pause_after_ms=pause_after_ms,
+            )
+            if not estimated_tokens:
+                return False
+            word_tokens = estimated_tokens
+            metadata["word_tokens"] = word_tokens
+            char_weighted_used = True
+            if use_punctuation:
+                char_weighted_punctuation = True
+            alignment_policy = policy_override or ("estimated_punct" if use_punctuation else "estimated")
+            alignment_source = "char_weighted_duration"
+            return True
+
+        if char_weighted_requested:
+            _apply_char_weighted_timings(use_punctuation=punctuation_boost_enabled)
+
+        if translation_text and backend_word_tokens and not word_tokens:
+            normalized_backend_tokens: List[Dict[str, float | str]] = []
+            for entry in backend_word_tokens:
+                if not isinstance(entry, Mapping):
+                    continue
+                start_val = _coerce_float(entry.get("start"))
+                end_val = _coerce_float(entry.get("end"))
+                if start_val is None or end_val is None:
+                    continue
+                start_rounded = round(max(start_val, 0.0), 6)
+                end_rounded = round(max(end_val, 0.0), 6)
+                if end_rounded < start_rounded:
+                    end_rounded = start_rounded
+                token_text = entry.get("text")
+                if not isinstance(token_text, str):
+                    token_text = entry.get("word", "")
+                    if not isinstance(token_text, str):
+                        token_text = ""
+                normalized_backend_tokens.append(
+                    {
+                        "text": token_text,
+                        "start": start_rounded,
+                        "end": end_rounded,
+                    }
+                )
+            if translation_words and len(normalized_backend_tokens) == len(translation_words):
+                for idx, word_text in enumerate(translation_words):
+                    normalized_backend_tokens[idx]["text"] = (
+                        normalized_backend_tokens[idx].get("text") or word_text
+                    )
+                word_tokens = normalized_backend_tokens
+                alignment_policy = "forced"
+                alignment_source = "word_tokens"
+                metadata["word_tokens"] = word_tokens
+            elif backend_word_tokens and translation_words:
+                logger.warning(
+                    "Sentence %s backend supplied word token count mismatch "
+                    "(tokens=%d words=%d); falling back to inference.",
+                    translation_task.sentence_number,
+                    len(backend_word_tokens),
+                    len(translation_words),
+                )
+        if word_tokens:
+            char_weighted_failure_policy = None
+        if (
+            not word_tokens
+            and translation_text
+            and audio_segment is not None
+            and len(audio_segment) > 0
+            and settings_obj
+            and getattr(settings_obj, "forced_alignment_enabled", False)
+        ):
+            backend_candidate = getattr(settings_obj, "alignment_backend", None) or getattr(
+                settings_obj, "forced_alignment_backend", None
+            )
+            backend_name = backend_candidate.strip() if isinstance(backend_candidate, str) else ""
+            if backend_name:
+                alignment_model, model_source = _resolve_alignment_model_choice(
+                    settings_obj,
+                    language_label=target_language_label,
+                    iso_code=target_language_code,
+                )
+                logger.info(
+                    "Sentence %s alignment backend=%s model=%s source=%s language=%s (%s)",
+                    translation_task.sentence_number,
+                    backend_name,
+                    alignment_model or "<default>",
+                    model_source,
+                    target_language_label or "?",
+                    target_language_code or "unknown",
+                )
+                aligned_tokens, retry_exhausted = _align_with_backend(
+                    audio_segment=audio_segment,
+                    text=translation_text,
+                    backend=backend_name,
+                    model=alignment_model,
+                )
+                if aligned_tokens:
+                    word_tokens = aligned_tokens
+                    alignment_policy = "forced"
+                    alignment_source = "aligner"
+                    metadata["word_tokens"] = word_tokens
+                    alignment_model_used = alignment_model
+                    char_weighted_failure_policy = None
+                else:
+                    if retry_exhausted:
+                        char_weighted_failure_policy = "retry_failed_align"
+                        logger.warning(
+                            "Sentence %s alignment backend '%s' produced no tokens after retries.",
+                            translation_task.sentence_number,
+                            backend_name,
+                        )
+                    else:
+                        logger.warning(
+                            "Sentence %s alignment backend '%s' returned no tokens.",
+                            translation_task.sentence_number,
+                            backend_name,
+                        )
+        if not word_tokens and translation_text and (audio_segment is not None or has_char_timings):
+            extracted_tokens, policy, source = _extract_word_tokens(
+                text=translation_text,
+                audio_segment=audio_segment,
+                metadata=metadata,
+            )
+            word_tokens = extracted_tokens
+            alignment_policy = policy or "uniform"
+            alignment_source = source or "unavailable"
+            if word_tokens:
+                char_weighted_failure_policy = None
+        if translation_text and (char_weighted_requested or not word_tokens):
+            if not char_weighted_used:
+                policy_override = char_weighted_failure_policy
+                use_punct = punctuation_boost_enabled
+                applied = _apply_char_weighted_timings(
+                    policy_override=policy_override,
+                    use_punctuation=use_punct,
+                )
+                if not applied and policy_override:
+                    alignment_policy = policy_override
+        if word_tokens:
+            smoothed_tokens = word_tokens
+            if settings_obj and getattr(settings_obj, "forced_alignment_enabled", False):
+                smoothing_value = getattr(settings_obj, "forced_alignment_smoothing", 0.35)
+                try:
+                    smoothing_factor = float(smoothing_value)
+                except (TypeError, ValueError):
+                    smoothing_factor = 0.35
+                smoothed_tokens = smooth_token_boundaries(word_tokens, smoothing=smoothing_factor)
+                metadata["word_tokens"] = smoothed_tokens
+                word_tokens = smoothed_tokens
+
+        if translation_text:
+            metadata.setdefault("text", translation_text)
+        metadata.setdefault("sentence_number", translation_task.sentence_number)
+        metadata.setdefault("id", str(translation_task.sentence_number))
+        metadata.setdefault("t0", 0.0)
+
+        total_duration: Optional[float] = None
+        if audio_segment is not None:
+            try:
+                total_duration = float(audio_segment.duration_seconds)
+            except Exception:
+                total_duration = None
+        if total_duration is None:
+            tokens = metadata.get("word_tokens")
+            if isinstance(tokens, Sequence) and tokens:
+                last_token = tokens[-1]
+                try:
+                    total_duration = float(last_token.get("end", 0.0))
+                except (TypeError, ValueError, AttributeError):
+                    total_duration = None
+        if total_duration is not None:
+            metadata.setdefault("t1", round(max(total_duration, 0.0), 6))
+
+        highlight_duration = total_duration if isinstance(total_duration, float) else 0.0
+        highlighting_summary = {
+            "policy": alignment_policy,
+            "tempo": tempo,
+            "tokens": len(word_tokens),
+            "token_count": len(word_tokens),
+            "duration": round(highlight_duration, 6) if highlight_duration else highlight_duration,
+            "source": alignment_source,
+            "punctuation_weighting": bool(char_weighted_punctuation),
+            "pause_before_ms": pause_before_ms,
+            "pause_after_ms": pause_after_ms,
+        }
+        if char_weighted_used:
+            highlighting_summary["method"] = "char_weighted"
+            highlighting_summary["char_weighted"] = True
+            highlighting_summary["char_weighted_refined"] = True
+        if alignment_model_used:
+            highlighting_summary["alignment_model"] = alignment_model_used
+        metadata["highlighting_summary"] = highlighting_summary
+        metadata["highlighting_policy"] = alignment_policy
+        if (
+            _REQUIRED_HIGHLIGHT_POLICY
+            and (alignment_policy or "").lower() != _REQUIRED_HIGHLIGHT_POLICY
+        ):
+            raise RuntimeError(
+                f"Highlighting policy '{alignment_policy}' does not satisfy "
+                f"EBOOK_HIGHLIGHT_POLICY={_REQUIRED_HIGHLIGHT_POLICY} "
+                f"(sentence {translation_task.sentence_number})."
+            )
+
+        if audio_segment is not None and metadata.get("word_tokens"):
+            try:
+                setattr(audio_segment, "word_tokens", metadata["word_tokens"])
+            except Exception:
+                pass
+
+        logger.info(
+            "Sentence %s highlighting policy=%s tokens=%d duration=%.3fs tempo=%.2f (source=%s)",
+            translation_task.sentence_number,
+            alignment_policy,
+            len(word_tokens),
+            highlight_duration or 0.0,
+            tempo,
+            alignment_source,
+        )
+
         payload = media_result_factory(
             index=translation_task.index,
             sentence_number=translation_task.sentence_number,
@@ -256,6 +1014,7 @@ def audio_worker_body(
             transliteration=translation_task.transliteration,
             audio_segment=audio_segment,
             voice_metadata=voice_metadata,
+            metadata=metadata,
         )
 
         while True:

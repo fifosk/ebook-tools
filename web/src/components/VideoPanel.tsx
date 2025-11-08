@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaChunk } from '../hooks/useLiveMedia';
 import { appendAccessToken, buildStorageUrl, fetchVideoStatus, generateVideo } from '../api/client';
+import { isAudioFileType } from './player-panel/utils';
 import type { VideoGenerationResponse } from '../api/dtos';
 
 interface VideoPanelProps {
@@ -35,7 +36,7 @@ function buildVideoRequest(jobId: string, chunks: LiveMediaChunk[]): Record<stri
   let lastEnd: number | null = null;
 
   chunks.forEach((chunk, index) => {
-    const audioFile = chunk.files.find((file) => file.type === 'audio' && file.relative_path);
+    const audioFile = chunk.files.find((file) => isAudioFileType(file.type) && file.relative_path);
     if (!audioFile || !audioFile.relative_path) {
       return;
     }

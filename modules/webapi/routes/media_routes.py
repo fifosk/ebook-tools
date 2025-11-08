@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import copy
+import json
 import mimetypes
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from ... import config_manager as cfg
 from ...metadata_manager import MetadataLoader
@@ -18,13 +19,299 @@ from ...services.pipeline_service import PipelineService
 from ..dependencies import (
     RequestUserContext,
     get_file_locator,
+    get_pipeline_job_manager,
     get_pipeline_service,
     get_request_user,
 )
+
+from ..jobs import PipelineJob
 from ..schemas import PipelineMediaChunk, PipelineMediaFile, PipelineMediaResponse
 
 router = APIRouter()
 storage_router = APIRouter()
+jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+def normalize_timings(
+    tokens: Sequence[Mapping[str, Any]],
+    start_offset: float = 0.0,
+    *,
+    lane: str = "tran",
+    seg_prefix: str = "seg",
+) -> list[dict[str, Any]]:
+    """Normalise timing tokens into the frontend payload format."""
+
+    norm: list[dict[str, Any]] = []
+    for index, token in enumerate(tokens):
+        raw_start = float(token.get("start", 0.0))
+        raw_end = float(token.get("end", raw_start))
+        t0 = round(raw_start - start_offset, 3)
+        t1 = round(raw_end - start_offset, 3)
+        norm.append(
+            {
+                "id": f"{seg_prefix}_{index}",
+                "text": token.get("text", ""),
+                "t0": max(t0, 0.0),
+                "t1": max(t1, 0.0),
+                "lane": lane,
+                "segId": seg_prefix,
+            }
+        )
+    return norm
+
+
+def smooth_token_edges(
+    tokens: Sequence[Mapping[str, Any]], min_len: float = 0.04
+) -> list[dict[str, Any]]:
+    """Ensure every token spans at least ``min_len`` seconds and clamps overlaps."""
+
+    smoothed: list[dict[str, Any]] = []
+    total = len(tokens)
+    for index, token in enumerate(tokens):
+        mutable = dict(token)
+        start_val = float(mutable.get("start", 0.0))
+        end_val = float(mutable.get("end", start_val))
+        duration = end_val - start_val
+        if duration < min_len:
+            if index + 1 < total:
+                next_start = float(tokens[index + 1].get("start", end_val))
+            else:
+                next_start = end_val + min_len
+            end_val = min(next_start, start_val + min_len)
+            mutable["end"] = end_val
+        smoothed.append(mutable)
+    return smoothed
+
+
+def _iter_sentence_payloads(payload: Any) -> Iterator[Mapping[str, Any]]:
+    """Yield flattened sentence entries from chunk payloads."""
+
+    if isinstance(payload, Mapping):
+        sentences = payload.get("sentences")
+        if isinstance(sentences, Sequence) and not isinstance(sentences, (str, bytes)):
+            for entry in sentences:
+                yield from _iter_sentence_payloads(entry)
+            return
+        yield payload
+        return
+    if isinstance(payload, Sequence) and not isinstance(payload, (str, bytes)):
+        for entry in payload:
+            yield from _iter_sentence_payloads(entry)
+
+
+def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
+    """Return the highlighting policy encoded on a sentence entry."""
+
+    summary = entry.get("highlighting_summary")
+    if isinstance(summary, Mapping):
+        policy = summary.get("policy")
+        if isinstance(policy, str) and policy.strip():
+            return policy.strip()
+    candidate = entry.get("highlighting_policy") or entry.get("alignment_policy")
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return None
+
+
+def _is_estimated_policy(policy: Optional[str]) -> bool:
+    if not isinstance(policy, str):
+        return False
+    normalized = policy.strip().lower()
+    return normalized.startswith("estimated")
+
+
+def _probe_highlighting_policy(
+    job_id: str,
+    locator: FileLocator,
+    default_policy: Optional[str],
+) -> tuple[Optional[str], bool]:
+    """Resolve the highlighting policy and whether estimated timings exist."""
+
+    metadata_root = locator.metadata_root(job_id)
+    normalized_default = None
+    if isinstance(default_policy, str) and default_policy.strip():
+        normalized_default = default_policy.strip()
+    estimated_detected = _is_estimated_policy(normalized_default)
+    fallback_policy: Optional[str] = normalized_default
+
+    if metadata_root.exists():
+        for chunk_path in sorted(metadata_root.glob("chunk_*.json")):
+            try:
+                with chunk_path.open("r", encoding="utf-8") as handle:
+                    chunk_payload = json.load(handle)
+            except (OSError, json.JSONDecodeError):
+                continue
+            for entry in _iter_sentence_payloads(chunk_payload):
+                if isinstance(entry, Mapping):
+                    policy = _extract_highlighting_policy(entry)
+                    if policy:
+                        normalized = policy.strip()
+                        if _is_estimated_policy(normalized):
+                            return normalized, True
+                        if fallback_policy is None:
+                            fallback_policy = normalized
+    if fallback_policy is not None:
+        estimated_detected = estimated_detected or _is_estimated_policy(fallback_policy)
+    return fallback_policy, estimated_detected
+
+
+@jobs_timing_router.get("/{job_id}/timing", response_class=JSONResponse)
+async def get_job_timing(
+    job_id: str,
+    *,
+    job_manager = Depends(get_pipeline_job_manager),
+    locator: FileLocator = Depends(get_file_locator),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> JSONResponse:
+    """Return flattened per-word timing data for ``job_id``."""
+
+    try:
+        job: PipelineJob = job_manager.get(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    result_payload = job.result_payload if isinstance(job.result_payload, Mapping) else {}
+    timing_tracks = result_payload.get("timing_tracks") if isinstance(result_payload, Mapping) else None
+    if not isinstance(timing_tracks, Mapping):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
+
+    requested_tracks = {
+        key: path
+        for key, path in timing_tracks.items()
+        if key in {"mix", "translation"} and isinstance(path, str) and path.strip()
+    }
+    if not requested_tracks:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
+
+    resolved_paths: Dict[str, Path] = {}
+    for track_name, rel_path in requested_tracks.items():
+        try:
+            abs_path = locator.resolve_path(job_id, rel_path)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Timing index missing",
+            ) from exc
+        if not abs_path.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Timing index missing")
+        resolved_paths[track_name] = abs_path
+
+    data_cache: Dict[Path, Any] = {}
+    resolved_segments: Dict[str, List[Any]] = {"mix": [], "translation": []}
+    for track_name, abs_path in resolved_paths.items():
+        if abs_path not in data_cache:
+            try:
+                with abs_path.open("r", encoding="utf-8") as handle:
+                    data_cache[abs_path] = json.load(handle)
+            except (OSError, json.JSONDecodeError) as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Timing index missing",
+                ) from exc
+        payload = data_cache[abs_path]
+        segments: list[Any]
+        if isinstance(payload, Mapping):
+            track_entries = payload.get(track_name)
+            if isinstance(track_entries, list):
+                segments = track_entries
+            elif track_name == "translation" and isinstance(payload.get("segments"), list):
+                segments = payload["segments"]  # legacy
+            elif track_name == "translation" and isinstance(payload.get("translation"), list):
+                segments = payload["translation"]
+            else:
+                segments = []
+        elif isinstance(payload, list):
+            segments = payload
+        else:
+            segments = []
+        resolved_segments[track_name] = segments
+
+    unique_paths = sorted({path for path in resolved_paths.values()})
+    try:
+        stats = [path.stat() for path in unique_paths]
+        digest = "-".join(f"{st.st_mtime_ns:x}-{st.st_size:x}" for st in stats)
+        etag = f'W/"{digest}"'
+    except OSError:
+        fallback_count = sum(len(resolved_segments.get(name, [])) for name in resolved_segments)
+        etag = f'W/"{job_id}-{fallback_count}"'
+
+    playback_meta = result_payload.get("timing_meta") if isinstance(result_payload, Mapping) else None
+    playback_rate = 1.0
+    if isinstance(playback_meta, Mapping):
+        try:
+            playback_rate = float(playback_meta.get("playbackRate", 1.0))
+        except (TypeError, ValueError):
+            playback_rate = 1.0
+
+    highlighting_policy, has_estimated_segments = _probe_highlighting_policy(
+        job_id,
+        locator,
+        result_payload.get("highlighting_policy") if isinstance(result_payload, Mapping) else None,
+    )
+
+    def _collect_audio_availability() -> Dict[str, Dict[str, Any]]:
+        audio_summary: Dict[str, Dict[str, Any]] = {}
+        generated_payload = result_payload.get("generated_files") if isinstance(result_payload, Mapping) else None
+        chunk_audio_keys: set[str] = set()
+        if isinstance(generated_payload, Mapping):
+            chunks = generated_payload.get("chunks")
+            if isinstance(chunks, list):
+                for chunk in chunks:
+                    if not isinstance(chunk, Mapping):
+                        continue
+                    tracks = chunk.get("audio_tracks") or chunk.get("audioTracks")
+                    if not isinstance(tracks, Mapping):
+                        continue
+                    for raw_key, raw_value in tracks.items():
+                        if not isinstance(raw_key, str):
+                            continue
+                        key = raw_key.strip()
+                        if not key:
+                            continue
+                        if key == "trans":
+                            key = "translation"
+                        chunk_audio_keys.add(key)
+        audio_summary["orig_trans"] = {
+            "track": "mix",
+            "available": "orig_trans" in chunk_audio_keys,
+        }
+        audio_summary["translation"] = {
+            "track": "translation",
+            "available": "translation" in chunk_audio_keys or "trans" in chunk_audio_keys,
+        }
+        return audio_summary
+
+    headers = {
+        "Cache-Control": "public, max-age=60",
+        "ETag": etag,
+    }
+    return JSONResponse(
+        content={
+            "job_id": job_id,
+            "tracks": {
+                "mix": {
+                    "track": "mix",
+                    "segments": resolved_segments.get("mix", []),
+                    "playback_rate": playback_rate,
+                },
+                "translation": {
+                    "track": "translation",
+                    "segments": resolved_segments.get("translation", []),
+                    "playback_rate": playback_rate,
+                },
+            },
+            "audio": _collect_audio_availability(),
+            "highlighting_policy": highlighting_policy,
+            "has_estimated_segments": has_estimated_segments,
+        },
+        headers=headers,
+    )
 
 def _resolve_media_path(
     job_id: str,
@@ -248,6 +535,65 @@ def _serialize_media_entries(
                 if sentence_count is None:
                     sentence_count = len(sentences_payload)
 
+            audio_tracks_payload: Dict[str, Dict[str, Any]] = {}
+
+            def _register_track(raw_key: Any, raw_value: Any) -> None:
+                if not isinstance(raw_key, str):
+                    return
+                key = raw_key.strip()
+                if not key:
+                    return
+
+                entry: Dict[str, Any] = {}
+                if isinstance(raw_value, str):
+                    value = raw_value.strip()
+                    if not value:
+                        return
+                    entry["path"] = value
+                elif isinstance(raw_value, Mapping):
+                    path_value = raw_value.get("path")
+                    url_value = raw_value.get("url")
+                    duration_value = raw_value.get("duration")
+                    sample_rate_value = raw_value.get("sampleRate")
+                    if isinstance(path_value, str) and path_value.strip():
+                        entry["path"] = path_value.strip()
+                    if isinstance(url_value, str) and url_value.strip():
+                        entry["url"] = url_value.strip()
+                    try:
+                        entry["duration"] = round(float(duration_value), 6)
+                    except (TypeError, ValueError):
+                        pass
+                    try:
+                        entry["sampleRate"] = int(sample_rate_value)
+                    except (TypeError, ValueError):
+                        pass
+                if not entry:
+                    return
+
+                existing = audio_tracks_payload.get(key, {})
+                merged = dict(existing)
+                merged.update(entry)
+                audio_tracks_payload[key] = merged
+
+            def _ingest_tracks(candidate: Any) -> None:
+                if isinstance(candidate, Mapping):
+                    for track_key, track_value in candidate.items():
+                        _register_track(track_key, track_value)
+                elif isinstance(candidate, Sequence) and not isinstance(candidate, (str, bytes)):
+                    for entry in candidate:
+                        if not isinstance(entry, Mapping):
+                            continue
+                        track_key = entry.get("key") or entry.get("kind")
+                        track_value = entry.get("url") or entry.get("path")
+                        if track_value is None:
+                            track_value = entry.get("source")
+                        _register_track(track_key, track_value)
+
+            _ingest_tracks(summary.get("audio_tracks"))
+            _ingest_tracks(summary.get("audioTracks"))
+            _ingest_tracks(chunk.get("audio_tracks"))
+            _ingest_tracks(chunk.get("audioTracks"))
+
             chunk_records.append(
                 PipelineMediaChunk(
                     chunk_id=str(summary.get("chunk_id")) if summary.get("chunk_id") else None,
@@ -261,6 +607,7 @@ def _serialize_media_entries(
                     metadata_path=metadata_path if isinstance(metadata_path, str) else None,
                     metadata_url=metadata_url if isinstance(metadata_url, str) else None,
                     sentence_count=sentence_count,
+                    audio_tracks=audio_tracks_payload,
                 )
             )
 
@@ -536,4 +883,9 @@ async def download_cover_file(
     return _stream_local_file(resolved_path, range_header)
 
 
-__all__ = ["router", "storage_router"]
+def register_exception_handlers(app) -> None:
+    """Compatibility shim; legacy media routes register their own handlers."""
+    return None
+
+
+__all__ = ["router", "storage_router", "jobs_timing_router", "register_exception_handlers"]

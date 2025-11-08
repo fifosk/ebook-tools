@@ -10,5 +10,10 @@
     }
   },
   "library_root": "/Volumes/Data/Video/Library",
-  "ebooks_dir": "/Users/fifo/Projects/ebook-tools/books"
+  "ebooks_dir": "/Users/fifo/Projects/ebook-tools/books",
+  "forced_alignment_enabled": true,
+  "char_weighted_highlighting_default": true,
+  "forced_alignment_backend": "whisperx",
+  "forced_alignment_model": "medium.en",
+  "forced_alignment_smoothing": 0.35
 }

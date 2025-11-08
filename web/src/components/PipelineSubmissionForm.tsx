@@ -130,9 +130,9 @@ const DEFAULT_FORM_STATE: FormState = {
   input_file: '',
   base_output_file: '',
   input_language: 'English',
-  target_languages: [],
+  target_languages: ['Arabic'],
   custom_target_languages: '',
-  sentences_per_output_file: 10,
+  sentences_per_output_file: 1,
   start_sentence: 1,
   end_sentence: '',
   stitch_full: false,
@@ -1059,6 +1059,9 @@ export function PipelineSubmissionForm({
       }
       if (Object.keys(sanitizedVoiceOverrides).length > 0) {
         pipelineOverrides.voice_overrides = sanitizedVoiceOverrides;
+      }
+      if (typeof formState.audio_mode === 'string' && formState.audio_mode.trim()) {
+        pipelineOverrides.audio_mode = formState.audio_mode.trim();
       }
 
       const payload: PipelineRequestPayload = {

@@ -17,6 +17,8 @@ interface AudioPlayerProps {
 }
 
 import { useCallback, useEffect, useRef } from 'react';
+import PlayerCore from '../player/PlayerCore';
+import { usePlayerCore } from '../hooks/usePlayerCore';
 
 export default function AudioPlayer({
   files,
@@ -29,7 +31,8 @@ export default function AudioPlayer({
   onRegisterControls,
   onPlaybackStateChange,
 }: AudioPlayerProps) {
-  const elementRef = useRef<HTMLAudioElement | null>(null);
+  const { ref: attachCore, core } = usePlayerCore();
+  const lastReportedTime = useRef<number | null>(null);
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Track ${index + 1}`
@@ -41,34 +44,25 @@ export default function AudioPlayer({
     if (!onRegisterControls) {
       return;
     }
+    if (!core) {
+      onRegisterControls(null);
+      return;
+    }
     const controls = {
       pause: () => {
-        const element = elementRef.current;
-        if (!element) {
-          return;
-        }
-        try {
-          element.pause();
-        } catch (error) {
-          // Ignore failures triggered in environments without media support.
-        }
+        core.pause();
         onPlaybackStateChange?.('paused');
       },
       play: () => {
-        const element = elementRef.current;
-        if (!element) {
-          return;
-        }
         try {
-          const playResult = element.play();
+          const result = core.play();
           onPlaybackStateChange?.('playing');
-          if (playResult && typeof playResult.catch === 'function') {
-            playResult.catch(() => {
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {
               onPlaybackStateChange?.('paused');
             });
           }
-        } catch (error) {
-          // Ignore play failures triggered by autoplay restrictions.
+        } catch {
           onPlaybackStateChange?.('paused');
         }
       },
@@ -77,73 +71,73 @@ export default function AudioPlayer({
     return () => {
       onRegisterControls(null);
     };
-  }, [onRegisterControls, onPlaybackStateChange, activeFile?.id]);
+  }, [core, onPlaybackStateChange, onRegisterControls]);
 
   useEffect(() => {
     onPlaybackStateChange?.('paused');
   }, [activeFile?.id, onPlaybackStateChange]);
 
   const attemptAutoplay = useCallback(() => {
-    if (!autoPlay) {
+    if (!autoPlay || !core) {
       return;
     }
-
-    const element = elementRef.current;
-    if (!element) {
-      return;
-    }
-
     try {
-      const playResult = element.play();
-      if (playResult && typeof playResult.then === 'function') {
-        playResult.catch(() => {
-          // Ignore autoplay rejections which can happen in tests or restricted environments.
-        });
+      const playResult = core.play();
+      if (playResult && typeof playResult.catch === 'function') {
+        playResult.catch(() => undefined);
       }
-    } catch (error) {
-      // Swallow autoplay errors triggered by browser policies.
+    } catch {
+      // Ignore autoplay rejections in restricted environments.
     }
-  }, [autoPlay]);
+  }, [autoPlay, core]);
 
   useEffect(() => {
     attemptAutoplay();
   }, [attemptAutoplay, activeFile?.id]);
 
   useEffect(() => {
-    const element = elementRef.current;
-    if (!element || playbackPosition === null || playbackPosition === undefined) {
+    lastReportedTime.current = null;
+  }, [activeFile?.id]);
+
+  useEffect(() => {
+    if (!core || playbackPosition === null || playbackPosition === undefined) {
       return;
     }
-
     const clamped = Number.isFinite(playbackPosition) ? Math.max(playbackPosition, 0) : 0;
-
-    if (Math.abs(element.currentTime - clamped) < 0.25) {
+    if (Math.abs(core.getCurrentTime() - clamped) < 0.25) {
       return;
     }
+    core.seek(clamped);
+  }, [core, playbackPosition, activeFile?.id]);
 
-    try {
-      element.currentTime = clamped;
-    } catch (error) {
-      // Setting currentTime may fail in certain mocked environments; ignore silently.
-    }
-  }, [playbackPosition, activeFile?.id]);
-
-  const handleTimeUpdate = useCallback(() => {
-    const element = elementRef.current;
-    if (!element) {
+  useEffect(() => {
+    if (!core || !onPlaybackPositionChange) {
       return;
     }
+    return core.on('time', (time) => {
+      if (lastReportedTime.current !== null && Math.abs(lastReportedTime.current - time) < 0.01) {
+        return;
+      }
+      lastReportedTime.current = time;
+      onPlaybackPositionChange(time);
+    });
+  }, [core, onPlaybackPositionChange]);
 
-    onPlaybackPositionChange?.(element.currentTime ?? 0);
-  }, [onPlaybackPositionChange]);
-
-  const handlePlay = useCallback(() => {
-    onPlaybackStateChange?.('playing');
-  }, [onPlaybackStateChange]);
-
-  const handlePause = useCallback(() => {
-    onPlaybackStateChange?.('paused');
-  }, [onPlaybackStateChange]);
+  useEffect(() => {
+    if (!core || !onPlaybackStateChange) {
+      return;
+    }
+    const unsubscribePlaying = core.on('playing', () => {
+      onPlaybackStateChange('playing');
+    });
+    const unsubscribePaused = core.on('paused', () => {
+      onPlaybackStateChange('paused');
+    });
+    return () => {
+      unsubscribePlaying();
+      unsubscribePaused();
+    };
+  }, [core, onPlaybackStateChange]);
 
   const handleEnded = useCallback(() => {
     onPlaybackStateChange?.('paused');
@@ -168,22 +162,19 @@ export default function AudioPlayer({
 
   return (
     <div className="audio-player">
-      <audio
+      <PlayerCore
         key={activeFile.id}
-        ref={elementRef}
+        ref={attachCore}
         className="audio-player__element"
         data-testid="audio-player"
         controls
         src={activeFile.url}
         autoPlay={autoPlay}
-        onPlay={handlePlay}
-        onPause={handlePause}
         onEnded={handleEnded}
         onLoadedData={attemptAutoplay}
-        onTimeUpdate={handleTimeUpdate}
       >
         Your browser does not support the audio element.
-      </audio>
+      </PlayerCore>
       <div className="audio-player__playlist" role="group" aria-label="Audio tracks">
         {labels.map((file) => (
           <button

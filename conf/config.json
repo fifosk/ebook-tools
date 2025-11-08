@@ -56,9 +56,9 @@
     "base_output_file": "",
     "input_language": "English",
     "target_languages": [
-        "Portuguese"
+        "Arabic"
     ],
-    "sentences_per_output_file": 10,
+    "sentences_per_output_file": 1,
     "start_sentence": 1,
     "end_sentence": null,
     "max_words": 18,
@@ -70,6 +70,8 @@
     "written_mode": "4",
     "include_transliteration": true,
     "word_highlighting": true,
+    "char_weighted_highlighting_default": false,
+    "char_weighted_punctuation_boost": false,
     "slide_template": "default",
     "forced_alignment_enabled": false,
     "forced_alignment_smoothing": "monotonic_cubic",

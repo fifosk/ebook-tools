@@ -6,7 +6,7 @@ import time
 import warnings
 from dataclasses import dataclass, field
 from queue import Queue
-from typing import List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from pydub import AudioSegment
 from PIL import Image
@@ -42,6 +42,13 @@ class MediaPipelineResult:
     transliteration: str
     audio_segment: Optional[AudioSegment]
     voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def audio(self) -> Optional[AudioSegment]:
+        """Backward-compatible accessor returning the synthesized audio segment."""
+
+        return self.audio_segment
 # ---------------------------------------------------------------------------
 # Audio helpers
 # ---------------------------------------------------------------------------

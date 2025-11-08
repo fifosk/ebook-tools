@@ -1,29 +1,16 @@
 """Base protocol definitions for media rendering backends."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 from typing import Mapping, Optional, Protocol, Sequence, runtime_checkable
 
 from pydub import AudioSegment
 
-from modules.video.backends import BaseVideoRenderer as VideoRenderer
 from modules.audio.backends import get_default_backend_name
+from modules.audio.backends.base import SynthesisResult
+from modules.video.backends import BaseVideoRenderer as VideoRenderer
 
 
 _DEFAULT_TTS_BACKEND = get_default_backend_name()
-
-
-@dataclass(slots=True)
-class SynthesisResult:
-    """Container describing synthesized audio and associated metadata."""
-
-    audio: AudioSegment
-    voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
-
-    def as_tuple(self) -> tuple[AudioSegment, Mapping[str, Mapping[str, str]]]:
-        """Return the synthesized audio and metadata as a tuple."""
-
-        return self.audio, dict(self.voice_metadata)
 
 
 @runtime_checkable

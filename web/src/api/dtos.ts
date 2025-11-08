@@ -315,6 +315,129 @@ export interface ChunkSentenceVariant {
   tokens: string[];
 }
 
+export type WordTimingLanguage = 'orig' | 'trans' | 'xlit';
+
+export interface WordTiming {
+  id: string;
+  sentenceId: number;
+  tokenIdx: number;
+  text: string;
+  lang: WordTimingLanguage;
+  t0: number;
+  t1: number;
+}
+
+export interface PauseTiming {
+  t0: number;
+  t1: number;
+  reason?: 'silence' | 'tempo' | 'gap';
+}
+
+export interface JobTimingEntry {
+  token?: string;
+  text?: string;
+  t0?: number;
+  t1?: number;
+  start?: number;
+  end?: number;
+  begin?: number;
+  offset?: number;
+  time?: number;
+  stop?: number;
+  lane?: WordTimingLanguage;
+  wordIdx?: number;
+  sentence_id?: string | number | null;
+  sentenceIdx?: string | number | null;
+  sentenceId?: string | number | null;
+  id?: string | number | null;
+  policy?: string | null;
+  source?: string | null;
+  fallback?: boolean;
+  start_gate?: number | null;
+  end_gate?: number | null;
+  startGate?: number | null;
+  endGate?: number | null;
+  pause_before_ms?: number | null;
+  pause_after_ms?: number | null;
+  pauseBeforeMs?: number | null;
+  pauseAfterMs?: number | null;
+  validation?: {
+    drift?: number | null;
+    count?: number | null;
+  } | null;
+}
+
+export interface JobTimingTrackPayload {
+  track: 'mix' | 'translation';
+  segments: JobTimingEntry[];
+  playback_rate?: number | null;
+}
+
+export interface JobTimingAudioBinding {
+  track: 'mix' | 'translation';
+  available?: boolean;
+}
+
+export interface JobTimingResponse {
+  job_id: string;
+  tracks: {
+    mix: JobTimingTrackPayload;
+    translation: JobTimingTrackPayload;
+  };
+  audio: Record<string, JobTimingAudioBinding>;
+  highlighting_policy: string | null;
+  has_estimated_segments?: boolean;
+}
+
+export interface TrackTimingPayload {
+  trackType: 'translated' | 'original_translated';
+  chunkId: string;
+  words: WordTiming[];
+  pauses: PauseTiming[];
+  trackOffset: number;
+  tempoFactor: number;
+  version: string;
+}
+
+export interface TimingToken {
+  lane: 'orig' | 'trans';
+  sentenceIdx: number;
+  wordIdx: number;
+  start: number;
+  end: number;
+  text: string;
+  policy?: string;
+  source?: string;
+  fallback?: boolean;
+  startGate?: number;
+  endGate?: number;
+  pauseBeforeMs?: number;
+  pauseAfterMs?: number;
+  validation?: {
+    drift?: number;
+    count?: number;
+  };
+}
+
+export interface TimingIndexResponse {
+  mix: TimingToken[];
+  translation: TimingToken[];
+  sentences?: Array<{
+    sentenceIdx: number;
+    startGate?: number;
+    endGate?: number;
+    pauseBeforeMs?: number;
+    pauseAfterMs?: number;
+  }>;
+}
+
+export interface AudioTrackMetadata {
+  path?: string | null;
+  url?: string | null;
+  duration?: number | null;
+  sampleRate?: number | null;
+}
+
 export interface ChunkSentenceMetadata {
   sentence_number?: number | null;
   original: ChunkSentenceVariant;
@@ -337,7 +460,7 @@ export interface PipelineMediaChunk {
   metadata_path?: string | null;
   metadata_url?: string | null;
   sentence_count?: number | null;
-  audio_tracks?: Record<string, string> | null;
+  audio_tracks?: Record<string, AudioTrackMetadata> | null;
 }
 
 export interface PipelineMediaResponse {

@@ -222,7 +222,6 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         "original",
         "silence",
         "translation",
-        "silence",
     ]
     assert [part.kind for part in metadata.parts] == expected_kinds
 
@@ -233,7 +232,6 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
         durations[input_text] / 1000.0,
         silence_seconds,
         durations[translation_text] / 1000.0,
-        silence_seconds,
     ]
     for part, expected in zip(metadata.parts, expected_durations):
         assert math.isclose(part.duration, expected, rel_tol=1e-6)

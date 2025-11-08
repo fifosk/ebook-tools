@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { appendAccessToken, fetchLibraryMedia, resolveLibraryMediaUrl } from '../api/client';
-import type { PipelineMediaResponse } from '../api/dtos';
+import type { AudioTrackMetadata, PipelineMediaResponse } from '../api/dtos';
 import {
   LiveMediaChunk,
   LiveMediaState,
@@ -98,6 +98,26 @@ function tokeniseChunks(
   const normalisedJobId =
     typeof jobId === 'string' && jobId.trim().length > 0 ? jobId.trim() : null;
 
+  const resolveLibraryUrl = (value: string | null | undefined): string | null => {
+    if (!value) {
+      return null;
+    }
+    if (value.includes('://') || value.startsWith('data:')) {
+      return value;
+    }
+    if (value.startsWith('/api/library/')) {
+      return value;
+    }
+    if (normalisedJobId) {
+      const relative = value.replace(/^\/+/, '');
+      const resolved = resolveLibraryMediaUrl(normalisedJobId, relative);
+      if (resolved) {
+        return resolved;
+      }
+    }
+    return value;
+  };
+
   return chunks.map((chunk) => {
     let metadataUrl = chunk.metadataUrl ?? null;
     if (!metadataUrl && normalisedJobId && chunk.metadataPath) {
@@ -105,33 +125,47 @@ function tokeniseChunks(
     }
     const tokenisedMetadataUrl = tokeniseUrl(metadataUrl);
     const sourceTracks = chunk.audioTracks ?? null;
-    let tokenisedTracks: Record<string, string> | undefined;
+    let tokenisedTracks: Record<string, AudioTrackMetadata> | undefined;
     if (sourceTracks && typeof sourceTracks === 'object') {
-      const entries: Record<string, string> = {};
-      Object.entries(sourceTracks).forEach(([key, rawValue]) => {
-        if (typeof rawValue !== 'string') {
+      const legacyTracks = sourceTracks as Record<string, AudioTrackMetadata | string>;
+      const entries: Record<string, AudioTrackMetadata> = {};
+      Object.entries(legacyTracks).forEach(([key, rawValue]) => {
+        if (!key) {
           return;
         }
-        const trimmed = rawValue.trim();
-        if (!trimmed) {
-          return;
-        }
-        let resolved = trimmed;
-        if (normalisedJobId && !trimmed.includes('://')) {
-          if (trimmed.startsWith('/api/library/')) {
-            resolved = trimmed;
-          } else {
-            const relative = trimmed.replace(/^\/+/, '');
-            const libraryResolved = resolveLibraryMediaUrl(normalisedJobId, relative);
-            if (libraryResolved) {
-              resolved = libraryResolved;
-            }
+        let descriptor: AudioTrackMetadata;
+        if (typeof rawValue === 'string') {
+          const trimmed = rawValue.trim();
+          if (!trimmed) {
+            return;
           }
+          descriptor = { path: trimmed };
+        } else if (rawValue && typeof rawValue === 'object') {
+          descriptor = { ...rawValue } as AudioTrackMetadata;
+        } else {
+          return;
         }
-        const tokenised = tokeniseUrl(resolved);
-        if (tokenised) {
-          entries[key] = tokenised;
-        }
+        const pathValue =
+          typeof descriptor.path === 'string' && descriptor.path.trim()
+            ? descriptor.path.trim()
+            : undefined;
+        const baseUrl =
+          typeof descriptor.url === 'string' && descriptor.url.trim()
+            ? descriptor.url.trim()
+            : undefined;
+        const resolvedUrl = tokeniseUrl(resolveLibraryUrl(baseUrl ?? pathValue));
+        entries[key] = {
+          path: pathValue,
+          url: resolvedUrl,
+          duration:
+            typeof descriptor.duration === 'number' && Number.isFinite(descriptor.duration)
+              ? descriptor.duration
+              : undefined,
+          sampleRate:
+            typeof descriptor.sampleRate === 'number' && Number.isFinite(descriptor.sampleRate)
+              ? Math.trunc(descriptor.sampleRate)
+              : undefined,
+        };
       });
       if (Object.keys(entries).length > 0) {
         tokenisedTracks = entries;

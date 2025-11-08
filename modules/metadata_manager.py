@@ -819,9 +819,12 @@ class MetadataLoader:
         return self._load_chunk_payload(chunk, include_sentences=include_sentences)
 
     def load_chunk_sentences(self, chunk: Mapping[str, Any]) -> List[Any]:
-        payload = self._load_chunk_payload(chunk, include_sentences=True)
-        sentences = payload.get("sentences")
-        return list(sentences) if isinstance(sentences, list) else []
+        metadata_payload: Optional[Mapping[str, Any]] = None
+        metadata_path = chunk.get("metadata_path")
+        if isinstance(metadata_path, str) and metadata_path.strip():
+            metadata_payload = self._read_chunk_file(metadata_path)
+        sentences = self._load_sentences_from_chunk(chunk, metadata_payload=metadata_payload)
+        return sentences
 
     def build_chunk_manifest(self) -> Dict[str, Any]:
         manifest = self.load_manifest()
@@ -870,6 +873,15 @@ class MetadataLoader:
             return candidate
         return self._job_root / candidate
 
+    def _read_chunk_file(self, path_value: str) -> Optional[Mapping[str, Any]]:
+        candidate = self._resolve_chunk_path(path_value)
+        try:
+            with candidate.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return None
+        return data if isinstance(data, Mapping) else None
+
     def _load_chunk_payload(
         self,
         chunk: Mapping[str, Any],
@@ -882,13 +894,19 @@ class MetadataLoader:
             if key != "sentences"
         }
 
+        metadata_payload: Optional[Mapping[str, Any]] = None
+        metadata_path = chunk.get("metadata_path")
+        if isinstance(metadata_path, str) and metadata_path.strip():
+            metadata_payload = self._read_chunk_file(metadata_path)
+
         sentence_count = payload.get("sentence_count")
         if not isinstance(sentence_count, int):
             sentence_count = 0
 
-        sentences: List[Any] = []
         if include_sentences:
-            sentences = self._load_sentences_from_chunk(chunk)
+            sentences = self._load_sentences_from_chunk(
+                chunk, metadata_payload=metadata_payload
+            )
             if sentences:
                 payload["sentences"] = sentences
                 sentence_count = len(sentences)
@@ -897,22 +915,70 @@ class MetadataLoader:
             if isinstance(inline, list) and inline:
                 sentence_count = len(inline)
 
+        if (
+            sentence_count == 0
+            and isinstance(metadata_payload, Mapping)
+            and isinstance(metadata_payload.get("sentence_count"), int)
+        ):
+            sentence_count = int(metadata_payload["sentence_count"])
+
+        def _clone_mapping(source: Optional[Mapping[str, Any]]) -> Optional[Dict[str, Any]]:
+            if not isinstance(source, Mapping):
+                return None
+            cloned: Dict[str, Any] = {}
+            for key, value in source.items():
+                if not isinstance(key, str):
+                    continue
+                cloned[key] = copy.deepcopy(value)
+            return cloned if cloned else None
+
+        audio_source: Optional[Mapping[str, Any]] = None
+        if isinstance(metadata_payload, Mapping):
+            candidate = metadata_payload.get("audioTracks")
+            if isinstance(candidate, Mapping):
+                audio_source = candidate
+        if audio_source is None:
+            candidate = chunk.get("audio_tracks") or chunk.get("audioTracks")
+            if isinstance(candidate, Mapping):
+                audio_source = candidate
+        audio_tracks = _clone_mapping(audio_source)
+        if audio_tracks:
+            payload["audio_tracks"] = copy.deepcopy(audio_tracks)
+            payload["audioTracks"] = copy.deepcopy(audio_tracks)
+
+        timing_source: Optional[Mapping[str, Any]] = None
+        if isinstance(metadata_payload, Mapping):
+            candidate = metadata_payload.get("timingTracks")
+            if isinstance(candidate, Mapping):
+                timing_source = candidate
+        if timing_source is None:
+            candidate = chunk.get("timing_tracks") or chunk.get("timingTracks")
+            if isinstance(candidate, Mapping):
+                timing_source = candidate
+        timing_tracks = _clone_mapping(timing_source)
+        if timing_tracks:
+            payload["timing_tracks"] = copy.deepcopy(timing_tracks)
+            payload["timingTracks"] = copy.deepcopy(timing_tracks)
+
         payload["sentence_count"] = sentence_count
         return payload
 
-    def _load_sentences_from_chunk(self, chunk: Mapping[str, Any]) -> List[Any]:
-        metadata_path = chunk.get("metadata_path")
-        if isinstance(metadata_path, str) and metadata_path.strip():
-            candidate = self._resolve_chunk_path(metadata_path)
-            try:
-                with candidate.open("r", encoding="utf-8") as handle:
-                    data = json.load(handle)
-            except (OSError, json.JSONDecodeError):
-                data = None
-            if isinstance(data, Mapping):
-                sentences = data.get("sentences")
-                if isinstance(sentences, list):
-                    return [copy.deepcopy(entry) for entry in sentences]
+    def _load_sentences_from_chunk(
+        self,
+        chunk: Mapping[str, Any],
+        *,
+        metadata_payload: Optional[Mapping[str, Any]] = None,
+    ) -> List[Any]:
+        data = metadata_payload
+        if data is None:
+            metadata_path = chunk.get("metadata_path")
+            if isinstance(metadata_path, str) and metadata_path.strip():
+                data = self._read_chunk_file(metadata_path)
+
+        if isinstance(data, Mapping):
+            sentences = data.get("sentences")
+            if isinstance(sentences, list):
+                return [copy.deepcopy(entry) for entry in sentences]
 
         inline = chunk.get("sentences")
         if isinstance(inline, list):

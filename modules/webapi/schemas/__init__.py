@@ -6,7 +6,7 @@ from datetime import datetime
 import copy
 from typing import Any, Dict, List, Literal, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from ...core.config import PipelineConfig
 from ...progress_tracker import ProgressEvent, ProgressSnapshot
@@ -130,7 +130,7 @@ class PipelineInputPayload(BaseModel):
     base_output_file: str
     input_language: str
     target_languages: List[str]
-    sentences_per_output_file: int = 10
+    sentences_per_output_file: int = 1
     start_sentence: int = 1
     end_sentence: Optional[int] = None
     stitch_full: bool = False
@@ -452,6 +452,12 @@ class PipelineMediaFile(BaseModel):
     end_sentence: Optional[int] = None
     type: Optional[str] = None
 
+    @field_serializer("updated_at")
+    def _serialize_updated_at(self, value: Optional[datetime]) -> Optional[str]:
+        if value is None:
+            return None
+        return value.isoformat()
+
 
 class ChunkSentenceTimelineEvent(BaseModel):
     duration: float
@@ -476,6 +482,14 @@ class ChunkSentenceMetadata(BaseModel):
     counts: Dict[str, int] = Field(default_factory=dict)
     phase_durations: Dict[str, float] = Field(default_factory=dict)
 
+class AudioTrackMetadata(BaseModel):
+    """Metadata about an audio artifact referenced by a chunk."""
+
+    path: Optional[str] = None
+    url: Optional[str] = None
+    duration: Optional[float] = None
+    sampleRate: Optional[int] = None
+
 
 class PipelineMediaChunk(BaseModel):
     """Groups media files produced for a specific chunk."""
@@ -489,7 +503,7 @@ class PipelineMediaChunk(BaseModel):
     metadata_path: Optional[str] = None
     metadata_url: Optional[str] = None
     sentence_count: Optional[int] = None
-    audio_tracks: Dict[str, str] = Field(default_factory=dict)
+    audio_tracks: Dict[str, AudioTrackMetadata] = Field(default_factory=dict)
 
 
 class PipelineMediaResponse(BaseModel):

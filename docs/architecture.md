@@ -29,6 +29,27 @@ not specify a backend, the resolver chooses `macos_say` on Darwin systems and
 can be registered at import time using `register_backend()` before the pipeline
 spins up workers.【F:modules/audio/backends/__init__.py†L10-L95】
 
+#### Audio worker lifecycle
+
+Audio rendering happens inside `modules/render/audio_pipeline.py`. Translation
+tasks are queued per sentence; dedicated `AudioWorker` instances consume them
+and call the selected backend via the shared `AudioGenerator` protocol. Each
+worker receives the sentence, translation, language metadata, tempo, and voice
+selection. The synthesizer returns a `pydub.AudioSegment` (or the richer
+`SynthesisResult` wrapper when voice metadata is available). The worker hands
+the resulting `AudioSegment` to `MediaPipelineResult`, which is later persisted
+through the job manager. No word-level tokens are emitted at this stage—timing
+information is inferred later from the rendered audio if a backend embeds
+character timings, otherwise sentence-level durations are used.【F:modules/render/audio_pipeline.py†L200-L283】
+
+Timing metadata for highlights therefore originates from the rendering layer,
+not from forced alignment. `modules/core/rendering/timeline.py` inspects the
+per-sentence audio segment, collapses any embedded character timing data into a
+sequence of timeline events, and falls back to evenly distributing tokens when
+necessary. The resulting events are stored alongside the text metadata inside
+`metadata/chunk_*.json`, giving the frontend a declarative description of when
+to reveal words.【F:modules/core/rendering/exporters.py†L213-L310】
+
 Video slide rendering uses a comparable pattern. `modules/config/loader.py`
 resolves the selected `video_backend` and optional `video_backend_settings`
 mapping, then the rendering layer instantiates the appropriate renderer through
@@ -36,6 +57,24 @@ mapping, then the rendering layer instantiates the appropriate renderer through
 settings such as `executable`, `loglevel`, and preset overrides, allowing the
 pipeline to run against system installations or portable builds without code
 changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/ffmpeg_renderer.py†L1-L185】
+
+### Metadata creation & highlighting controls
+
+`modules/services/job_manager/persistence.py` emits every metadata artefact a
+job needs: `metadata/job.json` (global metadata + `chunk_manifest`),
+`metadata/chunk_manifest.json`, and per-chunk files (`metadata/chunk_XXXX.json`)
+that retain their own `timingTracks`. Legacy installs may still have an
+aggregated `metadata/timing_index.json`, but new jobs no longer generate it.
+`MetadataLoader` in `modules/metadata_manager.py` is the canonical read path so
+CLI helpers, the FastAPI routers, and tests can treat the legacy single-file
+payload and the new chunked layout interchangeably. Highlight provenance originates inside
+`modules/render/audio_pipeline.py`, which records whether a sentence used
+backend tokens, WhisperX (`modules/align/backends/whisperx_adapter.py`),
+char-weighted, or uniform inference. `EBOOK_HIGHLIGHT_POLICY`,
+`char_weighted_highlighting_default`, `char_weighted_punctuation_boost`, and the
+forced-alignment settings determine which strategy is permitted; the resulting
+`highlighting_summary` entries surface via chunk metadata (and `/api/jobs/{job_id}/timing`
+when present) for the frontend and QA tooling.
 
 ### Backend input processing diagram
 
@@ -73,3 +112,35 @@ flowchart TD
 - `App.tsx` orchestrates the pipeline form sections, job registry, SSE subscriptions, and admin panel toggle based on the authenticated user's role.【F:web/src/App.tsx†L1-L215】
 - `SubtitlesPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs.【F:web/src/pages/SubtitlesPage.tsx†L1-L240】
 - Build artifacts (`web/dist/`) can be served by the API when `EBOOK_API_STATIC_ROOT` points to the directory.
+
+### Word highlighting on the web client
+
+Interactive playback lives under `web/src/components/InteractiveTextViewer.tsx`.
+Chunks supplied by the API ship with timing tracks (`timingTracks`) and chunked
+sentence metadata. The viewer resolves the preferred track (translated audio or
+original/translated mix), builds a word index, and uses it to drive the
+highlighting experience. The current implementation supports two rendering
+modes:
+
+1. **Legacy word-sync DOM** — mirrors the older experience where spans receive
+   `is-active`/`is-visited` classes driven by a `WordSyncController`.
+2. **Transcript view** — the new default, backed by `TranscriptView` and
+   `timingStore`, renders interleaved original/translation lanes with virtual
+   scrolling support. Playback progress is sampled from the `<audio>` element,
+   mapped to the nearest token via utilities in `web/src/utils/timingSearch.ts`,
+   and stored in `timingStore`. Components subscribe to the store to react to
+   highlight changes.
+
+Because the backend emits timeline events per sentence, the frontend does not
+expect forced-alignment-grade precision. If a backend provides detailed word
+timings they are preserved; otherwise tokens are distributed uniformly across
+each sentence duration while maintaining monotonic progression.
+
+### Word-highlighting metadata flow
+
+1. `modules/render/audio_pipeline.py` emits and smooths `word_tokens` for each sentence.
+2. `modules/core/rendering/exporters.py` serialises `timingTracks.translation` into `chunk_*.json`.
+3. `modules/services/job_manager/persistence.py` persists those tracks alongside the per-chunk metadata (no new global aggregate).
+4. `modules/webapi/routes/media_routes.py` still exposes `/api/jobs/{job_id}/timing` when historical aggregates exist; otherwise the frontend leans entirely on chunk metadata.
+5. `web/src/components/InteractiveTextViewer.tsx` hydrates chunk metadata lazily, updates `timingStore` when a timing payload is available, and keeps highlights in sync with audio playback.
+6. `scripts/validate_word_timing.py` (referenced by CI) now only applies to legacy aggregates; new QA tooling should read per-chunk payloads directly.

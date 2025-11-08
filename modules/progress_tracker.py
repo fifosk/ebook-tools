@@ -8,7 +8,7 @@ from types import MappingProxyType
 import threading
 import time
 import copy
-from typing import AsyncIterator, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
 
 @dataclass(frozen=True)
@@ -215,6 +215,8 @@ class ProgressTracker:
         range_fragment: str,
         files: Mapping[str, object],
         sentences: Optional[Sequence[Mapping[str, object]]] = None,
+        audio_tracks: Optional[Mapping[str, object]] = None,
+        timing_tracks: Optional[Mapping[str, Any]] = None,
     ) -> None:
         """Record metadata about files produced for a completed chunk."""
 
@@ -224,6 +226,39 @@ class ProgressTracker:
             if path is not None and str(path)
         ]
         normalized_sentences = copy.deepcopy(list(sentences)) if sentences else []
+        normalized_tracks: Dict[str, Dict[str, Any]] = {}
+        if audio_tracks:
+            for raw_key, raw_value in audio_tracks.items():
+                if not isinstance(raw_key, str):
+                    continue
+                key = raw_key.strip()
+                if not key or key in normalized_tracks:
+                    continue
+                entry: Dict[str, Any] = {}
+                if isinstance(raw_value, str):
+                    value = raw_value.strip()
+                    if not value:
+                        continue
+                    entry["path"] = value
+                elif isinstance(raw_value, Mapping):
+                    path_value = raw_value.get("path")
+                    url_value = raw_value.get("url")
+                    duration_value = raw_value.get("duration")
+                    sample_rate_value = raw_value.get("sampleRate")
+                    if isinstance(path_value, str) and path_value.strip():
+                        entry["path"] = path_value.strip()
+                    if isinstance(url_value, str) and url_value.strip():
+                        entry["url"] = url_value.strip()
+                    try:
+                        entry["duration"] = round(float(duration_value), 6)
+                    except (TypeError, ValueError):
+                        pass
+                    try:
+                        entry["sampleRate"] = int(sample_rate_value)
+                    except (TypeError, ValueError):
+                        pass
+                if entry:
+                    normalized_tracks[key] = entry
         with self._lock:
             chunk_entry: Dict[str, object] = {
                 "chunk_id": chunk_id,
@@ -234,14 +269,20 @@ class ProgressTracker:
             }
             if normalized_sentences:
                 chunk_entry["sentences"] = normalized_sentences
+                chunk_entry["sentence_count"] = len(normalized_sentences)
+            if normalized_tracks:
+                chunk_entry["audio_tracks"] = normalized_tracks
+            if timing_tracks and isinstance(timing_tracks, Mapping):
+                chunk_entry["timing_tracks"] = copy.deepcopy(dict(timing_tracks))
             for index, existing in enumerate(self._generated_chunks):
                 if existing.get("chunk_id") == chunk_id:
                     self._generated_chunks[index] = chunk_entry
                     break
             else:
                 self._generated_chunks.append(chunk_entry)
-            snapshot = self._build_generated_files_snapshot_locked()
-            self._generated_files_snapshot = snapshot
+            snapshot_full = self._build_generated_files_snapshot_locked()
+            delta_snapshot = self._build_generated_files_delta_locked(chunk_entry)
+            self._generated_files_snapshot = snapshot_full
         self._emit_event(
             "file_chunk_generated",
             metadata={
@@ -249,7 +290,7 @@ class ProgressTracker:
                 "range_fragment": range_fragment,
                 "start_sentence": start_sentence,
                 "end_sentence": end_sentence,
-                "generated_files": snapshot,
+                "generated_files": delta_snapshot,
             },
         )
 
@@ -407,6 +448,14 @@ class ProgressTracker:
             payload["forced"] = False
         self._emit_event("complete", snapshot=snapshot, metadata=payload)
 
+    def _compute_completion_flag_locked(self) -> tuple[Optional[int], bool]:
+        remaining = None
+        total = self._total
+        if total is not None:
+            remaining = max(total - self._completed, 0)
+        complete = bool(total is not None and remaining == 0)
+        return remaining, complete
+
     def _build_generated_files_snapshot_locked(self) -> Dict[str, object]:
         chunks_copy = copy.deepcopy(self._generated_chunks)
         chunks_copy.sort(
@@ -437,12 +486,32 @@ class ProgressTracker:
                         "path": path_value,
                     }
                 )
-        remaining = None
-        total = self._total
-        if total is not None:
-            remaining = max(total - self._completed, 0)
-        complete = bool(total is not None and remaining == 0)
+        _, complete = self._compute_completion_flag_locked()
         return {"chunks": chunks_copy, "files": files_index, "complete": complete}
+
+    def _build_generated_files_delta_locked(
+        self,
+        chunk_entry: Mapping[str, object],
+    ) -> Dict[str, object]:
+        chunk_copy = copy.deepcopy(dict(chunk_entry))
+        files_index: List[Dict[str, object]] = []
+        chunk_id = chunk_copy.get("chunk_id")
+        range_fragment = chunk_copy.get("range_fragment")
+        for file_entry in list(chunk_copy.get("files", [])):
+            path_value = file_entry.get("path")
+            file_type = file_entry.get("type")
+            if not path_value:
+                continue
+            files_index.append(
+                {
+                    "chunk_id": chunk_id,
+                    "range_fragment": range_fragment,
+                    "type": file_type,
+                    "path": path_value,
+                }
+            )
+        _, complete = self._compute_completion_flag_locked()
+        return {"chunks": [chunk_copy], "files": files_index, "complete": complete}
 
 
 __all__ = [

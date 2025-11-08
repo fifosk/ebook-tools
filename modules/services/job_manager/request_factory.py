@@ -133,6 +133,14 @@ def _hydrate_request_from_payload(
     if correlation_id is None and job.request is not None:
         correlation_id = job.request.correlation_id
 
+    resolved_audio_mode = inputs_payload.get("audio_mode")
+    if (
+        isinstance(resolved_audio_mode, str)
+        and resolved_audio_mode.strip()
+        and "audio_mode" not in pipeline_overrides
+    ):
+        pipeline_overrides["audio_mode"] = resolved_audio_mode.strip()
+
     request = PipelineRequest(
         config=config,
         context=job.request.context if job.request is not None else None,

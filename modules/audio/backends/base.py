@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Any, Mapping, Optional, Sequence
 
 from pydub import AudioSegment
 
@@ -12,6 +13,21 @@ from modules.media.exceptions import MediaBackendError
 
 class TTSBackendError(MediaBackendError):
     """Raised when a backend fails to synthesize audio."""
+
+
+@dataclass(slots=True)
+class SynthesisResult:
+    """Container describing synthesized audio and associated metadata."""
+
+    audio: AudioSegment
+    voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+    metadata: Optional[Mapping[str, Any]] = None
+    word_tokens: Optional[Sequence[Mapping[str, float | str]]] = None
+
+    def as_tuple(self) -> tuple[AudioSegment, Mapping[str, Mapping[str, str]]]:
+        """Return the synthesized audio and metadata as a tuple."""
+
+        return self.audio, dict(self.voice_metadata)
 
 
 class BaseTTSBackend(ABC):
@@ -43,11 +59,13 @@ class BaseTTSBackend(ABC):
         speed: int,
         lang_code: str,
         output_path: Optional[str] = None,
-    ) -> AudioSegment:
+    ) -> AudioSegment | SynthesisResult:
         """Generate speech audio for ``text``.
 
         Concrete backends must return a :class:`~pydub.AudioSegment` or raise
-        :class:`TTSBackendError`. Any unexpected exception should be wrapped in
+        :class:`TTSBackendError`. Backends that can provide per-word timings may
+        instead return :class:`SynthesisResult` so callers can access
+        ``result.word_tokens``. Any unexpected exception should be wrapped in
         :class:`TTSBackendError` so the audio pipeline can handle failure
         uniformly.
         """
@@ -55,6 +73,6 @@ class BaseTTSBackend(ABC):
 
 __all__ = [
     "BaseTTSBackend",
+    "SynthesisResult",
     "TTSBackendError",
 ]
-

@@ -51,7 +51,7 @@ def confirm_settings(
         input_arg,
         f'"{config.get("input_language", context.default_language())}"',
         target_arg,
-        str(config.get("sentences_per_output_file", 10)),
+        str(config.get("sentences_per_output_file", 1)),
         f'"{config.get("base_output_file", "")}"',
         str(config.get("start_sentence", 1)),
     ]
@@ -75,7 +75,7 @@ def confirm_settings(
         base_output_file=config.get("base_output_file", ""),
         input_language=config.get("input_language", context.default_language()),
         target_languages=target_languages,
-        sentences_per_output_file=config.get("sentences_per_output_file", 10),
+        sentences_per_output_file=config.get("sentences_per_output_file", 1),
         start_sentence=config.get("start_sentence", 1),
         end_sentence=config.get("end_sentence"),
         stitch_full=config.get("stitch_full", False),

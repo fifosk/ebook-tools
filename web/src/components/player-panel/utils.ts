@@ -3,6 +3,17 @@ import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../../hooks/
 import type { MediaCategory } from './constants';
 import { MEDIA_CATEGORIES } from './constants';
 
+export function isAudioFileType(value: unknown): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  const signature = value.trim().toLowerCase();
+  if (!signature) {
+    return false;
+  }
+  return signature === 'audio' || signature.startsWith('audio_');
+}
+
 export function toAudioFiles(media: LiveMediaState['audio']) {
   return media
     .filter((item) => typeof item.url === 'string' && item.url.length > 0)
@@ -179,7 +190,7 @@ export function buildInteractiveAudioCatalog(
   chunks.forEach((chunk, index) => {
     const chunkLabel = formatChunkLabel(chunk, index);
     chunk.files.forEach((file) => {
-      if (file.type !== 'audio') {
+      if (!isAudioFileType(file.type)) {
         return;
       }
       register(file, index, chunkLabel);
@@ -210,7 +221,7 @@ export function chunkCacheKey(chunk: LiveMediaChunk): string | null {
   if (chunk.metadataUrl) {
     return `url:${chunk.metadataUrl}`;
   }
-  const audioUrl = chunk.files.find((file) => file.type === 'audio' && file.url)?.url;
+  const audioUrl = chunk.files.find((file) => isAudioFileType(file.type) && file.url)?.url;
   if (audioUrl) {
     return `audio:${audioUrl}`;
   }
@@ -242,7 +253,7 @@ export function deriveInlineAudioOptions(
   const chunkForOptions = resolvedChunk ?? fallbackChunk;
   if (chunkForOptions && chunkIndex >= 0) {
     chunkForOptions.files.forEach((file) => {
-      if (file.type !== 'audio' || !file.url) {
+      if (!isAudioFileType(file.type) || !file.url) {
         return;
       }
       const label =

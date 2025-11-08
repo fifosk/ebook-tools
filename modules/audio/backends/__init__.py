@@ -8,7 +8,7 @@ from typing import Any, Iterable, Mapping, MutableMapping, Optional, Type
 from modules import config_manager as cfg
 
 from ..config import get_tts_config
-from .base import BaseTTSBackend, TTSBackendError
+from .base import BaseTTSBackend, SynthesisResult, TTSBackendError
 from .gtts import GTTSBackend
 from .macos_say import MacOSSayBackend, MacOSTTSBackend
 
@@ -202,10 +202,10 @@ __all__ = [
     "GTTSBackend",
     "MacOSSayBackend",
     "MacOSTTSBackend",
+    "SynthesisResult",
     "TTSBackendError",
     "create_backend",
     "get_default_backend_name",
     "get_tts_backend",
     "register_backend",
 ]
-

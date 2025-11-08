@@ -15,10 +15,12 @@ import {
   type TranslationSpeed,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
-import type { ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
+import type { AudioTrackMetadata, ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
+import { isAudioFileType } from './player-panel/utils';
+import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
@@ -28,6 +30,14 @@ type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 type PlaybackControls = {
   pause: () => void;
   play: () => void;
+};
+
+type InlineAudioKind = 'translation' | 'combined' | 'other';
+
+type InlineAudioOption = {
+  url: string;
+  label: string;
+  kind: InlineAudioKind;
 };
 
 interface PlayerPanelProps {
@@ -73,7 +83,7 @@ interface NavigationControlsProps {
   isFullscreen: boolean;
   isPlaying: boolean;
   fullscreenLabel: string;
-  inlineAudioOptions: { url: string; label: string }[];
+  inlineAudioOptions: InlineAudioOption[];
   inlineAudioSelection: string | null;
   onSelectInlineAudio: (audioUrl: string) => void;
   showInlineAudio: boolean;
@@ -140,6 +150,11 @@ function NavigationControls({
     ? 'Original audio will appear after interactive assets regenerate'
     : 'Toggle Original Audio';
   const sliderId = useId();
+  const fullscreenButtonClassName = ['player-panel__nav-button'];
+  if (isFullscreen) {
+    fullscreenButtonClassName.push('player-panel__nav-button--fullscreen-active');
+  }
+  const fullscreenIcon = isFullscreen ? '🗗' : '⛶';
   const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
   const handleSpeedChange = (event: ChangeEvent<HTMLInputElement>) => {
     const raw = Number.parseFloat(event.target.value);
@@ -218,14 +233,14 @@ function NavigationControls({
         ) : null}
         <button
           type="button"
-          className="player-panel__nav-button"
+          className={fullscreenButtonClassName.join(' ')}
           onClick={onToggleFullscreen}
           disabled={disableFullscreen}
           aria-pressed={isFullscreen}
           aria-label={fullscreenLabel}
           data-testid={fullscreenTestId}
         >
-          <span aria-hidden="true">⛶</span>
+          <span aria-hidden="true">{fullscreenIcon}</span>
         </button>
       </div>
       {showTranslationSpeed ? (
@@ -513,7 +528,7 @@ function buildInteractiveAudioCatalog(
   chunks.forEach((chunk, index) => {
     const chunkLabel = formatChunkLabel(chunk, index);
     chunk.files.forEach((file) => {
-      if (file.type !== 'audio') {
+      if (!isAudioFileType(file.type)) {
         return;
       }
       register(file, index, chunkLabel);
@@ -544,7 +559,7 @@ function chunkCacheKey(chunk: LiveMediaChunk): string | null {
   if (chunk.metadataUrl) {
     return `url:${chunk.metadataUrl}`;
   }
-  const audioUrl = chunk.files.find((file) => file.type === 'audio' && file.url)?.url;
+  const audioUrl = chunk.files.find((file) => isAudioFileType(file.type) && file.url)?.url;
   if (audioUrl) {
     return `audio:${audioUrl}`;
   }
@@ -552,6 +567,61 @@ function chunkCacheKey(chunk: LiveMediaChunk): string | null {
 }
 
 const CHUNK_METADATA_PREFETCH_RADIUS = 2;
+const SINGLE_SENTENCE_PREFETCH_AHEAD = 3;
+const MAX_SENTENCE_PREFETCH_COUNT = 400;
+const CHUNK_SENTENCE_BOOTSTRAP_COUNT = 12;
+const CHUNK_SENTENCE_APPEND_BATCH = 75;
+
+function isSingleSentenceChunk(chunk: LiveMediaChunk | null | undefined): boolean {
+  if (!chunk) {
+    return false;
+  }
+  if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
+    return chunk.sentences.length === 1;
+  }
+  if (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0) {
+    return chunk.sentenceCount === 1;
+  }
+  return false;
+}
+
+function getKnownSentenceCount(chunk: LiveMediaChunk | null | undefined): number | null {
+  if (!chunk) {
+    return null;
+  }
+  if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
+    return chunk.sentences.length;
+  }
+  if (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0) {
+    return chunk.sentenceCount;
+  }
+  return null;
+}
+
+function shouldPrefetchChunk(chunk: LiveMediaChunk | null | undefined): boolean {
+  const count = getKnownSentenceCount(chunk);
+  if (count === null) {
+    return true;
+  }
+  return count <= MAX_SENTENCE_PREFETCH_COUNT;
+}
+
+function partitionChunkSentences(
+  sentences: ChunkSentenceMetadata[] | null | undefined,
+  bootstrapCount: number,
+): { immediate: ChunkSentenceMetadata[]; remainder: ChunkSentenceMetadata[] } {
+  if (!Array.isArray(sentences) || sentences.length === 0) {
+    return { immediate: [], remainder: [] };
+  }
+  const take = Math.max(bootstrapCount, 0);
+  if (take <= 0 || sentences.length <= take) {
+    return { immediate: sentences, remainder: [] };
+  }
+  return {
+    immediate: sentences.slice(0, take),
+    remainder: sentences.slice(take),
+  };
+}
 
 async function requestChunkMetadata(
   jobId: string,
@@ -644,9 +714,61 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     return stored === 'true';
   });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
-  const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
-  const chunkMetadataStoreRef = useRef(chunkMetadataStore);
-  const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
+const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
+const chunkMetadataStoreRef = useRef(chunkMetadataStore);
+const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
+const pushChunkMetadata = useCallback(
+  (cacheKey: string, payload: ChunkSentenceMetadata[] | null | undefined, append: boolean) => {
+    const normalized = Array.isArray(payload) ? payload : [];
+    setChunkMetadataStore((current) => {
+      const existing = current[cacheKey];
+      if (!append && existing !== undefined) {
+        return current;
+      }
+      if (append && normalized.length === 0) {
+        return current;
+      }
+      const base = append && Array.isArray(existing) ? existing : [];
+      const nextSentences = append ? base.concat(normalized) : normalized;
+      if (append && Array.isArray(existing) && nextSentences.length === existing.length) {
+        return current;
+      }
+      if (!append && existing === nextSentences) {
+        return current;
+      }
+      return {
+        ...current,
+        [cacheKey]: nextSentences,
+      };
+    });
+  },
+  [],
+);
+const scheduleChunkMetadataAppend = useCallback(
+  (cacheKey: string, remainder: ChunkSentenceMetadata[]) => {
+    if (!Array.isArray(remainder) || remainder.length === 0) {
+      return;
+    }
+    let offset = 0;
+    const batchSize = CHUNK_SENTENCE_APPEND_BATCH;
+    const flush = () => {
+      const slice = remainder.slice(offset, offset + batchSize);
+      offset += slice.length;
+      if (slice.length > 0) {
+        pushChunkMetadata(cacheKey, slice, true);
+      }
+      if (offset < remainder.length) {
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(flush);
+        } else {
+          setTimeout(flush, 16);
+        }
+      }
+    };
+    flush();
+  },
+  [pushChunkMetadata],
+);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
@@ -702,6 +824,12 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   useEffect(() => {
     chunkMetadataStoreRef.current = chunkMetadataStore;
   }, [chunkMetadataStore]);
+  useEffect(() => {
+    if (import.meta.env.DEV) {
+      return enableDebugOverlay();
+    }
+    return undefined;
+  }, []);
   const mediaIndex = useMemo(() => {
     const map: Record<MediaCategory, Map<string, LiveMediaItem>> = {
       text: new Map(),
@@ -1221,7 +1349,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         return chunks[mappedIndex];
       }
       const matchedByAudio = chunks.find((chunk) =>
-        chunk.files.some((file) => file.type === 'audio' && file.url === audioId),
+    chunk.files.some((file) => isAudioFileType(file.type) && file.url === audioId),
       );
       if (matchedByAudio) {
         return matchedByAudio;
@@ -1258,13 +1386,16 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       chunkMetadataLoadingRef.current.add(cacheKey);
       requestChunkMetadata(jobId, chunk)
         .then((sentences) => {
-          if (sentences !== null) {
-            setChunkMetadataStore((current) => {
-              if (current[cacheKey] !== undefined) {
-                return current;
-              }
-              return { ...current, [cacheKey]: sentences };
-            });
+          if (sentences === null) {
+            return;
+          }
+          const { immediate, remainder } = partitionChunkSentences(
+            sentences,
+            CHUNK_SENTENCE_BOOTSTRAP_COUNT,
+          );
+          pushChunkMetadata(cacheKey, immediate, false);
+          if (remainder.length > 0) {
+            scheduleChunkMetadataAppend(cacheKey, remainder);
           }
         })
         .catch((error) => {
@@ -1274,7 +1405,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
           chunkMetadataLoadingRef.current.delete(cacheKey);
         });
     },
-    [jobId],
+    [jobId, pushChunkMetadata, scheduleChunkMetadataAppend],
   );
 
   useEffect(() => {
@@ -1294,8 +1425,26 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
           continue;
         }
         const neighbour = chunks[neighbourIndex];
-        if (neighbour) {
+        if (neighbour && (neighbour === activeTextChunk || shouldPrefetchChunk(neighbour))) {
           targets.add(neighbour);
+        }
+      }
+
+      if (isSingleSentenceChunk(activeTextChunk)) {
+        let aheadPrefetched = 0;
+        for (
+          let lookaheadIndex = activeTextChunkIndex + 1;
+          lookaheadIndex < chunks.length && aheadPrefetched < SINGLE_SENTENCE_PREFETCH_AHEAD;
+          lookaheadIndex += 1
+        ) {
+          const lookaheadChunk = chunks[lookaheadIndex];
+          if (!lookaheadChunk) {
+            continue;
+          }
+          if (shouldPrefetchChunk(lookaheadChunk)) {
+            targets.add(lookaheadChunk);
+          }
+          aheadPrefetched += 1;
         }
       }
     }
@@ -1333,7 +1482,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     }
     const tracks = chunkRef.audioTracks ?? null;
     const files = chunkRef.files ?? [];
-    const mapping: Record<string, string> = {};
+    const mapping: Record<string, AudioTrackMetadata> = {};
 
     const normaliseSource = (source: string | null | undefined) => {
       if (!source) {
@@ -1359,56 +1508,74 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       return buildStorageUrl(trimmed, normalisedJobId);
     };
 
-    const registerTrack = (key: string, source: string | null | undefined) => {
-      const normalised = normaliseSource(source);
-      if (!normalised) {
+    const registerTrack = (key: string, descriptor: AudioTrackMetadata | string | null | undefined) => {
+      if (!key || !descriptor) {
         return;
       }
-      mapping[key] = normalised;
+      let payload: AudioTrackMetadata;
+      if (typeof descriptor === 'string') {
+        payload = { path: descriptor };
+      } else {
+        payload = { ...descriptor };
+      }
+      const resolved = normaliseSource(payload.url ?? payload.path ?? null);
+      if (resolved) {
+        payload.url = resolved;
+      }
+      if (payload.path && !payload.url) {
+        payload.url = normaliseSource(payload.path);
+      }
+      const existing = mapping[key] ?? {};
+      mapping[key] = { ...existing, ...payload };
     };
 
     if (tracks) {
-      if (typeof tracks.orig_trans === 'string' && tracks.orig_trans.trim()) {
-        registerTrack('orig_trans', tracks.orig_trans.trim());
-      }
-      if (typeof tracks.trans === 'string' && tracks.trans.trim()) {
-        registerTrack('trans', tracks.trans.trim());
-      }
-      if (typeof tracks.orig === 'string' && tracks.orig.trim()) {
-        registerTrack('orig', tracks.orig.trim());
-      }
+      Object.entries(tracks).forEach(([key, value]) => {
+        const normalisedKey = key === 'trans' ? 'translation' : key;
+        if (typeof value === 'string' || (value && typeof value === 'object')) {
+          registerTrack(normalisedKey, value as AudioTrackMetadata | string);
+        }
+      });
     }
 
     files.forEach((file) => {
       if (!file || typeof file !== 'object') {
         return;
       }
-      if (file.type !== 'audio') {
+      if (!isAudioFileType(file.type)) {
         return;
       }
       const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
       const displayName = typeof file.name === 'string' ? file.name : '';
       const isCombinedCandidate = isCombinedAudioCandidate(relativePath, displayName);
-      if (isCombinedCandidate && typeof file.url === 'string') {
-        registerTrack('orig_trans', file.url);
+      const descriptor: AudioTrackMetadata = {
+        path: typeof file.relative_path === 'string' ? file.relative_path : undefined,
+        url: typeof file.url === 'string' ? file.url : undefined,
+      };
+      if (isCombinedCandidate) {
+        registerTrack('orig_trans', descriptor);
         return;
       }
       const isOriginalCandidate = isOriginalAudioCandidate(relativePath, displayName);
-      if (isOriginalCandidate && typeof file.url === 'string') {
-        registerTrack('orig', file.url);
+      if (isOriginalCandidate) {
+        registerTrack('orig', descriptor);
         return;
       }
-      if (!mapping.trans && typeof file.url === 'string') {
-        registerTrack('trans', file.url);
+      if (!mapping.translation) {
+        registerTrack('translation', descriptor);
       }
     });
 
     return Object.keys(mapping).length > 0 ? mapping : null;
   }, [normalisedJobId, origin, resolvedActiveTextChunk]);
-  const inlineAudioOptions = useMemo(() => {
+  const inlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
     const seen = new Set<string>();
-    const options: { url: string; label: string }[] = [];
-    const register = (url: string | null | undefined, label: string | null | undefined) => {
+    const options: InlineAudioOption[] = [];
+    const register = (
+      url: string | null | undefined,
+      label: string | null | undefined,
+      kind: InlineAudioKind,
+    ) => {
       if (!url || seen.has(url)) {
         return;
       }
@@ -1416,38 +1583,78 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       options.push({
         url,
         label: trimmedLabel || `Audio ${options.length + 1}`,
+        kind,
       });
       seen.add(url);
     };
     const chunkForOptions = resolvedActiveTextChunk ?? activeTextChunk;
     if (chunkForOptions && activeTextChunkIndex >= 0) {
       chunkForOptions.files.forEach((file) => {
-        if (file.type !== 'audio' || !file.url) {
+        if (!isAudioFileType(file.type) || !file.url) {
           return;
         }
         const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
         const displayName = typeof file.name === 'string' ? file.name : '';
-        if (isOriginalAudioCandidate(relativePath, displayName) && !isCombinedAudioCandidate(relativePath, displayName)) {
+        const isCombined = isCombinedAudioCandidate(relativePath, displayName);
+        if (isOriginalAudioCandidate(relativePath, displayName) && !isCombined) {
           return;
         }
         const label =
           interactiveAudioNameMap.get(file.url) ??
           (typeof file.name === 'string' ? file.name.trim() : '') ??
           formatChunkLabel(chunkForOptions, activeTextChunkIndex);
-        register(file.url, label);
+        register(file.url, label, isCombined ? 'combined' : 'translation');
+      });
+    }
+    if (activeAudioTracks) {
+      Object.entries(activeAudioTracks).forEach(([key, metadata]) => {
+        if (!metadata?.url || seen.has(metadata.url)) {
+          return;
+        }
+        const label =
+          key === 'orig_trans'
+            ? 'Original + Translation'
+            : key === 'translation'
+              ? 'Translation'
+              : key === 'orig'
+                ? 'Original'
+                : `Audio (${key})`;
+        let kind: InlineAudioKind = 'other';
+        if (key === 'orig_trans') {
+          kind = 'combined';
+        } else if (key === 'translation' || key === 'trans') {
+          kind = 'translation';
+        }
+        register(metadata.url, label, kind);
       });
     }
     interactiveAudioPlaylist.forEach((item, index) => {
-      register(item.url, item.name ?? `Audio ${index + 1}`);
+      register(item.url, item.name ?? `Audio ${index + 1}`, 'translation');
     });
     return options;
-  }, [activeTextChunk, activeTextChunkIndex, interactiveAudioNameMap, interactiveAudioPlaylist, resolvedActiveTextChunk]);
+  }, [
+    activeAudioTracks,
+    activeTextChunk,
+    activeTextChunkIndex,
+    interactiveAudioNameMap,
+    interactiveAudioPlaylist,
+    resolvedActiveTextChunk,
+  ]);
 
-  const inlineAudioUnavailable = inlineAudioOptions.length === 0;
-  const hasCombinedAudio = Boolean(activeAudioTracks?.orig_trans);
-  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig);
+  const hasCombinedAudio = Boolean(
+    activeAudioTracks?.orig_trans?.url || activeAudioTracks?.orig_trans?.path,
+  );
+  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig?.url || activeAudioTracks?.orig?.path);
   const canToggleOriginalAudio = hasCombinedAudio || hasLegacyOriginal;
   const effectiveOriginalAudioEnabled = showOriginalAudio && hasCombinedAudio;
+  const visibleInlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
+    if (showOriginalAudio && hasCombinedAudio) {
+      return inlineAudioOptions.filter((option) => option.kind === 'combined');
+    }
+    return inlineAudioOptions.filter((option) => option.kind !== 'combined' || !hasCombinedAudio);
+  }, [hasCombinedAudio, inlineAudioOptions, showOriginalAudio]);
+
+  const inlineAudioUnavailable = visibleInlineAudioOptions.length === 0;
   const handleOriginalAudioToggle = useCallback(() => {
     if (!hasCombinedAudio) {
       return;
@@ -1465,8 +1672,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     if (!hasCombinedAudio) {
       return;
     }
-    const combinedUrl = activeAudioTracks?.orig_trans ?? null;
-    const translationUrl = activeAudioTracks?.trans ?? null;
+    const combinedUrl = activeAudioTracks?.orig_trans?.url ?? null;
+    const translationUrl =
+      activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
     setInlineAudioSelection((current) => {
       if (showOriginalAudio) {
         if (combinedUrl && current !== combinedUrl) {
@@ -1482,7 +1690,22 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       }
       return current;
     });
-  }, [activeAudioTracks?.orig_trans, activeAudioTracks?.trans, hasCombinedAudio, showOriginalAudio]);
+  }, [
+    activeAudioTracks?.orig_trans?.url,
+    activeAudioTracks?.translation?.url,
+    activeAudioTracks?.trans?.url,
+    hasCombinedAudio,
+    showOriginalAudio,
+  ]);
+  const combinedTrackUrl = activeAudioTracks?.orig_trans?.url ?? null;
+  const translationTrackUrl =
+    activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
+  const activeTimingTrack: 'mix' | 'translation' =
+    combinedTrackUrl &&
+    ((inlineAudioSelection && inlineAudioSelection === combinedTrackUrl) ||
+      (!inlineAudioSelection && effectiveOriginalAudioEnabled))
+      ? 'mix'
+      : 'translation';
   useEffect(() => {
     if (!pendingSelection) {
       return;
@@ -1645,7 +1868,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       setPendingTextScrollRatio(null);
     }
 
-    if (matchByCategory.audio && inlineAudioOptions.some((option) => option.url === matchByCategory.audio)) {
+    if (matchByCategory.audio && visibleInlineAudioOptions.some((option) => option.url === matchByCategory.audio)) {
       setInlineAudioSelection((current) => (current === matchByCategory.audio ? current : matchByCategory.audio));
     }
 
@@ -1657,7 +1880,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     getMediaItem,
     deriveBaseId,
     rememberPosition,
-    inlineAudioOptions,
+    visibleInlineAudioOptions,
     chunks,
     setPendingChunkSelection,
   ]);
@@ -1677,7 +1900,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
 
     const audioFile = targetChunk.files.find(
-      (file) => file.type === 'audio' && typeof file.url === 'string' && file.url.length > 0,
+      (file) => isAudioFileType(file.type) && typeof file.url === 'string' && file.url.length > 0,
     );
     if (audioFile?.url) {
       setSelectedItemIds((current) =>
@@ -1717,8 +1940,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
   const canRenderInteractiveViewer =
     Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
+  const shouldForceInteractiveViewer = isInteractiveFullscreen && isTextTabActive;
   const handleInteractiveFullscreenToggle = useCallback(() => {
-    if (!isTextTabActive || !canRenderInteractiveViewer) {
+    if (!isTextTabActive) {
       updateInteractiveFullscreenPreference(false);
       setIsInteractiveFullscreen(false);
       return;
@@ -1728,7 +1952,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       updateInteractiveFullscreenPreference(next);
       return next;
     });
-  }, [canRenderInteractiveViewer, isTextTabActive, updateInteractiveFullscreenPreference]);
+  }, [isTextTabActive, updateInteractiveFullscreenPreference]);
 
   const handleExitInteractiveFullscreen = useCallback(() => {
     updateInteractiveFullscreenPreference(false);
@@ -1746,7 +1970,8 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
 
   useEffect(() => {
     if (!canRenderInteractiveViewer) {
-      if (isInteractiveFullscreen) {
+      if (!hasInteractiveChunks && isInteractiveFullscreen) {
+        updateInteractiveFullscreenPreference(false);
         setIsInteractiveFullscreen(false);
       }
       return;
@@ -1755,7 +1980,12 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       updateInteractiveFullscreenPreference(true);
       setIsInteractiveFullscreen(true);
     }
-  }, [canRenderInteractiveViewer, isInteractiveFullscreen, updateInteractiveFullscreenPreference]);
+  }, [
+    canRenderInteractiveViewer,
+    hasInteractiveChunks,
+    isInteractiveFullscreen,
+    updateInteractiveFullscreenPreference,
+  ]);
   const hasTextItems = media.text.length > 0;
   const navigableItems = useMemo(
     () =>
@@ -1919,7 +2149,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         if (!targetChunk) {
           return;
         }
-        const nextAudio = targetChunk.files.find((file) => file.type === 'audio' && file.url);
+        const nextAudio = targetChunk.files.find((file) => isAudioFileType(file.type) && file.url);
         if (nextAudio?.url) {
           setInlineAudioSelection((current) => (current === nextAudio.url ? current : nextAudio.url));
           syncInteractiveSelection(nextAudio.url);
@@ -2026,7 +2256,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       return false;
     }
     const nextChunk = chunks[nextIndex];
-    const nextAudio = nextChunk.files.find((file) => file.type === 'audio' && file.url);
+    const nextAudio = nextChunk.files.find((file) => isAudioFileType(file.type) && file.url);
     if (nextAudio?.url) {
       setInlineAudioSelection(nextAudio.url);
       syncInteractiveSelection(nextAudio.url);
@@ -2058,7 +2288,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   }, [advanceInteractiveChunk, updateSelection]);
 
   useEffect(() => {
-    if (inlineAudioOptions.length === 0) {
+    if (visibleInlineAudioOptions.length === 0) {
       if (inlineAudioSelection) {
         const currentAudio = getMediaItem('audio', inlineAudioSelection);
         if (!currentAudio) {
@@ -2069,7 +2299,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     }
 
     if (inlineAudioSelection) {
-      const hasExactMatch = inlineAudioOptions.some((option) => option.url === inlineAudioSelection);
+      const hasExactMatch = visibleInlineAudioOptions.some((option) => option.url === inlineAudioSelection);
       if (hasExactMatch) {
         return;
       }
@@ -2079,7 +2309,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
         currentAudio ? deriveBaseId(currentAudio) : inlineAudioBaseRef.current ?? deriveBaseIdFromReference(inlineAudioSelection);
 
       if (currentBaseId) {
-        const remapped = inlineAudioOptions.find((option) => {
+        const remapped = visibleInlineAudioOptions.find((option) => {
           const optionAudio = getMediaItem('audio', option.url);
           if (optionAudio) {
             return deriveBaseId(optionAudio) === currentBaseId;
@@ -2099,7 +2329,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
 
     const desiredBaseId = inlineAudioBaseRef.current;
     if (!inlineAudioSelection) {
-      const fallbackUrl = inlineAudioOptions[0]?.url ?? null;
+      const fallbackUrl = visibleInlineAudioOptions[0]?.url ?? null;
       if (fallbackUrl) {
         setInlineAudioSelection(fallbackUrl);
         syncInteractiveSelection(fallbackUrl);
@@ -2111,7 +2341,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       return;
     }
 
-    const preferredOption = inlineAudioOptions.find((option) => {
+    const preferredOption = visibleInlineAudioOptions.find((option) => {
       const optionAudio = getMediaItem('audio', option.url);
       if (optionAudio) {
         return deriveBaseId(optionAudio) === desiredBaseId;
@@ -2128,7 +2358,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
   }, [
     deriveBaseId,
     getMediaItem,
-    inlineAudioOptions,
+    visibleInlineAudioOptions,
     inlineAudioSelection,
     syncInteractiveSelection,
   ]);
@@ -2407,7 +2637,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       isFullscreen={isInteractiveFullscreen}
       isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
-      inlineAudioOptions={inlineAudioOptions}
+      inlineAudioOptions={visibleInlineAudioOptions}
       inlineAudioSelection={inlineAudioSelection}
       onSelectInlineAudio={handleInlineAudioSelect}
       showInlineAudio={selectedMediaType === 'text'}
@@ -2438,7 +2668,7 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
       isFullscreen={isInteractiveFullscreen}
       isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
-      inlineAudioOptions={inlineAudioOptions}
+      inlineAudioOptions={visibleInlineAudioOptions}
       inlineAudioSelection={inlineAudioSelection}
       onSelectInlineAudio={handleInlineAudioSelect}
       showInlineAudio={selectedMediaType === 'text'}
@@ -2603,35 +2833,44 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
                             <div className="player-panel__document-error" role="alert">
                               {textError}
                             </div>
-                          ) : canRenderInteractiveViewer ? (
-                            <InteractiveTextViewer
-                              ref={textScrollRef}
-                              content={interactiveViewerContent}
-                              rawContent={interactiveViewerRaw}
-                              chunk={resolvedActiveTextChunk}
-                              activeAudioUrl={inlineAudioSelection}
-                              noAudioAvailable={inlineAudioUnavailable}
-                              onScroll={handleTextScroll}
-                              onAudioProgress={handleInlineAudioProgress}
-                              getStoredAudioPosition={getInlineAudioPosition}
-                              onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
-                              onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
-                              onRequestAdvanceChunk={handleInlineAudioEnded}
-                              isFullscreen={isInteractiveFullscreen}
-                              onRequestExitFullscreen={handleExitInteractiveFullscreen}
-                              fullscreenControls={
-                                isInteractiveFullscreen ? (
-                                  <>
-                                    {fullscreenHeader}
-                                  {fullscreenNavigationGroup}
-                                </>
-                              ) : null
-                            }
-                              translationSpeed={translationSpeed}
-                              audioTracks={activeAudioTracks}
-                              originalAudioEnabled={effectiveOriginalAudioEnabled}
-                              fontScale={isInteractiveFullscreen ? 1.35 : 1}
-                          />
+                          ) : canRenderInteractiveViewer || shouldForceInteractiveViewer ? (
+                            <>
+                              <InteractiveTextViewer
+                                ref={textScrollRef}
+                                content={interactiveViewerContent}
+                                rawContent={interactiveViewerRaw}
+                                chunk={resolvedActiveTextChunk}
+                                activeAudioUrl={inlineAudioSelection}
+                                noAudioAvailable={inlineAudioUnavailable}
+                                jobId={jobId}
+                                onScroll={handleTextScroll}
+                                onAudioProgress={handleInlineAudioProgress}
+                                getStoredAudioPosition={getInlineAudioPosition}
+                                onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
+                                onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
+                                onRequestAdvanceChunk={handleInlineAudioEnded}
+                                isFullscreen={isInteractiveFullscreen}
+                                onRequestExitFullscreen={handleExitInteractiveFullscreen}
+                                fullscreenControls={
+                                  isInteractiveFullscreen ? (
+                                    <>
+                                      {fullscreenHeader}
+                                      {fullscreenNavigationGroup}
+                                    </>
+                                  ) : null
+                                }
+                                translationSpeed={translationSpeed}
+                                audioTracks={activeAudioTracks}
+                                activeTimingTrack={activeTimingTrack}
+                                originalAudioEnabled={effectiveOriginalAudioEnabled}
+                                fontScale={isInteractiveFullscreen ? 1.35 : 1}
+                              />
+                              {!canRenderInteractiveViewer ? (
+                                <div className="player-panel__document-status" role="status">
+                                  Interactive reader assets are still being prepared.
+                                </div>
+                              ) : null}
+                            </>
                           ) : (
                             <div className="player-panel__document-status" role="status">
                               Interactive reader assets are still being prepared.

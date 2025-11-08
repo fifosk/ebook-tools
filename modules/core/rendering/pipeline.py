@@ -7,7 +7,7 @@ import queue
 import threading
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Dict, List, Mapping, Optional, Sequence, Set, Tuple
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from PIL import Image
 from pydub import AudioSegment
@@ -47,6 +47,8 @@ class PipelineState:
     video_blocks: List[str] = field(default_factory=list)
     all_audio_segments: Optional[List[AudioSegment]] = None
     current_audio_segments: Optional[List[AudioSegment]] = None
+    all_sentence_metadata: Optional[List[Dict[str, Any]]] = None
+    current_sentence_metadata: List[Dict[str, Any]] = field(default_factory=list)
     batch_video_files: List[str] = field(default_factory=list)
     current_batch_start: int = 0
     last_target_language: str = ""
@@ -264,9 +266,11 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
                 voice_metadata=self._drain_current_voice_metadata(state),
+                sentence_metadata=list(state.current_sentence_metadata),
             )
             export_result = exporter.export(request)
             self._register_export_result(state, export_result)
+            state.current_sentence_metadata.clear()
         elif self._should_stop():
             console_info(
                 "Skip final batch export due to shutdown request.",
@@ -306,6 +310,8 @@ class RenderPipeline:
                 range_fragment=result.range_fragment,
                 files=result.artifacts,
                 sentences=result.sentences,
+                audio_tracks=result.audio_tracks,
+                timing_tracks=result.timing_tracks,
             )
 
     def _handle_export_future_completion(
@@ -338,6 +344,8 @@ class RenderPipeline:
         state = PipelineState()
         state.current_batch_start = start_sentence
         state.last_target_language = target_languages[0] if target_languages else ""
+        state.current_sentence_metadata = []
+        state.all_sentence_metadata = []
         if generate_audio:
             state.all_audio_segments = []
             state.current_audio_segments = []
@@ -524,6 +532,44 @@ class RenderPipeline:
             if state.all_audio_segments is not None:
                 state.all_audio_segments.append(audio_segment)
 
+        metadata_payload: Dict[str, Any] = {
+            "sentence_number": sentence_number,
+            "id": str(sentence_number),
+            "text": fluent or transliteration_result or sentence,
+            "t0": 0.0,
+        }
+        duration_val = 0.0
+        if audio_segment is not None:
+            try:
+                duration_val = float(audio_segment.duration_seconds)
+            except Exception:
+                duration_val = 0.0
+        metadata_payload["t1"] = round(max(duration_val, 0.0), 6)
+
+        if generate_audio and audio_segment is not None:
+            tokens: List[Dict[str, float | str]] = []
+            words = [word for word in (fluent or "").split() if word]
+            token_count = len(words)
+            slice_duration = (duration_val / token_count) if token_count > 0 else 0.0
+            cursor = 0.0
+            for index, word in enumerate(words):
+                start = cursor
+                end = duration_val if index == token_count - 1 else cursor + slice_duration
+                start = round(max(start, 0.0), 6)
+                end = round(max(min(end, duration_val), 0.0), 6)
+                tokens.append({"text": word, "start": start, "end": end})
+                cursor = end
+            if tokens:
+                metadata_payload["word_tokens"] = tokens
+                try:
+                    setattr(audio_segment, "word_tokens", tokens)
+                except Exception:
+                    pass
+
+        state.current_sentence_metadata.append(metadata_payload)
+        if state.all_sentence_metadata is not None:
+            state.all_sentence_metadata.append(metadata_payload)
+
         should_flush = (
             (sentence_number - state.current_batch_start + 1) % sentences_per_file == 0
         )
@@ -540,6 +586,7 @@ class RenderPipeline:
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
                 voice_metadata=self._drain_current_voice_metadata(state),
+                sentence_metadata=list(state.current_sentence_metadata),
             )
             export_result = exporter.export(request)
             self._register_export_result(state, export_result)
@@ -547,6 +594,7 @@ class RenderPipeline:
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
                 state.current_audio_segments.clear()
+            state.current_sentence_metadata.clear()
             state.current_batch_start = sentence_number + 1
         state.last_target_language = target_language or state.last_target_language
         state.processed += 1
@@ -819,6 +867,55 @@ class RenderPipeline:
                     )
                     state.written_blocks.append(written_block)
                     state.video_blocks.append(video_block)
+
+                    raw_metadata = getattr(item, "metadata", None)
+                    metadata_payload: Dict[str, Any]
+                    if isinstance(raw_metadata, Mapping):
+                        metadata_payload = dict(raw_metadata)
+                    else:
+                        metadata_payload = {}
+                    metadata_payload.setdefault("sentence_number", item.sentence_number)
+                    metadata_payload.setdefault("id", str(item.sentence_number))
+                    metadata_payload.setdefault(
+                        "text",
+                        metadata_payload.get("text")
+                        or fluent
+                        or transliteration_result
+                        or item.sentence,
+                    )
+                    metadata_payload.setdefault("t0", 0.0)
+
+                    duration_val = None
+                    if "t1" in metadata_payload:
+                        try:
+                            duration_val = float(metadata_payload["t1"])
+                        except (TypeError, ValueError):
+                            duration_val = None
+                    if duration_val is None and audio_segment is not None:
+                        try:
+                            duration_val = float(audio_segment.duration_seconds)
+                        except Exception:
+                            duration_val = None
+                    if duration_val is None:
+                        tokens = metadata_payload.get("word_tokens")
+                        if isinstance(tokens, Sequence) and tokens:
+                            last_token = tokens[-1]
+                            try:
+                                duration_val = float(last_token.get("end", 0.0))
+                            except (TypeError, ValueError, AttributeError):
+                                duration_val = None
+                    metadata_payload["t1"] = round(max(duration_val or 0.0, 0.0), 6)
+
+                    if audio_segment is not None and metadata_payload.get("word_tokens"):
+                        try:
+                            setattr(audio_segment, "word_tokens", metadata_payload["word_tokens"])
+                        except Exception:
+                            pass
+
+                    state.current_sentence_metadata.append(metadata_payload)
+                    if state.all_sentence_metadata is not None:
+                        state.all_sentence_metadata.append(metadata_payload)
+
                     should_flush = (
                         (item.sentence_number - state.current_batch_start + 1)
                         % sentences_per_file
@@ -838,6 +935,7 @@ class RenderPipeline:
                             generate_video=generate_video,
                             video_blocks=list(state.video_blocks),
                             voice_metadata=self._drain_current_voice_metadata(state),
+                            sentence_metadata=list(state.current_sentence_metadata),
                         )
                         future = finalize_executor.submit(exporter.export, request)
                         export_futures.append(future)
@@ -848,6 +946,7 @@ class RenderPipeline:
                         state.video_blocks.clear()
                         if state.current_audio_segments is not None:
                             state.current_audio_segments.clear()
+                        state.current_sentence_metadata.clear()
                         state.current_batch_start = item.sentence_number + 1
                     state.last_target_language = item.target_language or state.last_target_language
                     state.processed += 1
