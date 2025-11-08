@@ -127,7 +127,8 @@ def _compute_audio_highlight_metadata(
     silence_duration_sec = (SILENCE_DURATION_MS / 1000.0) * tempo_scale if sequence else 0.0
 
     current_offset_ms = 0.0
-    for key in sequence:
+    sequence_len = len(sequence)
+    for index, key in enumerate(sequence):
         segment = segments.get(key)
         base_ms = len(segment) if segment is not None else 0
         duration_sec = (base_ms / 1000.0) * tempo_scale
@@ -149,7 +150,7 @@ def _compute_audio_highlight_metadata(
             )
         )
         current_offset_ms += duration_sec * 1000.0
-        if silence_duration_sec > 0:
+        if silence_duration_sec > 0 and index < sequence_len - 1:
             parts.append(
                 AudioHighlightPart(
                     kind="silence",

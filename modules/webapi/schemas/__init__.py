@@ -130,7 +130,7 @@ class PipelineInputPayload(BaseModel):
     base_output_file: str
     input_language: str
     target_languages: List[str]
-    sentences_per_output_file: int = 10
+    sentences_per_output_file: int = 1
     start_sentence: int = 1
     end_sentence: Optional[int] = None
     stitch_full: bool = False

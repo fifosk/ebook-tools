@@ -386,9 +386,9 @@ The SPA composes several providers to offer a multi-user dashboard:
 
 1. **Audio synthesis** → `modules/render/audio_pipeline.py` produces (and smooths) `word_tokens`.
 2. **Timeline/exporters** → serialise `timingTracks.translation` into each chunk via `modules/core/rendering/exporters.py`.
-3. **Persistence** → aggregated into `metadata/timing_index.json` by the job manager.
-4. **Web API** → `/api/jobs/{job_id}/timing` returns the flattened per-word offsets.
-5. **Frontend** → `InteractiveTextViewer` loads the track, feeds `timingStore`, and syncs highlights to `<audio>` playback.
+3. **Persistence** → stores `timingTracks` alongside each `metadata/chunk_XXXX.json` file (no global `timing_index.json`).
+4. **Web API** → `/api/jobs/{job_id}/timing` is best-effort for legacy jobs; modern flows lean on chunk metadata directly.
+5. **Frontend** → `InteractiveTextViewer` hydrates chunk metadata lazily (plus timing tracks when present) and syncs highlights to `<audio>` playback.
 6. **Validation** → `scripts/validate_word_timing.py` (plus CI) ensure drift stays below 50 ms with no overlaps.
 
 For live QA you can enable a debug overlay in the browser console:

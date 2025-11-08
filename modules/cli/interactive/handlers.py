@@ -234,7 +234,7 @@ def _handle_thread_count(
 def _handle_sentences_per_file(
     config: Dict[str, Any], refined: Sequence[str], overrides: Dict[str, Any], debug_enabled: bool
 ) -> Tuple[Dict[str, Any], bool]:
-    default_sentences = config.get("sentences_per_output_file", 10)
+    default_sentences = config.get("sentences_per_output_file", 1)
     inp_val = prompt_user(f"Enter sentences per output file (default {default_sentences}): ")
     if inp_val.isdigit():
         config["sentences_per_output_file"] = int(inp_val)

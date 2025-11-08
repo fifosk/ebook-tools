@@ -45,7 +45,7 @@ class EbookToolsSettings(BaseModel):
     ollama_model: str = DEFAULT_MODEL
     generate_audio: bool = True
     generate_video: bool = False
-    sentences_per_output_file: int = 10
+    sentences_per_output_file: int = 1
     start_sentence: int = 1
     end_sentence: Optional[int] = None
     max_words: int = 18

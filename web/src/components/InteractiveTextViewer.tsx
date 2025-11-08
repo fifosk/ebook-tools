@@ -832,6 +832,7 @@ function buildParagraphs(content: string): ParagraphFragment[] {
 const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextViewerProps>(function InteractiveTextViewer(
   {
     content,
+    rawContent = null,
     chunk,
     activeAudioUrl,
     noAudioAvailable,
@@ -964,6 +965,56 @@ const gateListRef = useRef<SentenceGate[]>([]);
     };
   }, []);
   const fullscreenRequestedRef = useRef(false);
+  const fullscreenResyncPendingRef = useRef(false);
+  const fullscreenResyncToken = useMemo(() => {
+    const parts: (string | number)[] = [];
+    if (chunk) {
+      parts.push(
+        chunk.chunkId ?? '',
+        chunk.rangeFragment ?? '',
+        chunk.metadataPath ?? '',
+        chunk.metadataUrl ?? '',
+        chunk.startSentence ?? '',
+        chunk.endSentence ?? '',
+      );
+    } else {
+      parts.push('no-chunk');
+    }
+    parts.push(content.length, (rawContent ?? '').length, activeAudioUrl ?? 'none');
+    return parts.join('|');
+  }, [activeAudioUrl, chunk, content, rawContent]);
+  const requestFullscreenIfNeeded = useCallback(() => {
+    if (!isFullscreen || typeof document === 'undefined') {
+      return;
+    }
+    const element = rootRef.current;
+    if (!element) {
+      return;
+    }
+    if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
+      return;
+    }
+    if (typeof element.requestFullscreen !== 'function') {
+      fullscreenResyncPendingRef.current = false;
+      onRequestExitFullscreen?.();
+      return;
+    }
+    try {
+      const requestResult = element.requestFullscreen();
+      fullscreenRequestedRef.current = true;
+      if (requestResult && typeof requestResult.catch === 'function') {
+        requestResult.catch(() => {
+          fullscreenRequestedRef.current = false;
+          fullscreenResyncPendingRef.current = false;
+          onRequestExitFullscreen?.();
+        });
+      }
+    } catch {
+      fullscreenRequestedRef.current = false;
+      fullscreenResyncPendingRef.current = false;
+      onRequestExitFullscreen?.();
+    }
+  }, [isFullscreen, onRequestExitFullscreen]);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
@@ -2083,29 +2134,11 @@ const gateListRef = useRef<SentenceGate[]>([]);
         }
       }
       fullscreenRequestedRef.current = false;
+      fullscreenResyncPendingRef.current = false;
     };
 
     if (isFullscreen) {
-      if (document.fullscreenElement === element) {
-        return;
-      }
-      if (typeof element.requestFullscreen === 'function') {
-        try {
-          const requestResult = element.requestFullscreen();
-          fullscreenRequestedRef.current = true;
-          if (requestResult && typeof requestResult.catch === 'function') {
-            requestResult.catch(() => {
-              fullscreenRequestedRef.current = false;
-              onRequestExitFullscreen?.();
-            });
-          }
-        } catch (error) {
-          fullscreenRequestedRef.current = false;
-          onRequestExitFullscreen?.();
-        }
-      } else {
-        onRequestExitFullscreen?.();
-      }
+      requestFullscreenIfNeeded();
       return;
     }
 
@@ -2123,7 +2156,15 @@ const gateListRef = useRef<SentenceGate[]>([]);
         exitFullscreen();
       }
     };
-  }, [isFullscreen, onRequestExitFullscreen]);
+  }, [isFullscreen, onRequestExitFullscreen, requestFullscreenIfNeeded]);
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      return;
+    }
+    fullscreenResyncPendingRef.current = true;
+    requestFullscreenIfNeeded();
+  }, [fullscreenResyncToken, isFullscreen, requestFullscreenIfNeeded]);
 
   useEffect(() => {
     if (!isFullscreen || typeof document === 'undefined') {
@@ -2134,16 +2175,25 @@ const gateListRef = useRef<SentenceGate[]>([]);
       return;
     }
     const handleFullscreenChange = () => {
-      if (document.fullscreenElement !== element) {
+      if (document.fullscreenElement === element) {
         fullscreenRequestedRef.current = false;
-        onRequestExitFullscreen?.();
+        fullscreenResyncPendingRef.current = false;
+        return;
       }
+      fullscreenRequestedRef.current = false;
+      if (isFullscreen && fullscreenResyncPendingRef.current) {
+        fullscreenResyncPendingRef.current = false;
+        requestFullscreenIfNeeded();
+        return;
+      }
+      fullscreenResyncPendingRef.current = false;
+      onRequestExitFullscreen?.();
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [isFullscreen, onRequestExitFullscreen]);
+  }, [isFullscreen, onRequestExitFullscreen, requestFullscreenIfNeeded]);
 
   useEffect(() => {
     if (!resolvedAudioUrl) {
@@ -2389,6 +2439,13 @@ const gateListRef = useRef<SentenceGate[]>([]);
     [],
   );
 
+  const [fullscreenControlsCollapsed, setFullscreenControlsCollapsed] = useState(false);
+  useEffect(() => {
+    if (!isFullscreen) {
+      setFullscreenControlsCollapsed(false);
+    }
+  }, [isFullscreen]);
+
   const rootClassName = [
     'player-panel__interactive',
     isFullscreen ? 'player-panel__interactive--fullscreen' : null,
@@ -2397,22 +2454,18 @@ const gateListRef = useRef<SentenceGate[]>([]);
     .join(' ');
 
   const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
-
-  return (
-    <>
-      <div
-        ref={rootRef}
-        className={rootClassName}
-        data-fullscreen={isFullscreen ? 'true' : 'false'}
-        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
-      >
-      {isFullscreen && fullscreenControls ? (
-        <div className="player-panel__interactive-fullscreen-controls">
-          {fullscreenControls}
-        </div>
-      ) : null}
-      {resolvedAudioUrl ? (
-        <div className="player-panel__interactive-audio">
+  const renderInlineAudioSection = (collapsed: boolean): ReactNode => {
+    if (resolvedAudioUrl) {
+      return (
+        <div
+          className={[
+            'player-panel__interactive-audio',
+            collapsed ? 'player-panel__interactive-audio--collapsed' : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+          aria-hidden={collapsed ? 'true' : undefined}
+        >
           <span className="player-panel__interactive-label">Synchronized audio</span>
           <div className="player-panel__interactive-audio-controls">
             <PlayerCore
@@ -2438,11 +2491,76 @@ const gateListRef = useRef<SentenceGate[]>([]);
             />
           </div>
         </div>
-      ) : noAudioAvailable ? (
+      );
+    }
+    if (noAudioAvailable) {
+      return (
         <div className="player-panel__interactive-no-audio" role="status">
           Matching audio has not been generated for this selection yet.
         </div>
-      ) : null}
+      );
+    }
+    return null;
+  };
+  const inlineAudioAvailable = Boolean(resolvedAudioUrl || noAudioAvailable);
+
+  const hasFullscreenPanelContent = Boolean(fullscreenControls) || inlineAudioAvailable;
+
+  return (
+    <>
+      <div
+        ref={rootRef}
+        className={rootClassName}
+        data-fullscreen={isFullscreen ? 'true' : 'false'}
+        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
+      >
+      {isFullscreen && hasFullscreenPanelContent ? (
+        <div
+          className={[
+            'player-panel__interactive-fullscreen-controls',
+            fullscreenControlsCollapsed ? 'player-panel__interactive-fullscreen-controls--collapsed' : null,
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          <div className="player-panel__interactive-fullscreen-controls-bar">
+            <span className="player-panel__interactive-label">
+              {fullscreenControlsCollapsed ? 'Controls hidden' : 'Controls'}
+            </span>
+            <div className="player-panel__interactive-fullscreen-controls-actions">
+              {inlineAudioAvailable && fullscreenControlsCollapsed ? (
+                <button
+                  type="button"
+                  className="player-panel__interactive-fullscreen-toggle-btn player-panel__interactive-fullscreen-toggle-btn--audio"
+                  onClick={() => setFullscreenControlsCollapsed(false)}
+                >
+                  Show audio player
+                </button>
+              ) : null}
+              <button
+                type="button"
+                className="player-panel__interactive-fullscreen-toggle-btn"
+                onClick={() => setFullscreenControlsCollapsed((value) => !value)}
+                aria-expanded={!fullscreenControlsCollapsed}
+              >
+                {fullscreenControlsCollapsed ? 'Show controls' : 'Hide controls'}
+              </button>
+            </div>
+          </div>
+          {!fullscreenControlsCollapsed ? (
+            <>
+              {fullscreenControls ? (
+                <div className="player-panel__interactive-fullscreen-controls-body">{fullscreenControls}</div>
+              ) : null}
+              {renderInlineAudioSection(false)}
+            </>
+          ) : (
+            renderInlineAudioSection(true)
+          )}
+        </div>
+      ) : (
+        renderInlineAudioSection(false)
+      )}
       <div
         ref={containerRef}
         className="player-panel__document-body player-panel__interactive-body"

@@ -325,7 +325,7 @@ def _build_pipeline_input(
         base_output_file=base_output_file,
         input_language=config.get("input_language", context.default_language()),
         target_languages=target_languages,
-        sentences_per_output_file=config.get("sentences_per_output_file", 10),
+        sentences_per_output_file=config.get("sentences_per_output_file", 1),
         start_sentence=start_sentence,
         end_sentence=end_sentence,
         stitch_full=config.get("stitch_full", False),
@@ -429,7 +429,7 @@ def prepare_non_interactive_run(
 
     config["sentences_per_output_file"] = (
         args.sentences_per_output_file
-        or config.get("sentences_per_output_file", 10)
+        or config.get("sentences_per_output_file", 1)
     )
 
     base_output_file = _prepare_output_path(

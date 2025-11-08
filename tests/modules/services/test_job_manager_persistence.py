@@ -164,9 +164,11 @@ def test_snapshot_round_trip(tmp_path: Path) -> None:
     manifest_entry = chunk_entries[0]
     assert manifest_entry.get("metadata_path") == "metadata/chunk_0000.json"
     assert manifest_entry.get("sentence_count") == 1
+    assert "sentences" not in manifest_entry
 
-    timing_index = json.loads((metadata_root / "timing_index.json").read_text())
-    assert timing_index["translation"][0]["start"] == 1.5
+    assert not (metadata_root / "timing_index.json").exists()
+    assert metadata.result is not None
+    assert "timing_tracks" not in metadata.result
 
     restored = persistence.build_job(metadata)
 

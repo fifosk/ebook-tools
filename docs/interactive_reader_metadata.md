@@ -5,7 +5,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 ## 1. Data Sources
 
 - **Live job media snapshot.** `useLiveMedia` normalises `/api/pipelines/jobs/{job_id}/media` (and its live variant) into `LiveMediaChunk` records. Each chunk exposes `sentences`, `audioTracks`, and optional `timingTracks` pulled directly from `metadata/chunk_*.json` (`web/src/hooks/useLiveMedia.ts:360-520`).
-- **Timing endpoint.** `fetchJobTiming` hits `/api/jobs/{job_id}/timing` to retrieve the aggregated `timing_index.json` payload with both `mix` and `translation` tracks plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`).
+- **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with both `mix` and `translation` tracks plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
 - **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, sentence timelines, char-weight flags) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
 
 ## 2. Loading & Selection Logic
@@ -41,7 +41,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 ## 6. Opportunities for Improvement
 
 1. **Surface timing provenance.** The UI currently logs `highlighting_policy` to the console but does not show users whether they are seeing inferred/char-weighted tokens. Exposing `timingDiagnostics` in the reader (or tooltip) would help QA spot fallback cases faster.
-2. **Per-chunk caching.** Every chunk change re-fetches `/api/jobs/{id}/timing`, even though the payload is job-wide. Caching the promise per job (in context or a SWR-style hook) would shave ~200–400 ms on chunk swaps.
+2. **Per-chunk caching.** When `/api/jobs/{id}/timing` exists we currently re-fetch it on every chunk swap, even though the payload is job-wide. Caching the promise per job (in context or a SWR-style hook) would shave ~200–400 ms on chunk swaps.
 3. **Unify track builders.** There are two parallel code paths: job-level `buildTimingPayloadFromJobTiming` and chunk-level `buildTimingPayloadFromWordIndex`. Harmonising them (e.g., by storing pre-normalised `segments` alongside chunk metadata) would reduce drift and remove the legacy word-index adapter.
 4. **Better fallback messaging.** When no timing payload exists the viewer silently disables highlights. Adding a visible badge (“Word sync unavailable for this chunk”) plus links to metadata diagnostics would aid debugging.
 5. **Token quality metrics.** `computeTimingMetrics` already emits avg token duration and drift; persisting those metrics (per job/chunk) would enable dashboards spotting problematic pipelines without manual console inspection.
@@ -65,8 +65,8 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   `char_weighted_highlighting_default`,
   `char_weighted_punctuation_boost`, and the forced-alignment toggles determine
   which provenance the reader will see. When QA spots drift, inspect the
-  `highlighting_policy` and `highlighting_summary` fields returned by
-  `/api/jobs/{job_id}/timing` before assuming a frontend bug.
+  `highlighting_policy` and `highlighting_summary` fields (via chunk metadata or,
+  when available, `/api/jobs/{job_id}/timing`) before assuming a frontend bug.
 
 Update this section whenever the audio worker, metadata artefacts, or highlight
 policies change—most reader regressions trace back to those touch points.

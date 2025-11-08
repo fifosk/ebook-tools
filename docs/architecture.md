@@ -62,18 +62,19 @@ changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/f
 
 `modules/services/job_manager/persistence.py` emits every metadata artefact a
 job needs: `metadata/job.json` (global metadata + `chunk_manifest`),
-`metadata/chunk_manifest.json`, per-chunk files (`metadata/chunk_XXXX.json`),
-and the aggregated `metadata/timing_index.json`. `MetadataLoader` in
-`modules/metadata_manager.py` is the canonical read path so CLI helpers, the
-FastAPI routers, and tests can treat the legacy single-file payload and the new
-chunked layout interchangeably. Highlight provenance originates inside
+`metadata/chunk_manifest.json`, and per-chunk files (`metadata/chunk_XXXX.json`)
+that retain their own `timingTracks`. Legacy installs may still have an
+aggregated `metadata/timing_index.json`, but new jobs no longer generate it.
+`MetadataLoader` in `modules/metadata_manager.py` is the canonical read path so
+CLI helpers, the FastAPI routers, and tests can treat the legacy single-file
+payload and the new chunked layout interchangeably. Highlight provenance originates inside
 `modules/render/audio_pipeline.py`, which records whether a sentence used
 backend tokens, WhisperX (`modules/align/backends/whisperx_adapter.py`),
 char-weighted, or uniform inference. `EBOOK_HIGHLIGHT_POLICY`,
 `char_weighted_highlighting_default`, `char_weighted_punctuation_boost`, and the
 forced-alignment settings determine which strategy is permitted; the resulting
-`highlighting_summary` entries surface through `/api/jobs/{job_id}/timing` for
-the frontend and QA tooling.
+`highlighting_summary` entries surface via chunk metadata (and `/api/jobs/{job_id}/timing`
+when present) for the frontend and QA tooling.
 
 ### Backend input processing diagram
 
@@ -139,7 +140,7 @@ each sentence duration while maintaining monotonic progression.
 
 1. `modules/render/audio_pipeline.py` emits and smooths `word_tokens` for each sentence.
 2. `modules/core/rendering/exporters.py` serialises `timingTracks.translation` into `chunk_*.json`.
-3. `modules/services/job_manager/persistence.py` aggregates chunk-level tracks into `metadata/timing_index.json`.
-4. `modules/webapi/routes/media_routes.py` serves the consolidated `/api/jobs/{job_id}/timing` endpoint.
-5. `web/src/components/InteractiveTextViewer.tsx` hydrates the track, updates `timingStore`, and keeps highlights in sync with audio playback.
-6. `scripts/validate_word_timing.py` (referenced by CI) ensures drift remains below 50 ms and that timings stay monotonic.
+3. `modules/services/job_manager/persistence.py` persists those tracks alongside the per-chunk metadata (no new global aggregate).
+4. `modules/webapi/routes/media_routes.py` still exposes `/api/jobs/{job_id}/timing` when historical aggregates exist; otherwise the frontend leans entirely on chunk metadata.
+5. `web/src/components/InteractiveTextViewer.tsx` hydrates chunk metadata lazily, updates `timingStore` when a timing payload is available, and keeps highlights in sync with audio playback.
+6. `scripts/validate_word_timing.py` (referenced by CI) now only applies to legacy aggregates; new QA tooling should read per-chunk payloads directly.

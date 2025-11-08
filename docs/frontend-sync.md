@@ -53,9 +53,10 @@ Follow the suggested remediations to restore parity:
 - Inspect `storage/<job_id>/metadata/job.json` and `metadata/chunk_manifest.json`
   on each device; mismatched manifests or chunk counts indicate that audio
   regeneration or metadata compaction ran on only one machine.
-- Compare the SHA256 of `metadata/timing_index.json` (or fetch it via
-  `/api/jobs/{job_id}/timing`) to ensure both environments are replaying the
-  same highlight provenance.
+- Spot-check a few chunk metadata files (`metadata/chunk_XXXX.json`) on each
+  machine—especially their `timingTracks` entries—to ensure both environments
+  are replaying the same highlight provenance. Legacy jobs may still include a
+  `metadata/timing_index.json` if you prefer comparing single-file hashes.
 - When snapshots disagree, rerun the pipeline or `/api/media/generate` so the
   job manager rewrites chunk metadata and audio assets consistently before
   re-testing the frontend.

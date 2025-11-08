@@ -484,8 +484,11 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                             segments[key] = AudioSegment.silent(duration=0)
 
         audio = AudioSegment.silent(duration=0)
-        for key in sequence:
-            audio += segments.get(key, AudioSegment.silent(duration=0)) + silence
+        total_segments = len(sequence)
+        for index, key in enumerate(sequence):
+            audio += segments.get(key, AudioSegment.silent(duration=0))
+            if index < total_segments - 1:
+                audio += silence
 
         tempo_adjusted = self._change_audio_tempo(audio, tempo)
         try:

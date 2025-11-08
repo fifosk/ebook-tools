@@ -81,7 +81,7 @@
     "target_languages": ["Arabic"],
     "audio_mode": "1",
     "written_mode": "4",
-    "sentences_per_output_file": 10,
+    "sentences_per_output_file": 1,
     "max_words": 18,
     "percentile": 96
   }

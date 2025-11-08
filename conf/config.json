@@ -56,9 +56,9 @@
     "base_output_file": "",
     "input_language": "English",
     "target_languages": [
-        "Portuguese"
+        "Arabic"
     ],
-    "sentences_per_output_file": 10,
+    "sentences_per_output_file": 1,
     "start_sentence": 1,
     "end_sentence": null,
     "max_words": 18,

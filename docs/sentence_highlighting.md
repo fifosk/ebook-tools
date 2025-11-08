@@ -8,8 +8,8 @@ This document summarises how the pipeline generates sentence-level timing data, 
 2. **Word-token derivation** – multiple strategies fill `metadata["word_tokens"]` (backend timings, forced alignment, char-timing extraction, or character-weighted inference) and annotate `highlighting_summary`.
 3. **Sentence payloads** – the exporter builds per-sentence highlight timelines (for slide/video rendering) and `SentenceTimingSpec` entries that capture original/translation durations per sentence (`modules/core/rendering/exporters.py:300-420`, `:598-740`).
 4. **Dual-track merge** – `build_dual_track_timings` converts the sentence specs into two flattened tracks, `mix` and `translation`, with per-word offsets (`modules/core/rendering/timeline.py:419-780`).
-5. **Persistence** – `modules/services/job_manager/persistence.py` writes `metadata/chunk_XXXX.json`, a compact `metadata/job.json` (holding the chunk manifest + sentence summaries), and a `metadata/timing_index.json` aggregate for quick lookup.
-6. **Playback** – the frontend loads `timing_index.json` (via `/api/jobs/{job_id}/timing`) to drive transcript highlights, while the video slide renderer reuses the per-sentence timelines to animate word fills in rendered media (`README.md:385-417`, `docs/architecture.md:98-135`).
+5. **Persistence** – `modules/services/job_manager/persistence.py` writes `metadata/chunk_XXXX.json` plus a compact `metadata/job.json` (holding the chunk manifest + sentence summaries). Each chunk retains its own `timingTracks`; the legacy `metadata/timing_index.json` aggregate is no longer produced for new jobs.
+6. **Playback** – the frontend lazily loads chunk metadata (and their `timingTracks` when present) to drive highlights, while legacy jobs can still expose `/api/jobs/{job_id}/timing` for pre-aggregated tracks. Slide/video renderers continue to read the per-sentence `timeline` payloads (`README.md:385-417`, `docs/architecture.md:98-135`).
 
 ## 2. Sentence-level generation
 
@@ -110,9 +110,9 @@ Both tracks are stored under `chunk["timingTracks"] = {"mix": [...], "translatio
 
 `MetadataLoader.build_chunk_manifest()` reconstructs the manifest even for legacy inline payloads to provide a consistent API (`modules/metadata_manager.py:826-864`).
 
-### 4.3 Timing index
+### 4.3 Timing index (legacy artifacts)
 
-`build_timing_index` scans every `chunk_*.json` for `timingTracks`. It concatenates both tracks into `metadata/timing_index.json`, preserving lane metadata, `policy`, `source`, sentences IDs, and the `fallback` bit so downstream tooling (QA scripts, frontend) can reason about the provenance of each timing (`modules/services/job_manager/persistence.py:135-193`). The job snapshot stores pointers back to this index so `/api/jobs/{job_id}/timing` can stream it.
+Older jobs included a job-level `metadata/timing_index.json` produced by `build_timing_index`. New runs skip this aggregation step to keep metadata writes cheap; the Web API still exposes `/api/jobs/{job_id}/timing` when the index exists (for backwards compatibility), but most tooling should rely on the per-chunk `timingTracks` instead.
 
 ## 5. Highlight playback
 
@@ -123,16 +123,16 @@ Both tracks are stored under `chunk["timingTracks"] = {"mix": [...], "translatio
 
 ### 5.2 Frontend interactive transcript
 
-- `useWordHighlighting` pulls `metadata/timing_index.json`, hydrates a MobX-like store, and keeps the audio player’s `currentTime` in lock-step with `mix`/`translation` tracks (`README.md:360-417`).
-- `InteractiveTextViewer` (and `MediaSearchPanel`) subscribe to the track store to highlight the right tokens, showing original vs translation lanes exactly as produced by the backend manifest. The `fallback` flag is surfaced in the debug overlay to spot char-weighted segments quickly.
+- `useWordHighlighting` still hydrates the MobX-like store when `/api/jobs/{job_id}/timing` exists (legacy jobs). When the endpoint returns `404`, the store stays empty and the interactive reader falls back to the chunk-level `timeline` events for sentence highlighting.
+- `InteractiveTextViewer` subscribes to the store when it is populated, but otherwise relies on the lazily loaded chunk metadata to render sentence highlights. The debug overlay now reflects whether playback uses aggregated or per-chunk timings, making it obvious when char-weighted fallbacks are active.
 
 ## 6. Accuracy levers & investigation hooks
 
 1. **Instrument mismatches** – we currently log when backend token counts diverge from translation word counts (`modules/render/audio_pipeline.py:789-795`), but that information is lost after the log. Persisting a per-sentence `token_mismatch` flag in chunk metadata would help dashboards highlight problematic sentences.
 2. **Char-weighted heuristics** – `compute_char_weighted_timings` treats every grapheme equally unless punctuation weighting is toggled. Languages without whitespace (Chinese, Japanese) may still receive per-character timing even when the backend supplied word-level units because `_split_translation_units` falls back to characters (`modules/audio/highlight/timeline.py:27-40`). Consider language-specific segmentation (e.g., Jieba) before char weighting to avoid jitter.
-3. **Alignment backend selection** – `_resolve_alignment_model_choice` (inside `audio_pipeline`) picks WhisperX models per ISO code but does not record failures beyond log lines. Recording the final `alignment_model` into `highlighting_summary` (already partially done via `alignment_model_used`) and exposing it in `timing_index` entries could make cross-job analysis simpler.
-4. **Mix-track gaps** – The mix track assumes a single silence pad (`SILENCE_DURATION_MS`) between original and translation audio when generating combined MP3s (`modules/core/rendering/exporters.py:540-620`). If TTS backends start inserting dynamic pauses, we should capture the actual measured `gap_before_translation`/`gap_after_translation` per sentence rather than relying on static silence.
-5. **Validation tooling** – `scripts/validate_alignment_quality.py` and `scripts/validate_word_timing.py` already parse `timing_index.json`. Extending them to highlight how many tokens were char-weighted (`fallback=true`) per job would quantify how often we fall back to heuristics.
+3. **Alignment backend selection** – `_resolve_alignment_model_choice` (inside `audio_pipeline`) picks WhisperX models per ISO code but does not record failures beyond log lines. Recording the final `alignment_model` into `highlighting_summary` (already partially done via `alignment_model_used`) keeps the provenance visible even without a global timing index.
+4. **Mix-track gaps** – The mix track assumes a single silence pad (`SILENCE_DURATION_MS`) between original and translation audio when generating combined MP3s (`modules/core/rendering/exporters.py:540-620`). Synthesis now only inserts that pad *between* contiguous segments, dropping the trailing silence at the end of each sentence so highlighting ends when the spoken words do. If TTS backends start inserting dynamic pauses, we should capture the actual measured `gap_before_translation`/`gap_after_translation` per sentence rather than relying on static silence.
+5. **Validation tooling** – `scripts/validate_alignment_quality.py` and `scripts/validate_word_timing.py` still expect a `timing_index.json`. They now only work on legacy exports (or ad-hoc aggregates); future tooling should read per-chunk `timingTracks` directly if we want coverage across all jobs.
 
 Keeping the above flow documented should make it easier to reason about highlighting drift, experiment with new aligners, or bolt on analytics without reverse-engineering the code paths every time.
 

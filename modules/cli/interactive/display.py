@@ -67,7 +67,7 @@ def display_menu(config: Dict[str, Any], refined: Sequence[str], resolved_input:
     console_info("\n--- Sentence Parsing Settings ---")
     console_info(
         "13. Sentences per output file: %s",
-        config.get("sentences_per_output_file", 10),
+        config.get("sentences_per_output_file", 1),
     )
     console_info(
         "14. Starting sentence (number or lookup word): %s",
