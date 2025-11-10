@@ -1030,6 +1030,7 @@ const scheduleChunkMetadataAppend = useCallback(
       suggestions,
     };
   }, [chunks]);
+  const totalSentencesInBook = sentenceLookup.max ?? null;
   const findSentenceTarget = useCallback(
     (sentenceNumber: number) => {
       if (!Number.isFinite(sentenceNumber)) {
@@ -3371,6 +3372,7 @@ const scheduleChunkMetadataAppend = useCallback(
                                 content={interactiveViewerContent}
                                 rawContent={interactiveViewerRaw}
                                 chunk={resolvedActiveTextChunk}
+                                totalSentencesInBook={totalSentencesInBook}
                                 activeAudioUrl={inlineAudioSelection}
                                 noAudioAvailable={inlineAudioUnavailable}
                                 jobId={jobId}

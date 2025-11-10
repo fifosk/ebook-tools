@@ -636,6 +636,7 @@ interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
+  totalSentencesInBook?: number | null;
   activeAudioUrl: string | null;
   noAudioAvailable: boolean;
   jobId?: string | null;
@@ -834,6 +835,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     content,
     rawContent = null,
     chunk,
+    totalSentencesInBook = null,
     activeAudioUrl,
     noAudioAvailable,
     jobId = null,
@@ -2528,6 +2530,33 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const inlineAudioAvailable = Boolean(resolvedAudioUrl || noAudioAvailable);
 
   const hasFullscreenPanelContent = Boolean(fullscreenControls) || inlineAudioAvailable;
+  const slideIndicator = useMemo(() => {
+    if (!chunk) {
+      return null;
+    }
+    const start =
+      typeof chunk.startSentence === 'number' && Number.isFinite(chunk.startSentence)
+        ? Math.max(chunk.startSentence, 1)
+        : null;
+    const current =
+      start !== null ? start + Math.max(activeSentenceIndex, 0) : null;
+    const totalFromProp =
+      typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
+        ? Math.max(totalSentencesInBook, 1)
+        : null;
+    const chunkEnd =
+      typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
+        ? Math.max(chunk.endSentence, start ?? 1)
+        : null;
+    const total = totalFromProp ?? chunkEnd;
+    if (current === null || total === null) {
+      return null;
+    }
+    return {
+      current: Math.min(current, total),
+      total,
+    };
+  }, [activeSentenceIndex, chunk, totalSentencesInBook]);
 
   return (
     <>
@@ -2591,6 +2620,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         onScroll={handleScroll}
         style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
       >
+        {slideIndicator ? (
+          <div className="player-panel__interactive-slide-indicator">
+            {slideIndicator.current}/{slideIndicator.total}
+          </div>
+        ) : null}
         {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
           <div
             className="word-sync"

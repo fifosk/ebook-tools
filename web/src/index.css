@@ -2616,6 +2616,22 @@ button.link-button:focus {
   min-height: 18rem;
   max-height: none;
   flex: 1 1 auto;
+  position: relative;
+}
+
+.player-panel__interactive-slide-indicator {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.75rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .player-panel__interactive-paragraph {
