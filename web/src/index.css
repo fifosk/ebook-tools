@@ -2057,6 +2057,59 @@ button.link-button:focus {
   transform: none;
 }
 
+.player-panel__nav-jump {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.player-panel__nav-jump-control {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.player-panel__nav-jump-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0.55rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(15, 23, 42, 0.4);
+  color: var(--color-text-primary);
+  font-size: 0.95rem;
+}
+
+.player-panel__nav-jump-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.45);
+}
+
+.player-panel__nav-jump-button {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.9);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 0.35rem 0.9rem;
+}
+
+.player-panel__nav-jump-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.player-panel__nav-jump-meta {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.player-panel__nav-jump-error {
+  color: var(--color-accent-warn, #f87171);
+}
+
 .player-panel__inline-audio {
   display: inline-flex;
   align-items: center;

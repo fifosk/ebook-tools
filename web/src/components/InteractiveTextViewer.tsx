@@ -31,7 +31,7 @@ import TextPlayer, {
 } from '../text-player/TextPlayer';
 import type { ChunkSentenceMetadata, TrackTimingPayload, WordTiming } from '../api/dtos';
 import { buildWordIndex, collectActiveWordIds, lowerBound, type WordIndex } from '../lib/timing/wordSync';
-import { WORD_SYNC } from './player-panel/constants';
+import { WORD_SYNC, normaliseTranslationSpeed } from './player-panel/constants';
 
 type HighlightDebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean; overlay?: boolean } };
 
@@ -854,7 +854,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   },
   forwardedRef,
 ) {
-  void translationSpeed;
+  const resolvedTranslationSpeed = useMemo(
+    () => normaliseTranslationSpeed(translationSpeed),
+    [translationSpeed],
+  );
   const safeFontScale = useMemo(() => {
     if (!Number.isFinite(fontScale) || fontScale <= 0) {
       return 1;
@@ -862,8 +865,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const clamped = Math.min(Math.max(fontScale, 0.5), 3);
     return Math.round(clamped * 100) / 100;
   }, [fontScale]);
-const rootRef = useRef<HTMLDivElement | null>(null);
-const containerRef = useRef<HTMLDivElement | null>(null);
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const {
     ref: attachPlayerCore,
     core: playerCore,
@@ -878,9 +881,9 @@ const containerRef = useRef<HTMLDivElement | null>(null);
     [rawAttachMediaElement],
   );
   const tokenElementsRef = useRef<Map<string, HTMLElement>>(new Map());
-const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
-const wordSyncControllerRef = useRef<WordSyncController | null>(null);
-const gateListRef = useRef<SentenceGate[]>([]);
+  const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
+  const wordSyncControllerRef = useRef<WordSyncController | null>(null);
+  const gateListRef = useRef<SentenceGate[]>([]);
   const clock = useMediaClock(audioRef);
   const clockRef = useRef<MediaClock>(clock);
   const diagnosticsSignatureRef = useRef<string | null>(null);
@@ -1793,6 +1796,20 @@ const gateListRef = useRef<SentenceGate[]>([]);
     }
     return buildTimingPayloadFromWordIndex(activeWordSyncTrack, activeWordIndex);
   }, [activeWordIndex, activeWordSyncTrack, hasLegacyWordSync, remoteTrackPayload]);
+  const timingPlaybackRate = useMemo(() => {
+    const rate = timingPayload?.playbackRate;
+    if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
+      return rate;
+    }
+    return 1;
+  }, [timingPayload]);
+  const effectivePlaybackRate = useMemo(() => {
+    const combined = timingPlaybackRate * resolvedTranslationSpeed;
+    if (!Number.isFinite(combined) || combined <= 0) {
+      return timingPlaybackRate;
+    }
+    return Math.round(combined * 1000) / 1000;
+  }, [resolvedTranslationSpeed, timingPlaybackRate]);
 
   useEffect(() => {
     if (!timingPayload) {
@@ -1937,11 +1954,14 @@ const gateListRef = useRef<SentenceGate[]>([]);
     }
     timingStore.setPayload(timingPayload);
     timingStore.setLast(null);
-    if (typeof timingPayload.playbackRate === 'number' && timingPayload.playbackRate > 0) {
-      timingStore.setRate(timingPayload.playbackRate);
-    }
     return clearTiming;
   }, [shouldUseWordSync, timingPayload]);
+  useEffect(() => {
+    if (!shouldUseWordSync || !timingPayload) {
+      return;
+    }
+    timingStore.setRate(effectivePlaybackRate);
+  }, [effectivePlaybackRate, shouldUseWordSync, timingPayload]);
   useEffect(() => {
     if (!playerCore || !shouldUseWordSync || !timingPayload) {
       stopAudioSync();
@@ -1949,14 +1969,17 @@ const gateListRef = useRef<SentenceGate[]>([]);
         stopAudioSync();
       };
     }
-    if (typeof timingPayload.playbackRate === 'number' && timingPayload.playbackRate > 0) {
-      playerCore.setRate(timingPayload.playbackRate);
-    }
     startAudioSync(playerCore);
     return () => {
       stopAudioSync();
     };
   }, [playerCore, shouldUseWordSync, timingPayload]);
+  useEffect(() => {
+    if (!playerCore) {
+      return;
+    }
+    playerCore.setRate(effectivePlaybackRate);
+  }, [effectivePlaybackRate, playerCore]);
   useEffect(() => {
     if (!legacyWordSyncEnabled) {
       tokenElementsRef.current.clear();

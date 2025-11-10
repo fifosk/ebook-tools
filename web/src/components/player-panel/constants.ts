@@ -25,8 +25,8 @@ export function selectInitialTab(media: LiveMediaState): MediaCategory {
 export type TranslationSpeed = number;
 
 export const TRANSLATION_SPEED_MIN: TranslationSpeed = 0.5;
-export const TRANSLATION_SPEED_MAX: TranslationSpeed = 2;
-export const TRANSLATION_SPEED_STEP: TranslationSpeed = 0.25;
+export const TRANSLATION_SPEED_MAX: TranslationSpeed = 1.5;
+export const TRANSLATION_SPEED_STEP: TranslationSpeed = 0.1;
 export const DEFAULT_TRANSLATION_SPEED: TranslationSpeed = 1;
 
 export function normaliseTranslationSpeed(value: number): TranslationSpeed {

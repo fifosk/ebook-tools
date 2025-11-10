@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, UIEvent } from 'react';
+import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, UIEvent } from 'react';
 import VideoPlayer from './VideoPlayer';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
@@ -97,6 +97,17 @@ interface NavigationControlsProps {
   translationSpeedMax: number;
   translationSpeedStep: number;
   onTranslationSpeedChange: (value: TranslationSpeed) => void;
+  showSentenceJump?: boolean;
+  sentenceJumpValue?: string;
+  sentenceJumpMin?: number | null;
+  sentenceJumpMax?: number | null;
+  sentenceJumpError?: string | null;
+  sentenceJumpDisabled?: boolean;
+  sentenceJumpInputId?: string;
+  sentenceJumpListId?: string;
+  sentenceJumpPlaceholder?: string;
+  onSentenceJumpChange?: (value: string) => void;
+  onSentenceJumpSubmit?: () => void;
 }
 
 function NavigationControls({
@@ -127,6 +138,17 @@ function NavigationControls({
   translationSpeedMax,
   translationSpeedStep,
   onTranslationSpeedChange,
+  showSentenceJump = false,
+  sentenceJumpValue = '',
+  sentenceJumpMin = null,
+  sentenceJumpMax = null,
+  sentenceJumpError = null,
+  sentenceJumpDisabled = false,
+  sentenceJumpInputId,
+  sentenceJumpListId,
+  sentenceJumpPlaceholder,
+  onSentenceJumpChange,
+  onSentenceJumpSubmit,
 }: NavigationControlsProps) {
   const inlineAudioId =
     context === 'fullscreen' ? 'player-panel-inline-audio-fullscreen' : 'player-panel-inline-audio';
@@ -150,6 +172,16 @@ function NavigationControls({
     ? 'Original audio will appear after interactive assets regenerate'
     : 'Toggle Original Audio';
   const sliderId = useId();
+  const jumpInputFallbackId = useId();
+  const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
+  const jumpRangeId = `${jumpInputId}-range`;
+  const jumpErrorId = `${jumpInputId}-error`;
+  const describedBy =
+    sentenceJumpError && showSentenceJump
+      ? jumpErrorId
+      : showSentenceJump && sentenceJumpMin !== null && sentenceJumpMax !== null
+      ? jumpRangeId
+      : undefined;
   const fullscreenButtonClassName = ['player-panel__nav-button'];
   if (isFullscreen) {
     fullscreenButtonClassName.push('player-panel__nav-button--fullscreen-active');
@@ -162,6 +194,15 @@ function NavigationControls({
       return;
     }
     onTranslationSpeedChange(raw);
+  };
+  const handleSentenceInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    onSentenceJumpChange?.(event.target.value);
+  };
+  const handleSentenceInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      onSentenceJumpSubmit?.();
+    }
   };
 
   return (
@@ -246,7 +287,7 @@ function NavigationControls({
       {showTranslationSpeed ? (
         <div className="player-panel__nav-speed" data-testid="player-panel-speed">
           <label className="player-panel__nav-speed-label" htmlFor={sliderId}>
-            Translation speed
+            Speed
           </label>
           <div className="player-panel__nav-speed-control">
             <input
@@ -258,7 +299,7 @@ function NavigationControls({
               step={translationSpeedStep}
               value={translationSpeed}
               onChange={handleSpeedChange}
-              aria-label="Translation speed"
+              aria-label="Speed"
               aria-valuetext={formattedSpeed}
             />
             <span className="player-panel__nav-speed-value" aria-live="polite">
@@ -268,6 +309,50 @@ function NavigationControls({
           <div className="player-panel__nav-speed-scale" aria-hidden="true">
             <span>{formatTranslationSpeedLabel(translationSpeedMin)}</span>
             <span>{formatTranslationSpeedLabel(translationSpeedMax)}</span>
+          </div>
+        </div>
+      ) : null}
+      {showSentenceJump ? (
+        <div className="player-panel__nav-jump">
+          <label className="player-panel__nav-speed-label" htmlFor={jumpInputId}>
+            Jump to sentence
+          </label>
+          <div className="player-panel__nav-jump-control">
+            <input
+              id={jumpInputId}
+              className="player-panel__nav-jump-input"
+              type="number"
+              inputMode="numeric"
+              min={sentenceJumpMin ?? undefined}
+              max={sentenceJumpMax ?? undefined}
+              step={1}
+              list={sentenceJumpListId}
+              value={sentenceJumpValue}
+              onChange={handleSentenceInputChange}
+              onKeyDown={handleSentenceInputKeyDown}
+              placeholder={sentenceJumpPlaceholder}
+              aria-describedby={describedBy}
+              aria-invalid={sentenceJumpError ? 'true' : undefined}
+            />
+            <button
+              type="button"
+              className="player-panel__nav-jump-button"
+              onClick={onSentenceJumpSubmit}
+              disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+            >
+              Go
+            </button>
+          </div>
+          <div className="player-panel__nav-jump-meta" aria-live="polite">
+            {sentenceJumpError ? (
+              <span id={jumpErrorId} className="player-panel__nav-jump-error">
+                {sentenceJumpError}
+              </span>
+            ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
+              <span id={jumpRangeId}>
+                Range {sentenceJumpMin}–{sentenceJumpMax}
+              </span>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -322,6 +407,26 @@ function deriveBaseIdFromReference(value: string | null | undefined): string | n
   const base = dotIndex > 0 ? withoutQuery.slice(0, dotIndex) : withoutQuery;
   const trimmed = base.trim();
   return trimmed ? trimmed.toLowerCase() : null;
+}
+
+function resolveChunkBaseId(chunk: LiveMediaChunk): string | null {
+  const textFile = chunk.files.find((file) => file.type === 'text' && typeof file.url === 'string' && file.url.length > 0);
+  if (textFile?.url) {
+    return deriveBaseIdFromReference(textFile.url) ?? textFile.url ?? null;
+  }
+  if (chunk.chunkId) {
+    return chunk.chunkId;
+  }
+  if (chunk.rangeFragment) {
+    return chunk.rangeFragment;
+  }
+  if (chunk.metadataPath) {
+    return chunk.metadataPath;
+  }
+  if (chunk.metadataUrl) {
+    return chunk.metadataUrl;
+  }
+  return null;
 }
 
 function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCategory | null): string | null {
@@ -572,6 +677,28 @@ const MAX_SENTENCE_PREFETCH_COUNT = 400;
 const CHUNK_SENTENCE_BOOTSTRAP_COUNT = 12;
 const CHUNK_SENTENCE_APPEND_BATCH = 75;
 
+type SentenceLookupEntry = {
+  chunkIndex: number;
+  localIndex: number;
+  total: number;
+  baseId: string | null;
+};
+
+type SentenceLookupRange = {
+  start: number;
+  end: number;
+  chunkIndex: number;
+  baseId: string | null;
+};
+
+type SentenceLookup = {
+  min: number | null;
+  max: number | null;
+  exact: Map<number, SentenceLookupEntry>;
+  ranges: SentenceLookupRange[];
+  suggestions: number[];
+};
+
 function isSingleSentenceChunk(chunk: LiveMediaChunk | null | undefined): boolean {
   if (!chunk) {
     return false;
@@ -700,9 +827,12 @@ export default function PlayerPanel({
 
   return initial;
 });
-const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
-const [pendingChunkSelection, setPendingChunkSelection] = useState<{ index: number; token: number } | null>(null);
-const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
+  const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
+  const [pendingChunkSelection, setPendingChunkSelection] =
+    useState<{ index: number; token: number } | null>(null);
+  const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
+  const [sentenceJumpValue, setSentenceJumpValue] = useState('');
+  const [sentenceJumpError, setSentenceJumpError] = useState<string | null>(null);
   const [showOriginalAudio, setShowOriginalAudio] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -714,9 +844,9 @@ const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | nu
     return stored === 'true';
   });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
-const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
-const chunkMetadataStoreRef = useRef(chunkMetadataStore);
-const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
+  const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
+  const chunkMetadataStoreRef = useRef(chunkMetadataStore);
+  const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
 const pushChunkMetadata = useCallback(
   (cacheKey: string, payload: ChunkSentenceMetadata[] | null | undefined, append: boolean) => {
     const normalized = Array.isArray(payload) ? payload : [];
@@ -804,9 +934,204 @@ const scheduleChunkMetadataAppend = useCallback(
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const hasSkippedInitialRememberRef = useRef(false);
   const inlineAudioBaseRef = useRef<string | null>(null);
+  const pendingAutoPlayRef = useRef(false);
   const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
   const [translationSpeed, setTranslationSpeed] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
+  const sentenceLookup = useMemo<SentenceLookup>(() => {
+    const exact = new Map<number, SentenceLookupEntry>();
+    const ranges: SentenceLookupRange[] = [];
+    let min = Number.POSITIVE_INFINITY;
+    let max = Number.NEGATIVE_INFINITY;
+    const boundarySet = new Set<number>();
+
+    const registerBoundary = (value: number | null | undefined): number | null => {
+      if (typeof value !== 'number' || !Number.isFinite(value)) {
+        return null;
+      }
+      const normalized = Math.trunc(value);
+      boundarySet.add(normalized);
+      if (normalized < min) {
+        min = normalized;
+      }
+      if (normalized > max) {
+        max = normalized;
+      }
+      return normalized;
+    };
+
+    chunks.forEach((chunk, chunkIndex) => {
+      const baseId = resolveChunkBaseId(chunk);
+      const start = registerBoundary(chunk.startSentence ?? null);
+      const end = registerBoundary(chunk.endSentence ?? null);
+      if (start !== null && end !== null && end >= start) {
+        ranges.push({ start, end, chunkIndex, baseId });
+      }
+      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
+        const total = chunk.sentences.length;
+        chunk.sentences.forEach((sentence, localIndex) => {
+          if (!sentence) {
+            return;
+          }
+          const absolute =
+            typeof sentence.sentence_number === 'number' && Number.isFinite(sentence.sentence_number)
+              ? Math.trunc(sentence.sentence_number)
+              : null;
+          if (absolute === null) {
+            return;
+          }
+          boundarySet.add(absolute);
+          if (absolute < min) {
+            min = absolute;
+          }
+          if (absolute > max) {
+            max = absolute;
+          }
+          exact.set(absolute, {
+            chunkIndex,
+            localIndex,
+            total,
+            baseId,
+          });
+        });
+      }
+    });
+
+    const hasBounds = Number.isFinite(min) && Number.isFinite(max);
+    const safeMin = hasBounds ? Math.trunc(min) : null;
+    const safeMax = hasBounds ? Math.trunc(max) : null;
+    const suggestions: number[] = [];
+    if (safeMin !== null && safeMax !== null) {
+      const span = safeMax - safeMin;
+      if (span <= 200) {
+        for (let value = safeMin; value <= safeMax; value += 1) {
+          suggestions.push(value);
+        }
+      } else {
+        boundarySet.add(safeMin);
+        boundarySet.add(safeMax);
+        const step = Math.max(1, Math.round(span / 25));
+        for (let value = safeMin; value <= safeMax && boundarySet.size < 400; value += step) {
+          boundarySet.add(value);
+        }
+        Array.from(boundarySet)
+          .filter((value) => value >= safeMin && value <= safeMax)
+          .sort((left, right) => left - right)
+          .slice(0, 400)
+          .forEach((value) => suggestions.push(value));
+      }
+    }
+
+    return {
+      min: safeMin,
+      max: safeMax,
+      exact,
+      ranges,
+      suggestions,
+    };
+  }, [chunks]);
+  const findSentenceTarget = useCallback(
+    (sentenceNumber: number) => {
+      if (!Number.isFinite(sentenceNumber)) {
+        return null;
+      }
+      const target = Math.trunc(sentenceNumber);
+      const exactEntry = sentenceLookup.exact.get(target);
+      if (exactEntry) {
+        const span = Math.max(exactEntry.total - 1, 1);
+        const ratio =
+          exactEntry.total > 1 ? exactEntry.localIndex / span : 0;
+        return {
+          chunkIndex: exactEntry.chunkIndex,
+          baseId: exactEntry.baseId,
+          ratio: Number.isFinite(ratio) ? Math.min(Math.max(ratio, 0), 1) : 0,
+        };
+      }
+      for (const range of sentenceLookup.ranges) {
+        if (target >= range.start && target <= range.end) {
+          const span = range.end - range.start;
+          const ratio = span > 0 ? (target - range.start) / span : 0;
+          return {
+            chunkIndex: range.chunkIndex,
+            baseId: range.baseId,
+            ratio: Number.isFinite(ratio) ? Math.min(Math.max(ratio, 0), 1) : 0,
+          };
+        }
+      }
+      return null;
+    },
+    [sentenceLookup],
+  );
+  const canJumpToSentence = sentenceLookup.min !== null && sentenceLookup.max !== null;
+  const sentenceJumpPlaceholder =
+    canJumpToSentence && sentenceLookup.min !== null && sentenceLookup.max !== null
+      ? sentenceLookup.min === sentenceLookup.max
+        ? `${sentenceLookup.min}`
+        : `${sentenceLookup.min}–${sentenceLookup.max}`
+      : undefined;
+  const handleSentenceJumpChange = useCallback((value: string) => {
+    setSentenceJumpValue(value);
+    setSentenceJumpError(null);
+  }, []);
+  const handleSentenceJumpSubmit = useCallback(() => {
+    if (!canJumpToSentence) {
+      setSentenceJumpError('Sentence navigation unavailable.');
+      return;
+    }
+    const trimmed = sentenceJumpValue.trim();
+    if (!trimmed) {
+      setSentenceJumpError('Enter a sentence number.');
+      return;
+    }
+    const parsed = Number(trimmed);
+    if (!Number.isFinite(parsed)) {
+      setSentenceJumpError('Enter a valid sentence number.');
+      return;
+    }
+    const target = Math.trunc(parsed);
+    if (
+      sentenceLookup.min !== null &&
+      sentenceLookup.max !== null &&
+      (target < sentenceLookup.min || target > sentenceLookup.max)
+    ) {
+      setSentenceJumpError(`Enter a number between ${sentenceLookup.min} and ${sentenceLookup.max}.`);
+      return;
+    }
+    const resolution = findSentenceTarget(target);
+    if (!resolution) {
+      setSentenceJumpError('Sentence not found in current assets.');
+      return;
+    }
+    const chunk = chunks[resolution.chunkIndex];
+    if (!chunk) {
+      setSentenceJumpError('Sentence chunk is unavailable.');
+      return;
+    }
+    const baseId = resolution.baseId ?? resolveChunkBaseId(chunk);
+    if (!baseId) {
+      setSentenceJumpError('Unable to locate chunk for this sentence.');
+      return;
+    }
+    setSentenceJumpValue(target.toString());
+    setSentenceJumpError(null);
+    setSelectedMediaType('text');
+    setPendingSelection({
+      baseId,
+      preferredType: 'text',
+      offsetRatio: resolution.ratio ?? null,
+      approximateTime: null,
+      token: Date.now(),
+    });
+  }, [
+    canJumpToSentence,
+    sentenceJumpValue,
+    sentenceLookup.min,
+    sentenceLookup.max,
+    findSentenceTarget,
+    chunks,
+    setSelectedMediaType,
+    setPendingSelection,
+  ]);
 
   useEffect(() => {
     if (!selectionRequest) {
@@ -1885,33 +2210,6 @@ const scheduleChunkMetadataAppend = useCallback(
     setPendingChunkSelection,
   ]);
 
-  useEffect(() => {
-    if (!pendingChunkSelection) {
-      return;
-    }
-
-    const { index } = pendingChunkSelection;
-    if (index < 0 || index >= chunks.length) {
-      setPendingChunkSelection(null);
-      return;
-    }
-
-    const targetChunk = chunks[index];
-    setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
-
-    const audioFile = targetChunk.files.find(
-      (file) => isAudioFileType(file.type) && typeof file.url === 'string' && file.url.length > 0,
-    );
-    if (audioFile?.url) {
-      setSelectedItemIds((current) =>
-        current.audio === audioFile.url ? current : { ...current, audio: audioFile.url },
-      );
-      setInlineAudioSelection((current) => (current === audioFile.url ? current : audioFile.url));
-    }
-
-    setPendingChunkSelection(null);
-  }, [pendingChunkSelection, chunks, setSelectedMediaType, setSelectedItemIds, setInlineAudioSelection]);
-
   const fallbackTextContent = useMemo(() => {
     if (!resolvedActiveTextChunk || !Array.isArray(resolvedActiveTextChunk.sentences)) {
       return '';
@@ -2090,6 +2388,92 @@ const scheduleChunkMetadataAppend = useCallback(
     ],
   );
 
+  const activateChunk = useCallback(
+    (chunk: LiveMediaChunk | null | undefined, options?: { scrollRatio?: number; autoPlay?: boolean }) => {
+      if (!chunk) {
+        return false;
+      }
+      const scrollRatio =
+        typeof options?.scrollRatio === 'number' ? Math.min(Math.max(options.scrollRatio, 0), 1) : null;
+      if (scrollRatio !== null) {
+        setPendingTextScrollRatio(scrollRatio);
+      }
+      const textFile = chunk.files.find(
+        (file) => file.type === 'text' && typeof file.url === 'string' && file.url.length > 0,
+      );
+      if (textFile?.url) {
+        setSelectedItemIds((current) =>
+          current.text === textFile.url ? current : { ...current, text: textFile.url },
+        );
+        const textBaseId = deriveBaseIdFromReference(textFile.url);
+        rememberPosition({ mediaId: textFile.url, mediaType: 'text', baseId: textBaseId, position: 0 });
+      }
+      const audioFile = chunk.files.find(
+        (file) => isAudioFileType(file.type) && typeof file.url === 'string' && file.url.length > 0,
+      );
+      if (audioFile?.url) {
+        const audioItem = getMediaItem('audio', audioFile.url);
+        const audioBaseId = audioItem ? deriveBaseId(audioItem) : deriveBaseIdFromReference(audioFile.url);
+        rememberPosition({ mediaId: audioFile.url, mediaType: 'audio', baseId: audioBaseId, position: 0 });
+        setInlineAudioSelection((current) => (current === audioFile.url ? current : audioFile.url));
+        syncInteractiveSelection(audioFile.url);
+        if (options?.autoPlay) {
+          pendingAutoPlayRef.current = true;
+        }
+      }
+      return true;
+    },
+    [
+      deriveBaseId,
+      getMediaItem,
+      rememberPosition,
+      setInlineAudioSelection,
+      setPendingTextScrollRatio,
+      setSelectedItemIds,
+      syncInteractiveSelection,
+    ],
+  );
+
+  const activateTextItem = useCallback(
+    (item: LiveMediaItem | null | undefined, options?: { scrollRatio?: number; autoPlay?: boolean }) => {
+      if (!item?.url) {
+        return false;
+      }
+      const baseId = deriveBaseId(item) ?? deriveBaseIdFromReference(item.url);
+      const chunkIndex = baseId ? findChunkIndexForBaseId(baseId, chunks) : -1;
+      if (chunkIndex >= 0) {
+        return activateChunk(chunks[chunkIndex], options);
+      }
+      setSelectedItemIds((current) =>
+        current.text === item.url ? current : { ...current, text: item.url },
+      );
+      if (typeof options?.scrollRatio === 'number') {
+        setPendingTextScrollRatio(Math.min(Math.max(options.scrollRatio, 0), 1));
+      }
+      if (options?.autoPlay) {
+        pendingAutoPlayRef.current = true;
+      }
+      return false;
+    },
+    [activateChunk, chunks, deriveBaseId, setPendingTextScrollRatio, setSelectedItemIds],
+  );
+
+  useEffect(() => {
+    if (!pendingChunkSelection) {
+      return;
+    }
+
+    const { index } = pendingChunkSelection;
+    if (index < 0 || index >= chunks.length) {
+      setPendingChunkSelection(null);
+      return;
+    }
+
+    setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+    activateChunk(chunks[index], { scrollRatio: 0 });
+    setPendingChunkSelection(null);
+  }, [activateChunk, chunks, pendingChunkSelection, setSelectedMediaType]);
+
   const handleInlineAudioSelect = useCallback(
     (audioUrl: string) => {
       if (!audioUrl) {
@@ -2115,12 +2499,47 @@ const scheduleChunkMetadataAppend = useCallback(
 
   const handleNavigate = useCallback(
     (intent: NavigationIntent) => {
-      const textItems = selectedMediaType === 'text' ? navigableItems : [];
-      if (
-        selectedMediaType === 'text' &&
-        textItems.length === 0 &&
-        chunks.length > 0
-      ) {
+      if (selectedMediaType !== 'text') {
+        updateSelection(selectedMediaType, intent);
+        return;
+      }
+
+      if (navigableItems.length > 0) {
+        const currentId = selectedItemIds.text;
+        const currentIndex = currentId
+          ? navigableItems.findIndex((item) => item.url === currentId)
+          : -1;
+        const lastIndex = navigableItems.length - 1;
+        let nextIndex = currentIndex;
+        switch (intent) {
+          case 'first':
+            nextIndex = 0;
+            break;
+          case 'last':
+            nextIndex = lastIndex;
+            break;
+          case 'previous':
+            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
+            break;
+          case 'next':
+            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, lastIndex);
+            break;
+          default:
+            nextIndex = currentIndex;
+        }
+        if (nextIndex === currentIndex) {
+          return;
+        }
+        const nextItem = navigableItems[nextIndex];
+        if (!nextItem) {
+          return;
+        }
+        setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+        activateTextItem(nextItem, { autoPlay: true, scrollRatio: 0 });
+        return;
+      }
+
+      if (chunks.length > 0) {
         const currentIndex = activeTextChunkIndex >= 0 ? activeTextChunkIndex : 0;
         const lastIndex = chunks.length - 1;
         let nextIndex = currentIndex;
@@ -2140,42 +2559,29 @@ const scheduleChunkMetadataAppend = useCallback(
           default:
             nextIndex = currentIndex;
         }
-
         if (nextIndex === currentIndex) {
           return;
         }
-
         const targetChunk = chunks[nextIndex];
         if (!targetChunk) {
           return;
         }
-        const nextAudio = targetChunk.files.find((file) => isAudioFileType(file.type) && file.url);
-        if (nextAudio?.url) {
-          setInlineAudioSelection((current) => (current === nextAudio.url ? current : nextAudio.url));
-          syncInteractiveSelection(nextAudio.url);
-        } else {
-          const nextText = targetChunk.files.find((file) => file.type === 'text' && file.url);
-          if (nextText?.url) {
-            setSelectedItemIds((current) =>
-              current.text === nextText.url ? current : { ...current, text: nextText.url },
-            );
-          }
-        }
-        setPendingTextScrollRatio(0);
+        setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
+        activateChunk(targetChunk, { autoPlay: true, scrollRatio: 0 });
         return;
       }
 
-      updateSelection(selectedMediaType, intent);
+      updateSelection('text', intent);
     },
     [
+      activateChunk,
+      activateTextItem,
       activeTextChunkIndex,
       chunks,
       navigableItems,
+      selectedItemIds.text,
       selectedMediaType,
-      setInlineAudioSelection,
-      setPendingTextScrollRatio,
-      setSelectedItemIds,
-      syncInteractiveSelection,
+      setSelectedMediaType,
       updateSelection,
     ],
   );
@@ -2200,6 +2606,13 @@ const scheduleChunkMetadataAppend = useCallback(
     }
   }, [selectedMediaType]);
 
+  const adjustTranslationSpeed = useCallback((direction: 'faster' | 'slower') => {
+    setTranslationSpeed((current) => {
+      const delta = direction === 'faster' ? TRANSLATION_SPEED_STEP : -TRANSLATION_SPEED_STEP;
+      return normaliseTranslationSpeed(current + delta);
+    });
+  }, []);
+
   const handleToggleActiveMedia = useCallback(() => {
     if (isActiveMediaPlaying) {
       handlePauseActiveMedia();
@@ -2207,6 +2620,73 @@ const scheduleChunkMetadataAppend = useCallback(
       handlePlayActiveMedia();
     }
   }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const isTypingTarget = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName;
+      if (!tag) {
+        return false;
+      }
+      const editable =
+        target.isContentEditable ||
+        tag === 'INPUT' ||
+        tag === 'TEXTAREA' ||
+        tag === 'SELECT';
+      return editable;
+    };
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+      const key = event.key?.toLowerCase();
+      if (event.shiftKey && key === 'n') {
+        handleNavigate('next');
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && key === 'p') {
+        handleNavigate('previous');
+        event.preventDefault();
+        return;
+      }
+      const isPlusKey =
+        event.shiftKey &&
+        (key === '+' || key === '=' || event.code === 'Equal' || event.code === 'NumpadAdd');
+      if (isPlusKey) {
+        adjustTranslationSpeed('faster');
+        event.preventDefault();
+        return;
+      }
+      const isMinusKey =
+        event.shiftKey &&
+        (key === '-' || key === '_' || event.code === 'Minus' || event.code === 'NumpadSubtract');
+      if (isMinusKey) {
+        adjustTranslationSpeed('slower');
+        event.preventDefault();
+        return;
+      }
+      if (!event.shiftKey && (event.code === 'Space' || key === ' ')) {
+        handleToggleActiveMedia();
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [adjustTranslationSpeed, handleNavigate, handleToggleActiveMedia]);
 
   const handleTextScroll = useCallback(
     (event: UIEvent<HTMLElement>) => {
@@ -2409,6 +2889,22 @@ const scheduleChunkMetadataAppend = useCallback(
     media.audio,
     syncInteractiveSelection,
   ]);
+
+  useEffect(() => {
+    if (!pendingAutoPlayRef.current) {
+      return;
+    }
+    if (selectedMediaType !== 'text') {
+      return;
+    }
+    const controls = inlineAudioControlsRef.current;
+    if (!controls) {
+      return;
+    }
+    pendingAutoPlayRef.current = false;
+    controls.pause();
+    controls.play();
+  }, [inlineAudioSelection, selectedMediaType]);
 
   const handleVideoProgress = useCallback(
     (position: number) => {
@@ -2621,6 +3117,18 @@ const scheduleChunkMetadataAppend = useCallback(
       : 'Book cover preview';
   const immersiveToggleLabel = isImmersiveMode ? 'Exit immersive mode' : 'Enter immersive mode';
   const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
+  const sentenceJumpListId = useId();
+  const sentenceJumpInputId = useId();
+  const sentenceJumpInputFullscreenId = useId();
+  const sentenceJumpDisabled = !canJumpToSentence;
+  const sentenceJumpDatalist =
+    sentenceLookup.suggestions.length > 0 ? (
+      <datalist id={sentenceJumpListId}>
+        {sentenceLookup.suggestions.map((value) => (
+          <option key={value} value={value} />
+        ))}
+      </datalist>
+    ) : null;
 
   const navigationGroup = (
     <NavigationControls
@@ -2651,6 +3159,17 @@ const scheduleChunkMetadataAppend = useCallback(
       translationSpeedMax={TRANSLATION_SPEED_MAX}
       translationSpeedStep={TRANSLATION_SPEED_STEP}
       onTranslationSpeedChange={handleTranslationSpeedChange}
+      showSentenceJump={selectedMediaType === 'text' && canJumpToSentence}
+      sentenceJumpValue={sentenceJumpValue}
+      sentenceJumpMin={sentenceLookup.min}
+      sentenceJumpMax={sentenceLookup.max}
+      sentenceJumpError={sentenceJumpError}
+      sentenceJumpDisabled={sentenceJumpDisabled}
+      sentenceJumpInputId={sentenceJumpInputId}
+      sentenceJumpListId={sentenceJumpListId}
+      sentenceJumpPlaceholder={sentenceJumpPlaceholder}
+      onSentenceJumpChange={handleSentenceJumpChange}
+      onSentenceJumpSubmit={handleSentenceJumpSubmit}
     />
   );
   const fullscreenNavigationGroup = isInteractiveFullscreen ? (
@@ -2682,6 +3201,17 @@ const scheduleChunkMetadataAppend = useCallback(
       translationSpeedMax={TRANSLATION_SPEED_MAX}
       translationSpeedStep={TRANSLATION_SPEED_STEP}
       onTranslationSpeedChange={handleTranslationSpeedChange}
+      showSentenceJump={selectedMediaType === 'text' && canJumpToSentence}
+      sentenceJumpValue={sentenceJumpValue}
+      sentenceJumpMin={sentenceLookup.min}
+      sentenceJumpMax={sentenceLookup.max}
+      sentenceJumpError={sentenceJumpError}
+      sentenceJumpDisabled={sentenceJumpDisabled}
+      sentenceJumpInputId={sentenceJumpInputFullscreenId}
+      sentenceJumpListId={sentenceJumpListId}
+      sentenceJumpPlaceholder={sentenceJumpPlaceholder}
+      onSentenceJumpChange={handleSentenceJumpChange}
+      onSentenceJumpSubmit={handleSentenceJumpSubmit}
     />
   ) : null;
 
@@ -2722,6 +3252,7 @@ const scheduleChunkMetadataAppend = useCallback(
 
   return (
     <section className={panelClassName} aria-label={sectionLabel}>
+      {sentenceJumpDatalist}
       {!hasJobId ? (
         <div className="player-panel__empty" role="status">
           <p>No job selected.</p>
