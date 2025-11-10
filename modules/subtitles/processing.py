@@ -140,6 +140,7 @@ def process_subtitle_file(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     renderer = CueTextRenderer(options.output_format, options.color_palette)
     output_extension = ASS_EXTENSION if options.output_format == "ass" else SRT_EXTENSION
+    html_writer = _HtmlTranscriptWriter(output_path)
 
     translated_count = 0
     next_index = 1
@@ -159,6 +160,10 @@ def process_subtitle_file(
                 exc_info=True,
             )
             mirror_target = None
+
+    mirror_html_writer: Optional[_HtmlTranscriptWriter] = (
+        _HtmlTranscriptWriter(mirror_target) if mirror_target is not None else None
+    )
 
     try:
         with temp_output.open("w", encoding="utf-8", newline="\n") as handle:
@@ -199,8 +204,10 @@ def process_subtitle_file(
                             )
                             mirror_target = None
                             mirror_handle = None
+                            mirror_html_writer = None
 
-                    for offset, cue_output in enumerate(processed_batch, start=1):
+                    html_entries: List[SubtitleHtmlEntry] = []
+                    for offset, rendered_batch in enumerate(processed_batch, start=1):
                         cue_index = batch_start + offset
                         if tracker is not None:
                             tracker.record_step_completion(
@@ -212,8 +219,10 @@ def process_subtitle_file(
                                     "batch_size": batch_size,
                                 },
                             )
-                        next_index = writer.write(cue_output)
+                        next_index = writer.write(rendered_batch.cues)
                         translated_count += 1
+                        if rendered_batch.html_entry is not None:
+                            html_entries.append(rendered_batch.html_entry)
                         if mirror_handle is not None:
                             try:
                                 mirror_writer = _SubtitleFileWriter(
@@ -222,7 +231,7 @@ def process_subtitle_file(
                                     options.output_format,
                                     start_index=mirror_next_index,
                                 )
-                                mirror_next_index = mirror_writer.write(cue_output)
+                                mirror_next_index = mirror_writer.write(rendered_batch.cues)
                             except Exception:  # pragma: no cover - best effort mirror
                                 logger.warning(
                                     "Unable to mirror subtitle batch to %s",
@@ -240,6 +249,11 @@ def process_subtitle_file(
                                 mirror_handle = None
                                 mirror_target = None
                                 mirror_next_index = next_index
+                                mirror_html_writer = None
+                    if html_entries:
+                        html_writer.append(html_entries)
+                        if mirror_html_writer is not None:
+                            mirror_html_writer.append(html_entries)
                     handle.flush()
                     if mirror_handle is not None:
                         try:
@@ -252,6 +266,7 @@ def process_subtitle_file(
                             )
                             mirror_target = None
                             mirror_next_index = next_index
+                            mirror_html_writer = None
                         finally:
                             try:
                                 mirror_handle.close()
@@ -260,14 +275,24 @@ def process_subtitle_file(
                             mirror_handle = None
                     elif mirror_target is None:
                         mirror_next_index = next_index
+                        mirror_html_writer = None
     except SubtitleJobCancelled:
         temp_output.unlink(missing_ok=True)
+        html_writer.discard()
+        if mirror_html_writer is not None:
+            mirror_html_writer.discard()
         raise
     except Exception:
         temp_output.unlink(missing_ok=True)
+        html_writer.discard()
+        if mirror_html_writer is not None:
+            mirror_html_writer.discard()
         raise
     else:
         temp_output.replace(output_path)
+        html_writer.finalize()
+        if mirror_html_writer is not None:
+            mirror_html_writer.finalize()
 
     metadata = {
         "input_file": source_path.name,
@@ -570,11 +595,14 @@ def _build_output_cues(
     highlight: bool,
     show_original: bool,
     renderer: CueTextRenderer,
+    original_text: Optional[str] = None,
 ) -> List[SubtitleCue]:
     translation = translation or ""
-    original_text = _normalize_text(source.as_text())
-    include_original = show_original and bool(original_text)
-    original_line = renderer.render_original(original_text) if include_original else ""
+    normalized_original = (
+        original_text if original_text is not None else _normalize_text(source.as_text())
+    )
+    include_original = show_original and bool(normalized_original)
+    original_line = renderer.render_original(normalized_original) if include_original else ""
     translation_words = translation.split()
     transliteration_words = transliteration.split() if transliteration else []
     use_highlight = highlight and bool(translation_words)
@@ -750,6 +778,152 @@ class SubtitleOutputSummary:
     word_count: int
 
 
+@dataclass(slots=True)
+class SubtitleHtmlEntry:
+    """Plain-text snippet appended to the companion HTML transcript."""
+
+    start: float
+    end: float
+    original_text: str
+    transliteration_text: str
+    translation_text: str
+
+
+@dataclass(slots=True)
+class _RenderedCueBatch:
+    """Rendered cue payload plus the HTML-friendly snapshot."""
+
+    cues: List[SubtitleCue]
+    html_entry: Optional[SubtitleHtmlEntry]
+
+
+class _HtmlTranscriptWriter:
+    """Best-effort helper that appends batches to a companion HTML file."""
+
+    __slots__ = ("_path", "_available", "_header_written", "_finalized")
+
+    def __init__(self, subtitle_path: Optional[Path]) -> None:
+        self._path: Optional[Path] = None
+        self._available = False
+        self._header_written = False
+        self._finalized = False
+        if subtitle_path is None:
+            return
+        resolved = Path(subtitle_path)
+        html_dir = resolved.parent / "html"
+        html_path = html_dir / f"{resolved.stem}.html"
+        try:
+            html_dir.mkdir(parents=True, exist_ok=True)
+            html_path.unlink(missing_ok=True)
+        except Exception:  # pragma: no cover - best effort preparation
+            logger.warning(
+                "Unable to prepare HTML transcript destination %s",
+                html_path,
+                exc_info=True,
+            )
+            return
+        self._path = html_path
+        self._available = True
+
+    @property
+    def path(self) -> Optional[Path]:
+        return self._path
+
+    def append(self, entries: Sequence[SubtitleHtmlEntry]) -> None:
+        if (
+            not self._available
+            or not entries
+            or self._path is None
+            or self._finalized
+        ):
+            return
+        try:
+            with self._path.open("a", encoding="utf-8") as handle:
+                if not self._header_written:
+                    self._write_header(handle)
+                    self._header_written = True
+                for entry in entries:
+                    _write_html_entry(handle, entry)
+        except Exception:  # pragma: no cover - best effort append
+            logger.warning(
+                "Unable to append HTML transcript to %s",
+                self._path,
+                exc_info=True,
+            )
+            self._available = False
+
+    def finalize(self) -> None:
+        if (
+            not self._available
+            or self._path is None
+            or self._finalized
+        ):
+            return
+        try:
+            with self._path.open("a", encoding="utf-8") as handle:
+                if not self._header_written:
+                    self._write_header(handle)
+                    self._header_written = True
+                handle.write("</body>\n</html>\n")
+            self._finalized = True
+        except Exception:  # pragma: no cover - best effort footer
+            logger.warning(
+                "Unable to finalize HTML transcript %s",
+                self._path,
+                exc_info=True,
+            )
+            self._available = False
+
+    def discard(self) -> None:
+        if self._path is None:
+            return
+        try:
+            self._path.unlink(missing_ok=True)
+        except Exception:  # pragma: no cover - defensive cleanup
+            logger.debug(
+                "Unable to discard HTML transcript %s",
+                self._path,
+                exc_info=True,
+            )
+        finally:
+            self._available = False
+
+    @staticmethod
+    def _write_header(handle: TextIO) -> None:
+        handle.write(
+            "<!DOCTYPE html>\n"
+            "<html lang=\"en\">\n"
+            "<head>\n"
+            "<meta charset=\"utf-8\">\n"
+            "<title>Subtitle transcript</title>\n"
+            "</head>\n"
+            "<body>\n"
+        )
+
+
+_HTML_TIME_SEPARATOR = "\u2013"  # En dash requested for start–end headers.
+
+
+def _write_html_entry(handle: TextIO, entry: SubtitleHtmlEntry) -> None:
+    start = _format_html_timestamp(entry.start)
+    end = _format_html_timestamp(entry.end)
+    original = html.escape(entry.original_text or "")
+    transliteration = html.escape(entry.transliteration_text or "")
+    translation = html.escape(entry.translation_text or "")
+    handle.write(f"<h3>{start}{_HTML_TIME_SEPARATOR}{end}</h3>\n")
+    handle.write(f"<p>{original}</p>\n")
+    if transliteration:
+        handle.write(f"<p>{transliteration}</p>\n")
+    handle.write(f"<p>{translation}</p>\n\n")
+
+
+def _format_html_timestamp(value: float) -> str:
+    clamped = max(0, int(round(value or 0.0)))
+    hours, remainder = divmod(clamped, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 def _resolve_batch_size(candidate: Optional[int], total: int) -> int:
     if isinstance(candidate, int) and candidate > 0:
         return max(1, min(candidate, total))
@@ -785,10 +959,11 @@ def _process_cue(
     transliterator: Optional[TransliterationService],
     stop_event,
     renderer: CueTextRenderer,
-) -> List[SubtitleCue]:
+) -> _RenderedCueBatch:
     if _is_cancelled(stop_event):
         raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
 
+    original_text = _normalize_text(cue.as_text())
     normalized_source = cue.as_text()
     translation = _normalize_text(
         translate_sentence_simple(
@@ -813,11 +988,23 @@ def _process_cue(
         else:
             transliteration_text = _normalize_text(transliteration_result.text)
 
-    return _build_output_cues(
+    cues = _build_output_cues(
         cue,
         translation,
         transliteration_text,
         highlight=options.highlight,
         show_original=options.show_original,
         renderer=renderer,
+        original_text=original_text,
+    )
+
+    return _RenderedCueBatch(
+        cues=cues,
+        html_entry=SubtitleHtmlEntry(
+            start=cue.start,
+            end=cue.end,
+            original_text=original_text,
+            transliteration_text=transliteration_text,
+            translation_text=translation,
+        ),
     )

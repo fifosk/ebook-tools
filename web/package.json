@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "clean:artifacts": "node ./scripts/clean-stale-artifacts.mjs",
+    "prebuild": "pnpm run clean:artifacts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",

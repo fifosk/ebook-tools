@@ -76,6 +76,27 @@ class SubtitleService:
             return None
         return resolved
 
+    def _copy_html_companion(self, source_subtitle: Path, destination_dir: Path) -> None:
+        """Best-effort copy of the generated HTML transcript to ``destination_dir``."""
+
+        html_source = source_subtitle.parent / "html" / f"{source_subtitle.stem}.html"
+        if not html_source.exists():
+            return
+        try:
+            html_target_dir = destination_dir / "html"
+            html_target_dir.mkdir(parents=True, exist_ok=True)
+            html_target = html_target_dir / html_source.name
+            if html_target == html_source:
+                return
+            shutil.copy2(html_source, html_target)
+        except Exception:  # pragma: no cover - best effort mirror
+            logger.warning(
+                "Unable to mirror HTML transcript %s to %s",
+                html_source,
+                destination_dir,
+                exc_info=True,
+            )
+
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
@@ -207,6 +228,7 @@ class SubtitleService:
                     export_candidate = mirror_dir / output_name
                     if export_candidate != output_path:
                         shutil.copy2(output_path, export_candidate)
+                    self._copy_html_companion(output_path, mirror_dir)
                     export_path = export_candidate
                 except Exception:  # pragma: no cover - best effort mirror
                     logger.warning(

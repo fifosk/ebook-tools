@@ -131,6 +131,38 @@ def test_process_subtitle_file_emits_colourised_srt(tmp_path: Path, srt_source: 
     assert '<font color="#21C55D">mundo</font>' in payload
 
 
+def test_process_subtitle_file_appends_html_transcript(
+    tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    output_path = tmp_path / "source.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+    )
+
+    process_subtitle_file(
+        srt_source,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    html_path = output_path.parent / "html" / "source.es.drt.html"
+    assert html_path.exists()
+    html_payload = html_path.read_text(encoding="utf-8")
+    assert html_payload.startswith("<!DOCTYPE html>")
+    assert '<meta charset="utf-8">' in html_payload
+    assert "<h3>00:00:00–00:00:02</h3>" in html_payload
+    assert "<p>Hello world</p>" in html_payload
+    assert "<p>hola mundo</p>" in html_payload
+    assert html_payload.rstrip().endswith("</body>\n</html>")
+
+
 def test_process_subtitle_file_hides_original_when_disabled(
     tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
