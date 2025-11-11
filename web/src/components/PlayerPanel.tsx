@@ -2250,6 +2250,12 @@ const scheduleChunkMetadataAppend = useCallback(
   const handleFontScaleChange = useCallback((percent: number) => {
     setFontScalePercent(clampFontScalePercent(percent));
   }, []);
+  const adjustFontScale = useCallback((direction: 'increase' | 'decrease') => {
+    setFontScalePercent((current) => {
+      const delta = direction === 'increase' ? FONT_SCALE_STEP : -FONT_SCALE_STEP;
+      return clampFontScalePercent(current + delta);
+    });
+  }, []);
 
   const syncInteractiveSelection = useCallback(
     (audioUrl: string | null) => {
@@ -2512,12 +2518,16 @@ const scheduleChunkMetadataAppend = useCallback(
         return;
       }
       const key = event.key?.toLowerCase();
-      if (event.shiftKey && key === 'n') {
+      const isArrowRight =
+        event.code === 'ArrowRight' || key === 'arrowright' || event.key === 'ArrowRight';
+      const isArrowLeft =
+        event.code === 'ArrowLeft' || key === 'arrowleft' || event.key === 'ArrowLeft';
+      if (event.shiftKey && isArrowRight) {
         handleNavigate('next');
         event.preventDefault();
         return;
       }
-      if (event.shiftKey && key === 'p') {
+      if (event.shiftKey && isArrowLeft) {
         handleNavigate('previous');
         event.preventDefault();
         return;
@@ -2532,11 +2542,27 @@ const scheduleChunkMetadataAppend = useCallback(
         event.preventDefault();
         return;
       }
+      const isArrowUp =
+        event.shiftKey &&
+        (event.code === 'ArrowUp' || key === 'arrowup' || event.key === 'ArrowUp');
+      if (isArrowUp) {
+        adjustTranslationSpeed('faster');
+        event.preventDefault();
+        return;
+      }
+      const isArrowDown =
+        event.shiftKey &&
+        (event.code === 'ArrowDown' || key === 'arrowdown' || event.key === 'ArrowDown');
+      if (isArrowDown) {
+        adjustTranslationSpeed('slower');
+        event.preventDefault();
+        return;
+      }
       const isPlusKey =
         event.shiftKey &&
         (key === '+' || key === '=' || event.code === 'Equal' || event.code === 'NumpadAdd');
       if (isPlusKey) {
-        adjustTranslationSpeed('faster');
+        adjustFontScale('increase');
         event.preventDefault();
         return;
       }
@@ -2544,7 +2570,7 @@ const scheduleChunkMetadataAppend = useCallback(
         event.shiftKey &&
         (key === '-' || key === '_' || event.code === 'Minus' || event.code === 'NumpadSubtract');
       if (isMinusKey) {
-        adjustTranslationSpeed('slower');
+        adjustFontScale('decrease');
         event.preventDefault();
         return;
       }
@@ -2559,6 +2585,7 @@ const scheduleChunkMetadataAppend = useCallback(
     };
   }, [
     adjustTranslationSpeed,
+    adjustFontScale,
     canToggleOriginalAudio,
     handleInteractiveFullscreenToggle,
     handleNavigate,
