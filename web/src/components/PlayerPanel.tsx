@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, UIEvent } from 'react';
-import VideoPlayer from './VideoPlayer';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
+import { useWakeLock } from '../hooks/useWakeLock';
 import { extractTextFromHtml } from '../utils/mediaFormatters';
 import {
   DEFAULT_TRANSLATION_SPEED,
@@ -64,10 +63,15 @@ interface TabDefinition {
 
 const TAB_DEFINITIONS: TabDefinition[] = [
   { key: 'text', label: 'Interactive Reader', emptyMessage: 'No interactive reader media yet.' },
-  { key: 'video', label: 'Video', emptyMessage: 'No video media yet.' },
 ];
 
 const DEFAULT_COVER_URL = '/assets/default-cover.png';
+const FONT_SCALE_STORAGE_KEY = 'player-panel.fontScalePercent';
+const FONT_SCALE_MIN = 100;
+const FONT_SCALE_MAX = 300;
+const FONT_SCALE_STEP = 5;
+const clampFontScalePercent = (value: number) =>
+  Math.min(Math.max(value, FONT_SCALE_MIN), FONT_SCALE_MAX);
 
 interface NavigationControlsProps {
   context: 'panel' | 'fullscreen';
@@ -83,10 +87,6 @@ interface NavigationControlsProps {
   isFullscreen: boolean;
   isPlaying: boolean;
   fullscreenLabel: string;
-  inlineAudioOptions: InlineAudioOption[];
-  inlineAudioSelection: string | null;
-  onSelectInlineAudio: (audioUrl: string) => void;
-  showInlineAudio: boolean;
   showOriginalAudioToggle?: boolean;
   onToggleOriginalAudio?: () => void;
   originalAudioEnabled?: boolean;
@@ -108,6 +108,12 @@ interface NavigationControlsProps {
   sentenceJumpPlaceholder?: string;
   onSentenceJumpChange?: (value: string) => void;
   onSentenceJumpSubmit?: () => void;
+  showFontScale?: boolean;
+  fontScalePercent?: number;
+  fontScaleMin?: number;
+  fontScaleMax?: number;
+  fontScaleStep?: number;
+  onFontScaleChange?: (value: number) => void;
 }
 
 function NavigationControls({
@@ -124,10 +130,6 @@ function NavigationControls({
   isFullscreen,
   isPlaying,
   fullscreenLabel,
-  inlineAudioOptions,
-  inlineAudioSelection,
-  onSelectInlineAudio,
-  showInlineAudio,
   showOriginalAudioToggle = false,
   onToggleOriginalAudio,
   originalAudioEnabled = false,
@@ -149,9 +151,13 @@ function NavigationControls({
   sentenceJumpPlaceholder,
   onSentenceJumpChange,
   onSentenceJumpSubmit,
+  showFontScale = false,
+  fontScalePercent = 100,
+  fontScaleMin = FONT_SCALE_MIN,
+  fontScaleMax = FONT_SCALE_MAX,
+  fontScaleStep = FONT_SCALE_STEP,
+  onFontScaleChange,
 }: NavigationControlsProps) {
-  const inlineAudioId =
-    context === 'fullscreen' ? 'player-panel-inline-audio-fullscreen' : 'player-panel-inline-audio';
   const groupClassName =
     context === 'fullscreen'
       ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
@@ -160,10 +166,6 @@ function NavigationControls({
     context === 'fullscreen'
       ? 'player-panel__navigation player-panel__navigation--fullscreen'
       : 'player-panel__navigation';
-  const inlineAudioClassName =
-    context === 'fullscreen'
-      ? 'player-panel__inline-audio player-panel__inline-audio--fullscreen'
-      : 'player-panel__inline-audio';
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
   const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
   const playbackIcon = isPlaying ? '⏸' : '▶';
@@ -174,6 +176,7 @@ function NavigationControls({
   const sliderId = useId();
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
+  const fontScaleSliderId = useId();
   const jumpRangeId = `${jumpInputId}-range`;
   const jumpErrorId = `${jumpInputId}-error`;
   const describedBy =
@@ -204,6 +207,16 @@ function NavigationControls({
       onSentenceJumpSubmit?.();
     }
   };
+  const handleFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const raw = Number.parseFloat(event.target.value);
+    if (!Number.isFinite(raw)) {
+      return;
+    }
+    onFontScaleChange?.(raw);
+  };
+  const formattedFontScale = `${Math.round(
+    Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax),
+  )}%`;
 
   return (
     <div className={groupClassName}>
@@ -356,23 +369,31 @@ function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showInlineAudio && inlineAudioOptions.length > 0 ? (
-        <div className={inlineAudioClassName} role="group" aria-label="Synchronized audio">
-          <label className="player-panel__inline-audio-label" htmlFor={inlineAudioId}>
-            Synchronized audio
+      {showFontScale ? (
+        <div className="player-panel__nav-font">
+          <label className="player-panel__nav-font-label" htmlFor={fontScaleSliderId}>
+            Font size
           </label>
-          <select
-            id={inlineAudioId}
-            value={inlineAudioSelection ?? inlineAudioOptions[0]?.url ?? ''}
-            onChange={(event) => onSelectInlineAudio(event.target.value)}
-            disabled={inlineAudioOptions.length === 1}
-          >
-            {inlineAudioOptions.map((option) => (
-              <option key={`${context}-${option.url}`} value={option.url}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="player-panel__nav-font-control">
+            <input
+              id={fontScaleSliderId}
+              className="player-panel__nav-font-input"
+              type="range"
+              min={fontScaleMin}
+              max={fontScaleMax}
+              step={fontScaleStep}
+              value={Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax)}
+              onChange={handleFontScaleInputChange}
+              aria-valuemin={fontScaleMin}
+              aria-valuemax={fontScaleMax}
+              aria-valuenow={Math.round(fontScalePercent)}
+              aria-valuetext={formattedFontScale}
+              aria-label="Adjust font size"
+            />
+            <span className="player-panel__nav-font-value" aria-live="polite">
+              {formattedFontScale}
+            </span>
+          </div>
         </div>
       ) : null}
     </div>
@@ -382,16 +403,6 @@ function NavigationControls({
 function selectInitialTab(media: LiveMediaState): MediaCategory {
   const populated = TAB_DEFINITIONS.find((tab) => media[tab.key].length > 0);
   return populated?.key ?? 'text';
-}
-
-function toVideoFiles(media: LiveMediaState['video']) {
-  return media
-    .filter((item) => typeof item.url === 'string' && item.url.length > 0)
-    .map((item, index) => ({
-      id: item.url ?? `${item.type}-${index}`,
-      url: item.url ?? '',
-      name: item.name,
-    }));
 }
 
 function deriveBaseIdFromReference(value: string | null | undefined): string | null {
@@ -810,9 +821,6 @@ export default function PlayerPanel({
   selectionRequest = null,
 }: PlayerPanelProps) {
   const interactiveViewerAvailable = chunks.length > 0;
-  const [selectedMediaType, setSelectedMediaType] = useState<MediaCategory>(() =>
-    interactiveViewerAvailable ? 'text' : selectInitialTab(media),
-  );
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
     const initial: Record<MediaCategory, string | null> = {
       text: null,
@@ -899,7 +907,6 @@ const scheduleChunkMetadataAppend = useCallback(
   },
   [pushChunkMetadata],
 );
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const resolveStoredInteractiveFullscreenPreference = () => {
@@ -908,7 +915,6 @@ const scheduleChunkMetadataAppend = useCallback(
     }
     return window.localStorage.getItem('player.textFullscreenPreferred') === 'true';
   };
-  const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState<boolean>(() =>
     resolveStoredInteractiveFullscreenPreference(),
   );
@@ -921,23 +927,22 @@ const scheduleChunkMetadataAppend = useCallback(
   }, []);
   const hasJobId = Boolean(jobId);
   const normalisedJobId = jobId ?? '';
-  const isVideoTabActive = selectedMediaType === 'video';
-  const isTextTabActive = selectedMediaType === 'text';
-  const visibleTabs = useMemo(() => {
-    return TAB_DEFINITIONS.filter((tab) => tab.key !== 'video' || media.video.length > 0);
-  }, [media.video.length]);
-  const defaultTab = useMemo(() => selectInitialTab(media), [media]);
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
   const textScrollRef = useRef<HTMLDivElement | null>(null);
-  const videoControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const hasSkippedInitialRememberRef = useRef(false);
   const inlineAudioBaseRef = useRef<string | null>(null);
   const pendingAutoPlayRef = useRef(false);
-  const [hasVideoControls, setHasVideoControls] = useState(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
   const [translationSpeed, setTranslationSpeed] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
+  const [fontScalePercent, setFontScalePercent] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return 100;
+    }
+    const raw = Number.parseFloat(window.localStorage.getItem(FONT_SCALE_STORAGE_KEY) ?? '');
+    return Number.isFinite(raw) ? clampFontScalePercent(raw) : 100;
+  });
   const sentenceLookup = useMemo<SentenceLookup>(() => {
     const exact = new Map<number, SentenceLookupEntry>();
     const ranges: SentenceLookupRange[] = [];
@@ -1115,7 +1120,6 @@ const scheduleChunkMetadataAppend = useCallback(
     }
     setSentenceJumpValue(target.toString());
     setSentenceJumpError(null);
-    setSelectedMediaType('text');
     setPendingSelection({
       baseId,
       preferredType: 'text',
@@ -1130,7 +1134,6 @@ const scheduleChunkMetadataAppend = useCallback(
     sentenceLookup.max,
     findSentenceTarget,
     chunks,
-    setSelectedMediaType,
     setPendingSelection,
   ]);
 
@@ -1367,41 +1370,9 @@ const scheduleChunkMetadataAppend = useCallback(
     [mediaIndex],
   );
 
-  const activeItemId = selectedItemIds[selectedMediaType];
+  const activeItemId = selectedItemIds.text;
 
   const hasResolvedInitialTabRef = useRef(false);
-
-  useEffect(() => {
-    setSelectedMediaType((current) => {
-      const currentHasContent = current ? media[current].length > 0 : false;
-
-      if (!hasResolvedInitialTabRef.current) {
-        hasResolvedInitialTabRef.current = true;
-        if (interactiveViewerAvailable) {
-          return 'text';
-        }
-        if (current && currentHasContent) {
-          return current;
-        }
-        return selectInitialTab(media);
-      }
-
-      if (current && currentHasContent) {
-        return current;
-      }
-      if (interactiveViewerAvailable) {
-        return 'text';
-      }
-      return selectInitialTab(media);
-    });
-  }, [interactiveViewerAvailable, media]);
-
-  useEffect(() => {
-    if (media.video.length > 0 || selectedMediaType !== 'video') {
-      return;
-    }
-    setSelectedMediaType(defaultTab);
-  }, [defaultTab, media.video.length, selectedMediaType]);
 
   useEffect(() => {
     const rememberedType = memoryState.currentMediaType;
@@ -1421,7 +1392,6 @@ const scheduleChunkMetadataAppend = useCallback(
       return { ...current, [rememberedType]: rememberedId };
     });
 
-    setSelectedMediaType((current) => (current === rememberedType ? current : rememberedType));
   }, [memoryState.currentMediaId, memoryState.currentMediaType, mediaIndex]);
 
   useEffect(() => {
@@ -1469,7 +1439,7 @@ const scheduleChunkMetadataAppend = useCallback(
       return;
     }
 
-    const currentItem = getMediaItem(selectedMediaType, activeItemId);
+    const currentItem = getMediaItem('text', activeItemId);
     if (!currentItem) {
       return;
     }
@@ -1477,33 +1447,11 @@ const scheduleChunkMetadataAppend = useCallback(
     rememberSelection({ media: currentItem });
   }, [
     activeItemId,
-    selectedMediaType,
     getMediaItem,
     rememberSelection,
     memoryState.currentMediaId,
     memoryState.currentMediaType,
   ]);
-
-  const handleTabChange = useCallback(
-    (nextValue: string) => {
-      const nextType = nextValue as MediaCategory;
-      setSelectedMediaType(nextType);
-      setSelectedItemIds((current) => {
-        const baseId = memoryState.baseId;
-        if (!baseId) {
-          return current;
-        }
-
-        const match = findMatchingMediaId(baseId, nextType, media[nextType]);
-        if (!match || current[nextType] === match) {
-          return current;
-        }
-
-        return { ...current, [nextType]: match };
-      });
-    },
-    [findMatchingMediaId, media, memoryState.baseId],
-  );
 
   const handleSelectMedia = useCallback((category: MediaCategory, fileId: string) => {
     setSelectedItemIds((current) => {
@@ -1567,54 +1515,29 @@ const scheduleChunkMetadataAppend = useCallback(
     [media],
   );
 
-  const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
-  useEffect(() => {
-    if (videoFiles.length === 0 && isVideoPlaying) {
-      setIsVideoPlaying(false);
-    }
-  }, [videoFiles.length, isVideoPlaying]);
   const textContentCache = useRef(new Map<string, { raw: string; plain: string }>());
   const [textPreview, setTextPreview] = useState<{ url: string; content: string; raw: string } | null>(null);
   const [textLoading, setTextLoading] = useState(false);
   const [textError, setTextError] = useState<string | null>(null);
 
   useEffect(() => {
-    onVideoPlaybackStateChange?.(isVideoPlaying);
-  }, [isVideoPlaying, onVideoPlaybackStateChange]);
-  useEffect(() => {
-    onPlaybackStateChange?.(isVideoPlaying || isInlineAudioPlaying);
-  }, [isInlineAudioPlaying, isVideoPlaying, onPlaybackStateChange]);
+    onVideoPlaybackStateChange?.(false);
+  }, [onVideoPlaybackStateChange]);
 
   useEffect(() => {
-    if (!isVideoTabActive && isVideoPlaying) {
-      setIsVideoPlaying(false);
-    }
-  }, [isVideoPlaying, isVideoTabActive]);
-  const combinedMedia = useMemo(
-    () =>
-      MEDIA_CATEGORIES.flatMap((category) =>
-        media[category].map((item) => ({ ...item, type: category })),
-      ),
-    [media],
-  );
-  const filteredMedia = useMemo(
-    () => combinedMedia.filter((item) => item.type === selectedMediaType),
-    [combinedMedia, selectedMediaType],
-  );
-  const selectedItemId = selectedItemIds[selectedMediaType];
-  const videoPlaybackPosition = getPosition(selectedItemIds.video);
+    onPlaybackStateChange?.(isInlineAudioPlaying);
+  }, [isInlineAudioPlaying, onPlaybackStateChange]);
+  const selectedItemId = selectedItemIds.text;
   const textPlaybackPosition = getPosition(selectedItemIds.text);
   const selectedItem = useMemo(() => {
-    if (filteredMedia.length === 0) {
+    if (media.text.length === 0) {
       return null;
     }
-
     if (!selectedItemId) {
-      return filteredMedia[0];
+      return media.text[0] ?? null;
     }
-
-    return filteredMedia.find((item) => item.url === selectedItemId) ?? filteredMedia[0];
-  }, [filteredMedia, selectedItemId]);
+    return media.text.find((item) => item.url === selectedItemId) ?? media.text[0] ?? null;
+  }, [media.text, selectedItemId]);
   const hasInteractiveChunks = useMemo(() => {
     return chunks.some((chunk) => {
       if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
@@ -2077,7 +2000,6 @@ const scheduleChunkMetadataAppend = useCallback(
 
     for (const category of tabCandidates) {
       if (category === 'text' && !matchByCategory.text && chunkMatchIndex >= 0) {
-        setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
         setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
         appliedCategory = 'text';
         break;
@@ -2094,7 +2016,6 @@ const scheduleChunkMetadataAppend = useCallback(
         }
         return { ...current, [category]: matchId };
       });
-      setSelectedMediaType((current) => (current === category ? current : category));
       appliedCategory = category;
       break;
     }
@@ -2113,11 +2034,9 @@ const scheduleChunkMetadataAppend = useCallback(
         });
 
         if (chunkMatchIndex >= 0) {
-          setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
           setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
           appliedCategory = 'text';
         } else if (media.text.length > 0) {
-          setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
           setSelectedItemIds((current) => {
             if (current.text) {
               return current;
@@ -2130,7 +2049,6 @@ const scheduleChunkMetadataAppend = useCallback(
           });
           appliedCategory = 'text';
         } else if (media.video.length > 0) {
-          setSelectedMediaType((current) => (current === 'video' ? current : 'video'));
           setSelectedItemIds((current) => {
             if (current.video) {
               return current;
@@ -2145,7 +2063,6 @@ const scheduleChunkMetadataAppend = useCallback(
         }
       } else {
         const category = preferredType;
-        setSelectedMediaType((current) => (current === category ? current : category));
         if (category === 'text' && chunkMatchIndex >= 0) {
           setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
           appliedCategory = 'text';
@@ -2239,34 +2156,20 @@ const scheduleChunkMetadataAppend = useCallback(
   const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
   const canRenderInteractiveViewer =
     Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
-  const shouldForceInteractiveViewer = isInteractiveFullscreen && isTextTabActive;
+  const shouldForceInteractiveViewer = isInteractiveFullscreen;
   const handleInteractiveFullscreenToggle = useCallback(() => {
-    if (!isTextTabActive) {
-      updateInteractiveFullscreenPreference(false);
-      setIsInteractiveFullscreen(false);
-      return;
-    }
     setIsInteractiveFullscreen((current) => {
       const next = !current;
       updateInteractiveFullscreenPreference(next);
       return next;
     });
-  }, [isTextTabActive, updateInteractiveFullscreenPreference]);
+  }, [updateInteractiveFullscreenPreference]);
 
   const handleExitInteractiveFullscreen = useCallback(() => {
     updateInteractiveFullscreenPreference(false);
     setIsInteractiveFullscreen(false);
   }, [updateInteractiveFullscreenPreference]);
-  const isImmersiveLayout = isVideoTabActive && isImmersiveMode;
-  const panelClassName = isImmersiveLayout ? 'player-panel player-panel--immersive' : 'player-panel';
-  useEffect(() => {
-    if (!isTextTabActive) {
-      if (isInteractiveFullscreen) {
-        setIsInteractiveFullscreen(false);
-      }
-    }
-  }, [isInteractiveFullscreen, isTextTabActive]);
-
+  const panelClassName = 'player-panel';
   useEffect(() => {
     if (!canRenderInteractiveViewer) {
       if (!hasInteractiveChunks && isInteractiveFullscreen) {
@@ -2287,12 +2190,11 @@ const scheduleChunkMetadataAppend = useCallback(
   ]);
   const hasTextItems = media.text.length > 0;
   const navigableItems = useMemo(
-    () =>
-      media[selectedMediaType].filter((item) => typeof item.url === 'string' && item.url.length > 0),
-    [media, selectedMediaType],
+    () => media.text.filter((item) => typeof item.url === 'string' && item.url.length > 0),
+    [media.text],
   );
   const activeNavigableIndex = useMemo(() => {
-    const currentId = selectedItemIds[selectedMediaType];
+    const currentId = selectedItemIds.text;
     if (!currentId) {
       return navigableItems.length > 0 ? 0 : -1;
     }
@@ -2303,7 +2205,7 @@ const scheduleChunkMetadataAppend = useCallback(
     }
 
     return navigableItems.length > 0 ? 0 : -1;
-  }, [navigableItems, selectedItemIds, selectedMediaType]);
+  }, [navigableItems, selectedItemIds.text]);
   const derivedNavigation = useMemo(() => {
     if (navigableItems.length > 0) {
       return {
@@ -2312,7 +2214,7 @@ const scheduleChunkMetadataAppend = useCallback(
         index: Math.max(0, activeNavigableIndex),
       };
     }
-    if (selectedMediaType === 'text' && chunks.length > 0) {
+    if (chunks.length > 0) {
       const index = activeTextChunkIndex >= 0 ? activeTextChunkIndex : 0;
       return {
         mode: 'chunks' as const,
@@ -2321,7 +2223,7 @@ const scheduleChunkMetadataAppend = useCallback(
       };
     }
     return { mode: 'none' as const, count: 0, index: -1 };
-  }, [activeNavigableIndex, activeTextChunkIndex, chunks.length, navigableItems.length, selectedMediaType]);
+  }, [activeNavigableIndex, activeTextChunkIndex, chunks.length, navigableItems.length]);
   const isFirstDisabled =
     derivedNavigation.count === 0 || derivedNavigation.index <= 0;
   const isPreviousDisabled =
@@ -2330,37 +2232,17 @@ const scheduleChunkMetadataAppend = useCallback(
     derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
   const isLastDisabled =
     derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
-  const playbackControlsAvailable =
-    selectedMediaType === 'video'
-      ? hasVideoControls
-      : selectedMediaType === 'text'
-      ? hasInlineAudioControls
-      : false;
-  const isActiveMediaPlaying =
-    selectedMediaType === 'video'
-      ? isVideoPlaying
-      : selectedMediaType === 'text'
-      ? isInlineAudioPlaying
-      : false;
+  const playbackControlsAvailable = hasInlineAudioControls;
+  const isActiveMediaPlaying = isInlineAudioPlaying;
+  const shouldHoldWakeLock = isInlineAudioPlaying;
+  useWakeLock(shouldHoldWakeLock);
   const isPlaybackDisabled = !playbackControlsAvailable;
-  const isFullscreenDisabled = !isTextTabActive || !canRenderInteractiveViewer;
+  const isFullscreenDisabled = !canRenderInteractiveViewer;
   const handleTranslationSpeedChange = useCallback((speed: TranslationSpeed) => {
     setTranslationSpeed(normaliseTranslationSpeed(speed));
   }, []);
-
-  const handleAdvanceMedia = useCallback(
-    (category: MediaCategory) => {
-      updateSelection(category, 'next');
-    },
-    [updateSelection],
-  );
-
-  const handleVideoControlsRegistration = useCallback((controls: PlaybackControls | null) => {
-    videoControlsRef.current = controls;
-    setHasVideoControls(Boolean(controls));
-    if (!controls) {
-      setIsVideoPlaying(false);
-    }
+  const handleFontScaleChange = useCallback((percent: number) => {
+    setFontScalePercent(clampFontScalePercent(percent));
   }, []);
 
   const syncInteractiveSelection = useCallback(
@@ -2470,10 +2352,9 @@ const scheduleChunkMetadataAppend = useCallback(
       return;
     }
 
-    setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
     activateChunk(chunks[index], { scrollRatio: 0 });
     setPendingChunkSelection(null);
-  }, [activateChunk, chunks, pendingChunkSelection, setSelectedMediaType]);
+  }, [activateChunk, chunks, pendingChunkSelection]);
 
   const handleInlineAudioSelect = useCallback(
     (audioUrl: string) => {
@@ -2500,11 +2381,6 @@ const scheduleChunkMetadataAppend = useCallback(
 
   const handleNavigate = useCallback(
     (intent: NavigationIntent) => {
-      if (selectedMediaType !== 'text') {
-        updateSelection(selectedMediaType, intent);
-        return;
-      }
-
       if (navigableItems.length > 0) {
         const currentId = selectedItemIds.text;
         const currentIndex = currentId
@@ -2535,7 +2411,6 @@ const scheduleChunkMetadataAppend = useCallback(
         if (!nextItem) {
           return;
         }
-        setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
         activateTextItem(nextItem, { autoPlay: true, scrollRatio: 0 });
         return;
       }
@@ -2567,45 +2442,24 @@ const scheduleChunkMetadataAppend = useCallback(
         if (!targetChunk) {
           return;
         }
-        setSelectedMediaType((current) => (current === 'text' ? current : 'text'));
         activateChunk(targetChunk, { autoPlay: true, scrollRatio: 0 });
         return;
       }
 
       updateSelection('text', intent);
     },
-    [
-      activateChunk,
-      activateTextItem,
-      activeTextChunkIndex,
-      chunks,
-      navigableItems,
-      selectedItemIds.text,
-      selectedMediaType,
-      setSelectedMediaType,
-      updateSelection,
-    ],
+    [activateChunk, activateTextItem, activeTextChunkIndex, chunks, navigableItems, selectedItemIds.text, updateSelection],
   );
 
   const handlePauseActiveMedia = useCallback(() => {
-    if (selectedMediaType === 'video') {
-      videoControlsRef.current?.pause();
-      setIsVideoPlaying(false);
-    } else if (selectedMediaType === 'text') {
-      inlineAudioControlsRef.current?.pause();
-      setIsInlineAudioPlaying(false);
-    }
-  }, [selectedMediaType]);
+    inlineAudioControlsRef.current?.pause();
+    setIsInlineAudioPlaying(false);
+  }, []);
 
   const handlePlayActiveMedia = useCallback(() => {
-    if (selectedMediaType === 'video') {
-      videoControlsRef.current?.play();
-      setIsVideoPlaying(true);
-    } else if (selectedMediaType === 'text') {
-      inlineAudioControlsRef.current?.play();
-      setIsInlineAudioPlaying(true);
-    }
-  }, [selectedMediaType]);
+    inlineAudioControlsRef.current?.play();
+    setIsInlineAudioPlaying(true);
+  }, []);
 
   const adjustTranslationSpeed = useCallback((direction: 'faster' | 'slower') => {
     setTranslationSpeed((current) => {
@@ -2662,6 +2516,16 @@ const scheduleChunkMetadataAppend = useCallback(
         event.preventDefault();
         return;
       }
+      if (event.shiftKey && key === 'o' && canToggleOriginalAudio) {
+        handleOriginalAudioToggle();
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey && key === 'f') {
+        handleInteractiveFullscreenToggle();
+        event.preventDefault();
+        return;
+      }
       const isPlusKey =
         event.shiftKey &&
         (key === '+' || key === '=' || event.code === 'Equal' || event.code === 'NumpadAdd');
@@ -2687,7 +2551,14 @@ const scheduleChunkMetadataAppend = useCallback(
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [adjustTranslationSpeed, handleNavigate, handleToggleActiveMedia]);
+  }, [
+    adjustTranslationSpeed,
+    canToggleOriginalAudio,
+    handleInteractiveFullscreenToggle,
+    handleNavigate,
+    handleOriginalAudioToggle,
+    handleToggleActiveMedia,
+  ]);
 
   const handleTextScroll = useCallback(
     (event: UIEvent<HTMLElement>) => {
@@ -2895,9 +2766,6 @@ const scheduleChunkMetadataAppend = useCallback(
     if (!pendingAutoPlayRef.current) {
       return;
     }
-    if (selectedMediaType !== 'text') {
-      return;
-    }
     const controls = inlineAudioControlsRef.current;
     if (!controls) {
       return;
@@ -2905,31 +2773,9 @@ const scheduleChunkMetadataAppend = useCallback(
     pendingAutoPlayRef.current = false;
     controls.pause();
     controls.play();
-  }, [inlineAudioSelection, selectedMediaType]);
-
-  const handleVideoProgress = useCallback(
-    (position: number) => {
-      const mediaId = selectedItemIds.video;
-      if (!mediaId) {
-        return;
-      }
-
-      const current = getMediaItem('video', mediaId);
-      const baseId = current ? deriveBaseId(current) : null;
-      rememberPosition({ mediaId, mediaType: 'video', baseId, position });
-    },
-    [selectedItemIds.video, getMediaItem, deriveBaseId, rememberPosition],
-  );
-
-  const handleVideoPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
-    setIsVideoPlaying(state === 'playing');
-  }, []);
+  }, [inlineAudioSelection]);
 
   useEffect(() => {
-    if (selectedMediaType !== 'text') {
-      return;
-    }
-
     const mediaId = selectedItemIds.text;
     if (!mediaId) {
       return;
@@ -2973,7 +2819,6 @@ const scheduleChunkMetadataAppend = useCallback(
       // Swallow assignment errors triggered by unsupported scrolling APIs in tests.
     }
   }, [
-    selectedMediaType,
     selectedItemIds.text,
     textPlaybackPosition,
     textPreview?.url,
@@ -2984,10 +2829,6 @@ const scheduleChunkMetadataAppend = useCallback(
   ]);
 
   useEffect(() => {
-    if (selectedMediaType !== 'text') {
-      return;
-    }
-
     const url = selectedItem?.url;
     if (!url) {
       setTextPreview(null);
@@ -3053,27 +2894,9 @@ const scheduleChunkMetadataAppend = useCallback(
     return () => {
       cancelled = true;
     };
-  }, [selectedMediaType, selectedItem?.url]);
-
-  const handleImmersiveToggle = useCallback(() => {
-    if (!isVideoTabActive || media.video.length === 0) {
-      return;
-    }
-    setIsImmersiveMode((current) => !current);
-  }, [isVideoTabActive, media.video.length]);
-
-  const handleExitImmersiveMode = useCallback(() => {
-    setIsImmersiveMode(false);
-  }, []);
+  }, [selectedItem?.url]);
 
   useEffect(() => {
-    if (!isVideoTabActive) {
-      setIsImmersiveMode(false);
-    }
-  }, [isVideoTabActive]);
-
-  useEffect(() => {
-    setIsImmersiveMode(false);
     setIsInteractiveFullscreen(false);
     setPendingSelection(null);
     setPendingChunkSelection(null);
@@ -3081,9 +2904,8 @@ const scheduleChunkMetadataAppend = useCallback(
   }, [normalisedJobId]);
 
   useEffect(() => {
-    const fullscreenActive = isInteractiveFullscreen || isImmersiveMode;
-    onFullscreenChange?.(fullscreenActive);
-  }, [isInteractiveFullscreen, isImmersiveMode, onFullscreenChange]);
+    onFullscreenChange?.(isInteractiveFullscreen);
+  }, [isInteractiveFullscreen, onFullscreenChange]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -3091,6 +2913,13 @@ const scheduleChunkMetadataAppend = useCallback(
     }
     window.localStorage.setItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
   }, [showOriginalAudio]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScalePercent));
+  }, [fontScalePercent]);
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
@@ -3100,6 +2929,7 @@ const scheduleChunkMetadataAppend = useCallback(
 
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
   const headingLabel = bookTitle ?? 'Player';
+  const interactiveFontScale = fontScalePercent / 100;
   const jobLabelParts: string[] = [];
   if (bookAuthor) {
     jobLabelParts.push(`By ${bookAuthor}`);
@@ -3116,7 +2946,6 @@ const scheduleChunkMetadataAppend = useCallback(
       : bookAuthor
       ? `Book cover for ${bookAuthor}`
       : 'Book cover preview';
-  const immersiveToggleLabel = isImmersiveMode ? 'Exit immersive mode' : 'Enter immersive mode';
   const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
   const sentenceJumpListId = useId();
   const sentenceJumpInputId = useId();
@@ -3146,21 +2975,17 @@ const scheduleChunkMetadataAppend = useCallback(
       isFullscreen={isInteractiveFullscreen}
       isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
-      inlineAudioOptions={visibleInlineAudioOptions}
-      inlineAudioSelection={inlineAudioSelection}
-      onSelectInlineAudio={handleInlineAudioSelect}
-      showInlineAudio={selectedMediaType === 'text'}
-      showOriginalAudioToggle={selectedMediaType === 'text' && canToggleOriginalAudio}
+      showOriginalAudioToggle={canToggleOriginalAudio}
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
       disableOriginalAudioToggle={!hasCombinedAudio}
-      showTranslationSpeed={selectedMediaType === 'text'}
+      showTranslationSpeed
       translationSpeed={translationSpeed}
       translationSpeedMin={TRANSLATION_SPEED_MIN}
       translationSpeedMax={TRANSLATION_SPEED_MAX}
       translationSpeedStep={TRANSLATION_SPEED_STEP}
       onTranslationSpeedChange={handleTranslationSpeedChange}
-      showSentenceJump={selectedMediaType === 'text' && canJumpToSentence}
+      showSentenceJump={canJumpToSentence}
       sentenceJumpValue={sentenceJumpValue}
       sentenceJumpMin={sentenceLookup.min}
       sentenceJumpMax={sentenceLookup.max}
@@ -3171,6 +2996,12 @@ const scheduleChunkMetadataAppend = useCallback(
       sentenceJumpPlaceholder={sentenceJumpPlaceholder}
       onSentenceJumpChange={handleSentenceJumpChange}
       onSentenceJumpSubmit={handleSentenceJumpSubmit}
+      showFontScale
+      fontScalePercent={fontScalePercent}
+      fontScaleMin={FONT_SCALE_MIN}
+      fontScaleMax={FONT_SCALE_MAX}
+      fontScaleStep={FONT_SCALE_STEP}
+      onFontScaleChange={handleFontScaleChange}
     />
   );
   const fullscreenNavigationGroup = isInteractiveFullscreen ? (
@@ -3188,21 +3019,17 @@ const scheduleChunkMetadataAppend = useCallback(
       isFullscreen={isInteractiveFullscreen}
       isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
-      inlineAudioOptions={visibleInlineAudioOptions}
-      inlineAudioSelection={inlineAudioSelection}
-      onSelectInlineAudio={handleInlineAudioSelect}
-      showInlineAudio={selectedMediaType === 'text'}
-      showOriginalAudioToggle={selectedMediaType === 'text' && canToggleOriginalAudio}
+      showOriginalAudioToggle={canToggleOriginalAudio}
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
       disableOriginalAudioToggle={!hasCombinedAudio}
-      showTranslationSpeed={selectedMediaType === 'text'}
+      showTranslationSpeed
       translationSpeed={translationSpeed}
       translationSpeedMin={TRANSLATION_SPEED_MIN}
       translationSpeedMax={TRANSLATION_SPEED_MAX}
       translationSpeedStep={TRANSLATION_SPEED_STEP}
       onTranslationSpeedChange={handleTranslationSpeedChange}
-      showSentenceJump={selectedMediaType === 'text' && canJumpToSentence}
+      showSentenceJump={canJumpToSentence}
       sentenceJumpValue={sentenceJumpValue}
       sentenceJumpMin={sentenceLookup.min}
       sentenceJumpMax={sentenceLookup.max}
@@ -3213,26 +3040,13 @@ const scheduleChunkMetadataAppend = useCallback(
       sentenceJumpPlaceholder={sentenceJumpPlaceholder}
       onSentenceJumpChange={handleSentenceJumpChange}
       onSentenceJumpSubmit={handleSentenceJumpSubmit}
+      showFontScale
+      fontScalePercent={fontScalePercent}
+      fontScaleMin={FONT_SCALE_MIN}
+      fontScaleMax={FONT_SCALE_MAX}
+      fontScaleStep={FONT_SCALE_STEP}
+      onFontScaleChange={handleFontScaleChange}
     />
-  ) : null;
-
-  const fullscreenHeader = isInteractiveFullscreen ? (
-    <div className="player-panel__fullscreen-header">
-      {shouldShowCoverImage ? (
-        <div className="player-panel__fullscreen-cover" aria-hidden={false}>
-          <img
-            src={displayCoverUrl}
-            alt={coverAltText}
-            data-testid="player-panel-fullscreen-cover"
-            onError={coverErrorHandler}
-          />
-        </div>
-      ) : null}
-      <div className="player-panel__fullscreen-meta">
-        <h3>{headingLabel}</h3>
-        {jobLabel ? <span className="player-panel__fullscreen-job">{jobLabel}</span> : null}
-      </div>
-    </div>
   ) : null;
 
   if (error) {
@@ -3263,162 +3077,82 @@ const scheduleChunkMetadataAppend = useCallback(
           <div className="player-panel__search">
             <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
           </div>
-          <Tabs className="player-panel__tabs-container" value={selectedMediaType} onValueChange={handleTabChange}>
+          <div className="player-panel__tabs-container">
             <header className="player-panel__header">
-              <div className="player-panel__heading">
-                {shouldShowCoverImage ? (
-                  <div className="player-panel__cover" aria-hidden={false}>
-                    <img
-                      src={displayCoverUrl}
-                      alt={coverAltText}
-                      data-testid="player-cover-image"
-                      onError={coverErrorHandler}
-                    />
-                  </div>
-                ) : null}
-                <div className="player-panel__heading-text">
-                  <h2>{headingLabel}</h2>
-                  <span className="player-panel__job">{jobLabel}</span>
-                </div>
-              </div>
-          <div className="player-panel__tabs-row">
-            {navigationGroup}
-            {media.video.length > 0 ? (
-              <button
-                type="button"
-                className="player-panel__immersive-toggle"
-                onClick={handleImmersiveToggle}
-                disabled={!isVideoTabActive}
-                aria-pressed={isImmersiveMode}
-                aria-label={immersiveToggleLabel}
-                data-testid="player-panel-immersive-toggle"
-              >
-                {immersiveToggleLabel}
-              </button>
-            ) : null}
-            <TabsList className="player-panel__tabs" aria-label="Media categories">
-            {visibleTabs.map((tab) => {
-                const count =
-                  tab.key === 'text'
-                    ? (chunks.length > 0 ? chunks.length : media[tab.key].length)
-                    : media[tab.key].length;
-                return (
-                  <TabsTrigger
-                    key={tab.key}
-                    className="player-panel__tab"
-                    value={tab.key}
-                    data-testid={`media-tab-${tab.key}`}
-                  >
-                    {tab.label} ({count})
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
-          </div>
-        </header>
-        {visibleTabs.map((tab) => {
-          const isActive = tab.key === selectedMediaType;
-          const tabItems = media[tab.key];
-          const tabHasInteractiveContent = tab.key === 'text' && hasInteractiveChunks;
-          const tabHasContent = tabItems.length > 0 || tabHasInteractiveContent;
-          return (
-            <TabsContent key={tab.key} value={tab.key} className="player-panel__panel">
+              <div className="player-panel__tabs-row">{navigationGroup}</div>
+            </header>
+            <div className="player-panel__panel">
               {!hasAnyMedia && !isLoading ? (
                 <p role="status">{emptyMediaMessage}</p>
-              ) : !tabHasContent ? (
-                <p role="status">{tab.emptyMessage}</p>
+              ) : !hasTextItems && !hasInteractiveChunks ? (
+                <p role="status">No interactive reader media yet.</p>
               ) : (
-                isActive ? (
-                  <div className="player-panel__stage">
-                    {!mediaComplete ? (
-                      <div className="player-panel__notice" role="status">
-                        Media generation is still finishing. Newly generated files will appear automatically.
-                      </div>
-                    ) : null}
-                    <div className="player-panel__viewer">
-                      {tab.key === 'video' ? (
-                        <VideoPlayer
-                          files={videoFiles}
-                          activeId={selectedItemIds.video}
-                          onSelectFile={(fileId) => handleSelectMedia('video', fileId)}
-                          autoPlay
-                          onPlaybackEnded={() => handleAdvanceMedia('video')}
-                          playbackPosition={videoPlaybackPosition}
-                          onPlaybackPositionChange={handleVideoProgress}
-                          onPlaybackStateChange={handleVideoPlaybackStateChange}
-                          isTheaterMode={isImmersiveMode}
-                          onExitTheaterMode={handleExitImmersiveMode}
-                          onRegisterControls={handleVideoControlsRegistration}
-                        />
-                      ) : null}
-                      {tab.key === 'text' ? (
-                        <div className="player-panel__document">
-                          {hasTextItems && !selectedItem ? (
-                            <div className="player-panel__empty-viewer" role="status">
-                              Select a file to preview.
-                            </div>
-                          ) : textLoading && selectedItem ? (
-                            <div className="player-panel__document-status" role="status">
-                              Loading document…
-                            </div>
-                          ) : textError ? (
-                            <div className="player-panel__document-error" role="alert">
-                              {textError}
-                            </div>
-                          ) : canRenderInteractiveViewer || shouldForceInteractiveViewer ? (
-                            <>
-                              <InteractiveTextViewer
-                                ref={textScrollRef}
-                                content={interactiveViewerContent}
-                                rawContent={interactiveViewerRaw}
-                                chunk={resolvedActiveTextChunk}
-                                totalSentencesInBook={totalSentencesInBook}
-                                activeAudioUrl={inlineAudioSelection}
-                                noAudioAvailable={inlineAudioUnavailable}
-                                jobId={jobId}
-                                onScroll={handleTextScroll}
-                                onAudioProgress={handleInlineAudioProgress}
-                                getStoredAudioPosition={getInlineAudioPosition}
-                                onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
-                                onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
-                                onRequestAdvanceChunk={handleInlineAudioEnded}
-                                isFullscreen={isInteractiveFullscreen}
-                                onRequestExitFullscreen={handleExitInteractiveFullscreen}
-                                fullscreenControls={
-                                  isInteractiveFullscreen ? (
-                                    <>
-                                      {fullscreenHeader}
-                                      {fullscreenNavigationGroup}
-                                    </>
-                                  ) : null
-                                }
-                                translationSpeed={translationSpeed}
-                                audioTracks={activeAudioTracks}
-                                activeTimingTrack={activeTimingTrack}
-                                originalAudioEnabled={effectiveOriginalAudioEnabled}
-                                fontScale={isInteractiveFullscreen ? 1.35 : 1}
-                              />
-                              {!canRenderInteractiveViewer ? (
-                                <div className="player-panel__document-status" role="status">
-                                  Interactive reader assets are still being prepared.
-                                </div>
-                              ) : null}
-                            </>
-                          ) : (
+                <div className="player-panel__stage">
+                  {!mediaComplete ? (
+                    <div className="player-panel__notice" role="status">
+                      Media generation is still finishing. Newly generated files will appear automatically.
+                    </div>
+                  ) : null}
+                  <div className="player-panel__viewer">
+                    <div className="player-panel__document">
+                      {hasTextItems && !selectedItem ? (
+                        <div className="player-panel__empty-viewer" role="status">
+                          Select a file to preview.
+                        </div>
+                      ) : textLoading && selectedItem ? (
+                        <div className="player-panel__document-status" role="status">
+                          Loading document…
+                        </div>
+                      ) : textError ? (
+                        <div className="player-panel__document-error" role="alert">
+                          {textError}
+                        </div>
+                      ) : canRenderInteractiveViewer || shouldForceInteractiveViewer ? (
+                        <>
+                          <InteractiveTextViewer
+                            ref={textScrollRef}
+                            content={interactiveViewerContent}
+                            rawContent={interactiveViewerRaw}
+                            chunk={resolvedActiveTextChunk}
+                            totalSentencesInBook={totalSentencesInBook}
+                            activeAudioUrl={inlineAudioSelection}
+                            noAudioAvailable={inlineAudioUnavailable}
+                            jobId={jobId}
+                            onScroll={handleTextScroll}
+                            onAudioProgress={handleInlineAudioProgress}
+                            getStoredAudioPosition={getInlineAudioPosition}
+                            onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
+                            onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
+                            onRequestAdvanceChunk={handleInlineAudioEnded}
+                            isFullscreen={isInteractiveFullscreen}
+                            onRequestExitFullscreen={handleExitInteractiveFullscreen}
+                            fullscreenControls={isInteractiveFullscreen ? fullscreenNavigationGroup : null}
+                            translationSpeed={translationSpeed}
+                            audioTracks={activeAudioTracks}
+                            activeTimingTrack={activeTimingTrack}
+                            originalAudioEnabled={effectiveOriginalAudioEnabled}
+                            fontScale={interactiveFontScale}
+                            bookTitle={bookTitle ?? headingLabel}
+                            bookCoverUrl={shouldShowCoverImage ? displayCoverUrl : null}
+                            bookCoverAltText={coverAltText}
+                          />
+                          {!canRenderInteractiveViewer ? (
                             <div className="player-panel__document-status" role="status">
                               Interactive reader assets are still being prepared.
                             </div>
-                          )}
+                          ) : null}
+                        </>
+                      ) : (
+                        <div className="player-panel__document-status" role="status">
+                          Interactive reader assets are still being prepared.
                         </div>
-                      ) : null}
+                      )}
                     </div>
                   </div>
-                ) : null
+                </div>
               )}
-            </TabsContent>
-          );
-        })}
-        </Tabs>
+            </div>
+          </div>
         </>
       )}
     </section>

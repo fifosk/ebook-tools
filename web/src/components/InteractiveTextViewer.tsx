@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { MutableRefObject, ReactNode, UIEvent } from 'react';
+import type { CSSProperties, MutableRefObject, ReactNode, UIEvent } from 'react';
 import { appendAccessToken, fetchJobTiming } from '../api/client';
 import type { AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
@@ -654,6 +654,9 @@ interface InteractiveTextViewerProps {
   originalAudioEnabled?: boolean;
   translationSpeed?: number;
   fontScale?: number;
+  bookTitle?: string | null;
+  bookCoverUrl?: string | null;
+  bookCoverAltText?: string | null;
 }
 
 type SegmenterInstance = {
@@ -853,6 +856,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     originalAudioEnabled = false,
     translationSpeed = 1,
     fontScale = 1,
+    bookTitle = null,
+    bookCoverUrl = null,
+    bookCoverAltText = null,
   },
   forwardedRef,
 ) {
@@ -860,6 +866,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     () => normaliseTranslationSpeed(translationSpeed),
     [translationSpeed],
   );
+  const safeBookTitle = typeof bookTitle === 'string' ? bookTitle.trim() : '';
   const safeFontScale = useMemo(() => {
     if (!Number.isFinite(fontScale) || fontScale <= 0) {
       return 1;
@@ -867,6 +874,24 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const clamped = Math.min(Math.max(fontScale, 0.5), 3);
     return Math.round(clamped * 100) / 100;
   }, [fontScale]);
+  const formatRem = useCallback((value: number) => `${Math.round(value * 1000) / 1000}rem`, []);
+  const bodyStyle = useMemo<CSSProperties>(() => {
+    const baseSentenceFont = (isFullscreen ? 1.32 : 1.08) * safeFontScale;
+    const activeSentenceFont = (isFullscreen ? 1.56 : 1.28) * safeFontScale;
+    return {
+      '--interactive-font-scale': safeFontScale,
+      '--tp-sentence-font-size': formatRem(baseSentenceFont),
+      '--tp-sentence-active-font-size': formatRem(activeSentenceFont),
+    } as CSSProperties;
+  }, [formatRem, isFullscreen, safeFontScale]);
+  const [viewportCoverFailed, setViewportCoverFailed] = useState(false);
+  useEffect(() => {
+    setViewportCoverFailed(false);
+  }, [bookCoverUrl]);
+  const resolvedBookCoverUrl = viewportCoverFailed ? null : bookCoverUrl;
+  const showBookBadge = Boolean(safeBookTitle || resolvedBookCoverUrl);
+  const bookBadgeAltText =
+    bookCoverAltText ?? (safeBookTitle ? `Cover of ${safeBookTitle}` : 'Book cover preview');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const {
@@ -988,8 +1013,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     parts.push(content.length, (rawContent ?? '').length, activeAudioUrl ?? 'none');
     return parts.join('|');
   }, [activeAudioUrl, chunk, content, rawContent]);
+  const isFullscreenRef = useRef(isFullscreen);
+  useEffect(() => {
+    isFullscreenRef.current = isFullscreen;
+  }, [isFullscreen]);
+
   const requestFullscreenIfNeeded = useCallback(() => {
-    if (!isFullscreen || typeof document === 'undefined') {
+    if (!isFullscreenRef.current || typeof document === 'undefined') {
       return;
     }
     const element = rootRef.current;
@@ -1019,7 +1049,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       fullscreenResyncPendingRef.current = false;
       onRequestExitFullscreen?.();
     }
-  }, [isFullscreen, onRequestExitFullscreen]);
+  }, [onRequestExitFullscreen]);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
@@ -2142,6 +2172,20 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [onScroll],
   );
 
+  const exitFullscreen = useCallback(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    if (typeof document.exitFullscreen === 'function') {
+      const exitResult = document.exitFullscreen();
+      if (exitResult && typeof exitResult.catch === 'function') {
+        exitResult.catch(() => undefined);
+      }
+    }
+    fullscreenRequestedRef.current = false;
+    fullscreenResyncPendingRef.current = false;
+  }, []);
+
   useEffect(() => {
     if (typeof document === 'undefined') {
       return;
@@ -2151,20 +2195,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       return;
     }
 
-    const exitFullscreen = () => {
-      if (typeof document.exitFullscreen === 'function') {
-        const exitResult = document.exitFullscreen();
-        if (exitResult && typeof exitResult.catch === 'function') {
-          exitResult.catch(() => undefined);
-        }
-      }
-      fullscreenRequestedRef.current = false;
-      fullscreenResyncPendingRef.current = false;
-    };
-
     if (isFullscreen) {
       requestFullscreenIfNeeded();
-      return;
+      return () => {
+        exitFullscreen();
+      };
     }
 
     if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
@@ -2172,16 +2207,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     } else {
       fullscreenRequestedRef.current = false;
     }
-
-    return () => {
-      if (!isFullscreen) {
-        return;
-      }
-      if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
-        exitFullscreen();
-      }
-    };
-  }, [isFullscreen, onRequestExitFullscreen, requestFullscreenIfNeeded]);
+    return;
+  }, [exitFullscreen, isFullscreen, requestFullscreenIfNeeded]);
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -2465,10 +2492,52 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   );
 
   const [fullscreenControlsCollapsed, setFullscreenControlsCollapsed] = useState(false);
+  const wasFullscreenRef = useRef<boolean>(false);
   useEffect(() => {
     if (!isFullscreen) {
       setFullscreenControlsCollapsed(false);
+      wasFullscreenRef.current = false;
+      return;
     }
+    if (!wasFullscreenRef.current) {
+      setFullscreenControlsCollapsed(true);
+      wasFullscreenRef.current = true;
+    }
+  }, [isFullscreen]);
+  useEffect(() => {
+    if (!isFullscreen) {
+      return;
+    }
+    const isTypingTarget = (target: EventTarget | null): target is HTMLElement => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      if (target.isContentEditable) {
+        return true;
+      }
+      const tag = target.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        !event.shiftKey ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+      if (event.key?.toLowerCase() === 'h') {
+        setFullscreenControlsCollapsed((value) => !value);
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleShortcut);
+    };
   }, [isFullscreen]);
 
   const rootClassName = [
@@ -2618,59 +2687,29 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         className="player-panel__document-body player-panel__interactive-body"
         data-testid="player-panel-document"
         onScroll={handleScroll}
-        style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
+        style={bodyStyle}
       >
+        {showBookBadge ? (
+          <div className="player-panel__interactive-book-badge">
+            {resolvedBookCoverUrl ? (
+              <img
+                src={resolvedBookCoverUrl}
+                alt={bookBadgeAltText}
+                onError={() => setViewportCoverFailed(true)}
+                loading="lazy"
+              />
+            ) : null}
+            {safeBookTitle ? (
+              <span className="player-panel__interactive-book-badge-title">{safeBookTitle}</span>
+            ) : null}
+          </div>
+        ) : null}
         {slideIndicator ? (
           <div className="player-panel__interactive-slide-indicator">
             {slideIndicator.current}/{slideIndicator.total}
           </div>
         ) : null}
-        {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
-          <div
-            className="word-sync"
-            data-track-type={activeWordSyncTrack?.trackType ?? 'none'}
-            data-follow={followHighlightEnabled ? 'true' : 'false'}
-          >
-            {wordSyncSentences.map((sentence) => (
-              <div
-                key={sentence.id}
-                className="word-sync__sentence"
-                data-sentence={sentence.sentenceId}
-                ref={(element) => registerSentenceElement(sentence.sentenceId, element)}
-              >
-                {(['orig', 'trans', 'xlit'] as WordSyncLane[]).map((lane) => {
-                  const tokens = sentence.tokens[lane];
-                  if (!tokens || tokens.length === 0) {
-                    return null;
-                  }
-                  return (
-                    <div
-                      key={`${sentence.id}-${lane}`}
-                      className={`word-sync__lane word-sync__lane--${lane}`}
-                      data-lang={lane}
-                    >
-                      <span className="word-sync__lane-label">{WORD_SYNC_LANE_LABELS[lane]}</span>
-                      <div className="word-sync__lane-content">
-                        {tokens.map((token) => (
-                          <span
-                            key={token.id}
-                            className="word-sync__token"
-                            data-word-id={token.id}
-                            data-lang={token.lang}
-                            data-sentence={token.sentenceId}
-                            ref={(element) => registerTokenElement(token.id, element)}
-                          >
-                            {token.displayText}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        ) : textPlayerSentences && textPlayerSentences.length > 0 ? (
+        {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : textPlayerSentences && textPlayerSentences.length > 0 ? (
           <TextPlayer sentences={textPlayerSentences} onSeek={handleTokenSeek} />
         ) : paragraphs.length > 0 ? (
           <pre className="player-panel__document-text">{content}</pre>

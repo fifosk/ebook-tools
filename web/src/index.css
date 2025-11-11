@@ -1845,51 +1845,6 @@ button.link-button:focus {
   gap: 0.75rem;
 }
 
-.player-panel__heading {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.player-panel__heading-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.player-panel__cover {
-  width: 5.75rem;
-  height: 5.75rem;
-  flex: 0 0 auto;
-  border-radius: 0.75rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4), rgba(148, 163, 184, 0.4));
-  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
-}
-
-.player-panel__cover img {
-  width: 100%;
-  height: auto;
-  max-height: 100%;
-  object-fit: contain;
-  display: block;
-  background: #0f172a;
-}
-
-.player-panel__header h2 {
-  margin: 0;
-  font-size: 1.35rem;
-  color: var(--color-text-heading);
-}
-
-.player-panel__job {
-  font-size: 0.9rem;
-  color: var(--color-text-muted);
-}
-
 .player-panel__tabs {
   display: flex;
   gap: 0.5rem;
@@ -2110,6 +2065,37 @@ button.link-button:focus {
   color: var(--color-accent-warn, #f87171);
 }
 
+.player-panel__nav-font {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.player-panel__nav-font-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.player-panel__nav-font-input {
+  flex: 1;
+  accent-color: rgba(129, 140, 248, 0.9);
+}
+
+.player-panel__nav-font-input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+}
+
+.player-panel__nav-font-value {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
 .player-panel__inline-audio {
   display: inline-flex;
   align-items: center;
@@ -2161,19 +2147,8 @@ button.link-button:focus {
 @media (min-width: 768px) {
   .player-panel__header {
     flex-direction: row;
-    justify-content: space-between;
+    justify-content: flex-end;
     align-items: flex-end;
-  }
-
-  .player-panel__heading {
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .player-panel__cover {
-    width: 6.5rem;
-    height: 6.5rem;
   }
 
   .player-panel__tabs {
@@ -2604,6 +2579,7 @@ button.link-button:focus {
 }
 
 .player-panel__interactive-body {
+  --interactive-font-scale: 1;
   white-space: normal;
   font-family: inherit;
   color: var(--color-text-secondary);
@@ -2617,6 +2593,45 @@ button.link-button:focus {
   max-height: none;
   flex: 1 1 auto;
   position: relative;
+}
+
+.player-panel__interactive-book-badge {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.25rem 0.65rem 0.25rem 0.3rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.85);
+  color: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.2;
+  z-index: 2;
+  pointer-events: none;
+  max-width: 65%;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+}
+
+.player-panel__interactive-book-badge img {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.45rem;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.45);
+}
+
+.player-panel__interactive-book-badge-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
 }
 
 .player-panel__interactive-slide-indicator {
@@ -2738,12 +2753,12 @@ button.link-button:focus {
   flex-wrap: wrap;
   gap: 0.25rem;
   align-items: baseline;
-  font-size: 1rem;
+  font-size: calc(1rem * var(--interactive-font-scale, 1));
   color: #e2e8f0;
 }
 
 .player-panel__interactive-sentence-group--active .player-panel__interactive-original {
-  font-size: 1.4rem;
+  font-size: calc(1.4rem * var(--interactive-font-scale, 1));
   font-weight: 600;
   color: #f8fafc;
 }
@@ -2780,7 +2795,7 @@ button.link-button:focus {
 
 .player-panel__interactive-translation,
 .player-panel__interactive-transliteration {
-  font-size: 1rem;
+  font-size: calc(1rem * var(--interactive-font-scale, 1));
   font-weight: 500;
   letter-spacing: 0.01em;
 }
@@ -2795,7 +2810,7 @@ button.link-button:focus {
 
 .player-panel__interactive-sentence-group--active .player-panel__interactive-translation,
 .player-panel__interactive-sentence-group--active .player-panel__interactive-transliteration {
-  font-size: 1.4rem;
+  font-size: calc(1.4rem * var(--interactive-font-scale, 1));
   font-weight: 600;
 }
 
