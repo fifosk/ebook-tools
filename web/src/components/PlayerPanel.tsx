@@ -2189,6 +2189,12 @@ const scheduleChunkMetadataAppend = useCallback(
     updateInteractiveFullscreenPreference,
   ]);
   const hasTextItems = media.text.length > 0;
+  const shouldShowInteractiveViewer = canRenderInteractiveViewer || shouldForceInteractiveViewer;
+  const shouldShowEmptySelectionPlaceholder =
+    hasTextItems && !selectedItem && !shouldForceInteractiveViewer;
+  const shouldShowLoadingPlaceholder =
+    Boolean(textLoading && selectedItem && !shouldForceInteractiveViewer);
+  const shouldShowStandaloneError = Boolean(textError) && !shouldForceInteractiveViewer;
   const navigableItems = useMemo(
     () => media.text.filter((item) => typeof item.url === 'string' && item.url.length > 0),
     [media.text],
@@ -3095,19 +3101,19 @@ const scheduleChunkMetadataAppend = useCallback(
                   ) : null}
                   <div className="player-panel__viewer">
                     <div className="player-panel__document">
-                      {hasTextItems && !selectedItem ? (
+                      {shouldShowEmptySelectionPlaceholder ? (
                         <div className="player-panel__empty-viewer" role="status">
                           Select a file to preview.
                         </div>
-                      ) : textLoading && selectedItem ? (
+                      ) : shouldShowLoadingPlaceholder ? (
                         <div className="player-panel__document-status" role="status">
                           Loading document…
                         </div>
-                      ) : textError ? (
+                      ) : shouldShowStandaloneError ? (
                         <div className="player-panel__document-error" role="alert">
                           {textError}
                         </div>
-                      ) : canRenderInteractiveViewer || shouldForceInteractiveViewer ? (
+                      ) : shouldShowInteractiveViewer ? (
                         <>
                           <InteractiveTextViewer
                             ref={textScrollRef}
@@ -3136,6 +3142,16 @@ const scheduleChunkMetadataAppend = useCallback(
                             bookCoverUrl={shouldShowCoverImage ? displayCoverUrl : null}
                             bookCoverAltText={coverAltText}
                           />
+                          {textLoading && selectedItem ? (
+                            <div className="player-panel__document-status" role="status">
+                              Loading document…
+                            </div>
+                          ) : null}
+                          {textError ? (
+                            <div className="player-panel__document-error" role="alert">
+                              {textError}
+                            </div>
+                          ) : null}
                           {!canRenderInteractiveViewer ? (
                             <div className="player-panel__document-status" role="status">
                               Interactive reader assets are still being prepared.

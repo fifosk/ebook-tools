@@ -7,7 +7,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { CSSProperties, MutableRefObject, ReactNode, UIEvent } from 'react';
+import type {
+  CSSProperties,
+  MutableRefObject,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+  UIEvent,
+} from 'react';
 import { appendAccessToken, fetchJobTiming } from '../api/client';
 import type { AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
@@ -92,6 +98,8 @@ const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
   trans: 'Translation',
   xlit: 'Transliteration',
 };
+
+const DICTIONARY_LOOKUP_LONG_PRESS_MS = 450;
 
 const EMPTY_TIMING_PAYLOAD: TimingPayload = {
   trackKind: 'translation_only',
@@ -894,6 +902,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     bookCoverAltText ?? (safeBookTitle ? `Cover of ${safeBookTitle}` : 'Book cover preview');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dictionaryPointerIdRef = useRef<number | null>(null);
+  const dictionaryAwaitingResumeRef = useRef(false);
+  const dictionaryWasPlayingRef = useRef(false);
+  const dictionarySuppressSeekRef = useRef(false);
   const {
     ref: attachPlayerCore,
     core: playerCore,
@@ -915,6 +928,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const clockRef = useRef<MediaClock>(clock);
   const diagnosticsSignatureRef = useRef<string | null>(null);
   const highlightPolicyRef = useRef<string | null>(null);
+  const inlineAudioPlayingRef = useRef(false);
   const [jobTimingResponse, setJobTimingResponse] = useState<JobTimingResponse | null>(null);
   const [timingDiagnostics, setTimingDiagnostics] = useState<{ policy: string | null; estimated: boolean; punctuation?: boolean } | null>(null);
   useEffect(() => {
@@ -994,6 +1008,185 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       mounted = false;
     };
   }, []);
+  const clearDictionaryTimer = useCallback(() => {
+    if (dictionaryPressTimerRef.current === null) {
+      return;
+    }
+    clearTimeout(dictionaryPressTimerRef.current);
+    dictionaryPressTimerRef.current = null;
+  }, []);
+  const resumeDictionaryInteraction = useCallback(() => {
+    clearDictionaryTimer();
+    if (!dictionaryAwaitingResumeRef.current) {
+      dictionarySuppressSeekRef.current = false;
+      return;
+    }
+    dictionaryAwaitingResumeRef.current = false;
+    dictionaryPointerIdRef.current = null;
+    dictionarySuppressSeekRef.current = false;
+    const shouldResume = dictionaryWasPlayingRef.current;
+    dictionaryWasPlayingRef.current = false;
+    if (!shouldResume) {
+      return;
+    }
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    try {
+      const attempt = element.play?.();
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(() => undefined);
+      }
+    } catch {
+      /* Ignore resume failures triggered by autoplay policies. */
+    }
+  }, []);
+  const requestDictionaryPause = useCallback(() => {
+    if (dictionaryAwaitingResumeRef.current) {
+      return;
+    }
+    dictionarySuppressSeekRef.current = true;
+    dictionaryAwaitingResumeRef.current = true;
+    const element = audioRef.current;
+    dictionaryWasPlayingRef.current = inlineAudioPlayingRef.current;
+    if (!element) {
+      return;
+    }
+    try {
+      element.pause();
+    } catch {
+      /* Ignore pause failures triggered by autoplay policies. */
+    }
+  }, []);
+  const isDictionaryTokenTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    return Boolean(target.closest('[data-text-player-token="true"]'));
+  }, []);
+  const handlePointerDownCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (dictionaryAwaitingResumeRef.current) {
+        resumeDictionaryInteraction();
+      }
+      if (
+        event.pointerType !== 'mouse' ||
+        event.button !== 0 ||
+        !event.isPrimary ||
+        !isDictionaryTokenTarget(event.target)
+      ) {
+        clearDictionaryTimer();
+        return;
+      }
+      dictionaryPointerIdRef.current = event.pointerId;
+      clearDictionaryTimer();
+      dictionaryPressTimerRef.current = setTimeout(() => {
+        dictionaryPressTimerRef.current = null;
+        requestDictionaryPause();
+      }, DICTIONARY_LOOKUP_LONG_PRESS_MS);
+    },
+    [clearDictionaryTimer, isDictionaryTokenTarget, requestDictionaryPause, resumeDictionaryInteraction],
+  );
+  const handlePointerMoveCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (dictionaryPressTimerRef.current === null) {
+        return;
+      }
+      if (event.pointerId !== dictionaryPointerIdRef.current) {
+        return;
+      }
+      if (!isDictionaryTokenTarget(event.target)) {
+        clearDictionaryTimer();
+      }
+    },
+    [clearDictionaryTimer, isDictionaryTokenTarget],
+  );
+  const handlePointerUpCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerId === dictionaryPointerIdRef.current) {
+        clearDictionaryTimer();
+      }
+    },
+    [clearDictionaryTimer],
+  );
+  const handlePointerCancelCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerId === dictionaryPointerIdRef.current) {
+        clearDictionaryTimer();
+      }
+    },
+    [clearDictionaryTimer],
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleGlobalPointerDown = (event: PointerEvent) => {
+      if (!dictionaryAwaitingResumeRef.current) {
+        return;
+      }
+      if (event.pointerId === dictionaryPointerIdRef.current) {
+        return;
+      }
+      resumeDictionaryInteraction();
+    };
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (!dictionaryAwaitingResumeRef.current) {
+        return;
+      }
+      if (event.key === 'Escape' || event.key === 'Esc') {
+        resumeDictionaryInteraction();
+      }
+    };
+    window.addEventListener('pointerdown', handleGlobalPointerDown, true);
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, [resumeDictionaryInteraction]);
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const handleSelectionChange = () => {
+      if (!dictionaryAwaitingResumeRef.current) {
+        return;
+      }
+      const selection = document.getSelection();
+      if (!selection || selection.isCollapsed) {
+        resumeDictionaryInteraction();
+        return;
+      }
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+      const anchorNode = selection.anchorNode;
+      const focusNode = selection.focusNode;
+      const anchorInside =
+        anchorNode instanceof Node ? container.contains(anchorNode) : false;
+      const focusInside =
+        focusNode instanceof Node ? container.contains(focusNode) : false;
+      if (!anchorInside && !focusInside) {
+        resumeDictionaryInteraction();
+      }
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [resumeDictionaryInteraction]);
+  useEffect(() => {
+    return () => {
+      clearDictionaryTimer();
+      dictionaryAwaitingResumeRef.current = false;
+      dictionaryPointerIdRef.current = null;
+      dictionarySuppressSeekRef.current = false;
+      dictionaryWasPlayingRef.current = false;
+    };
+  }, [clearDictionaryTimer]);
   const fullscreenRequestedRef = useRef(false);
   const fullscreenResyncPendingRef = useRef(false);
   const fullscreenResyncToken = useMemo(() => {
@@ -2328,6 +2521,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, []);
 
   const handleInlineAudioPlay = useCallback(() => {
+    inlineAudioPlayingRef.current = true;
     timingStore.setLast(null);
     const startPlayback = () => {
       wordSyncControllerRef.current?.handlePlay();
@@ -2357,6 +2551,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [onInlineAudioPlaybackStateChange]);
 
   const handleInlineAudioPause = useCallback(() => {
+    inlineAudioPlayingRef.current = false;
     wordSyncControllerRef.current?.handlePause();
     onInlineAudioPlaybackStateChange?.('paused');
   }, [onInlineAudioPlaybackStateChange]);
@@ -2435,6 +2630,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime, updateActiveGateFromTime]);
 
   const handleAudioEnded = useCallback(() => {
+    inlineAudioPlayingRef.current = false;
     wordSyncControllerRef.current?.stop();
     onInlineAudioPlaybackStateChange?.('paused');
     if (hasTimeline && timelineDisplay) {
@@ -2472,6 +2668,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
   const handleTokenSeek = useCallback(
     (time: number) => {
+      if (dictionarySuppressSeekRef.current) {
+        return;
+      }
       const element = audioRef.current;
       if (!element || !Number.isFinite(time)) {
         return;
@@ -2687,6 +2886,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         className="player-panel__document-body player-panel__interactive-body"
         data-testid="player-panel-document"
         onScroll={handleScroll}
+        onPointerDownCapture={handlePointerDownCapture}
+        onPointerMoveCapture={handlePointerMoveCapture}
+        onPointerUpCapture={handlePointerUpCapture}
+        onPointerCancelCapture={handlePointerCancelCapture}
         style={bodyStyle}
       >
         {showBookBadge ? (
