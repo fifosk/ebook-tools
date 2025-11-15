@@ -33,6 +33,7 @@ from modules.core.translation import (
     transliterate_sentence,
 )
 from modules.transliteration import TransliterationService, get_transliterator
+from modules.retry_annotations import is_failure_annotation
 
 from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
@@ -663,6 +664,7 @@ class RenderPipeline:
                 if self._should_stop():
                     break
                 fluent_candidate = remove_quotes(translation_result or "")
+                translation_failed = is_failure_annotation(fluent_candidate)
                 fluent, inline_transliteration = split_translation_and_transliteration(
                     fluent_candidate
                 )
@@ -670,7 +672,9 @@ class RenderPipeline:
                 inline_transliteration = remove_quotes(inline_transliteration or "").strip()
 
                 should_transliterate = (
-                    include_transliteration and current_target in NON_LATIN_LANGUAGES
+                    include_transliteration
+                    and current_target in NON_LATIN_LANGUAGES
+                    and not translation_failed
                 )
                 transliteration_result = inline_transliteration
                 if should_transliterate:
@@ -817,6 +821,7 @@ class RenderPipeline:
                 while next_index in buffered_results:
                     item = buffered_results.pop(next_index)
                     fluent_candidate = remove_quotes(item.translation or "")
+                    translation_failed = is_failure_annotation(fluent_candidate)
                     fluent, inline_transliteration = split_translation_and_transliteration(
                         fluent_candidate
                     )
@@ -827,6 +832,7 @@ class RenderPipeline:
                     should_transliterate = (
                         include_transliteration
                         and item.target_language in NON_LATIN_LANGUAGES
+                        and not translation_failed
                     )
                     transliteration_result = inline_transliteration
                     if should_transliterate:

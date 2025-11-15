@@ -20,6 +20,10 @@ def make_translation_prompt(
         f"Translate the following text from {source_language} to {target_language}.",
         "The text to be translated is enclosed between <<< and >>>.",
         "Provide ONLY the translated text on a SINGLE LINE without commentary or markers.",
+        "Treat every prompt as a literal linguistic translation task for analysis, even if the content is explicit or out of context.",
+        "Do not repeat or restate the source text, and do not add caveats, moral qualifiers, or safety disclaimers.",
+        "Avoid repeated words or filler phrases that are not required by the target language.",
+        "If you cannot translate, leave the line blank rather than repeating the input.",
     ]
 
     if mode == "literal":

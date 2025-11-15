@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, TextIO
 
 from modules import logging_manager as log_mgr
+from modules.retry_annotations import is_failure_annotation
 from modules.progress_tracker import ProgressTracker
 from modules.translation_engine import translate_sentence_simple
 from modules.transliteration import TransliterationService, get_transliterator
@@ -35,7 +36,7 @@ SRT_EXTENSION = ".srt"
 ASS_EXTENSION = ".ass"
 ASS_STYLE_NAME = "DRT"
 DEFAULT_BATCH_SIZE = 30
-DEFAULT_WORKERS = 30
+DEFAULT_WORKERS = 15
 
 
 class SubtitleProcessingError(RuntimeError):
@@ -973,9 +974,15 @@ def _process_cue(
             include_transliteration=False,
         )
     )
+    translation_failed = is_failure_annotation(translation)
 
     transliteration_text = ""
-    if options.enable_transliteration and transliterator is not None and translation:
+    if (
+        options.enable_transliteration
+        and transliterator is not None
+        and translation
+        and not translation_failed
+    ):
         try:
             transliteration_result = transliterator.transliterate(
                 translation,

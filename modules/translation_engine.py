@@ -18,10 +18,16 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import observability, prompt_templates
 from modules import llm_client_manager
+from modules import text_normalization as text_norm
+from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.llm_client import LLMClient
 from modules.transliteration import TransliterationService, get_transliterator
 
 logger = log_mgr.logger
+
+_TRANSLATION_RESPONSE_ATTEMPTS = 5
+_TRANSLATION_RETRY_DELAY_SECONDS = 1.0
+_LLM_REQUEST_ATTEMPTS = 4
 
 
 class ThreadWorkerPool:
@@ -146,10 +152,7 @@ def configure_default_client(**kwargs) -> None:
 
 
 def _valid_translation(text: str) -> bool:
-    if not text:
-        return False
-    lowered = text.lower()
-    return "please provide the text" not in lowered
+    return not text_norm.is_placeholder_translation(text)
 
 
 def translate_sentence_simple(
@@ -177,21 +180,48 @@ def translate_sentence_simple(
             system_prompt=system_prompt,
         )
 
-        response = resolved_client.send_chat_request(
-            payload,
-            max_attempts=3,
-            timeout=90,
-            validator=_valid_translation,
-            backoff_seconds=1.0,
-        )
+        last_error: Optional[str] = None
+        for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
+            response = resolved_client.send_chat_request(
+                payload,
+                max_attempts=_LLM_REQUEST_ATTEMPTS,
+                timeout=90,
+                validator=_valid_translation,
+                backoff_seconds=1.0,
+            )
 
-        if response.text:
-            return response.text.strip()
+            if response.text:
+                cleaned_text = response.text.strip()
+                if cleaned_text and not text_norm.is_placeholder_translation(cleaned_text):
+                    return cleaned_text
+                last_error = "Placeholder translation received"
+                if resolved_client.debug_enabled:
+                    logger.debug(
+                        "Retrying translation due to placeholder response (%s/%s)",
+                        attempt,
+                        _TRANSLATION_RESPONSE_ATTEMPTS,
+                    )
+            else:
+                last_error = response.error or "Empty translation response"
+                if resolved_client.debug_enabled and response.error:
+                    logger.debug(
+                        "Translation attempt %s/%s failed: %s",
+                        attempt,
+                        _TRANSLATION_RESPONSE_ATTEMPTS,
+                        response.error,
+                    )
 
-        if resolved_client.debug_enabled and response.error:
-            logger.debug("Translation failed: %s", response.error)
+            if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
+                time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
 
-    return "N/A"
+        if resolved_client.debug_enabled and last_error:
+            logger.debug("Translation failed after retries: %s", last_error)
+    failure_reason = last_error or "no response from LLM"
+    return format_retry_failure(
+        "translation",
+        _TRANSLATION_RESPONSE_ATTEMPTS,
+        reason=failure_reason,
+    )
 
 
 def _normalize_target_sequence(
@@ -349,11 +379,21 @@ def start_translation_pipeline(
                         client=local_client,
                     )
                     transliteration_text = ""
-                    if include_transliteration and translation not in {"", "N/A"}:
-                        transliteration_result = transliterator.transliterate(
-                            translation, target, client=local_client
+                    if (
+                        include_transliteration
+                        and not text_norm.is_placeholder_translation(translation)
+                        and not is_failure_annotation(translation)
+                    ):
+                        translation_only, inline_transliteration = text_norm.split_translation_and_transliteration(
+                            translation
                         )
-                        transliteration_text = transliteration_result.text
+                        transliteration_text = inline_transliteration.strip()
+                        transliteration_source = translation_only or translation
+                        if transliteration_source and not transliteration_text:
+                            transliteration_result = transliterator.transliterate(
+                                transliteration_source, target, client=local_client
+                            )
+                            transliteration_text = transliteration_result.text.strip()
                 finally:
                     elapsed = time.perf_counter() - start_time
                     _log_translation_timing(start_sentence + index, elapsed, pool_mode)
