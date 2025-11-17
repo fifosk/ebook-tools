@@ -79,7 +79,7 @@
   "defaults": {
     "input_language": "English",
     "target_languages": ["Arabic"],
-    "audio_mode": "1",
+    "audio_mode": "4",
     "written_mode": "4",
     "sentences_per_output_file": 1,
     "max_words": 18,

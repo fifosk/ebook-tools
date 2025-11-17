@@ -9,6 +9,7 @@ import {
 import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
+  fetchLlmModels,
   fetchVoiceInventory,
   synthesizeVoicePreview,
   uploadEpubFile
@@ -19,6 +20,7 @@ import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
   fetchPipelineDefaults: vi.fn(),
+  fetchLlmModels: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
@@ -67,6 +69,7 @@ beforeEach(() => {
         resolveDefaults = resolve;
       })
   );
+  vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [] });
   vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
 });
@@ -79,6 +82,26 @@ afterEach(() => {
 
 function renderWithLanguageProvider(ui: Parameters<typeof render>[0]) {
   return render(<LanguageProvider>{ui}</LanguageProvider>);
+}
+
+function getTargetLanguageSelect(): HTMLSelectElement {
+  const element = document.getElementById('target_languages');
+  if (!element) {
+    throw new Error('Unable to locate the target languages control');
+  }
+  return element as HTMLSelectElement;
+}
+
+function getSelectedTargetLanguages(selectElement: HTMLSelectElement = getTargetLanguageSelect()) {
+  return Array.from(selectElement.selectedOptions).map((option) => option.value);
+}
+
+function getInputLanguageField(): HTMLInputElement {
+  const element = document.getElementById('input_language');
+  if (!element) {
+    throw new Error('Unable to locate the input language field');
+  }
+  return element as HTMLInputElement;
 }
 
 describe('PipelineSubmissionForm', () => {
@@ -98,10 +121,11 @@ describe('PipelineSubmissionForm', () => {
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
-    await user.clear(screen.getByLabelText(/Input language/i));
-    await user.type(screen.getByLabelText(/Input language/i), 'English');
-    expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
-    await user.click(screen.getByRole('checkbox', { name: 'German' }));
+    await user.clear(getInputLanguageField());
+    await user.type(getInputLanguageField(), 'English');
+    const targetSelect = getTargetLanguageSelect();
+    expect(getSelectedTargetLanguages(targetSelect)).toEqual(['Arabic']);
+    await user.selectOptions(targetSelect, ['Arabic', 'German']);
 
     const overrideSelect = await screen.findByLabelText(/Voice override for English/i);
     await user.selectOptions(overrideSelect, 'macOS-auto');
@@ -119,7 +143,7 @@ describe('PipelineSubmissionForm', () => {
       throw new Error('Expected the form submission handler to receive a payload');
     }
     const [payload] = firstCall;
-    expect(payload.inputs.target_languages).toEqual(['French', 'German']);
+    expect(payload.inputs.target_languages).toEqual(['Arabic', 'German']);
     expect(payload.config).toEqual({ debug: true });
     expect(payload.inputs.generate_audio).toBe(true);
     expect(payload.inputs.voice_overrides).toEqual({ en: 'macOS-auto' });
@@ -142,9 +166,9 @@ describe('PipelineSubmissionForm', () => {
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
-    await user.clear(screen.getByLabelText(/Input language/i));
-    await user.type(screen.getByLabelText(/Input language/i), 'English');
-    expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
+    await user.clear(getInputLanguageField());
+    await user.type(getInputLanguageField(), 'English');
+    expect(getSelectedTargetLanguages()).toEqual(['Arabic']);
 
     fireEvent.change(screen.getByLabelText(/Config overrides JSON/i), {
       target: { value: '{broken' }
@@ -194,9 +218,10 @@ describe('PipelineSubmissionForm', () => {
     );
 
     expect(screen.getByLabelText(/Base output file/i)).toHaveValue('/output/result');
-    expect(screen.getByLabelText(/Input language/i)).toHaveValue('Spanish');
-    expect(screen.getByRole('checkbox', { name: 'German' })).toBeChecked();
-    expect(screen.getByRole('checkbox', { name: 'French' })).toBeChecked();
+    expect(getInputLanguageField()).toHaveValue('Spanish');
+    const prefilledTargets = getSelectedTargetLanguages();
+    expect(prefilledTargets).toHaveLength(2);
+    expect(prefilledTargets).toEqual(expect.arrayContaining(['German', 'French']));
     expect(screen.getByLabelText(/Sentences per output file/i)).toHaveValue(8);
     expect(screen.getByLabelText(/Start sentence/i)).toHaveValue(2);
     expect(screen.getByLabelText(/End sentence/i)).toHaveValue(42);

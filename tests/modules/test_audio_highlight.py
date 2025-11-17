@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 import regex
 
+from modules.text import split_highlight_tokens
+
 
 try:  # pragma: no cover - exercised when dependency is available
     from pydub import AudioSegment  # type: ignore
@@ -85,6 +87,14 @@ config_stub.get_thread_count = lambda: 1
 config_stub.get_runtime_context = lambda default=None: None
 config_stub.set_runtime_context = lambda context: None
 config_stub.clear_runtime_context = lambda: None
+config_stub.DEFAULT_MODEL = "gpt-stub"
+config_stub.DEFAULT_LLM_SOURCE = "local"
+config_stub.get_cloud_ollama_url = lambda: "https://example.com/cloud"
+config_stub.get_local_ollama_url = lambda: "http://localhost:11434"
+config_stub.RuntimeContext = type("RuntimeContext", (), {})  # pragma: no cover - stub
+config_stub.get_llm_source = lambda: "local"
+config_stub.get_queue_size = lambda: 4
+config_stub.is_pipeline_mode = lambda: False
 @dataclass
 class _StubSettings:
     forced_alignment_enabled: bool = False
@@ -107,6 +117,9 @@ class _StubLogger:  # pragma: no cover - trivial logging sink
 
     def info(self, *args, **kwargs) -> None:
         pass
+
+    def getChild(self, *_args, **_kwargs):  # type: ignore[override]
+        return self
 
 
 logging_stub = types.ModuleType("modules.logging_manager")
@@ -134,6 +147,7 @@ class TranslationTask:  # pragma: no cover - used for type compatibility
 
 
 translation_stub.TranslationTask = TranslationTask
+translation_stub.ThreadWorkerPool = type("ThreadWorkerPool", (), {})  # pragma: no cover - stub
 sys.modules.setdefault("modules.translation_engine", translation_stub)
 
 
@@ -257,8 +271,8 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     events = highlight._build_events_from_metadata(
         metadata,
         sync_ratio=1.0,
-        num_original_words=len(input_text.split()),
-        num_translation_words=len(translation_text.split()),
+        num_original_words=len(split_highlight_tokens(input_text)),
+        num_translation_words=len(split_highlight_tokens(translation_text)),
         num_translit_words=0,
     )
 
@@ -277,8 +291,8 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     assert silence_events
 
     assert original_events[0].original_index == 1
-    assert original_events[-1].original_index == len(input_text.split())
-    assert translation_events[-1].translation_index == len(translation_text.split())
+    assert original_events[-1].original_index == len(split_highlight_tokens(input_text))
+    assert translation_events[-1].translation_index == len(split_highlight_tokens(translation_text))
 
     first_translation_step = translation_events[0].step
     assert first_translation_step is not None
@@ -289,14 +303,14 @@ def test_generate_audio_for_sentence_highlight_metadata(monkeypatch):
     legacy_events = highlight._build_legacy_highlight_events(
         audio_duration=total_seconds,
         sync_ratio=1.0,
-        original_words=input_text.split(),
-        translation_units=translation_text.split(),
+        original_words=split_highlight_tokens(input_text),
+        translation_units=split_highlight_tokens(translation_text),
         transliteration_words=[],
     )
 
     assert legacy_events
     assert sum(event.duration for event in legacy_events) == pytest.approx(total_seconds)
-    assert legacy_events[-1].translation_index == len(translation_text.split())
+    assert legacy_events[-1].translation_index == len(split_highlight_tokens(translation_text))
 
 
 def test_audio_mode_four_excludes_transliteration_audio(monkeypatch):
@@ -380,7 +394,7 @@ def test_highlight_round_trip_mixed_language_timings():
         metadata,
         sync_ratio=1.0,
         num_original_words=0,
-        num_translation_words=len(mixed_text.split()),
+        num_translation_words=len(split_highlight_tokens(mixed_text)),
         num_translit_words=0,
     )
 
@@ -486,7 +500,7 @@ def test_transliteration_progress_tracks_translation_characters():
         metadata,
         sync_ratio=1.0,
         num_original_words=0,
-        num_translation_words=len(translation_text.split()),
+        num_translation_words=len(split_highlight_tokens(translation_text)),
         num_translit_words=6,
     )
 

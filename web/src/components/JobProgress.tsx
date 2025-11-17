@@ -139,6 +139,276 @@ function formatMetadataValue(key: string, value: unknown): string {
   return normalized;
 }
 
+type JobParameterEntry = {
+  key: string;
+  label: string;
+  value: string;
+};
+
+function coerceNumber(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function resolveGeneratedChunks(status: PipelineStatusResponse | undefined): Record<string, unknown>[] {
+  const chunks: Record<string, unknown>[] = [];
+  if (!status) {
+    return chunks;
+  }
+  const candidates = [status.generated_files, status.result?.generated_files];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+    const records = (candidate as Record<string, unknown>).chunks;
+    if (Array.isArray(records)) {
+      for (const entry of records) {
+        if (entry && typeof entry === 'object') {
+          chunks.push(entry as Record<string, unknown>);
+        }
+      }
+    }
+  }
+  return chunks;
+}
+
+function resolveSentenceRange(status: PipelineStatusResponse | undefined): {
+  start: number | null;
+  end: number | null;
+} {
+  const chunks = resolveGeneratedChunks(status);
+  let minStart: number | null = null;
+  let maxEnd: number | null = null;
+  for (const chunk of chunks) {
+    const rawStart = chunk['start_sentence'] ?? chunk['startSentence'];
+    const rawEnd = chunk['end_sentence'] ?? chunk['endSentence'];
+    const startValue = coerceNumber(rawStart);
+    const endValue = coerceNumber(rawEnd);
+    if (startValue !== null && (minStart === null || startValue < minStart)) {
+      minStart = startValue;
+    }
+    if (endValue !== null && (maxEnd === null || endValue > maxEnd)) {
+      maxEnd = endValue;
+    }
+  }
+  return { start: minStart, end: maxEnd };
+}
+
+function getStringField(
+  source: Record<string, unknown> | null | undefined,
+  key: string
+): string | null {
+  if (!source) {
+    return null;
+  }
+  const value = source[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function extractVoiceOverrides(
+  source: Record<string, unknown> | null | undefined
+): Record<string, string> {
+  if (!source) {
+    return {};
+  }
+  const raw = source['voice_overrides'];
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+  const normalized: Record<string, string> = {};
+  for (const [code, voice] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof code !== 'string') {
+      continue;
+    }
+    if (typeof voice !== 'string' || !voice.trim()) {
+      continue;
+    }
+    const trimmedCode = code.trim();
+    if (!trimmedCode) {
+      continue;
+    }
+    normalized[trimmedCode] = voice.trim();
+  }
+  return normalized;
+}
+
+function formatVoiceOverrides(overrides: Record<string, string> | undefined): string | null {
+  if (!overrides) {
+    return null;
+  }
+  const entries = Object.entries(overrides);
+  if (entries.length === 0) {
+    return null;
+  }
+  return entries
+    .map(([code, voice]) => `${code}: ${voice}`)
+    .join(', ');
+}
+
+function formatLanguageList(values: string[] | undefined): string | null {
+  if (!values || values.length === 0) {
+    return null;
+  }
+  return values.join(', ');
+}
+
+function formatTimeOffset(seconds: number | null | undefined): string | null {
+  if (seconds === null || seconds === undefined || Number.isNaN(seconds)) {
+    return null;
+  }
+  const totalSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+  const parts = [
+    minutes.toString().padStart(2, '0'),
+    remainingSeconds.toString().padStart(2, '0')
+  ];
+  if (hours > 0) {
+    parts.unshift(hours.toString().padStart(2, '0'));
+  }
+  return parts.join(':');
+}
+
+function resolveSubtitleMetadata(
+  status: PipelineStatusResponse | undefined
+): Record<string, unknown> | null {
+  if (!status || status.job_type !== 'subtitle') {
+    return null;
+  }
+  const rawResult = status.result as Record<string, unknown> | null;
+  if (!rawResult) {
+    return null;
+  }
+  const subtitleSection = rawResult['subtitle'];
+  if (!subtitleSection || typeof subtitleSection !== 'object') {
+    return null;
+  }
+  const metadata = (subtitleSection as Record<string, unknown>)['metadata'];
+  return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
+}
+
+function buildJobParameterEntries(status: PipelineStatusResponse | undefined): JobParameterEntry[] {
+  if (!status) {
+    return [];
+  }
+  const entries: JobParameterEntry[] = [];
+  const parameters = status.parameters ?? null;
+  const pipelineConfig =
+    status.result && status.result.pipeline_config && typeof status.result.pipeline_config === 'object'
+      ? (status.result.pipeline_config as Record<string, unknown>)
+      : null;
+  const languageValues = (parameters?.target_languages ?? []).filter(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0
+  );
+  const sentenceRange = resolveSentenceRange(status);
+  const startSentence = parameters?.start_sentence ?? sentenceRange.start;
+  const endSentence = parameters?.end_sentence ?? sentenceRange.end;
+  const llmModel = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
+
+  if (status.job_type === 'subtitle') {
+    const subtitleMetadata = resolveSubtitleMetadata(status);
+    const translationLanguage =
+      languageValues[0] ?? getStringField(subtitleMetadata, 'target_language');
+    if (translationLanguage) {
+      entries.push({
+        key: 'subtitle-translation-language',
+        label: 'Translation language',
+        value: translationLanguage
+      });
+    }
+    if (llmModel) {
+      entries.push({ key: 'subtitle-llm-model', label: 'LLM model', value: llmModel });
+    }
+    if (startSentence !== null) {
+      entries.push({
+        key: 'subtitle-start-sentence',
+        label: 'Start sentence',
+        value: startSentence.toString()
+      });
+    }
+    if (endSentence !== null) {
+      entries.push({
+        key: 'subtitle-end-sentence',
+        label: 'End sentence',
+        value: endSentence.toString()
+      });
+    }
+    const startTimeLabel =
+      getStringField(subtitleMetadata, 'start_time_offset_label') ??
+      formatTimeOffset(parameters?.start_time_offset_seconds);
+    if (startTimeLabel) {
+      entries.push({
+        key: 'subtitle-start-time',
+        label: 'Start time',
+        value: startTimeLabel
+      });
+    }
+    const endTimeLabel =
+      getStringField(subtitleMetadata, 'end_time_offset_label') ??
+      formatTimeOffset(parameters?.end_time_offset_seconds);
+    if (endTimeLabel) {
+      entries.push({
+        key: 'subtitle-end-time',
+        label: 'End time',
+        value: endTimeLabel
+      });
+    }
+    return entries;
+  }
+
+  const languageList = formatLanguageList(languageValues);
+  if (languageList) {
+    entries.push({ key: 'pipeline-target-languages', label: 'Target languages', value: languageList });
+  }
+  if (llmModel) {
+    entries.push({ key: 'pipeline-llm-model', label: 'LLM model', value: llmModel });
+  }
+  if (startSentence !== null) {
+    entries.push({
+      key: 'pipeline-start-sentence',
+      label: 'Start sentence',
+      value: startSentence.toString()
+    });
+  }
+  if (endSentence !== null) {
+    entries.push({
+      key: 'pipeline-end-sentence',
+      label: 'End sentence',
+      value: endSentence.toString()
+    });
+  }
+  const audioMode = parameters?.audio_mode ?? getStringField(pipelineConfig, 'audio_mode');
+  if (audioMode) {
+    entries.push({ key: 'pipeline-audio-mode', label: 'Voice mode', value: audioMode });
+  }
+  const selectedVoice =
+    parameters?.selected_voice ?? getStringField(pipelineConfig, 'selected_voice');
+  if (selectedVoice) {
+    entries.push({ key: 'pipeline-selected-voice', label: 'Selected voice', value: selectedVoice });
+  }
+  const parameterOverrides =
+    parameters?.voice_overrides && Object.keys(parameters.voice_overrides).length > 0
+      ? parameters.voice_overrides
+      : undefined;
+  const configOverrides = extractVoiceOverrides(pipelineConfig);
+  const voiceOverrideText = formatVoiceOverrides(parameterOverrides ?? configOverrides);
+  if (voiceOverrideText) {
+    entries.push({
+      key: 'pipeline-voice-overrides',
+      label: 'Voice overrides',
+      value: voiceOverrideText
+    });
+  }
+  return entries;
+}
+
 function sortTuningEntries(entries: [string, unknown][]): [string, unknown][] {
   const order = new Map<string, number>(TUNING_ORDER.map((key, index) => [key, index]));
   return entries
@@ -250,6 +520,7 @@ export function JobProgress({
       ? 'Media generation is still finalizing.'
       : undefined;
   const showLibraryReadyNotice = canManage && isLibraryCandidate;
+  const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
 
   return (
     <div className="job-card" aria-live="polite">
@@ -310,6 +581,19 @@ export function JobProgress({
           </>
         ) : null}
       </p>
+      {jobParameterEntries.length > 0 ? (
+        <div className="job-card__section">
+          <h4>Job parameters</h4>
+          <dl className="metadata-grid">
+            {jobParameterEntries.map((entry) => (
+              <div key={entry.key} className="metadata-grid__row">
+                <dt>{entry.label}</dt>
+                <dd>{entry.value}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
       {status?.error ? <div className="alert">{status.error}</div> : null}
       {showLibraryReadyNotice ? (
         <div className="notice notice--success" role="status">

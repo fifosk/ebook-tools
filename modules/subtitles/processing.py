@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 import re
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
@@ -13,8 +14,10 @@ from typing import Iterable, List, Optional, Sequence, TextIO
 from modules import logging_manager as log_mgr
 from modules.retry_annotations import is_failure_annotation
 from modules.progress_tracker import ProgressTracker
+from modules.llm_client import create_client
 from modules.translation_engine import translate_sentence_simple
 from modules.transliteration import TransliterationService, get_transliterator
+from modules.text import split_highlight_tokens
 
 from .models import (
     SubtitleColorPalette,
@@ -37,6 +40,7 @@ ASS_EXTENSION = ".ass"
 ASS_STYLE_NAME = "DRT"
 DEFAULT_BATCH_SIZE = 30
 DEFAULT_WORKERS = 15
+_TRANSLATION_EMPHASIS_SCALE = 1.5
 
 
 class SubtitleProcessingError(RuntimeError):
@@ -477,13 +481,24 @@ class CueTextRenderer:
         return self._apply_color(self.palette.original, text, bold=False, escape=True)
 
     def render_translation(self, text: str) -> str:
-        return self._apply_color(self.palette.translation, text, bold=False, escape=True)
+        return self._apply_color(
+            self.palette.translation,
+            text,
+            bold=False,
+            escape=True,
+            scale=_TRANSLATION_EMPHASIS_SCALE,
+        )
 
     def render_transliteration(self, text: str) -> str:
         return self._apply_color(self.palette.transliteration, text, bold=False, escape=True)
 
     def render_translation_highlight(self, tokens: Sequence[str], index: int) -> str:
-        return self._render_highlight_sequence(tokens, index, self.palette.translation)
+        return self._render_highlight_sequence(
+            tokens,
+            index,
+            self.palette.translation,
+            scale=_TRANSLATION_EMPHASIS_SCALE,
+        )
 
     def render_transliteration_highlight(self, tokens: Sequence[str], index: int) -> str:
         return self._render_highlight_sequence(tokens, index, self.palette.transliteration)
@@ -493,6 +508,8 @@ class CueTextRenderer:
         tokens: Sequence[str],
         index: int,
         base_color: str,
+        *,
+        scale: float = 1.0,
     ) -> str:
         if not tokens:
             return ""
@@ -506,6 +523,7 @@ class CueTextRenderer:
                         token,
                         bold=False,
                         escape=True,
+                        scale=scale,
                     )
                 )
             elif position == safe_index:
@@ -515,6 +533,7 @@ class CueTextRenderer:
                         token,
                         bold=True,
                         escape=True,
+                        scale=scale,
                     )
                 )
             else:
@@ -524,6 +543,7 @@ class CueTextRenderer:
                         token,
                         bold=False,
                         escape=True,
+                        scale=scale,
                     )
                 )
         return " ".join(fragments)
@@ -535,10 +555,11 @@ class CueTextRenderer:
         *,
         bold: bool,
         escape: bool,
+        scale: float = 1.0,
     ) -> str:
         if self.format == "ass":
-            return self._apply_ass_color(color, content, bold=bold, escape=escape)
-        return self._apply_srt_color(color, content, bold=bold, escape=escape)
+            return self._apply_ass_color(color, content, bold=bold, escape=escape, scale=scale)
+        return self._apply_srt_color(color, content, bold=bold, escape=escape, scale=scale)
 
     def _apply_srt_color(
         self,
@@ -547,9 +568,15 @@ class CueTextRenderer:
         *,
         bold: bool,
         escape: bool,
+        scale: float,
     ) -> str:
         payload = html.escape(content) if escape else content
-        pieces = [f'<font color="{color}">']
+        size_attr = ""
+        if not math.isclose(scale, 1.0):
+            base_size = 3
+            scaled = max(1, min(7, int(math.ceil(base_size * scale))))
+            size_attr = f' size="{scaled}"'
+        pieces = [f'<font color="{color}"{size_attr}>']
         if bold:
             pieces.append("<b>")
         pieces.append(payload)
@@ -565,14 +592,21 @@ class CueTextRenderer:
         *,
         bold: bool,
         escape: bool,
+        scale: float,
     ) -> str:
         payload = self._escape_ass(content) if escape else content
-        components = [f"{{\\c{_ass_color_token(color)}}}"]
+        components = []
+        if not math.isclose(scale, 1.0):
+            percent = max(10, min(1000, int(round(scale * 100))))
+            components.append(f"{{\\fscx{percent}\\fscy{percent}}}")
+        components.append(f"{{\\c{_ass_color_token(color)}}}")
         if bold:
             components.append("{\\b1}")
         components.append(payload)
         if bold:
             components.append("{\\b0}")
+        if not math.isclose(scale, 1.0):
+            components.append("{\\fscx100\\fscy100}")
         return "".join(components)
 
     @staticmethod
@@ -604,7 +638,7 @@ def _build_output_cues(
     )
     include_original = show_original and bool(normalized_original)
     original_line = renderer.render_original(normalized_original) if include_original else ""
-    translation_words = translation.split()
+    translation_words = split_highlight_tokens(translation)
     transliteration_words = transliteration.split() if transliteration else []
     use_highlight = highlight and bool(translation_words)
     base_line: Optional[str] = original_line if include_original and original_line else None
@@ -915,7 +949,9 @@ def _write_html_entry(handle: TextIO, entry: SubtitleHtmlEntry) -> None:
     handle.write(f"<p>{original}</p>\n")
     if transliteration:
         handle.write(f"<p>{transliteration}</p>\n")
-    handle.write(f"<p>{translation}</p>\n\n")
+    handle.write('<p style="font-size:150%; font-weight:600;">')
+    handle.write(translation)
+    handle.write("</p>\n\n")
 
 
 def _format_html_timestamp(value: float) -> str:
@@ -954,6 +990,35 @@ def _is_cancelled(stop_event) -> bool:
     return False
 
 
+def _translate_with_model_override(
+    text: str,
+    options: SubtitleJobOptions,
+) -> str:
+    if options.llm_model:
+        try:
+            with create_client(model=options.llm_model) as override_client:
+                return translate_sentence_simple(
+                    text,
+                    options.input_language,
+                    options.target_language,
+                    include_transliteration=False,
+                    client=override_client,
+                )
+        except Exception:  # pragma: no cover - log and re-raise via translation failure
+            logger.error(
+                "Unable to translate subtitle cue with model %s",
+                options.llm_model,
+                exc_info=True,
+            )
+            raise
+    return translate_sentence_simple(
+        text,
+        options.input_language,
+        options.target_language,
+        include_transliteration=False,
+    )
+
+
 def _process_cue(
     cue: SubtitleCue,
     options: SubtitleJobOptions,
@@ -967,11 +1032,9 @@ def _process_cue(
     original_text = _normalize_text(cue.as_text())
     normalized_source = cue.as_text()
     translation = _normalize_text(
-        translate_sentence_simple(
+        _translate_with_model_override(
             normalized_source,
-            options.input_language,
-            options.target_language,
-            include_transliteration=False,
+            options,
         )
     )
     translation_failed = is_failure_annotation(translation)

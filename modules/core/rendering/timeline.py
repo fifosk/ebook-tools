@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from statistics import fmean
 from typing import Any, Mapping, Sequence, List, Optional
 
+from modules.text import split_highlight_tokens
+
 
 _TIMING_PRECISION = 0.003  # 3 ms precision
 _PAUSE_PUNCTUATION = {",", ";", "،", "؛"}
@@ -416,7 +418,7 @@ def _resolve_word_list(
     if words:
         return words
     if isinstance(fallback_text, str):
-        return [token for token in fallback_text.split() if token]
+        return split_highlight_tokens(fallback_text)
     return []
 
 

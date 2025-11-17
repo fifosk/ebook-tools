@@ -6,6 +6,7 @@ import {
   fetchPipelineDefaults,
   fetchSubtitleSources,
   fetchSubtitleResult,
+  fetchLlmModels,
   resolveSubtitleDownloadUrl,
   submitSubtitleJob
 } from '../api/client';
@@ -243,6 +244,10 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [batchSize, setBatchSize] = useState<number | ''>(DEFAULT_BATCH_SIZE);
   const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
   const [endTime, setEndTime] = useState<string>('');
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [modelsLoading, setModelsLoading] = useState<boolean>(false);
+  const [modelsError, setModelsError] = useState<string | null>(null);
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -256,6 +261,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   );
   const [lastSubmittedStartTime, setLastSubmittedStartTime] = useState<string>(DEFAULT_START_TIME);
   const [lastSubmittedEndTime, setLastSubmittedEndTime] = useState<string | null>(null);
+  const [lastSubmittedModel, setLastSubmittedModel] = useState<string | null>(null);
 
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
@@ -291,6 +297,33 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       cancelled = true;
     };
   }, [inputLanguage, setInputLanguage]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setModelsLoading(true);
+    setModelsError(null);
+    fetchLlmModels()
+      .then((models) => {
+        if (!cancelled) {
+          setAvailableModels(models ?? []);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn('Unable to load available subtitle models', error);
+          const message = error instanceof Error ? error.message : 'Request failed';
+          setModelsError(message);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setModelsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -457,6 +490,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       formData.append('show_original', String(showOriginal));
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
       formData.append('start_time', normalisedStartTime);
+      if (selectedModel.trim()) {
+        formData.append('llm_model', selectedModel.trim());
+      }
       if (normalisedEndTime) {
         formData.append('end_time', normalisedEndTime);
       }
@@ -480,6 +516,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         setLastSubmittedBatchSize(typeof batchSize === 'number' ? batchSize : null);
         setLastSubmittedStartTime(normalisedStartTime);
         setLastSubmittedEndTime(normalisedEndTime || null);
+        setLastSubmittedModel(selectedModel.trim() ? selectedModel.trim() : null);
         if (normalisedStartTime !== startTime) {
           setStartTime(normalisedStartTime);
         }
@@ -511,7 +548,8 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       batchSize,
       mirrorToSourceDir,
       startTime,
-      endTime
+      endTime,
+      selectedModel
     ]
   );
 
@@ -628,6 +666,30 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                   </option>
                 ))}
               </select>
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="subtitle-llm-model">LLM model (optional)</label>
+              <input
+                id="subtitle-llm-model"
+                type="text"
+                list="subtitle-llm-models"
+                placeholder="Use server default"
+                value={selectedModel}
+                onChange={(event) => setSelectedModel(event.target.value)}
+                disabled={modelsLoading && availableModels.length === 0}
+              />
+              <datalist id="subtitle-llm-models">
+                {availableModels.map((model) => (
+                  <option key={model} value={model} />
+                ))}
+              </datalist>
+              <small className="field-note">
+                {modelsLoading
+                  ? 'Loading models from Ollama…'
+                  : modelsError
+                  ? `Unable to load models (${modelsError}).`
+                  : 'Leave blank to use the default server model.'}
+              </small>
             </div>
             <div className="field-inline">
               <label>
@@ -750,6 +812,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       ? `ending after ${lastSubmittedEndTime.slice(1)}`
                       : `ending at ${lastSubmittedEndTime}`;
                   details.push(display);
+                }
+                if (lastSubmittedModel) {
+                  details.push(`LLM ${lastSubmittedModel}`);
                 }
                 if (details.length === 0) {
                   return ' using auto-detected concurrency. Live status appears below.';

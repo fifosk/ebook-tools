@@ -7,6 +7,7 @@ import CreateBookPage from '../../pages/CreateBookPage';
 import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
+  fetchLlmModels,
   fetchVoiceInventory,
   synthesizeVoicePreview,
   uploadEpubFile
@@ -16,6 +17,7 @@ import type { PipelineDefaultsResponse, PipelineFileBrowserResponse } from '../.
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
   fetchPipelineDefaults: vi.fn(),
+  fetchLlmModels: vi.fn(),
   fetchVoiceInventory: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
@@ -64,6 +66,7 @@ beforeEach(() => {
         resolveDefaults = resolve;
       })
   );
+  vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [] });
   vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
   vi.mocked(uploadEpubFile).mockResolvedValue({
@@ -103,15 +106,19 @@ describe('LanguageProvider synchronization', () => {
     const pipeline = within(screen.getByTestId('pipeline'));
     const create = within(screen.getByTestId('create-book'));
 
+    const pipelineTargetSelect = pipeline.getByLabelText(/^Target languages$/i) as HTMLSelectElement;
+    const getPipelineTargets = () =>
+      Array.from(pipelineTargetSelect.selectedOptions).map((option) => option.value);
+
     const createOutputLanguage = create.getByLabelText(/Output language/i) as HTMLInputElement;
-    expect(createOutputLanguage.value).toBe('French');
-    expect(pipeline.getByRole('checkbox', { name: 'French' })).toBeChecked();
+    expect(createOutputLanguage.value).toBe('Arabic');
+    expect(getPipelineTargets()).toEqual(['Arabic']);
 
     await user.clear(createOutputLanguage);
     await user.type(createOutputLanguage, 'German');
 
     await waitFor(() => {
-      expect(pipeline.getByRole('checkbox', { name: 'German' })).toBeChecked();
+      expect(getPipelineTargets()).toEqual(['German']);
     });
     expect(createOutputLanguage.value).toBe('German');
 

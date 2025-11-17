@@ -165,7 +165,7 @@ def translate_sentence_simple(
 ) -> str:
     """Translate a sentence using the configured Ollama model."""
 
-    wrapped_sentence = f"<<<{sentence}>>>"
+    wrapped_sentence = f"{prompt_templates.SOURCE_START}\n{sentence}\n{prompt_templates.SOURCE_END}"
     system_prompt = prompt_templates.make_translation_prompt(
         input_language,
         target_language,

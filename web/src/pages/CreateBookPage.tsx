@@ -27,7 +27,7 @@ interface FormState {
 
 const INITIAL_FORM_STATE: FormState = {
   input_language: 'English',
-  output_language: 'French',
+  output_language: 'Arabic',
   voice: '',
   num_sentences: 10,
   topic: '',

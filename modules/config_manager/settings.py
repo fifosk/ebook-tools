@@ -51,14 +51,14 @@ class EbookToolsSettings(BaseModel):
     max_words: int = 18
     percentile: int = 96
     split_on_comma_semicolon: bool = False
-    audio_mode: str = "1"
+    audio_mode: str = "4"
     written_mode: str = "4"
     include_transliteration: bool = True
     debug: bool = False
     output_html: bool = True
     output_pdf: bool = False
     stitch_full: bool = False
-    selected_voice: str = "gTTS"
+    selected_voice: str = "macOS-auto"
     tts_backend: str = Field(
         default_factory=lambda: "macos_say" if sys.platform == "darwin" else "gtts"
     )

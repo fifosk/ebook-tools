@@ -117,6 +117,7 @@ class SubtitleJobOptions:
     end_time_offset: Optional[float] = None
     output_format: str = "srt"
     color_palette: SubtitleColorPalette = field(default_factory=SubtitleColorPalette.default)
+    llm_model: Optional[str] = None
 
     def __post_init__(self) -> None:
         input_language = (self.input_language or "").strip()
@@ -154,6 +155,8 @@ class SubtitleJobOptions:
                 and self.end_time_offset <= self.start_time_offset
             ):
                 raise ValueError("end_time_offset must be greater than start_time_offset")
+        llm_model_value = (self.llm_model or "").strip()
+        object.__setattr__(self, "llm_model", llm_model_value or None)
 
     @classmethod
     def from_mapping(cls, data: Dict[str, object]) -> "SubtitleJobOptions":
@@ -218,6 +221,12 @@ class SubtitleJobOptions:
                 show_original = True
         elif isinstance(show_original_value, (int, float)):
             show_original = bool(show_original_value)
+        llm_model_raw = data.get("llm_model")
+        llm_model = None
+        if isinstance(llm_model_raw, str):
+            stripped = llm_model_raw.strip()
+            if stripped:
+                llm_model = stripped
 
         return cls(
             input_language=input_language,
@@ -235,6 +244,7 @@ class SubtitleJobOptions:
             end_time_offset=end_time_offset,
             output_format=output_format_raw or "srt",
             color_palette=palette,
+            llm_model=llm_model,
         )
 
     def to_dict(self) -> Dict[str, object]:
@@ -257,6 +267,8 @@ class SubtitleJobOptions:
             payload["start_time_offset"] = self.start_time_offset
         if self.end_time_offset is not None:
             payload["end_time_offset"] = self.end_time_offset
+        if self.llm_model:
+            payload["llm_model"] = self.llm_model
         return payload
 
 

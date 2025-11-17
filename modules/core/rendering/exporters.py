@@ -25,6 +25,7 @@ from modules.render.output_writer import DeferredBatchWriter
 from modules.video.api import VideoService
 from modules.video.slides import SlideRenderOptions
 from modules.audio.highlight import _get_audio_metadata, timeline
+from modules.text import split_highlight_tokens
 
 
 def _parse_sentence_block(block: str) -> tuple[str, str, str, str]:
@@ -42,16 +43,14 @@ def _parse_sentence_block(block: str) -> tuple[str, str, str, str]:
 def _split_translation_units(header: str, translation: str) -> List[str]:
     if not translation:
         return []
-    if "Chinese" in header or "Japanese" in header:
-        return list(translation)
-    units = translation.split()
-    return units or ([translation] if translation else [])
+    tokens = split_highlight_tokens(translation)
+    if tokens:
+        return tokens
+    return [translation]
 
 
 def _tokenize_words(text: str) -> List[str]:
-    if not text:
-        return []
-    return [token for token in text.split() if token]
+    return split_highlight_tokens(text)
 
 
 def _segment_duration(segment: Optional[AudioSegment]) -> float:

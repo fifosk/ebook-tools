@@ -15,7 +15,9 @@ from fastapi import (
     status,
 )
 
+from modules import logging_manager as log_mgr
 from modules.services import SubtitleService, SubtitleSubmission
+from modules.services.llm_models import list_available_llm_models
 from modules.services.job_manager import PipelineJobManager
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
@@ -30,9 +32,11 @@ from ..schemas import (
     PipelineSubmissionResponse,
     SubtitleSourceEntry,
     SubtitleSourceListResponse,
+    LLMModelListResponse,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
+logger = log_mgr.get_logger().getChild("webapi.subtitles")
 
 
 def _as_bool(value: Optional[str | bool], default: bool = False) -> bool:
@@ -175,6 +179,22 @@ def list_subtitle_sources(
     return SubtitleSourceListResponse(sources=payload)
 
 
+@router.get("/models", response_model=LLMModelListResponse)
+def list_subtitle_models() -> LLMModelListResponse:
+    """Return available Ollama models for subtitle translations."""
+
+    try:
+        models = list_available_llm_models()
+    except Exception as exc:
+        logger.error("Unable to query Ollama model tags", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to query Ollama model list.",
+        ) from exc
+
+    return LLMModelListResponse(models=models)
+
+
 @router.post(
     "/jobs",
     response_model=PipelineSubmissionResponse,
@@ -184,6 +204,7 @@ async def submit_subtitle_job(
     input_language: str = Form(...),
     target_language: str = Form(...),
     original_language: Optional[str] = Form(None),
+    llm_model: Optional[str] = Form(None),
     enable_transliteration: Union[str, bool] = Form(False),
     highlight: Union[str, bool] = Form(True),
     show_original: Union[str, bool] = Form(True),
@@ -241,6 +262,7 @@ async def submit_subtitle_job(
         resolved_original_language = (original_language or "").strip()
         if not resolved_original_language:
             resolved_original_language = resolved_input_language
+        resolved_llm_model = (llm_model or "").strip() or None
         options_model = SubtitleJobOptions(
             input_language=resolved_input_language,
             target_language=resolved_target_language,
@@ -255,6 +277,7 @@ async def submit_subtitle_job(
             end_time_offset=end_offset_seconds,
             output_format=output_format,
             color_palette=palette,
+            llm_model=resolved_llm_model,
         )
     except ValueError as exc:
         raise HTTPException(

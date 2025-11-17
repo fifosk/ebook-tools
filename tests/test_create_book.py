@@ -58,7 +58,7 @@ class _StubRuntimeContextProvider:
             "output_dir": str(root / "working" / "ebook"),
             "tmp_dir": str(root / "tmp"),
             "ebooks_dir": str(root / "books"),
-            "audio_mode": "1",
+            "audio_mode": "4",
             "written_mode": "4",
             "include_transliteration": False,
             "tempo": 1.0,

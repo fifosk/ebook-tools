@@ -83,7 +83,7 @@
     "book_year": "2025",
     "book_summary": "No summary provided.",
     "book_cover_file": "book_cover.jpg",
-    "selected_voice": "gTTS",
+    "selected_voice": "macOS-auto",
     "tts_backend": "macos_say",
     "tts_executable_path": null,
     "audio_api_base_url": null,
@@ -111,7 +111,7 @@
     "ollama_url": "http://192.168.1.9:11434/api/chat",
     "ollama_local_url": "http://192.168.1.9:11434/api/chat",
     "ollama_cloud_url": "https://api.ollama.com/v1/chat/completions",
-    "ollama_model": "gpt-oss:120b-cloud",
+    "ollama_model": "kimi-k2:1t-cloud",
     "ffmpeg_path": "ffmpeg",
     "api_keys": {
         "ollama": "",

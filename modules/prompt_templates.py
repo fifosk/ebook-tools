@@ -6,6 +6,9 @@ from typing import Dict, List, Optional
 
 from modules import config_manager as cfg
 
+SOURCE_START = "<<<BEGIN_SOURCE_TEXT>>>"
+SOURCE_END = "<<<END_SOURCE_TEXT>>>"
+
 
 def make_translation_prompt(
     source_language: str,
@@ -18,8 +21,9 @@ def make_translation_prompt(
 
     instructions = [
         f"Translate the following text from {source_language} to {target_language}.",
-        "The text to be translated is enclosed between <<< and >>>.",
-        "Provide ONLY the translated text on a SINGLE LINE without commentary or markers.",
+        f"The source text is placed between the markers {SOURCE_START} and {SOURCE_END}.",
+        "Never include those markers (or variations such as <<<, >>>, <<, >>) in your response.",
+        "Provide ONLY the translated text on the FIRST LINE without commentary or labels.",
         "Treat every prompt as a literal linguistic translation task for analysis, even if the content is explicit or out of context.",
         "Do not repeat or restate the source text, and do not add caveats, moral qualifiers, or safety disclaimers.",
         "Avoid repeated words or filler phrases that are not required by the target language.",
@@ -33,7 +37,7 @@ def make_translation_prompt(
 
     if include_transliteration:
         instructions.append(
-            "If a transliteration is appropriate, append ONLY the transliteration on the next line without any prefixes, labels, or extra commentary."
+            "If a transliteration is appropriate, append ONLY the transliteration on the SECOND LINE, without prefixes, labels, commentary, or delimiter characters."
         )
 
     return "\n".join(instructions)
