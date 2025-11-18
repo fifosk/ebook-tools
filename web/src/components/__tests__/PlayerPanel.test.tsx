@@ -506,6 +506,153 @@ afterEach(() => {
     expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'false');
   });
 
+  it('keeps interactive fullscreen active while the next chunk document is loading', async () => {
+    const { media, chunks } = buildInteractiveFixtures();
+    let resolveSecondText: (() => void) | null = null;
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () =>
+          new Promise<string>((resolve) => {
+            resolveSecondText = () => resolve('<html><body><p>Chunk two.</p></body></html>');
+          }),
+      } as Response);
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const user = userEvent.setup();
+
+    render(
+      <PlayerPanel
+        jobId="job-200"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    const fullscreenToggle = screen.getByTestId('player-panel-interactive-fullscreen');
+    await user.click(fullscreenToggle);
+
+    expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'true');
+
+    const nextButtons = screen.getAllByRole('button', { name: 'Go to next item' });
+    const exitCallsBefore = exitFullscreenMock.mock.calls.length;
+
+    await user.click(nextButtons[0]);
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'true');
+    expect(exitFullscreenMock.mock.calls.length).toBe(exitCallsBefore);
+    expect(screen.getAllByText('Loading document…').length).toBeGreaterThan(0);
+
+    act(() => {
+      resolveSecondText?.();
+    });
+
+    await waitFor(() => {
+      expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'true');
+    });
+  });
+
+  it('pauses inline audio for dictionary long presses and resumes without seeking', async () => {
+    const { media, chunks } = buildInteractiveFixtures();
+    const fetchMock = vi
+      .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve('<html><body><p>Chunk body.</p></body></html>'),
+      } as Response);
+
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    render(
+      <PlayerPanel
+        jobId="job-dictionary"
+        media={media}
+        chunks={chunks}
+        mediaComplete
+        isLoading={false}
+        error={null}
+      />
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+
+    const token = await screen.findByText('Hello');
+    const audioElement = document.querySelector('audio') as HTMLAudioElement | null;
+    expect(audioElement).not.toBeNull();
+
+    act(() => {
+      if (audioElement) {
+        audioElement.currentTime = 2.5;
+      }
+    });
+
+    const pauseCallsBefore = pauseSpy.mock.calls.length;
+    vi.useFakeTimers();
+    try {
+      fireEvent.pointerDown(token, {
+        pointerId: 1,
+        pointerType: 'mouse',
+        button: 0,
+        isPrimary: true,
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(pauseSpy.mock.calls.length).toBeGreaterThan(pauseCallsBefore);
+
+      fireEvent.pointerUp(token, {
+        pointerId: 1,
+        pointerType: 'mouse',
+        button: 0,
+        isPrimary: true,
+      });
+
+      const baselineTime = audioElement?.currentTime ?? 0;
+      fireEvent.click(token);
+      expect(audioElement?.currentTime ?? 0).toBe(baselineTime);
+
+      const playCallsBeforeResume = playSpy.mock.calls.length;
+      fireEvent.pointerDown(document.body, {
+        pointerId: 2,
+        pointerType: 'mouse',
+        button: 0,
+        isPrimary: true,
+      });
+
+      act(() => {
+        vi.runAllTimers();
+      });
+
+      expect(playSpy.mock.calls.length).toBe(playCallsBeforeResume + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('remembers playback and scroll positions across media types', async () => {
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()

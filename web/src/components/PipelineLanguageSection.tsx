@@ -7,6 +7,10 @@ type LanguageSectionProps = {
   inputLanguage: string;
   targetLanguages: string[];
   customTargetLanguages: string;
+  ollamaModel: string;
+  llmModels: string[];
+  llmModelsLoading: boolean;
+  llmModelsError: string | null;
   sentencesPerOutputFile: number;
   startSentence: number;
   endSentence: string;
@@ -14,6 +18,7 @@ type LanguageSectionProps = {
   onInputLanguageChange: (value: string) => void;
   onTargetLanguagesChange: (value: string[]) => void;
   onCustomTargetLanguagesChange: (value: string) => void;
+  onOllamaModelChange: (value: string) => void;
   onSentencesPerOutputFileChange: (value: number) => void;
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
@@ -27,6 +32,10 @@ const PipelineLanguageSection = ({
   inputLanguage,
   targetLanguages,
   customTargetLanguages,
+  ollamaModel,
+  llmModels,
+  llmModelsLoading,
+  llmModelsError,
   sentencesPerOutputFile,
   startSentence,
   endSentence,
@@ -34,11 +43,13 @@ const PipelineLanguageSection = ({
   onInputLanguageChange,
   onTargetLanguagesChange,
   onCustomTargetLanguagesChange,
+  onOllamaModelChange,
   onSentencesPerOutputFileChange,
   onStartSentenceChange,
   onEndSentenceChange,
   onStitchFullChange
 }: LanguageSectionProps) => {
+  const llmModelListId = `${headingId}-llm-models`;
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
@@ -71,6 +82,30 @@ const PipelineLanguageSection = ({
           onChange={(event) => onCustomTargetLanguagesChange(event.target.value)}
           placeholder="e.g. Klingon, Sindarin"
         />
+        <label htmlFor="ollama_model">
+          LLM model (optional)
+          <input
+            id="ollama_model"
+            name="ollama_model"
+            type="text"
+            value={ollamaModel}
+            onChange={(event) => onOllamaModelChange(event.target.value)}
+            list={llmModelListId}
+            placeholder="Use server default"
+          />
+          <datalist id={llmModelListId}>
+            {llmModels.map((model) => (
+              <option key={model} value={model} />
+            ))}
+          </datalist>
+          <small className="form-help-text">
+            {llmModelsLoading
+              ? 'Loading available models…'
+              : llmModelsError
+              ? `Unable to load models (${llmModelsError}).`
+              : 'Leave blank to use the default server model.'}
+          </small>
+        </label>
         <div className="field-grid">
           <label htmlFor="sentences_per_output_file">
             Sentences per output file

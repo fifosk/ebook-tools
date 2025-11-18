@@ -7,6 +7,8 @@ from typing import List, Optional, Sequence, Tuple
 
 from pydub import AudioSegment
 
+from modules.text import split_highlight_tokens
+
 from .core import (
     HighlightEvent,
     _build_events_from_metadata,
@@ -60,10 +62,10 @@ def _parse_sentence_block(block: str) -> Tuple[str, str, str, str]:
 def _split_translation_units(header_line: str, translation_seg: str) -> Sequence[str]:
     """Return translation units honoring languages without whitespace separators."""
 
-    if "Chinese" in header_line or "Japanese" in header_line:
-        return list(translation_seg)
-    units = translation_seg.split()
-    return units or [translation_seg]
+    tokens = split_highlight_tokens(translation_seg)
+    if tokens:
+        return tokens
+    return [translation_seg] if translation_seg else []
 
 
 def _positive_duration_events(events: Sequence[HighlightEvent]) -> List[HighlightEvent]:

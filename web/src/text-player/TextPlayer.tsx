@@ -132,6 +132,7 @@ function renderVariant(
             handleSeek(index);
           }
         }}
+        data-text-player-token="true"
       >
         {token}
       </span>

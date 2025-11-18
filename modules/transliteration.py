@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Optional
 
-from modules import logging_manager as log_mgr, prompt_templates
+from modules import logging_manager as log_mgr, prompt_templates, text_normalization as text_norm
 from modules import llm_client_manager
 from modules.llm_client import LLMClient
+from modules.retry_annotations import format_retry_failure
 
 logger = log_mgr.logger
+
+_TRANSLITERATION_ATTEMPTS = 3
+_TRANSLITERATION_RETRY_DELAY_SECONDS = 0.5
 
 
 @dataclass(slots=True)
@@ -67,16 +72,30 @@ class TransliterationService:
                 system_prompt=system_prompt,
             )
 
-            response = resolved_client.send_chat_request(
-                payload, max_attempts=2, timeout=60
-            )
-            if response.text:
-                return TransliterationResult(response.text.strip(), used_llm=True)
+            last_error: Optional[str] = None
+            for attempt in range(1, _TRANSLITERATION_ATTEMPTS + 1):
+                response = resolved_client.send_chat_request(
+                    payload, max_attempts=2, timeout=60
+                )
+                if response.text:
+                    candidate = response.text.strip()
+                    if not text_norm.is_placeholder_value(candidate):
+                        return TransliterationResult(candidate, used_llm=True)
+                    last_error = "Placeholder transliteration response"
+                else:
+                    last_error = response.error or "Empty transliteration response"
+                if attempt < _TRANSLITERATION_ATTEMPTS:
+                    time.sleep(_TRANSLITERATION_RETRY_DELAY_SECONDS)
+            if resolved_client.debug_enabled and last_error:
+                logger.debug("LLM transliteration failed: %s", last_error)
 
-            if resolved_client.debug_enabled and response.error:
-                logger.debug("LLM transliteration failed: %s", response.error)
-
-        return TransliterationResult("", used_llm=False)
+        failure_reason = last_error or "no response from LLM"
+        failure_text = format_retry_failure(
+            "transliteration",
+            _TRANSLITERATION_ATTEMPTS,
+            reason=failure_reason,
+        )
+        return TransliterationResult(failure_text, used_llm=False)
 
 
 _default_transliterator = TransliterationService()

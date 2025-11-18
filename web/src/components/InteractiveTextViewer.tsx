@@ -7,7 +7,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { MutableRefObject, ReactNode, UIEvent } from 'react';
+import type {
+  CSSProperties,
+  MutableRefObject,
+  PointerEvent as ReactPointerEvent,
+  ReactNode,
+  UIEvent,
+} from 'react';
 import { appendAccessToken, fetchJobTiming } from '../api/client';
 import type { AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
@@ -31,7 +37,7 @@ import TextPlayer, {
 } from '../text-player/TextPlayer';
 import type { ChunkSentenceMetadata, TrackTimingPayload, WordTiming } from '../api/dtos';
 import { buildWordIndex, collectActiveWordIds, lowerBound, type WordIndex } from '../lib/timing/wordSync';
-import { WORD_SYNC } from './player-panel/constants';
+import { WORD_SYNC, normaliseTranslationSpeed } from './player-panel/constants';
 
 type HighlightDebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean; overlay?: boolean } };
 
@@ -92,6 +98,8 @@ const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
   trans: 'Translation',
   xlit: 'Transliteration',
 };
+
+const DICTIONARY_LOOKUP_LONG_PRESS_MS = 450;
 
 const EMPTY_TIMING_PAYLOAD: TimingPayload = {
   trackKind: 'translation_only',
@@ -636,6 +644,7 @@ interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
+  totalSentencesInBook?: number | null;
   activeAudioUrl: string | null;
   noAudioAvailable: boolean;
   jobId?: string | null;
@@ -653,6 +662,9 @@ interface InteractiveTextViewerProps {
   originalAudioEnabled?: boolean;
   translationSpeed?: number;
   fontScale?: number;
+  bookTitle?: string | null;
+  bookCoverUrl?: string | null;
+  bookCoverAltText?: string | null;
 }
 
 type SegmenterInstance = {
@@ -834,6 +846,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     content,
     rawContent = null,
     chunk,
+    totalSentencesInBook = null,
     activeAudioUrl,
     noAudioAvailable,
     jobId = null,
@@ -851,10 +864,17 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     originalAudioEnabled = false,
     translationSpeed = 1,
     fontScale = 1,
+    bookTitle = null,
+    bookCoverUrl = null,
+    bookCoverAltText = null,
   },
   forwardedRef,
 ) {
-  void translationSpeed;
+  const resolvedTranslationSpeed = useMemo(
+    () => normaliseTranslationSpeed(translationSpeed),
+    [translationSpeed],
+  );
+  const safeBookTitle = typeof bookTitle === 'string' ? bookTitle.trim() : '';
   const safeFontScale = useMemo(() => {
     if (!Number.isFinite(fontScale) || fontScale <= 0) {
       return 1;
@@ -862,8 +882,31 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const clamped = Math.min(Math.max(fontScale, 0.5), 3);
     return Math.round(clamped * 100) / 100;
   }, [fontScale]);
-const rootRef = useRef<HTMLDivElement | null>(null);
-const containerRef = useRef<HTMLDivElement | null>(null);
+  const formatRem = useCallback((value: number) => `${Math.round(value * 1000) / 1000}rem`, []);
+  const bodyStyle = useMemo<CSSProperties>(() => {
+    const baseSentenceFont = (isFullscreen ? 1.32 : 1.08) * safeFontScale;
+    const activeSentenceFont = (isFullscreen ? 1.56 : 1.28) * safeFontScale;
+    return {
+      '--interactive-font-scale': safeFontScale,
+      '--tp-sentence-font-size': formatRem(baseSentenceFont),
+      '--tp-sentence-active-font-size': formatRem(activeSentenceFont),
+    } as CSSProperties;
+  }, [formatRem, isFullscreen, safeFontScale]);
+  const [viewportCoverFailed, setViewportCoverFailed] = useState(false);
+  useEffect(() => {
+    setViewportCoverFailed(false);
+  }, [bookCoverUrl]);
+  const resolvedBookCoverUrl = viewportCoverFailed ? null : bookCoverUrl;
+  const showBookBadge = Boolean(safeBookTitle || resolvedBookCoverUrl);
+  const bookBadgeAltText =
+    bookCoverAltText ?? (safeBookTitle ? `Cover of ${safeBookTitle}` : 'Book cover preview');
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dictionaryPointerIdRef = useRef<number | null>(null);
+  const dictionaryAwaitingResumeRef = useRef(false);
+  const dictionaryWasPlayingRef = useRef(false);
+  const dictionarySuppressSeekRef = useRef(false);
   const {
     ref: attachPlayerCore,
     core: playerCore,
@@ -878,13 +921,14 @@ const containerRef = useRef<HTMLDivElement | null>(null);
     [rawAttachMediaElement],
   );
   const tokenElementsRef = useRef<Map<string, HTMLElement>>(new Map());
-const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
-const wordSyncControllerRef = useRef<WordSyncController | null>(null);
-const gateListRef = useRef<SentenceGate[]>([]);
+  const sentenceElementsRef = useRef<Map<number, HTMLElement>>(new Map());
+  const wordSyncControllerRef = useRef<WordSyncController | null>(null);
+  const gateListRef = useRef<SentenceGate[]>([]);
   const clock = useMediaClock(audioRef);
   const clockRef = useRef<MediaClock>(clock);
   const diagnosticsSignatureRef = useRef<string | null>(null);
   const highlightPolicyRef = useRef<string | null>(null);
+  const inlineAudioPlayingRef = useRef(false);
   const [jobTimingResponse, setJobTimingResponse] = useState<JobTimingResponse | null>(null);
   const [timingDiagnostics, setTimingDiagnostics] = useState<{ policy: string | null; estimated: boolean; punctuation?: boolean } | null>(null);
   useEffect(() => {
@@ -964,6 +1008,185 @@ const gateListRef = useRef<SentenceGate[]>([]);
       mounted = false;
     };
   }, []);
+  const clearDictionaryTimer = useCallback(() => {
+    if (dictionaryPressTimerRef.current === null) {
+      return;
+    }
+    clearTimeout(dictionaryPressTimerRef.current);
+    dictionaryPressTimerRef.current = null;
+  }, []);
+  const resumeDictionaryInteraction = useCallback(() => {
+    clearDictionaryTimer();
+    if (!dictionaryAwaitingResumeRef.current) {
+      dictionarySuppressSeekRef.current = false;
+      return;
+    }
+    dictionaryAwaitingResumeRef.current = false;
+    dictionaryPointerIdRef.current = null;
+    dictionarySuppressSeekRef.current = false;
+    const shouldResume = dictionaryWasPlayingRef.current;
+    dictionaryWasPlayingRef.current = false;
+    if (!shouldResume) {
+      return;
+    }
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    try {
+      const attempt = element.play?.();
+      if (attempt && typeof attempt.catch === 'function') {
+        attempt.catch(() => undefined);
+      }
+    } catch {
+      /* Ignore resume failures triggered by autoplay policies. */
+    }
+  }, []);
+  const requestDictionaryPause = useCallback(() => {
+    if (dictionaryAwaitingResumeRef.current) {
+      return;
+    }
+    dictionarySuppressSeekRef.current = true;
+    dictionaryAwaitingResumeRef.current = true;
+    const element = audioRef.current;
+    dictionaryWasPlayingRef.current = inlineAudioPlayingRef.current;
+    if (!element) {
+      return;
+    }
+    try {
+      element.pause();
+    } catch {
+      /* Ignore pause failures triggered by autoplay policies. */
+    }
+  }, []);
+  const isDictionaryTokenTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    return Boolean(target.closest('[data-text-player-token="true"]'));
+  }, []);
+  const handlePointerDownCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (dictionaryAwaitingResumeRef.current) {
+        resumeDictionaryInteraction();
+      }
+      if (
+        event.pointerType !== 'mouse' ||
+        event.button !== 0 ||
+        !event.isPrimary ||
+        !isDictionaryTokenTarget(event.target)
+      ) {
+        clearDictionaryTimer();
+        return;
+      }
+      dictionaryPointerIdRef.current = event.pointerId;
+      clearDictionaryTimer();
+      dictionaryPressTimerRef.current = setTimeout(() => {
+        dictionaryPressTimerRef.current = null;
+        requestDictionaryPause();
+      }, DICTIONARY_LOOKUP_LONG_PRESS_MS);
+    },
+    [clearDictionaryTimer, isDictionaryTokenTarget, requestDictionaryPause, resumeDictionaryInteraction],
+  );
+  const handlePointerMoveCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (dictionaryPressTimerRef.current === null) {
+        return;
+      }
+      if (event.pointerId !== dictionaryPointerIdRef.current) {
+        return;
+      }
+      if (!isDictionaryTokenTarget(event.target)) {
+        clearDictionaryTimer();
+      }
+    },
+    [clearDictionaryTimer, isDictionaryTokenTarget],
+  );
+  const handlePointerUpCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerId === dictionaryPointerIdRef.current) {
+        clearDictionaryTimer();
+      }
+    },
+    [clearDictionaryTimer],
+  );
+  const handlePointerCancelCapture = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.pointerId === dictionaryPointerIdRef.current) {
+        clearDictionaryTimer();
+      }
+    },
+    [clearDictionaryTimer],
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleGlobalPointerDown = (event: PointerEvent) => {
+      if (!dictionaryAwaitingResumeRef.current) {
+        return;
+      }
+      if (event.pointerId === dictionaryPointerIdRef.current) {
+        return;
+      }
+      resumeDictionaryInteraction();
+    };
+    const handleGlobalKeyDown = (event: KeyboardEvent) => {
+      if (!dictionaryAwaitingResumeRef.current) {
+        return;
+      }
+      if (event.key === 'Escape' || event.key === 'Esc') {
+        resumeDictionaryInteraction();
+      }
+    };
+    window.addEventListener('pointerdown', handleGlobalPointerDown, true);
+    window.addEventListener('keydown', handleGlobalKeyDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
+      window.removeEventListener('keydown', handleGlobalKeyDown, true);
+    };
+  }, [resumeDictionaryInteraction]);
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const handleSelectionChange = () => {
+      if (!dictionaryAwaitingResumeRef.current) {
+        return;
+      }
+      const selection = document.getSelection();
+      if (!selection || selection.isCollapsed) {
+        resumeDictionaryInteraction();
+        return;
+      }
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+      const anchorNode = selection.anchorNode;
+      const focusNode = selection.focusNode;
+      const anchorInside =
+        anchorNode instanceof Node ? container.contains(anchorNode) : false;
+      const focusInside =
+        focusNode instanceof Node ? container.contains(focusNode) : false;
+      if (!anchorInside && !focusInside) {
+        resumeDictionaryInteraction();
+      }
+    };
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+    };
+  }, [resumeDictionaryInteraction]);
+  useEffect(() => {
+    return () => {
+      clearDictionaryTimer();
+      dictionaryAwaitingResumeRef.current = false;
+      dictionaryPointerIdRef.current = null;
+      dictionarySuppressSeekRef.current = false;
+      dictionaryWasPlayingRef.current = false;
+    };
+  }, [clearDictionaryTimer]);
   const fullscreenRequestedRef = useRef(false);
   const fullscreenResyncPendingRef = useRef(false);
   const fullscreenResyncToken = useMemo(() => {
@@ -983,8 +1206,13 @@ const gateListRef = useRef<SentenceGate[]>([]);
     parts.push(content.length, (rawContent ?? '').length, activeAudioUrl ?? 'none');
     return parts.join('|');
   }, [activeAudioUrl, chunk, content, rawContent]);
+  const isFullscreenRef = useRef(isFullscreen);
+  useEffect(() => {
+    isFullscreenRef.current = isFullscreen;
+  }, [isFullscreen]);
+
   const requestFullscreenIfNeeded = useCallback(() => {
-    if (!isFullscreen || typeof document === 'undefined') {
+    if (!isFullscreenRef.current || typeof document === 'undefined') {
       return;
     }
     const element = rootRef.current;
@@ -1014,7 +1242,7 @@ const gateListRef = useRef<SentenceGate[]>([]);
       fullscreenResyncPendingRef.current = false;
       onRequestExitFullscreen?.();
     }
-  }, [isFullscreen, onRequestExitFullscreen]);
+  }, [onRequestExitFullscreen]);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
@@ -1793,6 +2021,20 @@ const gateListRef = useRef<SentenceGate[]>([]);
     }
     return buildTimingPayloadFromWordIndex(activeWordSyncTrack, activeWordIndex);
   }, [activeWordIndex, activeWordSyncTrack, hasLegacyWordSync, remoteTrackPayload]);
+  const timingPlaybackRate = useMemo(() => {
+    const rate = timingPayload?.playbackRate;
+    if (typeof rate === 'number' && Number.isFinite(rate) && rate > 0) {
+      return rate;
+    }
+    return 1;
+  }, [timingPayload]);
+  const effectivePlaybackRate = useMemo(() => {
+    const combined = timingPlaybackRate * resolvedTranslationSpeed;
+    if (!Number.isFinite(combined) || combined <= 0) {
+      return timingPlaybackRate;
+    }
+    return Math.round(combined * 1000) / 1000;
+  }, [resolvedTranslationSpeed, timingPlaybackRate]);
 
   useEffect(() => {
     if (!timingPayload) {
@@ -1937,11 +2179,14 @@ const gateListRef = useRef<SentenceGate[]>([]);
     }
     timingStore.setPayload(timingPayload);
     timingStore.setLast(null);
-    if (typeof timingPayload.playbackRate === 'number' && timingPayload.playbackRate > 0) {
-      timingStore.setRate(timingPayload.playbackRate);
-    }
     return clearTiming;
   }, [shouldUseWordSync, timingPayload]);
+  useEffect(() => {
+    if (!shouldUseWordSync || !timingPayload) {
+      return;
+    }
+    timingStore.setRate(effectivePlaybackRate);
+  }, [effectivePlaybackRate, shouldUseWordSync, timingPayload]);
   useEffect(() => {
     if (!playerCore || !shouldUseWordSync || !timingPayload) {
       stopAudioSync();
@@ -1949,14 +2194,17 @@ const gateListRef = useRef<SentenceGate[]>([]);
         stopAudioSync();
       };
     }
-    if (typeof timingPayload.playbackRate === 'number' && timingPayload.playbackRate > 0) {
-      playerCore.setRate(timingPayload.playbackRate);
-    }
     startAudioSync(playerCore);
     return () => {
       stopAudioSync();
     };
   }, [playerCore, shouldUseWordSync, timingPayload]);
+  useEffect(() => {
+    if (!playerCore) {
+      return;
+    }
+    playerCore.setRate(effectivePlaybackRate);
+  }, [effectivePlaybackRate, playerCore]);
   useEffect(() => {
     if (!legacyWordSyncEnabled) {
       tokenElementsRef.current.clear();
@@ -2117,6 +2365,20 @@ const gateListRef = useRef<SentenceGate[]>([]);
     [onScroll],
   );
 
+  const exitFullscreen = useCallback(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    if (typeof document.exitFullscreen === 'function') {
+      const exitResult = document.exitFullscreen();
+      if (exitResult && typeof exitResult.catch === 'function') {
+        exitResult.catch(() => undefined);
+      }
+    }
+    fullscreenRequestedRef.current = false;
+    fullscreenResyncPendingRef.current = false;
+  }, []);
+
   useEffect(() => {
     if (typeof document === 'undefined') {
       return;
@@ -2126,20 +2388,11 @@ const gateListRef = useRef<SentenceGate[]>([]);
       return;
     }
 
-    const exitFullscreen = () => {
-      if (typeof document.exitFullscreen === 'function') {
-        const exitResult = document.exitFullscreen();
-        if (exitResult && typeof exitResult.catch === 'function') {
-          exitResult.catch(() => undefined);
-        }
-      }
-      fullscreenRequestedRef.current = false;
-      fullscreenResyncPendingRef.current = false;
-    };
-
     if (isFullscreen) {
       requestFullscreenIfNeeded();
-      return;
+      return () => {
+        exitFullscreen();
+      };
     }
 
     if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
@@ -2147,16 +2400,8 @@ const gateListRef = useRef<SentenceGate[]>([]);
     } else {
       fullscreenRequestedRef.current = false;
     }
-
-    return () => {
-      if (!isFullscreen) {
-        return;
-      }
-      if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
-        exitFullscreen();
-      }
-    };
-  }, [isFullscreen, onRequestExitFullscreen, requestFullscreenIfNeeded]);
+    return;
+  }, [exitFullscreen, isFullscreen, requestFullscreenIfNeeded]);
 
   useEffect(() => {
     if (!isFullscreen) {
@@ -2276,6 +2521,7 @@ const gateListRef = useRef<SentenceGate[]>([]);
   }, []);
 
   const handleInlineAudioPlay = useCallback(() => {
+    inlineAudioPlayingRef.current = true;
     timingStore.setLast(null);
     const startPlayback = () => {
       wordSyncControllerRef.current?.handlePlay();
@@ -2305,6 +2551,7 @@ const gateListRef = useRef<SentenceGate[]>([]);
   }, [onInlineAudioPlaybackStateChange]);
 
   const handleInlineAudioPause = useCallback(() => {
+    inlineAudioPlayingRef.current = false;
     wordSyncControllerRef.current?.handlePause();
     onInlineAudioPlaybackStateChange?.('paused');
   }, [onInlineAudioPlaybackStateChange]);
@@ -2383,6 +2630,7 @@ const gateListRef = useRef<SentenceGate[]>([]);
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime, updateActiveGateFromTime]);
 
   const handleAudioEnded = useCallback(() => {
+    inlineAudioPlayingRef.current = false;
     wordSyncControllerRef.current?.stop();
     onInlineAudioPlaybackStateChange?.('paused');
     if (hasTimeline && timelineDisplay) {
@@ -2420,6 +2668,9 @@ const gateListRef = useRef<SentenceGate[]>([]);
   }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
   const handleTokenSeek = useCallback(
     (time: number) => {
+      if (dictionarySuppressSeekRef.current) {
+        return;
+      }
       const element = audioRef.current;
       if (!element || !Number.isFinite(time)) {
         return;
@@ -2440,10 +2691,52 @@ const gateListRef = useRef<SentenceGate[]>([]);
   );
 
   const [fullscreenControlsCollapsed, setFullscreenControlsCollapsed] = useState(false);
+  const wasFullscreenRef = useRef<boolean>(false);
   useEffect(() => {
     if (!isFullscreen) {
       setFullscreenControlsCollapsed(false);
+      wasFullscreenRef.current = false;
+      return;
     }
+    if (!wasFullscreenRef.current) {
+      setFullscreenControlsCollapsed(true);
+      wasFullscreenRef.current = true;
+    }
+  }, [isFullscreen]);
+  useEffect(() => {
+    if (!isFullscreen) {
+      return;
+    }
+    const isTypingTarget = (target: EventTarget | null): target is HTMLElement => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      if (target.isContentEditable) {
+        return true;
+      }
+      const tag = target.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        !event.shiftKey ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+      if (event.key?.toLowerCase() === 'h') {
+        setFullscreenControlsCollapsed((value) => !value);
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleShortcut);
+    };
   }, [isFullscreen]);
 
   const rootClassName = [
@@ -2505,6 +2798,33 @@ const gateListRef = useRef<SentenceGate[]>([]);
   const inlineAudioAvailable = Boolean(resolvedAudioUrl || noAudioAvailable);
 
   const hasFullscreenPanelContent = Boolean(fullscreenControls) || inlineAudioAvailable;
+  const slideIndicator = useMemo(() => {
+    if (!chunk) {
+      return null;
+    }
+    const start =
+      typeof chunk.startSentence === 'number' && Number.isFinite(chunk.startSentence)
+        ? Math.max(chunk.startSentence, 1)
+        : null;
+    const current =
+      start !== null ? start + Math.max(activeSentenceIndex, 0) : null;
+    const totalFromProp =
+      typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
+        ? Math.max(totalSentencesInBook, 1)
+        : null;
+    const chunkEnd =
+      typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
+        ? Math.max(chunk.endSentence, start ?? 1)
+        : null;
+    const total = totalFromProp ?? chunkEnd;
+    if (current === null || total === null) {
+      return null;
+    }
+    return {
+      current: Math.min(current, total),
+      total,
+    };
+  }, [activeSentenceIndex, chunk, totalSentencesInBook]);
 
   return (
     <>
@@ -2566,54 +2886,33 @@ const gateListRef = useRef<SentenceGate[]>([]);
         className="player-panel__document-body player-panel__interactive-body"
         data-testid="player-panel-document"
         onScroll={handleScroll}
-        style={safeFontScale === 1 ? undefined : { fontSize: `${safeFontScale}em` }}
+        onPointerDownCapture={handlePointerDownCapture}
+        onPointerMoveCapture={handlePointerMoveCapture}
+        onPointerUpCapture={handlePointerUpCapture}
+        onPointerCancelCapture={handlePointerCancelCapture}
+        style={bodyStyle}
       >
-        {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? (
-          <div
-            className="word-sync"
-            data-track-type={activeWordSyncTrack?.trackType ?? 'none'}
-            data-follow={followHighlightEnabled ? 'true' : 'false'}
-          >
-            {wordSyncSentences.map((sentence) => (
-              <div
-                key={sentence.id}
-                className="word-sync__sentence"
-                data-sentence={sentence.sentenceId}
-                ref={(element) => registerSentenceElement(sentence.sentenceId, element)}
-              >
-                {(['orig', 'trans', 'xlit'] as WordSyncLane[]).map((lane) => {
-                  const tokens = sentence.tokens[lane];
-                  if (!tokens || tokens.length === 0) {
-                    return null;
-                  }
-                  return (
-                    <div
-                      key={`${sentence.id}-${lane}`}
-                      className={`word-sync__lane word-sync__lane--${lane}`}
-                      data-lang={lane}
-                    >
-                      <span className="word-sync__lane-label">{WORD_SYNC_LANE_LABELS[lane]}</span>
-                      <div className="word-sync__lane-content">
-                        {tokens.map((token) => (
-                          <span
-                            key={token.id}
-                            className="word-sync__token"
-                            data-word-id={token.id}
-                            data-lang={token.lang}
-                            data-sentence={token.sentenceId}
-                            ref={(element) => registerTokenElement(token.id, element)}
-                          >
-                            {token.displayText}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
+        {showBookBadge ? (
+          <div className="player-panel__interactive-book-badge">
+            {resolvedBookCoverUrl ? (
+              <img
+                src={resolvedBookCoverUrl}
+                alt={bookBadgeAltText}
+                onError={() => setViewportCoverFailed(true)}
+                loading="lazy"
+              />
+            ) : null}
+            {safeBookTitle ? (
+              <span className="player-panel__interactive-book-badge-title">{safeBookTitle}</span>
+            ) : null}
           </div>
-        ) : textPlayerSentences && textPlayerSentences.length > 0 ? (
+        ) : null}
+        {slideIndicator ? (
+          <div className="player-panel__interactive-slide-indicator">
+            {slideIndicator.current}/{slideIndicator.total}
+          </div>
+        ) : null}
+        {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : textPlayerSentences && textPlayerSentences.length > 0 ? (
           <TextPlayer sentences={textPlayerSentences} onSeek={handleTokenSeek} />
         ) : paragraphs.length > 0 ? (
           <pre className="player-panel__document-text">{content}</pre>

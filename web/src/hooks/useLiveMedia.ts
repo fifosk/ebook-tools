@@ -1164,32 +1164,29 @@ export function useMediaClock(audioRef: RefObject<HTMLAudioElement | null>): Med
     return raw;
   }, [audioRef]);
 
-  const playbackRate = useCallback(() => {
-    const element = audioRef.current;
-    return sanitiseRate(element?.playbackRate ?? 1);
-  }, [audioRef]);
-
   const effectiveTime = useCallback(
     (track: Pick<TrackTimingPayload, 'trackOffset' | 'tempoFactor'>) => {
       const offset =
         typeof track.trackOffset === 'number' && Number.isFinite(track.trackOffset)
           ? track.trackOffset
           : 0;
-      // Current timing payloads already incorporate render-time tempo adjustments,
-      // so we map the media clock to timeline space using playback rate + offset only.
-      const rate = playbackRate();
-      const adjustedRate = sanitiseRate(rate);
-      if (adjustedRate === 0) {
-        return 0;
-      }
-      const adjusted = (mediaTime() - offset) / adjustedRate;
+      const tempoFactor =
+        typeof track.tempoFactor === 'number' && Number.isFinite(track.tempoFactor) && track.tempoFactor > 0
+          ? track.tempoFactor
+          : 1;
+      const adjusted = (mediaTime() - offset) / tempoFactor;
       if (!Number.isFinite(adjusted) || Number.isNaN(adjusted)) {
         return 0;
       }
       return adjusted < 0 ? 0 : adjusted;
     },
-    [mediaTime, playbackRate]
+    [mediaTime]
   );
+
+  const playbackRate = useCallback(() => {
+    const element = audioRef.current;
+    return sanitiseRate(element?.playbackRate ?? 1);
+  }, [audioRef]);
 
   return useMemo(
     () => ({

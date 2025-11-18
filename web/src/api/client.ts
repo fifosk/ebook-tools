@@ -31,6 +31,7 @@ import {
   LibrarySearchResponse,
   LibraryViewMode,
   SubtitleJobResultPayload,
+  LlmModelListResponse,
   SubtitleSourceEntry,
   SubtitleSourceListResponse
 } from './dtos';
@@ -201,6 +202,16 @@ export async function fetchSubtitleSources(directory?: string): Promise<Subtitle
   const response = await apiFetch(`/api/subtitles/sources${query}`);
   const payload = await handleResponse<SubtitleSourceListResponse>(response);
   return payload.sources;
+}
+
+export async function fetchLlmModels(): Promise<string[]> {
+  const response = await apiFetch('/api/pipelines/llm-models');
+  const payload = await handleResponse<LlmModelListResponse>(response);
+  return payload.models ?? [];
+}
+
+export async function fetchSubtitleModels(): Promise<string[]> {
+  return fetchLlmModels();
 }
 
 export async function submitSubtitleJob(formData: FormData): Promise<PipelineSubmissionResponse> {

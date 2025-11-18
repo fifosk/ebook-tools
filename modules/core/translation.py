@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import queue
-from typing import Iterable, List, Optional, Sequence, Tuple
+from typing import List, Optional, Sequence, Tuple
 
 from .. import translation_engine
 from ..translation_engine import ThreadWorkerPool
 from ..transliteration import TransliterationService, get_transliterator
+from .. import text_normalization as text_norm
 
 
 def translate_sentence_simple(
@@ -91,45 +92,7 @@ def create_translation_queue(max_size: int) -> "queue.Queue":
 def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
     """Separate a combined translation/transliteration response."""
 
-    if not text:
-        return "", ""
-
-    translation_line = ""
-    transliteration_parts: List[str] = []
-    normalized = text.replace("\r\n", "\n").split("\n")
-
-    def _strip_known_prefix(value: str, prefixes: Iterable[str]) -> str:
-        lowered = value.lower()
-        for prefix in prefixes:
-            if lowered.startswith(prefix):
-                return value[len(prefix) :].strip()
-        return value
-
-    translation_prefixes = (
-        "translation:",
-        "translated:",
-        "translated text:",
-        "result:",
-        "output:",
-    )
-    transliteration_prefixes = (
-        "transliteration:",
-        "romanization:",
-        "romanisation:",
-    )
-
-    for raw_line in normalized:
-        line = raw_line.strip()
-        if not line:
-            continue
-        if not translation_line:
-            translation_line = _strip_known_prefix(line, translation_prefixes)
-            continue
-        cleaned = _strip_known_prefix(line, transliteration_prefixes)
-        transliteration_parts.append(cleaned)
-
-    transliteration_text = " ".join(part for part in transliteration_parts if part).strip()
-    return translation_line.strip(), transliteration_text
+    return text_norm.split_translation_and_transliteration(text)
 
 
 def start_translation_pipeline(

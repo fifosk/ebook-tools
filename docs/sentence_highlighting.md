@@ -51,6 +51,14 @@ Each sentence payload now carries:
 
 These payloads feed both human-readable metadata (e.g., `phase_durations`, `charWeighted` summary) and the later dual-track builder via `SentenceTimingSpec`.
 
+All text splitting for highlights now flows through `split_highlight_tokens`
+(`modules/text/tokenization.py`), which returns whitespace-delimited words when
+available and falls back to grapheme clusters for scripts that lack explicit
+word boundaries (Chinese, Japanese, Thai, etc.). Subtitle rendering,
+`audio_pipeline`, the exporter, and the timeline builder all call this helper so
+East Asian languages progress character-by-character instead of freezing on the
+first glyph whenever the translation lacks spaces.
+
 ## 3. Dual-track assembly (mix + translation)
 
 ### 3.1 Sentence specs
@@ -129,7 +137,7 @@ Older jobs included a job-level `metadata/timing_index.json` produced by `build_
 ## 6. Accuracy levers & investigation hooks
 
 1. **Instrument mismatches** – we currently log when backend token counts diverge from translation word counts (`modules/render/audio_pipeline.py:789-795`), but that information is lost after the log. Persisting a per-sentence `token_mismatch` flag in chunk metadata would help dashboards highlight problematic sentences.
-2. **Char-weighted heuristics** – `compute_char_weighted_timings` treats every grapheme equally unless punctuation weighting is toggled. Languages without whitespace (Chinese, Japanese) may still receive per-character timing even when the backend supplied word-level units because `_split_translation_units` falls back to characters (`modules/audio/highlight/timeline.py:27-40`). Consider language-specific segmentation (e.g., Jieba) before char weighting to avoid jitter.
+2. **Char-weighted heuristics** – `compute_char_weighted_timings` treats every grapheme equally unless punctuation weighting is toggled. Languages without whitespace (Chinese, Japanese, Thai) still receive per-character timing because `split_highlight_tokens` collapses their translations into grapheme clusters before char weighting begins (`modules/text/tokenization.py`, `modules/audio/highlight/timeline.py`). Consider language-specific segmentation (e.g., Jieba) before char weighting to avoid jitter.
 3. **Alignment backend selection** – `_resolve_alignment_model_choice` (inside `audio_pipeline`) picks WhisperX models per ISO code but does not record failures beyond log lines. Recording the final `alignment_model` into `highlighting_summary` (already partially done via `alignment_model_used`) keeps the provenance visible even without a global timing index.
 4. **Mix-track gaps** – The mix track assumes a single silence pad (`SILENCE_DURATION_MS`) between original and translation audio when generating combined MP3s (`modules/core/rendering/exporters.py:540-620`). Synthesis now only inserts that pad *between* contiguous segments, dropping the trailing silence at the end of each sentence so highlighting ends when the spoken words do. If TTS backends start inserting dynamic pauses, we should capture the actual measured `gap_before_translation`/`gap_after_translation` per sentence rather than relying on static silence.
 5. **Validation tooling** – `scripts/validate_alignment_quality.py` and `scripts/validate_word_timing.py` still expect a `timing_index.json`. They now only work on legacy exports (or ad-hoc aggregates); future tooling should read per-chunk `timingTracks` directly if we want coverage across all jobs.

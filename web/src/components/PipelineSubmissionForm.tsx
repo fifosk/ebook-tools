@@ -10,6 +10,7 @@ import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
   fetchVoiceInventory,
+  fetchLlmModels,
   deletePipelineEbook,
   synthesizeVoicePreview,
   uploadEpubFile
@@ -101,6 +102,7 @@ type FormState = {
   input_language: string;
   target_languages: string[];
   custom_target_languages: string;
+  ollama_model: string;
   sentences_per_output_file: number;
   start_sentence: number;
   end_sentence: string;
@@ -132,6 +134,7 @@ const DEFAULT_FORM_STATE: FormState = {
   input_language: 'English',
   target_languages: ['Arabic'],
   custom_target_languages: '',
+  ollama_model: 'kimi-k2:1t-cloud',
   sentences_per_output_file: 1,
   start_sentence: 1,
   end_sentence: '',
@@ -139,7 +142,7 @@ const DEFAULT_FORM_STATE: FormState = {
   generate_audio: true,
   audio_mode: '4',
   written_mode: '4',
-  selected_voice: 'macOS-auto-male',
+  selected_voice: 'macOS-auto',
   voice_overrides: {},
   output_html: true,
   output_pdf: false,
@@ -253,6 +256,11 @@ function extractBookMetadata(config: Record<string, unknown>): Record<string, un
 
 function applyConfigDefaults(previous: FormState, config: Record<string, unknown>): FormState {
   const next: FormState = { ...previous };
+
+  const ollamaModel = config['ollama_model'];
+  if (typeof ollamaModel === 'string') {
+    next.ollama_model = ollamaModel;
+  }
 
   const inputFile = config['input_file'];
   if (typeof inputFile === 'string') {
@@ -502,6 +510,9 @@ export function PipelineSubmissionForm({
   const [isLoadingVoiceInventory, setIsLoadingVoiceInventory] = useState<boolean>(false);
   const [voicePreviewStatus, setVoicePreviewStatus] = useState<Record<string, 'idle' | 'loading' | 'playing'>>({});
   const [voicePreviewError, setVoicePreviewError] = useState<Record<string, string>>({});
+  const [availableLlmModels, setAvailableLlmModels] = useState<string[]>([]);
+  const [llmModelError, setLlmModelError] = useState<string | null>(null);
+  const [isLoadingLlmModels, setIsLoadingLlmModels] = useState<boolean>(false);
   const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string; code: string } | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
   const cleanupPreviewAudio = useCallback(() => {
@@ -567,6 +578,72 @@ export function PipelineSubmissionForm({
     });
     prefillAppliedRef.current = normalizedPrefill;
   }, [prefillInputFile]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadDefaults = async () => {
+      try {
+        const defaults = await fetchPipelineDefaults();
+        if (cancelled) {
+          return;
+        }
+        const config = defaults?.config ?? {};
+        setFormState((previous) => applyConfigDefaults(previous, config));
+        const inputLanguage = typeof config['input_language'] === 'string' ? config['input_language'] : null;
+        if (inputLanguage) {
+          setSharedInputLanguage(inputLanguage);
+        }
+        const targetLanguages = Array.isArray(config['target_languages'])
+          ? Array.from(
+              new Set(
+                config['target_languages']
+                  .filter((language): language is string => typeof language === 'string')
+                  .map((language) => language.trim())
+                  .filter((language) => language.length > 0)
+              )
+            )
+          : [];
+        if (targetLanguages.length > 0) {
+          setSharedTargetLanguages(targetLanguages);
+        }
+      } catch (defaultsError) {
+        console.warn('Unable to load pipeline defaults', defaultsError);
+      }
+    };
+    void loadDefaults();
+    return () => {
+      cancelled = true;
+    };
+  }, [setSharedInputLanguage, setSharedTargetLanguages]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadModels = async () => {
+      setIsLoadingLlmModels(true);
+      try {
+        const models = await fetchLlmModels();
+        if (cancelled) {
+          return;
+        }
+        setAvailableLlmModels(models ?? []);
+        setLlmModelError(null);
+      } catch (modelError) {
+        if (!cancelled) {
+          const message =
+            modelError instanceof Error ? modelError.message : 'Unable to load model list.';
+          setLlmModelError(message);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingLlmModels(false);
+        }
+      }
+    };
+    void loadModels();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setFormState((previous) => {
@@ -1064,8 +1141,14 @@ export function PipelineSubmissionForm({
         pipelineOverrides.audio_mode = formState.audio_mode.trim();
       }
 
+      const configOverrides = { ...json.config };
+      const selectedModel = formState.ollama_model.trim();
+      if (selectedModel) {
+        configOverrides.ollama_model = selectedModel;
+      }
+
       const payload: PipelineRequestPayload = {
-        config: json.config,
+        config: configOverrides,
         environment_overrides: json.environment_overrides,
         pipeline_overrides: pipelineOverrides,
         inputs: {
@@ -1167,6 +1250,10 @@ export function PipelineSubmissionForm({
             inputLanguage={formState.input_language}
             targetLanguages={formState.target_languages}
             customTargetLanguages={formState.custom_target_languages}
+            ollamaModel={formState.ollama_model}
+            llmModels={availableLlmModels}
+            llmModelsLoading={isLoadingLlmModels}
+            llmModelsError={llmModelError}
             sentencesPerOutputFile={formState.sentences_per_output_file}
             startSentence={formState.start_sentence}
             endSentence={formState.end_sentence}
@@ -1174,6 +1261,7 @@ export function PipelineSubmissionForm({
             onInputLanguageChange={(value) => handleChange('input_language', value)}
             onTargetLanguagesChange={(value) => handleChange('target_languages', value)}
             onCustomTargetLanguagesChange={(value) => handleChange('custom_target_languages', value)}
+            onOllamaModelChange={(value) => handleChange('ollama_model', value)}
             onSentencesPerOutputFileChange={(value) =>
               handleChange('sentences_per_output_file', value)
             }

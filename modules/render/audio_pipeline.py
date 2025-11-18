@@ -22,6 +22,7 @@ from modules.render.backends.base import SynthesisResult
 from modules.audio.highlight import _get_audio_metadata
 from modules.core.rendering.timeline import smooth_token_boundaries, compute_char_weighted_timings
 from modules.core.rendering.constants import LANGUAGE_CODES as GLOBAL_LANGUAGE_CODES
+from modules.text import split_highlight_tokens
 from .context import RenderBatchContext
 
 if TYPE_CHECKING:  # pragma: no cover - imports for static analysis only
@@ -756,7 +757,7 @@ def audio_worker_body(
         alignment_source = "unavailable"
         alignment_model_used: Optional[str] = None
         word_tokens: List[Dict[str, float | str]] = []
-        translation_words = [token for token in translation_text.split() if token]
+        translation_words = split_highlight_tokens(translation_text)
         char_weighted_used = False
         char_weighted_punctuation = False
         duration_hint_cache: Optional[float] = None

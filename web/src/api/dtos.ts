@@ -110,6 +110,25 @@ export interface PipelineResponsePayload {
   stitched_audio_path?: string | null;
   stitched_video_path?: string | null;
   book_metadata: Record<string, unknown>;
+  generated_files?: Record<string, unknown> | null;
+}
+
+export interface JobParameterSnapshot {
+  input_language?: string | null;
+  target_languages?: string[];
+  start_sentence?: number | null;
+  end_sentence?: number | null;
+  sentences_per_output_file?: number | null;
+  llm_model?: string | null;
+  audio_mode?: string | null;
+  selected_voice?: string | null;
+  voice_overrides?: Record<string, string>;
+  worker_count?: number | null;
+  batch_size?: number | null;
+  show_original?: boolean | null;
+  enable_transliteration?: boolean | null;
+  start_time_offset_seconds?: number | null;
+  end_time_offset_seconds?: number | null;
 }
 
 export interface PipelineStatusResponse {
@@ -126,6 +145,7 @@ export interface PipelineStatusResponse {
   user_id?: string | null;
   user_role?: string | null;
   generated_files?: Record<string, unknown> | null;
+  parameters?: JobParameterSnapshot | null;
   media_completed?: boolean | null;
 }
 
@@ -136,6 +156,10 @@ export interface SubtitleSourceEntry {
 
 export interface SubtitleSourceListResponse {
   sources: SubtitleSourceEntry[];
+}
+
+export interface LlmModelListResponse {
+  models: string[];
 }
 
 export interface SubtitleJobResultPayload {

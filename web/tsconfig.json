@@ -5,6 +5,7 @@
     "lib": ["DOM", "DOM.Iterable", "ES2020"],
     "module": "ESNext",
     "moduleResolution": "Bundler",
+    "noEmit": true,
     "strict": true,
     "jsx": "react-jsx",
     "esModuleInterop": true,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import math
 import re
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
@@ -11,9 +12,12 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, TextIO
 
 from modules import logging_manager as log_mgr
+from modules.retry_annotations import is_failure_annotation
 from modules.progress_tracker import ProgressTracker
+from modules.llm_client import create_client
 from modules.translation_engine import translate_sentence_simple
 from modules.transliteration import TransliterationService, get_transliterator
+from modules.text import split_highlight_tokens
 
 from .models import (
     SubtitleColorPalette,
@@ -35,7 +39,15 @@ SRT_EXTENSION = ".srt"
 ASS_EXTENSION = ".ass"
 ASS_STYLE_NAME = "DRT"
 DEFAULT_BATCH_SIZE = 30
-DEFAULT_WORKERS = 30
+DEFAULT_WORKERS = 15
+DEFAULT_ASS_FONT_SIZE = 56
+MIN_ASS_FONT_SIZE = 12
+MAX_ASS_FONT_SIZE = 120
+DEFAULT_ASS_EMPHASIS = 1.6
+MIN_ASS_EMPHASIS = 1.0
+MAX_ASS_EMPHASIS = 2.5
+ASS_BACKGROUND_COLOR = "&HA0000000"
+ASS_BOX_OUTLINE = 6
 
 
 class SubtitleProcessingError(RuntimeError):
@@ -136,10 +148,17 @@ def process_subtitle_file(
     if transliterator is None and options.enable_transliteration:
         transliterator = get_transliterator()
 
+    resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
+    resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
     temp_output = output_path.with_suffix(output_path.suffix + ".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    renderer = CueTextRenderer(options.output_format, options.color_palette)
+    renderer = CueTextRenderer(
+        options.output_format,
+        options.color_palette,
+        emphasis_scale=resolved_ass_emphasis,
+    )
     output_extension = ASS_EXTENSION if options.output_format == "ass" else SRT_EXTENSION
+    html_writer = _HtmlTranscriptWriter(output_path)
 
     translated_count = 0
     next_index = 1
@@ -160,6 +179,10 @@ def process_subtitle_file(
             )
             mirror_target = None
 
+    mirror_html_writer: Optional[_HtmlTranscriptWriter] = (
+        _HtmlTranscriptWriter(mirror_target) if mirror_target is not None else None
+    )
+
     try:
         with temp_output.open("w", encoding="utf-8", newline="\n") as handle:
             writer = _SubtitleFileWriter(
@@ -167,6 +190,7 @@ def process_subtitle_file(
                 renderer,
                 options.output_format,
                 start_index=next_index,
+                ass_font_size=resolved_ass_font_size,
             )
             with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 for batch_number, batch_start in enumerate(range(0, total_cues, batch_size), start=1):
@@ -199,8 +223,10 @@ def process_subtitle_file(
                             )
                             mirror_target = None
                             mirror_handle = None
+                            mirror_html_writer = None
 
-                    for offset, cue_output in enumerate(processed_batch, start=1):
+                    html_entries: List[SubtitleHtmlEntry] = []
+                    for offset, rendered_batch in enumerate(processed_batch, start=1):
                         cue_index = batch_start + offset
                         if tracker is not None:
                             tracker.record_step_completion(
@@ -212,8 +238,10 @@ def process_subtitle_file(
                                     "batch_size": batch_size,
                                 },
                             )
-                        next_index = writer.write(cue_output)
+                        next_index = writer.write(rendered_batch.cues)
                         translated_count += 1
+                        if rendered_batch.html_entry is not None:
+                            html_entries.append(rendered_batch.html_entry)
                         if mirror_handle is not None:
                             try:
                                 mirror_writer = _SubtitleFileWriter(
@@ -221,8 +249,9 @@ def process_subtitle_file(
                                     renderer,
                                     options.output_format,
                                     start_index=mirror_next_index,
+                                    ass_font_size=resolved_ass_font_size,
                                 )
-                                mirror_next_index = mirror_writer.write(cue_output)
+                                mirror_next_index = mirror_writer.write(rendered_batch.cues)
                             except Exception:  # pragma: no cover - best effort mirror
                                 logger.warning(
                                     "Unable to mirror subtitle batch to %s",
@@ -240,6 +269,11 @@ def process_subtitle_file(
                                 mirror_handle = None
                                 mirror_target = None
                                 mirror_next_index = next_index
+                                mirror_html_writer = None
+                    if html_entries:
+                        html_writer.append(html_entries)
+                        if mirror_html_writer is not None:
+                            mirror_html_writer.append(html_entries)
                     handle.flush()
                     if mirror_handle is not None:
                         try:
@@ -252,6 +286,7 @@ def process_subtitle_file(
                             )
                             mirror_target = None
                             mirror_next_index = next_index
+                            mirror_html_writer = None
                         finally:
                             try:
                                 mirror_handle.close()
@@ -260,14 +295,24 @@ def process_subtitle_file(
                             mirror_handle = None
                     elif mirror_target is None:
                         mirror_next_index = next_index
+                        mirror_html_writer = None
     except SubtitleJobCancelled:
         temp_output.unlink(missing_ok=True)
+        html_writer.discard()
+        if mirror_html_writer is not None:
+            mirror_html_writer.discard()
         raise
     except Exception:
         temp_output.unlink(missing_ok=True)
+        html_writer.discard()
+        if mirror_html_writer is not None:
+            mirror_html_writer.discard()
         raise
     else:
         temp_output.replace(output_path)
+        html_writer.finalize()
+        if mirror_html_writer is not None:
+            mirror_html_writer.finalize()
 
     metadata = {
         "input_file": source_path.name,
@@ -289,6 +334,9 @@ def process_subtitle_file(
         metadata["end_time_offset_seconds"] = None
         metadata["end_time_offset_label"] = None
     metadata["output_format"] = options.output_format
+    if options.output_format == "ass":
+        metadata["ass_font_size"] = resolved_ass_font_size
+        metadata["ass_emphasis_scale"] = resolved_ass_emphasis
     metadata["color_palette"] = options.color_palette.to_dict()
     metadata["output_extension"] = output_extension
 
@@ -441,23 +489,41 @@ def _normalize_text(value: str) -> str:
 class CueTextRenderer:
     """Render cue lines using player-compatible markup."""
 
-    __slots__ = ("format", "palette")
+    __slots__ = ("format", "palette", "emphasis_scale")
 
-    def __init__(self, output_format: str, palette: SubtitleColorPalette) -> None:
+    def __init__(
+        self,
+        output_format: str,
+        palette: SubtitleColorPalette,
+        *,
+        emphasis_scale: Optional[float] = None,
+    ) -> None:
         self.format = output_format
         self.palette = palette
+        self.emphasis_scale = _resolve_ass_emphasis_scale(emphasis_scale)
 
     def render_original(self, text: str) -> str:
         return self._apply_color(self.palette.original, text, bold=False, escape=True)
 
     def render_translation(self, text: str) -> str:
-        return self._apply_color(self.palette.translation, text, bold=False, escape=True)
+        return self._apply_color(
+            self.palette.translation,
+            text,
+            bold=False,
+            escape=True,
+            scale=self.emphasis_scale,
+        )
 
     def render_transliteration(self, text: str) -> str:
         return self._apply_color(self.palette.transliteration, text, bold=False, escape=True)
 
     def render_translation_highlight(self, tokens: Sequence[str], index: int) -> str:
-        return self._render_highlight_sequence(tokens, index, self.palette.translation)
+        return self._render_highlight_sequence(
+            tokens,
+            index,
+            self.palette.translation,
+            scale=self.emphasis_scale,
+        )
 
     def render_transliteration_highlight(self, tokens: Sequence[str], index: int) -> str:
         return self._render_highlight_sequence(tokens, index, self.palette.transliteration)
@@ -467,6 +533,8 @@ class CueTextRenderer:
         tokens: Sequence[str],
         index: int,
         base_color: str,
+        *,
+        scale: float = 1.0,
     ) -> str:
         if not tokens:
             return ""
@@ -480,6 +548,7 @@ class CueTextRenderer:
                         token,
                         bold=False,
                         escape=True,
+                        scale=scale,
                     )
                 )
             elif position == safe_index:
@@ -489,6 +558,7 @@ class CueTextRenderer:
                         token,
                         bold=True,
                         escape=True,
+                        scale=scale,
                     )
                 )
             else:
@@ -498,6 +568,7 @@ class CueTextRenderer:
                         token,
                         bold=False,
                         escape=True,
+                        scale=scale,
                     )
                 )
         return " ".join(fragments)
@@ -509,10 +580,11 @@ class CueTextRenderer:
         *,
         bold: bool,
         escape: bool,
+        scale: float = 1.0,
     ) -> str:
         if self.format == "ass":
-            return self._apply_ass_color(color, content, bold=bold, escape=escape)
-        return self._apply_srt_color(color, content, bold=bold, escape=escape)
+            return self._apply_ass_color(color, content, bold=bold, escape=escape, scale=scale)
+        return self._apply_srt_color(color, content, bold=bold, escape=escape, scale=scale)
 
     def _apply_srt_color(
         self,
@@ -521,9 +593,15 @@ class CueTextRenderer:
         *,
         bold: bool,
         escape: bool,
+        scale: float,
     ) -> str:
         payload = html.escape(content) if escape else content
-        pieces = [f'<font color="{color}">']
+        size_attr = ""
+        if not math.isclose(scale, 1.0):
+            base_size = 3
+            scaled = max(1, min(7, int(math.ceil(base_size * scale))))
+            size_attr = f' size="{scaled}"'
+        pieces = [f'<font color="{color}"{size_attr}>']
         if bold:
             pieces.append("<b>")
         pieces.append(payload)
@@ -539,14 +617,21 @@ class CueTextRenderer:
         *,
         bold: bool,
         escape: bool,
+        scale: float,
     ) -> str:
         payload = self._escape_ass(content) if escape else content
-        components = [f"{{\\c{_ass_color_token(color)}}}"]
+        components = []
+        if not math.isclose(scale, 1.0):
+            percent = max(10, min(1000, int(round(scale * 100))))
+            components.append(f"{{\\fscx{percent}\\fscy{percent}}}")
+        components.append(f"{{\\c{_ass_color_token(color)}}}")
         if bold:
             components.append("{\\b1}")
         components.append(payload)
         if bold:
             components.append("{\\b0}")
+        if not math.isclose(scale, 1.0):
+            components.append("{\\fscx100\\fscy100}")
         return "".join(components)
 
     @staticmethod
@@ -562,6 +647,22 @@ def _ass_color_token(color: str) -> str:
     return f"&H{blue}{green}{red}&"
 
 
+def _resolve_ass_emphasis_scale(value: Optional[float]) -> float:
+    try:
+        numeric = float(value) if value is not None else DEFAULT_ASS_EMPHASIS
+    except (TypeError, ValueError):
+        numeric = DEFAULT_ASS_EMPHASIS
+    return max(MIN_ASS_EMPHASIS, min(MAX_ASS_EMPHASIS, numeric))
+
+
+def _resolve_ass_font_size(value: Optional[int]) -> int:
+    try:
+        numeric = int(value) if value is not None else DEFAULT_ASS_FONT_SIZE
+    except (TypeError, ValueError):
+        numeric = DEFAULT_ASS_FONT_SIZE
+    return max(MIN_ASS_FONT_SIZE, min(MAX_ASS_FONT_SIZE, numeric))
+
+
 def _build_output_cues(
     source: SubtitleCue,
     translation: str,
@@ -570,12 +671,15 @@ def _build_output_cues(
     highlight: bool,
     show_original: bool,
     renderer: CueTextRenderer,
+    original_text: Optional[str] = None,
 ) -> List[SubtitleCue]:
     translation = translation or ""
-    original_text = _normalize_text(source.as_text())
-    include_original = show_original and bool(original_text)
-    original_line = renderer.render_original(original_text) if include_original else ""
-    translation_words = translation.split()
+    normalized_original = (
+        original_text if original_text is not None else _normalize_text(source.as_text())
+    )
+    include_original = show_original and bool(normalized_original)
+    original_line = renderer.render_original(normalized_original) if include_original else ""
+    translation_words = split_highlight_tokens(translation)
     transliteration_words = transliteration.split() if transliteration else []
     use_highlight = highlight and bool(translation_words)
     base_line: Optional[str] = original_line if include_original and original_line else None
@@ -636,7 +740,7 @@ def _build_output_cues(
 class _SubtitleFileWriter:
     """Serialize subtitle cues using the configured subtitle format."""
 
-    __slots__ = ("handle", "renderer", "format", "_index")
+    __slots__ = ("handle", "renderer", "format", "_index", "_ass_font_size")
 
     def __init__(
         self,
@@ -644,11 +748,13 @@ class _SubtitleFileWriter:
         renderer: CueTextRenderer,
         output_format: str,
         start_index: int = 1,
+        ass_font_size: Optional[int] = None,
     ) -> None:
         self.handle = handle
         self.renderer = renderer
         self.format = output_format
         self._index = start_index
+        self._ass_font_size = _resolve_ass_font_size(ass_font_size)
         if self.format == "ass" and self._index == 1:
             self._write_ass_header()
 
@@ -693,7 +799,8 @@ class _SubtitleFileWriter:
         translation_color = _ass_color_token(palette.translation)
         highlight_color = _ass_color_token(palette.highlight_current)
         outline_color = "&H64000000"
-        back_color = "&H32000000"
+        back_color = ASS_BACKGROUND_COLOR
+        font_size = self._ass_font_size
         header = (
             "[Script Info]\n"
             "ScriptType: v4.00+\n"
@@ -707,8 +814,8 @@ class _SubtitleFileWriter:
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
             "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
             "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-            f"Style: {ASS_STYLE_NAME},Arial,48,{translation_color},{highlight_color},"
-            f"{outline_color},{back_color},0,0,0,0,100,100,0,0,1,2,0,2,40,40,40,1\n"
+            f"Style: {ASS_STYLE_NAME},Arial,{font_size},{translation_color},{highlight_color},"
+            f"{outline_color},{back_color},0,0,0,0,100,100,0,0,3,{ASS_BOX_OUTLINE},0,2,40,40,40,1\n"
             "\n"
             "[Events]\n"
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
@@ -750,6 +857,154 @@ class SubtitleOutputSummary:
     word_count: int
 
 
+@dataclass(slots=True)
+class SubtitleHtmlEntry:
+    """Plain-text snippet appended to the companion HTML transcript."""
+
+    start: float
+    end: float
+    original_text: str
+    transliteration_text: str
+    translation_text: str
+
+
+@dataclass(slots=True)
+class _RenderedCueBatch:
+    """Rendered cue payload plus the HTML-friendly snapshot."""
+
+    cues: List[SubtitleCue]
+    html_entry: Optional[SubtitleHtmlEntry]
+
+
+class _HtmlTranscriptWriter:
+    """Best-effort helper that appends batches to a companion HTML file."""
+
+    __slots__ = ("_path", "_available", "_header_written", "_finalized")
+
+    def __init__(self, subtitle_path: Optional[Path]) -> None:
+        self._path: Optional[Path] = None
+        self._available = False
+        self._header_written = False
+        self._finalized = False
+        if subtitle_path is None:
+            return
+        resolved = Path(subtitle_path)
+        html_dir = resolved.parent / "html"
+        html_path = html_dir / f"{resolved.stem}.html"
+        try:
+            html_dir.mkdir(parents=True, exist_ok=True)
+            html_path.unlink(missing_ok=True)
+        except Exception:  # pragma: no cover - best effort preparation
+            logger.warning(
+                "Unable to prepare HTML transcript destination %s",
+                html_path,
+                exc_info=True,
+            )
+            return
+        self._path = html_path
+        self._available = True
+
+    @property
+    def path(self) -> Optional[Path]:
+        return self._path
+
+    def append(self, entries: Sequence[SubtitleHtmlEntry]) -> None:
+        if (
+            not self._available
+            or not entries
+            or self._path is None
+            or self._finalized
+        ):
+            return
+        try:
+            with self._path.open("a", encoding="utf-8") as handle:
+                if not self._header_written:
+                    self._write_header(handle)
+                    self._header_written = True
+                for entry in entries:
+                    _write_html_entry(handle, entry)
+        except Exception:  # pragma: no cover - best effort append
+            logger.warning(
+                "Unable to append HTML transcript to %s",
+                self._path,
+                exc_info=True,
+            )
+            self._available = False
+
+    def finalize(self) -> None:
+        if (
+            not self._available
+            or self._path is None
+            or self._finalized
+        ):
+            return
+        try:
+            with self._path.open("a", encoding="utf-8") as handle:
+                if not self._header_written:
+                    self._write_header(handle)
+                    self._header_written = True
+                handle.write("</body>\n</html>\n")
+            self._finalized = True
+        except Exception:  # pragma: no cover - best effort footer
+            logger.warning(
+                "Unable to finalize HTML transcript %s",
+                self._path,
+                exc_info=True,
+            )
+            self._available = False
+
+    def discard(self) -> None:
+        if self._path is None:
+            return
+        try:
+            self._path.unlink(missing_ok=True)
+        except Exception:  # pragma: no cover - defensive cleanup
+            logger.debug(
+                "Unable to discard HTML transcript %s",
+                self._path,
+                exc_info=True,
+            )
+        finally:
+            self._available = False
+
+    @staticmethod
+    def _write_header(handle: TextIO) -> None:
+        handle.write(
+            "<!DOCTYPE html>\n"
+            "<html lang=\"en\">\n"
+            "<head>\n"
+            "<meta charset=\"utf-8\">\n"
+            "<title>Subtitle transcript</title>\n"
+            "</head>\n"
+            "<body>\n"
+        )
+
+
+_HTML_TIME_SEPARATOR = "\u2013"  # En dash requested for start–end headers.
+
+
+def _write_html_entry(handle: TextIO, entry: SubtitleHtmlEntry) -> None:
+    start = _format_html_timestamp(entry.start)
+    end = _format_html_timestamp(entry.end)
+    original = html.escape(entry.original_text or "")
+    transliteration = html.escape(entry.transliteration_text or "")
+    translation = html.escape(entry.translation_text or "")
+    handle.write(f"<h3>{start}{_HTML_TIME_SEPARATOR}{end}</h3>\n")
+    handle.write(f"<p>{original}</p>\n")
+    if transliteration:
+        handle.write(f"<p>{transliteration}</p>\n")
+    handle.write('<p style="font-size:150%; font-weight:600;">')
+    handle.write(translation)
+    handle.write("</p>\n\n")
+
+
+def _format_html_timestamp(value: float) -> str:
+    clamped = max(0, int(round(value or 0.0)))
+    hours, remainder = divmod(clamped, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
 def _resolve_batch_size(candidate: Optional[int], total: int) -> int:
     if isinstance(candidate, int) and candidate > 0:
         return max(1, min(candidate, total))
@@ -779,28 +1034,62 @@ def _is_cancelled(stop_event) -> bool:
     return False
 
 
+def _translate_with_model_override(
+    text: str,
+    options: SubtitleJobOptions,
+) -> str:
+    if options.llm_model:
+        try:
+            with create_client(model=options.llm_model) as override_client:
+                return translate_sentence_simple(
+                    text,
+                    options.input_language,
+                    options.target_language,
+                    include_transliteration=False,
+                    client=override_client,
+                )
+        except Exception:  # pragma: no cover - log and re-raise via translation failure
+            logger.error(
+                "Unable to translate subtitle cue with model %s",
+                options.llm_model,
+                exc_info=True,
+            )
+            raise
+    return translate_sentence_simple(
+        text,
+        options.input_language,
+        options.target_language,
+        include_transliteration=False,
+    )
+
+
 def _process_cue(
     cue: SubtitleCue,
     options: SubtitleJobOptions,
     transliterator: Optional[TransliterationService],
     stop_event,
     renderer: CueTextRenderer,
-) -> List[SubtitleCue]:
+) -> _RenderedCueBatch:
     if _is_cancelled(stop_event):
         raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
 
+    original_text = _normalize_text(cue.as_text())
     normalized_source = cue.as_text()
     translation = _normalize_text(
-        translate_sentence_simple(
+        _translate_with_model_override(
             normalized_source,
-            options.input_language,
-            options.target_language,
-            include_transliteration=False,
+            options,
         )
     )
+    translation_failed = is_failure_annotation(translation)
 
     transliteration_text = ""
-    if options.enable_transliteration and transliterator is not None and translation:
+    if (
+        options.enable_transliteration
+        and transliterator is not None
+        and translation
+        and not translation_failed
+    ):
         try:
             transliteration_result = transliterator.transliterate(
                 translation,
@@ -813,11 +1102,23 @@ def _process_cue(
         else:
             transliteration_text = _normalize_text(transliteration_result.text)
 
-    return _build_output_cues(
+    cues = _build_output_cues(
         cue,
         translation,
         transliteration_text,
         highlight=options.highlight,
         show_original=options.show_original,
         renderer=renderer,
+        original_text=original_text,
+    )
+
+    return _RenderedCueBatch(
+        cues=cues,
+        html_entry=SubtitleHtmlEntry(
+            start=cue.start,
+            end=cue.end,
+            original_text=original_text,
+            transliteration_text=transliteration_text,
+            translation_text=translation,
+        ),
     )

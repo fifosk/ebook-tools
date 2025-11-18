@@ -32,7 +32,7 @@ export interface LanguageContextValue {
 const LanguageContext = createContext<LanguageContextValue | null>(null);
 
 const DEFAULT_INPUT_LANGUAGE = 'English';
-const DEFAULT_TARGET_LANGUAGES = ['French'];
+const DEFAULT_TARGET_LANGUAGES = ['Arabic'];
 
 interface LanguageProviderProps {
   children: ReactNode;

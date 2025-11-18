@@ -15,7 +15,9 @@ from fastapi import (
     status,
 )
 
+from modules import logging_manager as log_mgr
 from modules.services import SubtitleService, SubtitleSubmission
+from modules.services.llm_models import list_available_llm_models
 from modules.services.job_manager import PipelineJobManager
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
@@ -30,9 +32,11 @@ from ..schemas import (
     PipelineSubmissionResponse,
     SubtitleSourceEntry,
     SubtitleSourceListResponse,
+    LLMModelListResponse,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
+logger = log_mgr.get_logger().getChild("webapi.subtitles")
 
 
 def _as_bool(value: Optional[str | bool], default: bool = False) -> bool:
@@ -52,6 +56,64 @@ def _coerce_int(value: Optional[str | int]) -> Optional[int]:
         return int(str(value).strip())
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid batch_size") from exc
+
+
+def _parse_ass_font_size(value: Optional[str | int]) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        candidate = value
+    else:
+        trimmed = str(value).strip()
+        if not trimmed:
+            return None
+        try:
+            candidate = int(trimmed)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ass_font_size must be an integer",
+            ) from exc
+    if candidate <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_font_size must be greater than zero",
+        )
+    if candidate > 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_font_size must be 200 or smaller",
+        )
+    return candidate
+
+
+def _parse_ass_emphasis_scale(value: Optional[str | float]) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        candidate = float(value)
+    else:
+        trimmed = str(value).strip()
+        if not trimmed:
+            return None
+        try:
+            candidate = float(trimmed)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ass_emphasis_scale must be a number",
+            ) from exc
+    if candidate <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_emphasis_scale must be greater than zero",
+        )
+    if candidate > 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_emphasis_scale must be 3.0 or smaller",
+        )
+    return candidate
 
 
 def _parse_timecode_to_seconds(value: str, *, allow_minutes_only: bool) -> float:
@@ -175,6 +237,22 @@ def list_subtitle_sources(
     return SubtitleSourceListResponse(sources=payload)
 
 
+@router.get("/models", response_model=LLMModelListResponse)
+def list_subtitle_models() -> LLMModelListResponse:
+    """Return available Ollama models for subtitle translations."""
+
+    try:
+        models = list_available_llm_models()
+    except Exception as exc:
+        logger.error("Unable to query Ollama model tags", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Unable to query Ollama model list.",
+        ) from exc
+
+    return LLMModelListResponse(models=models)
+
+
 @router.post(
     "/jobs",
     response_model=PipelineSubmissionResponse,
@@ -184,6 +262,7 @@ async def submit_subtitle_job(
     input_language: str = Form(...),
     target_language: str = Form(...),
     original_language: Optional[str] = Form(None),
+    llm_model: Optional[str] = Form(None),
     enable_transliteration: Union[str, bool] = Form(False),
     highlight: Union[str, bool] = Form(True),
     show_original: Union[str, bool] = Form(True),
@@ -200,6 +279,8 @@ async def submit_subtitle_job(
     subtitle_color_transliteration: Optional[str] = Form(None),
     subtitle_color_highlight_current: Optional[str] = Form(None),
     subtitle_color_highlight_prior: Optional[str] = Form(None),
+    ass_font_size: Optional[str] = Form(None),
+    ass_emphasis_scale: Optional[str] = Form(None),
     file: UploadFile | None = File(None),
     service: SubtitleService = Depends(get_subtitle_service),
     request_user: RequestUserContext = Depends(get_request_user),
@@ -241,6 +322,7 @@ async def submit_subtitle_job(
         resolved_original_language = (original_language or "").strip()
         if not resolved_original_language:
             resolved_original_language = resolved_input_language
+        resolved_llm_model = (llm_model or "").strip() or None
         options_model = SubtitleJobOptions(
             input_language=resolved_input_language,
             target_language=resolved_target_language,
@@ -255,6 +337,9 @@ async def submit_subtitle_job(
             end_time_offset=end_offset_seconds,
             output_format=output_format,
             color_palette=palette,
+            llm_model=resolved_llm_model,
+            ass_font_size=_parse_ass_font_size(ass_font_size),
+            ass_emphasis_scale=_parse_ass_emphasis_scale(ass_emphasis_scale),
         )
     except ValueError as exc:
         raise HTTPException(

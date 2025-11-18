@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 import copy
-from typing import Any, Dict, List, Literal, Optional
+from datetime import datetime
+from typing import Any, Dict, List, Literal, Optional, Mapping
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
@@ -223,12 +223,19 @@ class SubtitleSubmissionPayload(BaseModel):
     source_path: Optional[str] = None
     cleanup_source: bool = False
     mirror_batches_to_source_dir: bool = True
+    llm_model: Optional[str] = None
 
 
 class SubtitleSourceListResponse(BaseModel):
     """Collection of available subtitle sources."""
 
     sources: List[SubtitleSourceEntry] = Field(default_factory=list)
+
+
+class LLMModelListResponse(BaseModel):
+    """Response payload describing available LLM models."""
+
+    models: List[str] = Field(default_factory=list)
 
 
 class PipelineResponsePayload(BaseModel):
@@ -279,6 +286,7 @@ class PipelineResponsePayload(BaseModel):
             "sync_ratio": config.sync_ratio,
             "word_highlighting": config.word_highlighting,
             "highlight_granularity": config.highlight_granularity,
+            "voice_overrides": dict(config.voice_overrides),
         }
         return data
 
@@ -308,6 +316,191 @@ class PipelineResponsePayload(BaseModel):
             book_metadata=dict(response.book_metadata),
             generated_files=copy.deepcopy(response.generated_files),
         )
+
+
+class JobParameterSnapshot(BaseModel):
+    """Captured subset of the inputs/configuration used to execute a job."""
+
+    input_language: Optional[str] = None
+    target_languages: List[str] = Field(default_factory=list)
+    start_sentence: Optional[int] = None
+    end_sentence: Optional[int] = None
+    sentences_per_output_file: Optional[int] = None
+    llm_model: Optional[str] = None
+    audio_mode: Optional[str] = None
+    selected_voice: Optional[str] = None
+    voice_overrides: Dict[str, str] = Field(default_factory=dict)
+    worker_count: Optional[int] = None
+    batch_size: Optional[int] = None
+    show_original: Optional[bool] = None
+    enable_transliteration: Optional[bool] = None
+    start_time_offset_seconds: Optional[float] = None
+    end_time_offset_seconds: Optional[float] = None
+
+
+def _coerce_str(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        if trimmed:
+            return trimmed
+    return None
+
+
+def _coerce_int(value: Any) -> Optional[int]:
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return int(float(stripped))
+        except ValueError:
+            return None
+    return None
+
+
+def _coerce_float(value: Any) -> Optional[float]:
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        try:
+            return float(stripped)
+        except ValueError:
+            return None
+    return None
+
+
+def _coerce_bool(value: Any) -> Optional[bool]:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "on"}:
+            return True
+        if lowered in {"false", "0", "no", "off"}:
+            return False
+    return None
+
+
+def _normalize_language_list(value: Any) -> List[str]:
+    languages: List[str] = []
+    if isinstance(value, (list, tuple, set)):
+        for entry in value:
+            text = _coerce_str(entry)
+            if text:
+                languages.append(text)
+    else:
+        text = _coerce_str(value)
+        if text:
+            languages.append(text)
+    return languages
+
+
+def _normalize_voice_overrides(value: Any) -> Dict[str, str]:
+    if not isinstance(value, Mapping):
+        return {}
+    overrides: Dict[str, str] = {}
+    for raw_key, raw_value in value.items():
+        if not isinstance(raw_key, str):
+            continue
+        key = raw_key.strip()
+        if not key:
+            continue
+        normalized_value = _coerce_str(raw_value)
+        if normalized_value:
+            overrides[key] = normalized_value
+    return overrides
+
+
+def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParameterSnapshot]:
+    inputs = payload.get("inputs")
+    if not isinstance(inputs, Mapping):
+        return None
+
+    target_languages = _normalize_language_list(inputs.get("target_languages"))
+    input_language = _coerce_str(inputs.get("input_language"))
+    start_sentence = _coerce_int(inputs.get("start_sentence"))
+    end_sentence = _coerce_int(inputs.get("end_sentence"))
+    sentences_per_file = _coerce_int(inputs.get("sentences_per_output_file"))
+    audio_mode = _coerce_str(inputs.get("audio_mode"))
+    selected_voice = _coerce_str(inputs.get("selected_voice"))
+    voice_overrides = _normalize_voice_overrides(inputs.get("voice_overrides"))
+
+    llm_model = None
+    config_payload = payload.get("config")
+    if isinstance(config_payload, Mapping):
+        llm_model = _coerce_str(config_payload.get("ollama_model"))
+
+    pipeline_overrides = payload.get("pipeline_overrides")
+    if isinstance(pipeline_overrides, Mapping):
+        override_model = _coerce_str(pipeline_overrides.get("ollama_model"))
+        if override_model:
+            llm_model = override_model
+        override_audio_mode = _coerce_str(pipeline_overrides.get("audio_mode"))
+        if override_audio_mode:
+            audio_mode = override_audio_mode
+        override_voice_overrides = _normalize_voice_overrides(
+            pipeline_overrides.get("voice_overrides")
+        )
+        if override_voice_overrides:
+            voice_overrides = override_voice_overrides
+
+    return JobParameterSnapshot(
+        input_language=input_language,
+        target_languages=target_languages,
+        start_sentence=start_sentence,
+        end_sentence=end_sentence,
+        sentences_per_output_file=sentences_per_file,
+        llm_model=llm_model,
+        audio_mode=audio_mode,
+        selected_voice=selected_voice,
+        voice_overrides=voice_overrides,
+    )
+
+
+def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParameterSnapshot]:
+    options = payload.get("options")
+    if not isinstance(options, Mapping):
+        return None
+
+    target_language = _coerce_str(options.get("target_language"))
+    target_languages = [target_language] if target_language else []
+    input_language = _coerce_str(options.get("input_language")) or _coerce_str(
+        options.get("original_language")
+    )
+
+    return JobParameterSnapshot(
+        input_language=input_language,
+        target_languages=target_languages,
+        llm_model=_coerce_str(options.get("llm_model")),
+        worker_count=_coerce_int(options.get("worker_count")),
+        batch_size=_coerce_int(options.get("batch_size")),
+        show_original=_coerce_bool(options.get("show_original")),
+        enable_transliteration=_coerce_bool(options.get("enable_transliteration")),
+        start_time_offset_seconds=_coerce_float(options.get("start_time_offset")),
+        end_time_offset_seconds=_coerce_float(options.get("end_time_offset")),
+    )
+
+
+def _build_job_parameters(job: PipelineJob) -> Optional[JobParameterSnapshot]:
+    payload: Optional[Mapping[str, Any]] = None
+    if isinstance(job.request_payload, Mapping):
+        payload = job.request_payload
+    elif isinstance(job.resume_context, Mapping):
+        payload = job.resume_context
+
+    if payload is None:
+        return None
+
+    if job.job_type == "subtitle":
+        return _build_subtitle_parameters(payload)
+    return _build_pipeline_parameters(payload)
 
 
 class ProgressSnapshotPayload(BaseModel):
@@ -370,6 +563,7 @@ class PipelineStatusResponse(BaseModel):
     user_id: Optional[str] = None
     user_role: Optional[str] = None
     generated_files: Optional[Dict[str, Any]] = None
+    parameters: Optional[JobParameterSnapshot] = None
     media_completed: Optional[bool] = None
 
     @classmethod
@@ -402,6 +596,7 @@ class PipelineStatusResponse(BaseModel):
             user_id=job.user_id,
             user_role=job.user_role,
             generated_files=generated_files,
+            parameters=_build_job_parameters(job),
             media_completed=job.media_completed,
         )
 

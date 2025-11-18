@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     host: true
   },
+  resolve: {
+    extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.jsx', '.cjs', '.json']
+  },
   preview: {
     host: true
   }
