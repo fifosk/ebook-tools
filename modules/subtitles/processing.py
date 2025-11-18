@@ -40,7 +40,14 @@ ASS_EXTENSION = ".ass"
 ASS_STYLE_NAME = "DRT"
 DEFAULT_BATCH_SIZE = 30
 DEFAULT_WORKERS = 15
-_TRANSLATION_EMPHASIS_SCALE = 1.5
+DEFAULT_ASS_FONT_SIZE = 56
+MIN_ASS_FONT_SIZE = 12
+MAX_ASS_FONT_SIZE = 120
+DEFAULT_ASS_EMPHASIS = 1.6
+MIN_ASS_EMPHASIS = 1.0
+MAX_ASS_EMPHASIS = 2.5
+ASS_BACKGROUND_COLOR = "&HA0000000"
+ASS_BOX_OUTLINE = 6
 
 
 class SubtitleProcessingError(RuntimeError):
@@ -141,9 +148,15 @@ def process_subtitle_file(
     if transliterator is None and options.enable_transliteration:
         transliterator = get_transliterator()
 
+    resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
+    resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
     temp_output = output_path.with_suffix(output_path.suffix + ".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    renderer = CueTextRenderer(options.output_format, options.color_palette)
+    renderer = CueTextRenderer(
+        options.output_format,
+        options.color_palette,
+        emphasis_scale=resolved_ass_emphasis,
+    )
     output_extension = ASS_EXTENSION if options.output_format == "ass" else SRT_EXTENSION
     html_writer = _HtmlTranscriptWriter(output_path)
 
@@ -177,6 +190,7 @@ def process_subtitle_file(
                 renderer,
                 options.output_format,
                 start_index=next_index,
+                ass_font_size=resolved_ass_font_size,
             )
             with ThreadPoolExecutor(max_workers=worker_count) as executor:
                 for batch_number, batch_start in enumerate(range(0, total_cues, batch_size), start=1):
@@ -235,6 +249,7 @@ def process_subtitle_file(
                                     renderer,
                                     options.output_format,
                                     start_index=mirror_next_index,
+                                    ass_font_size=resolved_ass_font_size,
                                 )
                                 mirror_next_index = mirror_writer.write(rendered_batch.cues)
                             except Exception:  # pragma: no cover - best effort mirror
@@ -319,6 +334,9 @@ def process_subtitle_file(
         metadata["end_time_offset_seconds"] = None
         metadata["end_time_offset_label"] = None
     metadata["output_format"] = options.output_format
+    if options.output_format == "ass":
+        metadata["ass_font_size"] = resolved_ass_font_size
+        metadata["ass_emphasis_scale"] = resolved_ass_emphasis
     metadata["color_palette"] = options.color_palette.to_dict()
     metadata["output_extension"] = output_extension
 
@@ -471,11 +489,18 @@ def _normalize_text(value: str) -> str:
 class CueTextRenderer:
     """Render cue lines using player-compatible markup."""
 
-    __slots__ = ("format", "palette")
+    __slots__ = ("format", "palette", "emphasis_scale")
 
-    def __init__(self, output_format: str, palette: SubtitleColorPalette) -> None:
+    def __init__(
+        self,
+        output_format: str,
+        palette: SubtitleColorPalette,
+        *,
+        emphasis_scale: Optional[float] = None,
+    ) -> None:
         self.format = output_format
         self.palette = palette
+        self.emphasis_scale = _resolve_ass_emphasis_scale(emphasis_scale)
 
     def render_original(self, text: str) -> str:
         return self._apply_color(self.palette.original, text, bold=False, escape=True)
@@ -486,7 +511,7 @@ class CueTextRenderer:
             text,
             bold=False,
             escape=True,
-            scale=_TRANSLATION_EMPHASIS_SCALE,
+            scale=self.emphasis_scale,
         )
 
     def render_transliteration(self, text: str) -> str:
@@ -497,7 +522,7 @@ class CueTextRenderer:
             tokens,
             index,
             self.palette.translation,
-            scale=_TRANSLATION_EMPHASIS_SCALE,
+            scale=self.emphasis_scale,
         )
 
     def render_transliteration_highlight(self, tokens: Sequence[str], index: int) -> str:
@@ -622,6 +647,22 @@ def _ass_color_token(color: str) -> str:
     return f"&H{blue}{green}{red}&"
 
 
+def _resolve_ass_emphasis_scale(value: Optional[float]) -> float:
+    try:
+        numeric = float(value) if value is not None else DEFAULT_ASS_EMPHASIS
+    except (TypeError, ValueError):
+        numeric = DEFAULT_ASS_EMPHASIS
+    return max(MIN_ASS_EMPHASIS, min(MAX_ASS_EMPHASIS, numeric))
+
+
+def _resolve_ass_font_size(value: Optional[int]) -> int:
+    try:
+        numeric = int(value) if value is not None else DEFAULT_ASS_FONT_SIZE
+    except (TypeError, ValueError):
+        numeric = DEFAULT_ASS_FONT_SIZE
+    return max(MIN_ASS_FONT_SIZE, min(MAX_ASS_FONT_SIZE, numeric))
+
+
 def _build_output_cues(
     source: SubtitleCue,
     translation: str,
@@ -699,7 +740,7 @@ def _build_output_cues(
 class _SubtitleFileWriter:
     """Serialize subtitle cues using the configured subtitle format."""
 
-    __slots__ = ("handle", "renderer", "format", "_index")
+    __slots__ = ("handle", "renderer", "format", "_index", "_ass_font_size")
 
     def __init__(
         self,
@@ -707,11 +748,13 @@ class _SubtitleFileWriter:
         renderer: CueTextRenderer,
         output_format: str,
         start_index: int = 1,
+        ass_font_size: Optional[int] = None,
     ) -> None:
         self.handle = handle
         self.renderer = renderer
         self.format = output_format
         self._index = start_index
+        self._ass_font_size = _resolve_ass_font_size(ass_font_size)
         if self.format == "ass" and self._index == 1:
             self._write_ass_header()
 
@@ -756,7 +799,8 @@ class _SubtitleFileWriter:
         translation_color = _ass_color_token(palette.translation)
         highlight_color = _ass_color_token(palette.highlight_current)
         outline_color = "&H64000000"
-        back_color = "&H32000000"
+        back_color = ASS_BACKGROUND_COLOR
+        font_size = self._ass_font_size
         header = (
             "[Script Info]\n"
             "ScriptType: v4.00+\n"
@@ -770,8 +814,8 @@ class _SubtitleFileWriter:
             "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, "
             "OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, "
             "ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n"
-            f"Style: {ASS_STYLE_NAME},Arial,48,{translation_color},{highlight_color},"
-            f"{outline_color},{back_color},0,0,0,0,100,100,0,0,1,2,0,2,40,40,40,1\n"
+            f"Style: {ASS_STYLE_NAME},Arial,{font_size},{translation_color},{highlight_color},"
+            f"{outline_color},{back_color},0,0,0,0,100,100,0,0,3,{ASS_BOX_OUTLINE},0,2,40,40,40,1\n"
             "\n"
             "[Events]\n"
             "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"

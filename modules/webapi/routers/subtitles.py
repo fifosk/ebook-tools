@@ -58,6 +58,64 @@ def _coerce_int(value: Optional[str | int]) -> Optional[int]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid batch_size") from exc
 
 
+def _parse_ass_font_size(value: Optional[str | int]) -> Optional[int]:
+    if value is None:
+        return None
+    if isinstance(value, int):
+        candidate = value
+    else:
+        trimmed = str(value).strip()
+        if not trimmed:
+            return None
+        try:
+            candidate = int(trimmed)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ass_font_size must be an integer",
+            ) from exc
+    if candidate <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_font_size must be greater than zero",
+        )
+    if candidate > 200:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_font_size must be 200 or smaller",
+        )
+    return candidate
+
+
+def _parse_ass_emphasis_scale(value: Optional[str | float]) -> Optional[float]:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        candidate = float(value)
+    else:
+        trimmed = str(value).strip()
+        if not trimmed:
+            return None
+        try:
+            candidate = float(trimmed)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="ass_emphasis_scale must be a number",
+            ) from exc
+    if candidate <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_emphasis_scale must be greater than zero",
+        )
+    if candidate > 3:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ass_emphasis_scale must be 3.0 or smaller",
+        )
+    return candidate
+
+
 def _parse_timecode_to_seconds(value: str, *, allow_minutes_only: bool) -> float:
     trimmed = value.strip()
     if not trimmed:
@@ -221,6 +279,8 @@ async def submit_subtitle_job(
     subtitle_color_transliteration: Optional[str] = Form(None),
     subtitle_color_highlight_current: Optional[str] = Form(None),
     subtitle_color_highlight_prior: Optional[str] = Form(None),
+    ass_font_size: Optional[str] = Form(None),
+    ass_emphasis_scale: Optional[str] = Form(None),
     file: UploadFile | None = File(None),
     service: SubtitleService = Depends(get_subtitle_service),
     request_user: RequestUserContext = Depends(get_request_user),
@@ -278,6 +338,8 @@ async def submit_subtitle_job(
             output_format=output_format,
             color_palette=palette,
             llm_model=resolved_llm_model,
+            ass_font_size=_parse_ass_font_size(ass_font_size),
+            ass_emphasis_scale=_parse_ass_emphasis_scale(ass_emphasis_scale),
         )
     except ValueError as exc:
         raise HTTPException(

@@ -213,7 +213,7 @@ def test_process_subtitle_file_emits_ass_with_header(tmp_path: Path, srt_source:
 
     payload = output_path.read_text(encoding="utf-8")
     assert payload.startswith("[Script Info]")
-    assert "Style: DRT,Arial,48,&H5DC521&,&H3C92FB&" in payload
+    assert "Style: DRT,Arial,56,&H5DC521&,&H3C92FB&,&H64000000,&HA0000000" in payload
     assert "Dialogue: 0,0:00:00.00,0:00:01.00,DRT" in payload
     assert "{\\c&H3C92FB&}{\\b1}hola{\\b0}" in payload
 

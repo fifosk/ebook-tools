@@ -118,6 +118,8 @@ class SubtitleJobOptions:
     output_format: str = "srt"
     color_palette: SubtitleColorPalette = field(default_factory=SubtitleColorPalette.default)
     llm_model: Optional[str] = None
+    ass_font_size: Optional[int] = None
+    ass_emphasis_scale: Optional[float] = None
 
     def __post_init__(self) -> None:
         input_language = (self.input_language or "").strip()
@@ -157,6 +159,24 @@ class SubtitleJobOptions:
                 raise ValueError("end_time_offset must be greater than start_time_offset")
         llm_model_value = (self.llm_model or "").strip()
         object.__setattr__(self, "llm_model", llm_model_value or None)
+        font_size_value = self.ass_font_size
+        resolved_font_size = None
+        if font_size_value is not None:
+            try:
+                resolved_font_size = max(1, int(float(font_size_value)))
+            except (ValueError, TypeError):
+                resolved_font_size = None
+        object.__setattr__(self, "ass_font_size", resolved_font_size)
+        emphasis_value = self.ass_emphasis_scale
+        resolved_emphasis = None
+        if emphasis_value is not None:
+            try:
+                numeric = float(emphasis_value)
+                if numeric > 0:
+                    resolved_emphasis = numeric
+            except (ValueError, TypeError):
+                resolved_emphasis = None
+        object.__setattr__(self, "ass_emphasis_scale", resolved_emphasis)
 
     @classmethod
     def from_mapping(cls, data: Dict[str, object]) -> "SubtitleJobOptions":
@@ -227,6 +247,28 @@ class SubtitleJobOptions:
             stripped = llm_model_raw.strip()
             if stripped:
                 llm_model = stripped
+        font_size_raw = data.get("ass_font_size")
+        ass_font_size = None
+        if isinstance(font_size_raw, (int, float)):
+            ass_font_size = int(font_size_raw)
+        elif isinstance(font_size_raw, str) and font_size_raw.strip():
+            try:
+                ass_font_size = int(float(font_size_raw.strip()))
+            except ValueError:
+                ass_font_size = None
+        emphasis_raw = data.get("ass_emphasis_scale")
+        ass_emphasis_scale = None
+        if isinstance(emphasis_raw, (int, float)):
+            candidate_emphasis = float(emphasis_raw)
+            if candidate_emphasis > 0:
+                ass_emphasis_scale = candidate_emphasis
+        elif isinstance(emphasis_raw, str) and emphasis_raw.strip():
+            try:
+                candidate_emphasis = float(emphasis_raw.strip())
+            except ValueError:
+                candidate_emphasis = None
+            if candidate_emphasis and candidate_emphasis > 0:
+                ass_emphasis_scale = candidate_emphasis
 
         return cls(
             input_language=input_language,
@@ -245,6 +287,8 @@ class SubtitleJobOptions:
             output_format=output_format_raw or "srt",
             color_palette=palette,
             llm_model=llm_model,
+            ass_font_size=ass_font_size,
+            ass_emphasis_scale=ass_emphasis_scale,
         )
 
     def to_dict(self) -> Dict[str, object]:
@@ -269,6 +313,10 @@ class SubtitleJobOptions:
             payload["end_time_offset"] = self.end_time_offset
         if self.llm_model:
             payload["llm_model"] = self.llm_model
+        if self.ass_font_size is not None:
+            payload["ass_font_size"] = self.ass_font_size
+        if self.ass_emphasis_scale is not None:
+            payload["ass_emphasis_scale"] = self.ass_emphasis_scale
         return payload
 
 

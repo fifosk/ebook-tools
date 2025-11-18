@@ -15,6 +15,7 @@ import { TOP_LANGUAGES } from '../constants/menuOptions';
 import { formatTimestamp } from '../utils/mediaFormatters';
 
 type SourceMode = 'existing' | 'upload';
+type SubtitleOutputFormat = 'srt' | 'ass';
 
 type Props = {
   subtitleJobs: JobState[];
@@ -23,10 +24,17 @@ type Props = {
 };
 
 const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
-const DEFAULT_WORKER_COUNT = 30;
-const DEFAULT_BATCH_SIZE = 30;
+const DEFAULT_WORKER_COUNT = 10;
+const DEFAULT_BATCH_SIZE = 20;
 const DEFAULT_START_TIME = '00:00';
 const SHOW_ORIGINAL_STORAGE_KEY = 'subtitles:show_original';
+const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
+const DEFAULT_ASS_FONT_SIZE = 56;
+const MIN_ASS_FONT_SIZE = 12;
+const MAX_ASS_FONT_SIZE = 120;
+const DEFAULT_ASS_EMPHASIS = 1.6;
+const MIN_ASS_EMPHASIS = 1.0;
+const MAX_ASS_EMPHASIS = 2.5;
 
 function deriveDirectoryFromPath(value: string | undefined): string {
   if (!value) {
@@ -225,6 +233,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
+  const [outputFormat, setOutputFormat] = useState<SubtitleOutputFormat>('ass');
+  const [assFontSize, setAssFontSize] = useState<number | ''>(DEFAULT_ASS_FONT_SIZE);
+  const [assEmphasis, setAssEmphasis] = useState<number | ''>(DEFAULT_ASS_EMPHASIS);
   const [showOriginal, setShowOriginal] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -245,7 +256,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [startTime, setStartTime] = useState<string>(DEFAULT_START_TIME);
   const [endTime, setEndTime] = useState<string>('');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('');
+  const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_LLM_MODEL);
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
@@ -262,6 +273,11 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   const [lastSubmittedStartTime, setLastSubmittedStartTime] = useState<string>(DEFAULT_START_TIME);
   const [lastSubmittedEndTime, setLastSubmittedEndTime] = useState<string | null>(null);
   const [lastSubmittedModel, setLastSubmittedModel] = useState<string | null>(null);
+  const [lastSubmittedFormat, setLastSubmittedFormat] = useState<SubtitleOutputFormat | null>(
+    null
+  );
+  const [lastSubmittedAssFontSize, setLastSubmittedAssFontSize] = useState<number | null>(null);
+  const [lastSubmittedAssEmphasis, setLastSubmittedAssEmphasis] = useState<number | null>(null);
 
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
@@ -481,6 +497,27 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         return;
       }
 
+      let resolvedAssFontSize: number | null = null;
+      let resolvedAssEmphasis: number | null = null;
+      if (outputFormat === 'ass') {
+        if (typeof assFontSize !== 'number' || Number.isNaN(assFontSize)) {
+          setSubmitError('Enter a numeric ASS base font size.');
+          return;
+        }
+        const clamped = Math.max(MIN_ASS_FONT_SIZE, Math.min(MAX_ASS_FONT_SIZE, Math.round(assFontSize)));
+        resolvedAssFontSize = clamped;
+
+        if (typeof assEmphasis !== 'number' || Number.isNaN(assEmphasis)) {
+          setSubmitError('Enter a numeric ASS emphasis scale.');
+          return;
+        }
+        const normalized = Math.max(
+          MIN_ASS_EMPHASIS,
+          Math.min(MAX_ASS_EMPHASIS, Math.round(assEmphasis * 100) / 100)
+        );
+        resolvedAssEmphasis = normalized;
+      }
+
       const formData = new FormData();
       formData.append('input_language', trimmedOriginal);
       formData.append('original_language', trimmedOriginal);
@@ -488,8 +525,15 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       formData.append('enable_transliteration', String(enableTransliteration));
       formData.append('highlight', String(enableHighlight));
       formData.append('show_original', String(showOriginal));
+      formData.append('output_format', outputFormat);
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
       formData.append('start_time', normalisedStartTime);
+      if (resolvedAssFontSize !== null) {
+        formData.append('ass_font_size', String(resolvedAssFontSize));
+      }
+      if (resolvedAssEmphasis !== null) {
+        formData.append('ass_emphasis_scale', String(resolvedAssEmphasis));
+      }
       if (selectedModel.trim()) {
         formData.append('llm_model', selectedModel.trim());
       }
@@ -517,11 +561,20 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
         setLastSubmittedStartTime(normalisedStartTime);
         setLastSubmittedEndTime(normalisedEndTime || null);
         setLastSubmittedModel(selectedModel.trim() ? selectedModel.trim() : null);
+        setLastSubmittedFormat(outputFormat);
+        setLastSubmittedAssFontSize(resolvedAssFontSize);
+        setLastSubmittedAssEmphasis(resolvedAssEmphasis);
         if (normalisedStartTime !== startTime) {
           setStartTime(normalisedStartTime);
         }
         if (normalisedEndTime !== endTime) {
           setEndTime(normalisedEndTime);
+        }
+        if (resolvedAssFontSize !== null && assFontSize !== resolvedAssFontSize) {
+          setAssFontSize(resolvedAssFontSize);
+        }
+        if (resolvedAssEmphasis !== null && assEmphasis !== resolvedAssEmphasis) {
+          setAssEmphasis(resolvedAssEmphasis);
         }
         onJobCreated(response.job_id);
         if (sourceMode === 'upload') {
@@ -549,7 +602,10 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
       mirrorToSourceDir,
       startTime,
       endTime,
-      selectedModel
+      selectedModel,
+      outputFormat,
+      assFontSize,
+      assEmphasis
     ]
   );
 
@@ -725,6 +781,71 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                 Write batches to <code>{DEFAULT_SOURCE_DIRECTORY}</code>
               </label>
               <label>
+                Subtitle format
+                <select
+                  value={outputFormat}
+                  onChange={(event) => setOutputFormat(event.target.value === 'ass' ? 'ass' : 'srt')}
+                >
+                  <option value="srt">SRT (SubRip)</option>
+                  <option value="ass">ASS (Advanced SubStation Alpha)</option>
+                </select>
+              </label>
+              <label>
+                ASS base font size
+                <input
+                  type="number"
+                  min={MIN_ASS_FONT_SIZE}
+                  max={MAX_ASS_FONT_SIZE}
+                  value={typeof assFontSize === 'number' ? assFontSize : ''}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    if (!raw.trim()) {
+                      setAssFontSize('');
+                      return;
+                    }
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) {
+                      return;
+                    }
+                    const clamped = Math.max(
+                      MIN_ASS_FONT_SIZE,
+                      Math.min(MAX_ASS_FONT_SIZE, Math.round(parsed))
+                    );
+                    setAssFontSize(clamped);
+                  }}
+                  disabled={outputFormat !== 'ass'}
+                />
+                <small>Used only for ASS exports ({MIN_ASS_FONT_SIZE}-{MAX_ASS_FONT_SIZE}).</small>
+              </label>
+              <label>
+                ASS emphasis scale
+                <input
+                  type="number"
+                  step={0.1}
+                  min={MIN_ASS_EMPHASIS}
+                  max={MAX_ASS_EMPHASIS}
+                  value={typeof assEmphasis === 'number' ? assEmphasis : ''}
+                  onChange={(event) => {
+                    const raw = event.target.value;
+                    if (!raw.trim()) {
+                      setAssEmphasis('');
+                      return;
+                    }
+                    const parsed = Number(raw);
+                    if (Number.isNaN(parsed)) {
+                      return;
+                    }
+                    const clamped = Math.max(
+                      MIN_ASS_EMPHASIS,
+                      Math.min(MAX_ASS_EMPHASIS, Math.round(parsed * 100) / 100)
+                    );
+                    setAssEmphasis(clamped);
+                  }}
+                  disabled={outputFormat !== 'ass'}
+                />
+                <small>Translation scale (default {DEFAULT_ASS_EMPHASIS.toFixed(2)}×).</small>
+              </label>
+              <label>
                 Worker threads
                 <input
                   type="number"
@@ -816,6 +937,16 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                 if (lastSubmittedModel) {
                   details.push(`LLM ${lastSubmittedModel}`);
                 }
+                if (lastSubmittedFormat) {
+                  const label = lastSubmittedFormat === 'ass' ? 'ASS subtitles' : 'SRT subtitles';
+                  details.push(label);
+                  if (lastSubmittedFormat === 'ass' && lastSubmittedAssFontSize) {
+                    details.push(`font size ${lastSubmittedAssFontSize}`);
+                  }
+                  if (lastSubmittedFormat === 'ass' && lastSubmittedAssEmphasis) {
+                    details.push(`scale ${lastSubmittedAssEmphasis}×`);
+                  }
+                }
                 if (details.length === 0) {
                   return ' using auto-detected concurrency. Live status appears below.';
                 }
@@ -889,6 +1020,31 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
               const showOriginalValue = subtitleMetadata ? subtitleMetadata['show_original'] : null;
               const startTimeValue = subtitleMetadata ? subtitleMetadata['start_time_offset_label'] : null;
               const endTimeValue = subtitleMetadata ? subtitleMetadata['end_time_offset_label'] : null;
+              const outputFormatValue = subtitleMetadata ? subtitleMetadata['output_format'] : null;
+              const outputFormatLabel =
+                typeof outputFormatValue === 'string' && outputFormatValue.trim()
+                  ? outputFormatValue.trim().toUpperCase()
+                  : null;
+              const assFontSizeValue = subtitleMetadata ? subtitleMetadata['ass_font_size'] : null;
+              let assFontSizeLabel: number | null = null;
+              if (typeof assFontSizeValue === 'number' && Number.isFinite(assFontSizeValue)) {
+                assFontSizeLabel = assFontSizeValue;
+              } else if (typeof assFontSizeValue === 'string' && assFontSizeValue.trim()) {
+                const parsed = Number(assFontSizeValue.trim());
+                if (!Number.isNaN(parsed)) {
+                  assFontSizeLabel = parsed;
+                }
+              }
+              const assEmphasisValue = subtitleMetadata ? subtitleMetadata['ass_emphasis_scale'] : null;
+              let assEmphasisLabel: number | null = null;
+              if (typeof assEmphasisValue === 'number' && Number.isFinite(assEmphasisValue)) {
+                assEmphasisLabel = assEmphasisValue;
+              } else if (typeof assEmphasisValue === 'string' && assEmphasisValue.trim()) {
+                const parsed = Number(assEmphasisValue.trim());
+                if (!Number.isNaN(parsed)) {
+                  assEmphasisLabel = parsed;
+                }
+              }
               const workerSetting =
                 typeof workerValue === 'number' && Number.isFinite(workerValue)
                   ? workerValue
@@ -948,6 +1104,24 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       <div>
                         <dt>Translation language</dt>
                         <dd>{translationLanguage}</dd>
+                      </div>
+                    ) : null}
+                    {outputFormatLabel ? (
+                      <div>
+                        <dt>Format</dt>
+                        <dd>{outputFormatLabel}</dd>
+                      </div>
+                    ) : null}
+                    {outputFormatLabel === 'ASS' && assFontSizeLabel ? (
+                      <div>
+                        <dt>ASS font size</dt>
+                        <dd>{assFontSizeLabel}</dd>
+                      </div>
+                    ) : null}
+                    {outputFormatLabel === 'ASS' && assEmphasisLabel ? (
+                      <div>
+                        <dt>ASS emphasis</dt>
+                        <dd>{assEmphasisLabel}×</dd>
                       </div>
                     ) : null}
                     {showOriginalSetting !== null ? (

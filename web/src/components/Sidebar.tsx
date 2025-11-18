@@ -64,6 +64,23 @@ function resolveSidebarLanguage(job: JobState): { label: string; tooltip?: strin
   return { label: `Job ${job.jobId}` };
 }
 
+const STATUS_SHORTHANDS: Record<string, string> = {
+  completed: 'C',
+  running: 'R',
+  pending: 'P',
+  pausing: 'Pg',
+  paused: 'Pd',
+  failed: 'F',
+  cancelled: 'X'
+};
+
+function resolveSidebarStatus(value: string): { label: string; tooltip: string } {
+  const normalized = value.toLowerCase();
+  const label = STATUS_SHORTHANDS[normalized] ?? normalized.charAt(0).toUpperCase();
+  const tooltip = `${normalized.charAt(0).toUpperCase()}${normalized.slice(1)}`;
+  return { label, tooltip };
+}
+
 export function Sidebar({
   selectedView,
   onSelectView,
@@ -149,6 +166,7 @@ export function Sidebar({
               <ul className="sidebar__list">
                 {bookJobs.map((job) => {
                   const statusValue = job.status?.status ?? 'pending';
+                  const statusLabel = resolveSidebarStatus(statusValue);
                   const isActiveJob = activeJobId === job.jobId;
                   const languageLabel = resolveSidebarLanguage(job);
                   return (
@@ -165,8 +183,13 @@ export function Sidebar({
                         >
                           {languageLabel.label}
                         </span>
-                        <span className="job-status" data-state={statusValue}>
-                          {statusValue}
+                        <span
+                          className="job-status"
+                          data-state={statusValue}
+                          title={statusLabel.tooltip}
+                          aria-label={statusLabel.tooltip}
+                        >
+                          {statusLabel.label}
                         </span>
                       </button>
                     </li>
@@ -183,6 +206,7 @@ export function Sidebar({
               <ul className="sidebar__list">
                 {subtitleJobs.map((job) => {
                   const statusValue = job.status?.status ?? 'pending';
+                  const statusLabel = resolveSidebarStatus(statusValue);
                   const isActiveJob = activeJobId === job.jobId;
                   const languageLabel = resolveSidebarLanguage(job);
                   return (
@@ -199,8 +223,13 @@ export function Sidebar({
                         >
                           {languageLabel.label}
                         </span>
-                        <span className="job-status" data-state={statusValue}>
-                          {statusValue}
+                        <span
+                          className="job-status"
+                          data-state={statusValue}
+                          title={statusLabel.tooltip}
+                          aria-label={statusLabel.tooltip}
+                        >
+                          {statusLabel.label}
                         </span>
                       </button>
                     </li>
