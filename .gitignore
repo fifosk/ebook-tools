@@ -19,6 +19,7 @@ output/
 tmp/
 log/
 conf/config.local.json
+conf/certs/
 storage/*
 !storage/ebooks/
 !storage/covers/
