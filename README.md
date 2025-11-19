@@ -102,6 +102,46 @@ curl http://127.0.0.1:8000/
 
 If you prefer to verify via a browser, open <http://127.0.0.1:8000/>.
 
+#### Serve the API over HTTPS
+
+Uvicorn can terminate TLS directly when provided with a certificate/key pair.
+Create a development certificate (or use a tool such as `mkcert`) and point the
+CLI at the generated files:
+
+```bash
+mkdir -p conf/certs
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -subj "/CN=localhost" \
+  -keyout conf/certs/dev.key \
+  -out conf/certs/dev.crt
+
+python -m modules.webapi --reload \
+  --ssl-certfile conf/certs/dev.crt \
+  --ssl-keyfile conf/certs/dev.key
+```
+
+All entry points (`ebook-tools-api`, `python -m modules.webapi`, and
+`./scripts/run-webapi.sh`) accept the `--ssl-certfile`, `--ssl-keyfile`, and
+`--ssl-keyfile-password` flags. Once enabled, load the API through
+`https://127.0.0.1:8000/` (trust the certificate locally or pass
+`curl -k` for smoke tests). Production deployments should use a certificate
+issued by a trusted CA or place the API behind a reverse proxy such as Caddy or
+nginx that manages TLS termination.
+
+When using `./scripts/run-webapi.sh`, you can opt-in via environment variables
+instead of passing the flags manually:
+
+```bash
+EBOOK_API_ENABLE_HTTPS=1 \
+EBOOK_API_SSL_CERTFILE=conf/certs/dev.crt \
+EBOOK_API_SSL_KEYFILE=conf/certs/dev.key \
+./scripts/run-webapi.sh --reload
+```
+
+If `EBOOK_API_SSL_CERTFILE`/`EBOOK_API_SSL_KEYFILE` are omitted the script falls
+back to `conf/certs/dev.{crt,key}` (when present). Provide
+`EBOOK_API_SSL_KEYFILE_PASSWORD` when the key is encrypted.
+
 ### Web API environment variables
 
 Copy `.env.example` to `.env` at the project root and tweak the values before
@@ -118,9 +158,11 @@ single-page application:
 
 - **`EBOOK_API_CORS_ORIGINS`** – Comma or whitespace separated list of allowed
   origins for CORS. Defaults to the local API and Vite dev server URLs
-  (`http://localhost`, `http://127.0.0.1`, `http://localhost:5173`,
-  `http://127.0.0.1:5173`, plus the machine's LAN IP if available). Set to `*`
-  to allow every origin or to an empty string to disable the middleware entirely.
+  (`http://localhost`, `https://localhost`, `http://127.0.0.1`,
+  `https://127.0.0.1`, `http://localhost:5173`, `https://localhost:5173`,
+  `http://127.0.0.1:5173`, `https://127.0.0.1:5173`, plus the machine's LAN IP
+  in both HTTP/HTTPS forms when available). Set to `*` to allow every origin or
+  to an empty string to disable the middleware entirely.
 - **`EBOOK_API_STATIC_ROOT`** – Filesystem path to the built web assets. When
   unset, the server looks for `web/dist/` relative to the repository root. Set
   this value to an empty string to run in API-only mode even if the directory
@@ -349,6 +391,29 @@ VITE_STORAGE_BASE_URL=http://127.0.0.1:8000/storage
 artifacts. As with the backend, you can create environment-specific files such
 as `web/.env.production` and pick them up by running Vite with the corresponding
 mode (`npm run build -- --mode production`).
+
+### Enable HTTPS in the Vite dev server
+
+The Vite dev (`npm run dev`) and preview (`npm run preview`) servers can also
+serve HTTPS when supplied with certificates. Add the following variables to
+`web/.env.local` (paths can be absolute or relative to `web/`):
+
+```bash
+VITE_DEV_HTTPS=true
+VITE_DEV_HTTPS_CERT=../conf/certs/dev.crt
+VITE_DEV_HTTPS_KEY=../conf/certs/dev.key
+# Optional: provide a CA bundle when mkcert or a corporate CA issues the cert.
+VITE_DEV_HTTPS_CA=../conf/certs/rootCA.pem
+```
+
+Setting `VITE_DEV_HTTPS=true` (or `1`, `yes`, `on`) forces HTTPS, while
+omitting it defaults to autoloading whenever both `VITE_DEV_HTTPS_CERT` and
+`VITE_DEV_HTTPS_KEY` are set. Use `false`/`0` to disable HTTPS if the files are
+present but you want to fall back to HTTP. Browsers must trust the certificate,
+so import the CA (`VITE_DEV_HTTPS_CA`) into your system trust store or issue a
+cert via a local CA such as `mkcert`. Once enabled, update
+`VITE_API_BASE_URL`/`VITE_STORAGE_BASE_URL` to use `https://` so that the SPA
+calls the secure API endpoints.
 
 ### Frontend capabilities
 

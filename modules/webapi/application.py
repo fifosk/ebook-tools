@@ -44,10 +44,14 @@ LOGGER = logging.getLogger(__name__)
 DEFAULT_LOCAL_ORIGINS = (
     "http://localhost",
     "http://127.0.0.1",
+    "https://localhost",
+    "https://127.0.0.1",
 )
 DEFAULT_DEVSERVER_ORIGINS = (
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://localhost:5173",
+    "https://127.0.0.1:5173",
 )
 
 # Additional headers that should be explicitly allowed/exposed for media
@@ -144,6 +148,8 @@ def _default_devserver_origins() -> list[str]:
     if local_ip and local_ip not in {"127.0.0.1", "0.0.0.0"}:
         origins.add(f"http://{local_ip}")
         origins.add(f"http://{local_ip}:5173")
+        origins.add(f"https://{local_ip}")
+        origins.add(f"https://{local_ip}:5173")
 
     return sorted(origins)
 

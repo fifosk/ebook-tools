@@ -37,6 +37,18 @@ def build_parser() -> argparse.ArgumentParser:
         choices=["critical", "error", "warning", "info", "debug", "trace"],
         help="Log level passed to uvicorn (default: %(default)s)",
     )
+    parser.add_argument(
+        "--ssl-certfile",
+        help="Path to the TLS certificate file (PEM). Enables HTTPS when provided.",
+    )
+    parser.add_argument(
+        "--ssl-keyfile",
+        help="Path to the TLS private key file (PEM). Required when --ssl-certfile is set.",
+    )
+    parser.add_argument(
+        "--ssl-keyfile-password",
+        help="Password for the encrypted TLS private key, if applicable.",
+    )
     return parser
 
 
@@ -46,6 +58,11 @@ def main(argv: Sequence[str] | None = None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    if args.ssl_certfile and not args.ssl_keyfile:
+        parser.error("--ssl-keyfile is required when --ssl-certfile is provided")
+    if args.ssl_keyfile and not args.ssl_certfile:
+        parser.error("--ssl-certfile is required when --ssl-keyfile is provided")
+
     uvicorn.run(
         "modules.webapi.application:create_app",
         host=args.host,
@@ -53,6 +70,9 @@ def main(argv: Sequence[str] | None = None) -> None:
         reload=args.reload,
         log_level=args.log_level,
         factory=True,
+        ssl_certfile=args.ssl_certfile,
+        ssl_keyfile=args.ssl_keyfile,
+        ssl_keyfile_password=args.ssl_keyfile_password,
     )
 
 

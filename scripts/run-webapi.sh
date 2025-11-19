@@ -28,6 +28,19 @@ if [ ! -f "$USER_STORE_PATH" ] && [ -f "$USER_SAMPLE_PATH" ]; then
   fi
 fi
 
+parse_bool() {
+  local value
+  value="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+  case "$value" in
+    1|true|yes|on) return 0 ;;
+    0|false|no|off) return 1 ;;
+    *)
+      echo "Unrecognised boolean value '$1'" >&2
+      return 2
+      ;;
+  esac
+}
+
 NEEDS_HOST=true
 for arg in "$@"; do
   case "$arg" in
@@ -40,6 +53,42 @@ done
 
 if [ "$NEEDS_HOST" = true ]; then
   set -- --host 0.0.0.0 "$@"
+fi
+
+HTTPS_ENABLED=false
+if [ -n "${EBOOK_API_ENABLE_HTTPS:-}" ]; then
+  if parse_bool "$EBOOK_API_ENABLE_HTTPS"; then
+    HTTPS_ENABLED=true
+  else
+    if [ $? -ne 1 ]; then
+      exit 1
+    fi
+    HTTPS_ENABLED=false
+  fi
+elif [ -n "${EBOOK_API_SSL_CERTFILE:-}" ] || [ -n "${EBOOK_API_SSL_KEYFILE:-}" ]; then
+  HTTPS_ENABLED=true
+fi
+
+if [ "$HTTPS_ENABLED" = true ]; then
+  CERT_PATH="${EBOOK_API_SSL_CERTFILE:-${REPO_ROOT}/conf/certs/dev.crt}"
+  KEY_PATH="${EBOOK_API_SSL_KEYFILE:-${REPO_ROOT}/conf/certs/dev.key}"
+  KEY_PASSWORD="${EBOOK_API_SSL_KEYFILE_PASSWORD:-}"
+
+  if [ ! -f "$CERT_PATH" ]; then
+    echo "HTTPS enabled but certificate file not found: $CERT_PATH" >&2
+    exit 1
+  fi
+  if [ ! -f "$KEY_PATH" ]; then
+    echo "HTTPS enabled but key file not found: $KEY_PATH" >&2
+    exit 1
+  fi
+
+  set -- "$@" --ssl-certfile "$CERT_PATH" --ssl-keyfile "$KEY_PATH"
+  if [ -n "$KEY_PASSWORD" ]; then
+    set -- "$@" --ssl-keyfile-password "$KEY_PASSWORD"
+  fi
+
+  echo "Starting web API with HTTPS enabled (cert: $CERT_PATH)." >&2
 fi
 
 if command -v poetry >/dev/null 2>&1; then
