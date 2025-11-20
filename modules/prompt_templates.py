@@ -9,6 +9,33 @@ from modules import config_manager as cfg
 SOURCE_START = "<<<BEGIN_SOURCE_TEXT>>>"
 SOURCE_END = "<<<END_SOURCE_TEXT>>>"
 
+# Languages where we want explicit word/phrase spacing in the translation.
+_SEGMENTATION_REQUIREMENTS = {
+    "thai": {
+        "aliases": ("thai", "th"),
+        "example": "ข้าม กัน อย่าง น่าสนใจ เมื่อ เกือบ ศตวรรษ ที่ แล้ว",
+    },
+    "burmese": {
+        "aliases": ("burmese", "myanmar", "my"),
+        "example": None,
+    },
+    "japanese": {
+        "aliases": ("japanese", "ja", "日本語"),
+        "example": 'その年の 株式市場の 崩壊は 大恐慌を 引き起こし、 彼の遺産を 歴史に 刻み込んだ。',
+    },
+    "khmer": {
+        "aliases": ("khmer", "cambodian", "km"),
+        "example": "អាប្រាហាំ ហ្សឺម៉ង់ស្គី គឺជា អ្នកអភិវឌ្ឍន៍ អចលនទ្រព្យ ដែលមាន ទ្រព្យសម្បត្តិ រាប់លាន ដែលបាន រកបាន ទ្រព្យភាព ក្នុង ទស្សនាទសវត្ស 1920។",
+    },
+    "korean": {
+        "aliases": ("korean", "ko"),
+        "example": None,
+    },
+    "chinese": {
+        "aliases": ("chinese", "zh", "zh-cn", "zh-tw"),
+        "example": None,
+    },
+}
 
 def make_translation_prompt(
     source_language: str,
@@ -18,6 +45,8 @@ def make_translation_prompt(
     include_transliteration: bool = False,
 ) -> str:
     """Build a translation prompt tailored to the desired mode."""
+
+    target_lower = target_language.lower()
 
     instructions = [
         f"Translate the following text from {source_language} to {target_language}.",
@@ -35,10 +64,34 @@ def make_translation_prompt(
     elif mode == "fluency":
         instructions.append("Focus on producing a fluent, idiomatic translation that reads naturally.")
 
+    for lang_name, config in _SEGMENTATION_REQUIREMENTS.items():
+        if any(alias in target_lower for alias in config["aliases"]):
+            example = config.get("example")
+            example_suffix = f' EXAMPLE: "{example}"' if example else ""
+            instructions.append(
+                f"Return the {lang_name.capitalize()} translation on ONE LINE with SPACES between every word/phrase (explicit word segmentation). Do NOT add newlines or per-character spacing; keep punctuation minimal and only where it belongs.{example_suffix}"
+            )
+
     if include_transliteration:
         instructions.append(
             "If a transliteration is appropriate, append ONLY the transliteration on the SECOND LINE, without prefixes, labels, commentary, or delimiter characters."
         )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["thai"]["aliases"]):
+            instructions.append(
+                "When providing the Thai transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
+            )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["burmese"]["aliases"]):
+            instructions.append(
+                "When providing the Burmese transliteration, keep it on a single line, separate words with spaces (use hyphens only for syllable breaks inside a word), and avoid any labels."
+            )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["japanese"]["aliases"]):
+            instructions.append(
+                "When providing the Japanese transliteration (romaji), keep it on ONE LINE, separate words or phrases with SPACES (NOT per-character or per-syllable), avoid labels, and mimic the segmentation in the translation line."
+            )
+        if any(alias in target_lower for alias in _SEGMENTATION_REQUIREMENTS["khmer"]["aliases"]):
+            instructions.append(
+                "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
+            )
 
     return "\n".join(instructions)
 

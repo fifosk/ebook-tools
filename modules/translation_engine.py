@@ -19,6 +19,7 @@ from modules import logging_manager as log_mgr
 from modules import observability, prompt_templates
 from modules import llm_client_manager
 from modules import text_normalization as text_norm
+from modules.text import split_highlight_tokens
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.llm_client import LLMClient
 from modules.transliteration import TransliterationService, get_transliterator
@@ -28,6 +29,31 @@ logger = log_mgr.logger
 _TRANSLATION_RESPONSE_ATTEMPTS = 5
 _TRANSLATION_RETRY_DELAY_SECONDS = 1.0
 _LLM_REQUEST_ATTEMPTS = 4
+_SEGMENTATION_LANGS = {
+    # Thai family
+    "thai",
+    "th",
+    # Khmer / Cambodian
+    "khmer",
+    "km",
+    "cambodian",
+    # Burmese / Myanmar
+    "burmese",
+    "myanmar",
+    "my",
+    # Japanese
+    "japanese",
+    "ja",
+    "日本語",
+    # Korean (should already have spaces, but enforce retries if omitted)
+    "korean",
+    "ko",
+    # Chinese (added cautiously; can be removed if character-level is preferred)
+    "chinese",
+    "zh",
+    "zh-cn",
+    "zh-tw",
+}
 
 
 class ThreadWorkerPool:
@@ -193,14 +219,23 @@ def translate_sentence_simple(
             if response.text:
                 cleaned_text = response.text.strip()
                 if cleaned_text and not text_norm.is_placeholder_translation(cleaned_text):
-                    return cleaned_text
-                last_error = "Placeholder translation received"
-                if resolved_client.debug_enabled:
-                    logger.debug(
-                        "Retrying translation due to placeholder response (%s/%s)",
-                        attempt,
-                        _TRANSLATION_RESPONSE_ATTEMPTS,
-                    )
+                    if _is_segmentation_ok(sentence, cleaned_text, target_language):
+                        return cleaned_text
+                    last_error = "Unsegmented translation received"
+                    if resolved_client.debug_enabled:
+                        logger.debug(
+                            "Retrying translation due to missing word spacing (%s/%s)",
+                            attempt,
+                            _TRANSLATION_RESPONSE_ATTEMPTS,
+                        )
+                else:
+                    last_error = "Placeholder translation received"
+                    if resolved_client.debug_enabled:
+                        logger.debug(
+                            "Retrying translation due to placeholder response (%s/%s)",
+                            attempt,
+                            _TRANSLATION_RESPONSE_ATTEMPTS,
+                        )
             else:
                 last_error = response.error or "Empty translation response"
                 if resolved_client.debug_enabled and response.error:
@@ -214,14 +249,45 @@ def translate_sentence_simple(
             if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
                 time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
 
-        if resolved_client.debug_enabled and last_error:
-            logger.debug("Translation failed after retries: %s", last_error)
+            if resolved_client.debug_enabled and last_error:
+                logger.debug("Translation failed after retries: %s", last_error)
     failure_reason = last_error or "no response from LLM"
     return format_retry_failure(
         "translation",
         _TRANSLATION_RESPONSE_ATTEMPTS,
         reason=failure_reason,
     )
+
+
+def _is_segmentation_ok(
+    original_sentence: str, translation: str, target_language: str
+) -> bool:
+    """
+    Require word-like spacing for select languages; otherwise retry.
+
+    We bypass this check when the original sentence is a single word to avoid
+    retry loops on very short content.
+    """
+
+    lang = (target_language or "").strip().lower()
+    if lang not in _SEGMENTATION_LANGS:
+        return True
+    original_word_count = max(len(original_sentence.split()), 1)
+    if original_word_count <= 1:
+        return True
+    tokens = split_highlight_tokens(translation)
+    token_count = len(tokens)
+    if token_count <= 1:
+        return False
+    # Accept if segmentation yields enough tokens and isn't clearly over-split.
+    required_min = max(4, int(original_word_count * 0.6))
+    max_reasonable = original_word_count * 4
+    if token_count < required_min:
+        return False
+    if token_count > max_reasonable:
+        return False
+    return True
+
 
 
 def _normalize_target_sequence(

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Iterable, Sequence, Tuple
 
+import regex
+
 _TRANSLATION_PREFIXES: Tuple[str, ...] = (
     "translation:",
     "translated:",
@@ -36,6 +38,10 @@ _PLACEHOLDER_VALUES: Tuple[str, ...] = (
 )
 _BLOCKED_PHRASES: Tuple[str, ...] = ("please provide the text",)
 
+_LATIN_PATTERN = regex.compile(r"\p{Latin}")
+_NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
+_INLINE_TRANSLIT_SPLIT = regex.compile(r"\s+(\p{Latin})")
+
 
 def _strip_known_prefix(value: str, prefixes: Sequence[str]) -> str:
     lowered = value.lower()
@@ -55,15 +61,51 @@ def _iter_response_lines(text: str) -> Iterable[str]:
 def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
     """Return the translation line plus any transliteration content."""
 
-    translation_line = ""
+    def _is_latin_heavy(value: str) -> bool:
+        latin_count = len(_LATIN_PATTERN.findall(value))
+        non_latin_count = len(_NON_LATIN_LETTER_PATTERN.findall(value))
+        return latin_count > 0 and latin_count >= non_latin_count
+
+    def _split_inline_transliteration(value: str) -> Tuple[str, str]:
+        """
+        Heuristic: split a single-line response that contains both non-Latin
+        translation text and a trailing Latin transliteration.
+        """
+
+        match = _INLINE_TRANSLIT_SPLIT.search(value)
+        if not match:
+            return value, ""
+        split_index = match.start(1)
+        left = value[:split_index].rstrip(" ,;:、。.!?")
+        right = value[split_index:].strip()
+        if not left or not right:
+            return value, ""
+        if _NON_LATIN_LETTER_PATTERN.search(left) and _LATIN_PATTERN.search(right):
+            return left.strip(), right
+        return value, ""
+
+    raw_lines = list(_iter_response_lines(text))
+    if not raw_lines:
+        return "", ""
+
+    translation_parts = []
     transliteration_parts = []
-    for line in _iter_response_lines(text):
-        if not translation_line:
-            translation_line = _strip_known_prefix(line, _TRANSLATION_PREFIXES)
+
+    for idx, raw_line in enumerate(raw_lines):
+        cleaned_line = _strip_known_prefix(raw_line, _TRANSLATION_PREFIXES if idx == 0 else _TRANSLITERATION_PREFIXES)
+        if idx == 0:
+            translation_parts.append(cleaned_line)
             continue
-        transliteration_parts.append(_strip_known_prefix(line, _TRANSLITERATION_PREFIXES))
+        if _is_latin_heavy(cleaned_line):
+            transliteration_parts.append(_strip_known_prefix(cleaned_line, _TRANSLITERATION_PREFIXES))
+        else:
+            translation_parts.append(cleaned_line)
+
+    translation_text = " ".join(part for part in translation_parts if part).strip()
     transliteration_text = " ".join(part for part in transliteration_parts if part).strip()
-    return translation_line.strip(), transliteration_text
+    if not transliteration_text:
+        translation_text, transliteration_text = _split_inline_transliteration(translation_text)
+    return translation_text, transliteration_text
 
 
 def extract_primary_translation(text: str) -> str:
