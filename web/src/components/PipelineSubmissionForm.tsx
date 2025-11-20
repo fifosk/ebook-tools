@@ -4,6 +4,7 @@ import {
   PipelineFileBrowserResponse,
   PipelineFileEntry,
   PipelineRequestPayload,
+  PipelineStatusResponse,
   VoiceInventoryResponse
 } from '../api/dtos';
 import {
@@ -88,6 +89,7 @@ type Props = {
   activeSection?: PipelineFormSection;
   externalError?: string | null;
   prefillInputFile?: string | null;
+  recentJobs?: PipelineStatusResponse[] | null;
 };
 
 type JsonFields =
@@ -142,9 +144,9 @@ const DEFAULT_FORM_STATE: FormState = {
   generate_audio: true,
   audio_mode: '4',
   written_mode: '4',
-  selected_voice: 'macOS-auto',
+  selected_voice: 'gTTS',
   voice_overrides: {},
-  output_html: true,
+  output_html: false,
   output_pdf: false,
   generate_video: false,
   include_transliteration: true,
@@ -480,7 +482,8 @@ export function PipelineSubmissionForm({
   isSubmitting = false,
   activeSection,
   externalError = null,
-  prefillInputFile = null
+  prefillInputFile = null,
+  recentJobs = null
 }: Props) {
   const {
     inputLanguage: sharedInputLanguage,
@@ -515,6 +518,101 @@ export function PipelineSubmissionForm({
   const [isLoadingLlmModels, setIsLoadingLlmModels] = useState<boolean>(false);
   const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string; code: string } | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
+  const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
+  const userEditedStartRef = useRef<boolean>(false);
+  const userEditedInputRef = useRef<boolean>(false);
+  const userEditedEndRef = useRef<boolean>(false);
+  const lastAutoEndSentenceRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    recentJobsRef.current = recentJobs ?? null;
+  }, [recentJobs]);
+  const normalizePath = useCallback((value: string | null | undefined): string | null => {
+    if (!value) {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const withoutTrail = trimmed.replace(/[\\/]+$/, '');
+    return withoutTrail.toLowerCase();
+  }, []);
+
+  const resolveStartFromHistory = useCallback(
+    (inputPath: string): number | null => {
+      const normalizedInput = normalizePath(inputPath);
+      const jobs = recentJobsRef.current;
+      if (!normalizedInput || !jobs || jobs.length === 0) {
+        return null;
+      }
+
+      let latest: { created: number; anchor: number } | null = null;
+      for (const job of jobs) {
+        if (!job || job.job_type === 'subtitle') {
+          continue;
+        }
+        const params = job.parameters;
+        if (!params) {
+          continue;
+        }
+        const candidate = normalizePath(params.input_file ?? params.base_output_file);
+        if (!candidate || candidate !== normalizedInput) {
+          continue;
+        }
+        const anchor =
+          typeof params.end_sentence === 'number'
+            ? params.end_sentence
+            : typeof params.start_sentence === 'number'
+            ? params.start_sentence
+            : null;
+        if (anchor === null) {
+          continue;
+        }
+        const createdAt = new Date(job.created_at).getTime();
+        if (!Number.isFinite(createdAt)) {
+          continue;
+        }
+        if (!latest || createdAt > latest.created) {
+          latest = { created: createdAt, anchor };
+        }
+      }
+
+      if (!latest) {
+        return null;
+      }
+      return Math.max(1, latest.anchor - 5);
+    },
+    [normalizePath]
+  );
+
+  const resolveLatestJobSelection = useCallback((): { input?: string | null; base?: string | null } | null => {
+    const jobs = recentJobsRef.current;
+    if (!jobs || jobs.length === 0) {
+      return null;
+    }
+    let latest: { created: number; input?: string | null; base?: string | null } | null = null;
+    for (const job of jobs) {
+      if (!job || job.job_type === 'subtitle') {
+        continue;
+      }
+      const createdAt = new Date(job.created_at).getTime();
+      if (!Number.isFinite(createdAt)) {
+        continue;
+      }
+      const params = job.parameters;
+      const inputFile = params?.input_file ?? null;
+      const baseOutput = params?.base_output_file ?? null;
+      if (!inputFile && !baseOutput) {
+        continue;
+      }
+      if (!latest || createdAt > latest.created) {
+        latest = { created: createdAt, input: inputFile, base: baseOutput };
+      }
+    }
+    return latest;
+  }, []);
+
   const cleanupPreviewAudio = useCallback(() => {
     const current = previewAudioRef.current;
     if (!current) {
@@ -561,6 +659,10 @@ export function PipelineSubmissionForm({
     if (prefillAppliedRef.current === normalizedPrefill) {
       return;
     }
+    userEditedStartRef.current = false;
+    userEditedInputRef.current = false;
+    userEditedEndRef.current = false;
+    lastAutoEndSentenceRef.current = null;
     setFormState((previous) => {
       if (previous.input_file === normalizedPrefill) {
         return previous;
@@ -569,15 +671,17 @@ export function PipelineSubmissionForm({
       const nextDerivedBase = deriveBaseOutputName(normalizedPrefill);
       const shouldUpdateBase =
         !previous.base_output_file || previous.base_output_file === previousDerivedBase;
+      const suggestedStart = resolveStartFromHistory(normalizedPrefill);
       return {
         ...previous,
         input_file: normalizedPrefill,
         base_output_file: shouldUpdateBase ? nextDerivedBase : previous.base_output_file,
-        book_metadata: '{}'
+        book_metadata: '{}',
+        start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
     prefillAppliedRef.current = normalizedPrefill;
-  }, [prefillInputFile]);
+  }, [prefillInputFile, resolveStartFromHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -588,7 +692,18 @@ export function PipelineSubmissionForm({
           return;
         }
         const config = defaults?.config ?? {};
-        setFormState((previous) => applyConfigDefaults(previous, config));
+        userEditedStartRef.current = false;
+        userEditedInputRef.current = false;
+        userEditedEndRef.current = false;
+        lastAutoEndSentenceRef.current = null;
+        setFormState((previous) => {
+          const next = applyConfigDefaults(previous, config);
+          const suggestedStart = resolveStartFromHistory(next.input_file);
+          if (suggestedStart !== null) {
+            return { ...next, start_sentence: suggestedStart };
+          }
+          return next;
+        });
         const inputLanguage = typeof config['input_language'] === 'string' ? config['input_language'] : null;
         if (inputLanguage) {
           setSharedInputLanguage(inputLanguage);
@@ -614,7 +729,7 @@ export function PipelineSubmissionForm({
     return () => {
       cancelled = true;
     };
-  }, [setSharedInputLanguage, setSharedTargetLanguages]);
+  }, [resolveStartFromHistory, setSharedInputLanguage, setSharedTargetLanguages]);
 
   useEffect(() => {
     let cancelled = false;
@@ -669,7 +784,113 @@ export function PipelineSubmissionForm({
     });
   }, [sharedTargetLanguages]);
 
+  useEffect(() => {
+    if (userEditedInputRef.current) {
+      return;
+    }
+    const latest = resolveLatestJobSelection();
+    if (!latest) {
+      return;
+    }
+    const nextInput = latest.input ? latest.input.trim() : '';
+    const nextBase = latest.base ? latest.base.trim() : '';
+    setFormState((previous) => {
+      if (userEditedInputRef.current) {
+        return previous;
+      }
+      const inputChanged = nextInput && previous.input_file !== nextInput;
+      const baseChanged = nextBase && previous.base_output_file !== nextBase;
+      if (!inputChanged && !baseChanged) {
+        return previous;
+      }
+      const suggestedStart = resolveStartFromHistory(nextInput || previous.input_file);
+      return {
+        ...previous,
+        input_file: inputChanged ? nextInput : previous.input_file,
+        base_output_file: baseChanged ? nextBase : previous.base_output_file,
+        start_sentence: suggestedStart ?? previous.start_sentence
+      };
+    });
+  }, [resolveLatestJobSelection, resolveStartFromHistory, recentJobs]);
+
+  useEffect(() => {
+    if (userEditedStartRef.current) {
+      return;
+    }
+    const suggestedStart = resolveStartFromHistory(formState.input_file);
+    if (suggestedStart === null || formState.start_sentence === suggestedStart) {
+      return;
+    }
+    setFormState((previous) => {
+      if (previous.input_file !== formState.input_file) {
+        return previous;
+      }
+      if (userEditedStartRef.current || previous.start_sentence === suggestedStart) {
+        return previous;
+      }
+      return { ...previous, start_sentence: suggestedStart };
+    });
+  }, [formState.input_file, formState.start_sentence, resolveStartFromHistory, recentJobs]);
+
+  useEffect(() => {
+    if (userEditedEndRef.current) {
+      return;
+    }
+
+    const start = formState.start_sentence;
+    if (!Number.isFinite(start)) {
+      return;
+    }
+
+    const suggestedEnd = String(Math.max(1, Math.trunc(start)) + 105);
+    const currentEnd = formState.end_sentence;
+    const lastAuto = lastAutoEndSentenceRef.current;
+    const shouldApply = currentEnd === '' || (lastAuto !== null && currentEnd === lastAuto);
+
+    if (!shouldApply) {
+      lastAutoEndSentenceRef.current = null;
+      return;
+    }
+
+    if (currentEnd === suggestedEnd) {
+      lastAutoEndSentenceRef.current = suggestedEnd;
+      return;
+    }
+
+    setFormState((previous) => {
+      if (userEditedEndRef.current) {
+        return previous;
+      }
+
+      const previousStart = previous.start_sentence;
+      if (!Number.isFinite(previousStart)) {
+        return previous;
+      }
+
+      const nextSuggestedEnd = String(Math.max(1, Math.trunc(previousStart)) + 105);
+      const previousEnd = previous.end_sentence;
+      const previousLastAuto = lastAutoEndSentenceRef.current;
+      const previousShouldApply =
+        previousEnd === '' || (previousLastAuto !== null && previousEnd === previousLastAuto);
+
+      if (!previousShouldApply && previousEnd !== nextSuggestedEnd) {
+        return previous;
+      }
+
+      lastAutoEndSentenceRef.current = nextSuggestedEnd;
+      return { ...previous, end_sentence: nextSuggestedEnd };
+    });
+  }, [formState.end_sentence, formState.start_sentence]);
+
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    if (key === 'start_sentence') {
+      userEditedStartRef.current = true;
+    } else if (key === 'end_sentence') {
+      userEditedEndRef.current = true;
+      lastAutoEndSentenceRef.current = null;
+    } else if (key === 'base_output_file') {
+      userEditedInputRef.current = true;
+    }
     setFormState((previous) => {
       if (previous[key] === value) {
         return previous;
@@ -722,6 +943,10 @@ export function PipelineSubmissionForm({
   const handleInputFileChange = (value: string) => {
     setRecentUploadName(null);
     setUploadError(null);
+    userEditedStartRef.current = false;
+    userEditedInputRef.current = true;
+    userEditedEndRef.current = false;
+    lastAutoEndSentenceRef.current = null;
     setFormState((previous) => {
       if (previous.input_file === value) {
         return previous;
@@ -731,11 +956,13 @@ export function PipelineSubmissionForm({
       const shouldUpdateBase =
         !previous.base_output_file ||
         previous.base_output_file === previousDerivedBase;
+      const suggestedStart = resolveStartFromHistory(value);
       return {
         ...previous,
         input_file: value,
         base_output_file: shouldUpdateBase ? nextDerivedBase : previous.base_output_file,
-        book_metadata: '{}'
+        book_metadata: '{}',
+        start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
   };
@@ -1068,13 +1295,16 @@ export function PipelineSubmissionForm({
         ) || fileOptions.ebooks[0];
       const nextInput = preferred.path;
       const derivedBase = deriveBaseOutputName(preferred.name || preferred.path);
+      const suggestedStart = resolveStartFromHistory(nextInput);
+      userEditedStartRef.current = false;
       return {
         ...previous,
         input_file: nextInput,
-        base_output_file: derivedBase || previous.base_output_file || 'book-output'
+        base_output_file: derivedBase || previous.base_output_file || 'book-output',
+        start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
-  }, [fileOptions]);
+  }, [fileOptions, resolveStartFromHistory]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

@@ -55,10 +55,10 @@ class EbookToolsSettings(BaseModel):
     written_mode: str = "4"
     include_transliteration: bool = True
     debug: bool = False
-    output_html: bool = True
+    output_html: bool = False
     output_pdf: bool = False
     stitch_full: bool = False
-    selected_voice: str = "macOS-auto"
+    selected_voice: str = "gTTS"
     tts_backend: str = Field(
         default_factory=lambda: "macos_say" if sys.platform == "darwin" else "gtts"
     )

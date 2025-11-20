@@ -138,7 +138,7 @@ class PipelineInputPayload(BaseModel):
     audio_mode: str = "1"
     written_mode: str = "4"
     selected_voice: str = "gTTS"
-    output_html: bool = True
+    output_html: bool = False
     output_pdf: bool = False
     generate_video: bool = False
     include_transliteration: bool = True
@@ -321,6 +321,8 @@ class PipelineResponsePayload(BaseModel):
 class JobParameterSnapshot(BaseModel):
     """Captured subset of the inputs/configuration used to execute a job."""
 
+    input_file: Optional[str] = None
+    base_output_file: Optional[str] = None
     input_language: Optional[str] = None
     target_languages: List[str] = Field(default_factory=list)
     start_sentence: Optional[int] = None
@@ -432,6 +434,9 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     selected_voice = _coerce_str(inputs.get("selected_voice"))
     voice_overrides = _normalize_voice_overrides(inputs.get("voice_overrides"))
 
+    input_file = _coerce_str(inputs.get("input_file"))
+    base_output_file = _coerce_str(inputs.get("base_output_file"))
+
     llm_model = None
     config_payload = payload.get("config")
     if isinstance(config_payload, Mapping):
@@ -452,6 +457,8 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
             voice_overrides = override_voice_overrides
 
     return JobParameterSnapshot(
+        input_file=input_file,
+        base_output_file=base_output_file,
         input_language=input_language,
         target_languages=target_languages,
         start_sentence=start_sentence,

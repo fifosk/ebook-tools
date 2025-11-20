@@ -913,6 +913,20 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     elementRef: audioRef,
     mediaRef: rawAttachMediaElement,
   } = usePlayerCore();
+  const progressTimerRef = useRef<number | null>(null);
+  const revealMemoryRef = useRef<{
+    sentenceIdx: number | null;
+    counts: Record<TextPlayerVariantKind, number>;
+  }>({
+    sentenceIdx: null,
+    counts: {
+      original: 0,
+      translit: 0,
+      translation: 0,
+    },
+  });
+  const lastChunkTimeRef = useRef(0);
+  const lastChunkIdRef = useRef<string | null>(null);
   const attachMediaElement = useCallback(
     (element: HTMLAudioElement | null) => {
       rawAttachMediaElement(element);
@@ -1603,7 +1617,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
         const tokens = variantRuntime.tokens;
         const revealTimes = variantRuntime.revealTimes;
-        const safeEffectiveTime = Math.max(effectiveTime, 0);
+        const safeEffectiveTime = Math.min(Math.max(effectiveTime, startTime - 1e-3), endTime + 1e-3);
         const revealCutoff = Math.min(safeEffectiveTime, endTime);
         const progressCount = revealTimes.filter((time) => time <= revealCutoff + 1e-3).length;
 
@@ -1617,14 +1631,31 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         }
 
         revealedCount = Math.max(0, Math.min(revealedCount, tokens.length));
-        if (stabilisedState === 'active' && revealedCount === 0 && revealTimes.length > 0) {
-          if (safeEffectiveTime >= startTime - 1e-3) {
-            revealedCount = 1;
-          }
+        if (safeEffectiveTime >= endTime - 1e-3) {
+          revealedCount = tokens.length;
+        }
+        if (revealMemoryRef.current.sentenceIdx !== runtime.index) {
+          revealMemoryRef.current = {
+            sentenceIdx: runtime.index,
+            counts: { original: 0, translit: 0, translation: 0 },
+          };
+        }
+        const previousCount = revealMemoryRef.current.counts[baseClass] ?? 0;
+        const stableCount = Math.max(previousCount, revealedCount);
+        revealMemoryRef.current.counts[baseClass] = stableCount;
+        revealedCount = stableCount;
+        const zeroToOneEligible =
+          revealTimes.length > 0 &&
+          stabilisedState === 'active' &&
+          safeEffectiveTime >= startTime - 1e-3 &&
+          revealedCount === 0;
+        if (zeroToOneEligible) {
+          revealedCount = 1;
+          revealMemoryRef.current.counts[baseClass] = 1;
         }
 
         let currentIndex: number | null = revealedCount > 0 ? revealedCount - 1 : null;
-        if (stabilisedState === 'past' && tokens.length > 0) {
+        if (tokens.length > 0 && (stabilisedState === 'past' || safeEffectiveTime >= endTime - 1e-3)) {
           currentIndex = tokens.length - 1;
         }
 
@@ -2344,18 +2375,15 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       setActiveSentenceIndex(0);
       setActiveSentenceProgress(0);
       setAudioDuration(null);
+      setChunkTime(0);
       return;
     }
-    const stored = getStoredAudioPosition?.(effectiveAudioUrl);
-    if (typeof stored === 'number' && stored > 0) {
-      pendingInitialSeek.current = stored;
-    } else {
-      pendingInitialSeek.current = null;
-    }
-    lastReportedPosition.current = typeof stored === 'number' ? stored : 0;
+    pendingInitialSeek.current = null;
+    lastReportedPosition.current = 0;
     setActiveSentenceIndex(0);
     setActiveSentenceProgress(0);
     setAudioDuration(null);
+    setChunkTime(0);
   }, [effectiveAudioUrl, getStoredAudioPosition]);
 
   const handleScroll = useCallback(
@@ -2479,7 +2507,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         return;
       }
 
-      const progress = Math.max(0, Math.min(time / duration, 0.9999));
+      const ratio = time / duration;
+      const progress =
+        ratio >= 0.995 ? 1 : Math.max(0, Math.min(ratio, 1));
       const targetUnits = progress * totalWeight;
       const cumulative = sentenceWeightSummary.cumulative;
 
@@ -2526,6 +2556,34 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     const startPlayback = () => {
       wordSyncControllerRef.current?.handlePlay();
       onInlineAudioPlaybackStateChange?.('playing');
+      const element = audioRef.current;
+      if (element && element.ended) {
+        element.currentTime = 0;
+        setChunkTime(0);
+        setActiveSentenceIndex(0);
+        setActiveSentenceProgress(0);
+        updateActiveGateFromTime(0);
+      }
+      if (progressTimerRef.current === null) {
+        progressTimerRef.current = window.setInterval(() => {
+          const mediaEl = audioRef.current;
+          if (!mediaEl) {
+            return;
+          }
+          const { currentTime, duration } = mediaEl;
+          if (!Number.isFinite(currentTime) || !Number.isFinite(duration) || duration <= 0) {
+            return;
+          }
+          setAudioDuration((existing) =>
+            existing && Math.abs(existing - duration) < 0.01 ? existing : duration,
+          );
+          setChunkTime(currentTime);
+          if (!hasTimeline) {
+            updateSentenceForTime(currentTime, duration);
+          }
+          updateActiveGateFromTime(currentTime);
+        }, 120);
+      }
     };
     const element = audioRef.current;
     if (!element) {
@@ -2548,10 +2606,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       scheduleStart();
     };
     element.addEventListener('canplay', handleCanPlay, { once: true });
-  }, [onInlineAudioPlaybackStateChange]);
+  }, [onInlineAudioPlaybackStateChange, updateActiveGateFromTime, updateSentenceForTime]);
 
   const handleInlineAudioPause = useCallback(() => {
     inlineAudioPlayingRef.current = false;
+    if (progressTimerRef.current !== null) {
+      window.clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
     wordSyncControllerRef.current?.handlePause();
     onInlineAudioPlaybackStateChange?.('paused');
   }, [onInlineAudioPlaybackStateChange]);
@@ -2587,17 +2649,35 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     } else {
       setAudioDuration(null);
     }
-    setChunkTime(element.currentTime ?? 0);
+    const initialTime = (() => {
+      const current = element.currentTime ?? 0;
+      if (Number.isFinite(duration) && duration > 0 && current >= duration - 0.25) {
+        return 0;
+      }
+      return current;
+    })();
+    if (initialTime !== (element.currentTime ?? 0)) {
+      element.currentTime = initialTime;
+    }
+    setChunkTime(initialTime);
     const seek = pendingInitialSeek.current;
     if (typeof seek === 'number' && seek > 0 && Number.isFinite(duration) && duration > 0) {
-      const clamped = Math.min(seek, duration - 0.1);
-      element.currentTime = clamped;
-      updateSentenceForTime(clamped, duration);
-      updateActiveGateFromTime(clamped);
-      emitAudioProgress(clamped);
-      const maybePlay = element.play?.();
-      if (maybePlay && typeof maybePlay.catch === 'function') {
-        maybePlay.catch(() => undefined);
+      const nearEndThreshold = Math.max(duration * 0.9, duration - 3);
+      let targetSeek = seek >= nearEndThreshold ? 0 : Math.min(seek, duration - 0.1);
+      if (targetSeek < 0 || !Number.isFinite(targetSeek)) {
+        targetSeek = 0;
+      }
+      element.currentTime = targetSeek;
+      if (!hasTimeline) {
+        updateSentenceForTime(targetSeek, duration);
+      }
+      updateActiveGateFromTime(targetSeek);
+      emitAudioProgress(targetSeek);
+      if (targetSeek > 0.1) {
+        const maybePlay = element.play?.();
+        if (maybePlay && typeof maybePlay.catch === 'function') {
+          maybePlay.catch(() => undefined);
+        }
       }
       pendingInitialSeek.current = null;
       wordSyncControllerRef.current?.snap();
@@ -2606,7 +2686,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     pendingInitialSeek.current = null;
     updateActiveGateFromTime(element.currentTime ?? 0);
     wordSyncControllerRef.current?.snap();
-  }, [emitAudioProgress, updateSentenceForTime, updateActiveGateFromTime]);
+  }, [emitAudioProgress, hasTimeline, updateSentenceForTime, updateActiveGateFromTime]);
 
   const handleTimeUpdate = useCallback(() => {
     const element = audioRef.current;
@@ -2631,6 +2711,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
   const handleAudioEnded = useCallback(() => {
     inlineAudioPlayingRef.current = false;
+    if (progressTimerRef.current !== null) {
+      window.clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
     wordSyncControllerRef.current?.stop();
     onInlineAudioPlaybackStateChange?.('paused');
     if (hasTimeline && timelineDisplay) {
@@ -2654,18 +2738,18 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     totalSentences,
   ]);
 
-  const handleAudioSeeked = useCallback(() => {
-    wordSyncControllerRef.current?.handleSeeked();
-    const element = audioRef.current;
-    if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
-      return;
-    }
-    setChunkTime(element.currentTime ?? 0);
-    if (!hasTimeline) {
-      updateSentenceForTime(element.currentTime, element.duration);
-    }
-    emitAudioProgress(element.currentTime);
-  }, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
+const handleAudioSeeked = useCallback(() => {
+  wordSyncControllerRef.current?.handleSeeked();
+  const element = audioRef.current;
+  if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
+    return;
+  }
+  setChunkTime(element.currentTime ?? 0);
+  if (!hasTimeline) {
+    updateSentenceForTime(element.currentTime, element.duration);
+  }
+  emitAudioProgress(element.currentTime);
+}, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
   const handleTokenSeek = useCallback(
     (time: number) => {
       if (dictionarySuppressSeekRef.current) {
@@ -2739,6 +2823,38 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     };
   }, [isFullscreen]);
 
+  useEffect(() => {
+    return () => {
+      if (progressTimerRef.current !== null) {
+        window.clearInterval(progressTimerRef.current);
+        progressTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const chunkId = chunk?.chunkId ?? chunk?.rangeFragment ?? null;
+    if (lastChunkIdRef.current !== chunkId) {
+      revealMemoryRef.current = {
+        sentenceIdx: null,
+        counts: { original: 0, translit: 0, translation: 0 },
+      };
+      lastChunkIdRef.current = chunkId;
+      lastChunkTimeRef.current = 0;
+      setChunkTime(0);
+    }
+  }, [chunk?.chunkId, chunk?.rangeFragment]);
+
+  useEffect(() => {
+    if (chunkTime + 0.05 < lastChunkTimeRef.current) {
+      revealMemoryRef.current = {
+        sentenceIdx: null,
+        counts: { original: 0, translit: 0, translation: 0 },
+      };
+    }
+    lastChunkTimeRef.current = chunkTime;
+  }, [chunkTime]);
+
   const rootClassName = [
     'player-panel__interactive',
     isFullscreen ? 'player-panel__interactive--fullscreen' : null,
@@ -2804,25 +2920,65 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     const start =
       typeof chunk.startSentence === 'number' && Number.isFinite(chunk.startSentence)
-        ? Math.max(chunk.startSentence, 1)
+        ? Math.max(Math.trunc(chunk.startSentence), 1)
         : null;
+
+    const currentFromMetadata = (() => {
+      if (!Array.isArray(chunk.sentences) || chunk.sentences.length === 0) {
+        return null;
+      }
+      const activeMeta = chunk.sentences[Math.max(0, Math.min(activeSentenceIndex, chunk.sentences.length - 1))];
+      const candidate = activeMeta?.sentence_number;
+      return typeof candidate === 'number' && Number.isFinite(candidate) ? Math.trunc(candidate) : null;
+    })();
+
     const current =
-      start !== null ? start + Math.max(activeSentenceIndex, 0) : null;
-    const totalFromProp =
-      typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
-        ? Math.max(totalSentencesInBook, 1)
+      start !== null
+        ? start + Math.max(activeSentenceIndex, 0)
+        : currentFromMetadata;
+
+    const sentenceCountFromChunk =
+      typeof chunk.sentenceCount === 'number' && Number.isFinite(chunk.sentenceCount)
+        ? Math.max(Math.trunc(chunk.sentenceCount), 0)
+        : Array.isArray(chunk.sentences)
+          ? chunk.sentences.length
+          : null;
+
+    const jobEndFromCount =
+      start !== null && sentenceCountFromChunk !== null && sentenceCountFromChunk > 0
+        ? start + sentenceCountFromChunk - 1
         : null;
-    const chunkEnd =
+
+    const jobEndFromMetadata = (() => {
+      if (!Array.isArray(chunk.sentences) || chunk.sentences.length === 0) {
+        return null;
+      }
+      const last = chunk.sentences[chunk.sentences.length - 1]?.sentence_number;
+      return typeof last === 'number' && Number.isFinite(last) ? Math.trunc(last) : null;
+    })();
+
+    const jobEndExplicit =
       typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
-        ? Math.max(chunk.endSentence, start ?? 1)
+        ? Math.max(Math.trunc(chunk.endSentence), start ?? 1)
         : null;
-    const total = totalFromProp ?? chunkEnd;
-    if (current === null || total === null) {
+
+    const jobEnd = jobEndExplicit ?? jobEndFromCount ?? jobEndFromMetadata;
+
+    const bookTotal =
+      typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
+        ? Math.max(Math.trunc(totalSentencesInBook), 1)
+        : jobEndFromMetadata ?? jobEnd ?? null;
+
+    if (current === null || jobEnd === null || bookTotal === null) {
       return null;
     }
+
+    const displayCurrent = Math.min(current, jobEnd, bookTotal);
+
     return {
-      current: Math.min(current, total),
-      total,
+      current: displayCurrent,
+      jobEnd,
+      bookTotal,
     };
   }, [activeSentenceIndex, chunk, totalSentencesInBook]);
 
@@ -2909,7 +3065,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         ) : null}
         {slideIndicator ? (
           <div className="player-panel__interactive-slide-indicator">
-            {slideIndicator.current}/{slideIndicator.total}
+            {slideIndicator.current}/{slideIndicator.jobEnd}/{slideIndicator.bookTotal}
           </div>
         ) : null}
         {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : textPlayerSentences && textPlayerSentences.length > 0 ? (

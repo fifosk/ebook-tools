@@ -114,6 +114,10 @@ export function App() {
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
+  const recentPipelineJobs = useMemo(
+    () => Object.values(jobs).map((entry) => entry.status),
+    [jobs]
+  );
   const isAuthenticated = Boolean(session);
   const sessionUser = session?.user ?? null;
   const sessionUsername = sessionUser?.username ?? null;
@@ -1202,6 +1206,7 @@ export function App() {
                     isSubmitting={isSubmitting}
                     prefillInputFile={pendingInputFile}
                     submitError={activePipelineSection === 'submit' ? submitError : null}
+                    recentJobs={recentPipelineJobs}
                   />
                 </section>
               ) : null}

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import type { PipelineRequestPayload } from '../api/dtos';
+import type { PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
 import PipelineSubmissionForm, { type PipelineFormSection } from '../components/PipelineSubmissionForm';
 
 interface NewImmersiveBookPageProps {
@@ -9,6 +9,7 @@ interface NewImmersiveBookPageProps {
   isSubmitting?: boolean;
   prefillInputFile?: string | null;
   submitError?: string | null;
+  recentJobs?: PipelineStatusResponse[] | null;
 }
 
 export default function NewImmersiveBookPage({
@@ -17,7 +18,8 @@ export default function NewImmersiveBookPage({
   onSubmit,
   isSubmitting = false,
   prefillInputFile = null,
-  submitError = null
+  submitError = null,
+  recentJobs = null
 }: NewImmersiveBookPageProps) {
   const effectiveSection: PipelineFormSection = useMemo(() => activeSection, [activeSection]);
 
@@ -29,6 +31,7 @@ export default function NewImmersiveBookPage({
         prefillInputFile={prefillInputFile}
         activeSection={effectiveSection}
         externalError={submitError}
+        recentJobs={recentJobs}
       />
     </div>
   );
