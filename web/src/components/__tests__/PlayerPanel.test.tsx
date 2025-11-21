@@ -342,16 +342,24 @@ afterEach(() => {
     const { media, chunks } = buildInteractiveFixtures();
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('<html><body><p>Chunk two.</p></body></html>'),
-      } as Response);
+      .mockImplementation((url) => {
+        const target = typeof url === 'string' ? url : '';
+        if (target.includes('sentences.json')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(['one', 'two', 'three', 'four']),
+          } as Response);
+        }
+        const body = target.includes('chunk-1')
+          ? '<html><body><p>Chunk one.</p></body></html>'
+          : '<html><body><p>Chunk two.</p></body></html>';
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(body),
+        } as Response);
+      });
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -431,9 +439,12 @@ afterEach(() => {
     );
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(3);
+      expect(fetchMock).toHaveBeenCalledTimes(4);
     });
 
+    expect(fetchMock).toHaveBeenCalledWith(expect.stringContaining('metadata/sentences.json'), {
+      credentials: 'include',
+    });
     expect(fetchMock).toHaveBeenCalledWith('https://example.com/chunks/chunk-1.json', {
       credentials: 'include',
     });
@@ -449,16 +460,24 @@ afterEach(() => {
     const { media, chunks } = buildInteractiveFixtures();
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('<html><body><p>Chunk two.</p></body></html>'),
-      } as Response);
+      .mockImplementation((url) => {
+        const target = typeof url === 'string' ? url : '';
+        if (target.includes('sentences.json')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(['a', 'b', 'c', 'd', 'e']),
+          } as Response);
+        }
+        const body = target.includes('chunk-1')
+          ? '<html><body><p>Chunk one.</p></body></html>'
+          : '<html><body><p>Chunk two.</p></body></html>';
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(body),
+        } as Response);
+      });
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -511,19 +530,31 @@ afterEach(() => {
     let resolveSecondText: (() => void) | null = null;
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        text: () =>
-          new Promise<string>((resolve) => {
-            resolveSecondText = () => resolve('<html><body><p>Chunk two.</p></body></html>');
-          }),
-      } as Response);
+      .mockImplementation((url) => {
+        const target = typeof url === 'string' ? url : '';
+        if (target.includes('sentences.json')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(['first', 'second', 'third']),
+          } as Response);
+        }
+        if (target.includes('chunk-1')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            text: () => Promise.resolve('<html><body><p>Chunk one.</p></body></html>'),
+          } as Response);
+        }
+        const deferred = new Promise<string>((resolve) => {
+          resolveSecondText = () => resolve('<html><body><p>Chunk two.</p></body></html>');
+        });
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => deferred,
+        } as Response);
+      });
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
@@ -541,7 +572,7 @@ afterEach(() => {
     );
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
     const fullscreenToggle = screen.getByTestId('player-panel-interactive-fullscreen');
@@ -555,7 +586,7 @@ afterEach(() => {
     await user.click(nextButtons[0]);
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     expect(fullscreenToggle).toHaveAttribute('aria-pressed', 'true');
@@ -575,11 +606,24 @@ afterEach(() => {
     const { media, chunks } = buildInteractiveFixtures();
     const fetchMock = vi
       .fn<Parameters<typeof fetch>, ReturnType<typeof fetch>>()
-      .mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: () => Promise.resolve('<html><body><p>Chunk body.</p></body></html>'),
-      } as Response);
+      .mockImplementation((url) => {
+        const target = typeof url === 'string' ? url : '';
+        if (target.includes('sentences.json')) {
+          return Promise.resolve({
+            ok: true,
+            status: 200,
+            json: () => Promise.resolve(['alpha', 'beta']),
+          } as Response);
+        }
+        const body = target.includes('chunk-1')
+          ? '<html><body><p>Chunk body.</p></body></html>'
+          : '<html><body><p>Chunk two.</p></body></html>';
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          text: () => Promise.resolve(body),
+        } as Response);
+      });
 
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 

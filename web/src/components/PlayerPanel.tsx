@@ -474,6 +474,37 @@ function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCate
   return null;
 }
 
+function normaliseBookSentenceCount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    const safe = Math.max(Math.trunc(value), 0);
+    return safe > 0 ? safe : null;
+  }
+
+  if (Array.isArray(value)) {
+    return value.length;
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    const sentences = record.sentences;
+    if (Array.isArray(sentences)) {
+      return sentences.length;
+    }
+    const total =
+      record.total_sentences ??
+      record.sentence_count ??
+      record.book_sentence_count ??
+      record.total ??
+      record.count;
+    if (typeof total === 'number' && Number.isFinite(total)) {
+      const safe = Math.max(Math.trunc(total), 0);
+      return safe > 0 ? safe : null;
+    }
+  }
+
+  return null;
+}
+
 function normaliseLookupToken(value: string | null | undefined): string | null {
   if (typeof value !== 'string') {
     return null;
@@ -943,6 +974,7 @@ const scheduleChunkMetadataAppend = useCallback(
     const raw = Number.parseFloat(window.localStorage.getItem(FONT_SCALE_STORAGE_KEY) ?? '');
     return Number.isFinite(raw) ? clampFontScalePercent(raw) : 100;
   });
+  const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const sentenceLookup = useMemo<SentenceLookup>(() => {
     const exact = new Map<number, SentenceLookupEntry>();
     const ranges: SentenceLookupRange[] = [];
@@ -1035,7 +1067,96 @@ const scheduleChunkMetadataAppend = useCallback(
       suggestions,
     };
   }, [chunks]);
-  const totalSentencesInBook = sentenceLookup.max ?? null;
+  useEffect(() => {
+    setBookSentenceCount(null);
+  }, [jobId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!jobId || chunks.length === 0) {
+      setBookSentenceCount(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const metadataCount = normaliseBookSentenceCount(bookMetadata);
+    if (metadataCount !== null) {
+      setBookSentenceCount((current) => (current === metadataCount ? current : metadataCount));
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (bookSentenceCount !== null) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const resolveTargetUrl = (): string | null => {
+      try {
+        return resolveStoragePath(jobId, 'metadata/sentences.json');
+      } catch (error) {
+        try {
+          const encodedJobId = encodeURIComponent(jobId);
+          return `/pipelines/jobs/${encodedJobId}/metadata/sentences.json`;
+        } catch {
+          return null;
+        }
+      }
+    };
+
+    const targetUrl = resolveTargetUrl();
+    if (!targetUrl || typeof fetch !== 'function') {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    (async () => {
+      try {
+        const response = await fetch(targetUrl, { credentials: 'include' });
+        if (!response.ok) {
+          return;
+        }
+
+        let payload: unknown = null;
+        if (typeof response.json === 'function') {
+          try {
+            payload = await response.json();
+          } catch {
+            payload = null;
+          }
+        }
+        if (payload === null && typeof response.text === 'function') {
+          try {
+            const raw = await response.text();
+            payload = JSON.parse(raw);
+          } catch {
+            payload = null;
+          }
+        }
+
+        const count = normaliseBookSentenceCount(payload);
+        if (cancelled || count === null) {
+          return;
+        }
+        setBookSentenceCount(count);
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn('Unable to load book sentence count', targetUrl, error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookMetadata, bookSentenceCount, chunks.length, jobId]);
+
+  const totalSentencesInBook = bookSentenceCount ?? sentenceLookup.max ?? null;
   const findSentenceTarget = useCallback(
     (sentenceNumber: number) => {
       if (!Number.isFinite(sentenceNumber)) {

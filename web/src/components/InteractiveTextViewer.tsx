@@ -2966,7 +2966,7 @@ const handleAudioSeeked = useCallback(() => {
 
     const bookTotal =
       typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
-        ? Math.max(Math.trunc(totalSentencesInBook), 1)
+        ? Math.max(Math.trunc(totalSentencesInBook), jobEnd ?? 1, 1)
         : jobEndFromMetadata ?? jobEnd ?? null;
 
     if (current === null || jobEnd === null || bookTotal === null) {
@@ -3065,7 +3065,7 @@ const handleAudioSeeked = useCallback(() => {
         ) : null}
         {slideIndicator ? (
           <div className="player-panel__interactive-slide-indicator">
-            {slideIndicator.current}/{slideIndicator.jobEnd}/{slideIndicator.bookTotal}
+            {slideIndicator.current}/{slideIndicator.bookTotal}
           </div>
         ) : null}
         {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : textPlayerSentences && textPlayerSentences.length > 0 ? (
