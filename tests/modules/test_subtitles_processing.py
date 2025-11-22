@@ -131,6 +131,106 @@ def test_process_subtitle_file_emits_colourised_srt(tmp_path: Path, srt_source: 
     assert '<font color="#21C55D" size="5">mundo</font>' in payload
 
 
+def test_transliteration_skips_latin_targets(
+    tmp_path: Path,
+    srt_source: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    transliterator_calls = {"get": 0, "render": 0}
+
+    class _TransliteratorStub:
+        def transliterate(self, *_args, **_kwargs):
+            transliterator_calls["render"] += 1
+            return type("Result", (), {"text": "should-not-appear"})()
+
+    def _fake_get_transliterator():
+        transliterator_calls["get"] += 1
+        return _TransliteratorStub()
+
+    monkeypatch.setattr(
+        "modules.subtitles.processing.get_transliterator",
+        _fake_get_transliterator,
+    )
+
+    output_path = tmp_path / "source.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=True,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+    )
+
+    result = process_subtitle_file(
+        srt_source,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    payload = output_path.read_text(encoding="utf-8")
+    assert "should-not-appear" not in payload
+    assert transliterator_calls == {"get": 0, "render": 0}
+    assert result.metadata["transliteration"] is False
+
+
+def test_transliteration_applies_to_non_latin_targets(
+    tmp_path: Path,
+    srt_source: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "こんにちは 世界")
+    transliterator_calls = {"get": 0}
+
+    class _TransliteratorStub:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def transliterate(self, *_args, **_kwargs):
+            self.calls += 1
+            return type("Result", (), {"text": "konnichiwa sekai"})()
+
+    transliterator = _TransliteratorStub()
+
+    def _fake_get_transliterator():
+        transliterator_calls["get"] += 1
+        return transliterator
+
+    monkeypatch.setattr(
+        "modules.subtitles.processing.get_transliterator",
+        _fake_get_transliterator,
+    )
+
+    output_path = tmp_path / "source.ja.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Japanese",
+        enable_transliteration=True,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+    )
+
+    result = process_subtitle_file(
+        srt_source,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+
+    payload = output_path.read_text(encoding="utf-8")
+    html_payload = (output_path.parent / "html" / "source.ja.drt.html").read_text(
+        encoding="utf-8"
+    )
+    assert "konnichiwa" in payload and "sekai" in payload
+    assert "konnichiwa sekai" in html_payload
+    assert transliterator_calls["get"] == 1
+    assert transliterator.calls == 1
+    assert result.metadata["transliteration"] is True
+
+
 def test_process_subtitle_file_appends_html_transcript(
     tmp_path: Path, srt_source: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

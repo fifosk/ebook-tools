@@ -2639,57 +2639,54 @@ const scheduleChunkMetadataAppend = useCallback(
         return;
       }
       const key = event.key?.toLowerCase();
+      const code = event.code;
       const isArrowRight =
-        event.code === 'ArrowRight' || key === 'arrowright' || event.key === 'ArrowRight';
+        code === 'ArrowRight' || key === 'arrowright' || event.key === 'ArrowRight';
       const isArrowLeft =
-        event.code === 'ArrowLeft' || key === 'arrowleft' || event.key === 'ArrowLeft';
-      if (event.shiftKey && isArrowRight) {
+        code === 'ArrowLeft' || key === 'arrowleft' || event.key === 'ArrowLeft';
+      if (isArrowRight) {
         handleNavigate('next');
         event.preventDefault();
         return;
       }
-      if (event.shiftKey && isArrowLeft) {
+      if (isArrowLeft) {
         handleNavigate('previous');
         event.preventDefault();
         return;
       }
-      if (event.shiftKey && key === 'o' && canToggleOriginalAudio) {
+      if (key === 'o' && canToggleOriginalAudio) {
         handleOriginalAudioToggle();
         event.preventDefault();
         return;
       }
-      if (event.shiftKey && key === 'f') {
+      if (key === 'f') {
         handleInteractiveFullscreenToggle();
         event.preventDefault();
         return;
       }
       const isArrowUp =
-        event.shiftKey &&
-        (event.code === 'ArrowUp' || key === 'arrowup' || event.key === 'ArrowUp');
+        code === 'ArrowUp' || key === 'arrowup' || event.key === 'ArrowUp';
       if (isArrowUp) {
         adjustTranslationSpeed('faster');
         event.preventDefault();
         return;
       }
       const isArrowDown =
-        event.shiftKey &&
-        (event.code === 'ArrowDown' || key === 'arrowdown' || event.key === 'ArrowDown');
+        code === 'ArrowDown' || key === 'arrowdown' || event.key === 'ArrowDown';
       if (isArrowDown) {
         adjustTranslationSpeed('slower');
         event.preventDefault();
         return;
       }
       const isPlusKey =
-        event.shiftKey &&
-        (key === '+' || key === '=' || event.code === 'Equal' || event.code === 'NumpadAdd');
+        key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd';
       if (isPlusKey) {
         adjustFontScale('increase');
         event.preventDefault();
         return;
       }
       const isMinusKey =
-        event.shiftKey &&
-        (key === '-' || key === '_' || event.code === 'Minus' || event.code === 'NumpadSubtract');
+        key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
       if (isMinusKey) {
         adjustFontScale('decrease');
         event.preventDefault();

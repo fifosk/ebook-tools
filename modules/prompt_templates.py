@@ -37,6 +37,14 @@ _SEGMENTATION_REQUIREMENTS = {
     },
 }
 
+# Languages where we want to force a specific script in the output.
+_SCRIPT_REQUIREMENTS = {
+    "serbian_cyrillic": {
+        "aliases": ("serbian", "sr", "sr-rs", "sr_cyrl", "sr-cyrl"),
+        "instruction": "Always respond in Serbian Cyrillic (ћирилица); do NOT use Latin script.",
+    },
+}
+
 def make_translation_prompt(
     source_language: str,
     target_language: str,
@@ -92,6 +100,10 @@ def make_translation_prompt(
             instructions.append(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
             )
+
+    for requirement in _SCRIPT_REQUIREMENTS.values():
+        if any(alias in target_lower for alias in requirement["aliases"]):
+            instructions.append(requirement["instruction"])
 
     return "\n".join(instructions)
 

@@ -2807,7 +2807,6 @@ const handleAudioSeeked = useCallback(() => {
         event.altKey ||
         event.metaKey ||
         event.ctrlKey ||
-        !event.shiftKey ||
         isTypingTarget(event.target)
       ) {
         return;

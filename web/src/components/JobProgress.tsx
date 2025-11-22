@@ -323,6 +323,47 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
         value: translationLanguage
       });
     }
+    const detectedLanguage = getStringField(subtitleMetadata, 'detected_language');
+    const detectedLanguageCode = getStringField(subtitleMetadata, 'detected_language_code');
+    if (detectedLanguage || detectedLanguageCode) {
+      const detectedLabel = detectedLanguageCode
+        ? `${detectedLanguage ?? 'Detected'} (${detectedLanguageCode})`
+        : detectedLanguage;
+      entries.push({
+        key: 'subtitle-detected-language',
+        label: 'Detected language',
+        value: detectedLabel ?? 'Unknown'
+      });
+    }
+    const originTranslation =
+      subtitleMetadata && typeof subtitleMetadata['origin_translation'] === 'object'
+        ? (subtitleMetadata['origin_translation'] as Record<string, unknown>)
+        : null;
+    const originTranslationActive =
+      typeof originTranslation?.['active'] === 'boolean'
+        ? (originTranslation['active'] as boolean)
+        : Boolean(subtitleMetadata?.['origin_translation_applied']);
+    const originSource =
+      getStringField(originTranslation, 'source_language') ??
+      getStringField(subtitleMetadata, 'translation_source_language');
+    const originSourceCode =
+      getStringField(originTranslation, 'source_language_code') ??
+      getStringField(subtitleMetadata, 'translation_source_language_code');
+    const originTarget =
+      getStringField(originTranslation, 'target_language') ??
+      getStringField(subtitleMetadata, 'original_language');
+    const originTargetCode =
+      getStringField(originTranslation, 'target_language_code') ??
+      getStringField(subtitleMetadata, 'original_language_code');
+    const originFromLabel = originSourceCode ?? originSource ?? 'source';
+    const originToLabel = originTargetCode ?? originTarget ?? 'origin';
+    entries.push({
+      key: 'subtitle-origin-translation',
+      label: 'Origin translation',
+      value: originTranslationActive
+        ? `Active (${originFromLabel} → ${originToLabel})`
+        : `Matched (${originFromLabel} → ${originToLabel})`
+    });
     if (llmModel) {
       entries.push({ key: 'subtitle-llm-model', label: 'LLM model', value: llmModel });
     }

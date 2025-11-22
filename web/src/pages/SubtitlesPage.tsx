@@ -32,7 +32,7 @@ const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
 const DEFAULT_ASS_FONT_SIZE = 56;
 const MIN_ASS_FONT_SIZE = 12;
 const MAX_ASS_FONT_SIZE = 120;
-const DEFAULT_ASS_EMPHASIS = 1.6;
+const DEFAULT_ASS_EMPHASIS = 1.3;
 const MIN_ASS_EMPHASIS = 1.0;
 const MAX_ASS_EMPHASIS = 2.5;
 

@@ -11,7 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, TextIO
 
-from modules import logging_manager as log_mgr
+from modules import logging_manager as log_mgr, prompt_templates
+from modules.core.rendering.constants import NON_LATIN_LANGUAGES
 from modules.retry_annotations import is_failure_annotation
 from modules.progress_tracker import ProgressTracker
 from modules.llm_client import create_client
@@ -50,6 +51,12 @@ ASS_BACKGROUND_COLOR = "&HA0000000"
 ASS_BOX_OUTLINE = 6
 
 
+def _target_uses_non_latin_script(language: str) -> bool:
+    """Return True when ``language`` should receive transliteration output."""
+
+    return (language or "").strip() in NON_LATIN_LANGUAGES
+
+
 class SubtitleProcessingError(RuntimeError):
     """Raised when subtitle parsing or processing fails."""
 
@@ -71,6 +78,92 @@ def load_subtitle_cues(path: Path) -> List[SubtitleCue]:
     if path.suffix.lower() == ".vtt":
         return _parse_webvtt(payload)
     return _parse_srt(payload)
+
+
+def _normalize_language_label(value: str) -> str:
+    normalized = (value or "").strip().casefold()
+    normalized = normalized.replace("-", "").replace("_", "").replace(" ", "")
+    return normalized
+
+
+def _languages_match(first: str, second: str) -> bool:
+    return _normalize_language_label(first) == _normalize_language_label(second)
+
+
+def _gather_language_sample(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_cues: int = 3,
+    max_chars: int = 500,
+) -> str:
+    """Return a compact text sample from the first few subtitle cues."""
+
+    buffer: List[str] = []
+    total_chars = 0
+    for cue in cues:
+        text = _normalize_text(cue.as_text())
+        if not text:
+            continue
+        buffer.append(text)
+        total_chars += len(text)
+        if len(buffer) >= max_cues or total_chars >= max_chars:
+            break
+    sample = "\n".join(buffer).strip()
+    if len(sample) > max_chars:
+        return sample[:max_chars]
+    return sample
+
+
+def _detect_language_from_sample(
+    sample_text: str,
+    *,
+    llm_model: Optional[str] = None,
+) -> Optional[str]:
+    """Best-effort language detection using an LLM."""
+
+    if not sample_text:
+        return None
+    try:
+        with create_client(model=llm_model) as client:
+            payload = prompt_templates.make_sentence_payload(
+                f"{prompt_templates.SOURCE_START}\n{sample_text}\n{prompt_templates.SOURCE_END}",
+                model=client.model,
+                stream=False,
+                system_prompt=(
+                    "Identify the primary language of the provided subtitle excerpt. "
+                    "Respond with ONLY the language name in English (e.g., 'English', 'Spanish') "
+                    "without punctuation, commentary, or multiple options."
+                ),
+            )
+            response = client.send_chat_request(payload, max_attempts=2, timeout=30)
+    except Exception:  # pragma: no cover - best effort detection
+        logger.warning("Unable to detect subtitle language from sample", exc_info=True)
+        return None
+
+    candidate = response.text.strip() if response and response.text else ""
+    if not candidate:
+        return None
+    return candidate.splitlines()[0].strip()
+
+
+def _resolve_language_context(
+    cues: Sequence[SubtitleCue],
+    options: SubtitleJobOptions,
+) -> "SubtitleLanguageContext":
+    sample = _gather_language_sample(cues)
+    detected_language = _detect_language_from_sample(sample, llm_model=options.llm_model)
+    detection_source = "llm_sample" if detected_language else "configured_input_language"
+    resolved_detected = detected_language or options.input_language
+    origin_language = options.original_language or resolved_detected
+    translation_source_language = resolved_detected or origin_language
+    return SubtitleLanguageContext(
+        detected_language=resolved_detected,
+        detection_source=detection_source,
+        detection_sample=sample,
+        translation_source_language=translation_source_language,
+        origin_language=origin_language,
+        origin_translation_needed=not _languages_match(resolved_detected, origin_language),
+    )
 
 
 def process_subtitle_file(
@@ -129,6 +222,8 @@ def process_subtitle_file(
             raise SubtitleProcessingError(f"No cues found at or after start time {label}")
         raise SubtitleProcessingError("No cues processed from source subtitle")
 
+    language_context = _resolve_language_context(cues, options)
+
     batch_size = _resolve_batch_size(options.batch_size, total_cues)
     worker_count = _resolve_worker_count(options.worker_count, batch_size, total_cues)
 
@@ -145,8 +240,15 @@ def process_subtitle_file(
             }
         )
 
-    if transliterator is None and options.enable_transliteration:
-        transliterator = get_transliterator()
+    transliteration_enabled = (
+        options.enable_transliteration
+        and _target_uses_non_latin_script(options.target_language)
+    )
+
+    transliterator_to_use = transliterator
+    if transliteration_enabled and transliterator_to_use is None:
+        transliterator_to_use = get_transliterator()
+    transliteration_enabled = transliteration_enabled and transliterator_to_use is not None
 
     resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
     resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
@@ -203,9 +305,10 @@ def process_subtitle_file(
                             lambda cue: _process_cue(
                                 cue,
                                 options,
-                                transliterator,
+                                transliterator_to_use,
                                 stop_event,
                                 renderer,
+                                language_context,
                             ),
                             batch,
                         )
@@ -319,8 +422,26 @@ def process_subtitle_file(
         "input_language": options.input_language,
         "original_language": options.original_language,
         "target_language": options.target_language,
+        "detected_language": language_context.detected_language,
+        "detected_language_code": _normalize_language_label(language_context.detected_language),
+        "translation_source_language": language_context.translation_source_language,
+        "translation_source_language_code": _normalize_language_label(
+            language_context.translation_source_language
+        ),
+        "origin_translation": {
+            "active": language_context.origin_translation_needed,
+            "source_language": language_context.translation_source_language,
+            "target_language": language_context.origin_language,
+            "source_language_code": _normalize_language_label(
+                language_context.translation_source_language
+            ),
+            "target_language_code": _normalize_language_label(language_context.origin_language),
+        },
+        "language_detection_source": language_context.detection_source,
+        "language_detection_sample": language_context.detection_sample,
+        "origin_translation_applied": language_context.origin_translation_needed,
         "highlight": options.highlight,
-        "transliteration": options.enable_transliteration,
+        "transliteration": transliteration_enabled,
         "show_original": options.show_original,
         "batch_size": batch_size,
         "workers": worker_count,
@@ -849,6 +970,18 @@ def _format_timecode_label(total_seconds: float) -> str:
 # ---------------------------------------------------------------------------
 
 @dataclass(slots=True)
+class SubtitleLanguageContext:
+    """Resolved language details for a subtitle job."""
+
+    detected_language: str
+    detection_source: str
+    detection_sample: str
+    translation_source_language: str
+    origin_language: str
+    origin_translation_needed: bool
+
+
+@dataclass(slots=True)
 class SubtitleOutputSummary:
     """Lightweight summary describing the generated subtitle file."""
 
@@ -1034,31 +1167,34 @@ def _is_cancelled(stop_event) -> bool:
     return False
 
 
-def _translate_with_model_override(
+def _translate_text(
     text: str,
-    options: SubtitleJobOptions,
+    *,
+    source_language: str,
+    target_language: str,
+    llm_model: Optional[str],
 ) -> str:
-    if options.llm_model:
+    if llm_model:
         try:
-            with create_client(model=options.llm_model) as override_client:
+            with create_client(model=llm_model) as override_client:
                 return translate_sentence_simple(
                     text,
-                    options.input_language,
-                    options.target_language,
+                    source_language,
+                    target_language,
                     include_transliteration=False,
                     client=override_client,
                 )
         except Exception:  # pragma: no cover - log and re-raise via translation failure
             logger.error(
                 "Unable to translate subtitle cue with model %s",
-                options.llm_model,
+                llm_model,
                 exc_info=True,
             )
             raise
     return translate_sentence_simple(
         text,
-        options.input_language,
-        options.target_language,
+        source_language,
+        target_language,
         include_transliteration=False,
     )
 
@@ -1069,23 +1205,51 @@ def _process_cue(
     transliterator: Optional[TransliterationService],
     stop_event,
     renderer: CueTextRenderer,
+    language_context: SubtitleLanguageContext,
 ) -> _RenderedCueBatch:
     if _is_cancelled(stop_event):
         raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
 
-    original_text = _normalize_text(cue.as_text())
-    normalized_source = cue.as_text()
+    source_text = cue.as_text()
+    original_text = _normalize_text(source_text)
     translation = _normalize_text(
-        _translate_with_model_override(
-            normalized_source,
-            options,
+        _translate_text(
+            source_text,
+            source_language=language_context.translation_source_language,
+            target_language=options.target_language,
+            llm_model=options.llm_model,
         )
     )
     translation_failed = is_failure_annotation(translation)
 
+    if language_context.origin_translation_needed:
+        try:
+            translated_origin = _normalize_text(
+                _translate_text(
+                    source_text,
+                    source_language=language_context.translation_source_language,
+                    target_language=language_context.origin_language,
+                    llm_model=options.llm_model,
+                )
+            )
+        except Exception:  # pragma: no cover - best effort fallback
+            logger.warning(
+                "Unable to translate cue %s into origin language %s",
+                cue.index,
+                language_context.origin_language,
+                exc_info=True,
+            )
+        else:
+            if translated_origin and not is_failure_annotation(translated_origin):
+                original_text = translated_origin
+
     transliteration_text = ""
-    if (
+    allow_transliteration = (
         options.enable_transliteration
+        and _target_uses_non_latin_script(options.target_language)
+    )
+    if (
+        allow_transliteration
         and transliterator is not None
         and translation
         and not translation_failed

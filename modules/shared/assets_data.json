@@ -1,14 +1,14 @@
 {
   "top_languages": [
-    "Afrikaans", "Albanian", "Arabic", "Armenian", "Basque", "Bengali", "Bosnian", "Burmese",
+    "Afrikaans", "Albanian", "Amharic", "Arabic", "Armenian", "Basque", "Bengali", "Bosnian", "Bulgarian", "Burmese",
     "Catalan", "Chinese (Simplified)", "Chinese (Traditional)", "Czech", "Croatian", "Danish",
     "Dutch", "English", "Esperanto", "Estonian", "Filipino", "Finnish", "French", "German",
-    "Greek", "Gujarati", "Hausa", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian",
-    "Italian", "Japanese", "Javanese", "Kannada", "Khmer", "Korean", "Latin", "Latvian",
-    "Macedonian", "Malay", "Malayalam", "Marathi", "Nepali", "Norwegian", "Polish",
-    "Portuguese", "Romanian", "Russian", "Sinhala", "Slovak", "Serbian", "Spanish", "Sundanese",
-    "Swahili", "Swedish", "Tamil", "Telugu", "Thai", "Turkish", "Ukrainian", "Urdu",
-    "Vietnamese", "Welsh", "Xhosa", "Yoruba", "Zulu", "Persian"
+    "Georgian", "Greek", "Gujarati", "Hausa", "Hebrew", "Hindi", "Hungarian", "Icelandic", "Indonesian",
+    "Italian", "Japanese", "Javanese", "Kannada", "Kazakh", "Khmer", "Korean", "Kyrgyz", "Latin", "Latvian",
+    "Macedonian", "Malay", "Malayalam", "Marathi", "Mongolian", "Nepali", "Norwegian", "Pashto", "Polish",
+    "Portuguese", "Punjabi", "Romanian", "Russian", "Sinhala", "Slovak", "Slovenian", "Serbian", "Spanish", "Sundanese",
+    "Swahili", "Swedish", "Tajik", "Tamil", "Telugu", "Thai", "Turkish", "Turkmen", "Ukrainian", "Urdu",
+    "Uzbek", "Vietnamese", "Welsh", "Xhosa", "Yoruba", "Zulu", "Persian"
   ],
   "audio_modes": [
     {
