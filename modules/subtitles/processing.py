@@ -6,6 +6,7 @@ import html
 import math
 import re
 import unicodedata
+from difflib import SequenceMatcher
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -209,6 +210,9 @@ def process_subtitle_file(
             )
         cues = trimmed
 
+    cues = _collapse_redundant_windows(cues)
+    cues = _deduplicate_cues_by_text(cues)
+    cues = _merge_overlapping_lines(cues)
     total_cues = len(cues)
     if not cues:
         if end_offset is not None:
@@ -286,67 +290,71 @@ def process_subtitle_file(
     )
 
     try:
-        with temp_output.open("w", encoding="utf-8", newline="\n") as handle:
-            writer = _SubtitleFileWriter(
-                handle,
-                renderer,
-                options.output_format,
-                start_index=next_index,
-                ass_font_size=resolved_ass_font_size,
-            )
-            with ThreadPoolExecutor(max_workers=worker_count) as executor:
-                for batch_number, batch_start in enumerate(range(0, total_cues, batch_size), start=1):
-                    if _is_cancelled(stop_event):
-                        raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
+        temp_output.unlink(missing_ok=True)
+        all_rendered_cues: List[SubtitleCue] = []
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            for batch_number, batch_start in enumerate(range(0, total_cues, batch_size), start=1):
+                if _is_cancelled(stop_event):
+                    raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
 
-                    batch = cues[batch_start : batch_start + batch_size]
-                    processed_batch = list(
-                        executor.map(
-                            lambda cue: _process_cue(
-                                cue,
-                                options,
-                                transliterator_to_use,
-                                stop_event,
-                                renderer,
-                                language_context,
-                            ),
-                            batch,
-                        )
+                batch = cues[batch_start : batch_start + batch_size]
+                processed_batch = list(
+                    executor.map(
+                        lambda cue: _process_cue(
+                            cue,
+                            options,
+                            transliterator_to_use,
+                            stop_event,
+                            renderer,
+                            language_context,
+                        ),
+                        batch,
                     )
+                )
 
-                    mirror_handle: Optional[TextIO] = None
+                html_entries: List[SubtitleHtmlEntry] = []
+                batch_rendered: List[SubtitleCue] = []
+                for offset, rendered_batch in enumerate(processed_batch, start=1):
+                    cue_index = batch_start + offset
+                    if tracker is not None:
+                        tracker.record_step_completion(
+                            stage="subtitle",
+                            index=cue_index,
+                            total=total_cues,
+                            metadata={
+                                "batch": batch_number,
+                                "batch_size": batch_size,
+                            },
+                        )
+                    all_rendered_cues.extend(rendered_batch.cues)
+                    batch_rendered.extend(rendered_batch.cues)
+                    translated_count += 1
+                    if rendered_batch.html_entry is not None:
+                        html_entries.append(rendered_batch.html_entry)
+
+                if html_entries:
+                    html_writer.append(html_entries)
+                    if mirror_html_writer is not None:
+                        mirror_html_writer.append(html_entries)
+
+                # Write incrementally each batch.
+                if options.highlight:
+                    incremental_cues = list(batch_rendered)
+                    if not incremental_cues:
+                        continue
+                    mode = "w" if next_index == 1 else "a"
+                    with temp_output.open(mode, encoding="utf-8", newline="\n") as handle:
+                        writer = _SubtitleFileWriter(
+                            handle,
+                            renderer,
+                            options.output_format,
+                            start_index=next_index,
+                            ass_font_size=resolved_ass_font_size,
+                        )
+                        next_index = writer.write(incremental_cues)
                     if mirror_target is not None:
                         try:
-                            mirror_handle = mirror_target.open("a", encoding="utf-8", newline="\n")
-                        except Exception:  # pragma: no cover - best effort mirror
-                            logger.warning(
-                                "Unable to append subtitle batch to %s",
-                                mirror_target,
-                                exc_info=True,
-                            )
-                            mirror_target = None
-                            mirror_handle = None
-                            mirror_html_writer = None
-
-                    html_entries: List[SubtitleHtmlEntry] = []
-                    for offset, rendered_batch in enumerate(processed_batch, start=1):
-                        cue_index = batch_start + offset
-                        if tracker is not None:
-                            tracker.record_step_completion(
-                                stage="subtitle",
-                                index=cue_index,
-                                total=total_cues,
-                                metadata={
-                                    "batch": batch_number,
-                                    "batch_size": batch_size,
-                                },
-                            )
-                        next_index = writer.write(rendered_batch.cues)
-                        translated_count += 1
-                        if rendered_batch.html_entry is not None:
-                            html_entries.append(rendered_batch.html_entry)
-                        if mirror_handle is not None:
-                            try:
+                            with mirror_target.open(mode, encoding="utf-8", newline="\n") as mirror_handle:
                                 mirror_writer = _SubtitleFileWriter(
                                     mirror_handle,
                                     renderer,
@@ -354,50 +362,52 @@ def process_subtitle_file(
                                     start_index=mirror_next_index,
                                     ass_font_size=resolved_ass_font_size,
                                 )
-                                mirror_next_index = mirror_writer.write(rendered_batch.cues)
-                            except Exception:  # pragma: no cover - best effort mirror
-                                logger.warning(
-                                    "Unable to mirror subtitle batch to %s",
-                                    mirror_target,
-                                    exc_info=True,
-                                )
-                                if mirror_handle is not None:
-                                    try:
-                                        mirror_handle.close()
-                                    except Exception:
-                                        logger.debug(
-                                            "Unable to close subtitle mirror handle after failure",
-                                            exc_info=True,
-                                        )
-                                mirror_handle = None
-                                mirror_target = None
-                                mirror_next_index = next_index
-                                mirror_html_writer = None
-                    if html_entries:
-                        html_writer.append(html_entries)
-                        if mirror_html_writer is not None:
-                            mirror_html_writer.append(html_entries)
-                    handle.flush()
-                    if mirror_handle is not None:
-                        try:
-                            mirror_handle.flush()
+                                mirror_next_index = mirror_writer.write(incremental_cues)
                         except Exception:  # pragma: no cover - best effort mirror
                             logger.warning(
-                                "Unable to flush mirrored subtitle output %s",
+                                "Unable to mirror subtitle output to %s",
                                 mirror_target,
                                 exc_info=True,
                             )
                             mirror_target = None
-                            mirror_next_index = next_index
                             mirror_html_writer = None
-                        finally:
-                            try:
-                                mirror_handle.close()
-                            except Exception:  # pragma: no cover - defensive close
-                                logger.debug("Unable to close subtitle mirror handle", exc_info=True)
-                            mirror_handle = None
-                    elif mirror_target is None:
-                        mirror_next_index = next_index
+                    continue
+
+                merged_timeline = _merge_rendered_timeline(
+                    all_rendered_cues,
+                    preserve_states=False,
+                )
+                if not merged_timeline:
+                    continue
+
+                with temp_output.open("w", encoding="utf-8", newline="\n") as handle:
+                    writer = _SubtitleFileWriter(
+                        handle,
+                        renderer,
+                        options.output_format,
+                        start_index=1,
+                        ass_font_size=resolved_ass_font_size,
+                    )
+                    next_index = writer.write(merged_timeline)
+
+                if mirror_target is not None:
+                    try:
+                        with mirror_target.open("w", encoding="utf-8", newline="\n") as mirror_handle:
+                            mirror_writer = _SubtitleFileWriter(
+                                mirror_handle,
+                                renderer,
+                                options.output_format,
+                                start_index=1,
+                                ass_font_size=resolved_ass_font_size,
+                            )
+                            mirror_next_index = mirror_writer.write(merged_timeline)
+                    except Exception:  # pragma: no cover - best effort mirror
+                        logger.warning(
+                            "Unable to mirror merged subtitle output to %s",
+                            mirror_target,
+                            exc_info=True,
+                        )
+                        mirror_target = None
                         mirror_html_writer = None
     except SubtitleJobCancelled:
         temp_output.unlink(missing_ok=True)
@@ -595,6 +605,7 @@ def _seconds_to_ass_timestamp(value: float) -> str:
 
 _WHITESPACE_PATTERN = re.compile(r"\s+")
 _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
+_ASS_TAG_PATTERN = re.compile(r"\{[^}]*\}")
 
 
 def _normalize_text(value: str) -> str:
@@ -605,6 +616,368 @@ def _normalize_text(value: str) -> str:
     normalized = normalized.replace("‘", "'").replace("’", "'")
     normalized = _WHITESPACE_PATTERN.sub(" ", normalized)
     return normalized.strip()
+
+
+@dataclass(slots=True)
+class _NormalizedCueWindow:
+    cue: SubtitleCue
+    normalized_text: str
+
+
+def _collapse_redundant_windows(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_gap_seconds: float = 1.0,
+    min_containment_ratio: float = 0.45,
+    min_similarity: float = 0.82,
+) -> List[SubtitleCue]:
+    """Merge consecutive cues that repeat the same text to reduce flicker."""
+
+    merged: List[SubtitleCue] = []
+    active: Optional[_NormalizedCueWindow] = None
+
+    for cue in cues:
+        normalized = _normalize_text(cue.as_text())
+        if not normalized:
+            continue
+
+        if active is None:
+            active = _NormalizedCueWindow(cue=cue, normalized_text=normalized)
+            continue
+
+        gap = max(0.0, cue.start - active.cue.end)
+        prefix_match = normalized.startswith(active.normalized_text) or active.normalized_text.startswith(
+            normalized
+        )
+        if gap <= max_gap_seconds and (
+            _texts_overlap(
+                normalized,
+                active.normalized_text,
+                min_containment_ratio=min_containment_ratio,
+                min_similarity=min_similarity,
+            )
+            or (prefix_match and gap <= 0.35 and min(len(normalized), len(active.normalized_text)) >= 8)
+        ):
+            keep_current = len(normalized) > len(active.normalized_text)
+            base_cue = cue if keep_current else active.cue
+            base_text = normalized if keep_current else active.normalized_text
+            active = _NormalizedCueWindow(
+                cue=SubtitleCue(
+                    index=base_cue.index,
+                    start=min(active.cue.start, cue.start),
+                    end=max(active.cue.end, cue.end),
+                    lines=list(base_cue.lines),
+                ),
+                normalized_text=base_text,
+            )
+            continue
+
+        merged.append(active.cue)
+        active = _NormalizedCueWindow(cue=cue, normalized_text=normalized)
+
+    if active is not None:
+        merged.append(active.cue)
+
+    return merged
+
+
+def _deduplicate_cues_by_text(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_gap_seconds: float = 2.0,
+    min_containment_ratio: float = 0.4,
+    min_similarity: float = 0.8,
+) -> List[SubtitleCue]:
+    """Collapse consecutive cues when their text substantially overlaps."""
+
+    if not cues:
+        return []
+
+    result: List[SubtitleCue] = []
+    previous: Optional[_NormalizedCueWindow] = None
+
+    for cue in cues:
+        normalized = _normalize_text(cue.as_text())
+        if not normalized:
+            continue
+
+        if previous is not None:
+            gap = max(0.0, cue.start - previous.cue.end)
+            if gap <= max_gap_seconds and _texts_overlap(
+                normalized,
+                previous.normalized_text,
+                min_containment_ratio=min_containment_ratio,
+                min_similarity=min_similarity,
+            ):
+                keep_current = len(normalized) >= len(previous.normalized_text)
+                base_lines = cue.lines if keep_current else previous.cue.lines
+                merged_cue = SubtitleCue(
+                    index=previous.cue.index,
+                    start=previous.cue.start,
+                    end=max(previous.cue.end, cue.end),
+                    lines=list(base_lines),
+                )
+                result[-1] = merged_cue
+                previous = _NormalizedCueWindow(cue=merged_cue, normalized_text=_normalize_text(" ".join(base_lines)))
+                continue
+
+        container = _NormalizedCueWindow(cue=cue, normalized_text=normalized)
+        result.append(cue)
+        previous = container
+
+    return result
+
+
+def _merge_overlapping_lines(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_gap_seconds: float = 0.55,
+    max_window_seconds: float = 5.5,
+) -> List[SubtitleCue]:
+    """Merge cues whose trailing line repeats as the leading line of the next."""
+
+    if not cues:
+        return []
+
+    merged: List[SubtitleCue] = []
+    active = cues[0]
+
+    def _normalize_lines(lines: Sequence[str]) -> List[str]:
+        return [_normalize_text(line) for line in lines if _normalize_text(line)]
+
+    for cue in cues[1:]:
+        gap = max(0.0, cue.start - active.end)
+        active_norm = _normalize_lines(active.lines)
+        cue_norm = _normalize_lines(cue.lines)
+
+        overlap_len = 0
+        max_overlap = min(len(active_norm), len(cue_norm))
+        for size in range(max_overlap, 0, -1):
+            if active_norm[-size:] == cue_norm[:size]:
+                overlap_len = size
+                break
+
+        trimmed_lines = list(cue.lines)
+        if overlap_len > 0 and overlap_len <= len(cue.lines):
+            trimmed_lines = cue.lines[overlap_len:]
+
+        if overlap_len > 0:
+            # If the next cue is fully redundant, just extend the window.
+            if not trimmed_lines and gap <= max_gap_seconds:
+                active = SubtitleCue(
+                    index=active.index,
+                    start=active.start,
+                    end=max(active.end, cue.end),
+                    lines=list(active.lines),
+                )
+                continue
+
+            # Merge when the overlap dominates the next cue and the window stays bounded.
+            should_merge = (
+                gap <= max_gap_seconds
+                and (overlap_len >= len(cue_norm) * 0.85 or len(cue_norm) <= 2)
+                and (cue.end - active.start + gap) <= max_window_seconds
+            )
+            if should_merge:
+                preserved_lines = list(active.lines)
+                if trimmed_lines:
+                    preserved_lines.extend(trimmed_lines)
+                active = SubtitleCue(
+                    index=active.index,
+                    start=active.start,
+                    end=max(active.end, cue.end),
+                    lines=preserved_lines,
+                )
+                continue
+            # Otherwise, keep the next cue but drop the duplicated lead lines.
+            if trimmed_lines != list(cue.lines):
+                cue = SubtitleCue(
+                    index=cue.index,
+                    start=cue.start,
+                    end=cue.end,
+                    lines=trimmed_lines,
+                )
+
+        merged.append(active)
+        active = cue
+
+    merged.append(active)
+    return merged
+
+
+def _texts_overlap(
+    current: str,
+    previous: str,
+    *,
+    min_containment_ratio: float,
+    min_similarity: float,
+) -> bool:
+    if not current or not previous:
+        return False
+    if current == previous:
+        return True
+    shorter, longer = (current, previous) if len(current) <= len(previous) else (previous, current)
+    ratio = len(shorter) / max(len(longer), 1)
+    if longer.startswith(shorter) and ratio >= min_containment_ratio:
+        return True
+    if shorter in longer and ratio >= min_containment_ratio:
+        return True
+    similarity = SequenceMatcher(None, current, previous).ratio()
+    return similarity >= min_similarity
+
+
+def _normalize_rendered_lines(lines: Sequence[str]) -> str:
+    if not lines:
+        return ""
+    joined = "\n".join(lines)
+    without_ass = _ASS_TAG_PATTERN.sub(" ", joined)
+    without_html = _HTML_TAG_PATTERN.sub(" ", without_ass)
+    normalized = html.unescape(without_html)
+    normalized = _WHITESPACE_PATTERN.sub(" ", normalized)
+    return normalized.strip().casefold()
+
+
+def _merge_redundant_rendered_cues(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_gap_seconds: float = 0.25,
+) -> List[SubtitleCue]:
+    if not cues:
+        return []
+
+    merged: List[SubtitleCue] = []
+    previous: Optional[SubtitleCue] = None
+    previous_normalized = ""
+
+    for cue in cues:
+        normalized = _normalize_rendered_lines(cue.lines)
+        if (
+            previous is not None
+            and normalized
+            and normalized == previous_normalized
+            and (cue.start - previous.end) <= max_gap_seconds
+        ):
+            previous = SubtitleCue(
+                index=previous.index,
+                start=min(previous.start, cue.start),
+                end=max(previous.end, cue.end),
+                lines=list(cue.lines),
+            )
+            merged[-1] = previous
+            continue
+
+        merged.append(cue)
+        previous = cue
+        previous_normalized = normalized
+
+    return merged
+
+
+def _merge_adjacent_rendered_cues(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_gap_seconds: float = 2.0,
+) -> List[SubtitleCue]:
+    if not cues:
+        return []
+
+    merged: List[SubtitleCue] = []
+    for cue in cues:
+        if not merged:
+            merged.append(cue)
+            continue
+
+        previous = merged[-1]
+        gap = cue.start - previous.end
+        if gap < 0:
+            gap = 0.0
+
+        prev_text = _normalize_rendered_lines(previous.lines)
+        current_text = _normalize_rendered_lines(cue.lines)
+        similar = False
+        if prev_text and current_text:
+            if prev_text == current_text:
+                similar = True
+            else:
+                similar = _texts_overlap(
+                    prev_text,
+                    current_text,
+                    min_containment_ratio=0.5,
+                    min_similarity=0.85,
+                )
+        if similar and gap <= max_gap_seconds:
+            keep_current = len(current_text) >= len(prev_text)
+            base_lines = cue.lines if keep_current else previous.lines
+            merged[-1] = SubtitleCue(
+                index=previous.index,
+                start=min(previous.start, cue.start),
+                end=max(previous.end, cue.end),
+                lines=list(base_lines),
+            )
+            continue
+
+        merged.append(cue)
+
+    return merged
+
+
+def _merge_rendered_timeline(
+    cues: Sequence[SubtitleCue],
+    *,
+    max_gap_seconds: float = 2.0,
+    preserve_states: bool = False,
+) -> List[SubtitleCue]:
+    if not cues:
+        return []
+    if preserve_states:
+        # Keep highlight progression intact; preserve original state order.
+        return list(cues)
+
+    sorted_cues = sorted(cues, key=lambda c: (c.start, c.end))
+    merged: List[SubtitleCue] = []
+    normalized_cache: List[str] = []
+
+    for cue in _merge_adjacent_rendered_cues(sorted_cues, max_gap_seconds=max_gap_seconds):
+        current_text = _normalize_rendered_lines(cue.lines)
+        start_time = cue.start
+        if merged:
+            previous = merged[-1]
+            prev_text = normalized_cache[-1]
+            gap = max(0.0, start_time - previous.end)
+            similar = False
+            if prev_text and current_text:
+                if prev_text == current_text:
+                    similar = True
+                else:
+                    similar = _texts_overlap(
+                        prev_text,
+                        current_text,
+                        min_containment_ratio=0.4,
+                        min_similarity=0.8,
+                    )
+            if similar and gap <= max_gap_seconds:
+                keep_current = len(current_text) >= len(prev_text)
+                base_lines = cue.lines if keep_current else previous.lines
+                merged[-1] = SubtitleCue(
+                    index=previous.index,
+                    start=min(previous.start, cue.start),
+                    end=max(previous.end, cue.end),
+                    lines=list(base_lines),
+                )
+                normalized_cache[-1] = _normalize_rendered_lines(base_lines)
+                continue
+            if start_time < previous.end:
+                # Avoid overlapping windows by snapping to the prior end.
+                cue = SubtitleCue(
+                    index=cue.index,
+                    start=previous.end,
+                    end=max(previous.end, cue.end),
+                    lines=list(cue.lines),
+                )
+        merged.append(cue)
+        normalized_cache.append(current_text)
+
+    return merged
 
 
 class CueTextRenderer:
@@ -801,6 +1174,8 @@ def _build_output_cues(
     include_original = show_original and bool(normalized_original)
     original_line = renderer.render_original(normalized_original) if include_original else ""
     translation_words = split_highlight_tokens(translation)
+    if highlight and translation and not translation_words:
+        translation_words = [token for token in translation.split() if token]
     transliteration_words = transliteration.split() if transliteration else []
     use_highlight = highlight and bool(translation_words)
     base_line: Optional[str] = original_line if include_original and original_line else None
@@ -823,18 +1198,29 @@ def _build_output_cues(
         ]
 
     duration = max(source.duration, 0.2)
-    step = duration / max(len(translation_words), 1)
+    min_step = 0.22
+    max_states = max(1, int(duration / min_step))
+    if len(translation_words) > max_states:
+        group_size = max(1, math.ceil(len(translation_words) / max_states))
+    else:
+        group_size = 1
+    states = max(1, math.ceil(len(translation_words) / group_size))
+    step = duration / states
     cues: List[SubtitleCue] = []
 
-    for offset in range(len(translation_words)):
-        highlight_translation = renderer.render_translation_highlight(translation_words, offset)
+    for state_index, start_index in enumerate(range(0, len(translation_words), group_size)):
+        highlight_index = min(len(translation_words) - 1, start_index + group_size - 1)
+        highlight_translation = renderer.render_translation_highlight(
+            translation_words,
+            highlight_index,
+        )
         lines: List[str] = [base_line] if base_line else []
         lines.append(highlight_translation)
         if transliteration:
             if transliteration_words:
                 highlight_translit = renderer.render_transliteration_highlight(
                     transliteration_words,
-                    offset,
+                    highlight_index,
                 )
                 lines.append(highlight_translit)
             else:
@@ -842,8 +1228,8 @@ def _build_output_cues(
         cues.append(
             SubtitleCue(
                 index=source.index,
-                start=source.start + offset * step,
-                end=source.start + (offset + 1) * step,
+                start=source.start + state_index * step,
+                end=source.start + (state_index + 1) * step,
                 lines=lines,
             )
         )
@@ -1275,6 +1661,8 @@ def _process_cue(
         renderer=renderer,
         original_text=original_text,
     )
+    if not options.highlight:
+        cues = _merge_redundant_rendered_cues(cues)
 
     return _RenderedCueBatch(
         cues=cues,
