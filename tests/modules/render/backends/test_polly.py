@@ -50,13 +50,13 @@ def test_normalize_api_voice_handles_auto_identifiers() -> None:
         _normalize_api_voice(
             "macOS-auto", language="en", sample_text="مرحبا بالعالم"
         )
-        is None
+        == "macOS-auto"
     )
     assert (
         _normalize_api_voice(
             "macOS-auto-male", language="ar", sample_text="مرحبا بالعالم"
         )
-        is None
+        == "macOS-auto-male"
     )
     assert _normalize_api_voice("gTTS", language="en") is None
     assert _normalize_api_voice("Alloy", language="en") == "Alloy"
@@ -85,7 +85,7 @@ def test_polly_synthesizer_omits_auto_voice_for_non_english_segments() -> None:
     assert len(client.calls) == 1
     call = client.calls[0]
     assert call["language"] == "ar"
-    assert call["voice"] is None
+    assert call["voice"] == "macOS-auto-male"
     assert call["text"] == "مرحبا بالعالم"
 
 
@@ -113,6 +113,31 @@ def test_polly_synthesizer_passes_explicit_voice_to_api() -> None:
     assert call["language"] == "es"
     assert call["voice"] == "alloy"
     assert call["text"] == "Hola mundo"
+
+
+def test_polly_synthesizer_resolves_lang_code_without_alias() -> None:
+    client = _DummyAudioClient()
+    synthesizer = PollyAudioSynthesizer(audio_client=client)
+
+    synthesizer.synthesize_sentence(
+        sentence_number=1,
+        input_sentence="Hello",
+        fluent_translation="Pozdravljen svet",
+        input_language="English",
+        target_language="sl",
+        audio_mode="1",
+        total_sentences=1,
+        language_codes={"English": "en", "Slovenian": "sl"},
+        selected_voice="macOS-auto",
+        voice_overrides=None,
+        tempo=1.0,
+        macos_reading_speed=180,
+    )
+
+    assert len(client.calls) == 1
+    call = client.calls[0]
+    assert call["language"] == "sl"
+    assert call["voice"] is None
 
 
 def test_polly_synthesizer_uses_api_default_for_english_auto_voice() -> None:

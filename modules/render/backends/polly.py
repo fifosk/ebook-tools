@@ -63,7 +63,7 @@ def _normalize_api_voice(
     if lowered.startswith("macos-auto"):
         if _looks_english():
             return "0"
-        return None
+        return voice
     if lowered == "gtts":
         return None
     return voice
@@ -139,9 +139,6 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
     ) -> SynthesisResult:
-        def _lang_code(lang: str) -> str:
-            return language_codes.get(lang, "en")
-
         silence = AudioSegment.silent(duration=100)
 
         translation_audio_text, _ = split_translation_and_transliteration(fluent_translation)
@@ -220,6 +217,30 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 language_aliases.setdefault(variant, normalized_code)
             for variant in _token_variants(code):
                 language_aliases.setdefault(variant, normalized_code)
+
+        def _lang_code(lang: str) -> str:
+            normalized = (lang or "").strip()
+            if not normalized:
+                return "en"
+
+            direct = language_codes.get(normalized)
+            if isinstance(direct, str) and direct.strip():
+                return direct.strip()
+
+            for variant in _token_variants(normalized):
+                mapped = language_aliases.get(variant)
+                if mapped:
+                    return mapped
+
+            normalized_variant = normalized.replace(" ", "-").replace("_", "-").lower()
+            if (
+                normalized_variant
+                and len(normalized_variant) <= 16
+                and all(part.isalpha() for part in normalized_variant.split("-"))
+            ):
+                return normalized_variant
+
+            return "en"
 
         normalized_voice_overrides: Dict[str, str] = {}
         if voice_overrides:
