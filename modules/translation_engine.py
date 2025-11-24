@@ -85,6 +85,18 @@ _NON_LATIN_TARGET_HINTS = {
 }
 _LATIN_LETTER_PATTERN = regex.compile(r"\p{Latin}")
 _NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
+_DIACRITIC_PATTERNS = {
+    "arabic": {
+        "aliases": ("arabic", "ar"),
+        "pattern": regex.compile(r"[\u064B-\u065F\u0670\u06D6-\u06ED]"),
+        "label": "Arabic diacritics (tashkil)",
+    },
+    "hebrew": {
+        "aliases": ("hebrew", "he", "iw"),
+        "pattern": regex.compile(r"[\u0591-\u05C7]"),
+        "label": "Hebrew niqqud",
+    },
+}
 
 
 class ThreadWorkerPool:
@@ -268,6 +280,24 @@ def _is_translation_too_short(
     return original_letters >= 30 and ratio < 0.28
 
 
+def _missing_required_diacritics(
+    translation_text: str, target_language: str
+) -> tuple[bool, Optional[str]]:
+    """
+    Return (True, label) when the target language expects diacritics but none
+    are present in the translation.
+    """
+
+    target_lower = (target_language or "").lower()
+    for requirement in _DIACRITIC_PATTERNS.values():
+        if any(alias in target_lower for alias in requirement["aliases"]):
+            pattern = requirement["pattern"]
+            if not pattern.search(translation_text or ""):
+                return True, requirement["label"]
+            return False, None
+    return False, None
+
+
 def translate_sentence_simple(
     sentence: str,
     input_language: str,
@@ -275,6 +305,7 @@ def translate_sentence_simple(
     *,
     include_transliteration: bool = False,
     client: Optional[LLMClient] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> str:
     """Translate a sentence using the configured Ollama model."""
 
@@ -294,7 +325,10 @@ def translate_sentence_simple(
         )
 
         last_error: Optional[str] = None
+        best_translation: Optional[str] = None
+        best_score = -1
         for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
+            attempt_error: Optional[str] = None
             response = resolved_client.send_chat_request(
                 payload,
                 max_attempts=_LLM_REQUEST_ATTEMPTS,
@@ -309,10 +343,14 @@ def translate_sentence_simple(
                     translation_text, transliteration_text = text_norm.split_translation_and_transliteration(
                         cleaned_text
                     )
+                    score = _letter_count(translation_text)
+                    if score > best_score:
+                        best_translation = cleaned_text
+                        best_score = score
                     if _is_probable_transliteration(
                         sentence, translation_text, target_language
                     ):
-                        last_error = "Transliteration returned instead of translation"
+                        attempt_error = "Transliteration returned instead of translation"
                         if resolved_client.debug_enabled:
                             logger.debug(
                                 "Retrying translation due to transliteration on attempt %s/%s",
@@ -320,22 +358,31 @@ def translate_sentence_simple(
                                 _TRANSLATION_RESPONSE_ATTEMPTS,
                             )
                     elif _is_translation_too_short(sentence, translation_text):
-                        last_error = "Translation shorter than expected"
+                        attempt_error = "Translation shorter than expected"
                         if resolved_client.debug_enabled:
                             logger.debug(
                                 "Retrying translation due to short response (%s/%s)",
                                 attempt,
                                 _TRANSLATION_RESPONSE_ATTEMPTS,
                             )
-                    elif _is_segmentation_ok(
-                        sentence,
-                        cleaned_text,
-                        target_language,
-                        translation_text=translation_text,
+                    else:
+                        missing_diacritics, label = _missing_required_diacritics(
+                            translation_text, target_language
+                        )
+                        if missing_diacritics:
+                            attempt_error = f"Missing {label or 'required diacritics'}"
+                            if resolved_client.debug_enabled:
+                                logger.debug(
+                                    "Retrying translation due to missing diacritics (%s/%s)",
+                                    attempt,
+                                    _TRANSLATION_RESPONSE_ATTEMPTS,
+                                )
+                    if not attempt_error and _is_segmentation_ok(
+                        sentence, cleaned_text, target_language, translation_text=translation_text
                     ):
                         return cleaned_text
-                    else:
-                        last_error = "Unsegmented translation received"
+                    if not attempt_error:
+                        attempt_error = "Unsegmented translation received"
                         if resolved_client.debug_enabled:
                             logger.debug(
                                 "Retrying translation due to missing word spacing (%s/%s)",
@@ -343,7 +390,7 @@ def translate_sentence_simple(
                                 _TRANSLATION_RESPONSE_ATTEMPTS,
                             )
                 else:
-                    last_error = "Placeholder translation received"
+                    attempt_error = "Placeholder translation received"
                     if resolved_client.debug_enabled:
                         logger.debug(
                             "Retrying translation due to placeholder response (%s/%s)",
@@ -351,7 +398,7 @@ def translate_sentence_simple(
                             _TRANSLATION_RESPONSE_ATTEMPTS,
                         )
             else:
-                last_error = response.error or "Empty translation response"
+                attempt_error = response.error or "Empty translation response"
                 if resolved_client.debug_enabled and response.error:
                     logger.debug(
                         "Translation attempt %s/%s failed: %s",
@@ -360,11 +407,29 @@ def translate_sentence_simple(
                         response.error,
                     )
 
+            if attempt_error:
+                last_error = attempt_error
+                if resolved_client.debug_enabled:
+                    logger.debug(
+                        "Translation attempt %s/%s failed validation: %s",
+                        attempt,
+                        _TRANSLATION_RESPONSE_ATTEMPTS,
+                        attempt_error,
+                    )
+                if progress_tracker is not None:
+                    progress_tracker.record_retry("translation", attempt_error)
+
             if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
                 time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
 
-            if resolved_client.debug_enabled and last_error:
-                logger.debug("Translation failed after retries: %s", last_error)
+        if resolved_client.debug_enabled and last_error:
+            logger.debug("Translation failed after retries: %s", last_error)
+        if last_error and "diacritic" in last_error.lower() and best_translation:
+            if resolved_client.debug_enabled:
+                logger.debug(
+                    "Returning best available translation without diacritics after retries"
+                )
+            return best_translation
     failure_reason = last_error or "no response from LLM"
     return format_retry_failure(
         "translation",
@@ -433,6 +498,7 @@ def translate_batch(
     max_workers: Optional[int] = None,
     client: Optional[LLMClient] = None,
     worker_pool: Optional[ThreadWorkerPool] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> List[str]:
     """Translate ``sentences`` concurrently while preserving order."""
 
@@ -453,6 +519,7 @@ def translate_batch(
                 target,
                 include_transliteration=include_transliteration,
                 client=resolved_client,
+                progress_tracker=progress_tracker,
             )
 
         pool = worker_pool or ThreadWorkerPool(max_workers=worker_count)
@@ -562,6 +629,7 @@ def start_translation_pipeline(
                         target,
                         include_transliteration=include_transliteration,
                         client=local_client,
+                        progress_tracker=progress_tracker,
                     )
                     transliteration_text = ""
                     if (
@@ -576,7 +644,10 @@ def start_translation_pipeline(
                         transliteration_source = translation_only or translation
                         if transliteration_source and not transliteration_text:
                             transliteration_result = transliterator.transliterate(
-                                transliteration_source, target, client=local_client
+                                transliteration_source,
+                                target,
+                                client=local_client,
+                                progress_tracker=progress_tracker,
                             )
                             transliteration_text = transliteration_result.text.strip()
                 finally:

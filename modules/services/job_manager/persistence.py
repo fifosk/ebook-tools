@@ -175,6 +175,10 @@ class PipelineJobPersistence:
             if isinstance(complete_flag, bool):
                 job.media_completed = complete_flag
 
+        retry_summary = job.retry_summary or (job.tracker.get_retry_counts() if job.tracker else None)
+        if retry_summary:
+            job.retry_summary = copy.deepcopy(retry_summary)
+
         snapshot = PipelineJobMetadata(
             job_id=job.job_id,
             job_type=job.job_type,
@@ -190,6 +194,7 @@ class PipelineJobPersistence:
             tuning_summary=copy.deepcopy(job.tuning_summary)
             if job.tuning_summary is not None
             else None,
+            retry_summary=copy.deepcopy(retry_summary),
             user_id=job.user_id,
             user_role=job.user_role,
             generated_files=copy.deepcopy(normalized_files)
@@ -241,6 +246,9 @@ class PipelineJobPersistence:
             resume_context=resume_context,
             tuning_summary=copy.deepcopy(metadata.tuning_summary)
             if metadata.tuning_summary is not None
+            else None,
+            retry_summary=copy.deepcopy(metadata.retry_summary)
+            if metadata.retry_summary is not None
             else None,
             user_id=metadata.user_id,
             user_role=metadata.user_role,

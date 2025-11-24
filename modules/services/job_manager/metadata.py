@@ -44,6 +44,7 @@ class PipelineJobMetadata:
     media_completed: Optional[bool] = None
     chunk_manifest: Optional[Dict[str, Any]] = None
     timing_tracks: Optional[Dict[str, Any]] = None
+    retry_summary: Optional[Dict[str, Dict[str, int]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         def _dt(value: Optional[datetime]) -> Optional[str]:
@@ -64,6 +65,9 @@ class PipelineJobMetadata:
             else None,
             "tuning_summary": _stable_copy(self.tuning_summary)
             if self.tuning_summary is not None
+            else None,
+            "retry_summary": _stable_copy(self.retry_summary)
+            if self.retry_summary is not None
             else None,
         }
         if self.request_payload is not None:
@@ -114,6 +118,7 @@ class PipelineJobMetadata:
             media_completed=data.get("media_completed"),
             chunk_manifest=data.get("chunk_manifest"),
             timing_tracks=data.get("timing_tracks"),
+            retry_summary=data.get("retry_summary"),
         )
 
     @classmethod

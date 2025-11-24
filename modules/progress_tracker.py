@@ -93,6 +93,7 @@ class ProgressTracker:
         self._completion_emitted = False
         self._generated_chunks: List[Dict[str, object]] = []
         self._generated_files_snapshot: Dict[str, object] = {"chunks": [], "files": []}
+        self._retry_counts: Dict[str, Dict[str, int]] = {}
 
     @property
     def report_interval(self) -> float:
@@ -135,6 +136,16 @@ class ProgressTracker:
                 "sentence_number": sentence_number,
             },
         )
+
+    def record_retry(self, stage: str, reason: str) -> None:
+        """Increment retry counters grouped by stage and reason."""
+
+        stage_key = (stage or "").strip().lower() or "unknown"
+        reason_key = (reason or "unspecified").strip()
+        with self._lock:
+            bucket = self._retry_counts.setdefault(stage_key, {})
+            bucket[reason_key] = bucket.get(reason_key, 0) + 1
+        self._emit_event("progress", metadata={"stage": stage_key, "retry_reason": reason_key})
 
     def record_media_completion(self, index: int, sentence_number: int) -> None:
         """Record the completion of a media generation task."""
@@ -299,6 +310,12 @@ class ProgressTracker:
 
         with self._lock:
             return copy.deepcopy(self._generated_files_snapshot)
+
+    def get_retry_counts(self) -> Dict[str, Dict[str, int]]:
+        """Return a snapshot of retry counters grouped by stage and reason."""
+
+        with self._lock:
+            return copy.deepcopy(self._retry_counts)
 
     def record_error(
         self, error: BaseException, metadata: Optional[Dict[str, object]] = None

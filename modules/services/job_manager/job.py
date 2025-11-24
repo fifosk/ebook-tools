@@ -60,6 +60,7 @@ class PipelineJob:
     media_completed: bool = False
     job_type: str = "pipeline"
     chunk_manifest: Optional[Dict[str, Any]] = None
+    retry_summary: Optional[Dict[str, Dict[str, int]]] = None
 
 
 __all__ = [

@@ -51,6 +51,20 @@ function deriveDirectoryFromPath(value: string | undefined): string {
   return normalised.slice(0, index);
 }
 
+function formatRetryCounts(counts?: Record<string, number> | null): string | null {
+  if (!counts) {
+    return null;
+  }
+  const parts = Object.entries(counts)
+    .filter(([, count]) => typeof count === 'number' && count > 0)
+    .sort((a, b) => {
+      const delta = (b[1] || 0) - (a[1] || 0);
+      return delta !== 0 ? delta : a[0].localeCompare(b[0]);
+    })
+    .map(([reason, count]) => `${reason} (${count})`);
+  return parts.length ? parts.join(', ') : null;
+}
+
 function extractSubtitleFile(status: JobState['status']): {
   name: string;
   relativePath: string | null;
@@ -1076,6 +1090,16 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                     ? !['false', '0', 'no', 'off'].includes(showOriginalValue.trim().toLowerCase())
                     : null;
               const stage = typeof event?.metadata?.stage === 'string' ? event?.metadata?.stage : null;
+              const retrySummary =
+                job.status.retry_summary && typeof job.status.retry_summary === 'object'
+                  ? (job.status.retry_summary as Record<string, Record<string, number>>)
+                  : null;
+              const translationRetries = retrySummary
+                ? formatRetryCounts(retrySummary.translation)
+                : null;
+              const transliterationRetries = retrySummary
+                ? formatRetryCounts(retrySummary.transliteration)
+                : null;
               const updatedAt = job.status.completed_at
                 || job.status.started_at
                 || (event ? new Date(event.timestamp * 1000).toISOString() : null);
@@ -1161,6 +1185,18 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
                       <div>
                         <dt>End time</dt>
                         <dd>{endTimeLabel}</dd>
+                      </div>
+                    ) : null}
+                    {translationRetries ? (
+                      <div>
+                        <dt>Translation retries</dt>
+                        <dd>{translationRetries}</dd>
+                      </div>
+                    ) : null}
+                    {transliterationRetries ? (
+                      <div>
+                        <dt>Transliteration retries</dt>
+                        <dd>{transliterationRetries}</dd>
                       </div>
                     ) : null}
                     {stage ? (

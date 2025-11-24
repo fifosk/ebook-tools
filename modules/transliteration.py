@@ -34,6 +34,7 @@ class TransliterationService:
         target_language: str,
         *,
         client: Optional[LLMClient] = None,
+        progress_tracker=None,
     ) -> TransliterationResult:
         lang = target_language.lower()
         with llm_client_manager.client_scope(client) as resolved_client:
@@ -84,6 +85,8 @@ class TransliterationService:
                     last_error = "Placeholder transliteration response"
                 else:
                     last_error = response.error or "Empty transliteration response"
+                if progress_tracker is not None and last_error:
+                    progress_tracker.record_retry("transliteration", last_error)
                 if attempt < _TRANSLITERATION_ATTEMPTS:
                     time.sleep(_TRANSLITERATION_RETRY_DELAY_SECONDS)
             if resolved_client.debug_enabled and last_error:

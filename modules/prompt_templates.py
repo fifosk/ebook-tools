@@ -45,6 +45,23 @@ _SCRIPT_REQUIREMENTS = {
     },
 }
 
+_DIACRITIC_REQUIREMENTS = {
+    "arabic": {
+        "aliases": ("arabic", "ar"),
+        "instruction": (
+            "Return fully vowelled Arabic with complete tashkīl/harakāt on every word (short vowels, tanwīn, shadda). "
+            "Do NOT omit or strip diacritics, even on short particles; only leave a letter unmarked when Arabic grammar requires it."
+        ),
+    },
+    "hebrew": {
+        "aliases": ("hebrew", "he", "iw"),
+        "instruction": (
+            "Return fully pointed Hebrew with niqqud on every word (vowel points, shva/naḥ, dagesh where required). "
+            "Do NOT omit vowel marks, even on short particles; exclude cantillation/taamim; prefer standard modern pronunciation when there is ambiguity."
+        ),
+    },
+}
+
 def make_translation_prompt(
     source_language: str,
     target_language: str,
@@ -105,16 +122,30 @@ def make_translation_prompt(
         if any(alias in target_lower for alias in requirement["aliases"]):
             instructions.append(requirement["instruction"])
 
+    for requirement in _DIACRITIC_REQUIREMENTS.values():
+        if any(alias in target_lower for alias in requirement["aliases"]):
+            instructions.append(requirement["instruction"])
+
     return "\n".join(instructions)
 
 
 def make_transliteration_prompt(target_language: str) -> str:
     """Prompt for requesting a transliteration from the model."""
 
-    return (
-        f"Transliterate the following sentence in {target_language} for English pronunciation.\n"
-        "Provide ONLY the transliteration on a SINGLE LINE without ANY additional text or commentary."
-    )
+    target_lower = target_language.lower()
+    instructions = [
+        f"Transliterate the following sentence in {target_language} for English pronunciation.",
+        "Provide ONLY the transliteration on a SINGLE LINE without ANY additional text or commentary.",
+        "Preserve word boundaries with spaces; do not add labels or punctuation beyond what is needed for pronunciation.",
+    ]
+
+    for requirement in _DIACRITIC_REQUIREMENTS.values():
+        if any(alias in target_lower for alias in requirement["aliases"]):
+            instructions.append(
+                "Honor the vowel marks present in the source (tashkil/niqqud) and reflect them in the transliteration so the vowels are explicit; if marks are missing, infer a fully vowelled reading."
+            )
+
+    return "\n".join(instructions)
 
 
 def make_sentence_payload(

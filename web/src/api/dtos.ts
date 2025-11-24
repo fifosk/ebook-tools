@@ -149,6 +149,7 @@ export interface PipelineStatusResponse {
   generated_files?: Record<string, unknown> | null;
   parameters?: JobParameterSnapshot | null;
   media_completed?: boolean | null;
+  retry_summary?: Record<string, Record<string, number>> | null;
 }
 
 export interface SubtitleSourceEntry {

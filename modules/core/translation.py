@@ -16,6 +16,7 @@ def translate_sentence_simple(
     *,
     include_transliteration: bool = False,
     client=None,
+    progress_tracker=None,
 ):
     """Translate a sentence using the configured translation engine."""
 
@@ -25,6 +26,7 @@ def translate_sentence_simple(
         target_language,
         include_transliteration=include_transliteration,
         client=client,
+        progress_tracker=progress_tracker,
     )
 
 
@@ -34,11 +36,17 @@ def transliterate_sentence(
     *,
     client=None,
     transliterator: Optional[TransliterationService] = None,
+    progress_tracker=None,
 ) -> str:
     """Return a transliteration for ``translated_sentence`` when supported."""
 
     service = transliterator or get_transliterator()
-    result = service.transliterate(translated_sentence, target_language, client=client)
+    result = service.transliterate(
+        translated_sentence,
+        target_language,
+        client=client,
+        progress_tracker=progress_tracker,
+    )
     return result.text
 
 
@@ -51,6 +59,7 @@ def translate_batch(
     max_workers: Optional[int] = None,
     client=None,
     worker_pool=None,
+    progress_tracker=None,
 ) -> List[str]:
     """Translate ``sentences`` sequentially for the provided ``target_languages``."""
 
@@ -62,6 +71,7 @@ def translate_batch(
         max_workers=max_workers,
         client=client,
         worker_pool=worker_pool,
+        progress_tracker=progress_tracker,
     )
 
 

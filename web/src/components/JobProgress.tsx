@@ -142,8 +142,22 @@ function formatMetadataValue(key: string, value: unknown): string {
 type JobParameterEntry = {
   key: string;
   label: string;
-  value: string;
+  value: React.ReactNode;
 };
+
+function formatRetryCounts(counts?: Record<string, number> | null): string | null {
+  if (!counts) {
+    return null;
+  }
+  const parts = Object.entries(counts)
+    .filter(([, count]) => typeof count === 'number' && count > 0)
+    .sort((a, b) => {
+      const delta = (b[1] || 0) - (a[1] || 0);
+      return delta !== 0 ? delta : a[0].localeCompare(b[0]);
+    })
+    .map(([reason, count]) => `${reason} (${count})`);
+  return parts.length ? parts.join(', ') : null;
+}
 
 function coerceNumber(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
@@ -311,6 +325,7 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   const startSentence = parameters?.start_sentence ?? sentenceRange.start;
   const endSentence = parameters?.end_sentence ?? sentenceRange.end;
   const llmModel = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
+  const retrySummary = status.retry_summary ?? null;
 
   if (status.job_type === 'subtitle') {
     const subtitleMetadata = resolveSubtitleMetadata(status);
@@ -401,6 +416,28 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
         value: endTimeLabel
       });
     }
+    if (retrySummary && typeof retrySummary === 'object') {
+      const translationRetries = formatRetryCounts(
+        (retrySummary as Record<string, Record<string, number>>).translation
+      );
+      if (translationRetries) {
+        entries.push({
+          key: 'subtitle-translation-retry-summary',
+          label: 'Translation retries',
+          value: translationRetries
+        });
+      }
+      const transliterationRetries = formatRetryCounts(
+        (retrySummary as Record<string, Record<string, number>>).transliteration
+      );
+      if (transliterationRetries) {
+        entries.push({
+          key: 'subtitle-transliteration-retry-summary',
+          label: 'Transliteration retries',
+          value: transliterationRetries
+        });
+      }
+    }
     return entries;
   }
 
@@ -446,6 +483,28 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
       label: 'Voice overrides',
       value: voiceOverrideText
     });
+  }
+  if (retrySummary && typeof retrySummary === 'object') {
+    const translationRetries = formatRetryCounts(
+      (retrySummary as Record<string, Record<string, number>>).translation
+    );
+    if (translationRetries) {
+      entries.push({
+        key: 'pipeline-translation-retry-summary',
+        label: 'Translation retries',
+        value: translationRetries
+      });
+    }
+    const transliterationRetries = formatRetryCounts(
+      (retrySummary as Record<string, Record<string, number>>).transliteration
+    );
+    if (transliterationRetries) {
+      entries.push({
+        key: 'pipeline-transliteration-retry-summary',
+        label: 'Transliteration retries',
+        value: transliterationRetries
+      });
+    }
   }
   return entries;
 }
@@ -768,7 +827,7 @@ export function JobProgress({
         </button>
       </div>
     </div>
-  );
-}
+    );
+  }
 
 export default JobProgress;

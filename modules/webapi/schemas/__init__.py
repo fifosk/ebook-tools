@@ -572,6 +572,7 @@ class PipelineStatusResponse(BaseModel):
     generated_files: Optional[Dict[str, Any]] = None
     parameters: Optional[JobParameterSnapshot] = None
     media_completed: Optional[bool] = None
+    retry_summary: Optional[Dict[str, Dict[str, int]]] = None
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -605,6 +606,7 @@ class PipelineStatusResponse(BaseModel):
             generated_files=generated_files,
             parameters=_build_job_parameters(job),
             media_completed=job.media_completed,
+            retry_summary=job.tracker.get_retry_counts() if job.tracker else job.retry_summary,
         )
 
 

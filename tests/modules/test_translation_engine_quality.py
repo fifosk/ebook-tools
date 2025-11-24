@@ -1,7 +1,9 @@
 import pytest
 
 from modules import translation_engine
+from modules import prompt_templates
 from modules.llm_client import LLMResponse
+from modules.progress_tracker import ProgressTracker
 
 
 class StubLLMClient:
@@ -67,3 +69,80 @@ def test_retry_when_translation_too_short(monkeypatch, attempts):
     )
 
     assert "fuller translation" in result
+
+
+@pytest.mark.parametrize("attempts", [2])
+def test_retry_when_missing_diacritics(monkeypatch, attempts):
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", attempts)
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RETRY_DELAY_SECONDS", 0)
+    client = StubLLMClient(
+        [
+            "مرحبا بالعالم",
+            "مَرْحَبًا بِالْعَالَمِ",
+        ]
+    )
+
+    result = translation_engine.translate_sentence_simple(
+        "مرحبا بالعالم",
+        "arabic",
+        "arabic",
+        include_transliteration=False,
+        client=client,
+    )
+
+    assert "َ" in result or "ِ" in result or "ً" in result
+
+
+@pytest.mark.parametrize("attempts", [2])
+def test_fallback_without_diacritics(monkeypatch, attempts):
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", attempts)
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RETRY_DELAY_SECONDS", 0)
+    client = StubLLMClient(
+        [
+            "مرحبا بالعالم",
+            "اهلا بكم جميعا",
+        ]
+    )
+
+    result = translation_engine.translate_sentence_simple(
+        "مرحبا بالعالم",
+        "arabic",
+        "arabic",
+        include_transliteration=False,
+        client=client,
+    )
+
+    assert "مرحبا" in result or "اهلا" in result
+
+
+def test_records_retry_counts(monkeypatch):
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RESPONSE_ATTEMPTS", 2)
+    monkeypatch.setattr(translation_engine, "_TRANSLATION_RETRY_DELAY_SECONDS", 0)
+    tracker = ProgressTracker()
+    client = StubLLMClient(
+        [
+            "OK.",
+            "Proper translated output with vowels",
+        ]
+    )
+
+    translation_engine.translate_sentence_simple(
+        "A very long sentence that should trigger the short translation retry.",
+        "english",
+        "arabic",
+        progress_tracker=tracker,
+        client=client,
+    )
+
+    counts = tracker.get_retry_counts()
+    assert counts.get("translation", {}).get("Translation shorter than expected") == 1
+
+
+def test_prompts_include_diacritic_guidance():
+    arabic_prompt = prompt_templates.make_translation_prompt("english", "arabic")
+    hebrew_prompt = prompt_templates.make_translation_prompt("english", "hebrew")
+    translit_prompt = prompt_templates.make_transliteration_prompt("arabic")
+
+    assert "diacritics" in arabic_prompt.lower()
+    assert "niqqud" in hebrew_prompt.lower()
+    assert "vowel" in translit_prompt.lower()
