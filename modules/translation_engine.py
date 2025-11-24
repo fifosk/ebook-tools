@@ -10,6 +10,8 @@ import threading
 import time
 from typing import Iterable, Iterator, List, Optional, Sequence, TYPE_CHECKING
 
+import regex
+
 if TYPE_CHECKING:
     from concurrent.futures import Future
     from modules.progress_tracker import ProgressTracker
@@ -54,6 +56,35 @@ _SEGMENTATION_LANGS = {
     "zh-cn",
     "zh-tw",
 }
+_NON_LATIN_TARGET_HINTS = {
+    "arabic",
+    "armenian",
+    "bengali",
+    "bulgarian",
+    "chinese",
+    "cyrillic",
+    "georgian",
+    "greek",
+    "gujarati",
+    "hebrew",
+    "hindi",
+    "japanese",
+    "kannada",
+    "korean",
+    "malayalam",
+    "marathi",
+    "punjabi",
+    "russian",
+    "serbian",
+    "sinhala",
+    "tamil",
+    "telugu",
+    "thai",
+    "ukrainian",
+    "urdu",
+}
+_LATIN_LETTER_PATTERN = regex.compile(r"\p{Latin}")
+_NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
 
 
 class ThreadWorkerPool:
@@ -181,6 +212,62 @@ def _valid_translation(text: str) -> bool:
     return not text_norm.is_placeholder_translation(text)
 
 
+def _letter_count(value: str) -> int:
+    return sum(1 for char in value if char.isalpha())
+
+
+def _has_non_latin_letters(value: str) -> bool:
+    return bool(_NON_LATIN_LETTER_PATTERN.search(value))
+
+
+def _latin_fraction(value: str) -> float:
+    if not value:
+        return 0.0
+    latin = len(_LATIN_LETTER_PATTERN.findall(value))
+    non_latin = len(_NON_LATIN_LETTER_PATTERN.findall(value))
+    total = latin + non_latin
+    if total == 0:
+        return 0.0
+    return latin / total
+
+
+def _is_probable_transliteration(
+    original_sentence: str, translation_text: str, target_language: str
+) -> bool:
+    """
+    Return True when the response likely contains only a Latin transliteration
+    even though the target language expects non-Latin script output.
+    """
+
+    target_lower = (target_language or "").lower()
+    if not translation_text or not _has_non_latin_letters(original_sentence):
+        return False
+    if not any(hint in target_lower for hint in _NON_LATIN_TARGET_HINTS):
+        return False
+    return _latin_fraction(translation_text) >= 0.6
+
+
+def _is_translation_too_short(
+    original_sentence: str, translation_text: str
+) -> bool:
+    """
+    Heuristic for truncated translations. Skip very short inputs to avoid
+    over-triggering on single words.
+    """
+
+    translation_text = translation_text or ""
+    original_letters = _letter_count(original_sentence)
+    if original_letters <= 12:
+        return False
+    translation_letters = _letter_count(translation_text)
+    if translation_letters == 0:
+        return True
+    if original_letters >= 80 and translation_letters < 15:
+        return True
+    ratio = translation_letters / float(original_letters)
+    return original_letters >= 30 and ratio < 0.28
+
+
 def translate_sentence_simple(
     sentence: str,
     input_language: str,
@@ -219,15 +306,42 @@ def translate_sentence_simple(
             if response.text:
                 cleaned_text = response.text.strip()
                 if cleaned_text and not text_norm.is_placeholder_translation(cleaned_text):
-                    if _is_segmentation_ok(sentence, cleaned_text, target_language):
+                    translation_text, transliteration_text = text_norm.split_translation_and_transliteration(
+                        cleaned_text
+                    )
+                    if _is_probable_transliteration(
+                        sentence, translation_text, target_language
+                    ):
+                        last_error = "Transliteration returned instead of translation"
+                        if resolved_client.debug_enabled:
+                            logger.debug(
+                                "Retrying translation due to transliteration on attempt %s/%s",
+                                attempt,
+                                _TRANSLATION_RESPONSE_ATTEMPTS,
+                            )
+                    elif _is_translation_too_short(sentence, translation_text):
+                        last_error = "Translation shorter than expected"
+                        if resolved_client.debug_enabled:
+                            logger.debug(
+                                "Retrying translation due to short response (%s/%s)",
+                                attempt,
+                                _TRANSLATION_RESPONSE_ATTEMPTS,
+                            )
+                    elif _is_segmentation_ok(
+                        sentence,
+                        cleaned_text,
+                        target_language,
+                        translation_text=translation_text,
+                    ):
                         return cleaned_text
-                    last_error = "Unsegmented translation received"
-                    if resolved_client.debug_enabled:
-                        logger.debug(
-                            "Retrying translation due to missing word spacing (%s/%s)",
-                            attempt,
-                            _TRANSLATION_RESPONSE_ATTEMPTS,
-                        )
+                    else:
+                        last_error = "Unsegmented translation received"
+                        if resolved_client.debug_enabled:
+                            logger.debug(
+                                "Retrying translation due to missing word spacing (%s/%s)",
+                                attempt,
+                                _TRANSLATION_RESPONSE_ATTEMPTS,
+                            )
                 else:
                     last_error = "Placeholder translation received"
                     if resolved_client.debug_enabled:
@@ -260,7 +374,11 @@ def translate_sentence_simple(
 
 
 def _is_segmentation_ok(
-    original_sentence: str, translation: str, target_language: str
+    original_sentence: str,
+    translation: str,
+    target_language: str,
+    *,
+    translation_text: Optional[str] = None,
 ) -> bool:
     """
     Require word-like spacing for select languages; otherwise retry.
@@ -275,7 +393,8 @@ def _is_segmentation_ok(
     original_word_count = max(len(original_sentence.split()), 1)
     if original_word_count <= 1:
         return True
-    tokens = split_highlight_tokens(translation)
+    candidate = translation_text or translation
+    tokens = split_highlight_tokens(candidate)
     token_count = len(tokens)
     if token_count <= 1:
         return False

@@ -56,6 +56,7 @@ export const LANGUAGE_CODES: Record<string, string> = {
   Polish: 'pl',
   Portuguese: 'pt',
   Punjabi: 'pa',
+  Romani: 'rom',
   Spanish: 'es',
   Romanian: 'ro',
   Russian: 'ru',
