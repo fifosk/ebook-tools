@@ -33,7 +33,12 @@ import {
   SubtitleJobResultPayload,
   LlmModelListResponse,
   SubtitleSourceEntry,
-  SubtitleSourceListResponse
+  SubtitleSourceListResponse,
+  YoutubeSubtitleDownloadRequest,
+  YoutubeSubtitleDownloadResponse,
+  YoutubeSubtitleListResponse,
+  YoutubeVideoDownloadRequest,
+  YoutubeVideoDownloadResponse
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -202,6 +207,38 @@ export async function fetchSubtitleSources(directory?: string): Promise<Subtitle
   const response = await apiFetch(`/api/subtitles/sources${query}`);
   const payload = await handleResponse<SubtitleSourceListResponse>(response);
   return payload.sources;
+}
+
+export async function fetchYoutubeSubtitleTracks(url: string): Promise<YoutubeSubtitleListResponse> {
+  const query = `?url=${encodeURIComponent(url)}`;
+  const response = await apiFetch(`/api/subtitles/youtube/subtitles${query}`);
+  return handleResponse<YoutubeSubtitleListResponse>(response);
+}
+
+export async function downloadYoutubeSubtitle(
+  payload: YoutubeSubtitleDownloadRequest
+): Promise<YoutubeSubtitleDownloadResponse> {
+  const response = await apiFetch('/api/subtitles/youtube/download', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<YoutubeSubtitleDownloadResponse>(response);
+}
+
+export async function downloadYoutubeVideo(
+  payload: YoutubeVideoDownloadRequest
+): Promise<YoutubeVideoDownloadResponse> {
+  const response = await apiFetch('/api/subtitles/youtube/video', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<YoutubeVideoDownloadResponse>(response);
 }
 
 export async function fetchLlmModels(): Promise<string[]> {

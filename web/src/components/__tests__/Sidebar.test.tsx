@@ -38,6 +38,7 @@ describe('Sidebar', () => {
         createBookView="books:create"
         libraryView="library:list"
         subtitlesView="subtitles:home"
+        youtubeSubtitlesView="subtitles:youtube"
         jobMediaView="job:media"
         adminView="admin:users"
       />
@@ -68,6 +69,7 @@ describe('Sidebar', () => {
         createBookView="books:create"
         libraryView="library:list"
         subtitlesView="subtitles:home"
+        youtubeSubtitlesView="subtitles:youtube"
         jobMediaView="job:media"
         adminView="admin:users"
       />

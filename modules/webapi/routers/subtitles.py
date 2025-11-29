@@ -20,6 +20,12 @@ from modules.services import SubtitleService, SubtitleSubmission
 from modules.services.llm_models import list_available_llm_models
 from modules.services.job_manager import PipelineJobManager
 from modules.services.subtitle_service import SUPPORTED_EXTENSIONS
+from modules.services.youtube_subtitles import (
+    SubtitleKind,
+    download_video as perform_youtube_video_download,
+    download_subtitle as perform_youtube_subtitle_download,
+    list_available_subtitles,
+)
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
 from ..dependencies import (
@@ -33,6 +39,12 @@ from ..schemas import (
     SubtitleSourceEntry,
     SubtitleSourceListResponse,
     LLMModelListResponse,
+    YoutubeSubtitleDownloadRequest,
+    YoutubeSubtitleDownloadResponse,
+    YoutubeSubtitleListResponse,
+    YoutubeSubtitleTrackPayload,
+    YoutubeVideoDownloadRequest,
+    YoutubeVideoDownloadResponse,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
@@ -237,6 +249,151 @@ def list_subtitle_sources(
     return SubtitleSourceListResponse(sources=payload)
 
 
+def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
+    tracks = [
+        YoutubeSubtitleTrackPayload(
+            language=track.language,
+            kind=track.kind,
+            name=track.name,
+            formats=track.formats,
+        )
+        for track in listing.tracks
+    ]
+    return YoutubeSubtitleListResponse(
+        video_id=listing.video_id,
+        title=listing.title,
+        tracks=tracks,
+    )
+
+
+@router.get("/youtube/subtitles", response_model=YoutubeSubtitleListResponse)
+def list_youtube_subtitles(url: str) -> YoutubeSubtitleListResponse:
+    """Return available YouTube subtitle languages for ``url``."""
+
+    try:
+        listing = list_available_subtitles(url)
+    except Exception as exc:
+        logger.warning("Unable to list YouTube subtitles for %s", url, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to list subtitles: {exc}",
+        ) from exc
+    return _serialize_youtube_tracks(listing)
+
+
+@router.post("/youtube/download", response_model=YoutubeSubtitleDownloadResponse)
+def download_youtube_subtitle(
+    payload: YoutubeSubtitleDownloadRequest,
+    service: SubtitleService = Depends(get_subtitle_service),
+) -> YoutubeSubtitleDownloadResponse:
+    """Download a YouTube subtitle track into the subtitle NAS directory."""
+
+    language = payload.language.strip()
+    if not language:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="language is required",
+        )
+    kind: SubtitleKind = payload.kind
+
+    try:
+        listing = list_available_subtitles(payload.url)
+    except Exception as exc:
+        logger.warning("Unable to inspect YouTube subtitles for %s", payload.url, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to inspect subtitles: {exc}",
+        ) from exc
+
+    selected = next(
+        (track for track in listing.tracks if track.language == language and track.kind == kind),
+        None,
+    )
+    if selected is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"No {kind} subtitles found for language '{language}'",
+        )
+
+    try:
+        output_path = perform_youtube_subtitle_download(
+            payload.url,
+            language=language,
+            kind=kind,
+            output_dir=service.default_source_dir,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+    except Exception as exc:
+        logger.warning(
+            "Failed to download YouTube subtitles for %s (%s, %s)",
+            payload.url,
+            language,
+            kind,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Subtitle download failed: {exc}",
+        ) from exc
+
+    return YoutubeSubtitleDownloadResponse(
+        output_path=output_path.as_posix(),
+        filename=output_path.name,
+    )
+
+
+def _looks_like_youtube_subtitle(path: Path) -> bool:
+    """Heuristic to detect YouTube-sourced subtitles from the filename."""
+
+    name = path.name.lower()
+    stem = path.stem.lower()
+    normalized = name.replace("_", "-")
+    if normalized.endswith("-yt.srt"):
+        return True
+    if stem.endswith("_yt") or stem.endswith("-yt"):
+        return True
+    # Match YouTube video id enclosed in brackets, e.g., [kZ5Jq2Is888]
+    return bool(regex.search(r"\[[a-z0-9_-]{8,15}\]", name, flags=regex.IGNORECASE))
+
+
+@router.post("/youtube/video", response_model=YoutubeVideoDownloadResponse)
+def download_youtube_video(
+    payload: YoutubeVideoDownloadRequest,
+) -> YoutubeVideoDownloadResponse:
+    """Download a YouTube video to the NAS directory."""
+
+    target_root = Path(payload.output_dir or "/Volumes/Data/Video/Youtube").expanduser()
+    try:
+        target_root.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unable to create output directory: {exc}",
+        ) from exc
+
+    try:
+        output_path = perform_youtube_video_download(
+            payload.url,
+            output_root=target_root,
+        )
+    except Exception as exc:
+        logger.warning("YouTube video download failed for %s", payload.url, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Video download failed: {exc}",
+        ) from exc
+
+    return YoutubeVideoDownloadResponse(
+        output_path=output_path.as_posix(),
+        filename=output_path.name,
+        folder=output_path.parent.as_posix(),
+    )
+
+
 @router.get("/models", response_model=LLMModelListResponse)
 def list_subtitle_models() -> LLMModelListResponse:
     """Return available Ollama models for subtitle translations."""
@@ -395,6 +552,16 @@ async def submit_subtitle_job(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to prepare subtitle upload.",
         ) from exc
+
+    try:
+        object.__setattr__(
+            options_model,
+            "source_is_youtube",
+            _looks_like_youtube_subtitle(source_path_resolved),
+        )
+    except Exception:
+        # Defensive: keep options intact if tagging fails.
+        pass
 
     submission = SubtitleSubmission(
         source_path=source_path_resolved,

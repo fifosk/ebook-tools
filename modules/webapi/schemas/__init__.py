@@ -232,6 +232,53 @@ class SubtitleSourceListResponse(BaseModel):
     sources: List[SubtitleSourceEntry] = Field(default_factory=list)
 
 
+class YoutubeSubtitleTrackPayload(BaseModel):
+    """Description of an available YouTube subtitle track."""
+
+    language: str
+    kind: Literal["auto", "manual"]
+    name: Optional[str] = None
+    formats: List[str] = Field(default_factory=list)
+
+
+class YoutubeSubtitleListResponse(BaseModel):
+    """Available subtitle tracks for a YouTube video."""
+
+    video_id: str
+    title: Optional[str] = None
+    tracks: List[YoutubeSubtitleTrackPayload] = Field(default_factory=list)
+
+
+class YoutubeSubtitleDownloadRequest(BaseModel):
+    """Request payload to download a YouTube subtitle track."""
+
+    url: str
+    language: str
+    kind: Literal["auto", "manual"] = "manual"
+
+
+class YoutubeSubtitleDownloadResponse(BaseModel):
+    """Response after downloading a YouTube subtitle track."""
+
+    output_path: str
+    filename: str
+
+
+class YoutubeVideoDownloadRequest(BaseModel):
+    """Request payload to download a YouTube video."""
+
+    url: str
+    output_dir: Optional[str] = None
+
+
+class YoutubeVideoDownloadResponse(BaseModel):
+    """Response after downloading a YouTube video."""
+
+    output_path: str
+    filename: str
+    folder: str
+
+
 class LLMModelListResponse(BaseModel):
     """Response payload describing available LLM models."""
 

@@ -13,6 +13,7 @@ interface SidebarProps {
   libraryView: SelectedView;
   jobMediaView: SelectedView;
   subtitlesView: SelectedView;
+  youtubeSubtitlesView: SelectedView;
   adminView: SelectedView;
 }
 
@@ -92,6 +93,7 @@ export function Sidebar({
   createBookView,
   libraryView,
   subtitlesView,
+  youtubeSubtitlesView,
   jobMediaView,
   adminView
 }: SidebarProps) {
@@ -130,6 +132,15 @@ export function Sidebar({
               onClick={() => onSelectView(subtitlesView)}
             >
               Subtitles
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === youtubeSubtitlesView ? 'is-active' : ''}`}
+              onClick={() => onSelectView(youtubeSubtitlesView)}
+            >
+              YouTube subtitles
             </button>
           </li>
         </ul>

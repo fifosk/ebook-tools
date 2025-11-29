@@ -7,6 +7,7 @@ import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
 import SubtitlesPage from './pages/SubtitlesPage';
+import YoutubeSubtitlesPage from './pages/YoutubeSubtitlesPage';
 import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
 import {
@@ -58,6 +59,7 @@ const JOB_MEDIA_VIEW = 'job:media' as const;
 const LIBRARY_VIEW = 'library:list' as const;
 const CREATE_BOOK_VIEW = 'books:create' as const;
 const SUBTITLES_VIEW = 'subtitles:home' as const;
+const YOUTUBE_SUBTITLES_VIEW = 'subtitles:youtube' as const;
 
 export type SelectedView =
   | PipelineMenuView
@@ -66,7 +68,8 @@ export type SelectedView =
   | typeof JOB_MEDIA_VIEW
   | typeof LIBRARY_VIEW
   | typeof CREATE_BOOK_VIEW
-  | typeof SUBTITLES_VIEW;
+  | typeof SUBTITLES_VIEW
+  | typeof YOUTUBE_SUBTITLES_VIEW;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -827,6 +830,7 @@ export function App() {
   const isLibraryView = selectedView === LIBRARY_VIEW;
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
   const isSubtitlesView = selectedView === SUBTITLES_VIEW;
+  const isYoutubeSubtitlesView = selectedView === YOUTUBE_SUBTITLES_VIEW;
   const isAddBookView = isPipelineView;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
@@ -1125,6 +1129,7 @@ export function App() {
         createBookView={CREATE_BOOK_VIEW}
         libraryView={LIBRARY_VIEW}
         subtitlesView={SUBTITLES_VIEW}
+        youtubeSubtitlesView={YOUTUBE_SUBTITLES_VIEW}
         jobMediaView={JOB_MEDIA_VIEW}
         adminView={ADMIN_USER_MANAGEMENT_VIEW}
       />
@@ -1217,6 +1222,11 @@ export function App() {
                     onJobCreated={handleSubtitleJobCreated}
                     onSelectJob={handleSubtitleJobSelected}
                   />
+                </section>
+              ) : null}
+              {isYoutubeSubtitlesView ? (
+                <section>
+                  <YoutubeSubtitlesPage />
                 </section>
               ) : null}
               {selectedView === JOB_PROGRESS_VIEW ? (

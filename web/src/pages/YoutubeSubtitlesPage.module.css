@@ -1,0 +1,303 @@
+.container {
+  display: grid;
+  gap: var(--space-lg);
+  align-content: start;
+}
+
+.kicker {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: rgba(226, 243, 255, 0.82);
+  margin: 0 0 var(--space-xs);
+}
+
+.title {
+  margin: 0 0 var(--space-sm);
+  font-size: clamp(1.8rem, 2vw, 2.35rem);
+  color: #eaf5ff;
+}
+
+.subtitle {
+  margin: 0 0 var(--space-sm);
+  max-width: 48rem;
+  color: rgba(226, 243, 255, 0.9);
+}
+
+.pathNote {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
+}
+
+.card {
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-lg);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-bottom: var(--space-md);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 1.35rem;
+  color: var(--color-text-heading);
+}
+
+.cardHint {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-text-secondary);
+}
+
+.videoBadge {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  border-radius: 999px;
+  padding: var(--space-xs) var(--space-sm);
+  display: grid;
+  gap: 0.1rem;
+  text-align: right;
+}
+
+.badgeLabel {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.badgeValue {
+  color: #7dd3fc;
+  font-size: 0.95rem;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-sm);
+}
+
+.label {
+  font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.inputRow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-sm);
+  align-items: center;
+}
+
+.input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-input);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font-size: 1rem;
+}
+
+.input:focus {
+  outline: 2px solid var(--color-border-accent);
+  border-color: var(--color-border-accent);
+}
+
+.primaryButton {
+  background: var(--color-button-primary-gradient);
+  color: var(--color-button-primary-text);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0.75rem 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  white-space: nowrap;
+}
+
+.primaryButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.primaryButton:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(129, 140, 248, 0.35);
+}
+
+.error {
+  color: var(--color-status-danger-text);
+  background: var(--color-status-danger-bg);
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  margin: 0;
+}
+
+.success {
+  color: var(--color-status-success-text);
+  background: var(--color-status-success-bg);
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  border-radius: var(--radius-md);
+  padding: var(--space-xs) var(--space-sm);
+  margin: 0;
+}
+
+.status {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.selectionSummary {
+  font-weight: 700;
+  color: var(--color-text-heading);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-strong);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 999px;
+}
+
+.trackGrid {
+  display: grid;
+  gap: var(--space-sm);
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+}
+
+.trackCard {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-sm);
+  align-items: start;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+}
+
+.trackCardActive {
+  border-color: var(--color-border-accent);
+  box-shadow: 0 8px 20px rgba(56, 189, 248, 0.18);
+  transform: translateY(-1px);
+}
+
+.trackRadio {
+  margin-top: 0.35rem;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
+.trackMeta {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.trackHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.trackLanguage {
+  font-weight: 700;
+  color: var(--color-text-heading);
+}
+
+.trackName {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.trackDetail {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 0.95rem;
+}
+
+.kindBadge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.kindBadgeManual {
+  background: rgba(74, 222, 128, 0.14);
+  border-color: rgba(74, 222, 128, 0.4);
+  color: #86efac;
+}
+
+.kindBadgeAuto {
+  background: rgba(250, 204, 21, 0.14);
+  border-color: rgba(250, 204, 21, 0.35);
+  color: #facc15;
+}
+
+.emptyState {
+  border: 1px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  color: var(--color-text-secondary);
+}
+
+.actions {
+  display: grid;
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.downloadList ul {
+  margin: 0.25rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--color-text-secondary);
+}
+
+.select {
+  width: 100%;
+  min-height: 10rem;
+  padding: var(--space-xs);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-input);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+}
+
+.helpText {
+  margin: var(--space-xs) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+@media (max-width: 720px) {
+  .inputRow {
+    grid-template-columns: 1fr;
+  }
+
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .selectionSummary {
+    width: 100%;
+    text-align: center;
+  }
+}

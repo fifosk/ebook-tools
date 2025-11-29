@@ -57,6 +57,12 @@ class SubtitleService:
         ).expanduser()
         self._mirror_warning_logged = False
 
+    @property
+    def default_source_dir(self) -> Path:
+        """Return the configured subtitle source directory used for mirroring."""
+
+        return self._default_source_dir
+
     def _probe_directory(self, path: Path, *, require_write: bool) -> Optional[Path]:
         candidate = path.expanduser()
         try:

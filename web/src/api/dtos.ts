@@ -161,6 +161,43 @@ export interface SubtitleSourceListResponse {
   sources: SubtitleSourceEntry[];
 }
 
+export type YoutubeSubtitleKind = 'auto' | 'manual';
+
+export interface YoutubeSubtitleTrack {
+  language: string;
+  kind: YoutubeSubtitleKind;
+  name?: string | null;
+  formats: string[];
+}
+
+export interface YoutubeSubtitleListResponse {
+  video_id: string;
+  title?: string | null;
+  tracks: YoutubeSubtitleTrack[];
+}
+
+export interface YoutubeSubtitleDownloadRequest {
+  url: string;
+  language: string;
+  kind: YoutubeSubtitleKind;
+}
+
+export interface YoutubeSubtitleDownloadResponse {
+  output_path: string;
+  filename: string;
+}
+
+export interface YoutubeVideoDownloadRequest {
+  url: string;
+  output_dir?: string | null;
+}
+
+export interface YoutubeVideoDownloadResponse {
+  output_path: string;
+  filename: string;
+  folder: string;
+}
+
 export interface LlmModelListResponse {
   models: string[];
 }

@@ -120,6 +120,7 @@ class SubtitleJobOptions:
     llm_model: Optional[str] = None
     ass_font_size: Optional[int] = None
     ass_emphasis_scale: Optional[float] = None
+    source_is_youtube: bool = False
 
     def __post_init__(self) -> None:
         input_language = (self.input_language or "").strip()
@@ -133,6 +134,7 @@ class SubtitleJobOptions:
         object.__setattr__(self, "input_language", input_language)
         object.__setattr__(self, "original_language", original_language)
         object.__setattr__(self, "show_original", bool(self.show_original))
+        object.__setattr__(self, "source_is_youtube", bool(self.source_is_youtube))
         if self.start_time_offset is not None:
             object.__setattr__(self, "start_time_offset", float(self.start_time_offset))
         if self.end_time_offset is not None:
@@ -289,6 +291,7 @@ class SubtitleJobOptions:
             llm_model=llm_model,
             ass_font_size=ass_font_size,
             ass_emphasis_scale=ass_emphasis_scale,
+            source_is_youtube=bool(data.get("source_is_youtube", False)),
         )
 
     def to_dict(self) -> Dict[str, object]:
@@ -302,6 +305,7 @@ class SubtitleJobOptions:
             "mirror_batches_to_source_dir": self.mirror_batches_to_source_dir,
             "output_format": self.output_format,
             "color_palette": self.color_palette.to_dict(),
+            "source_is_youtube": self.source_is_youtube,
         }
         if self.batch_size is not None:
             payload["batch_size"] = self.batch_size

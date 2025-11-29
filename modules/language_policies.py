@@ -25,8 +25,21 @@ class ScriptPolicy:
     instruction: str
 
     def matches(self, target_language: str) -> bool:
-        target_lower = (target_language or "").lower()
-        return any(alias in target_lower for alias in self.aliases)
+        """Return True when ``target_language`` matches this policy."""
+
+        target_lower = (target_language or "").lower().replace("_", "-")
+        tokens = [
+            token
+            for token in regex.split(r"[^a-z0-9]+", target_lower)
+            if token
+        ]
+        for alias in self.aliases:
+            alias_normalized = alias.lower().replace("_", "-")
+            if target_lower == alias_normalized:
+                return True
+            if alias_normalized in tokens:
+                return True
+        return False
 
 
 _SCRIPT_POLICIES: tuple[ScriptPolicy, ...] = (
