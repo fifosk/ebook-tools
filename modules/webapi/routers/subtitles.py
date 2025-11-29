@@ -45,6 +45,7 @@ from ..schemas import (
     YoutubeSubtitleTrackPayload,
     YoutubeVideoDownloadRequest,
     YoutubeVideoDownloadResponse,
+    YoutubeVideoFormatPayload,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
@@ -259,10 +260,23 @@ def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
         )
         for track in listing.tracks
     ]
+    video_formats = [
+        YoutubeVideoFormatPayload(
+            format_id=entry.format_id,
+            ext=entry.ext,
+            resolution=entry.resolution,
+            fps=entry.fps,
+            note=entry.note,
+            bitrate_kbps=entry.bitrate_kbps,
+            filesize=entry.filesize,
+        )
+        for entry in getattr(listing, "video_formats", []) or []
+    ]
     return YoutubeSubtitleListResponse(
         video_id=listing.video_id,
         title=listing.title,
         tracks=tracks,
+        video_formats=video_formats,
     )
 
 
@@ -375,10 +389,28 @@ def download_youtube_video(
             detail=f"Unable to create output directory: {exc}",
         ) from exc
 
+    format_id = payload.format_id.strip() if isinstance(payload.format_id, str) else None
+    if format_id:
+        try:
+            listing = list_available_subtitles(payload.url)
+        except Exception as exc:
+            logger.warning("Unable to inspect YouTube video formats for %s", payload.url, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unable to inspect video formats: {exc}",
+            ) from exc
+        known_formats = {entry.format_id for entry in getattr(listing, "video_formats", [])}
+        if format_id not in known_formats:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Requested format is not available for this video.",
+            )
+
     try:
         output_path = perform_youtube_video_download(
             payload.url,
             output_root=target_root,
+            format_id=format_id,
         )
     except Exception as exc:
         logger.warning("YouTube video download failed for %s", payload.url, exc_info=True)

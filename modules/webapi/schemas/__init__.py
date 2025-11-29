@@ -247,6 +247,19 @@ class YoutubeSubtitleListResponse(BaseModel):
     video_id: str
     title: Optional[str] = None
     tracks: List[YoutubeSubtitleTrackPayload] = Field(default_factory=list)
+    video_formats: List["YoutubeVideoFormatPayload"] = Field(default_factory=list)
+
+
+class YoutubeVideoFormatPayload(BaseModel):
+    """Description of an available YouTube mp4 format option."""
+
+    format_id: str
+    ext: str
+    resolution: Optional[str] = None
+    fps: Optional[int] = None
+    note: Optional[str] = None
+    bitrate_kbps: Optional[float] = None
+    filesize: Optional[str] = None
 
 
 class YoutubeSubtitleDownloadRequest(BaseModel):
@@ -269,6 +282,7 @@ class YoutubeVideoDownloadRequest(BaseModel):
 
     url: str
     output_dir: Optional[str] = None
+    format_id: Optional[str] = None
 
 
 class YoutubeVideoDownloadResponse(BaseModel):

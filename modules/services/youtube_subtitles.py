@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 import os
+import random
+import time
 from pathlib import Path
 from typing import Iterable, List, Literal, Optional
 
@@ -35,6 +37,20 @@ class YoutubeSubtitleListing:
     video_id: str
     title: Optional[str]
     tracks: List[YoutubeSubtitleTrack]
+    video_formats: List["YoutubeVideoFormat"]
+
+
+@dataclass(frozen=True)
+class YoutubeVideoFormat:
+    """Description of an available YouTube mp4 video format."""
+
+    format_id: str
+    ext: str
+    resolution: Optional[str]
+    fps: Optional[int]
+    note: Optional[str]
+    bitrate_kbps: Optional[float]
+    filesize: Optional[str]
 
 
 _COMMON_YT_OPTS = {
@@ -43,7 +59,8 @@ _COMMON_YT_OPTS = {
     "skip_download": True,
     "extract_flat": False,
     "noprogress": True,
-    "retries": 2,
+    # Keep built-in retries modest; we handle 429s with our own backoff loop.
+    "retries": 3,
     "compat_opts": ["no-youtube-unavailable-videos"],
     "extractor_args": {"youtube": {"player_client": ["android"]}},
 }
@@ -129,13 +146,101 @@ def _build_tracks(info_dict: dict) -> List[YoutubeSubtitleTrack]:
     return tracks
 
 
+def _is_rate_limited_error(exc: BaseException) -> bool:
+    message = str(exc).lower()
+    return "429" in message or "too many requests" in message or "rate limit" in message
+
+
+def _extract_with_backoff(ydl: YoutubeDL, url: str, *, download: bool) -> dict:
+    """Call yt-dlp with explicit backoff for 429s."""
+
+    delays = [0.0, 1.0, 2.0, 4.0, 8.0]
+    last_error: Optional[Exception] = None
+    for delay in delays:
+        if delay:
+            time.sleep(delay + random.uniform(0, 0.5))
+        try:
+            return ydl.extract_info(url, download=download)
+        except (DownloadError, ExtractorError) as exc:
+            last_error = exc
+            if not _is_rate_limited_error(exc):
+                raise
+            continue
+    if last_error:
+        raise last_error
+    raise RuntimeError("Extraction failed without error")
+
+
+def _format_size(value: float) -> str:
+    size = float(value)
+    for unit in ("bytes", "KiB", "MiB", "GiB", "TiB"):
+        if size < 1024 or unit == "TiB":
+            return f"{size:.0f} {unit}"
+        size /= 1024
+    return f"{size:.0f} TiB"
+
+
+def _parse_resolution(entry: dict) -> Optional[str]:
+    height = entry.get("height")
+    width = entry.get("width")
+    if isinstance(height, int) and isinstance(width, int) and height > 0 and width > 0:
+        return f"{width}x{height}"
+    resolution = entry.get("resolution")
+    if isinstance(resolution, str) and resolution.strip():
+        return resolution.strip()
+    return None
+
+
+def _build_video_formats(info_dict: dict) -> List[YoutubeVideoFormat]:
+    formats: List[YoutubeVideoFormat] = []
+    for entry in info_dict.get("formats") or []:
+        if not isinstance(entry, dict):
+            continue
+        ext = entry.get("ext")
+        format_id = entry.get("format_id")
+        vcodec = entry.get("vcodec")
+        if ext != "mp4" or not isinstance(format_id, str) or vcodec in (None, "none"):
+            continue
+        resolution = _parse_resolution(entry)
+        fps = entry.get("fps") if isinstance(entry.get("fps"), int) else None
+        note = entry.get("format_note")
+        bitrate = entry.get("tbr") if isinstance(entry.get("tbr"), (int, float)) else None
+        filesize_value = entry.get("filesize") or entry.get("filesize_approx")
+        filesize = (
+            _format_size(float(filesize_value))
+            if isinstance(filesize_value, (int, float)) and filesize_value > 0
+            else None
+        )
+        formats.append(
+            YoutubeVideoFormat(
+                format_id=format_id,
+                ext=ext,
+                resolution=resolution,
+                fps=fps,
+                note=str(note).strip() if isinstance(note, str) and note.strip() else None,
+                bitrate_kbps=float(bitrate) if bitrate is not None else None,
+                filesize=filesize,
+            )
+        )
+
+    # Highest resolution first, then bitrate/fps as tie-breakers.
+    formats.sort(
+        key=lambda fmt: (
+            -(int(fmt.resolution.split("x")[1]) if fmt.resolution and "x" in fmt.resolution else -1),
+            -(fmt.bitrate_kbps or -1),
+            -(fmt.fps or -1),
+        )
+    )
+    return formats
+
+
 def list_available_subtitles(url: str) -> YoutubeSubtitleListing:
     """Return available subtitle tracks for ``url`` without downloading files."""
 
     options = dict(_COMMON_YT_OPTS)
     with YoutubeDL(options) as ydl:
         try:
-            info = ydl.extract_info(url, download=False)
+            info = _extract_with_backoff(ydl, url, download=False)
         except (DownloadError, ExtractorError) as exc:
             logger.warning("Unable to list subtitles for %s", url, exc_info=True)
             raise
@@ -146,8 +251,15 @@ def list_available_subtitles(url: str) -> YoutubeSubtitleListing:
         title = title.strip() or None
     else:
         title = None
-    tracks = _build_tracks(info if isinstance(info, dict) else {})
-    return YoutubeSubtitleListing(video_id=video_id, title=title, tracks=tracks)
+    payload = info if isinstance(info, dict) else {}
+    tracks = _build_tracks(payload)
+    video_formats = _build_video_formats(payload)
+    return YoutubeSubtitleListing(
+        video_id=video_id,
+        title=title,
+        tracks=tracks,
+        video_formats=video_formats,
+    )
 
 
 def download_subtitle(
@@ -182,7 +294,7 @@ def download_subtitle(
 
     with YoutubeDL(options) as ydl:
         try:
-            info = ydl.extract_info(url, download=True)
+            info = _extract_with_backoff(ydl, url, download=True)
         except (DownloadError, ExtractorError) as exc:
             logger.warning(
                 "Subtitle download failed for %s (%s)", url, normalized_lang, exc_info=True
@@ -193,7 +305,7 @@ def download_subtitle(
         base_without_ext = base_file.with_suffix("")
         expected_path = base_without_ext.with_name(f"{base_without_ext.name}.{normalized_lang}.srt")
         if expected_path.exists():
-            return _maybe_tag_youtube_suffix(expected_path)
+            return _tag_youtube_filename(expected_path)
 
         video_id = str(info.get("id") or "").strip()
         candidates = sorted(
@@ -202,7 +314,7 @@ def download_subtitle(
             reverse=True,
         )
         if candidates:
-            return _maybe_tag_youtube_suffix(candidates[0])
+            return _tag_youtube_filename(candidates[0])
 
         fallback_candidates = sorted(
             resolved_dir.glob(f"*{normalized_lang}.srt"),
@@ -210,24 +322,33 @@ def download_subtitle(
             reverse=True,
         )
         if fallback_candidates:
-            return _maybe_tag_youtube_suffix(fallback_candidates[0])
+            return _tag_youtube_filename(fallback_candidates[0])
 
     raise FileNotFoundError("Unable to locate downloaded subtitle file")
 
 
-def _maybe_tag_youtube_suffix(path: Path) -> Path:
-    """Ensure the filename is tagged as a YouTube download."""
+def _tag_youtube_filename(path: Path) -> Path:
+    """Ensure filename includes `_yt` before the final extension (and language, if present)."""
 
-    suffix = "_yt"
-    if path.stem.endswith(suffix):
+    name = path.name
+    if "_yt" in Path(name).stem:
         return path
-    tagged = path.with_name(f"{path.stem}{suffix}{path.suffix}")
+
+    parts = name.split(".")
+    tagged_name: str
+    if len(parts) >= 3 and parts[-1].lower() == "srt":
+        base = ".".join(parts[:-2]) or path.stem
+        language = parts[-2]
+        tagged_name = f"{base}_yt.{language}.srt"
+    else:
+        tagged_name = f"{path.stem}_yt{path.suffix}"
+
+    tagged_path = path.with_name(tagged_name)
     try:
-        path.rename(tagged)
+        path.rename(tagged_path)
     except OSError:
-        # Best effort rename; return original if rename fails.
         return path
-    return tagged
+    return tagged_path
 
 
 def _slugify(value: str) -> str:
@@ -254,6 +375,7 @@ def download_video(
     *,
     output_root: Path,
     timestamp: Optional[datetime] = None,
+    format_id: Optional[str] = None,
 ) -> Path:
     """Download the YouTube video to ``output_root`` and return the file path."""
 
@@ -262,6 +384,13 @@ def download_video(
     title = listing.title or "YouTube video"
     folder_name = f"{_slugify(title)} - {timestamp:%Y-%m-%d %H-%M-%S}"
     base_dir = _ensure_directory(output_root / folder_name)
+    video_extensions = {"mkv", "mp4", "webm", "m4v", "mov"}
+
+    format_selector = (
+        f"{format_id}+bestaudio[ext=m4a]/bestaudio/best"
+        if format_id
+        else "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best"
+    )
 
     options = dict(_COMMON_YT_OPTS)
     options.update(
@@ -269,8 +398,10 @@ def download_video(
             "skip_download": False,
             "paths": {"home": str(base_dir)},
             "outtmpl": str(base_dir / "%(title)s [%(id)s].%(ext)s"),
+            # Prefer mp4 video variants (optionally respecting a chosen itag) and
+            # mux with the best available audio.
+            "format": format_selector,
             "merge_output_format": "mp4",
-            "format": "bestvideo*+bestaudio/best",
             "writesubtitles": False,
             "writeautomaticsub": False,
             "noplaylist": True,
@@ -280,22 +411,33 @@ def download_video(
 
     with YoutubeDL(options) as ydl:
         try:
-            info = ydl.extract_info(url, download=True)
+            info = _extract_with_backoff(ydl, url, download=True)
         except (DownloadError, ExtractorError) as exc:
             logger.warning("Unable to download YouTube video for %s", url, exc_info=True)
             raise
+        # Prefer any muxed output file in the download directory, falling back to
+        # yt-dlp's prepared filename if needed.
+        candidates = sorted(
+            (
+                path
+                for path in base_dir.iterdir()
+                if path.is_file() and path.suffix.lower().lstrip(".") in video_extensions
+            ),
+            key=lambda path: (path.suffix.lower() != ".mp4", -path.stat().st_mtime),
+        )
+        if candidates:
+            return _tag_youtube_filename(candidates[0])
+
         output_path = Path(ydl.prepare_filename(info))
-        merged_path = output_path.with_suffix(".mp4")
-        if merged_path.exists():
-            return merged_path
         if output_path.exists():
-            return output_path
+            return _tag_youtube_filename(output_path)
     raise FileNotFoundError("Video download failed; output file not found")
 
 
 __all__ = [
     "YoutubeSubtitleListing",
     "YoutubeSubtitleTrack",
+    "YoutubeVideoFormat",
     "SubtitleKind",
     "download_subtitle",
     "download_video",

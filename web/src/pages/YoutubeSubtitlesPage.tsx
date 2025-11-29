@@ -3,7 +3,8 @@ import { downloadYoutubeSubtitle, downloadYoutubeVideo, fetchYoutubeSubtitleTrac
 import type {
   YoutubeSubtitleKind,
   YoutubeSubtitleListResponse,
-  YoutubeSubtitleTrack
+  YoutubeSubtitleTrack,
+  YoutubeVideoFormat
 } from '../api/dtos';
 import styles from './YoutubeSubtitlesPage.module.css';
 
@@ -28,15 +29,38 @@ function trackKey(track: { language: string; kind: YoutubeSubtitleKind }): strin
   return `${track.language}__${track.kind}`;
 }
 
+function describeFormat(format: YoutubeVideoFormat): string {
+  const parts: string[] = [];
+  if (format.resolution) {
+    parts.push(format.resolution);
+  }
+  if (format.fps) {
+    parts.push(`${format.fps} fps`);
+  }
+  if (format.note) {
+    parts.push(format.note);
+  }
+  if (format.bitrate_kbps) {
+    parts.push(`${Math.round(format.bitrate_kbps)} kbps`);
+  }
+  if (format.filesize) {
+    parts.push(format.filesize);
+  }
+  parts.push(`itag ${format.format_id}`);
+  return `mp4 • ${parts.join(' • ')}`;
+}
+
 export default function YoutubeSubtitlesPage() {
   const [url, setUrl] = useState('');
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
   const [listing, setListing] = useState<YoutubeSubtitleListResponse | null>(null);
   const [tracks, setTracks] = useState<YoutubeSubtitleTrack[]>([]);
+  const [videoFormats, setVideoFormats] = useState<YoutubeVideoFormat[]>([]);
+  const [selectedVideoFormat, setSelectedVideoFormat] = useState<string | null>(null);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadVideo, setDownloadVideo] = useState(false);
+  const [downloadVideo, setDownloadVideo] = useState(true);
   const [videoPath, setVideoPath] = useState(VIDEO_NAS_DIR);
   const [listError, setListError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -61,6 +85,8 @@ export default function YoutubeSubtitlesPage() {
       setVideoDownloadPath(null);
       setListing(null);
       setTracks([]);
+      setVideoFormats([]);
+      setSelectedVideoFormat(null);
       setSelectedKeys(new Set());
 
       try {
@@ -73,6 +99,9 @@ export default function YoutubeSubtitlesPage() {
         if (defaultTrack) {
           setSelectedKeys(new Set([trackKey(defaultTrack)]));
         }
+        const formats = response.video_formats ?? [];
+        setVideoFormats(formats);
+        setSelectedVideoFormat(formats.length > 0 ? formats[0].format_id : null);
       } catch (error) {
         const message =
           error instanceof Error
@@ -130,7 +159,8 @@ export default function YoutubeSubtitlesPage() {
       if (downloadVideo) {
         const videoResponse = await downloadYoutubeVideo({
           url: activeUrl,
-          output_dir: videoPath.trim() || VIDEO_NAS_DIR
+          output_dir: videoPath.trim() || VIDEO_NAS_DIR,
+          format_id: selectedVideoFormat || undefined
         });
         setVideoDownloadPath(videoResponse.output_path || videoResponse.filename);
       }
@@ -143,7 +173,7 @@ export default function YoutubeSubtitlesPage() {
     } finally {
       setIsDownloading(false);
     }
-  }, [resolvedUrl, url, selectedTracks, downloadVideo, videoPath]);
+  }, [resolvedUrl, url, selectedTracks, downloadVideo, videoPath, selectedVideoFormat]);
 
   const selectedLabel = useMemo(() => {
     if (!selectedTracks.length) {
@@ -278,20 +308,50 @@ export default function YoutubeSubtitlesPage() {
             Also download video to NAS ({VIDEO_NAS_DIR})
           </label>
           {downloadVideo ? (
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="video-path">
-                Video output directory
-              </label>
-              <input
-                id="video-path"
-                type="text"
-                className={styles.input}
-                value={videoPath}
-                onChange={(event) => setVideoPath(event.target.value)}
-                placeholder={VIDEO_NAS_DIR}
-              />
-              <p className={styles.helpText}>Folder will include video title and download timestamp.</p>
-            </div>
+            <>
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="video-path">
+                  Video output directory
+                </label>
+                <input
+                  id="video-path"
+                  type="text"
+                  className={styles.input}
+                  value={videoPath}
+                  onChange={(event) => setVideoPath(event.target.value)}
+                  placeholder={VIDEO_NAS_DIR}
+                />
+                <p className={styles.helpText}>Folder will include video title and download timestamp.</p>
+              </div>
+              {videoFormats.length > 0 ? (
+                <div className={styles.field}>
+                  <label className={styles.label} htmlFor="video-quality">
+                    MP4 quality
+                  </label>
+                  <select
+                    id="video-quality"
+                    className={styles.input}
+                    value={selectedVideoFormat ?? ''}
+                    onChange={(event) => setSelectedVideoFormat(event.target.value || null)}
+                  >
+                    {videoFormats.map((format) => (
+                      <option key={format.format_id} value={format.format_id}>
+                        {describeFormat(format)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className={styles.helpText}>
+                    Format list is pulled when listing subtitles. Highest quality is preselected.
+                  </p>
+                </div>
+              ) : (
+                <p className={styles.helpText}>
+                  {listing
+                    ? 'No mp4 formats were detected for this video.'
+                    : 'List subtitles to load available mp4 qualities.'}
+                </p>
+              )}
+            </>
           ) : null}
           <button
             type="button"

@@ -174,6 +174,7 @@ export interface YoutubeSubtitleListResponse {
   video_id: string;
   title?: string | null;
   tracks: YoutubeSubtitleTrack[];
+  video_formats: YoutubeVideoFormat[];
 }
 
 export interface YoutubeSubtitleDownloadRequest {
@@ -190,12 +191,23 @@ export interface YoutubeSubtitleDownloadResponse {
 export interface YoutubeVideoDownloadRequest {
   url: string;
   output_dir?: string | null;
+  format_id?: string | null;
 }
 
 export interface YoutubeVideoDownloadResponse {
   output_path: string;
   filename: string;
   folder: string;
+}
+
+export interface YoutubeVideoFormat {
+  format_id: string;
+  ext: string;
+  resolution?: string | null;
+  fps?: number | null;
+  note?: string | null;
+  bitrate_kbps?: number | null;
+  filesize?: string | null;
 }
 
 export interface LlmModelListResponse {
