@@ -80,7 +80,11 @@ def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
         right = value[split_index:].strip()
         if not left or not right:
             return value, ""
-        if _NON_LATIN_LETTER_PATTERN.search(left) and _LATIN_PATTERN.search(right):
+        if (
+            _NON_LATIN_LETTER_PATTERN.search(left)
+            and _LATIN_PATTERN.search(right)
+            and _is_latin_heavy(right)
+        ):
             return left.strip(), right
         return value, ""
 

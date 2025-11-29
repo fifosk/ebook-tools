@@ -224,7 +224,7 @@ describe('PipelineSubmissionForm', () => {
     expect(prefilledTargets).toEqual(expect.arrayContaining(['German', 'French']));
     expect(screen.getByLabelText(/Sentences per output file/i)).toHaveValue(8);
     expect(screen.getByLabelText(/Start sentence/i)).toHaveValue(2);
-    expect(screen.getByLabelText(/End sentence/i)).toHaveValue(42);
+    expect(screen.getByLabelText(/End sentence/i)).toHaveValue('42');
     expect(screen.getByLabelText(/Stitch full document once complete/i)).toBeChecked();
     expect(screen.getByLabelText(/Generate narration tracks/i)).not.toBeChecked();
     expect(screen.getByLabelText(/Generate HTML output/i)).not.toBeChecked();
@@ -291,5 +291,38 @@ describe('PipelineSubmissionForm', () => {
     await waitFor(() =>
       expect(screen.getByLabelText(/Input file path/i)).toHaveValue('dropped.epub')
     );
+  });
+
+  it('converts +offset end sentence values relative to the start sentence', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
+
+    await act(async () => {
+      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await user.clear(screen.getByLabelText(/Base output file/i));
+    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    const startField = screen.getByLabelText(/Start sentence/i);
+    await user.clear(startField);
+    await user.type(startField, '200');
+
+    const endField = screen.getByLabelText(/End sentence/i);
+    await user.clear(endField);
+    await user.type(endField, '+100');
+
+    await user.click(screen.getByRole('button', { name: /Submit job/i }));
+
+    expect(handleSubmit).toHaveBeenCalled();
+    const [payload] = handleSubmit.mock.calls[0];
+    expect(payload.inputs.start_sentence).toBe(200);
+    expect(payload.inputs.end_sentence).toBe(299);
   });
 });

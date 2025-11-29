@@ -441,6 +441,37 @@ function parseOptionalNumberInput(value: string): number | undefined {
   return parsed;
 }
 
+function parseEndSentenceInput(value: string, startSentence: number): number | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const parsedStart = Number(startSentence);
+  if (!Number.isFinite(parsedStart) || parsedStart < 1) {
+    throw new Error('Start sentence must be a positive number before setting an end sentence.');
+  }
+  const normalizedStart = Math.max(1, Math.trunc(parsedStart));
+
+  const isOffset = trimmed.startsWith('+');
+  const numericPortion = isOffset ? trimmed.slice(1).trim() : trimmed;
+  const parsedEnd = Number(numericPortion);
+  if (!Number.isFinite(parsedEnd)) {
+    throw new Error('End sentence must be a number or a +offset from the start sentence.');
+  }
+  const normalizedEnd = Math.trunc(parsedEnd);
+  if (normalizedEnd <= 0) {
+    throw new Error('End sentence must be positive.');
+  }
+
+  const candidate = isOffset ? normalizedStart + normalizedEnd - 1 : normalizedEnd;
+  if (candidate < normalizedStart) {
+    throw new Error('End sentence must be greater than or equal to the start sentence.');
+  }
+
+  return candidate;
+}
+
 function formatList(items: string[]): string {
   if (items.length === 0) {
     return '';
@@ -1377,6 +1408,15 @@ export function PipelineSubmissionForm({
         configOverrides.ollama_model = selectedModel;
       }
 
+      const normalizedStartSentence = Math.max(1, Math.trunc(Number(formState.start_sentence)));
+      if (!Number.isFinite(normalizedStartSentence)) {
+        throw new Error('Start sentence must be a valid number.');
+      }
+      const normalizedEndSentence = parseEndSentenceInput(
+        formState.end_sentence,
+        normalizedStartSentence
+      );
+
       const payload: PipelineRequestPayload = {
         config: configOverrides,
         environment_overrides: json.environment_overrides,
@@ -1387,8 +1427,8 @@ export function PipelineSubmissionForm({
           input_language: formState.input_language,
           target_languages: normalizedTargetLanguages,
           sentences_per_output_file: Number(formState.sentences_per_output_file),
-          start_sentence: Number(formState.start_sentence),
-          end_sentence: formState.end_sentence ? Number(formState.end_sentence) : null,
+          start_sentence: normalizedStartSentence,
+          end_sentence: normalizedEndSentence,
           stitch_full: formState.stitch_full,
           generate_audio: formState.generate_audio,
           audio_mode: formState.audio_mode,

@@ -130,15 +130,15 @@ const PipelineLanguageSection = ({
             />
           </label>
           <label htmlFor="end_sentence">
-            End sentence (optional)
+            End sentence (optional, supports +offset)
             <input
               id="end_sentence"
               name="end_sentence"
-              type="number"
-              min={startSentence}
+              type="text"
+              inputMode="numeric"
               value={endSentence}
               onChange={(event) => onEndSentenceChange(event.target.value)}
-              placeholder="Leave blank for entire document"
+              placeholder="Leave blank for full run or enter +100 for the next 100 sentences"
             />
           </label>
         </div>

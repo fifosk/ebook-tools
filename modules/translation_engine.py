@@ -61,6 +61,7 @@ _NON_LATIN_TARGET_HINTS = {
     "armenian",
     "bengali",
     "bulgarian",
+    "burmese",
     "chinese",
     "cyrillic",
     "georgian",
@@ -70,13 +71,17 @@ _NON_LATIN_TARGET_HINTS = {
     "hindi",
     "japanese",
     "kannada",
+    "khmer",
     "korean",
+    "lao",
     "malayalam",
     "marathi",
+    "myanmar",
     "punjabi",
     "russian",
     "serbian",
     "sinhala",
+    "syriac",
     "tamil",
     "telugu",
     "thai",
@@ -85,16 +90,19 @@ _NON_LATIN_TARGET_HINTS = {
 }
 _LATIN_LETTER_PATTERN = regex.compile(r"\p{Latin}")
 _NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
+_ZERO_WIDTH_SPACE_PATTERN = regex.compile(r"[\u200B\u200C\u200D\u2060]+")
 _DIACRITIC_PATTERNS = {
     "arabic": {
         "aliases": ("arabic", "ar"),
         "pattern": regex.compile(r"[\u064B-\u065F\u0670\u06D6-\u06ED]"),
         "label": "Arabic diacritics (tashkil)",
+        "script_pattern": regex.compile(r"[\u0600-\u06FF]"),
     },
     "hebrew": {
         "aliases": ("hebrew", "he", "iw"),
         "pattern": regex.compile(r"[\u0591-\u05C7]"),
         "label": "Hebrew niqqud",
+        "script_pattern": regex.compile(r"[\u0590-\u05FF]"),
     },
 }
 
@@ -292,6 +300,11 @@ def _missing_required_diacritics(
     for requirement in _DIACRITIC_PATTERNS.values():
         if any(alias in target_lower for alias in requirement["aliases"]):
             pattern = requirement["pattern"]
+            script_pattern = requirement.get("script_pattern")
+            if script_pattern and not script_pattern.search(translation_text or ""):
+                # Skip if the translation doesn't use the expected script; avoids
+                # misfiring when target_language is mismatched.
+                return False, None
             if not pattern.search(translation_text or ""):
                 return True, requirement["label"]
             return False, None
@@ -430,6 +443,13 @@ def translate_sentence_simple(
                     "Returning best available translation without diacritics after retries"
                 )
             return best_translation
+        if last_error and best_translation:
+            if resolved_client.debug_enabled:
+                logger.debug(
+                    "Returning best available translation after retries despite error: %s",
+                    last_error,
+                )
+            return best_translation
     failure_reason = last_error or "no response from LLM"
     return format_retry_failure(
         "translation",
@@ -452,6 +472,14 @@ def _is_segmentation_ok(
     retry loops on very short content.
     """
 
+    def _segmentation_thresholds(lang: str, source_words: int) -> tuple[int, int]:
+        if lang in {"khmer", "km", "cambodian"}:
+            # Khmer: enforce closer parity to source word count.
+            required_min = max(2, int(source_words * 0.6))
+            max_reasonable = max(source_words * 2, required_min + 1)
+            return required_min, max_reasonable
+        return max(4, int(source_words * 0.6)), source_words * 4
+
     lang = (target_language or "").strip().lower()
     if lang not in _SEGMENTATION_LANGS:
         return True
@@ -459,13 +487,17 @@ def _is_segmentation_ok(
     if original_word_count <= 1:
         return True
     candidate = translation_text or translation
+    candidate = _ZERO_WIDTH_SPACE_PATTERN.sub(" ", candidate)
     tokens = split_highlight_tokens(candidate)
     token_count = len(tokens)
     if token_count <= 1:
         return False
+    if lang in {"khmer", "km", "cambodian"} and token_count > 2:
+        short_tokens = sum(1 for token in tokens if len(token) <= 2)
+        if short_tokens / float(token_count) > 0.1:
+            return False
     # Accept if segmentation yields enough tokens and isn't clearly over-split.
-    required_min = max(4, int(original_word_count * 0.6))
-    max_reasonable = original_word_count * 4
+    required_min, max_reasonable = _segmentation_thresholds(lang, original_word_count)
     if token_count < required_min:
         return False
     if token_count > max_reasonable:
