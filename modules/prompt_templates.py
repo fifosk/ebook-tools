@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional
 
 from modules import config_manager as cfg
+from modules import language_policies
 
 SOURCE_START = "<<<BEGIN_SOURCE_TEXT>>>"
 SOURCE_END = "<<<END_SOURCE_TEXT>>>"
@@ -34,98 +35,6 @@ _SEGMENTATION_REQUIREMENTS = {
     "chinese": {
         "aliases": ("chinese", "zh", "zh-cn", "zh-tw"),
         "example": None,
-    },
-}
-
-# Languages where we want to force a specific script in the output.
-_SCRIPT_REQUIREMENTS = {
-    "serbian_cyrillic": {
-        "aliases": ("serbian", "sr", "sr-rs", "sr_cyrl", "sr-cyrl"),
-        "instruction": "Always respond in Serbian Cyrillic (ћирилица); do NOT use Latin script.",
-    },
-    "russian_cyrillic": {
-        "aliases": ("russian", "ru", "ru-ru"),
-        "instruction": "Always respond in Russian Cyrillic; do NOT use Latin letters or transliteration.",
-    },
-    "ukrainian_cyrillic": {
-        "aliases": ("ukrainian", "uk", "uk-ua"),
-        "instruction": "Always respond in Ukrainian Cyrillic; do NOT use Latin letters or transliteration.",
-    },
-    "bulgarian_cyrillic": {
-        "aliases": ("bulgarian", "bg", "bg-bg"),
-        "instruction": "Always respond in Bulgarian Cyrillic; do NOT use Latin letters or transliteration.",
-    },
-    "greek": {
-        "aliases": ("greek", "el", "el-gr"),
-        "instruction": "Always respond in Greek script with proper tonos/dialytika accents; do NOT use Latin letters or transliteration.",
-    },
-    "hindi_devanagari": {
-        "aliases": ("hindi", "hi", "hi-in"),
-        "instruction": "Always respond in Devanagari script; include matras and do NOT use Latin script or transliteration.",
-    },
-    "marathi_devanagari": {
-        "aliases": ("marathi", "mr", "mr-in"),
-        "instruction": "Always respond in Devanagari script; include matras and do NOT use Latin script or transliteration.",
-    },
-    "bengali_script": {
-        "aliases": ("bengali", "bn", "bn-bd"),
-        "instruction": "Always respond in Bengali script; do NOT use Latin letters or transliteration.",
-    },
-    "gujarati_script": {
-        "aliases": ("gujarati", "gu", "gu-in"),
-        "instruction": "Always respond in Gujarati script; do NOT use Latin letters or transliteration.",
-    },
-    "tamil_script": {
-        "aliases": ("tamil", "ta", "ta-in"),
-        "instruction": "Always respond in Tamil script; do NOT use Latin letters or transliteration.",
-    },
-    "telugu_script": {
-        "aliases": ("telugu", "te", "te-in"),
-        "instruction": "Always respond in Telugu script; do NOT use Latin letters or transliteration.",
-    },
-    "kannada_script": {
-        "aliases": ("kannada", "kn", "kn-in"),
-        "instruction": "Always respond in Kannada script; do NOT use Latin letters or transliteration.",
-    },
-    "malayalam_script": {
-        "aliases": ("malayalam", "ml", "ml-in"),
-        "instruction": "Always respond in Malayalam script; do NOT use Latin letters or transliteration.",
-    },
-    "punjabi_gurmukhi": {
-        "aliases": ("punjabi", "pa", "pa-in"),
-        "instruction": "Always respond in Gurmukhi script for Punjabi; do NOT use Latin letters or Shahmukhi/Arabic transliteration unless explicitly requested.",
-    },
-    "sinhala_script": {
-        "aliases": ("sinhala", "si", "si-lk"),
-        "instruction": "Always respond in Sinhala script; do NOT use Latin letters or transliteration.",
-    },
-    "lao_script": {
-        "aliases": ("lao", "lo", "lo-la"),
-        "instruction": "Always respond in Lao script; do NOT use Latin letters or transliteration.",
-    },
-    "khmer_script": {
-        "aliases": ("khmer", "km", "km-kh", "cambodian"),
-        "instruction": "Always respond in Khmer script; do NOT use Latin letters or transliteration.",
-    },
-    "burmese_script": {
-        "aliases": ("burmese", "myanmar", "my"),
-        "instruction": "Always respond in Burmese (Myanmar) script; do NOT use Latin letters or transliteration.",
-    },
-    "thai_script": {
-        "aliases": ("thai", "th"),
-        "instruction": "Always respond in Thai script; do NOT use Latin letters or transliteration.",
-    },
-    "georgian_script": {
-        "aliases": ("georgian", "ka", "ka-ge"),
-        "instruction": "Always respond in Georgian script; do NOT use Latin letters or transliteration.",
-    },
-    "armenian_script": {
-        "aliases": ("armenian", "hy", "hy-am"),
-        "instruction": "Always respond in Armenian script; do NOT use Latin letters or transliteration.",
-    },
-    "syriac_script": {
-        "aliases": ("syriac", "syr", "syc"),
-        "instruction": "Always respond in Syriac script; do NOT use Latin letters or transliteration.",
     },
 }
 
@@ -210,9 +119,7 @@ def make_translation_prompt(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
             )
 
-    for requirement in _SCRIPT_REQUIREMENTS.values():
-        if any(alias in target_lower for alias in requirement["aliases"]):
-            instructions.append(requirement["instruction"])
+    instructions.extend(language_policies.script_prompt_instructions(target_language))
 
     for requirement in _DIACRITIC_REQUIREMENTS.values():
         if any(alias in target_lower for alias in requirement["aliases"]):

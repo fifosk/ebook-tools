@@ -14,10 +14,13 @@ from typing import Iterable, List, Optional, Sequence, TextIO
 
 from modules import logging_manager as log_mgr, prompt_templates
 from modules.core.rendering.constants import NON_LATIN_LANGUAGES
-from modules.retry_annotations import is_failure_annotation
+from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.progress_tracker import ProgressTracker
 from modules.llm_client import create_client
-from modules.translation_engine import translate_sentence_simple
+from modules.translation_engine import (
+    translate_sentence_simple,
+    _unexpected_script_used,
+)
 from modules.transliteration import TransliterationService, get_transliterator
 from modules.text import split_highlight_tokens
 
@@ -1560,28 +1563,63 @@ def _translate_text(
     target_language: str,
     llm_model: Optional[str],
 ) -> str:
-    if llm_model:
+    """
+    Translate subtitle text with optional model override and enforce that the
+    expected script dominates the output.
+    """
+
+    def _single_pass(client_override=None) -> str:
+        return translate_sentence_simple(
+            text,
+            source_language,
+            target_language,
+            include_transliteration=False,
+            client=client_override,
+        )
+
+    max_script_retries = 2
+    last_error: Optional[str] = None
+
+    def _attempt(client_override=None) -> Optional[str]:
+        nonlocal last_error
         try:
-            with create_client(model=llm_model) as override_client:
-                return translate_sentence_simple(
-                    text,
-                    source_language,
-                    target_language,
-                    include_transliteration=False,
-                    client=override_client,
-                )
+            candidate = _single_pass(client_override)
         except Exception:  # pragma: no cover - log and re-raise via translation failure
             logger.error(
                 "Unable to translate subtitle cue with model %s",
-                llm_model,
+                llm_model or "default",
                 exc_info=True,
             )
             raise
-    return translate_sentence_simple(
-        text,
-        source_language,
-        target_language,
-        include_transliteration=False,
+        if is_failure_annotation(candidate):
+            return candidate
+        mismatch, label = _unexpected_script_used(candidate, target_language)
+        if mismatch:
+            last_error = f"Unexpected script; expected {label or 'target script'}"
+            logger.debug(
+                "Retrying subtitle translation due to script mismatch (target=%s, reason=%s)",
+                target_language,
+                last_error,
+            )
+            return None
+        return candidate
+
+    if llm_model:
+        with create_client(model=llm_model) as override_client:
+            for _ in range(max_script_retries + 1):
+                result = _attempt(override_client)
+                if result is not None:
+                    return result
+    else:
+        for _ in range(max_script_retries + 1):
+            result = _attempt(None)
+            if result is not None:
+                return result
+
+    return format_retry_failure(
+        "translation",
+        max_script_retries + 1,
+        reason=last_error or "Unexpected script in translation",
     )
 
 
@@ -1607,6 +1645,23 @@ def _process_cue(
         )
     )
     translation_failed = is_failure_annotation(translation)
+    if not translation_failed:
+        script_mismatch, script_label = _unexpected_script_used(
+            translation, options.target_language
+        )
+        if script_mismatch:
+            translation_failed = True
+            translation = format_retry_failure(
+                "translation",
+                1,
+                reason=f"Unexpected script; expected {script_label or 'target script'}",
+            )
+            logger.warning(
+                "Cue %s rejected due to unexpected script (target=%s, found=%s)",
+                cue.index,
+                options.target_language,
+                script_label or "unknown",
+            )
 
     if language_context.origin_translation_needed:
         try:

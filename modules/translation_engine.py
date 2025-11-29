@@ -20,6 +20,7 @@ from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
 from modules import observability, prompt_templates
 from modules import llm_client_manager
+from modules import language_policies
 from modules import text_normalization as text_norm
 from modules.text import split_highlight_tokens
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
@@ -55,38 +56,6 @@ _SEGMENTATION_LANGS = {
     "zh",
     "zh-cn",
     "zh-tw",
-}
-_NON_LATIN_TARGET_HINTS = {
-    "arabic",
-    "armenian",
-    "bengali",
-    "bulgarian",
-    "burmese",
-    "chinese",
-    "cyrillic",
-    "georgian",
-    "greek",
-    "gujarati",
-    "hebrew",
-    "hindi",
-    "japanese",
-    "kannada",
-    "khmer",
-    "korean",
-    "lao",
-    "malayalam",
-    "marathi",
-    "myanmar",
-    "punjabi",
-    "russian",
-    "serbian",
-    "sinhala",
-    "syriac",
-    "tamil",
-    "telugu",
-    "thai",
-    "ukrainian",
-    "urdu",
 }
 _LATIN_LETTER_PATTERN = regex.compile(r"\p{Latin}")
 _NON_LATIN_LETTER_PATTERN = regex.compile(r"(?!\p{Latin})\p{L}")
@@ -262,7 +231,7 @@ def _is_probable_transliteration(
     target_lower = (target_language or "").lower()
     if not translation_text or not _has_non_latin_letters(original_sentence):
         return False
-    if not any(hint in target_lower for hint in _NON_LATIN_TARGET_HINTS):
+    if not language_policies.is_non_latin_language_hint(target_language):
         return False
     return _latin_fraction(translation_text) >= 0.6
 
@@ -311,6 +280,66 @@ def _missing_required_diacritics(
     return False, None
 
 
+def _script_counts(value: str) -> dict[str, int]:
+    """
+    Return counts of matched characters per known script block.
+    """
+
+    return language_policies.script_counts(value)
+
+
+def _unexpected_script_used(
+    translation_text: str, target_language: str
+) -> tuple[bool, Optional[str]]:
+    """
+    Return (True, label) when the translation contains non-Latin script but
+    does not sufficiently include the expected script for the target language.
+    """
+
+    candidate = translation_text or ""
+    if not candidate:
+        return False, None
+    if not _NON_LATIN_LETTER_PATTERN.search(candidate):
+        return False, None
+
+    policy = language_policies.script_policy_for(target_language)
+    if policy is None:
+        return False, None
+
+    script_distribution = _script_counts(candidate)
+    total_non_latin = len(_NON_LATIN_LETTER_PATTERN.findall(candidate))
+
+    expected_pattern = policy.script_pattern
+    expected_label = policy.script_label
+    expected_matches = expected_pattern.findall(candidate)
+    expected_count = len(expected_matches)
+    if expected_count == 0:
+        return True, expected_label
+    if total_non_latin > 0:
+        expected_ratio = expected_count / float(total_non_latin)
+        other_count = total_non_latin - expected_count
+
+        # Reject when other scripts meaningfully appear (e.g., Georgian/Tamil in Kannada)
+        # or when the expected script is not clearly dominant.
+        dominant_script = max(
+            script_distribution.items(), key=lambda item: item[1], default=(None, 0)
+        )
+        dominant_label, dominant_count = dominant_script
+
+        if expected_ratio < 0.85 or other_count > max(2, expected_count * 0.1):
+            offenders = [
+                label
+                for label, count in script_distribution.items()
+                if label != expected_label and count > 0
+            ]
+            offender_label = f" (found {', '.join(offenders)})" if offenders else ""
+            return True, f"{expected_label}{offender_label}"
+
+        if dominant_label and dominant_label != expected_label and dominant_count > expected_count:
+            return True, f"{expected_label} (found {dominant_label})"
+    return False, None
+
+
 def translate_sentence_simple(
     sentence: str,
     input_language: str,
@@ -340,6 +369,7 @@ def translate_sentence_simple(
         last_error: Optional[str] = None
         best_translation: Optional[str] = None
         best_score = -1
+        fatal_violation = False
         for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
             attempt_error: Optional[str] = None
             response = resolved_client.send_chat_request(
@@ -390,6 +420,21 @@ def translate_sentence_simple(
                                     attempt,
                                     _TRANSLATION_RESPONSE_ATTEMPTS,
                                 )
+                        if not attempt_error:
+                            script_mismatch, script_label = _unexpected_script_used(
+                                translation_text, target_language
+                            )
+                            if script_mismatch:
+                                attempt_error = (
+                                    f"Unexpected script used; expected {script_label or 'target script'}"
+                                )
+                                fatal_violation = True
+                                if resolved_client.debug_enabled:
+                                    logger.debug(
+                                        "Retrying translation due to unexpected script (%s/%s)",
+                                        attempt,
+                                        _TRANSLATION_RESPONSE_ATTEMPTS,
+                                    )
                     if not attempt_error and _is_segmentation_ok(
                         sentence, cleaned_text, target_language, translation_text=translation_text
                     ):
@@ -437,6 +482,12 @@ def translate_sentence_simple(
 
         if resolved_client.debug_enabled and last_error:
             logger.debug("Translation failed after retries: %s", last_error)
+        if fatal_violation:
+            return format_retry_failure(
+                "translation",
+                _TRANSLATION_RESPONSE_ATTEMPTS,
+                reason=last_error or "script validation failed",
+            )
         if last_error and "diacritic" in last_error.lower() and best_translation:
             if resolved_client.debug_enabled:
                 logger.debug(
