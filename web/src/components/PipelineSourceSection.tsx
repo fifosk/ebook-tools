@@ -20,6 +20,14 @@ type SourceSectionProps = {
   onUploadFile: (file: File) => void | Promise<void>;
   uploadError: string | null;
   recentUploadName: string | null;
+  configOverrides: string;
+  environmentOverrides: string;
+  pipelineOverrides: string;
+  bookMetadata: string;
+  onConfigOverridesChange: (value: string) => void;
+  onEnvironmentOverridesChange: (value: string) => void;
+  onPipelineOverridesChange: (value: string) => void;
+  onBookMetadataChange: (value: string) => void;
 };
 
 const PipelineSourceSection = ({
@@ -41,7 +49,15 @@ const PipelineSourceSection = ({
   onDropzoneDrop,
   onUploadFile,
   uploadError,
-  recentUploadName
+  recentUploadName,
+  configOverrides,
+  environmentOverrides,
+  pipelineOverrides,
+  bookMetadata,
+  onConfigOverridesChange,
+  onEnvironmentOverridesChange,
+  onPipelineOverridesChange,
+  onBookMetadataChange
 }: SourceSectionProps) => {
   const dropzoneClassNames = ['file-dropzone'];
   if (isDraggingFile) {
@@ -140,6 +156,57 @@ const PipelineSourceSection = ({
           </button>
         </div>
       </div>
+      <details open className="collapsible">
+        <summary>Advanced overrides</summary>
+        <p className="form-help-text">
+          Provide JSON overrides to tweak pipeline behaviour or prefill book metadata. Leave blank to
+          use the defaults from the backend.
+        </p>
+        <label htmlFor="config_overrides">
+          Config overrides JSON
+          <textarea
+            id="config_overrides"
+            name="config_overrides"
+            rows={3}
+            value={configOverrides}
+            onChange={(event) => onConfigOverridesChange(event.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        <label htmlFor="environment_overrides">
+          Environment overrides JSON
+          <textarea
+            id="environment_overrides"
+            name="environment_overrides"
+            rows={2}
+            value={environmentOverrides}
+            onChange={(event) => onEnvironmentOverridesChange(event.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        <label htmlFor="pipeline_overrides">
+          Pipeline overrides JSON
+          <textarea
+            id="pipeline_overrides"
+            name="pipeline_overrides"
+            rows={3}
+            value={pipelineOverrides}
+            onChange={(event) => onPipelineOverridesChange(event.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        <label htmlFor="book_metadata">
+          Book metadata JSON
+          <textarea
+            id="book_metadata"
+            name="book_metadata"
+            rows={3}
+            value={bookMetadata}
+            onChange={(event) => onBookMetadataChange(event.target.value)}
+            spellCheck={false}
+          />
+        </label>
+      </details>
     </section>
   );
 };

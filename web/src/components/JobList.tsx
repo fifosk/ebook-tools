@@ -19,6 +19,7 @@ type Props = {
   onCancelJob: (jobId: string) => void;
   onDeleteJob: (jobId: string) => void;
   onReloadJob: (jobId: string) => void;
+  onRestartJob?: (jobId: string) => void;
 };
 
 export function JobList({
@@ -28,7 +29,8 @@ export function JobList({
   onResumeJob,
   onCancelJob,
   onDeleteJob,
-  onReloadJob
+  onReloadJob,
+  onRestartJob
 }: Props) {
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => {
@@ -76,6 +78,7 @@ export function JobList({
                   onResume={() => onResumeJob(job.jobId)}
                   onCancel={() => onCancelJob(job.jobId)}
                   onDelete={() => onDeleteJob(job.jobId)}
+                  onRestart={onRestartJob ? () => onRestartJob(job.jobId) : () => {}}
                   onReload={() => onReloadJob(job.jobId)}
                   isReloading={job.isReloading}
                   isMutating={job.isMutating}

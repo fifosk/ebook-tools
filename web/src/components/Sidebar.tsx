@@ -83,6 +83,32 @@ function resolveSidebarStatus(value: string): { label: string; tooltip: string }
   return { label, tooltip };
 }
 
+function resolveSidebarProgress(job: JobState): number | null {
+  if (!job.status || job.status.status !== 'running') {
+    return null;
+  }
+  const event = job.latestEvent ?? job.status.latest_event ?? null;
+  const snapshot = event?.snapshot;
+  if (!snapshot) {
+    return null;
+  }
+  const { completed, total } = snapshot;
+  if (
+    typeof completed !== 'number' ||
+    typeof total !== 'number' ||
+    !Number.isFinite(completed) ||
+    !Number.isFinite(total) ||
+    total <= 0
+  ) {
+    return null;
+  }
+  const ratio = completed / total;
+  if (!Number.isFinite(ratio) || ratio < 0) {
+    return null;
+  }
+  return Math.min(100, Math.max(0, Math.round(ratio * 100)));
+}
+
 export function Sidebar({
   selectedView,
   onSelectView,
@@ -192,6 +218,7 @@ export function Sidebar({
                   const statusLabel = resolveSidebarStatus(statusValue);
                   const isActiveJob = activeJobId === job.jobId;
                   const languageLabel = resolveSidebarLanguage(job);
+                  const progressPercent = resolveSidebarProgress(job);
                   return (
                     <li key={job.jobId}>
                       <button
@@ -206,13 +233,25 @@ export function Sidebar({
                         >
                           {languageLabel.label}
                         </span>
-                        <span
-                          className="job-status"
-                          data-state={statusValue}
-                          title={statusLabel.tooltip}
-                          aria-label={statusLabel.tooltip}
-                        >
-                          {statusLabel.label}
+                        <span className="sidebar__job-meta">
+                          {progressPercent !== null ? (
+                            <span
+                              className="job-progress"
+                              data-state={statusValue}
+                              title={`${progressPercent}% complete`}
+                              aria-label={`${progressPercent}% complete`}
+                            >
+                              {progressPercent}%
+                            </span>
+                          ) : null}
+                          <span
+                            className="job-status"
+                            data-state={statusValue}
+                            title={statusLabel.tooltip}
+                            aria-label={statusLabel.tooltip}
+                          >
+                            {statusLabel.label}
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -232,6 +271,7 @@ export function Sidebar({
                   const statusLabel = resolveSidebarStatus(statusValue);
                   const isActiveJob = activeJobId === job.jobId;
                   const languageLabel = resolveSidebarLanguage(job);
+                  const progressPercent = resolveSidebarProgress(job);
                   return (
                     <li key={job.jobId}>
                       <button
@@ -246,13 +286,25 @@ export function Sidebar({
                         >
                           {languageLabel.label}
                         </span>
-                        <span
-                          className="job-status"
-                          data-state={statusValue}
-                          title={statusLabel.tooltip}
-                          aria-label={statusLabel.tooltip}
-                        >
-                          {statusLabel.label}
+                        <span className="sidebar__job-meta">
+                          {progressPercent !== null ? (
+                            <span
+                              className="job-progress"
+                              data-state={statusValue}
+                              title={`${progressPercent}% complete`}
+                              aria-label={`${progressPercent}% complete`}
+                            >
+                              {progressPercent}%
+                            </span>
+                          ) : null}
+                          <span
+                            className="job-status"
+                            data-state={statusValue}
+                            title={statusLabel.tooltip}
+                            aria-label={statusLabel.tooltip}
+                          >
+                            {statusLabel.label}
+                          </span>
                         </span>
                       </button>
                     </li>
@@ -272,6 +324,7 @@ export function Sidebar({
                   const statusLabel = resolveSidebarStatus(statusValue);
                   const isActiveJob = activeJobId === job.jobId;
                   const languageLabel = resolveSidebarLanguage(job);
+                  const progressPercent = resolveSidebarProgress(job);
                   return (
                     <li key={job.jobId}>
                       <button
@@ -286,13 +339,25 @@ export function Sidebar({
                         >
                           {languageLabel.label}
                         </span>
-                        <span
-                          className="job-status"
-                          data-state={statusValue}
-                          title={statusLabel.tooltip}
-                          aria-label={statusLabel.tooltip}
-                        >
-                          {statusLabel.label}
+                        <span className="sidebar__job-meta">
+                          {progressPercent !== null ? (
+                            <span
+                              className="job-progress"
+                              data-state={statusValue}
+                              title={`${progressPercent}% complete`}
+                              aria-label={`${progressPercent}% complete`}
+                            >
+                              {progressPercent}%
+                            </span>
+                          ) : null}
+                          <span
+                            className="job-status"
+                            data-state={statusValue}
+                            title={statusLabel.tooltip}
+                            aria-label={statusLabel.tooltip}
+                          >
+                            {statusLabel.label}
+                          </span>
                         </span>
                       </button>
                     </li>

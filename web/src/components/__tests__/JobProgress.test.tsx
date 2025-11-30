@@ -67,6 +67,7 @@ describe('JobProgress', () => {
         onResume={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
+        onRestart={vi.fn()}
         onReload={vi.fn()}
         canManage={true}
       />
@@ -101,6 +102,7 @@ describe('JobProgress', () => {
         onResume={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
+        onRestart={vi.fn()}
         onReload={vi.fn()}
         canManage={false}
       />
@@ -144,6 +146,7 @@ describe('JobProgress', () => {
         onResume={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
+        onRestart={vi.fn()}
         onReload={vi.fn()}
         canManage={true}
       />
@@ -185,6 +188,7 @@ describe('JobProgress', () => {
         onResume={vi.fn()}
         onCancel={vi.fn()}
         onDelete={vi.fn()}
+        onRestart={vi.fn()}
         onReload={vi.fn()}
         canManage={true}
       />

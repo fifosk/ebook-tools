@@ -10,7 +10,8 @@ import type {
   YoutubeNasLibraryResponse,
   YoutubeNasVideo,
   YoutubeNasSubtitle,
-  VoiceInventoryResponse
+  VoiceInventoryResponse,
+  JobParameterSnapshot
 } from '../api/dtos';
 import type { MacOSVoice, GTTSLanguage } from '../api/dtos';
 import type { JobState } from '../components/JobList';
@@ -25,6 +26,7 @@ type Props = {
   jobs: JobState[];
   onJobCreated: (jobId: string) => void;
   onSelectJob: (jobId: string) => void;
+  prefillParameters?: JobParameterSnapshot | null;
 };
 
 function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
@@ -134,7 +136,7 @@ function formatJobLabel(job: JobState): string {
   return job.jobId;
 }
 
-export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob }: Props) {
+export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob, prefillParameters = null }: Props) {
   const [baseDir, setBaseDir] = useState(DEFAULT_VIDEO_DIR);
   const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -203,6 +205,19 @@ export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob }: Prop
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const formatOffset = useCallback((value: number | null | undefined): string => {
+    if (value === null || value === undefined || !Number.isFinite(value) || value < 0) {
+      return '';
+    }
+    const totalSeconds = Math.floor(value);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
+    }
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }, []);
 
   const videos = library?.videos ?? [];
   const selectedVideo = useMemo(
@@ -263,6 +278,61 @@ export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob }: Prop
   useEffect(() => {
     return () => cleanupPreviewAudio();
   }, [cleanupPreviewAudio]);
+
+  useEffect(() => {
+    if (!prefillParameters) {
+      return;
+    }
+    if (prefillParameters.input_file && typeof prefillParameters.input_file === 'string') {
+      setSelectedVideoPath(prefillParameters.input_file.trim());
+    } else if (prefillParameters.video_path && typeof prefillParameters.video_path === 'string') {
+      setSelectedVideoPath(prefillParameters.video_path.trim());
+    }
+    if (prefillParameters.subtitle_path && typeof prefillParameters.subtitle_path === 'string') {
+      setSelectedSubtitlePath(prefillParameters.subtitle_path.trim());
+    }
+    const targets = Array.isArray(prefillParameters.target_languages)
+      ? prefillParameters.target_languages
+          .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+          .filter((entry) => entry.length > 0)
+      : [];
+    if (targets.length > 0) {
+      setTargetLanguage(targets[0]);
+    }
+    if (prefillParameters.selected_voice && typeof prefillParameters.selected_voice === 'string') {
+      setVoice(prefillParameters.selected_voice.trim());
+    }
+    if (
+      typeof prefillParameters.start_time_offset_seconds === 'number' &&
+      Number.isFinite(prefillParameters.start_time_offset_seconds)
+    ) {
+      setStartOffset(formatOffset(prefillParameters.start_time_offset_seconds));
+    }
+    if (
+      typeof prefillParameters.end_time_offset_seconds === 'number' &&
+      Number.isFinite(prefillParameters.end_time_offset_seconds)
+    ) {
+      setEndOffset(formatOffset(prefillParameters.end_time_offset_seconds));
+    }
+    if (
+      typeof prefillParameters.original_mix_percent === 'number' &&
+      Number.isFinite(prefillParameters.original_mix_percent)
+    ) {
+      setOriginalMixPercent(prefillParameters.original_mix_percent);
+    }
+    if (
+      typeof prefillParameters.flush_sentences === 'number' &&
+      Number.isFinite(prefillParameters.flush_sentences)
+    ) {
+      setFlushSentences(prefillParameters.flush_sentences);
+    }
+    if (typeof prefillParameters.split_batches === 'boolean') {
+      setSplitBatches(prefillParameters.split_batches);
+    }
+    if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
+      setLlmModel(prefillParameters.llm_model.trim());
+    }
+  }, [formatOffset, prefillParameters]);
 
   useEffect(() => {
     if (playableSubtitles.length === 0) {

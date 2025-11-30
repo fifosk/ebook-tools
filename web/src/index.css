@@ -1022,14 +1022,27 @@ main {
 }
 
 .sidebar__job-label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.sidebar__job-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
 .sidebar__link .job-status {
   font-size: var(--font-size-small);
   padding: 0.15rem clamp(0.5rem, 0.45rem + 0.2vw, 0.65rem);
+}
+
+.sidebar__link .job-progress {
+  font-size: var(--font-size-small);
+  padding: 0.15rem clamp(0.45rem, 0.4rem + 0.2vw, 0.6rem);
 }
 
 @media (min-width: 48rem) {
@@ -3242,6 +3255,25 @@ button.link-button:focus {
 .metadata-grid dd {
   margin: 0;
   color: var(--color-text-secondary);
+}
+
+.job-progress {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  padding: clamp(0.2rem, 0.15rem + 0.2vw, 0.35rem) clamp(0.55rem, 0.5rem + 0.25vw, 0.75rem);
+  border-radius: 999px;
+  text-transform: none;
+  font-size: var(--font-size-small);
+  min-width: 3.25ch;
+  background: var(--color-status-neutral-bg);
+  color: var(--color-text-primary);
+}
+
+.job-progress[data-state='running'] {
+  background: var(--color-status-info-bg);
+  color: var(--color-status-info-text);
 }
 
 .job-status {

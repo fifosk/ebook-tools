@@ -417,6 +417,10 @@ export async function deleteJob(jobId: string): Promise<PipelineJobActionRespons
   return postJobAction(jobId, 'delete');
 }
 
+export async function restartJob(jobId: string): Promise<PipelineJobActionResponse> {
+  return postJobAction(jobId, 'restart');
+}
+
 export async function refreshPipelineMetadata(jobId: string): Promise<PipelineStatusResponse> {
   const response = await apiFetch(`/api/pipelines/${jobId}/metadata/refresh`, {
     method: 'POST'

@@ -5,6 +5,7 @@ import {
   PipelineFileEntry,
   PipelineRequestPayload,
   PipelineStatusResponse,
+  JobParameterSnapshot,
   VoiceInventoryResponse
 } from '../api/dtos';
 import {
@@ -89,6 +90,7 @@ type Props = {
   activeSection?: PipelineFormSection;
   externalError?: string | null;
   prefillInputFile?: string | null;
+  prefillParameters?: JobParameterSnapshot | null;
   recentJobs?: PipelineStatusResponse[] | null;
 };
 
@@ -514,6 +516,7 @@ export function PipelineSubmissionForm({
   activeSection,
   externalError = null,
   prefillInputFile = null,
+  prefillParameters = null,
   recentJobs = null
 }: Props) {
   const {
@@ -549,6 +552,7 @@ export function PipelineSubmissionForm({
   const [isLoadingLlmModels, setIsLoadingLlmModels] = useState<boolean>(false);
   const previewAudioRef = useRef<{ audio: HTMLAudioElement; url: string; code: string } | null>(null);
   const prefillAppliedRef = useRef<string | null>(null);
+  const prefillParametersRef = useRef<string | null>(null);
   const recentJobsRef = useRef<PipelineStatusResponse[] | null>(recentJobs ?? null);
   const userEditedStartRef = useRef<boolean>(false);
   const userEditedInputRef = useRef<boolean>(false);
@@ -715,6 +719,89 @@ export function PipelineSubmissionForm({
   }, [prefillInputFile, resolveStartFromHistory]);
 
   useEffect(() => {
+    if (!prefillParameters) {
+      prefillParametersRef.current = null;
+      return;
+    }
+    const key = JSON.stringify(prefillParameters);
+    if (prefillParametersRef.current === key) {
+      return;
+    }
+    prefillParametersRef.current = key;
+
+    setFormState((previous) => {
+      const targetLanguages =
+        Array.isArray(prefillParameters.target_languages) && prefillParameters.target_languages.length > 0
+          ? prefillParameters.target_languages
+              .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+              .filter((entry) => entry.length > 0)
+          : previous.target_languages;
+      const startSentence =
+        typeof prefillParameters.start_sentence === 'number' && Number.isFinite(prefillParameters.start_sentence)
+          ? prefillParameters.start_sentence
+          : previous.start_sentence;
+      const endSentence =
+        typeof prefillParameters.end_sentence === 'number' && Number.isFinite(prefillParameters.end_sentence)
+          ? String(prefillParameters.end_sentence)
+          : previous.end_sentence;
+      const inputLanguage =
+        typeof prefillParameters.input_language === 'string' && prefillParameters.input_language.trim()
+          ? prefillParameters.input_language.trim()
+          : previous.input_language;
+      const inputFile =
+        typeof prefillParameters.input_file === 'string' && prefillParameters.input_file.trim()
+          ? prefillParameters.input_file.trim()
+          : previous.input_file;
+      const baseOutputFile =
+        typeof prefillParameters.base_output_file === 'string' && prefillParameters.base_output_file.trim()
+          ? prefillParameters.base_output_file.trim()
+          : previous.base_output_file;
+      const sentencesPerOutput =
+        typeof prefillParameters.sentences_per_output_file === 'number' &&
+        Number.isFinite(prefillParameters.sentences_per_output_file)
+          ? prefillParameters.sentences_per_output_file
+          : previous.sentences_per_output_file;
+      const audioMode =
+        typeof prefillParameters.audio_mode === 'string' && prefillParameters.audio_mode.trim()
+          ? prefillParameters.audio_mode.trim()
+          : previous.audio_mode;
+      const selectedVoice =
+        typeof prefillParameters.selected_voice === 'string' && prefillParameters.selected_voice.trim()
+          ? prefillParameters.selected_voice.trim()
+          : previous.selected_voice;
+      const tempo =
+        typeof prefillParameters.tempo === 'number' && Number.isFinite(prefillParameters.tempo)
+          ? prefillParameters.tempo
+          : previous.tempo;
+      const includeTransliteration =
+        typeof prefillParameters.enable_transliteration === 'boolean'
+          ? prefillParameters.enable_transliteration
+          : previous.include_transliteration;
+      const voiceOverrides =
+        prefillParameters.voice_overrides && typeof prefillParameters.voice_overrides === 'object'
+          ? { ...prefillParameters.voice_overrides }
+          : previous.voice_overrides;
+
+      return {
+        ...previous,
+        input_file: inputFile,
+        base_output_file: baseOutputFile,
+        input_language: inputLanguage,
+        target_languages: targetLanguages,
+        custom_target_languages: '',
+        start_sentence: startSentence,
+        end_sentence: endSentence,
+        sentences_per_output_file: sentencesPerOutput,
+        audio_mode: audioMode,
+        selected_voice: selectedVoice,
+        tempo,
+        include_transliteration: includeTransliteration,
+        voice_overrides: voiceOverrides
+      };
+    });
+  }, [prefillParameters]);
+
+  useEffect(() => {
     let cancelled = false;
     const loadDefaults = async () => {
       try {
@@ -873,7 +960,7 @@ export function PipelineSubmissionForm({
       return;
     }
 
-    const suggestedEnd = String(Math.max(1, Math.trunc(start)) + 105);
+    const suggestedEnd = String(Math.max(1, Math.trunc(start)) + 99);
     const currentEnd = formState.end_sentence;
     const lastAuto = lastAutoEndSentenceRef.current;
     const shouldApply = currentEnd === '' || (lastAuto !== null && currentEnd === lastAuto);
@@ -898,7 +985,7 @@ export function PipelineSubmissionForm({
         return previous;
       }
 
-      const nextSuggestedEnd = String(Math.max(1, Math.trunc(previousStart)) + 105);
+      const nextSuggestedEnd = String(Math.max(1, Math.trunc(previousStart)) + 99);
       const previousEnd = previous.end_sentence;
       const previousLastAuto = lastAutoEndSentenceRef.current;
       const previousShouldApply =
@@ -1405,7 +1492,7 @@ export function PipelineSubmissionForm({
       const configOverrides = { ...json.config };
       const selectedModel = formState.ollama_model.trim();
       if (selectedModel) {
-        configOverrides.ollama_model = selectedModel;
+        pipelineOverrides.ollama_model = selectedModel;
       }
 
       const normalizedStartSentence = Math.max(1, Math.trunc(Number(formState.start_sentence)));
@@ -1508,6 +1595,14 @@ export function PipelineSubmissionForm({
             onUploadFile={processFileUpload}
             uploadError={uploadError}
             recentUploadName={recentUploadName}
+            configOverrides={formState.config}
+            environmentOverrides={formState.environment_overrides}
+            pipelineOverrides={formState.pipeline_overrides}
+            bookMetadata={formState.book_metadata}
+            onConfigOverridesChange={(value) => handleChange('config', value)}
+            onEnvironmentOverridesChange={(value) => handleChange('environment_overrides', value)}
+            onPipelineOverridesChange={(value) => handleChange('pipeline_overrides', value)}
+            onBookMetadataChange={(value) => handleChange('book_metadata', value)}
           />
         );
       case 'language':
@@ -1629,35 +1724,36 @@ export function PipelineSubmissionForm({
     <section className="pipeline-settings">
       <h2>{headerTitle}</h2>
       <p>{headerDescription}</p>
+      {error ? (
+        <div className="alert" role="alert">
+          {error}
+        </div>
+      ) : null}
       <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
-      <Tabs
-        className="pipeline-tabs"
-        value={activeTab}
-        onValueChange={(next) => setActiveTab(next as PipelineFormSection)}
-      >
-        <TabsList className="pipeline-tabs__list">
+        <Tabs
+          className="pipeline-tabs"
+          value={activeTab}
+          onValueChange={(next) => setActiveTab(next as PipelineFormSection)}
+        >
+          <TabsList className="pipeline-tabs__list">
+            {tabSections.map((section) => (
+              <TabsTrigger key={section} value={section} className="pipeline-tabs__trigger">
+                <span className="pipeline-tabs__trigger-title">
+                  {PIPELINE_SECTION_META[section].title}
+                </span>
+                <span className="pipeline-tabs__trigger-description">
+                  {PIPELINE_SECTION_META[section].description}
+                </span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
           {tabSections.map((section) => (
-            <TabsTrigger key={section} value={section} className="pipeline-tabs__trigger">
-              <span className="pipeline-tabs__trigger-title">
-                {PIPELINE_SECTION_META[section].title}
-              </span>
-              <span className="pipeline-tabs__trigger-description">
-                {PIPELINE_SECTION_META[section].description}
-              </span>
-            </TabsTrigger>
+            <TabsContent key={section} value={section} className="pipeline-tabs__content">
+              {renderSection(section)}
+            </TabsContent>
           ))}
-        </TabsList>
-        {tabSections.map((section) => (
-          <TabsContent
-            key={section}
-            value={section}
-            className="pipeline-tabs__content"
-          >
-            {renderSection(section)}
-          </TabsContent>
-        ))}
-      </Tabs>
-      {renderSection('submit')}
+        </Tabs>
+        {renderSection('submit')}
       </form>
       {activeFileDialog && fileOptions ? (
         <FileSelectionDialog

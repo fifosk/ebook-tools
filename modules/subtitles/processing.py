@@ -948,7 +948,7 @@ def _merge_youtube_windows(
     target_window_seconds: float = 5.5,
     max_window_seconds: float = 7.0,
     max_gap_seconds: float = 0.75,
-    min_gap_seconds: float = 0.1,
+    min_gap_seconds: float = 0.0,
     min_duration_seconds: float = 0.35,
 ) -> List[SubtitleCue]:
     """Merge overlapping/adjacent YouTube cues into ~5s windows without duplicate lines."""
@@ -1044,7 +1044,7 @@ def merge_youtube_subtitle_cues(
     target_window_seconds: float = 5.5,
     max_window_seconds: float = 7.0,
     max_gap_seconds: float = 0.75,
-    min_gap_seconds: float = 0.1,
+    min_gap_seconds: float = 0.0,
 ) -> List[SubtitleCue]:
     """Normalize YouTube cues into ~5s non-overlapping windows ready for rendering."""
 

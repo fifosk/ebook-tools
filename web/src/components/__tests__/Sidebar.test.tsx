@@ -49,6 +49,38 @@ const youtubeDubJob: JobState = {
   canManage: true
 };
 
+const runningWithProgress: JobState = {
+  jobId: '789',
+  status: {
+    job_id: '789',
+    job_type: 'pipeline',
+    status: 'running',
+    created_at: new Date().toISOString(),
+    started_at: new Date().toISOString(),
+    completed_at: null,
+    result: null,
+    error: null,
+    latest_event: null,
+    tuning: null
+  },
+  latestEvent: {
+    event_type: 'progress',
+    timestamp: Date.now(),
+    metadata: {},
+    snapshot: {
+      completed: 5,
+      total: 10,
+      elapsed: 5,
+      speed: 1,
+      eta: 5
+    },
+    error: null
+  },
+  isReloading: false,
+  isMutating: false,
+  canManage: true
+};
+
 describe('Sidebar', () => {
   it('renders the Add book entry as active for pipeline views', () => {
     render(
@@ -73,9 +105,33 @@ describe('Sidebar', () => {
     const addBookButton = screen.getByRole('button', { name: /Add book/i });
     expect(addBookButton).toBeInTheDocument();
     expect(addBookButton).toHaveClass('is-active');
-    expect(screen.getByRole('button', { name: /Subtitles/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Subtitles$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create book/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
+  });
+
+  it('shows progress for running jobs with progress events', () => {
+    render(
+      <Sidebar
+        selectedView="pipeline:source"
+        onSelectView={vi.fn()}
+        sidebarJobs={[runningWithProgress]}
+        activeJobId={null}
+        onSelectJob={vi.fn()}
+        onOpenPlayer={vi.fn()}
+        isAdmin={false}
+        createBookView="books:create"
+        libraryView="library:list"
+        subtitlesView="subtitles:home"
+        youtubeSubtitlesView="subtitles:youtube"
+        youtubeDubView="subtitles:youtube-dub"
+        jobMediaView="job:media"
+        adminView="admin:users"
+      />
+    );
+
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByLabelText('Running')).toBeInTheDocument();
   });
 
   it('invokes callbacks when selecting different entries', () => {
@@ -109,7 +165,7 @@ describe('Sidebar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Job 123/i }));
     expect(handleSelectJob).toHaveBeenCalledWith('123');
-    fireEvent.click(screen.getByRole('button', { name: /es/i }));
+    fireEvent.click(screen.getByRole('button', { name: /es Pending/i }));
     expect(handleSelectJob).toHaveBeenCalledWith('dub-1');
 
     const playerButton = screen.getByRole('button', { name: /Select a job to open the player/i });

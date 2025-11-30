@@ -14,6 +14,7 @@ import Sidebar from './components/Sidebar';
 import {
   LibraryItem,
   PipelineRequestPayload,
+  JobParameterSnapshot,
   PipelineStatusResponse,
   ProgressEventPayload
 } from './api/dtos';
@@ -26,6 +27,7 @@ import {
   pauseJob,
   refreshPipelineMetadata,
   resumeJob,
+  restartJob,
   submitPipeline
 } from './api/client';
 import { useTheme } from './components/ThemeProvider';
@@ -44,7 +46,7 @@ interface JobRegistryEntry {
   latestEvent?: ProgressEventPayload;
 }
 
-type JobAction = 'pause' | 'resume' | 'cancel' | 'delete';
+type JobAction = 'pause' | 'resume' | 'cancel' | 'delete' | 'restart';
 
 export type PipelineMenuView =
   | 'pipeline:source'
@@ -109,6 +111,9 @@ export function App() {
   const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
   const [playerSelection, setPlayerSelection] = useState<MediaSelectionRequest | null>(null);
   const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
+  const [copiedJobParameters, setCopiedJobParameters] = useState<JobParameterSnapshot | null>(null);
+  const [subtitlePrefillParameters, setSubtitlePrefillParameters] = useState<JobParameterSnapshot | null>(null);
+  const [youtubeDubPrefillParameters, setYoutubeDubPrefillParameters] = useState<JobParameterSnapshot | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isImmersiveMode, setIsImmersiveMode] = useState(false);
   const [isPlayerFullscreen, setIsPlayerFullscreen] = useState(false);
@@ -542,6 +547,10 @@ export function App() {
           const payload = await deleteJob(jobId);
           response = payload.job;
           errorMessage = payload.error ?? null;
+        } else if (action === 'restart') {
+          const payload = await restartJob(jobId);
+          response = payload.job;
+          errorMessage = payload.error ?? null;
         }
 
         if (errorMessage) {
@@ -654,6 +663,55 @@ export function App() {
         return;
       }
       await performJobAction(jobId, 'delete');
+    },
+    [performJobAction]
+  );
+
+  const handleCopyJob = useCallback(
+    (jobId: string) => {
+      const entry = jobs[jobId];
+      const parameters = entry?.status?.parameters ?? null;
+      if (!parameters) {
+        window.alert('Job parameters are unavailable; please refresh and try again.');
+        return;
+      }
+      const jobType = entry.status?.job_type ?? '';
+      setCopiedJobParameters(null);
+      setSubtitlePrefillParameters(null);
+      setYoutubeDubPrefillParameters(null);
+      setPendingInputFile(null);
+
+      if (jobType === 'subtitle') {
+        setSubtitlePrefillParameters(parameters);
+        setSelectedView(SUBTITLES_VIEW);
+        return;
+      }
+      if (jobType === 'youtube_dub') {
+        setYoutubeDubPrefillParameters(parameters);
+        setSelectedView(YOUTUBE_DUB_VIEW);
+        return;
+      }
+
+      setCopiedJobParameters(parameters);
+      const inputFile =
+        typeof parameters.input_file === 'string' && parameters.input_file.trim()
+          ? parameters.input_file.trim()
+          : null;
+      setPendingInputFile(inputFile);
+      setSelectedView('pipeline:source');
+    },
+    [jobs]
+  );
+
+  const handleRestartJob = useCallback(
+    async (jobId: string) => {
+      const confirmed = window.confirm(
+        `Restart job ${jobId}? Generated outputs will be overwritten using the same settings.`
+      );
+      if (!confirmed) {
+        return;
+      }
+      await performJobAction(jobId, 'restart');
     },
     [performJobAction]
   );
@@ -1249,6 +1307,7 @@ export function App() {
                     onSubmit={handleSubmit}
                     isSubmitting={isSubmitting}
                     prefillInputFile={pendingInputFile}
+                    prefillParameters={copiedJobParameters}
                     submitError={activePipelineSection === 'submit' ? submitError : null}
                     recentJobs={recentPipelineJobs}
                   />
@@ -1260,6 +1319,7 @@ export function App() {
                     subtitleJobs={subtitleJobStates}
                     onJobCreated={handleSubtitleJobCreated}
                     onSelectJob={handleSubtitleJobSelected}
+                    prefillParameters={subtitlePrefillParameters}
                   />
                 </section>
               ) : null}
@@ -1274,6 +1334,7 @@ export function App() {
                     jobs={youtubeDubJobStates}
                     onJobCreated={handleYoutubeDubJobCreated}
                     onSelectJob={handleYoutubeDubJobSelected}
+                    prefillParameters={youtubeDubPrefillParameters}
                   />
                 </section>
               ) : null}
@@ -1289,7 +1350,9 @@ export function App() {
                       onResume={() => handleResumeJob(selectedJob.jobId)}
                       onCancel={() => handleCancelJob(selectedJob.jobId)}
                       onDelete={() => handleDeleteJob(selectedJob.jobId)}
+                      onRestart={() => handleRestartJob(selectedJob.jobId)}
                       onReload={() => handleReloadJob(selectedJob.jobId)}
+                      onCopy={() => handleCopyJob(selectedJob.jobId)}
                       onMoveToLibrary={() => handleMoveJobToLibrary(selectedJob.jobId)}
                       isReloading={selectedJob.isReloading}
                       isMutating={selectedJob.isMutating}

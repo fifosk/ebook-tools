@@ -566,6 +566,21 @@ class PipelineService:
             user_role=user_role,
         )
 
+    def restart_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
+        """Restart a completed/failed job with the same settings, wiping generated outputs."""
+
+        return self._job_manager.restart_job(
+            job_id,
+            user_id=user_id,
+            user_role=user_role,
+        )
+
     def _prepare_submission_metadata(self, request: PipelineRequest) -> Optional[InitialMetadataSnapshot]:
         context = request.context
         if context is None:

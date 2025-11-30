@@ -136,6 +136,9 @@ export interface JobParameterSnapshot {
   tempo?: number | null;
   macos_reading_speed?: number | null;
   output_dir?: string | null;
+  original_mix_percent?: number | null;
+  flush_sentences?: number | null;
+  split_batches?: boolean | null;
 }
 
 export interface PipelineStatusResponse {

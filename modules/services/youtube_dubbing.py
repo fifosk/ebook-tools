@@ -55,7 +55,7 @@ _ASS_DIALOGUE_PATTERN = re.compile(
 _ASS_TAG_PATTERN = re.compile(r"\{[^}]*\}")
 _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 _WHITESPACE_PATTERN = re.compile(r"\s+")
-_MIN_DIALOGUE_GAP_SECONDS = 0.1
+_MIN_DIALOGUE_GAP_SECONDS = 0.0
 _MIN_DIALOGUE_DURATION_SECONDS = 0.1
 
 
@@ -358,43 +358,46 @@ def _resolve_language_code(label: Optional[str]) -> str:
 
 
 def _sanitize_for_tts(text: str) -> str:
-    """Strip common diacritics / noisy markers that confuse some TTS backends."""
+    """Clean noisy markers while preserving diacritics for languages like Czech/Hungarian."""
 
     try:
-        normalized = unicodedata.normalize("NFKD", text)
-        stripped = "".join(ch for ch in normalized if unicodedata.category(ch) != "Mn")
-        stripped = stripped.replace(">>", " ").replace("<<", " ").replace("»", " ").replace("«", " ")
-        stripped = re.sub(r"\s+", " ", stripped).strip()
-        return stripped or text
+        cleaned = text.replace(">>", " ").replace("<<", " ").replace("»", " ").replace("«", " ")
+        cleaned = _HTML_TAG_PATTERN.sub(" ", cleaned)
+        cleaned = re.sub(r"\s+", " ", cleaned).strip()
+        return cleaned or text
     except Exception:
         return text
 
 
-def _fit_segment_to_window(segment: AudioSegment, target_seconds: float) -> AudioSegment:
-    """Resize ``segment`` to fit within ``target_seconds`` using tempo and padding."""
+def _fit_segment_to_window(
+    segment: AudioSegment,
+    target_seconds: float,
+    *,
+    max_speedup: float = 1.4,
+) -> AudioSegment:
+    """Resize ``segment`` to fit within ``target_seconds`` using tempo and padding without trimming."""
 
     target_ms = max(50, int(target_seconds * 1000))
     duration_ms = len(segment)
     if duration_ms <= 0:
         return AudioSegment.silent(duration=target_ms, frame_rate=segment.frame_rate)
 
-    # Prefer keeping the original pace; only nudge tempo when notably exceeding the window.
-    slack_ms = min(300, int(target_ms * 0.2))  # keep spill modest to avoid overlaps
-    max_allowed_ms = target_ms + slack_ms
-    if duration_ms > max_allowed_ms:
-        desired_ms = max_allowed_ms
+    # Speed up when we would spill past the available window; prefer pitch-preserving speedup.
+    if duration_ms > target_ms:
+        desired_ms = target_ms
         speed = duration_ms / desired_ms
-        speed = min(speed, 1.15)
+        speed = min(speed, max_speedup)
         try:
             segment = effects.speedup(segment, playback_speed=speed, crossfade=30)
             duration_ms = len(segment)
         except Exception:
             segment = change_audio_tempo(segment, speed)
             duration_ms = len(segment)
-    # Never trim the spoken audio; allow spill after speeding up.
-    # For slower needs, prefer padding instead of stretching down (avoids low, muddy pitch).
+
+    # Pad if we still have room left so the segment lands exactly in its window.
     if duration_ms < target_ms:
         segment += AudioSegment.silent(duration=target_ms - duration_ms, frame_rate=segment.frame_rate)
+
     return segment
 
 
@@ -687,9 +690,9 @@ def _trim_video_segment(
         trimmed_path = Path(handle.name)
 
     command = [ffmpeg_bin, "-y"]
+    command.extend(["-i", str(video_path)])
     if start_offset > 0:
         command.extend(["-ss", f"{start_offset}"])
-    command.extend(["-i", str(video_path)])
     if duration is not None:
         command.extend(["-t", f"{duration}"])
     command.extend(["-c", "copy", str(trimmed_path)])
@@ -720,6 +723,7 @@ def _mux_audio_track(
     ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
     command = [ffmpeg_bin, "-y"]
     if start_time is not None and start_time > 0:
+        # Seek the video input while leaving the dubbed audio at t=0 for batch alignment.
         command.extend(["-ss", f"{start_time}"])
     command.extend(["-i", str(video_path)])
     command.extend(["-i", str(audio_path)])
@@ -992,6 +996,7 @@ def generate_dubbed_video(
             dialogues: List[_AssDialogue],
             *,
             batch_pace: float,
+            next_starts: Optional[List[Optional[float]]] = None,
         ) -> List[Tuple[_AssDialogue, AudioSegment]]:
             workers = _resolve_worker_count(len(dialogues), requested=max_workers)
             segments: List[Optional[Tuple[_AssDialogue, AudioSegment]]] = [None] * len(dialogues)
@@ -1013,8 +1018,7 @@ def generate_dubbed_video(
                 reading_speed = _apply_reading_speed_factor(macos_reading_speed, batch_pace)
                 sanitized = _sanitize_for_tts(entry.translation)
                 segment = generate_audio(sanitized, language_code, voice, reading_speed)
-                fitted = _fit_segment_to_window(segment, entry.duration)
-                normalized = fitted.set_frame_rate(44100).set_channels(2)
+                normalized = segment.set_frame_rate(44100).set_channels(2)
                 return index, entry, normalized
 
             if tracker is not None:
@@ -1023,9 +1027,14 @@ def generate_dubbed_video(
                 )
 
             # Precompute per-entry available window to constrain fitting and avoid spill into the next line.
-            available_windows = []
+            available_windows: List[float] = []
             for idx, entry in enumerate(dialogues):
-                if idx + 1 < len(dialogues):
+                if next_starts and idx < len(next_starts) and next_starts[idx] is not None:
+                    window_end = max(
+                        entry.start + _MIN_DIALOGUE_DURATION_SECONDS,
+                        float(next_starts[idx]) - _MIN_DIALOGUE_GAP_SECONDS,
+                    )
+                elif idx + 1 < len(dialogues):
                     next_start = dialogues[idx + 1].start
                     window_end = max(entry.start + _MIN_DIALOGUE_DURATION_SECONDS, next_start - _MIN_DIALOGUE_GAP_SECONDS)
                 else:
@@ -1100,10 +1109,26 @@ def generate_dubbed_video(
             block = clipped_dialogues[block_index : block_index + flush_block]
             translated_block = _translate_dialogues(block, offset=block_index)
             block_pace = global_pace or _compute_pace_factor(translated_block)
-            synthesized = _synthesise_batch(translated_block, batch_pace=block_pace)
+            next_starts: List[Optional[float]] = []
+            for idx, entry in enumerate(translated_block):
+                if block_index + idx + 1 < total_dialogues:
+                    next_starts.append(clipped_dialogues[block_index + idx + 1].start)
+                else:
+                    next_starts.append(None)
+            synthesized = _synthesise_batch(translated_block, batch_pace=block_pace, next_starts=next_starts)
             batch_start_sentence = block_index + 1
             batch_end_sentence = block_index + len(synthesized)
             block_start_seconds = min(entry.start for entry, _ in synthesized)
+            block_end_seconds = max(entry.end for entry, _ in synthesized)
+            block_duration = max(0.0, block_end_seconds - block_start_seconds)
+
+            # For batch files, build a local track rebased to 0 to avoid leading silence/drift.
+            block_track: Optional[AudioSegment] = None
+            if write_batches:
+                block_track = AudioSegment.silent(
+                    duration=int(math.ceil(block_duration * 1000)),
+                    frame_rate=44100,
+                ).set_channels(2)
             # Render batch ASS subtitles aligned to this batch.
             if write_batches:
                 batch_ass_path = _resolve_batch_output_path(
@@ -1134,17 +1159,23 @@ def generate_dubbed_video(
             for entry, audio in synthesized:
                 audio_len_seconds = len(audio) / 1000.0
                 audio_end_seconds = entry.start + audio_len_seconds
-                end_ms = int(audio_end_seconds * 1000) + 50
-                if len(dubbed_track) < end_ms:
-                    dubbed_track += AudioSegment.silent(duration=end_ms - len(dubbed_track), frame_rate=44100)
-                dubbed_track = dubbed_track.overlay(audio, position=int(entry.start * 1000))
+                if write_batches and block_track is not None:
+                    local_start_ms = int(max(0.0, entry.start - block_start_seconds) * 1000)
+                    block_track = block_track.overlay(audio, position=local_start_ms)
+                else:
+                    end_ms = int(audio_end_seconds * 1000) + 50
+                    if len(dubbed_track) < end_ms:
+                        dubbed_track += AudioSegment.silent(duration=end_ms - len(dubbed_track), frame_rate=44100)
+                    dubbed_track = dubbed_track.overlay(audio, position=int(entry.start * 1000))
                 actual_block_end = max(actual_block_end, audio_end_seconds, entry.end)
             processed_sentences += len(synthesized)
-            block_start_seconds = min(entry.start for entry, _ in synthesized)
-            block_end_seconds = actual_block_end or max(entry.end for entry, _ in synthesized)
-            audio_slice = dubbed_track[
-                int(block_start_seconds * 1000) : int(math.ceil(block_end_seconds * 1000))
-            ]
+            block_end_seconds = actual_block_end or block_end_seconds
+            if write_batches and block_track is not None:
+                audio_slice = block_track
+            else:
+                audio_slice = dubbed_track[
+                    int(block_start_seconds * 1000) : int(math.ceil(block_end_seconds * 1000))
+                ]
             original_slice = None
             if base_original_audio is not None:
                 original_slice = base_original_audio[
@@ -1157,51 +1188,94 @@ def generate_dubbed_video(
                 expected_duration_seconds=block_end_seconds - block_start_seconds,
                 original_audio=original_slice,
             )
-            batch_path = _resolve_batch_output_path(output_path, batch_start_sentence, batch_end_sentence)
-            target_paths: List[Path] = [batch_path] if write_batches else [output_path]
-            with tempfile.NamedTemporaryFile(
-                suffix=".wav",
-                delete=False,
-                prefix=f"dubbed-track-block-{block_index}-",
-                dir=_TEMP_DIR,
-            ) as chunk_handle:
-                chunk_path = Path(chunk_handle.name)
-            try:
-                mixed_slice.export(
-                    chunk_path,
-                    format="wav",
-                    parameters=["-acodec", "pcm_s16le"],
-                )
-                for target_path in target_paths:
+            if write_batches:
+                batch_path = _resolve_batch_output_path(output_path, batch_start_sentence, batch_end_sentence)
+                target_paths: List[Path] = [batch_path]
+                with tempfile.NamedTemporaryFile(
+                    suffix=".wav",
+                    delete=False,
+                    prefix=f"dubbed-track-block-{block_index}-",
+                    dir=_TEMP_DIR,
+                ) as chunk_handle:
+                    chunk_path = Path(chunk_handle.name)
+                try:
+                    mixed_slice.export(
+                        chunk_path,
+                        format="wav",
+                        parameters=["-acodec", "pcm_s16le"],
+                    )
                     _mux_audio_track(
                         source_video,
                         chunk_path,
-                        target_path,
+                        batch_path,
                         language_code,
                         start_time=block_start_seconds,
                         end_time=block_end_seconds,
                     )
                     flushed_until = block_end_seconds
-                    if write_batches and target_path == batch_path and target_path not in written_set:
-                        written_paths.append(target_path)
-                        written_set.add(target_path)
-                if tracker is not None:
-                    tracker.publish_progress(
-                        {
-                            "stage": "mux",
-                            "seconds_written": block_end_seconds,
-                            "output_path": target_paths[0].as_posix(),
-                            "processed_sentences": processed_sentences,
-                            "block_size": flush_block,
-                            "batch_start_sentence": batch_start_sentence,
-                            "batch_end_sentence": batch_end_sentence,
-                        }
-                    )
-            finally:
-                chunk_path.unlink(missing_ok=True)
+                    if batch_path not in written_set:
+                        written_paths.append(batch_path)
+                        written_set.add(batch_path)
+                    if tracker is not None:
+                        tracker.publish_progress(
+                            {
+                                "stage": "mux",
+                                "seconds_written": block_end_seconds,
+                                "output_path": batch_path.as_posix(),
+                                "processed_sentences": processed_sentences,
+                                "block_size": flush_block,
+                                "batch_start_sentence": batch_start_sentence,
+                                "batch_end_sentence": batch_end_sentence,
+                            }
+                        )
+                finally:
+                    chunk_path.unlink(missing_ok=True)
+            else:
+                # For single-output mode, accumulate onto the main dubbed_track and mux once after loop.
+                flushed_until = block_end_seconds
 
         total_seconds = flushed_until
         final_output = written_paths[0] if write_batches and written_paths else output_path
+
+        if not write_batches:
+            # Mux the full accumulated track once to avoid batch sync gaps.
+            final_audio_slice = dubbed_track[: int(math.ceil(total_seconds * 1000))] if total_seconds > 0 else dubbed_track
+            # Reapply the original underlay for the full track to honour mix_percent in single-output mode.
+            original_audio_slice = None
+            if base_original_audio is not None:
+                original_audio_slice = base_original_audio[: len(final_audio_slice)]
+            final_audio_slice = _mix_with_original_audio(
+                final_audio_slice,
+                source_video,
+                original_mix_percent=mix_percent,
+                expected_duration_seconds=total_seconds if total_seconds > 0 else None,
+                original_audio=original_audio_slice,
+            )
+            with tempfile.NamedTemporaryFile(
+                suffix=".wav",
+                delete=False,
+                prefix="dubbed-track-final-",
+                dir=_TEMP_DIR,
+            ) as chunk_handle:
+                chunk_path = Path(chunk_handle.name)
+            try:
+                final_audio_slice.export(
+                    chunk_path,
+                    format="wav",
+                    parameters=["-acodec", "pcm_s16le"],
+                )
+                _mux_audio_track(
+                    source_video,
+                    chunk_path,
+                    output_path,
+                    language_code,
+                    start_time=start_offset if start_offset > 0 else None,
+                    end_time=end_offset,
+                )
+            finally:
+                chunk_path.unlink(missing_ok=True)
+            written_paths.append(output_path)
+
         logger.info(
             "Dubbed video created at %s",
             final_output,

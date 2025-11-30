@@ -241,6 +241,21 @@ async def delete_job(
     )
 
 
+@router.post("/jobs/{job_id}/restart", response_model=PipelineJobActionResponse)
+async def restart_job(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+):
+    """Restart a non-running job with the same settings, overwriting generated outputs."""
+
+    return _handle_job_action(
+        job_id,
+        pipeline_service.restart_job,
+        request_user=request_user,
+    )
+
+
 @router.get("/{job_id}/events")
 async def stream_pipeline_events(
     job_id: str,

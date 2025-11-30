@@ -724,6 +724,102 @@ class PipelineJobManager:
         self._executor.submit(self._dispatch_execution, job_id)
         return job
 
+    def _cleanup_generated_outputs(self, job_id: str) -> None:
+        """Remove generated artifacts for ``job_id`` while keeping mirrored inputs."""
+
+        media_root = self._file_locator.media_root(job_id)
+        metadata_root = self._file_locator.metadata_root(job_id)
+        subtitles_root = self._file_locator.subtitles_root(job_id)
+        for path in (media_root, metadata_root, subtitles_root):
+            try:
+                if path.exists():
+                    shutil.rmtree(path)
+            except Exception:  # pragma: no cover - defensive cleanup
+                logger.debug("Unable to clean generated path %s for job %s", path, job_id, exc_info=True)
+        for path in (media_root, metadata_root, subtitles_root):
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except Exception:  # pragma: no cover - defensive cleanup
+                logger.debug("Unable to recreate generated path %s for job %s", path, job_id, exc_info=True)
+
+    def restart_job(
+        self,
+        job_id: str,
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
+        """Restart a finished/failed job with the same settings, wiping generated outputs."""
+
+        job = self._get_unchecked(job_id)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+
+        if job.job_type != "pipeline":
+            raise ValueError(f"Restart is not supported for job type '{job.job_type}'")
+        if job.status in (PipelineJobStatus.RUNNING, PipelineJobStatus.PENDING):
+            raise ValueError(f"Cannot restart job {job_id} while it is {job.status.value}")
+
+        payload = job.request_payload or job.resume_context
+        if payload is None:
+            raise ValueError(f"Job {job_id} is missing request payload and cannot be restarted")
+
+        previous_status = job.status
+
+        # Wipe generated outputs so the rerun can overwrite cleanly.
+        self._cleanup_generated_outputs(job_id)
+
+        # Reset state and hydrate a fresh request/tracker.
+        with self._lock:
+            job.request = None
+            job.tracker = None
+            job.stop_event = None
+            job.last_event = None
+            job.result = None
+            job.result_payload = None
+            job.error_message = None
+            job.generated_files = None
+            job.chunk_manifest = None
+            job.media_completed = False
+            job.retry_summary = job.retry_summary  # keep retry history for observability
+            job.started_at = None
+            job.completed_at = None
+            job.status = PipelineJobStatus.PENDING
+
+        stop_event = threading.Event()
+        request = self._request_factory.hydrate_request(job, payload, stop_event=stop_event)
+
+        # Ensure output directories are re-established and context reflects current paths.
+        media_root = self._file_locator.media_root(job_id)
+        request.environment_overrides = dict(request.environment_overrides)
+        request.environment_overrides["output_dir"] = str(media_root)
+        context = request.context
+        if context is not None:
+            context = dataclass_replace(context, output_dir=media_root)
+        else:
+            context = cfg.build_runtime_context(dict(request.config), dict(request.environment_overrides))
+            context = dataclass_replace(context, output_dir=media_root)
+        request.context = context
+        request.progress_tracker = request.progress_tracker or ProgressTracker()
+        request.stop_event = stop_event
+        request.job_id = job_id
+        tracker = request.progress_tracker
+        tracker.register_observer(lambda event: self._store_event(job_id, event))
+
+        with self._lock:
+            job.request = request
+            job.tracker = tracker
+            job.stop_event = stop_event
+            job.resume_context = copy.deepcopy(payload)
+            job.request_payload = copy.deepcopy(payload)
+            self._jobs[job_id] = job
+            self._register_job_handler(job_id, job)
+            snapshot = self._persistence.snapshot(job)
+
+        self._store.update(snapshot)
+        tracker.publish_progress({"stage": "restart", "previous_status": previous_status.value})
+        self._executor.submit(self._dispatch_execution, job_id)
+        return job
+
     def cancel_job(
         self,
         job_id: str,

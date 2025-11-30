@@ -13,6 +13,7 @@ import {
 import type { SubtitleJobResultPayload, SubtitleSourceEntry } from '../api/dtos';
 import { TOP_LANGUAGES } from '../constants/menuOptions';
 import { formatTimestamp } from '../utils/mediaFormatters';
+import type { JobParameterSnapshot } from '../api/dtos';
 
 type SourceMode = 'existing' | 'upload';
 type SubtitleOutputFormat = 'srt' | 'ass';
@@ -21,6 +22,7 @@ type Props = {
   subtitleJobs: JobState[];
   onJobCreated: (jobId: string) => void;
   onSelectJob: (jobId: string) => void;
+  prefillParameters?: JobParameterSnapshot | null;
 };
 
 const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
@@ -206,7 +208,7 @@ function normaliseTimecodeInput(
   return absolute.normalized;
 }
 
-export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob }: Props) {
+export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob, prefillParameters = null }: Props) {
   const {
     inputLanguage,
     setInputLanguage,
@@ -292,10 +294,67 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob 
   );
   const [lastSubmittedAssFontSize, setLastSubmittedAssFontSize] = useState<number | null>(null);
   const [lastSubmittedAssEmphasis, setLastSubmittedAssEmphasis] = useState<number | null>(null);
+  const secondsToTimecode = useCallback((value: number | null | undefined): string => {
+    if (value === null || value === undefined || !Number.isFinite(value) || value < 0) {
+      return '';
+    }
+    const totalSeconds = Math.floor(value);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    if (hours > 0) {
+      return [hours, minutes, seconds].map((component) => component.toString().padStart(2, '0')).join(':');
+    }
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }, []);
 
   useEffect(() => {
     setTargetLanguage(primaryTargetLanguage ?? targetLanguage);
   }, [primaryTargetLanguage]);
+
+  useEffect(() => {
+    if (!prefillParameters) {
+      return;
+    }
+    const targetLanguages = Array.isArray(prefillParameters.target_languages)
+      ? prefillParameters.target_languages
+          .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+          .filter((entry) => entry.length > 0)
+      : [];
+    if (targetLanguages.length > 0) {
+      setTargetLanguage(targetLanguages[0]);
+      setPrimaryTargetLanguage(targetLanguages[0]);
+    }
+    if (prefillParameters.input_language && typeof prefillParameters.input_language === 'string') {
+      setInputLanguage(prefillParameters.input_language.trim());
+    }
+    if (typeof prefillParameters.enable_transliteration === 'boolean') {
+      setEnableTransliteration(prefillParameters.enable_transliteration);
+    }
+    if (typeof prefillParameters.show_original === 'boolean') {
+      setShowOriginal(prefillParameters.show_original);
+    }
+    if (typeof prefillParameters.worker_count === 'number' && Number.isFinite(prefillParameters.worker_count)) {
+      setWorkerCount(prefillParameters.worker_count);
+    }
+    if (typeof prefillParameters.batch_size === 'number' && Number.isFinite(prefillParameters.batch_size)) {
+      setBatchSize(prefillParameters.batch_size);
+    }
+    if (typeof prefillParameters.start_time_offset_seconds === 'number') {
+      setStartTime(secondsToTimecode(prefillParameters.start_time_offset_seconds));
+    }
+    if (typeof prefillParameters.end_time_offset_seconds === 'number') {
+      setEndTime(secondsToTimecode(prefillParameters.end_time_offset_seconds));
+    }
+    if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
+      setSelectedModel(prefillParameters.llm_model.trim());
+    }
+  }, [
+    prefillParameters,
+    secondsToTimecode,
+    setInputLanguage,
+    setPrimaryTargetLanguage
+  ]);
 
   useEffect(() => {
     let cancelled = false;

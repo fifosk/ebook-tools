@@ -18,7 +18,9 @@ type Props = {
   onResume: () => void;
   onCancel: () => void;
   onDelete: () => void;
+  onRestart: () => void;
   onReload: () => void;
+  onCopy?: () => void;
   onMoveToLibrary?: () => void;
   isReloading?: boolean;
   isMutating?: boolean;
@@ -609,7 +611,9 @@ export function JobProgress({
   onResume,
   onCancel,
   onDelete,
+  onRestart,
   onReload,
+  onCopy,
   onMoveToLibrary,
   isReloading = false,
   isMutating = false,
@@ -691,6 +695,9 @@ export function JobProgress({
   const canResume = isPipelineJob && canManage && statusValue === 'paused';
   const canCancel = canManage && !isTerminal;
   const canDelete = canManage && isTerminal;
+  const canRestart =
+    canManage && statusValue !== 'running' && statusValue !== 'pending' && statusValue !== 'pausing';
+  const canCopy = Boolean(onCopy);
   const mediaCompleted = useMemo(() => resolveMediaCompletion(status), [status]);
   const isLibraryCandidate =
     isPipelineJob && (statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true));
@@ -728,6 +735,16 @@ export function JobProgress({
             {canCancel ? (
               <button type="button" className="link-button" onClick={onCancel} disabled={isMutating}>
                 Cancel
+              </button>
+            ) : null}
+            {canRestart ? (
+              <button type="button" className="link-button" onClick={onRestart} disabled={isMutating}>
+                Restart
+              </button>
+            ) : null}
+            {canCopy ? (
+              <button type="button" className="link-button" onClick={onCopy} disabled={isMutating}>
+                Copy
               </button>
             ) : null}
             {shouldRenderLibraryButton ? (
