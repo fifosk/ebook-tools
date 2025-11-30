@@ -213,12 +213,13 @@ def process_subtitle_file(
             )
         cues = trimmed
 
-    if options.source_is_youtube:
-        cues = _merge_youtube_windows(cues)
-
-    cues = _collapse_redundant_windows(cues)
-    cues = _deduplicate_cues_by_text(cues)
-    cues = _merge_overlapping_lines(cues)
+    apply_youtube_merge = _should_merge_youtube_cues(cues, options, source_path)
+    if apply_youtube_merge:
+        cues = merge_youtube_subtitle_cues(cues)
+    else:
+        cues = _collapse_redundant_windows(cues)
+        cues = _deduplicate_cues_by_text(cues)
+        cues = _merge_overlapping_lines(cues)
     total_cues = len(cues)
     if not cues:
         if end_offset is not None:
@@ -624,6 +625,136 @@ def _normalize_text(value: str) -> str:
     return normalized.strip()
 
 
+def _normalize_cue_timeline(
+    cues: Sequence[SubtitleCue],
+    *,
+    min_gap_seconds: float,
+    min_duration_seconds: float,
+) -> List[SubtitleCue]:
+    """Return cues ordered by start with enforced gaps/durations while preserving starts."""
+
+    normalized: List[SubtitleCue] = []
+    for cue in sorted(cues, key=lambda c: (c.start, c.end)):
+        start = cue.start
+        end = cue.end
+
+        if normalized:
+            prev = normalized[-1]
+            allowed_start = prev.end + min_gap_seconds
+            if start < allowed_start:
+                # First, try shrinking the previous cue to make room.
+                trimmed_prev_end = max(prev.start + min_duration_seconds, start - min_gap_seconds)
+                if trimmed_prev_end < prev.end:
+                    normalized[-1] = SubtitleCue(
+                        index=prev.index,
+                        start=prev.start,
+                        end=trimmed_prev_end,
+                        lines=list(prev.lines),
+                    )
+                    prev = normalized[-1]
+                    allowed_start = prev.end + min_gap_seconds
+
+                # If overlap persists, shift the current cue minimally forward.
+                if start < allowed_start:
+                    shift = allowed_start - start
+                    start += shift
+                    end += shift
+
+        end = max(end, start + min_duration_seconds)
+        normalized.append(
+            SubtitleCue(
+                index=cue.index,
+                start=start,
+                end=end,
+                lines=list(cue.lines),
+            )
+        )
+
+    return normalized
+
+
+def _count_overlapping_cues(cues: Sequence[SubtitleCue]) -> int:
+    """Return how many cues overlap with their immediate predecessor."""
+
+    if not cues:
+        return 0
+
+    count = 0
+    ordered = sorted(cues, key=lambda c: (c.start, c.end))
+    previous_end: Optional[float] = None
+    for cue in ordered:
+        if previous_end is not None and cue.start < previous_end:
+            count += 1
+        previous_end = max(previous_end or cue.end, cue.end)
+    return count
+
+
+def _should_merge_youtube_cues(
+    cues: Sequence[SubtitleCue],
+    options: SubtitleJobOptions,
+    source_path: Path,
+) -> bool:
+    """Heuristic to decide if YouTube-style merging should be applied."""
+
+    if options.source_is_youtube:
+        return True
+
+    name = source_path.name.lower()
+    filename_hint = "_yt" in name or ".yt" in name or "youtube" in name
+
+    overlap_ratio = 0.0
+    if len(cues) > 1:
+        overlap_ratio = _count_overlapping_cues(cues) / max(len(cues) - 1, 1)
+    dense_overlap = overlap_ratio >= 0.15
+
+    short_cues = sum(1 for cue in cues if cue.duration <= 1.2)
+    short_ratio = short_cues / max(len(cues), 1)
+
+    return filename_hint or (dense_overlap and short_ratio >= 0.25)
+
+
+def _split_long_cues(
+    cues: Sequence[SubtitleCue],
+    *,
+    target_seconds: float,
+    max_seconds: float,
+) -> List[SubtitleCue]:
+    """Split overly long cues into smaller windows by word count."""
+
+    if not cues:
+        return []
+
+    split: List[SubtitleCue] = []
+    for cue in cues:
+        duration = max(0.0, cue.end - cue.start)
+        if duration <= max_seconds:
+            split.append(cue)
+            continue
+
+        words = cue.as_text().split()
+        segments = max(1, int(math.ceil(duration / max(target_seconds, 0.1))))
+        if segments <= 1:
+            split.append(cue)
+            continue
+
+        segment_duration = duration / segments
+        words_per_segment = max(1, int(math.ceil(len(words) / segments)))
+        for idx in range(segments):
+            start = cue.start + segment_duration * idx
+            end = min(cue.end, start + segment_duration)
+            word_slice = words[idx * words_per_segment : (idx + 1) * words_per_segment]
+            text = " ".join(word_slice) if word_slice else cue.as_text()
+            split.append(
+                SubtitleCue(
+                    index=cue.index,
+                    start=start,
+                    end=end,
+                    lines=[text],
+                )
+            )
+    return split
+
+
 @dataclass(slots=True)
 class _NormalizedCueWindow:
     cue: SubtitleCue
@@ -814,11 +945,11 @@ def _merge_overlapping_lines(
 def _merge_youtube_windows(
     cues: Sequence[SubtitleCue],
     *,
-    target_window_seconds: float = 5.0,
-    max_window_seconds: float = 6.5,
-    max_gap_seconds: float = 0.5,
+    target_window_seconds: float = 5.5,
+    max_window_seconds: float = 7.0,
+    max_gap_seconds: float = 0.75,
     min_gap_seconds: float = 0.1,
-    min_duration_seconds: float = 0.2,
+    min_duration_seconds: float = 0.35,
 ) -> List[SubtitleCue]:
     """Merge overlapping/adjacent YouTube cues into ~5s windows without duplicate lines."""
 
@@ -827,8 +958,28 @@ def _merge_youtube_windows(
 
     def _merge_lines(existing: Sequence[str], incoming: Sequence[str]) -> List[str]:
         merged = list(existing)
+        incoming_lines = list(incoming)
+
+        if merged and incoming_lines:
+            trailing = _normalize_text(merged[-1])
+            leading = _normalize_text(incoming_lines[0])
+            if trailing and leading:
+                trailing_tokens = trailing.split()
+                leading_tokens = leading.split()
+                max_overlap = min(len(trailing_tokens), len(leading_tokens))
+                overlap_tokens = 0
+                for size in range(max_overlap, 0, -1):
+                    if trailing_tokens[-size:] == leading_tokens[:size]:
+                        overlap_tokens = size
+                        break
+                if overlap_tokens > 0:
+                    raw_leading_tokens = incoming_lines[0].split()
+                    if len(raw_leading_tokens) >= overlap_tokens:
+                        trimmed = " ".join(raw_leading_tokens[overlap_tokens:]).strip()
+                        incoming_lines[0] = trimmed
+
         seen = {_normalize_text(line) for line in merged if _normalize_text(line)}
-        for line in incoming:
+        for line in incoming_lines:
             normalized = _normalize_text(line)
             if not normalized or normalized in seen:
                 continue
@@ -837,51 +988,94 @@ def _merge_youtube_windows(
         return merged
 
     sorted_cues = sorted(cues, key=lambda cue: (cue.start, cue.end))
-    active = sorted_cues[0]
+    window_start = sorted_cues[0].start
+    window_end = sorted_cues[0].end
+    window_lines = list(sorted_cues[0].lines)
     merged: List[SubtitleCue] = []
 
     for cue in sorted_cues[1:]:
-        gap = max(0.0, cue.start - active.end)
-        overlap = max(0.0, active.end - cue.start)
-        extended_end = max(active.end, cue.end)
-        window_duration = extended_end - active.start
+        gap = max(0.0, cue.start - window_end)
+        candidate_end = max(window_end, cue.end)
+        candidate_duration = candidate_end - window_start
+
         should_merge = (
-            overlap > 0
-            or (window_duration < target_window_seconds and gap <= max_gap_seconds)
+            gap <= max_gap_seconds
+            or candidate_duration < target_window_seconds
         )
-        if should_merge and window_duration <= max_window_seconds and gap <= max_gap_seconds:
-            active = SubtitleCue(
-                index=active.index,
-                start=active.start,
-                end=extended_end,
-                lines=_merge_lines(active.lines, cue.lines),
-            )
+
+        if should_merge and candidate_duration <= max_window_seconds:
+            window_end = candidate_end
+            window_lines = _merge_lines(window_lines, cue.lines)
             continue
 
-        merged.append(active)
-        active = cue
-
-    merged.append(active)
-
-    # Enforce non-overlapping windows with a small guard gap.
-    adjusted: List[SubtitleCue] = []
-    previous_end: Optional[float] = None
-    for cue in merged:
-        start = cue.start
-        if previous_end is not None and start < previous_end + min_gap_seconds:
-            start = previous_end + min_gap_seconds
-        end = max(cue.end, start + min_duration_seconds)
-        adjusted.append(
+        merged.append(
             SubtitleCue(
-                index=cue.index,
-                start=start,
-                end=end,
-                lines=list(cue.lines),
+                index=len(merged) + 1,
+                start=window_start,
+                end=window_end,
+                lines=list(window_lines),
             )
         )
-        previous_end = end
+        window_start = cue.start
+        window_end = cue.end
+        window_lines = list(cue.lines)
 
-    return adjusted
+    merged.append(
+        SubtitleCue(
+            index=len(merged) + 1,
+            start=window_start,
+            end=window_end,
+            lines=list(window_lines),
+        )
+    )
+
+    # Enforce non-overlapping windows with a small guard gap.
+    normalized = _normalize_cue_timeline(
+        merged,
+        min_gap_seconds=min_gap_seconds,
+        min_duration_seconds=min_duration_seconds,
+    )
+    return normalized
+
+
+def merge_youtube_subtitle_cues(
+    cues: Sequence[SubtitleCue],
+    *,
+    target_window_seconds: float = 5.5,
+    max_window_seconds: float = 7.0,
+    max_gap_seconds: float = 0.75,
+    min_gap_seconds: float = 0.1,
+) -> List[SubtitleCue]:
+    """Normalize YouTube cues into ~5s non-overlapping windows ready for rendering."""
+
+    merged = _merge_youtube_windows(
+        cues,
+        target_window_seconds=target_window_seconds,
+        max_window_seconds=max_window_seconds,
+        max_gap_seconds=max_gap_seconds,
+        min_gap_seconds=min_gap_seconds,
+        min_duration_seconds=0.35,
+    )
+    merged = _collapse_redundant_windows(
+        merged,
+        max_gap_seconds=max_gap_seconds,
+    )
+    merged = _deduplicate_cues_by_text(
+        merged,
+        max_gap_seconds=max_gap_seconds + 0.25,
+        min_containment_ratio=0.45,
+        min_similarity=0.82,
+    )
+    merged = _merge_overlapping_lines(
+        merged,
+        max_gap_seconds=max_gap_seconds,
+        max_window_seconds=max_window_seconds,
+    )
+    return _normalize_cue_timeline(
+        merged,
+        min_gap_seconds=min_gap_seconds,
+        min_duration_seconds=0.35,
+    )
 
 
 def _texts_overlap(

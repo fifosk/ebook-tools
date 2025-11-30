@@ -28,7 +28,7 @@ from modules.services.job_manager import PipelineJob, PipelineJobStatus
 from modules.subtitles import load_subtitle_cues
 from modules.subtitles.models import SubtitleCue, SubtitleColorPalette
 from modules.subtitles.processing import (
-    _merge_youtube_windows as _merge_youtube_windows_for_nas,
+    merge_youtube_subtitle_cues,
     _translate_text as _translate_subtitle_text,
     _target_uses_non_latin_script,
     _build_output_cues,
@@ -55,11 +55,8 @@ _ASS_DIALOGUE_PATTERN = re.compile(
 _ASS_TAG_PATTERN = re.compile(r"\{[^}]*\}")
 _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 _WHITESPACE_PATTERN = re.compile(r"\s+")
-_TARGET_MIN_WINDOW_SECONDS = 5.0
-_TARGET_MAX_WINDOW_SECONDS = 7.0
-_MAX_GAP_SECONDS = 1.0
-_MIN_DIALOGUE_GAP_SECONDS = 0.05
-_MIN_DIALOGUE_DURATION_SECONDS = 0.05
+_MIN_DIALOGUE_GAP_SECONDS = 0.1
+_MIN_DIALOGUE_DURATION_SECONDS = 0.1
 
 
 @dataclass(frozen=True)
@@ -180,59 +177,23 @@ def _parse_ass_dialogues(path: Path) -> List[_AssDialogue]:
     return [entry for entry in dialogues if entry.end > entry.start]
 
 
-def _merge_cues_to_dialogues(
-    cues: Sequence,
-    *,
-    target_min: float = _TARGET_MIN_WINDOW_SECONDS,
-    target_max: float = _TARGET_MAX_WINDOW_SECONDS,
-    max_gap: float = _MAX_GAP_SECONDS,
-) -> List[_AssDialogue]:
-    """Merge short cues to reach a smoother 5-7s window without overlaps."""
+def _cues_to_dialogues(cues: Sequence[SubtitleCue]) -> List[_AssDialogue]:
+    """Convert merged subtitle cues to dialogue windows."""
 
-    if target_max < target_min:
-        target_max = target_min
-    merged: List[_AssDialogue] = []
-    buffer: List = []
-
-    def _flush() -> None:
-        if not buffer:
-            return
-        start = float(buffer[0].start)
-        end = float(buffer[-1].end)
-        text_parts = []
-        original_parts = []
-        for cue in buffer:
-            text = cue.as_text().strip()
-            if text:
-                text_parts.append(text)
-                original_parts.append(text)
-        merged.append(
+    dialogues: List[_AssDialogue] = []
+    for cue in cues:
+        text = _WHITESPACE_PATTERN.sub(" ", cue.as_text()).strip()
+        if not text:
+            continue
+        dialogues.append(
             _AssDialogue(
-                start=start,
-                end=end,
-                translation=" ".join(text_parts),
-                original=" ".join(original_parts),
+                start=float(cue.start),
+                end=float(cue.end),
+                translation=text,
+                original=text,
             )
         )
-
-    for cue in cues:
-        if not buffer:
-            buffer.append(cue)
-            continue
-        last = buffer[-1]
-        gap = float(cue.start - last.end)
-        window_start = float(buffer[0].start)
-        window_end = float(buffer[-1].end)
-        window_duration = window_end - window_start
-        next_duration = float(cue.end) - window_start
-        can_merge = gap <= max_gap and (window_duration < target_min or next_duration <= target_max)
-        if can_merge:
-            buffer.append(cue)
-            continue
-        _flush()
-        buffer = [cue]
-    _flush()
-    return [entry for entry in merged if entry.translation]
+    return dialogues
 
 
 def _count_words(text: str) -> int:
@@ -323,9 +284,8 @@ def _parse_dialogues(path: Path) -> List[_AssDialogue]:
     if suffix == ".ass":
         return _normalize_dialogue_windows(_parse_ass_dialogues(path))
 
-    cues = load_subtitle_cues(path)
-    cues = _merge_youtube_windows_for_nas(cues)
-    return _normalize_dialogue_windows(_merge_cues_to_dialogues(cues))
+    cues = merge_youtube_subtitle_cues(load_subtitle_cues(path))
+    return _normalize_dialogue_windows(_cues_to_dialogues(cues))
 
 
 def _validate_time_window(
