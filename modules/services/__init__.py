@@ -19,6 +19,7 @@ from .pipeline_service import (
 from .pipeline_types import PipelineMetadata
 from .subtitle_service import SubtitleService, SubtitleSubmission
 from .video_service import VideoService, VideoTaskSnapshot
+from .youtube_dubbing import YoutubeDubbingService
 
 __all__ = [
     "InMemoryJobStore",
@@ -38,4 +39,5 @@ __all__ = [
     "SubtitleSubmission",
     "VideoService",
     "VideoTaskSnapshot",
+    "YoutubeDubbingService",
 ]

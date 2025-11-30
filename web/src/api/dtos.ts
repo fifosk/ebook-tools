@@ -131,6 +131,11 @@ export interface JobParameterSnapshot {
   enable_transliteration?: boolean | null;
   start_time_offset_seconds?: number | null;
   end_time_offset_seconds?: number | null;
+  video_path?: string | null;
+  subtitle_path?: string | null;
+  tempo?: number | null;
+  macos_reading_speed?: number | null;
+  output_dir?: string | null;
 }
 
 export interface PipelineStatusResponse {
@@ -140,7 +145,7 @@ export interface PipelineStatusResponse {
   created_at: string;
   started_at: string | null;
   completed_at: string | null;
-  result: PipelineResponsePayload | null;
+  result: PipelineResponsePayload | Record<string, unknown> | null;
   error: string | null;
   latest_event: ProgressEventPayload | null;
   tuning: Record<string, unknown> | null;
@@ -208,6 +213,51 @@ export interface YoutubeVideoFormat {
   note?: string | null;
   bitrate_kbps?: number | null;
   filesize?: string | null;
+}
+
+export interface YoutubeNasSubtitle {
+  path: string;
+  filename: string;
+  language?: string | null;
+  format: string;
+}
+
+export interface YoutubeNasVideo {
+  path: string;
+  filename: string;
+  folder: string;
+  size_bytes: number;
+  modified_at: string;
+  subtitles: YoutubeNasSubtitle[];
+}
+
+export interface YoutubeNasLibraryResponse {
+  base_dir: string;
+  videos: YoutubeNasVideo[];
+}
+
+export interface YoutubeDubRequest {
+  video_path: string;
+  subtitle_path: string;
+  target_language?: string | null;
+  voice?: string | null;
+  tempo?: number | null;
+  macos_reading_speed?: number | null;
+  output_dir?: string | null;
+  start_time_offset?: string | null;
+  end_time_offset?: string | null;
+  original_mix_percent?: number | null;
+  flush_sentences?: number | null;
+  llm_model?: string | null;
+  split_batches?: boolean | null;
+}
+
+export interface YoutubeDubResponse {
+  job_id: string;
+  status: PipelineJobStatus;
+  created_at: string;
+  job_type: string;
+  output_path?: string | null;
 }
 
 export interface LlmModelListResponse {

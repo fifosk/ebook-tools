@@ -24,6 +24,31 @@ const sampleJob: JobState = {
   canManage: true
 };
 
+const youtubeDubJob: JobState = {
+  jobId: 'dub-1',
+  status: {
+    job_id: 'dub-1',
+    job_type: 'youtube_dub',
+    status: 'pending',
+    created_at: new Date().toISOString(),
+    started_at: null,
+    completed_at: null,
+    result: { youtube_dub: { output_path: '/tmp/out.mp4' } },
+    error: null,
+    latest_event: null,
+    tuning: null,
+    parameters: {
+      target_languages: ['es'],
+      video_path: '/Volumes/Data/Video/Youtube/sample.mp4',
+      subtitle_path: '/Volumes/Data/Video/Youtube/sample.es.ass'
+    }
+  },
+  latestEvent: undefined,
+  isReloading: false,
+  isMutating: false,
+  canManage: true
+};
+
 describe('Sidebar', () => {
   it('renders the Add book entry as active for pipeline views', () => {
     render(
@@ -39,6 +64,7 @@ describe('Sidebar', () => {
         libraryView="library:list"
         subtitlesView="subtitles:home"
         youtubeSubtitlesView="subtitles:youtube"
+        youtubeDubView="subtitles:youtube-dub"
         jobMediaView="job:media"
         adminView="admin:users"
       />
@@ -61,7 +87,7 @@ describe('Sidebar', () => {
       <Sidebar
         selectedView="library:list"
         onSelectView={handleSelectView}
-        sidebarJobs={[sampleJob]}
+        sidebarJobs={[sampleJob, youtubeDubJob]}
         activeJobId={null}
         onSelectJob={handleSelectJob}
         onOpenPlayer={handleOpenPlayer}
@@ -70,6 +96,7 @@ describe('Sidebar', () => {
         libraryView="library:list"
         subtitlesView="subtitles:home"
         youtubeSubtitlesView="subtitles:youtube"
+        youtubeDubView="subtitles:youtube-dub"
         jobMediaView="job:media"
         adminView="admin:users"
       />
@@ -82,6 +109,8 @@ describe('Sidebar', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Job 123/i }));
     expect(handleSelectJob).toHaveBeenCalledWith('123');
+    fireEvent.click(screen.getByRole('button', { name: /es/i }));
+    expect(handleSelectJob).toHaveBeenCalledWith('dub-1');
 
     const playerButton = screen.getByRole('button', { name: /Select a job to open the player/i });
     expect(playerButton).toBeDisabled();

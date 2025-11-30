@@ -293,6 +293,61 @@ class YoutubeVideoDownloadResponse(BaseModel):
     folder: str
 
 
+class YoutubeNasSubtitlePayload(BaseModel):
+    """Subtitle file stored next to a downloaded YouTube video."""
+
+    path: str
+    filename: str
+    language: Optional[str] = None
+    format: str
+
+
+class YoutubeNasVideoPayload(BaseModel):
+    """Downloaded YouTube video and its discovered subtitle companions."""
+
+    path: str
+    filename: str
+    folder: str
+    size_bytes: int
+    modified_at: datetime
+    subtitles: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
+
+
+class YoutubeNasLibraryResponse(BaseModel):
+    """Response describing the NAS directory of downloaded YouTube videos."""
+
+    base_dir: str
+    videos: List[YoutubeNasVideoPayload] = Field(default_factory=list)
+
+
+class YoutubeDubRequest(BaseModel):
+    """Request payload for generating a dubbed audio track from an ASS file."""
+
+    video_path: str
+    subtitle_path: str
+    target_language: Optional[str] = None
+    voice: Optional[str] = None
+    tempo: Optional[float] = None
+    macos_reading_speed: Optional[int] = None
+    output_dir: Optional[str] = None
+    start_time_offset: Optional[str] = None
+    end_time_offset: Optional[str] = None
+    original_mix_percent: Optional[float] = None
+    flush_sentences: Optional[int] = None
+    llm_model: Optional[str] = None
+    split_batches: Optional[bool] = None
+
+
+class YoutubeDubResponse(BaseModel):
+    """Job handle for generating a dubbed YouTube video."""
+
+    job_id: str
+    status: PipelineJobStatus
+    created_at: datetime
+    job_type: str = "youtube_dub"
+    output_path: Optional[str] = None
+
+
 class LLMModelListResponse(BaseModel):
     """Response payload describing available LLM models."""
 
@@ -399,6 +454,14 @@ class JobParameterSnapshot(BaseModel):
     enable_transliteration: Optional[bool] = None
     start_time_offset_seconds: Optional[float] = None
     end_time_offset_seconds: Optional[float] = None
+    video_path: Optional[str] = None
+    subtitle_path: Optional[str] = None
+    tempo: Optional[float] = None
+    macos_reading_speed: Optional[int] = None
+    output_dir: Optional[str] = None
+    original_mix_percent: Optional[float] = None
+    flush_sentences: Optional[int] = None
+    split_batches: Optional[bool] = None
 
 
 def _coerce_str(value: Any) -> Optional[str]:
@@ -556,6 +619,41 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     )
 
 
+def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobParameterSnapshot]:
+    video_path = _coerce_str(payload.get("video_path"))
+    subtitle_path = _coerce_str(payload.get("subtitle_path"))
+    target_language = _coerce_str(payload.get("target_language"))
+    voice = _coerce_str(payload.get("voice"))
+    tempo = _coerce_float(payload.get("tempo"))
+    reading_speed = _coerce_int(payload.get("macos_reading_speed"))
+    output_dir = _coerce_str(payload.get("output_dir"))
+    start_offset = _coerce_float(payload.get("start_time_offset"))
+    end_offset = _coerce_float(payload.get("end_time_offset"))
+    original_mix_percent = _coerce_float(payload.get("original_mix_percent"))
+    flush_sentences = _coerce_int(payload.get("flush_sentences"))
+    llm_model = _coerce_str(payload.get("llm_model"))
+    split_batches = _coerce_bool(payload.get("split_batches"))
+
+    target_languages = [target_language] if target_language else []
+
+    return JobParameterSnapshot(
+        input_file=video_path,
+        video_path=video_path,
+        subtitle_path=subtitle_path,
+        target_languages=target_languages,
+        selected_voice=voice,
+        tempo=tempo,
+        macos_reading_speed=reading_speed,
+        output_dir=output_dir,
+        start_time_offset_seconds=start_offset,
+        end_time_offset_seconds=end_offset,
+        original_mix_percent=original_mix_percent,
+        flush_sentences=flush_sentences,
+        llm_model=llm_model,
+        split_batches=split_batches,
+    )
+
+
 def _build_job_parameters(job: PipelineJob) -> Optional[JobParameterSnapshot]:
     payload: Optional[Mapping[str, Any]] = None
     if isinstance(job.request_payload, Mapping):
@@ -568,6 +666,8 @@ def _build_job_parameters(job: PipelineJob) -> Optional[JobParameterSnapshot]:
 
     if job.job_type == "subtitle":
         return _build_subtitle_parameters(payload)
+    if job.job_type == "youtube_dub":
+        return _build_youtube_dub_parameters(payload)
     return _build_pipeline_parameters(payload)
 
 
@@ -624,7 +724,7 @@ class PipelineStatusResponse(BaseModel):
     created_at: datetime
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
-    result: Optional[PipelineResponsePayload]
+    result: Optional[PipelineResponsePayload | Dict[str, Any]]
     error: Optional[str]
     latest_event: Optional[ProgressEventPayload]
     tuning: Optional[Dict[str, Any]] = None
@@ -637,11 +737,14 @@ class PipelineStatusResponse(BaseModel):
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
-        result_payload: Optional[PipelineResponsePayload] = None
-        if job.result is not None:
-            result_payload = PipelineResponsePayload.from_response(job.result)
+        result_payload: Optional[PipelineResponsePayload | Dict[str, Any]] = None
+        if job.job_type == "pipeline":
+            if job.result is not None:
+                result_payload = PipelineResponsePayload.from_response(job.result)
+            elif job.result_payload is not None:
+                result_payload = PipelineResponsePayload(**job.result_payload)
         elif job.result_payload is not None:
-            result_payload = PipelineResponsePayload(**job.result_payload)
+            result_payload = copy.deepcopy(job.result_payload)
 
         latest_event = None
         if job.last_event is not None:

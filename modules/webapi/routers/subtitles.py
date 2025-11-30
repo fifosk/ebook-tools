@@ -26,6 +26,11 @@ from modules.services.youtube_subtitles import (
     download_subtitle as perform_youtube_subtitle_download,
     list_available_subtitles,
 )
+from modules.services.youtube_dubbing import (
+    DEFAULT_YOUTUBE_VIDEO_ROOT,
+    YoutubeDubbingService,
+    list_downloaded_videos,
+)
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
 from ..dependencies import (
@@ -33,6 +38,7 @@ from ..dependencies import (
     get_pipeline_job_manager,
     get_request_user,
     get_subtitle_service,
+    get_youtube_dubbing_service,
 )
 from ..schemas import (
     PipelineSubmissionResponse,
@@ -46,6 +52,11 @@ from ..schemas import (
     YoutubeVideoDownloadRequest,
     YoutubeVideoDownloadResponse,
     YoutubeVideoFormatPayload,
+    YoutubeDubRequest,
+    YoutubeDubResponse,
+    YoutubeNasLibraryResponse,
+    YoutubeNasSubtitlePayload,
+    YoutubeNasVideoPayload,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
@@ -374,6 +385,49 @@ def _looks_like_youtube_subtitle(path: Path) -> bool:
     return bool(regex.search(r"\[[a-z0-9_-]{8,15}\]", name, flags=regex.IGNORECASE))
 
 
+def _serialize_nas_video(entry) -> YoutubeNasVideoPayload:
+    subtitles = [
+        YoutubeNasSubtitlePayload(
+            path=sub.path.as_posix(),
+            filename=sub.path.name,
+            language=sub.language,
+            format=sub.format,
+        )
+        for sub in getattr(entry, "subtitles", []) or []
+    ]
+    return YoutubeNasVideoPayload(
+        path=entry.path.as_posix(),
+        filename=entry.path.name,
+        folder=entry.path.parent.as_posix(),
+        size_bytes=entry.size_bytes,
+        modified_at=entry.modified_at,
+        subtitles=subtitles,
+    )
+
+
+def _parse_tempo_value(value: Optional[float | str]) -> float:
+    if value is None:
+        return 1.0
+    try:
+        tempo = float(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tempo must be a number",
+        ) from exc
+    if tempo <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tempo must be greater than zero",
+        )
+    if tempo > 5:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="tempo must be 5.0 or lower",
+        )
+    return tempo
+
+
 @router.post("/youtube/video", response_model=YoutubeVideoDownloadResponse)
 def download_youtube_video(
     payload: YoutubeVideoDownloadRequest,
@@ -423,6 +477,97 @@ def download_youtube_video(
         output_path=output_path.as_posix(),
         filename=output_path.name,
         folder=output_path.parent.as_posix(),
+    )
+
+
+@router.get("/youtube/library", response_model=YoutubeNasLibraryResponse)
+def list_youtube_library(base_dir: Optional[str] = None) -> YoutubeNasLibraryResponse:
+    """Return downloaded YouTube videos discovered in the NAS path."""
+
+    target_root = Path(base_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
+    try:
+        videos = list_downloaded_videos(target_root)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    payload = [_serialize_nas_video(video) for video in videos]
+    return YoutubeNasLibraryResponse(base_dir=target_root.as_posix(), videos=payload)
+
+
+@router.post("/youtube/dub", response_model=YoutubeDubResponse, status_code=status.HTTP_202_ACCEPTED)
+def generate_youtube_dub(
+    payload: YoutubeDubRequest,
+    youtube_dubbing_service: YoutubeDubbingService = Depends(get_youtube_dubbing_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeDubResponse:
+    """Generate a dubbed audio track from an ASS subtitle and mux it into the video."""
+
+    video_path = Path(payload.video_path).expanduser()
+    subtitle_path = Path(payload.subtitle_path).expanduser()
+
+    tempo = _parse_tempo_value(payload.tempo)
+    macos_speed = payload.macos_reading_speed if payload.macos_reading_speed is not None else 100
+    if macos_speed <= 0:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="macos_reading_speed must be greater than zero",
+        )
+    mix_percent = payload.original_mix_percent
+    if mix_percent is not None and (mix_percent < 0 or mix_percent > 100):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="original_mix_percent must be between 0 and 100",
+        )
+    flush_sentences = payload.flush_sentences
+    if flush_sentences is not None and flush_sentences <= 0:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="flush_sentences must be greater than zero",
+        )
+    llm_model = (payload.llm_model or "").strip() or None
+    split_batches = bool(payload.split_batches) if payload.split_batches is not None else False
+    start_offset = _parse_time_offset(payload.start_time_offset)
+    end_offset = _parse_end_time(payload.end_time_offset, start_offset)
+    voice = (payload.voice or "gTTS").strip() or "gTTS"
+    target_language = (payload.target_language or "").strip() or None
+    output_dir = Path(payload.output_dir).expanduser() if payload.output_dir else None
+
+    try:
+        job = youtube_dubbing_service.enqueue(
+            video_path=video_path,
+            subtitle_path=subtitle_path,
+            target_language=target_language,
+            voice=voice,
+            tempo=tempo,
+            macos_reading_speed=macos_speed,
+            output_dir=output_dir,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+            start_time_offset=start_offset,
+            end_time_offset=end_offset,
+            original_mix_percent=mix_percent,
+            flush_sentences=flush_sentences,
+            llm_model=llm_model,
+            split_batches=split_batches,
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning(
+            "Unable to generate dubbed YouTube video",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to generate dubbed video: {exc}",
+        ) from exc
+
+    return YoutubeDubResponse(
+        job_id=job.job_id,
+        status=job.status,
+        created_at=job.created_at,
+        job_type=job.job_type,
     )
 
 

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import {
   PipelineJobStatus,
+  PipelineResponsePayload,
   PipelineStatusResponse,
   ProgressEventPayload
 } from '../api/dtos';
@@ -175,7 +176,11 @@ function resolveGeneratedChunks(status: PipelineStatusResponse | undefined): Rec
   if (!status) {
     return chunks;
   }
-  const candidates = [status.generated_files, status.result?.generated_files];
+  const resultGenerated =
+    status.result && typeof status.result === 'object'
+      ? (status.result as Record<string, unknown>)['generated_files']
+      : undefined;
+  const candidates = [status.generated_files, resultGenerated];
   for (const candidate of candidates) {
     if (!candidate || typeof candidate !== 'object') {
       continue;
@@ -314,9 +319,13 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   }
   const entries: JobParameterEntry[] = [];
   const parameters = status.parameters ?? null;
+  const pipelineResult =
+    status.job_type === 'pipeline' && status.result && typeof status.result === 'object'
+      ? (status.result as PipelineResponsePayload)
+      : null;
   const pipelineConfig =
-    status.result && status.result.pipeline_config && typeof status.result.pipeline_config === 'object'
-      ? (status.result.pipeline_config as Record<string, unknown>)
+    pipelineResult && pipelineResult.pipeline_config && typeof pipelineResult.pipeline_config === 'object'
+      ? (pipelineResult.pipeline_config as Record<string, unknown>)
       : null;
   const languageValues = (parameters?.target_languages ?? []).filter(
     (value): value is string => typeof value === 'string' && value.trim().length > 0
@@ -441,6 +450,74 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
     return entries;
   }
 
+  if (status.job_type === 'youtube_dub') {
+    const videoPath = parameters?.video_path ?? parameters?.input_file;
+    const subtitlePath = parameters?.subtitle_path;
+    const voice = parameters?.selected_voice;
+    const tempo = parameters?.tempo;
+    const readingSpeed = parameters?.macos_reading_speed;
+    const targetLanguage = languageValues[0];
+    const resultSection =
+      status.result && typeof status.result === 'object'
+        ? (status.result as Record<string, unknown>)['youtube_dub']
+        : null;
+    const outputPath =
+      resultSection && typeof resultSection === 'object'
+        ? ((resultSection as Record<string, unknown>).output_path as string | undefined)
+        : null;
+
+    if (targetLanguage) {
+      entries.push({
+        key: 'youtube-dub-target-language',
+        label: 'Target language',
+        value: targetLanguage
+      });
+    }
+    if (voice) {
+      entries.push({
+        key: 'youtube-dub-voice',
+        label: 'Voice',
+        value: voice
+      });
+    }
+    if (tempo !== null && tempo !== undefined) {
+      entries.push({
+        key: 'youtube-dub-tempo',
+        label: 'Tempo',
+        value: Number.isFinite(tempo) ? `${tempo}×` : String(tempo)
+      });
+    }
+    if (readingSpeed !== null && readingSpeed !== undefined) {
+      entries.push({
+        key: 'youtube-dub-reading-speed',
+        label: 'Reading speed',
+        value: `${readingSpeed} WPM`
+      });
+    }
+    if (videoPath) {
+      entries.push({
+        key: 'youtube-dub-video',
+        label: 'Video file',
+        value: videoPath
+      });
+    }
+    if (subtitlePath) {
+      entries.push({
+        key: 'youtube-dub-subtitle',
+        label: 'Subtitle',
+        value: subtitlePath
+      });
+    }
+    if (outputPath) {
+      entries.push({
+        key: 'youtube-dub-output',
+        label: 'Output',
+        value: outputPath
+      });
+    }
+    return entries;
+  }
+
   const languageList = formatLanguageList(languageValues);
   if (languageList) {
     entries.push({ key: 'pipeline-target-languages', label: 'Target languages', value: languageList });
@@ -550,8 +627,12 @@ export function JobProgress({
 
   usePipelineEvents(jobId, !isTerminal, onEvent);
 
+  const pipelineResult =
+    status?.job_type === 'pipeline' && status?.result && typeof status.result === 'object'
+      ? (status.result as PipelineResponsePayload)
+      : null;
   const event = latestEvent ?? status?.latest_event ?? undefined;
-  const bookMetadata = status?.result?.book_metadata ?? null;
+  const bookMetadata = pipelineResult?.book_metadata ?? null;
   const metadata = bookMetadata ?? {};
   const creationSummaryRaw = metadata['creation_summary'];
   const metadataEntries = Object.entries(metadata).filter(([key, value]) => {
@@ -594,7 +675,7 @@ export function JobProgress({
     });
     return sortTuningEntries(filtered);
   }, [status?.tuning]);
-  const translations = status?.result?.written_blocks ?? [];
+  const translations = pipelineResult?.written_blocks ?? [];
   const translationsUnavailable = Array.isArray(translations)
     ? translations.length > 0 && translations.every((block) => {
         if (typeof block !== 'string') {

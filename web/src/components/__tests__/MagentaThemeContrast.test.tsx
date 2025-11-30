@@ -109,6 +109,7 @@ describe('Magenta theme contrast', () => {
         libraryView={'library:list' as SelectedView}
         subtitlesView={'subtitles:home' as SelectedView}
         youtubeSubtitlesView={'subtitles:youtube' as SelectedView}
+        youtubeDubView={'subtitles:youtube-dub' as SelectedView}
         jobMediaView={'job:media' as SelectedView}
         adminView={'admin:users' as SelectedView}
       />

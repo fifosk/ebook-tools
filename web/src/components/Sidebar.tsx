@@ -14,6 +14,7 @@ interface SidebarProps {
   jobMediaView: SelectedView;
   subtitlesView: SelectedView;
   youtubeSubtitlesView: SelectedView;
+  youtubeDubView: SelectedView;
   adminView: SelectedView;
 }
 
@@ -94,13 +95,15 @@ export function Sidebar({
   libraryView,
   subtitlesView,
   youtubeSubtitlesView,
+  youtubeDubView,
   jobMediaView,
   adminView
 }: SidebarProps) {
   const isAddBookActive = isPipelineView(selectedView);
   const canOpenPlayer = Boolean(activeJobId);
-  const bookJobs = sidebarJobs.filter((job) => job.status.job_type !== 'subtitle');
+  const bookJobs = sidebarJobs.filter((job) => job.status.job_type === 'pipeline');
   const subtitleJobs = sidebarJobs.filter((job) => job.status.job_type === 'subtitle');
+  const youtubeDubJobs = sidebarJobs.filter((job) => job.status.job_type === 'youtube_dub');
 
   return (
     <nav className="sidebar__nav" aria-label="Dashboard menu">
@@ -141,6 +144,15 @@ export function Sidebar({
               onClick={() => onSelectView(youtubeSubtitlesView)}
             >
               YouTube subtitles
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === youtubeDubView ? 'is-active' : ''}`}
+              onClick={() => onSelectView(youtubeDubView)}
+            >
+              YouTube dubbing
             </button>
           </li>
         </ul>
@@ -249,6 +261,46 @@ export function Sidebar({
               </ul>
             ) : (
               <p className="sidebar__empty">No subtitle jobs yet.</p>
+            )}
+          </details>
+          <details className="sidebar__section" open>
+            <summary>YouTube dubbing</summary>
+            {youtubeDubJobs.length > 0 ? (
+              <ul className="sidebar__list">
+                {youtubeDubJobs.map((job) => {
+                  const statusValue = job.status?.status ?? 'pending';
+                  const statusLabel = resolveSidebarStatus(statusValue);
+                  const isActiveJob = activeJobId === job.jobId;
+                  const languageLabel = resolveSidebarLanguage(job);
+                  return (
+                    <li key={job.jobId}>
+                      <button
+                        type="button"
+                        className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
+                        onClick={() => onSelectJob(job.jobId)}
+                        title={`Job ${job.jobId}`}
+                      >
+                        <span
+                          className="sidebar__job-label"
+                          title={languageLabel.tooltip ?? `Job ${job.jobId}`}
+                        >
+                          {languageLabel.label}
+                        </span>
+                        <span
+                          className="job-status"
+                          data-state={statusValue}
+                          title={statusLabel.tooltip}
+                          aria-label={statusLabel.tooltip}
+                        >
+                          {statusLabel.label}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="sidebar__empty">No dubbing jobs yet.</p>
             )}
           </details>
         </div>

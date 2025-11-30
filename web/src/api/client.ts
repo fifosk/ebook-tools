@@ -38,7 +38,10 @@ import {
   YoutubeSubtitleDownloadResponse,
   YoutubeSubtitleListResponse,
   YoutubeVideoDownloadRequest,
-  YoutubeVideoDownloadResponse
+  YoutubeVideoDownloadResponse,
+  YoutubeNasLibraryResponse,
+  YoutubeDubRequest,
+  YoutubeDubResponse
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -239,6 +242,27 @@ export async function downloadYoutubeVideo(
     body: JSON.stringify(payload)
   });
   return handleResponse<YoutubeVideoDownloadResponse>(response);
+}
+
+export async function fetchYoutubeLibrary(
+  baseDir?: string
+): Promise<YoutubeNasLibraryResponse> {
+  const query = baseDir ? `?base_dir=${encodeURIComponent(baseDir)}` : '';
+  const response = await apiFetch(`/api/subtitles/youtube/library${query}`);
+  return handleResponse<YoutubeNasLibraryResponse>(response);
+}
+
+export async function generateYoutubeDub(
+  payload: YoutubeDubRequest
+): Promise<YoutubeDubResponse> {
+  const response = await apiFetch('/api/subtitles/youtube/dub', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<YoutubeDubResponse>(response);
 }
 
 export async function fetchLlmModels(): Promise<string[]> {

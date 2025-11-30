@@ -267,6 +267,9 @@ def cleanup_environment(context: RuntimeContext) -> None:
 def _cleanup_tmp_ramdisk(context: RuntimeContext) -> None:
     try:
         cleanup_environment(context)
+    except KeyboardInterrupt:
+        # Avoid blocking interpreter shutdown if diskutil is interrupted.
+        logger.debug("RAM disk cleanup interrupted; skipping teardown.")
     except Exception as exc:  # pragma: no cover - defensive logging
         logger.debug(
             "Failed to clean up RAM disk during interpreter shutdown: %s", exc

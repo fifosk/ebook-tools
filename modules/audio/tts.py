@@ -436,11 +436,16 @@ def generate_audio(
     if selected_voice == "gTTS":
         return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
 
-    service = AudioService(config=config)
+    resolved_macos_voice = _resolve_macos_voice_name(selected_voice, lang_code)
+    # Force the macOS backend when we have a resolvable macOS voice, regardless of default backend.
+    if resolved_macos_voice:
+        service = AudioService(config=config, backend_name=MacOSSayBackend.name)
+    else:
+        service = AudioService(config=config)
     backend = service.get_backend()
 
     if isinstance(backend, MacOSSayBackend):
-        voice_name = _resolve_macos_voice_name(selected_voice, lang_code)
+        voice_name = resolved_macos_voice or _resolve_macos_voice_name(selected_voice, lang_code)
         if voice_name:
             try:
                 return service.synthesize(

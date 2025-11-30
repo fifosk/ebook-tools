@@ -8,6 +8,7 @@ import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
 import SubtitlesPage from './pages/SubtitlesPage';
 import YoutubeSubtitlesPage from './pages/YoutubeSubtitlesPage';
+import YoutubeDubPage from './pages/YoutubeDubPage';
 import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
 import {
@@ -60,6 +61,7 @@ const LIBRARY_VIEW = 'library:list' as const;
 const CREATE_BOOK_VIEW = 'books:create' as const;
 const SUBTITLES_VIEW = 'subtitles:home' as const;
 const YOUTUBE_SUBTITLES_VIEW = 'subtitles:youtube' as const;
+const YOUTUBE_DUB_VIEW = 'subtitles:youtube-dub' as const;
 
 export type SelectedView =
   | PipelineMenuView
@@ -69,7 +71,8 @@ export type SelectedView =
   | typeof LIBRARY_VIEW
   | typeof CREATE_BOOK_VIEW
   | typeof SUBTITLES_VIEW
-  | typeof YOUTUBE_SUBTITLES_VIEW;
+  | typeof YOUTUBE_SUBTITLES_VIEW
+  | typeof YOUTUBE_DUB_VIEW;
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
@@ -117,10 +120,11 @@ export function App() {
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
-  const recentPipelineJobs = useMemo(
-    () => Object.values(jobs).map((entry) => entry.status),
-    [jobs]
-  );
+  const recentPipelineJobs = useMemo(() => {
+    return Object.values(jobs)
+      .map((entry) => entry.status)
+      .filter((status) => status.job_type === 'pipeline');
+  }, [jobs]);
   const isAuthenticated = Boolean(session);
   const sessionUser = session?.user ?? null;
   const sessionUsername = sessionUser?.username ?? null;
@@ -255,16 +259,23 @@ export function App() {
     };
   }, [refreshJobs, session]);
 
-  const activeJobMetadata = useMemo(() => {
+  const activeJobMetadata = useMemo<Record<string, unknown> | null>(() => {
     if (!activeJobId) {
       return null;
     }
     const jobEntry = jobs[activeJobId];
-    const metadata = jobEntry?.status?.result?.book_metadata;
-    return metadata && typeof metadata === 'object' ? metadata : null;
+    if (!jobEntry || jobEntry.status.job_type !== 'pipeline') {
+      return null;
+    }
+    const rawResult = jobEntry.status.result;
+    const metadata =
+      rawResult && typeof rawResult === 'object' && 'book_metadata' in rawResult
+        ? (rawResult as Record<string, unknown>).book_metadata
+        : null;
+    return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
   }, [activeJobId, jobs]);
 
-  const playerJobMetadata = useMemo(() => {
+  const playerJobMetadata = useMemo<Record<string, unknown> | null>(() => {
     if (playerContext?.type !== 'job') {
       return null;
     }
@@ -272,8 +283,15 @@ export function App() {
       return activeJobMetadata;
     }
     const entry = jobs[playerContext.jobId];
-    const metadata = entry?.status?.result?.book_metadata;
-    return metadata && typeof metadata === 'object' ? metadata : null;
+    if (!entry || entry.status.job_type !== 'pipeline') {
+      return null;
+    }
+    const rawResult = entry.status.result;
+    const metadata =
+      rawResult && typeof rawResult === 'object' && 'book_metadata' in rawResult
+        ? (rawResult as Record<string, unknown>).book_metadata
+        : null;
+    return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
   }, [activeJobId, activeJobMetadata, jobs, playerContext]);
 
   useEffect(() => {
@@ -785,6 +803,22 @@ export function App() {
     [setSelectedView]
   );
 
+  const handleYoutubeDubJobCreated = useCallback(
+    (jobId: string) => {
+      setActiveJobId(jobId);
+      void refreshJobs();
+    },
+    [refreshJobs]
+  );
+
+  const handleYoutubeDubJobSelected = useCallback(
+    (jobId: string) => {
+      setActiveJobId(jobId);
+      setSelectedView(JOB_PROGRESS_VIEW);
+    },
+    [setSelectedView]
+  );
+
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => {
       const owner = typeof entry.status?.user_id === 'string' ? entry.status.user_id : null;
@@ -824,6 +858,9 @@ export function App() {
   const subtitleJobStates = useMemo(() => {
     return sortedJobs.filter((job) => job.status.job_type === 'subtitle');
   }, [sortedJobs]);
+  const youtubeDubJobStates = useMemo(() => {
+    return sortedJobs.filter((job) => job.status.job_type === 'youtube_dub');
+  }, [sortedJobs]);
 
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
   const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
@@ -831,6 +868,7 @@ export function App() {
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
   const isSubtitlesView = selectedView === SUBTITLES_VIEW;
   const isYoutubeSubtitlesView = selectedView === YOUTUBE_SUBTITLES_VIEW;
+  const isYoutubeDubView = selectedView === YOUTUBE_DUB_VIEW;
   const isAddBookView = isPipelineView;
   const activePipelineSection = useMemo(() => {
     if (!isPipelineView) {
@@ -1125,14 +1163,15 @@ export function App() {
           activeJobId={activeJobId}
           onSelectJob={handleSelectSidebarJob}
           onOpenPlayer={handleOpenPlayerForJob}
-        isAdmin={isAdmin}
-        createBookView={CREATE_BOOK_VIEW}
-        libraryView={LIBRARY_VIEW}
-        subtitlesView={SUBTITLES_VIEW}
-        youtubeSubtitlesView={YOUTUBE_SUBTITLES_VIEW}
-        jobMediaView={JOB_MEDIA_VIEW}
-        adminView={ADMIN_USER_MANAGEMENT_VIEW}
-      />
+          isAdmin={isAdmin}
+          createBookView={CREATE_BOOK_VIEW}
+          libraryView={LIBRARY_VIEW}
+          subtitlesView={SUBTITLES_VIEW}
+          youtubeSubtitlesView={YOUTUBE_SUBTITLES_VIEW}
+          youtubeDubView={YOUTUBE_DUB_VIEW}
+          jobMediaView={JOB_MEDIA_VIEW}
+          adminView={ADMIN_USER_MANAGEMENT_VIEW}
+        />
       </aside>
       <div className="dashboard__content">
         <main className="dashboard__main">
@@ -1227,6 +1266,15 @@ export function App() {
               {isYoutubeSubtitlesView ? (
                 <section>
                   <YoutubeSubtitlesPage />
+                </section>
+              ) : null}
+              {isYoutubeDubView ? (
+                <section>
+                  <YoutubeDubPage
+                    jobs={youtubeDubJobStates}
+                    onJobCreated={handleYoutubeDubJobCreated}
+                    onSelectJob={handleYoutubeDubJobSelected}
+                  />
                 </section>
               ) : null}
               {selectedView === JOB_PROGRESS_VIEW ? (

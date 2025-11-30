@@ -25,6 +25,7 @@ from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..services.subtitle_service import SubtitleService
 from ..services.video_service import VideoService
+from ..services.youtube_dubbing import YoutubeDubbingService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
 from .jobs import PipelineJobManager
@@ -355,6 +356,14 @@ def get_subtitle_service() -> SubtitleService:
     job_manager = get_pipeline_job_manager()
     locator = get_file_locator()
     return SubtitleService(job_manager=job_manager, locator=locator)
+
+
+@lru_cache
+def get_youtube_dubbing_service() -> YoutubeDubbingService:
+    """Return the shared :class:`YoutubeDubbingService` instance."""
+
+    job_manager = get_pipeline_job_manager()
+    return YoutubeDubbingService(job_manager=job_manager, max_workers=cfg.get_settings().job_max_workers)
 
 
 def _expand_path(path_value: Optional[str]) -> Optional[Path]:
