@@ -381,7 +381,7 @@ def translate_sentence_simple(
             )
 
             if response.text:
-                cleaned_text = response.text.strip()
+                cleaned_text = text_norm.collapse_whitespace(response.text.strip())
                 if cleaned_text and not text_norm.is_placeholder_translation(cleaned_text):
                     translation_text, transliteration_text = text_norm.split_translation_and_transliteration(
                         cleaned_text

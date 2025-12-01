@@ -19,6 +19,7 @@ from modules import output_formatter
 from modules.book_cover import fetch_book_cover
 from modules.config_manager import resolve_file_path
 from modules.epub_parser import remove_quotes
+from modules import text_normalization as text_norm
 from modules.llm_client import create_client
 from modules.logging_manager import console_info, console_warning, logger
 from modules.progress_tracker import ProgressTracker
@@ -663,13 +664,17 @@ class RenderPipeline:
             ):
                 if self._should_stop():
                     break
-                fluent_candidate = remove_quotes(translation_result or "")
+                fluent_candidate = text_norm.collapse_whitespace(
+                    remove_quotes(translation_result or "")
+                )
                 translation_failed = is_failure_annotation(fluent_candidate)
                 fluent, inline_transliteration = split_translation_and_transliteration(
                     fluent_candidate
                 )
-                fluent = fluent.strip()
-                inline_transliteration = remove_quotes(inline_transliteration or "").strip()
+                fluent = text_norm.collapse_whitespace(fluent.strip())
+                inline_transliteration = text_norm.collapse_whitespace(
+                    remove_quotes(inline_transliteration or "").strip()
+                )
 
                 should_transliterate = (
                     include_transliteration
@@ -678,7 +683,9 @@ class RenderPipeline:
                 )
                 transliteration_result = inline_transliteration
                 if should_transliterate:
-                    candidate = remove_quotes(inline_transliteration or "").strip()
+                    candidate = text_norm.collapse_whitespace(
+                        remove_quotes(inline_transliteration or "").strip()
+                    )
                     if not candidate:
                         candidate = transliterate_sentence(
                             fluent,
@@ -820,15 +827,17 @@ class RenderPipeline:
                 buffered_results[media_item.index] = media_item
                 while next_index in buffered_results:
                     item = buffered_results.pop(next_index)
-                    fluent_candidate = remove_quotes(item.translation or "")
+                    fluent_candidate = text_norm.collapse_whitespace(
+                        remove_quotes(item.translation or "")
+                    )
                     translation_failed = is_failure_annotation(fluent_candidate)
                     fluent, inline_transliteration = split_translation_and_transliteration(
                         fluent_candidate
                     )
-                    fluent = fluent.strip()
-                    inline_transliteration = remove_quotes(
-                        inline_transliteration or ""
-                    ).strip()
+                    fluent = text_norm.collapse_whitespace(fluent.strip())
+                    inline_transliteration = text_norm.collapse_whitespace(
+                        remove_quotes(inline_transliteration or "").strip()
+                    )
                     should_transliterate = (
                         include_transliteration
                         and item.target_language in NON_LATIN_LANGUAGES
@@ -836,9 +845,11 @@ class RenderPipeline:
                     )
                     transliteration_result = inline_transliteration
                     if should_transliterate:
-                        candidate = remove_quotes(
-                            (item.transliteration or inline_transliteration or "")
-                        ).strip()
+                        candidate = text_norm.collapse_whitespace(
+                            remove_quotes(
+                                (item.transliteration or inline_transliteration or "")
+                            ).strip()
+                        )
                         if not candidate:
                             candidate = transliterate_sentence(
                                 fluent,
@@ -846,7 +857,9 @@ class RenderPipeline:
                                 client=translation_client,
                                 transliterator=self._transliterator,
                             )
-                            candidate = remove_quotes(candidate or "").strip()
+                            candidate = text_norm.collapse_whitespace(
+                                remove_quotes(candidate or "").strip()
+                            )
                         if candidate:
                             transliteration_result = candidate
                     audio_segment = None

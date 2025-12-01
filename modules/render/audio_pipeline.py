@@ -17,6 +17,7 @@ from pydub.silence import detect_silence
 
 from modules import logging_manager as log_mgr
 from modules import config_manager as cfg
+from modules import text_normalization as text_norm
 from modules.audio.backends import get_default_backend_name
 from modules.render.backends.base import SynthesisResult
 from modules.audio.highlight import _get_audio_metadata
@@ -734,7 +735,9 @@ def audio_worker_body(
         metadata["pauseBeforeMs"] = pause_before_ms
         metadata["pauseAfterMs"] = pause_after_ms
 
-        translation_text = translation_task.translation or ""
+        translation_text = text_norm.collapse_whitespace(
+            translation_task.translation or ""
+        )
         try:
             settings_obj = cfg.get_settings()
         except Exception:

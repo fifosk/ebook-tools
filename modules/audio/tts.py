@@ -35,6 +35,20 @@ _LANGUAGE_TO_MACOS_LOCALES: Dict[str, Tuple[str, ...]] = {
     "ja": ("ja_JP",),
 }
 
+# Map unsupported languages to close TTS-capable fallbacks.
+_VOICE_LANG_FALLBACKS = {
+    # Romani lacks native TTS coverage; fall back to Slovak voices/code.
+    "rom": "sk",
+    "romani": "sk",
+    # Celtic languages without broad TTS coverage fall back to English voices.
+    "ga": "en",
+    "irish": "en",
+    "gd": "en",
+    "scottish gaelic": "en",
+    "sco": "en",
+    "scots": "en",
+}
+
 _SILENCE_LOCK = Lock()
 _SILENCE_FILENAME = "silence.wav"
 SILENCE_DURATION_MS = 100
@@ -64,6 +78,17 @@ def silence_audio_path() -> str:
             silent = AudioSegment.silent(duration=SILENCE_DURATION_MS)
             silent.export(silence_path, format="wav")
     return silence_path
+
+
+def _apply_voice_language_fallback(language: str) -> str:
+    """Return a TTS-friendly language code with fallbacks for unsupported locales."""
+
+    normalized = language.strip().lower()
+    if not normalized:
+        return language
+    short = normalized.replace("_", "-").split("-")[0]
+    fallback = _VOICE_LANG_FALLBACKS.get(normalized) or _VOICE_LANG_FALLBACKS.get(short)
+    return fallback or language
 
 
 def _macos_voice_directories() -> Tuple[Path, ...]:
@@ -270,7 +295,7 @@ def _unique_preserving_order(values: Iterable[str]) -> Tuple[str, ...]:
 def _language_variants(language: str) -> Tuple[str, ...]:
     """Return locale variants to consider for ``language`` selection."""
 
-    normalized = language.strip()
+    normalized = _apply_voice_language_fallback(language).strip()
     if not normalized:
         return tuple()
 
@@ -360,7 +385,7 @@ def _format_voice_display(voice: Tuple[str, str, str, Optional[str]]) -> str:
 def _gtts_fallback(language: str) -> str:
     """Return fallback identifier for gTTS based on ``language``."""
 
-    normalized = language.strip().lower()
+    normalized = _apply_voice_language_fallback(language).strip().lower()
     if not normalized:
         return "gTTS-en"
     short = normalized.replace("_", "-").split("-")[0]
@@ -371,6 +396,7 @@ def _gtts_fallback(language: str) -> str:
 def select_voice(language: str, voice_preference: str) -> str:
     """Select a voice identifier for ``language`` respecting ``voice_preference``."""
 
+    language = _apply_voice_language_fallback(language)
     variants = _language_variants(language)
     candidate = _select_macos_voice_candidate(variants, voice_preference)
     if candidate is not None:
@@ -379,6 +405,7 @@ def select_voice(language: str, voice_preference: str) -> str:
 
 
 def _synthesize_with_gtts(text: str, lang_code: str, speed: int) -> AudioSegment:
+    lang_code = _apply_voice_language_fallback(lang_code)
     service = AudioService(backend_name=GTTSBackend.name)
     return service.synthesize(
         text=text,
@@ -397,6 +424,7 @@ def _resolve_auto_voice_preference(selected_voice: str) -> str:
 
 
 def _resolve_macos_voice_name(selected_voice: str, lang_code: str) -> Optional[str]:
+    lang_code = _apply_voice_language_fallback(lang_code)
     if selected_voice in {AUTO_MACOS_VOICE, AUTO_MACOS_VOICE_FEMALE, AUTO_MACOS_VOICE_MALE}:
         preference = _resolve_auto_voice_preference(selected_voice)
         cache_key = (lang_code, preference)

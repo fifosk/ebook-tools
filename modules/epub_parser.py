@@ -20,13 +20,22 @@ logger = log_mgr.logger
 
 DEFAULT_MAX_WORDS = 18
 DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON = False
+SENTENCE_LENGTH_OVERFLOW_RATIO = 1.25
+
+
+_SMART_QUOTE_TRANSLATION = str.maketrans(
+    {
+        "“": '"',
+        "”": '"',
+        "‘": "'",
+        "’": "'",
+    }
+)
 
 
 def remove_quotes(text: str) -> str:
-    """Remove smart quotes from the provided text."""
-    for quote in ["“", "”", "‘", "’"]:
-        text = text.replace(quote, "")
-    return text
+    """Normalize smart quotes to their ASCII equivalents instead of stripping."""
+    return text.translate(_SMART_QUOTE_TRANSLATION)
 
 
 def extract_text_from_epub(epub_file: str, books_dir: Optional[str] = None) -> str:
@@ -135,12 +144,44 @@ def _refine_and_split_sentence(
     final_sentences: List[str] = []
     for seg in final_segments:
         words = seg.split()
-        if len(words) > max_words:
-            for index in range(0, len(words), max_words):
-                final_sentences.append(" ".join(words[index : index + max_words]))
-        else:
-            final_sentences.append(seg)
+        final_sentences.extend(
+            _split_segment_with_word_limit(words, max_words=max_words)
+        )
     return final_sentences
+
+
+def _split_segment_with_word_limit(
+    words: List[str], *, max_words: int
+) -> List[str]:
+    """Split a word list while avoiding tiny trailing fragments.
+
+    Keeps chunks at ``max_words`` where possible but allows the final chunk to
+    merge with the previous one when doing so would avoid creating a 1-2 word
+    tail and the combined chunk stays under ``SENTENCE_LENGTH_OVERFLOW_RATIO``
+    of ``max_words`` (default 125%).
+    """
+
+    if not words:
+        return []
+
+    chunks: List[List[str]] = []
+    max_with_overflow = max(
+        max_words, int(max_words * SENTENCE_LENGTH_OVERFLOW_RATIO)
+    )
+    index = 0
+    while index < len(words):
+        remaining = len(words) - index
+        if chunks:
+            previous_len = len(chunks[-1])
+            if previous_len + remaining <= max_with_overflow:
+                chunks[-1].extend(words[index:])
+                break
+
+        chunk = words[index : index + max_words]
+        chunks.append(chunk)
+        index += max_words
+
+    return [" ".join(chunk) for chunk in chunks if chunk]
 
 
 def _merge_single_char_sentences(sentences: Iterable[str]) -> List[str]:

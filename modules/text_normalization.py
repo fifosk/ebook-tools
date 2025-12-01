@@ -112,6 +112,12 @@ def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
     return translation_text, transliteration_text
 
 
+def collapse_whitespace(value: str) -> str:
+    """Normalize all whitespace (including newlines) to single spaces."""
+
+    return " ".join(value.split())
+
+
 def extract_primary_translation(text: str) -> str:
     """Return the first non-empty translation line."""
 
@@ -144,4 +150,5 @@ __all__ = [
     "is_placeholder_translation",
     "is_placeholder_value",
     "split_translation_and_transliteration",
+    "collapse_whitespace",
 ]
