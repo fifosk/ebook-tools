@@ -369,35 +369,97 @@ def _sanitize_for_tts(text: str) -> str:
         return text
 
 
+def _build_atempo_filters(target_ratio: float) -> List[float]:
+    """Break a tempo ratio into ffmpeg-safe atempo factors (each 0.5–2.0)."""
+
+    factors: List[float] = []
+    ratio = max(0.01, target_ratio)
+    while ratio > 2.0:
+        factors.append(2.0)
+        ratio /= 2.0
+    while ratio < 0.5:
+        factors.append(0.5)
+        ratio *= 2.0
+    factors.append(ratio)
+    return factors
+
+
+def _time_stretch_to_duration(segment: AudioSegment, target_ms: int) -> AudioSegment:
+    """Time-stretch ``segment`` toward ``target_ms`` with pitch-preserving atempo."""
+
+    if target_ms <= 0:
+        return segment
+    duration_ms = len(segment)
+    if duration_ms <= 0:
+        return segment
+    ratio = duration_ms / max(target_ms, 1)
+    if abs(ratio - 1.0) < 0.01:
+        return segment
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, prefix="stretch-in-", dir=_TEMP_DIR) as in_handle:
+        temp_in = Path(in_handle.name)
+        segment.export(temp_in, format="wav", parameters=["-acodec", "pcm_s16le"])
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False, prefix="stretch-out-", dir=_TEMP_DIR) as out_handle:
+        temp_out = Path(out_handle.name)
+
+    filters = _build_atempo_filters(ratio)
+    filter_arg = ",".join(f"atempo={factor:.5f}" for factor in filters)
+    command = [
+        ffmpeg_bin,
+        "-y",
+        "-i",
+        str(temp_in),
+        "-vn",
+        "-ac",
+        str(segment.channels or 2),
+        "-ar",
+        str(segment.frame_rate),
+        "-filter:a",
+        filter_arg,
+        "-f",
+        "wav",
+        str(temp_out),
+    ]
+
+    try:
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if result.returncode != 0:
+            logger.warning(
+                "ffmpeg atempo stretch failed (exit %s); falling back to original segment",
+                result.returncode,
+                extra={"event": "youtube.dub.atempo.failed"},
+            )
+            return segment
+        stretched = AudioSegment.from_file(temp_out, format="wav")
+    finally:
+        temp_in.unlink(missing_ok=True)
+        temp_out.unlink(missing_ok=True)
+
+    # Final pad/trim within a tiny tolerance to hit the target window.
+    final = stretched
+    if len(final) > target_ms:
+        final = final[:target_ms]
+    elif len(final) < target_ms:
+        final += AudioSegment.silent(duration=target_ms - len(final), frame_rate=final.frame_rate)
+    return final.set_frame_rate(segment.frame_rate).set_channels(segment.channels)
+
+
 def _fit_segment_to_window(
     segment: AudioSegment,
     target_seconds: float,
     *,
-    max_speedup: float = 1.4,
+    max_speedup: float = 1.0,
 ) -> AudioSegment:
-    """Resize ``segment`` to fit within ``target_seconds`` using tempo and padding without trimming."""
+    """
+    Keep synthesized audio near its intended window without padding/trim.
+
+    We avoid stretching or padding; any gating happens via scheduling downstream.
+    """
 
     target_ms = max(50, int(target_seconds * 1000))
-    duration_ms = len(segment)
-    if duration_ms <= 0:
+    if len(segment) <= 0:
         return AudioSegment.silent(duration=target_ms, frame_rate=segment.frame_rate)
-
-    # Speed up when we would spill past the available window; prefer pitch-preserving speedup.
-    if duration_ms > target_ms:
-        desired_ms = target_ms
-        speed = duration_ms / desired_ms
-        speed = min(speed, max_speedup)
-        try:
-            segment = effects.speedup(segment, playback_speed=speed, crossfade=30)
-            duration_ms = len(segment)
-        except Exception:
-            segment = change_audio_tempo(segment, speed)
-            duration_ms = len(segment)
-
-    # Pad if we still have room left so the segment lands exactly in its window.
-    if duration_ms < target_ms:
-        segment += AudioSegment.silent(duration=target_ms - duration_ms, frame_rate=segment.frame_rate)
-
     return segment
 
 
@@ -630,12 +692,14 @@ def _mix_with_original_audio(
     max_duration_ms = None
     if expected_duration_seconds is not None:
         max_duration_ms = int(expected_duration_seconds * 1000)
-    if max_duration_ms is not None:
-        original = original[:max_duration_ms]
-    if len(original) < len(dubbed_track):
-        original += AudioSegment.silent(duration=len(dubbed_track) - len(original), frame_rate=target_rate)
-    elif len(original) > len(dubbed_track):
-        original = original[: len(dubbed_track)]
+    target_ms = len(dubbed_track) if max_duration_ms is None else max(max_duration_ms, len(dubbed_track))
+    # Stretch the original slice to match the dubbed duration so both tracks stay aligned.
+    if len(original) != target_ms and target_ms > 0:
+        original = _time_stretch_to_duration(original, target_ms)
+    if len(original) < target_ms:
+        original += AudioSegment.silent(duration=target_ms - len(original), frame_rate=target_rate)
+    elif len(original) > target_ms:
+        original = original[:target_ms]
 
     # Normalize the underlay relative to the dubbed track so the percentage reflects loudness, not just peak.
     dubbed_rms = dubbed_track.rms or 1
@@ -648,6 +712,155 @@ def _mix_with_original_audio(
 
     base = dubbed_track - 1.0  # Leave a little headroom before mixing in the underlay.
     return base.overlay(original.apply_gain(original_gain_db))
+
+
+def _has_audio_stream(path: Path) -> bool:
+    """Return True if ffprobe detects an audio stream."""
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_bin,
+                "-v",
+                "error",
+                "-select_streams",
+                "a:0",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            return False
+        return b"audio" in result.stdout
+    except Exception:
+        return False
+
+
+def _probe_duration_seconds(path: Path) -> float:
+    """Return media duration in seconds, or 0 on failure."""
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_bin,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            return 0.0
+        return float(result.stdout.decode().strip() or 0.0)
+    except Exception:
+        return 0.0
+
+
+def _pad_clip_to_duration(path: Path, target_seconds: float) -> Path:
+    """
+    Ensure ``path`` lasts at least ``target_seconds`` by padding video/audio tails.
+
+    Returns the (possibly new) path to use.
+    """
+
+    if target_seconds <= 0:
+        return path
+    current = _probe_duration_seconds(path)
+    delta = target_seconds - current
+    # If we're already within 20ms, leave as-is.
+    if abs(delta) <= 0.02:
+        return path
+    # If the clip is longer than expected, trim it to the target duration.
+    if delta < -0.02:
+        ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+        with tempfile.NamedTemporaryFile(
+            suffix=path.suffix or ".mp4",
+            delete=False,
+            prefix="dub-trim-",
+            dir=_TEMP_DIR,
+        ) as handle:
+            trimmed_path = Path(handle.name)
+        command = [
+            ffmpeg_bin,
+            "-y",
+            "-i",
+            str(path),
+            "-t",
+            f"{target_seconds:.6f}",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-c:a",
+            "aac",
+            str(trimmed_path),
+        ]
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if result.returncode == 0:
+            try:
+                path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            return trimmed_path
+        else:
+            trimmed_path.unlink(missing_ok=True)
+            return path
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    with tempfile.NamedTemporaryFile(
+        suffix=path.suffix or ".mp4",
+        delete=False,
+        prefix="dub-pad-",
+        dir=_TEMP_DIR,
+    ) as handle:
+        padded_path = Path(handle.name)
+
+    video_pad = f"tpad=stop_mode=clone:stop_duration={delta:.6f}"
+    audio_pad = f"apad=pad_dur={delta:.6f}"
+    command = [
+        ffmpeg_bin,
+        "-y",
+        "-i",
+        str(path),
+        "-vf",
+        video_pad,
+        "-af",
+        audio_pad,
+        "-t",
+        f"{target_seconds:.6f}",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-c:a",
+        "aac",
+        str(padded_path),
+    ]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode != 0:
+        padded_path.unlink(missing_ok=True)
+        return path
+    try:
+        path.unlink(missing_ok=True)
+    except Exception:
+        pass
+    return padded_path
 
 
 def _resolve_output_path(
@@ -689,14 +902,58 @@ def _trim_video_segment(
     ) as handle:
         trimmed_path = Path(handle.name)
 
+    # Fast path: copy streams, bias seek before input for better keyframe alignment.
     command = [ffmpeg_bin, "-y"]
-    command.extend(["-i", str(video_path)])
     if start_offset > 0:
         command.extend(["-ss", f"{start_offset}"])
+    command.extend(["-i", str(video_path)])
     if duration is not None:
         command.extend(["-t", f"{duration}"])
-    command.extend(["-c", "copy", str(trimmed_path)])
+    command.extend(
+        [
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c",
+            "copy",
+            "-reset_timestamps",
+            "1",
+            str(trimmed_path),
+        ]
+    )
 
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode == 0:
+        return trimmed_path
+
+    # Fallback: re-encode if copy failed (e.g., no keyframe).
+    command = [ffmpeg_bin, "-y"]
+    if start_offset > 0:
+        command.extend(["-ss", f"{start_offset}"])
+    command.extend(["-i", str(video_path)])
+    if duration is not None:
+        command.extend(["-t", f"{duration}"])
+    command.extend(
+        [
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-c:a",
+            "aac",
+            str(trimmed_path),
+        ]
+    )
     result = subprocess.run(
         command,
         stdout=subprocess.PIPE,
@@ -711,6 +968,99 @@ def _trim_video_segment(
     return trimmed_path
 
 
+def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
+    """Concatenate ``segments`` into ``output_path`` using ffmpeg concat demuxer."""
+
+    if not segments:
+        raise ValueError("No segments provided for concatenation")
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    inputs: List[str] = []
+    filter_inputs: List[str] = []
+    input_index = 0
+
+    def _probe_media(path: Path) -> Tuple[bool, float]:
+        """Return (has_audio, duration_seconds) for the given media path."""
+
+        has_audio = _has_audio_stream(path)
+        duration = 0.0
+        ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+        try:
+            result = subprocess.run(
+                [
+                    ffprobe_bin,
+                    "-v",
+                    "error",
+                    "-show_entries",
+                    "format=duration",
+                    "-of",
+                    "default=noprint_wrappers=1:nokey=1",
+                    str(path),
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                check=False,
+            )
+            duration = float(result.stdout.decode().strip() or 0.0)
+        except Exception:
+            duration = 0.0
+        return has_audio, max(0.0, duration)
+
+    for segment in segments:
+        has_audio, duration = _probe_media(segment)
+        if not has_audio:
+            logger.warning(
+                "Segment lacks audio stream; injecting silence to preserve concat timing",
+                extra={"event": "youtube.dub.concat.silence", "segment": segment.as_posix(), "duration": duration},
+            )
+        inputs.extend(["-i", str(segment)])
+        video_label = f"[{input_index}:v:0]"
+        audio_label = f"[{input_index}:a:0]"
+        input_index += 1
+        if not has_audio:
+            # Synthesize a silent track so concat never drops audio for this segment.
+            silent_duration = max(duration, 0.1)
+            inputs.extend(
+                [
+                    "-f",
+                    "lavfi",
+                    "-t",
+                    f"{silent_duration:.3f}",
+                    "-i",
+                    "anullsrc=channel_layout=stereo:sample_rate=44100",
+                ]
+            )
+            audio_label = f"[{input_index}:a:0]"
+            input_index += 1
+        filter_inputs.append(f"{video_label}{audio_label}")
+    filter_concat = "".join(filter_inputs) + f"concat=n={len(segments)}:v=1:a=1[v][a]"
+    command = [
+        ffmpeg_bin,
+        "-y",
+        *inputs,
+        "-filter_complex",
+        filter_concat,
+        "-map",
+        "[v]",
+        "-map",
+        "[a]",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-c:a",
+        "aac",
+        "-movflags",
+        "+faststart+frag_keyframe+empty_moov+default_base_moof",
+        str(output_path),
+    ]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ffmpeg concat failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
+        )
+
+
 def _mux_audio_track(
     video_path: Path,
     audio_path: Path,
@@ -719,6 +1069,8 @@ def _mux_audio_track(
     *,
     start_time: Optional[float] = None,
     end_time: Optional[float] = None,
+    target_duration_seconds: Optional[float] = None,
+    include_source_audio: bool = True,
 ) -> None:
     ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
     command = [ffmpeg_bin, "-y"]
@@ -727,19 +1079,46 @@ def _mux_audio_track(
         command.extend(["-ss", f"{start_time}"])
     command.extend(["-i", str(video_path)])
     command.extend(["-i", str(audio_path)])
+    segment_duration = None
+    if end_time is not None and end_time > 0:
+        segment_duration = end_time
+        if start_time is not None and start_time > 0:
+            segment_duration = max(0.0, end_time - start_time)
+    stretch_ratio = None
+    if target_duration_seconds is not None and target_duration_seconds > 0 and segment_duration:
+        if target_duration_seconds > segment_duration + 0.01:
+            stretch_ratio = target_duration_seconds / max(segment_duration, 0.001)
+    filter_complex: List[str] = []
+    if stretch_ratio is not None:
+        filter_complex.append(f"[0:v]setpts={stretch_ratio:.6f}*PTS[v0]")
+        if include_source_audio:
+            atempo_ratio = 1.0 / stretch_ratio
+            atempo_chain = ",".join(f"atempo={factor:.5f}" for factor in _build_atempo_filters(atempo_ratio))
+            filter_complex.append(f"[0:a]{atempo_chain}[a0]")
+    if filter_complex:
+        command.extend(["-filter_complex", ";".join(filter_complex)])
+    if filter_complex:
+        command.extend(["-map", "[v0]"])
+    else:
+        command.extend(["-map", "0:v:0"])
     command.extend(
         [
             "-map",
-            "0:v",
-            "-map",
             "1:a",
-            "-map",
-            "0:a?",
+        ]
+    )
+    if include_source_audio and filter_complex:
+        command.extend(["-map", "[a0]"])
+    elif include_source_audio:
+        command.extend(["-map", "0:a?"])
+    command.extend(
+        [
             "-c:v",
-            "copy",
+            "libx264",
+            "-preset",
+            "veryfast",
             "-c:a",
             "aac",
-            "-shortest",
             "-movflags",
             "+faststart+frag_keyframe+empty_moov+default_base_moof",
             "-disposition:a:0",
@@ -750,11 +1129,13 @@ def _mux_audio_track(
             "0",
         ]
     )
-    if end_time is not None and end_time > 0:
-        duration = end_time
-        if start_time is not None and start_time > 0:
-            duration = max(0.0, end_time - start_time)
-        command.extend(["-t", f"{duration}"])
+    duration_arg = None
+    if target_duration_seconds is not None and target_duration_seconds > 0:
+        duration_arg = max(target_duration_seconds, segment_duration or 0.0)
+    elif segment_duration is not None:
+        duration_arg = segment_duration
+    if duration_arg is not None and duration_arg > 0:
+        command.extend(["-t", f"{duration_arg}"])
     command.append(str(output_path))
 
     result = subprocess.run(
@@ -767,6 +1148,55 @@ def _mux_audio_track(
         raise RuntimeError(
             f"ffmpeg failed with exit code {result.returncode}: {result.stderr.decode(errors='ignore')}"
         )
+
+    # Ensure the output carries an audio stream; if not, re-mux with dubbed audio only.
+    if not _has_audio_stream(output_path):
+        logger.warning(
+            "Muxed clip missing audio; retrying without source mix",
+            extra={"event": "youtube.dub.mux.audio_missing", "clip": output_path.as_posix()},
+        )
+        recover_command = [
+            ffmpeg_bin,
+            "-y",
+            "-i",
+            str(video_path),
+            "-i",
+            str(audio_path),
+            "-map",
+            "0:v:0",
+            "-map",
+            "1:a:0",
+            "-c:v",
+            "copy",
+            "-c:a",
+            "aac",
+            str(output_path),
+        ]
+        subprocess.run(recover_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+
+        # If audio is still missing, inject silence to preserve downstream timing.
+        if not _has_audio_stream(output_path):
+            ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+            inject_command = [
+                ffmpeg_bin,
+                "-y",
+                "-i",
+                str(output_path),
+                "-f",
+                "lavfi",
+                "-i",
+                "anullsrc=channel_layout=stereo:sample_rate=44100",
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-c:v",
+                "copy",
+                "-c:a",
+                "aac",
+                str(output_path),
+            ]
+            subprocess.run(inject_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
 
 
 def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[YoutubeNasVideo]:
@@ -1026,27 +1456,10 @@ def generate_dubbed_video(
                     {"stage": "synthesis", "segments": len(dialogues), "workers": workers}
                 )
 
-            # Precompute per-entry available window to constrain fitting and avoid spill into the next line.
-            available_windows: List[float] = []
-            for idx, entry in enumerate(dialogues):
-                if next_starts and idx < len(next_starts) and next_starts[idx] is not None:
-                    window_end = max(
-                        entry.start + _MIN_DIALOGUE_DURATION_SECONDS,
-                        float(next_starts[idx]) - _MIN_DIALOGUE_GAP_SECONDS,
-                    )
-                elif idx + 1 < len(dialogues):
-                    next_start = dialogues[idx + 1].start
-                    window_end = max(entry.start + _MIN_DIALOGUE_DURATION_SECONDS, next_start - _MIN_DIALOGUE_GAP_SECONDS)
-                else:
-                    window_end = entry.end
-                available = max(_MIN_DIALOGUE_DURATION_SECONDS, window_end - entry.start)
-                available_windows.append(available)
-
             if workers <= 1:
                 for idx, entry in enumerate(dialogues):
                     _guard()
                     _, resolved_entry, audio = _worker(idx, entry, batch_pace)
-                    audio = _fit_segment_to_window(audio, available_windows[idx])
                     segments[idx] = (resolved_entry, audio)
             else:
                 futures = []
@@ -1056,7 +1469,6 @@ def generate_dubbed_video(
                     for future in as_completed(futures):
                         _guard()
                         idx, resolved_entry, audio = future.result()
-                        audio = _fit_segment_to_window(audio, available_windows[idx])
                         segments[idx] = (resolved_entry, audio)
 
             resolved = [segment for segment in segments if segment is not None]
@@ -1118,17 +1530,44 @@ def generate_dubbed_video(
             synthesized = _synthesise_batch(translated_block, batch_pace=block_pace, next_starts=next_starts)
             batch_start_sentence = block_index + 1
             batch_end_sentence = block_index + len(synthesized)
-            block_start_seconds = min(entry.start for entry, _ in synthesized)
-            block_end_seconds = max(entry.end for entry, _ in synthesized)
+            block_start_seconds = 0.0 if write_batches else flushed_until
+            block_source_start = min(entry.start for entry, _ in synthesized)
+            block_source_end = max(entry.end for entry, _ in synthesized)
+            # Build a scheduled timeline that preserves gaps between merged windows and stretches
+            # each sentence to the dubbed duration.
+            scheduled: List[Tuple[_AssDialogue, AudioSegment, float, float]] = []
+            ass_block_dialogues: List[_AssDialogue] = []
+            cursor = block_start_seconds
+            last_source_end = block_source_start
+            for idx, (entry, audio) in enumerate(synthesized):
+                if len(audio) < 20:
+                    # Guard against empty TTS output to keep timeline and mux stable.
+                    audio = AudioSegment.silent(duration=200, frame_rate=44100).set_channels(2)
+                orig_start = translated_block[idx].start
+                orig_end = translated_block[idx].end
+                # Insert untouched gap video/audio for regions without subtitles.
+                gap = max(0.0, orig_start - last_source_end)
+                if gap > 0:
+                    cursor += gap
+                    last_source_end = orig_start
+                duration_sec = len(audio) / 1000.0
+                scheduled_entry = _AssDialogue(
+                    start=cursor,
+                    end=cursor + duration_sec,
+                    translation=entry.translation,
+                    original=entry.original,
+                )
+                scheduled.append((scheduled_entry, audio, orig_start, orig_end))
+                ass_block_dialogues.append(scheduled_entry)
+                cursor = scheduled_entry.end
+                last_source_end = orig_end
+            # Preserve trailing gap to the end of the merged window.
+            if last_source_end < block_source_end:
+                cursor += (block_source_end - last_source_end)
+            block_end_seconds = cursor
             block_duration = max(0.0, block_end_seconds - block_start_seconds)
+            scheduled_entries = [entry for entry, _audio, _start, _end in scheduled]
 
-            # For batch files, build a local track rebased to 0 to avoid leading silence/drift.
-            block_track: Optional[AudioSegment] = None
-            if write_batches:
-                block_track = AudioSegment.silent(
-                    duration=int(math.ceil(block_duration * 1000)),
-                    frame_rate=44100,
-                ).set_channels(2)
             # Render batch ASS subtitles aligned to this batch.
             if write_batches:
                 batch_ass_path = _resolve_batch_output_path(
@@ -1143,93 +1582,247 @@ def generate_dubbed_video(
                         start_index=1,
                     )
                     _render_ass_for_block(
-                        translated_block,
+                        ass_block_dialogues,
                         writer,
                         start_index=1,
                         offset_seconds=block_start_seconds,
                     )
             elif global_ass_writer is not None:
                 subtitle_index = _render_ass_for_block(
-                    translated_block,
+                    ass_block_dialogues if write_batches else scheduled_entries,
                     global_ass_writer,
                     start_index=subtitle_index,
-                    offset_seconds=0.0,
+                    offset_seconds=block_start_seconds,
                 )
-            actual_block_end = 0.0
-            for entry, audio in synthesized:
+            sentence_clip_paths: List[Path] = []
+            sentence_audio_paths: List[Path] = []
+            gap_start = block_source_start
+            timeline_cursor = block_start_seconds
+            for idx, (entry, audio, orig_start, orig_end) in enumerate(scheduled):
+                # Insert gap clip (original A/V only) for regions without dialogue, sized to the scheduled gap.
+                gap_duration = max(0.0, entry.start - timeline_cursor)
+                if write_batches and gap_duration > 0.001:
+                    try:
+                        gap_clip = _trim_video_segment(
+                            source_video,
+                            start_offset=gap_start,
+                            end_offset=orig_start,
+                        )
+                        gap_clip = _pad_clip_to_duration(gap_clip, gap_duration)
+                        sentence_clip_paths.append(gap_clip)
+                        timeline_cursor += gap_duration
+                    except Exception:
+                        logger.warning(
+                            "Failed to extract gap clip (start=%.3f end=%.3f); continuing without gap",
+                            gap_start,
+                            orig_start,
+                            extra={"event": "youtube.dub.gap.clip.failed"},
+                            exc_info=True,
+                        )
                 audio_len_seconds = len(audio) / 1000.0
                 audio_end_seconds = entry.start + audio_len_seconds
-                if write_batches and block_track is not None:
-                    local_start_ms = int(max(0.0, entry.start - block_start_seconds) * 1000)
-                    block_track = block_track.overlay(audio, position=local_start_ms)
-                else:
+                if not write_batches:
                     end_ms = int(audio_end_seconds * 1000) + 50
                     if len(dubbed_track) < end_ms:
                         dubbed_track += AudioSegment.silent(duration=end_ms - len(dubbed_track), frame_rate=44100)
                     dubbed_track = dubbed_track.overlay(audio, position=int(entry.start * 1000))
-                actual_block_end = max(actual_block_end, audio_end_seconds, entry.end)
-            processed_sentences += len(synthesized)
-            block_end_seconds = actual_block_end or block_end_seconds
-            if write_batches and block_track is not None:
-                audio_slice = block_track
-            else:
-                audio_slice = dubbed_track[
-                    int(block_start_seconds * 1000) : int(math.ceil(block_end_seconds * 1000))
-                ]
-            original_slice = None
-            if base_original_audio is not None:
-                original_slice = base_original_audio[
-                    int(block_start_seconds * 1000) : int(math.ceil(block_end_seconds * 1000))
-                ]
-            mixed_slice = _mix_with_original_audio(
-                audio_slice,
-                source_video,
-                original_mix_percent=mix_percent,
-                expected_duration_seconds=block_end_seconds - block_start_seconds,
-                original_audio=original_slice,
-            )
-            if write_batches:
-                batch_path = _resolve_batch_output_path(output_path, batch_start_sentence, batch_end_sentence)
-                target_paths: List[Path] = [batch_path]
-                with tempfile.NamedTemporaryFile(
-                    suffix=".wav",
-                    delete=False,
-                    prefix=f"dubbed-track-block-{block_index}-",
-                    dir=_TEMP_DIR,
-                ) as chunk_handle:
-                    chunk_path = Path(chunk_handle.name)
-                try:
-                    mixed_slice.export(
-                        chunk_path,
+                else:
+                    # Per-sentence video slice cut and stretch to the dubbed duration.
+                    original_slice = None
+                    if base_original_audio is not None:
+                        original_slice = base_original_audio[
+                            int(orig_start * 1000) : int(math.ceil(orig_end * 1000))
+                        ]
+                    mixed_sentence = _mix_with_original_audio(
+                        audio,
+                        source_video,
+                        original_mix_percent=mix_percent,
+                        expected_duration_seconds=audio_len_seconds,
+                        original_audio=original_slice,
+                    )
+                    with tempfile.NamedTemporaryFile(
+                        suffix=".wav",
+                        delete=False,
+                        prefix=f"dubbed-sentence-{batch_start_sentence + idx}-",
+                        dir=_TEMP_DIR,
+                    ) as sentence_audio_handle:
+                        sentence_audio_path = Path(sentence_audio_handle.name)
+                    mixed_sentence.export(
+                        sentence_audio_path,
                         format="wav",
                         parameters=["-acodec", "pcm_s16le"],
                     )
+                    sentence_audio_paths.append(sentence_audio_path)
+                    local_start = orig_start
+                    # Drive video length from dubbed audio; stretch/pad as needed.
+                    local_end = audio_len_seconds
+                    sentence_video = source_video
+                    trimmed = False
+                    try:
+                        sentence_video = _trim_video_segment(
+                            source_video,
+                            start_offset=orig_start,
+                            end_offset=orig_end,
+                        )
+                        trimmed = True
+                        # Trimmed clip is reset to start at 0 via -reset_timestamps.
+                        local_start = 0.0
+                    except Exception:
+                        sentence_video = source_video
+                    sentence_output = _resolve_batch_output_path(
+                        output_path,
+                        batch_start_sentence + idx,
+                        batch_start_sentence + idx,
+                    ).with_suffix(".tmp.mp4")
                     _mux_audio_track(
-                        source_video,
-                        chunk_path,
-                        batch_path,
+                        sentence_video,
+                        sentence_audio_paths[-1],
+                        sentence_output,
                         language_code,
-                        start_time=block_start_seconds,
-                        end_time=block_end_seconds,
+                        start_time=local_start,
+                        end_time=local_start + local_end if local_end > 0 else None,
+                        target_duration_seconds=audio_len_seconds,
+                        include_source_audio=False,
                     )
-                    flushed_until = block_end_seconds
-                    if batch_path not in written_set:
-                        written_paths.append(batch_path)
-                        written_set.add(batch_path)
-                    if tracker is not None:
-                        tracker.publish_progress(
-                            {
-                                "stage": "mux",
-                                "seconds_written": block_end_seconds,
-                                "output_path": batch_path.as_posix(),
-                                "processed_sentences": processed_sentences,
-                                "block_size": flush_block,
-                                "batch_start_sentence": batch_start_sentence,
-                                "batch_end_sentence": batch_end_sentence,
-                            }
+                    if not _has_audio_stream(sentence_output):
+                        logger.warning(
+                            "Sentence clip missing audio; re-muxing to force dubbed track",
+                            extra={
+                                "event": "youtube.dub.sentence.audio_missing",
+                                "clip": sentence_output.as_posix(),
+                                "audio": sentence_audio_paths[-1].as_posix(),
+                            },
+                        )
+                        ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+                        recover_cmd = [
+                            ffmpeg_bin,
+                            "-y",
+                            "-i",
+                            str(sentence_video),
+                            "-i",
+                            str(sentence_audio_paths[-1]),
+                            "-map",
+                            "0:v:0",
+                            "-map",
+                            "1:a:0",
+                            "-c:v",
+                            "copy",
+                            "-c:a",
+                            "aac",
+                            str(sentence_output),
+                        ]
+                        subprocess.run(recover_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+                        if not _has_audio_stream(sentence_output):
+                            # Last resort: attach dubbed audio with a silent video of the right duration.
+                            subprocess.run(
+                                [
+                                    ffmpeg_bin,
+                                    "-y",
+                                    "-f",
+                                    "lavfi",
+                                    "-i",
+                                    f"color=c=black:s=16x16:d={audio_len_seconds:.6f}",
+                                    "-i",
+                                    str(sentence_audio_paths[-1]),
+                                    "-map",
+                                    "0:v:0",
+                                    "-map",
+                                    "1:a:0",
+                                    "-c:v",
+                                    "libx264",
+                                    "-preset",
+                                    "ultrafast",
+                                    "-c:a",
+                                    "aac",
+                                    str(sentence_output),
+                                ],
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                check=False,
+                            )
+                    sentence_output = _pad_clip_to_duration(sentence_output, audio_len_seconds)
+                    final_duration = _probe_duration_seconds(sentence_output)
+                    if abs(final_duration - audio_len_seconds) > 0.05:
+                        logger.warning(
+                            "Sentence clip duration drift (expected=%.3fs, actual=%.3fs); padding to fix",
+                            audio_len_seconds,
+                            final_duration,
+                            extra={
+                                "event": "youtube.dub.sentence.duration_drift",
+                                "clip": sentence_output.as_posix(),
+                                "expected": audio_len_seconds,
+                                "actual": final_duration,
+                            },
+                        )
+                        sentence_output = _pad_clip_to_duration(sentence_output, audio_len_seconds)
+                    sentence_clip_paths.append(sentence_output)
+                    if trimmed and sentence_video != source_video:
+                        sentence_video.unlink(missing_ok=True)
+                    timeline_cursor = entry.start + audio_len_seconds
+                gap_start = orig_end
+            # Add trailing gap within the batch window so video length matches scheduled timeline.
+            trailing_gap = max(0.0, block_end_seconds - timeline_cursor)
+            if write_batches and trailing_gap > 0.001 and block_source_end > gap_start:
+                try:
+                    gap_clip = _trim_video_segment(
+                        source_video,
+                        start_offset=gap_start,
+                        end_offset=block_source_end,
+                    )
+                    gap_clip = _pad_clip_to_duration(gap_clip, trailing_gap)
+                    sentence_clip_paths.append(gap_clip)
+                except Exception:
+                    logger.warning(
+                        "Failed to extract trailing gap clip (start=%.3f end=%.3f)",
+                        gap_start,
+                        block_source_end,
+                        extra={"event": "youtube.dub.gap.trailing.failed"},
+                        exc_info=True,
+                    )
+            processed_sentences += len(synthesized)
+            if write_batches and sentence_clip_paths:
+                batch_path = _resolve_batch_output_path(output_path, batch_start_sentence, batch_end_sentence)
+                batch_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    _concat_video_segments(sentence_clip_paths, batch_path)
+                    # Verify batch duration equals scheduled sum (sentences + gaps); warn if not.
+                    rendered_duration = _probe_duration_seconds(batch_path)
+                    expected_duration = block_end_seconds - block_start_seconds
+                    if abs(rendered_duration - expected_duration) > 0.15:
+                        logger.warning(
+                            "Batch duration drift detected (expected=%.3fs, actual=%.3fs)",
+                            expected_duration,
+                            rendered_duration,
+                            extra={
+                                "event": "youtube.dub.batch.duration_drift",
+                                "batch": batch_path.as_posix(),
+                                "expected": expected_duration,
+                                "actual": rendered_duration,
+                            },
                         )
                 finally:
-                    chunk_path.unlink(missing_ok=True)
+                    for clip in sentence_clip_paths:
+                        clip.unlink(missing_ok=True)
+                    for audio_path in sentence_audio_paths:
+                        audio_path.unlink(missing_ok=True)
+                flushed_until = block_end_seconds
+                if batch_path not in written_set:
+                    written_paths.append(batch_path)
+                    written_set.add(batch_path)
+                if tracker is not None:
+                    tracker.publish_progress(
+                        {
+                            "stage": "mux",
+                            "seconds_written": block_end_seconds,
+                            "output_path": batch_path.as_posix(),
+                            "processed_sentences": processed_sentences,
+                            "block_size": flush_block,
+                            "batch_start_sentence": batch_start_sentence,
+                            "batch_end_sentence": batch_end_sentence,
+                        }
+                    )
+            if write_batches:
+                continue
             else:
                 # For single-output mode, accumulate onto the main dubbed_track and mux once after loop.
                 flushed_until = block_end_seconds
