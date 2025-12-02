@@ -35,6 +35,7 @@ from modules.subtitles.processing import (
     CueTextRenderer,
     _SubtitleFileWriter,
 )
+from modules.services.youtube_subtitles import trim_stem_preserving_id
 from modules.retry_annotations import is_failure_annotation
 from modules.transliteration import get_transliterator, TransliterationService
 
@@ -638,12 +639,8 @@ def _synthesise_track_from_ass(
 
 
 def _format_clip_suffix(start_offset: float, end_offset: Optional[float]) -> str:
-    if start_offset <= 0 and end_offset is None:
-        return ""
-    tokens = []
-    if start_offset > 0:
-        tokens.append(f"from{int(start_offset * 1000)}ms")
-    return "." + "-".join(tokens) if tokens else ""
+    # Keep output names compact; we no longer append millisecond offsets for non-zero starts.
+    return ""
 
 
 def _clamp_original_mix(percent: Optional[float]) -> float:
@@ -740,6 +737,42 @@ def _has_audio_stream(path: Path) -> bool:
         if result.returncode != 0:
             return False
         return b"audio" in result.stdout
+    except Exception:
+        return False
+
+
+def _has_video_stream(path: Path) -> bool:
+    """Return True if ffprobe detects a valid video stream with a known pixel format."""
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_bin,
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=pix_fmt,width,height",
+                "-of",
+                "default=noprint_wrappers=1:nokey=1",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            return False
+        payload = result.stdout.decode().strip()
+        if not payload:
+            return False
+        parts = payload.splitlines()
+        # pix_fmt should be first entry; treat empty/unknown as invalid.
+        pix_fmt = parts[0].strip() if parts else ""
+        return bool(pix_fmt and pix_fmt.lower() != "unknown")
     except Exception:
         return False
 
@@ -875,13 +908,42 @@ def _resolve_output_path(
     target_dir = (output_dir or video_path.parent / f"dubbed-{safe_lang}").expanduser()
     target_dir.mkdir(parents=True, exist_ok=True)
     clip_suffix = _format_clip_suffix(start_offset, end_offset)
-    return target_dir / f"{video_path.stem}.{safe_lang}.dub{clip_suffix}.mp4"
+    trimmed_stem = trim_stem_preserving_id(video_path.stem)
+    return target_dir / f"{trimmed_stem}.{safe_lang}.dub{clip_suffix}.mp4"
 
 
-def _resolve_batch_output_path(base_output: Path, start_sentence: int, end_sentence: int) -> Path:
+def _format_time_prefix(seconds: float) -> str:
+    clamped = max(0, int(seconds))
+    hours = clamped // 3600
+    minutes = (clamped % 3600) // 60
+    secs = clamped % 60
+    return f"{hours:02d}-{minutes:02d}-{secs:02d}"
+
+
+def _resolve_batch_output_path(base_output: Path, start_seconds: float) -> Path:
     stem = base_output.stem
     suffix = base_output.suffix or ".mp4"
-    return base_output.with_name(f"{stem}.s{start_sentence}-s{end_sentence}{suffix}")
+    prefix = _format_time_prefix(start_seconds)
+    candidate = base_output.with_name(f"{prefix}-{stem}{suffix}")
+    counter = 2
+    while candidate.exists():
+        candidate = base_output.with_name(f"{prefix}-{stem}-{counter}{suffix}")
+        counter += 1
+    return candidate
+
+
+def _resolve_temp_batch_path(base_output: Path, start_seconds: float, *, suffix: str = ".mp4") -> Path:
+    """Return a temp path on the RAM disk for intermediate batch media."""
+
+    prefix = _format_time_prefix(start_seconds)
+    stem = base_output.stem
+    counter = 1
+    while True:
+        name = f"{prefix}-{stem}{'' if counter == 1 else f'-{counter}'}{suffix}"
+        candidate = _TEMP_DIR / name
+        if not candidate.exists():
+            return candidate
+        counter += 1
 
 
 def _trim_video_segment(
@@ -1006,8 +1068,19 @@ def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
             duration = 0.0
         return has_audio, max(0.0, duration)
 
+    valid_segments = 0
     for segment in segments:
         has_audio, duration = _probe_media(segment)
+        has_video = _has_video_stream(segment)
+        if not has_video or duration <= 0.05:
+            logger.warning(
+                "Skipping invalid concat segment (video=%s, duration=%.3fs)",
+                has_video,
+                duration,
+                extra={"event": "youtube.dub.concat.invalid_segment", "segment": segment.as_posix(), "duration": duration},
+            )
+            continue
+        valid_segments += 1
         if not has_audio:
             logger.warning(
                 "Segment lacks audio stream; injecting silence to preserve concat timing",
@@ -1033,7 +1106,9 @@ def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
             audio_label = f"[{input_index}:a:0]"
             input_index += 1
         filter_inputs.append(f"{video_label}{audio_label}")
-    filter_concat = "".join(filter_inputs) + f"concat=n={len(segments)}:v=1:a=1[v][a]"
+    if valid_segments == 0:
+        raise RuntimeError("No valid segments available for concatenation")
+    filter_concat = "".join(filter_inputs) + f"concat=n={valid_segments}:v=1:a=1[v][a]"
     command = [
         ffmpeg_bin,
         "-y",
@@ -1571,7 +1646,7 @@ def generate_dubbed_video(
             # Render batch ASS subtitles aligned to this batch.
             if write_batches:
                 batch_ass_path = _resolve_batch_output_path(
-                    output_path, batch_start_sentence, batch_end_sentence
+                    output_path, block_source_start
                 ).with_suffix(".ass")
                 batch_ass_path.parent.mkdir(parents=True, exist_ok=True)
                 with batch_ass_path.open("w", encoding="utf-8") as handle:
@@ -1670,11 +1745,11 @@ def generate_dubbed_video(
                         local_start = 0.0
                     except Exception:
                         sentence_video = source_video
-                    sentence_output = _resolve_batch_output_path(
+                    sentence_output = _resolve_temp_batch_path(
                         output_path,
-                        batch_start_sentence + idx,
-                        batch_start_sentence + idx,
-                    ).with_suffix(".tmp.mp4")
+                        orig_start,
+                        suffix=".tmp.mp4",
+                    )
                     _mux_audio_track(
                         sentence_video,
                         sentence_audio_paths[-1],
@@ -1782,7 +1857,7 @@ def generate_dubbed_video(
                     )
             processed_sentences += len(synthesized)
             if write_batches and sentence_clip_paths:
-                batch_path = _resolve_batch_output_path(output_path, batch_start_sentence, batch_end_sentence)
+                batch_path = _resolve_batch_output_path(output_path, block_source_start)
                 batch_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     _concat_video_segments(sentence_clip_paths, batch_path)

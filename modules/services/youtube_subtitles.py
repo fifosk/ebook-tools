@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 import os
 import random
+import re
+import shutil
 import time
 from pathlib import Path
 from typing import Iterable, List, Literal, Optional
@@ -64,6 +66,8 @@ _COMMON_YT_OPTS = {
     "compat_opts": ["no-youtube-unavailable-videos"],
     "extractor_args": {"youtube": {"player_client": ["android"]}},
 }
+_TITLE_SEGMENT_LIMIT = 50
+_ID_SUFFIX_PATTERN = re.compile(r"^(?P<title>.+?)(?P<suffix>\s*\[[^\]]+\].*)$")
 
 
 def _normalise_language(value: str) -> str:
@@ -268,12 +272,19 @@ def download_subtitle(
     language: str,
     kind: SubtitleKind,
     output_dir: Path,
+    video_output_dir: Optional[Path] = None,
+    timestamp: Optional[datetime] = None,
+    video_id: Optional[str] = None,
+    video_title: Optional[str] = None,
 ) -> Path:
     """Download a single subtitle track to ``output_dir`` and return the SRT path."""
 
     normalized_lang = _normalise_language(language)
     resolved_dir = output_dir.expanduser()
     resolved_dir.mkdir(parents=True, exist_ok=True)
+    folder_timestamp = timestamp or datetime.now()
+    video_dir = video_output_dir.expanduser() if video_output_dir is not None else None
+    initial_media_base = build_youtube_basename(video_title or "YouTube video", video_id or "video")
 
     options = dict(_COMMON_YT_OPTS)
     options.update(
@@ -285,13 +296,16 @@ def download_subtitle(
             # Ask for SRT if present; otherwise rely on postprocessing.
             "subtitlesformat": "srt/best",
             "paths": {"home": str(resolved_dir)},
-            "outtmpl": str(resolved_dir / "%(title)s [%(id)s].%(ext)s"),
+            "outtmpl": str(resolved_dir / f"{initial_media_base}.%(ext)s"),
             "postprocessors": [{"key": "FFmpegSubtitlesConvertor", "format": "srt"}],
             "convertsubtitles": "srt",
             "overwrites": True,
         }
     )
 
+    downloaded_path: Optional[Path] = None
+    resolved_video_id = video_id or "video"
+    resolved_title = video_title or "YouTube video"
     with YoutubeDL(options) as ydl:
         try:
             info = _extract_with_backoff(ydl, url, download=True)
@@ -301,30 +315,61 @@ def download_subtitle(
             )
             raise
 
+        resolved_video_id = str(info.get("id") or "").strip() or resolved_video_id
+        title_value = info.get("title")
+        if isinstance(title_value, str) and title_value.strip():
+            resolved_title = title_value.strip()
         base_file = Path(ydl.prepare_filename(info))
         base_without_ext = base_file.with_suffix("")
         expected_path = base_without_ext.with_name(f"{base_without_ext.name}.{normalized_lang}.srt")
         if expected_path.exists():
-            return _tag_youtube_filename(expected_path)
+            downloaded_path = expected_path
+        if downloaded_path is None:
+            candidates = sorted(
+                resolved_dir.glob(f"*{resolved_video_id}*.{normalized_lang}.srt"),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+            if candidates:
+                downloaded_path = candidates[0]
 
-        video_id = str(info.get("id") or "").strip()
-        candidates = sorted(
-            resolved_dir.glob(f"*{video_id}*.{normalized_lang}.srt"),
-            key=lambda path: path.stat().st_mtime,
-            reverse=True,
-        )
-        if candidates:
-            return _tag_youtube_filename(candidates[0])
+        if downloaded_path is None:
+            fallback_candidates = sorted(
+                resolved_dir.glob(f"*{normalized_lang}.srt"),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+            if fallback_candidates:
+                downloaded_path = fallback_candidates[0]
 
-        fallback_candidates = sorted(
-            resolved_dir.glob(f"*{normalized_lang}.srt"),
-            key=lambda path: path.stat().st_mtime,
-            reverse=True,
-        )
-        if fallback_candidates:
-            return _tag_youtube_filename(fallback_candidates[0])
+    if downloaded_path is None:
+        raise FileNotFoundError("Unable to locate downloaded subtitle file")
 
-    raise FileNotFoundError("Unable to locate downloaded subtitle file")
+    media_base = build_youtube_basename(resolved_title, resolved_video_id)
+    target_name = f"{media_base}_yt.{normalized_lang}.srt"
+    target_path = downloaded_path.with_name(target_name)
+    if target_path != downloaded_path:
+        try:
+            downloaded_path.rename(target_path)
+            downloaded_path = target_path
+        except OSError:
+            downloaded_path = _tag_youtube_filename(downloaded_path)
+    else:
+        downloaded_path = _tag_youtube_filename(downloaded_path)
+
+    if video_dir is not None:
+        try:
+            mirror_folder = _ensure_directory(video_dir / build_video_folder_name(resolved_title, folder_timestamp))
+            mirror_path = mirror_folder / downloaded_path.name
+            shutil.copy2(downloaded_path, mirror_path)
+        except Exception:
+            logger.warning(
+                "Failed to mirror subtitle into video directory %s",
+                video_dir,
+                exc_info=True,
+            )
+
+    return downloaded_path
 
 
 def _tag_youtube_filename(path: Path) -> Path:
@@ -349,6 +394,51 @@ def _tag_youtube_filename(path: Path) -> Path:
     except OSError:
         return path
     return tagged_path
+
+
+def _trim_title_segment(value: str, *, max_length: int = _TITLE_SEGMENT_LIMIT) -> str:
+    """Return ``value`` shortened to ``max_length`` characters, without trailing punctuation."""
+
+    normalized = value.strip()
+    if len(normalized) <= max_length:
+        return normalized or "video"
+    trimmed = normalized[:max_length].rstrip("-_. ")
+    return trimmed or normalized[:max_length]
+
+
+def build_youtube_title_slug(title: str, *, max_length: int = _TITLE_SEGMENT_LIMIT) -> str:
+    """Slugify and trim a YouTube title for filesystem use."""
+
+    return _trim_title_segment(_slugify(title), max_length=max_length)
+
+
+def build_youtube_basename(
+    title: str, video_id: str, *, max_length: int = _TITLE_SEGMENT_LIMIT
+) -> str:
+    """Return a trimmed base name including the YouTube video ID."""
+
+    safe_title = build_youtube_title_slug(title, max_length=max_length)
+    safe_id = video_id.strip() or "video"
+    return f"{safe_title} [{safe_id}]"
+
+
+def build_video_folder_name(title: str, timestamp: datetime) -> str:
+    """Return the folder name for a downloaded video based on title and timestamp."""
+
+    return f"{build_youtube_title_slug(title)} - {timestamp:%Y-%m-%d %H-%M-%S}"
+
+
+def trim_stem_preserving_id(stem: str, *, max_length: int = _TITLE_SEGMENT_LIMIT) -> str:
+    """Trim the leading title portion of ``stem`` while keeping any trailing [id] suffix."""
+
+    match = _ID_SUFFIX_PATTERN.match(stem)
+    if match:
+        base = match.group("title") or ""
+        suffix = match.group("suffix") or ""
+    else:
+        base, suffix = stem, ""
+    trimmed_base = _trim_title_segment(base, max_length=max_length)
+    return f"{trimmed_base}{suffix}"
 
 
 def _slugify(value: str) -> str:
@@ -382,8 +472,10 @@ def download_video(
     timestamp = timestamp or datetime.now()
     listing = list_available_subtitles(url)
     title = listing.title or "YouTube video"
-    folder_name = f"{_slugify(title)} - {timestamp:%Y-%m-%d %H-%M-%S}"
+    video_id = listing.video_id or "video"
+    folder_name = build_video_folder_name(title, timestamp)
     base_dir = _ensure_directory(output_root / folder_name)
+    media_base = build_youtube_basename(title, video_id)
     video_extensions = {"mkv", "mp4", "webm", "m4v", "mov"}
 
     format_selector = (
@@ -397,7 +489,7 @@ def download_video(
         {
             "skip_download": False,
             "paths": {"home": str(base_dir)},
-            "outtmpl": str(base_dir / "%(title)s [%(id)s].%(ext)s"),
+            "outtmpl": str(base_dir / f"{media_base}.%(ext)s"),
             # Prefer mp4 video variants (optionally respecting a chosen itag) and
             # mux with the best available audio.
             "format": format_selector,
@@ -426,11 +518,29 @@ def download_video(
             key=lambda path: (path.suffix.lower() != ".mp4", -path.stat().st_mtime),
         )
         if candidates:
-            return _tag_youtube_filename(candidates[0])
+            candidate = _tag_youtube_filename(candidates[0])
+            target_name = f"{media_base}_yt{candidate.suffix}"
+            target_path = candidate.with_name(target_name)
+            if target_path != candidate:
+                try:
+                    candidate.rename(target_path)
+                    return target_path
+                except OSError:
+                    return candidate
+            return candidate
 
         output_path = Path(ydl.prepare_filename(info))
         if output_path.exists():
-            return _tag_youtube_filename(output_path)
+            candidate = _tag_youtube_filename(output_path)
+            target_name = f"{media_base}_yt{candidate.suffix}"
+            target_path = candidate.with_name(target_name)
+            if target_path != candidate:
+                try:
+                    candidate.rename(target_path)
+                    return target_path
+                except OSError:
+                    return candidate
+            return candidate
     raise FileNotFoundError("Video download failed; output file not found")
 
 
@@ -442,4 +552,8 @@ __all__ = [
     "download_subtitle",
     "download_video",
     "list_available_subtitles",
+    "build_video_folder_name",
+    "build_youtube_basename",
+    "build_youtube_title_slug",
+    "trim_stem_preserving_id",
 ]

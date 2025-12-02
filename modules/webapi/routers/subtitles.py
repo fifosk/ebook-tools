@@ -1,6 +1,7 @@
 """Routes exposing subtitle job orchestration."""
 
 from __future__ import annotations
+from datetime import datetime
 import tempfile
 from pathlib import Path
 from typing import Optional, Union
@@ -80,6 +81,19 @@ def _coerce_int(value: Optional[str | int]) -> Optional[int]:
         return int(str(value).strip())
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid batch_size") from exc
+
+
+def _parse_timestamp(value: Optional[str]) -> Optional[datetime]:
+    if value is None:
+        return None
+    trimmed = str(value).strip()
+    if not trimmed:
+        return None
+    try:
+        normalized = trimmed.replace("Z", "+00:00") if trimmed.endswith("Z") else trimmed
+        return datetime.fromisoformat(normalized)
+    except Exception:
+        return None
 
 
 def _parse_ass_font_size(value: Optional[str | int]) -> Optional[int]:
@@ -321,6 +335,9 @@ def download_youtube_subtitle(
         )
     kind: SubtitleKind = payload.kind
 
+    mirror_dir = Path(payload.video_output_dir).expanduser() if payload.video_output_dir else None
+    timestamp_value = _parse_timestamp(payload.timestamp)
+
     try:
         listing = list_available_subtitles(payload.url)
     except Exception as exc:
@@ -346,6 +363,10 @@ def download_youtube_subtitle(
             language=language,
             kind=kind,
             output_dir=service.default_source_dir,
+            video_output_dir=mirror_dir,
+            timestamp=timestamp_value,
+            video_id=listing.video_id,
+            video_title=listing.title,
         )
     except FileNotFoundError as exc:
         raise HTTPException(
@@ -435,6 +456,7 @@ def download_youtube_video(
     """Download a YouTube video to the NAS directory."""
 
     target_root = Path(payload.output_dir or "/Volumes/Data/Video/Youtube").expanduser()
+    timestamp_value = _parse_timestamp(payload.timestamp)
     try:
         target_root.mkdir(parents=True, exist_ok=True)
     except Exception as exc:
@@ -465,6 +487,7 @@ def download_youtube_video(
             payload.url,
             output_root=target_root,
             format_id=format_id,
+            timestamp=timestamp_value,
         )
     except Exception as exc:
         logger.warning("YouTube video download failed for %s", payload.url, exc_info=True)

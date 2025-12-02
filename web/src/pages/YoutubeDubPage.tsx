@@ -594,39 +594,43 @@ export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob, prefil
         {!isLoading && videos.length === 0 ? (
           <p className={styles.status}>No downloaded videos found in this directory.</p>
         ) : null}
-        <div className={styles.videoGrid}>
+        <div className={styles.videoList}>
           {videos.map((video) => {
             const isActive = video.path === selectedVideoPath;
             return (
-              <button
-                key={video.path}
-                type="button"
-                className={`${styles.videoCard} ${isActive ? styles.videoCardActive : ''}`}
-                onClick={() => handleSelectVideo(video)}
-              >
-                <div className={styles.videoTitle}>{video.filename}</div>
-                <div className={styles.videoMeta}>
-                  <span>{formatBytes(video.size_bytes)}</span>
-                  <span aria-hidden="true">•</span>
-                  <span>{formatDate(video.modified_at)}</span>
+              <label key={video.path} className={`${styles.videoOption} ${isActive ? styles.videoOptionActive : ''}`}>
+                <input
+                  type="radio"
+                  name="video"
+                  value={video.path}
+                  checked={isActive}
+                  onChange={() => handleSelectVideo(video)}
+                />
+                <div className={styles.videoContent}>
+                  <div className={styles.videoTitle}>{video.filename}</div>
+                  <div className={styles.videoMeta}>
+                    <span>{formatBytes(video.size_bytes)}</span>
+                    <span aria-hidden="true">·</span>
+                    <span>{formatDate(video.modified_at)}</span>
+                  </div>
+                  <div className={styles.subtitleRow} aria-label="Available subtitles">
+                    {video.subtitles.length === 0 ? (
+                      <span className={styles.pillMuted}>No subtitles</span>
+                    ) : (
+                      video.subtitles.map((sub) => (
+                        <span
+                          key={sub.path}
+                          className={`${styles.pill} ${
+                            sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
+                          }`}
+                        >
+                          {subtitleLabel(sub)}
+                        </span>
+                      ))
+                    )}
+                  </div>
                 </div>
-                <div className={styles.subtitleRow} aria-label="Available subtitles">
-                  {video.subtitles.length === 0 ? (
-                    <span className={styles.pillMuted}>No subtitles</span>
-                  ) : (
-                    video.subtitles.map((sub) => (
-                      <span
-                        key={sub.path}
-                        className={`${styles.pill} ${
-                          sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
-                        }`}
-                      >
-                        {subtitleLabel(sub)}
-                      </span>
-                    ))
-                  )}
-                </div>
-              </button>
+              </label>
             );
           })}
         </div>

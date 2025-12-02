@@ -268,6 +268,8 @@ class YoutubeSubtitleDownloadRequest(BaseModel):
     url: str
     language: str
     kind: Literal["auto", "manual"] = "manual"
+    video_output_dir: Optional[str] = None
+    timestamp: Optional[str] = None
 
 
 class YoutubeSubtitleDownloadResponse(BaseModel):
@@ -283,6 +285,7 @@ class YoutubeVideoDownloadRequest(BaseModel):
     url: str
     output_dir: Optional[str] = None
     format_id: Optional[str] = None
+    timestamp: Optional[str] = None
 
 
 class YoutubeVideoDownloadResponse(BaseModel):

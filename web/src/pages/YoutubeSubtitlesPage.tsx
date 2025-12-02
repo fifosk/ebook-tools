@@ -142,6 +142,8 @@ export default function YoutubeSubtitlesPage() {
     setDownloadMessage(null);
     setDownloadPaths([]);
     setVideoDownloadPath(null);
+    const resolvedVideoDir = videoPath.trim() || VIDEO_NAS_DIR;
+    const timestamp = downloadVideo ? new Date().toISOString() : undefined;
 
     const savedFiles: string[] = [];
     try {
@@ -149,7 +151,9 @@ export default function YoutubeSubtitlesPage() {
         const payload = {
           url: activeUrl,
           language: track.language,
-          kind: track.kind
+          kind: track.kind,
+          video_output_dir: downloadVideo ? resolvedVideoDir : undefined,
+          timestamp
         } as const;
         const response = await downloadYoutubeSubtitle(payload);
         savedFiles.push(response.filename);
@@ -159,8 +163,9 @@ export default function YoutubeSubtitlesPage() {
       if (downloadVideo) {
         const videoResponse = await downloadYoutubeVideo({
           url: activeUrl,
-          output_dir: videoPath.trim() || VIDEO_NAS_DIR,
-          format_id: selectedVideoFormat || undefined
+          output_dir: resolvedVideoDir,
+          format_id: selectedVideoFormat || undefined,
+          timestamp
         });
         setVideoDownloadPath(videoResponse.output_path || videoResponse.filename);
       }

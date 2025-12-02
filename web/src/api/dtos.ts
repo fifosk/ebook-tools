@@ -189,6 +189,8 @@ export interface YoutubeSubtitleDownloadRequest {
   url: string;
   language: string;
   kind: YoutubeSubtitleKind;
+  video_output_dir?: string | null;
+  timestamp?: string | null;
 }
 
 export interface YoutubeSubtitleDownloadResponse {
@@ -200,6 +202,7 @@ export interface YoutubeVideoDownloadRequest {
   url: string;
   output_dir?: string | null;
   format_id?: string | null;
+  timestamp?: string | null;
 }
 
 export interface YoutubeVideoDownloadResponse {
