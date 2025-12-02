@@ -1,5 +1,6 @@
-import type { JobState } from './JobList';
+import { resolveLanguageName } from '../constants/languageCodes';
 import type { SelectedView } from '../App';
+import type { JobState } from './JobList';
 
 interface SidebarProps {
   selectedView: SelectedView;
@@ -43,24 +44,35 @@ function resolveSubtitleTargetLanguage(status: JobState['status']): string | nul
 }
 
 function resolveSidebarLanguage(job: JobState): { label: string; tooltip?: string } {
-  const rawLanguages = job.status.parameters?.target_languages;
+  const parameters = job.status.parameters;
+  const rawLanguages = parameters?.target_languages;
+  const singleLanguage =
+    typeof parameters?.target_language === 'string' ? parameters.target_language.trim() : null;
   const normalized =
     Array.isArray(rawLanguages) && rawLanguages.length > 0
       ? rawLanguages
           .map((value) => (typeof value === 'string' ? value.trim() : ''))
           .filter((value) => value.length > 0)
       : [];
+  if (singleLanguage) {
+    normalized.push(singleLanguage);
+  }
+  const resolvedLanguages = normalized.map((language) => resolveLanguageName(language) ?? language);
 
-  if (normalized.length > 0) {
+  if (resolvedLanguages.length > 0) {
     return {
-      label: normalized.length > 1 ? `${normalized[0]} +${normalized.length - 1}` : normalized[0],
-      tooltip: normalized.join(', ')
+      label:
+        resolvedLanguages.length > 1
+          ? `${resolvedLanguages[0]} +${resolvedLanguages.length - 1}`
+          : resolvedLanguages[0],
+      tooltip: resolvedLanguages.join(', ')
     };
   }
 
   const fallback = resolveSubtitleTargetLanguage(job.status);
   if (fallback) {
-    return { label: fallback };
+    const resolved = resolveLanguageName(fallback) ?? fallback;
+    return { label: resolved };
   }
 
   return { label: `Job ${job.jobId}` };
@@ -154,6 +166,11 @@ export function Sidebar({
               Create book
             </button>
           </li>
+        </ul>
+      </details>
+      <details className="sidebar__section" open>
+        <summary>Media</summary>
+        <ul className="sidebar__list">
           <li>
             <button
               type="button"
@@ -163,6 +180,11 @@ export function Sidebar({
               Subtitles
             </button>
           </li>
+        </ul>
+      </details>
+      <details className="sidebar__section" open>
+        <summary>YouTube</summary>
+        <ul className="sidebar__list">
           <li>
             <button
               type="button"
@@ -207,7 +229,7 @@ export function Sidebar({
         </button>
       </details>
       <details className="sidebar__section" open>
-        <summary>Active jobs</summary>
+        <summary>Job Overview</summary>
         <div>
           <details className="sidebar__section" open>
             <summary>Books</summary>

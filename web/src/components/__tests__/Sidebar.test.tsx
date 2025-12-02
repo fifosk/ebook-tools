@@ -106,6 +106,8 @@ describe('Sidebar', () => {
     expect(addBookButton).toBeInTheDocument();
     expect(addBookButton).toHaveClass('is-active');
     expect(screen.getByRole('button', { name: /^Subtitles$/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /YouTube subtitles/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /YouTube dubbing/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create book/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
   });
@@ -159,13 +161,15 @@ describe('Sidebar', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Add book/i }));
+    fireEvent.click(screen.getByRole('button', { name: /YouTube dubbing/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);
+    expect(handleSelectView.mock.calls).toContainEqual(['subtitles:youtube-dub']);
     expect(handleSelectView.mock.calls).toContainEqual(['admin:users']);
 
     fireEvent.click(screen.getByRole('button', { name: /Job 123/i }));
     expect(handleSelectJob).toHaveBeenCalledWith('123');
-    fireEvent.click(screen.getByRole('button', { name: /es Pending/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Spanish Pending/i }));
     expect(handleSelectJob).toHaveBeenCalledWith('dub-1');
 
     const playerButton = screen.getByRole('button', { name: /Select a job to open the player/i });
