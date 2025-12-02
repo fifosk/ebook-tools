@@ -243,6 +243,36 @@ export default function YoutubeDubPlayer({
     onFullscreenChange?.(false);
   }, [onFullscreenChange]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const isTypingTarget = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName;
+      if (!tag) {
+        return false;
+      }
+      return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.metaKey || event.ctrlKey || isTypingTarget(event.target)) {
+        return;
+      }
+      const key = event.key?.toLowerCase();
+      if (key === 'f') {
+        handleToggleFullscreen();
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleToggleFullscreen]);
+
   const handleRegisterControls = useCallback((controls: PlaybackControls | null) => {
     controlsRef.current = controls;
   }, []);

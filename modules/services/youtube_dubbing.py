@@ -2442,6 +2442,7 @@ def _run_dub_job(
                     range_fragment=stored.stem,
                     files=chunk_files,
                 )
+                job.generated_files = tracker.get_generated_files()
             except Exception:
                 logger.debug("Unable to publish generated chunk for %s", stored, exc_info=True)
             try:
@@ -2472,6 +2473,7 @@ def _run_dub_job(
                 range_fragment="dub",
                 files=subtitle_map,
             )
+            job.generated_files = tracker.get_generated_files()
         except Exception:
             logger.debug("Unable to publish initial generated subtitles snapshot", exc_info=True)
         try:
@@ -2511,6 +2513,10 @@ def _run_dub_job(
     if not storage_written_paths:
         for path in written_paths:
             _register_written_path(path)
+    try:
+        job.generated_files = tracker.get_generated_files()
+    except Exception:
+        logger.debug("Unable to snapshot generated files after completion", exc_info=True)
     job.media_completed = True
     dialogues = _clip_dialogues_to_window(
         _parse_dialogues(subtitle_path),
@@ -2533,12 +2539,16 @@ def _run_dub_job(
         flush_sentences=flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
         llm_model=llm_model,
     )
-    job.generated_files = _serialize_generated_files_batch(
-        storage_written_paths,
-        relative_prefix=relative_prefix,
-        subtitle_paths=subtitle_artifacts,
-        subtitle_relative_prefix=relative_prefix,
-    )
+    try:
+        job.generated_files = tracker.get_generated_files()
+    except Exception:
+        logger.debug("Unable to snapshot generated files from tracker on completion; falling back to serialized batch", exc_info=True)
+        job.generated_files = _serialize_generated_files_batch(
+            storage_written_paths,
+            relative_prefix=relative_prefix,
+            subtitle_paths=subtitle_artifacts,
+            subtitle_relative_prefix=relative_prefix,
+        )
     tracker.publish_progress({"stage": "complete", "output_path": final_output.as_posix()})
 
 

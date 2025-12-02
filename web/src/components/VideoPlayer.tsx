@@ -300,7 +300,6 @@ export default function VideoPlayer({
         <div className="video-player__stage">
           <div className="video-player__canvas">
             <video
-              key={activeFile.id}
               ref={elementRef}
               className="video-player__element"
               data-testid="video-player"
