@@ -1588,11 +1588,12 @@ def generate_dubbed_video(
                         offset_seconds=block_start_seconds,
                     )
             elif global_ass_writer is not None:
+                # Keep ASS cues on the absolute dubbed timeline so highlights follow stretched audio.
                 subtitle_index = _render_ass_for_block(
                     ass_block_dialogues if write_batches else scheduled_entries,
                     global_ass_writer,
                     start_index=subtitle_index,
-                    offset_seconds=block_start_seconds,
+                    offset_seconds=0.0,
                 )
             sentence_clip_paths: List[Path] = []
             sentence_audio_paths: List[Path] = []
