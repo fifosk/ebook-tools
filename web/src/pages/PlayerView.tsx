@@ -5,7 +5,7 @@ import JobDetail from './JobDetail';
 import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
 
 export type PlayerContext =
-  | { type: 'job'; jobId: string }
+  | { type: 'job'; jobId: string; jobType?: string | null }
   | { type: 'library'; jobId: string; bookMetadata: Record<string, unknown> | null };
 
 interface PlayerViewProps {
@@ -41,6 +41,7 @@ export default function PlayerView({
     return (
       <JobDetail
         jobId={context.jobId}
+        jobType={context.jobType}
         onVideoPlaybackStateChange={onVideoPlaybackStateChange}
         onPlaybackStateChange={onPlaybackStateChange}
         onFullscreenChange={onFullscreenChange}

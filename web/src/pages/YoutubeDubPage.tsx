@@ -26,6 +26,7 @@ type Props = {
   jobs: JobState[];
   onJobCreated: (jobId: string) => void;
   onSelectJob: (jobId: string) => void;
+  onOpenJobMedia?: (jobId: string) => void;
   prefillParameters?: JobParameterSnapshot | null;
 };
 
@@ -136,7 +137,13 @@ function formatJobLabel(job: JobState): string {
   return job.jobId;
 }
 
-export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob, prefillParameters = null }: Props) {
+export default function YoutubeDubPage({
+  jobs,
+  onJobCreated,
+  onSelectJob,
+  onOpenJobMedia,
+  prefillParameters = null
+}: Props) {
   const [baseDir, setBaseDir] = useState(DEFAULT_VIDEO_DIR);
   const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -844,6 +851,13 @@ export default function YoutubeDubPage({ jobs, onJobCreated, onSelectJob, prefil
                       </div>
                     </div>
                     <div className={styles.jobActions}>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() => (onOpenJobMedia ? onOpenJobMedia(job.jobId) : onSelectJob(job.jobId))}
+                      >
+                        Play media
+                      </button>
                       <button
                         type="button"
                         className={styles.secondaryButton}

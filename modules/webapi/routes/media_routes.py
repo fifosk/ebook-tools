@@ -5,6 +5,8 @@ from __future__ import annotations
 import copy
 import json
 import mimetypes
+import re
+import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
@@ -806,13 +808,21 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
 
     content_length = max(end - start + 1, 0)
     headers["Content-Length"] = str(content_length)
-    headers["Content-Disposition"] = f'attachment; filename="{resolved_path.name}"'
+    # Latin-1 header encoding will fail on filenames with accents; provide a
+    # safe ASCII fallback while still advertising the UTF-8 name via RFC 5987.
+    original_name = resolved_path.name
+    safe_ascii = re.sub(r"[^0-9A-Za-z._-]", "_", original_name) or "download"
+    quoted_utf8 = urllib.parse.quote(original_name)
+    headers["Content-Disposition"] = (
+        f'attachment; filename="{safe_ascii}"; filename*=UTF-8\'\'{quoted_utf8}'
+    )
 
     body_iterator = _iter_file_chunks(resolved_path, start, end)
+    media_type = mimetypes.guess_type(resolved_path.name)[0] or "application/octet-stream"
     return StreamingResponse(
         body_iterator,
         status_code=status_code,
-        media_type="application/octet-stream",
+        media_type=media_type,
         headers=headers,
     )
 

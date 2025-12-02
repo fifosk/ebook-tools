@@ -7,6 +7,7 @@ import math
 import os
 import re
 import threading
+import shutil
 import subprocess
 import tempfile
 import unicodedata
@@ -38,6 +39,7 @@ from modules.subtitles.processing import (
 from modules.services.youtube_subtitles import trim_stem_preserving_id
 from modules.retry_annotations import is_failure_annotation
 from modules.transliteration import get_transliterator, TransliterationService
+from modules.services.file_locator import FileLocator
 
 logger = log_mgr.get_logger().getChild("services.youtube_dubbing")
 
@@ -58,6 +60,13 @@ _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 _WHITESPACE_PATTERN = re.compile(r"\s+")
 _MIN_DIALOGUE_GAP_SECONDS = 0.0
 _MIN_DIALOGUE_DURATION_SECONDS = 0.1
+_WEBVTT_HEADER = "WEBVTT\n\n"
+_WEBVTT_STYLE_BLOCK = """STYLE
+::cue(.original) { color: #facc15; }
+::cue(.transliteration) { color: #f97316; }
+::cue(.translation) { color: #22c55e; }
+
+"""
 
 
 @dataclass(frozen=True)
@@ -87,6 +96,7 @@ class _AssDialogue:
     end: float
     translation: str
     original: str
+    transliteration: Optional[str] = None
 
     @property
     def duration(self) -> float:
@@ -173,6 +183,7 @@ def _parse_ass_dialogues(path: Path) -> List[_AssDialogue]:
                 end=end,
                 translation=translation,
                 original=original_line,
+                transliteration=None,
             )
         )
     return [entry for entry in dialogues if entry.end > entry.start]
@@ -192,6 +203,7 @@ def _cues_to_dialogues(cues: Sequence[SubtitleCue]) -> List[_AssDialogue]:
                 end=float(cue.end),
                 translation=text,
                 original=text,
+                transliteration=None,
             )
         )
     return dialogues
@@ -221,6 +233,16 @@ def _compute_pace_factor(dialogues: Sequence[_AssDialogue], *, target_wps: float
     if required <= 1.0:
         return 1.0
     return min(1.4, required)
+
+
+def _seconds_to_vtt_timestamp(value: float) -> str:
+    """Format seconds into a WebVTT timestamp."""
+
+    total_ms = int(round(value * 1000))
+    hours, remainder = divmod(total_ms, 3600_000)
+    minutes, remainder = divmod(remainder, 60_000)
+    seconds, milliseconds = divmod(remainder, 1000)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}.{milliseconds:03d}"
 
 
 def _enforce_dialogue_gaps(dialogues: Sequence[_AssDialogue], *, min_gap: float = _MIN_DIALOGUE_GAP_SECONDS) -> List[_AssDialogue]:
@@ -273,6 +295,7 @@ def _normalize_dialogue_windows(dialogues: Sequence[_AssDialogue]) -> List[_AssD
                 end=end,
                 translation=entry.translation,
                 original=entry.original,
+                transliteration=entry.transliteration,
             )
         )
     return normalized
@@ -329,9 +352,55 @@ def _clip_dialogues_to_window(
                 end=new_end,
                 translation=entry.translation,
                 original=entry.original,
+                transliteration=entry.transliteration,
             )
         )
     return clipped
+
+
+def _merge_overlapping_dialogues(dialogues: Sequence[_AssDialogue]) -> List[_AssDialogue]:
+    """Coalesce overlapping/duplicate dialogue windows with the same text."""
+
+    merged: List[_AssDialogue] = []
+    for entry in sorted(dialogues, key=lambda d: (d.start, d.end)):
+        text = entry.translation.strip()
+        if not text:
+            continue
+        if merged and merged[-1].translation == text and entry.start <= merged[-1].end + 0.05:
+            last = merged[-1]
+            merged[-1] = _AssDialogue(
+                start=last.start,
+                end=max(last.end, entry.end),
+                translation=text,
+                original=entry.original,
+                transliteration=last.transliteration or entry.transliteration,
+            )
+        else:
+            merged.append(
+                _AssDialogue(
+                    start=entry.start,
+                    end=entry.end,
+                    translation=text,
+                    original=entry.original,
+                    transliteration=entry.transliteration,
+                )
+            )
+    return merged
+
+
+def _parse_batch_start_seconds(path: Path) -> Optional[float]:
+    """Return the start seconds encoded in a batch filename prefix (hh-mm-ss-...)."""
+
+    parts = path.stem.split("-", 3)
+    if len(parts) < 3:
+        return None
+    try:
+        hours = int(parts[0])
+        minutes = int(parts[1])
+        seconds = int(parts[2])
+        return float(hours * 3600 + minutes * 60 + seconds)
+    except Exception:
+        return None
 
 
 def _find_language_token(path: Path) -> Optional[str]:
@@ -1341,6 +1410,7 @@ def generate_dubbed_video(
     original_mix_percent: Optional[float] = None,
     flush_sentences: Optional[int] = None,
     split_batches: bool = False,
+    on_batch_written: Optional[Callable[[Path], None]] = None,
 ) -> Tuple[Path, List[Path]]:
     """Render an audio dub from ``subtitle_path`` and mux it into ``video_path``."""
 
@@ -1468,6 +1538,7 @@ def generate_dubbed_video(
             needs_translation = source_language and language_code and source_language.lower() != language_code.lower()
             for local_idx, entry in enumerate(dialogues):
                 translated_text = entry.translation
+                transliteration_text = None
                 if needs_translation:
                     try:
                         translated_text = _translate_subtitle_text(
@@ -1480,6 +1551,11 @@ def generate_dubbed_video(
                             translated_text = entry.translation
                     except Exception:
                         translated_text = entry.translation
+                    if include_transliteration and transliterator is not None:
+                        try:
+                            transliteration_text = transliterator.transliterate(entry.translation, language_code)
+                        except Exception:
+                            transliteration_text = None
                     if tracker is not None:
                         tracker.record_step_completion(
                             stage="translation",
@@ -1493,6 +1569,7 @@ def generate_dubbed_video(
                         end=entry.end,
                         translation=translated_text,
                         original=entry.original,
+                        transliteration=transliteration_text,
                     )
                 )
             return translated
@@ -1620,17 +1697,28 @@ def generate_dubbed_video(
                     audio = AudioSegment.silent(duration=200, frame_rate=44100).set_channels(2)
                 orig_start = translated_block[idx].start
                 orig_end = translated_block[idx].end
+                transliteration_text = translated_block[idx].transliteration
+                next_gap_source = None
+                if idx + 1 < len(translated_block):
+                    next_gap_source = max(0.0, translated_block[idx + 1].start - orig_end)
                 # Insert untouched gap video/audio for regions without subtitles.
                 gap = max(0.0, orig_start - last_source_end)
                 if gap > 0:
                     cursor += gap
                     last_source_end = orig_start
                 duration_sec = len(audio) / 1000.0
+                # Keep subtitles slightly longer than raw audio to avoid highlighting cutting off early,
+                # but cap the pad to avoid overlaps in tight sequences (bounded by the upcoming source gap).
+                base_pad = min(0.2, duration_sec * 0.15)
+                if next_gap_source is not None:
+                    base_pad = min(base_pad, max(0.0, next_gap_source - 0.05))
+                subtitle_duration = duration_sec + base_pad
                 scheduled_entry = _AssDialogue(
                     start=cursor,
-                    end=cursor + duration_sec,
+                    end=cursor + subtitle_duration,
                     translation=entry.translation,
                     original=entry.original,
+                    transliteration=transliteration_text,
                 )
                 scheduled.append((scheduled_entry, audio, orig_start, orig_end))
                 ass_block_dialogues.append(scheduled_entry)
@@ -1861,6 +1949,12 @@ def generate_dubbed_video(
                 batch_path.parent.mkdir(parents=True, exist_ok=True)
                 try:
                     _concat_video_segments(sentence_clip_paths, batch_path)
+                    try:
+                        # Emit a VTT aligned to the scheduled batch timeline (already stretched to dubbed audio).
+                        merged_dialogues = _merge_overlapping_dialogues(scheduled_entries)
+                        _write_webvtt(merged_dialogues, batch_path.with_suffix(".vtt"))
+                    except Exception:
+                        logger.debug("Unable to write batch-aligned VTT for %s", batch_path, exc_info=True)
                     # Verify batch duration equals scheduled sum (sentences + gaps); warn if not.
                     rendered_duration = _probe_duration_seconds(batch_path)
                     expected_duration = block_end_seconds - block_start_seconds
@@ -1885,6 +1979,11 @@ def generate_dubbed_video(
                 if batch_path not in written_set:
                     written_paths.append(batch_path)
                     written_set.add(batch_path)
+                    if on_batch_written is not None:
+                        try:
+                            on_batch_written(batch_path)
+                        except Exception:
+                            logger.warning("Unable to process written batch %s", batch_path, exc_info=True)
                 if tracker is not None:
                     tracker.publish_progress(
                         {
@@ -1944,6 +2043,11 @@ def generate_dubbed_video(
             finally:
                 chunk_path.unlink(missing_ok=True)
             written_paths.append(output_path)
+            if on_batch_written is not None:
+                try:
+                    on_batch_written(output_path)
+                except Exception:
+                    logger.warning("Unable to process final dubbed output %s", output_path, exc_info=True)
 
         logger.info(
             "Dubbed video created at %s",
@@ -1969,21 +2073,162 @@ def generate_dubbed_video(
                 logger.debug("Unable to clean up temporary trimmed video %s", trimmed_video_path, exc_info=True)
 
 
-def _serialize_generated_files(output_path: Path) -> dict:
-    return _serialize_generated_files_batch([output_path])
+def _write_webvtt(dialogues: Sequence[_AssDialogue], destination: Path) -> Path:
+    """Serialize dialogues into a WebVTT file."""
+
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    def _clean_line(value: str) -> str:
+        if not value:
+            return ""
+        unescaped = html.unescape(value)
+        stripped = _HTML_TAG_PATTERN.sub("", unescaped)
+        return _WHITESPACE_PATTERN.sub(" ", stripped).strip()
+
+    def _format_lines(entry: _AssDialogue) -> str:
+        original = _clean_line(entry.original)
+        transliteration = _clean_line(entry.transliteration or "")
+        translation = _clean_line(entry.translation)
+
+        # Deduplicate content: skip lines that are identical (case-insensitive, trimmed).
+        seen: set[str] = set()
+        payload_lines: list[str] = []
+
+        def _add_line(label: str | None, css_class: str) -> None:
+            if not label:
+                return
+            normalised = label.strip().lower()
+            if not normalised or normalised in seen:
+                return
+            seen.add(normalised)
+            payload_lines.append(f"<c.{css_class}>{html.escape(label)}</c>")
+
+        _add_line(original, "original")
+        _add_line(transliteration, "transliteration")
+        _add_line(translation, "translation")
+
+        if payload_lines:
+            return "\n".join(payload_lines)
+        return translation or original or transliteration or ""
+
+    with destination.open("w", encoding="utf-8") as handle:
+        handle.write(_WEBVTT_HEADER)
+        handle.write(_WEBVTT_STYLE_BLOCK)
+        for index, entry in enumerate(dialogues, 1):
+            start_ts = _seconds_to_vtt_timestamp(entry.start)
+            end_ts = _seconds_to_vtt_timestamp(entry.end)
+            if entry.end <= entry.start:
+                continue
+            payload = _format_lines(entry)
+            if not payload.strip():
+                continue
+            handle.write(f"{index}\n{start_ts} --> {end_ts}\n{payload}\n\n")
+    return destination
 
 
-def _serialize_generated_files_batch(paths: Sequence[Path]) -> dict:
+def _ensure_webvtt_variant(source: Path, storage_root: Optional[Path]) -> Optional[Path]:
+    """Create a WebVTT sibling for ``source`` inside ``storage_root`` if possible."""
+
+    if storage_root is None:
+        return None
+    try:
+        if source.suffix.lower() == ".vtt":
+            return source
+        dialogues = _parse_dialogues(source)
+        dialogues = _merge_overlapping_dialogues(dialogues)
+        if not dialogues:
+            return None
+        target = storage_root / f"{source.stem}.vtt"
+        return _write_webvtt(dialogues, target)
+    except Exception:
+        logger.debug("Unable to create WebVTT variant for %s", source, exc_info=True)
+        return None
+
+
+def _ensure_webvtt_for_video(subtitle_source: Path, video_path: Path, storage_root: Optional[Path]) -> Optional[Path]:
+    """Create a VTT aligned to the rendered video (including batch offsets)."""
+
+    if storage_root is None:
+        return None
+    try:
+        window_start = _parse_batch_start_seconds(video_path) or 0.0
+        duration = _probe_duration_seconds(video_path)
+        window_end = window_start + duration if duration > 0 else None
+        dialogues = _parse_dialogues(subtitle_source)
+        dialogues = _merge_overlapping_dialogues(dialogues)
+        clipped = _clip_dialogues_to_window(dialogues, start_offset=window_start, end_offset=window_end)
+        if not clipped:
+            return None
+        source_span = max((entry.end for entry in clipped), default=0.0)
+        scale = None
+        if source_span and source_span > 0 and duration and duration > 0:
+            scale = max(duration / source_span, 0.0001)
+        # Shift to the video timeline (batch starts at 0) and scale to the rendered duration.
+        shifted = []
+        for entry in clipped:
+            local_start = entry.start
+            local_end = entry.end
+            if scale is not None:
+                local_start *= scale
+                local_end *= scale
+            shifted.append(
+                _AssDialogue(
+                    start=local_start,
+                    end=local_end,
+                    translation=entry.translation,
+                    original=entry.original,
+                )
+            )
+        shifted = _merge_overlapping_dialogues(shifted)
+        if not shifted:
+            return None
+        target = storage_root / f"{video_path.stem}.vtt"
+        return _write_webvtt(shifted, target)
+    except Exception:
+        logger.debug("Unable to create aligned WebVTT for %s", video_path, exc_info=True)
+        return None
+
+
+def _serialize_generated_files(output_path: Path, *, relative_prefix: Optional[Path] = None) -> dict:
+    return _serialize_generated_files_batch([output_path], relative_prefix=relative_prefix)
+
+
+def _serialize_generated_files_batch(
+    paths: Sequence[Path],
+    *,
+    relative_prefix: Optional[Path] = None,
+    subtitle_paths: Optional[Sequence[Path]] = None,
+    subtitle_relative_prefix: Optional[Path] = None,
+) -> dict:
     files = []
     for path in paths:
         files.append(
             {
                 "type": "video",
                 "path": path.as_posix(),
-                "relative_path": path.name,
                 "name": path.name,
+                **(
+                    {"relative_path": (relative_prefix / path.name).as_posix()}
+                    if relative_prefix is not None
+                    else {}
+                ),
             }
         )
+    subtitle_prefix = subtitle_relative_prefix if subtitle_relative_prefix is not None else relative_prefix
+    if subtitle_paths:
+        for subtitle_path in subtitle_paths:
+            files.append(
+                {
+                    "type": "text",
+                    "path": subtitle_path.as_posix(),
+                    "name": subtitle_path.name,
+                    **(
+                        {"relative_path": (subtitle_prefix / subtitle_path.name).as_posix()}
+                        if subtitle_prefix is not None
+                        else {}
+                    ),
+                }
+            )
     return {
         "complete": True,
         "chunks": [
@@ -2051,6 +2296,7 @@ def _run_dub_job(
     flush_sentences: Optional[int] = None,
     llm_model: Optional[str] = None,
     split_batches: bool = False,
+    file_locator: Optional[FileLocator] = None,
 ) -> None:
     tracker = job.tracker or ProgressTracker()
     stop_event = job.stop_event or threading.Event()
@@ -2066,6 +2312,173 @@ def _run_dub_job(
         }
     )
     try:
+        media_root: Optional[Path] = None
+        relative_prefix: Optional[Path] = None
+        subtitle_storage_path: Path = subtitle_path
+        subtitle_artifacts: List[Path] = []
+
+        def _ensure_media_root() -> Optional[Path]:
+            nonlocal media_root
+            if file_locator is None:
+                return None
+            if media_root is None:
+                media_root = file_locator.media_root(job.job_id)
+                media_root.mkdir(parents=True, exist_ok=True)
+            return media_root
+
+        def _copy_into_storage(path: Path) -> Path:
+            root = _ensure_media_root()
+            if root is None:
+                return path
+            target = root / path.name
+            try:
+                if path.resolve() == target.resolve():
+                    return target
+            except Exception:
+                pass
+            try:
+                shutil.copy2(path, target)
+                return target
+            except Exception:
+                logger.warning(
+                    "Unable to copy dubbed artifact %s into storage for job %s",
+                    path,
+                    job.job_id,
+                    exc_info=True,
+                )
+                return path
+
+        try:
+            subtitle_storage_path = _copy_into_storage(subtitle_storage_path)
+            subtitle_artifacts.append(subtitle_storage_path)
+            if media_root and subtitle_storage_path.is_relative_to(media_root):
+                relative_prefix = Path("media")
+            vtt_variant = _ensure_webvtt_variant(subtitle_storage_path, media_root)
+            if vtt_variant:
+                subtitle_artifacts.append(vtt_variant)
+        except Exception:
+            logger.debug("Unable to prepare subtitle copy for storage", exc_info=True)
+
+        storage_written_paths: List[Path] = []
+
+        def _serialize_files() -> dict:
+            return _serialize_generated_files_batch(
+                storage_written_paths,
+                relative_prefix=relative_prefix,
+                subtitle_paths=subtitle_artifacts,
+                subtitle_relative_prefix=relative_prefix,
+            )
+
+        def _register_written_path(path: Path) -> None:
+            nonlocal relative_prefix
+            batch_subtitles: list[Path] = []
+
+            def _relative_str(candidate: Path) -> str:
+                try:
+                    if media_root and candidate.is_relative_to(media_root):
+                        return (Path("media") / candidate.relative_to(media_root)).as_posix()
+                except Exception:
+                    pass
+                return candidate.as_posix()
+
+            def _subtitles_map(paths: Sequence[Path]) -> dict[str, str]:
+                mapping: dict[str, str] = {}
+                for candidate in paths:
+                    suffix = candidate.suffix.lower().lstrip(".") or "text"
+                    if suffix in mapping:
+                        continue
+                    if suffix not in {"vtt", "ass", "srt", "text"}:
+                        suffix = "text"
+                    mapping[suffix] = _relative_str(candidate)
+                return mapping
+
+            stored = _copy_into_storage(path)
+            root = media_root
+            if root and stored.is_relative_to(root):
+                relative_prefix = Path("media")
+            if stored not in storage_written_paths:
+                storage_written_paths.append(stored)
+            subtitle_bases = {stored, path}
+            for base in subtitle_bases:
+                subtitle_candidate = base.with_suffix(".ass")
+                alt_subtitle = base.with_suffix(".srt")
+                vtt_subtitle = base.with_suffix(".vtt")
+                for candidate in (subtitle_candidate, alt_subtitle, vtt_subtitle):
+                    try:
+                        if candidate.exists():
+                            copied_subtitle = _copy_into_storage(candidate)
+                            if copied_subtitle not in subtitle_artifacts:
+                                subtitle_artifacts.append(copied_subtitle)
+                            if copied_subtitle not in batch_subtitles:
+                                batch_subtitles.append(copied_subtitle)
+                            vtt_variant = _ensure_webvtt_variant(copied_subtitle, media_root)
+                            if vtt_variant:
+                                if vtt_variant not in subtitle_artifacts:
+                                    subtitle_artifacts.append(vtt_variant)
+                                if vtt_variant not in batch_subtitles:
+                                    batch_subtitles.append(vtt_variant)
+                            aligned_variant = _ensure_webvtt_for_video(
+                                copied_subtitle,
+                                stored,
+                                media_root,
+                            )
+                            if aligned_variant:
+                                if aligned_variant not in subtitle_artifacts:
+                                    subtitle_artifacts.append(aligned_variant)
+                                if aligned_variant not in batch_subtitles:
+                                    batch_subtitles.append(aligned_variant)
+                    except Exception:
+                        logger.debug("Unable to register subtitle artifact %s", candidate, exc_info=True)
+            job.generated_files = _serialize_files()
+            try:
+                subtitle_map = _subtitles_map(batch_subtitles or subtitle_artifacts)
+                chunk_files: dict[str, str] = {"video": _relative_str(stored)}
+                chunk_files.update(subtitle_map)
+                chunk_identifier = stored.stem or "youtube_dub"
+                tracker.record_generated_chunk(
+                    chunk_id=chunk_identifier,
+                    start_sentence=0,
+                    end_sentence=0,
+                    range_fragment=stored.stem,
+                    files=chunk_files,
+                )
+            except Exception:
+                logger.debug("Unable to publish generated chunk for %s", stored, exc_info=True)
+            try:
+                tracker.publish_progress(
+                    {"stage": "media.update", "generated_files": job.generated_files, "output_path": stored.as_posix()}
+                )
+            except Exception:
+                logger.debug("Unable to publish generated media update for %s", stored, exc_info=True)
+
+        # Persist subtitle reference immediately so active jobs can expose tracks even before videos finish.
+        job.generated_files = _serialize_files()
+        try:
+            subtitle_map = {
+                (
+                    sub.suffix.lower().lstrip(".") if sub.suffix.lower().lstrip(".") in {"vtt", "ass", "srt"} else "text"
+                ): (
+                    (Path("media") / sub.relative_to(media_root)).as_posix()
+                    if media_root and sub.is_relative_to(media_root)
+                    else sub.as_posix()
+                )
+                for sub in subtitle_artifacts
+            }
+            chunk_identifier = f"{subtitle_storage_path.stem or 'youtube_dub'}_init"
+            tracker.record_generated_chunk(
+                chunk_id=chunk_identifier,
+                start_sentence=0,
+                end_sentence=0,
+                range_fragment="dub",
+                files=subtitle_map,
+            )
+        except Exception:
+            logger.debug("Unable to publish initial generated subtitles snapshot", exc_info=True)
+        try:
+            tracker.publish_progress({"stage": "media.init", "generated_files": job.generated_files})
+        except Exception:
+            logger.debug("Unable to publish initial generated media snapshot", exc_info=True)
+
         final_output, written_paths = generate_dubbed_video(
             video_path,
             subtitle_path,
@@ -2083,6 +2496,7 @@ def _run_dub_job(
             flush_sentences=flush_sentences,
             llm_model=llm_model,
             split_batches=split_batches,
+            on_batch_written=_register_written_path,
         )
     except _DubJobCancelled:
         job.status = PipelineJobStatus.CANCELLED
@@ -2094,6 +2508,9 @@ def _run_dub_job(
         return
     job.status = PipelineJobStatus.COMPLETED
     job.error_message = None
+    if not storage_written_paths:
+        for path in written_paths:
+            _register_written_path(path)
     job.media_completed = True
     dialogues = _clip_dialogues_to_window(
         _parse_dialogues(subtitle_path),
@@ -2101,10 +2518,10 @@ def _run_dub_job(
         end_offset=end_time_offset,
     )
     job.result_payload = _build_job_result(
-        output_path=final_output,
+        output_path=(storage_written_paths[0] if storage_written_paths else final_output),
         written_paths=written_paths,
         video_path=video_path,
-        subtitle_path=subtitle_path,
+        subtitle_path=subtitle_storage_path,
         language=language_code,
         voice=voice,
         tempo=tempo,
@@ -2116,7 +2533,12 @@ def _run_dub_job(
         flush_sentences=flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
         llm_model=llm_model,
     )
-    job.generated_files = _serialize_generated_files_batch(written_paths)
+    job.generated_files = _serialize_generated_files_batch(
+        storage_written_paths,
+        relative_prefix=relative_prefix,
+        subtitle_paths=subtitle_artifacts,
+        subtitle_relative_prefix=relative_prefix,
+    )
     tracker.publish_progress({"stage": "complete", "output_path": final_output.as_posix()})
 
 
@@ -2202,6 +2624,7 @@ class YoutubeDubbingService:
                 flush_sentences=flush_sentences,
                 llm_model=llm_model,
                 split_batches=bool(split_batches) if split_batches is not None else False,
+                file_locator=self._job_manager.file_locator,
             )
 
         return self._job_manager.submit_background_job(

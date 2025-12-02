@@ -346,10 +346,12 @@ export function App() {
       return;
     }
     if (activeJobId && playerContext.jobId !== activeJobId) {
-      setPlayerContext({ type: 'job', jobId: activeJobId });
+      const entry = jobs[activeJobId];
+      const jobType = entry?.status?.job_type ?? null;
+      setPlayerContext({ type: 'job', jobId: activeJobId, jobType });
       setPlayerSelection(null);
     }
-  }, [activeJobId, playerContext, selectedView]);
+  }, [activeJobId, jobs, playerContext, selectedView]);
 
   useEffect(() => {
     if (selectedView !== JOB_MEDIA_VIEW) {
@@ -602,16 +604,11 @@ export function App() {
   );
 
   const handleVideoPlaybackStateChange = useCallback(
-    (isPlaying: boolean) => {
-      if (isPlayerFullscreen) {
-        return;
+    (_isPlaying: boolean) => {
+      // Keep sidebar visible during regular playback; immersive mode is driven by fullscreen.
+      if (!isPlayerFullscreen) {
+        setIsImmersiveMode(false);
       }
-      setIsImmersiveMode((previous) => {
-        if (previous === isPlaying) {
-          return previous;
-        }
-        return isPlaying;
-      });
     },
     [isPlayerFullscreen]
   );
@@ -769,11 +766,13 @@ export function App() {
     if (!activeJobId) {
       return;
     }
-    setPlayerContext({ type: 'job', jobId: activeJobId });
+    const entry = jobs[activeJobId];
+    const jobType = entry?.status?.job_type ?? null;
+    setPlayerContext({ type: 'job', jobId: activeJobId, jobType });
     setPlayerSelection(null);
     setSelectedView(JOB_MEDIA_VIEW);
     setIsImmersiveMode(false);
-  }, [activeJobId]);
+  }, [activeJobId, jobs]);
 
   const handlePlayLibraryItem = useCallback(
     (entry: LibraryOpenInput) => {
@@ -875,6 +874,19 @@ export function App() {
       setSelectedView(JOB_PROGRESS_VIEW);
     },
     [setSelectedView]
+  );
+
+  const handleOpenYoutubeDubMedia = useCallback(
+    (jobId: string) => {
+      setActiveJobId(jobId);
+      const entry = jobs[jobId];
+      const jobType = entry?.status?.job_type ?? 'youtube_dub';
+      setPlayerContext({ type: 'job', jobId, jobType });
+      setPlayerSelection(null);
+      setSelectedView(JOB_MEDIA_VIEW);
+      setIsImmersiveMode(false);
+    },
+    [jobs]
   );
 
   const jobList: JobState[] = useMemo(() => {
@@ -1334,6 +1346,7 @@ export function App() {
                     jobs={youtubeDubJobStates}
                     onJobCreated={handleYoutubeDubJobCreated}
                     onSelectJob={handleYoutubeDubJobSelected}
+                    onOpenJobMedia={handleOpenYoutubeDubMedia}
                     prefillParameters={youtubeDubPrefillParameters}
                   />
                 </section>

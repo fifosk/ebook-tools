@@ -52,7 +52,7 @@ export interface UseLiveMediaResult {
   error: Error | null;
 }
 
-const TEXT_TYPES = new Set(['text', 'html', 'pdf', 'epub', 'written', 'doc', 'docx', 'rtf']);
+const TEXT_TYPES = new Set(['text', 'html', 'pdf', 'epub', 'written', 'doc', 'docx', 'rtf', 'subtitle', 'ass', 'srt', 'vtt']);
 
 export function createEmptyState(): LiveMediaState {
   return {
@@ -542,6 +542,7 @@ function buildStateFromSections(
         return;
       }
       const chunkFiles: LiveMediaItem[] = [];
+      const chunkRangeFragment = toStringOrNull(payload.range_fragment ?? payload.rangeFragment);
       filesRaw.forEach((fileEntry) => {
         if (!fileEntry || typeof fileEntry !== 'object') {
           return;
@@ -558,7 +559,19 @@ function buildStateFromSections(
           if (!built) {
             return;
           }
-          item = registerMediaItem(state, index, built);
+          const enriched: LiveMediaItem = {
+            ...built,
+            chunk_id: built.chunk_id ?? chunkId ?? null,
+            range_fragment: built.range_fragment ?? chunkRangeFragment ?? null,
+          };
+          item = registerMediaItem(state, index, enriched);
+        } else {
+          if (item.chunk_id == null) {
+            item.chunk_id = chunkId ?? null;
+          }
+          if (item.range_fragment == null) {
+            item.range_fragment = chunkRangeFragment ?? null;
+          }
         }
         chunkFiles.push(item);
       });
@@ -778,10 +791,14 @@ function buildLiveMediaItem(
   const rangeFragment = toStringOrNull(entry.range_fragment ?? entry.rangeFragment) ?? undefined;
   const startSentence = toNumberOrNull(entry.start_sentence ?? entry.startSentence) ?? undefined;
   const endSentence = toNumberOrNull(entry.end_sentence ?? entry.endSentence) ?? undefined;
+  const relativePath = toStringOrNull(entry.relative_path ?? (entry as { relativePath?: unknown }).relativePath);
+  const pathValue = toStringOrNull(entry.path);
 
   return {
     name,
     url,
+    path: pathValue ?? undefined,
+    relative_path: relativePath ?? undefined,
     size,
     updated_at: updatedAt,
     source,

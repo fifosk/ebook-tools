@@ -91,6 +91,10 @@ interface NavigationControlsProps {
   onToggleOriginalAudio?: () => void;
   originalAudioEnabled?: boolean;
   disableOriginalAudioToggle?: boolean;
+  showSubtitleToggle?: boolean;
+  onToggleSubtitles?: () => void;
+  subtitlesEnabled?: boolean;
+  disableSubtitleToggle?: boolean;
   showTranslationSpeed: boolean;
   translationSpeed: TranslationSpeed;
   translationSpeedMin: number;
@@ -116,7 +120,7 @@ interface NavigationControlsProps {
   onFontScaleChange?: (value: number) => void;
 }
 
-function NavigationControls({
+export function NavigationControls({
   context,
   onNavigate,
   onToggleFullscreen,
@@ -134,6 +138,10 @@ function NavigationControls({
   onToggleOriginalAudio,
   originalAudioEnabled = false,
   disableOriginalAudioToggle = false,
+  showSubtitleToggle = false,
+  onToggleSubtitles,
+  subtitlesEnabled = true,
+  disableSubtitleToggle = false,
   showTranslationSpeed,
   translationSpeed,
   translationSpeedMin,
@@ -169,10 +177,13 @@ function NavigationControls({
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
   const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
   const playbackIcon = isPlaying ? '⏸' : '▶';
+  const auxiliaryToggleVariant = showSubtitleToggle ? 'subtitles' : showOriginalAudioToggle ? 'original' : null;
   const originalToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', originalAudioEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
   const originalToggleTitle = disableOriginalAudioToggle
     ? 'Original audio will appear after interactive assets regenerate'
     : 'Toggle Original Audio';
+  const subtitleToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', subtitlesEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
+  const subtitleToggleTitle = disableSubtitleToggle ? 'Subtitles will appear after media finalizes' : 'Toggle Subtitles';
   const sliderId = useId();
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
@@ -267,7 +278,7 @@ function NavigationControls({
         >
           <span aria-hidden="true">⏭</span>
         </button>
-        {showOriginalAudioToggle ? (
+        {auxiliaryToggleVariant === 'original' ? (
           <button
             type="button"
             className={originalToggleClassName}
@@ -282,6 +293,24 @@ function NavigationControls({
             </span>
             <span aria-hidden="true" className="player-panel__nav-button-text">
               Orig
+            </span>
+          </button>
+        ) : null}
+        {auxiliaryToggleVariant === 'subtitles' ? (
+          <button
+            type="button"
+            className={subtitleToggleClassName}
+            onClick={onToggleSubtitles}
+            disabled={disableSubtitleToggle}
+            aria-label="Toggle Subtitles"
+            aria-pressed={subtitlesEnabled}
+            title={subtitleToggleTitle}
+          >
+            <span aria-hidden="true" className="player-panel__nav-button-icon">
+              {subtitlesEnabled ? '💬' : '🚫'}
+            </span>
+            <span aria-hidden="true" className="player-panel__nav-button-text">
+              Subs
             </span>
           </button>
         ) : null}

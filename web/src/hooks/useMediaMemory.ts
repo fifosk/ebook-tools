@@ -47,6 +47,14 @@ function getSessionStorage(): StorageProvider | null {
   }
 }
 
+function normalizeId(value: string): string {
+  try {
+    return value ? value.normalize('NFC').toLowerCase() : '';
+  } catch (error) {
+    return value.toLowerCase();
+  }
+}
+
 function parseStoredState(value: string | null): PersistentMediaState {
   if (!value) {
     return INITIAL_STATE;
@@ -88,14 +96,25 @@ function normalisePosition(value: number): number {
   return Math.max(Number(value.toFixed(3)), 0);
 }
 
-export function deriveBaseIdFromItem(item: Pick<LiveMediaItem, 'name' | 'url'>): string | null {
-  const candidate = item.name ?? (item.url ? item.url.split('/').pop() ?? null : null);
+export function deriveBaseIdFromItem(
+  item: Pick<LiveMediaItem, 'name' | 'url' | 'range_fragment'> & { relative_path?: string | null },
+): string | null {
+  const candidate =
+    item.range_fragment ??
+    item.name ??
+    (item.url ? item.url.split('/').pop() ?? null : null) ??
+    (item.relative_path ? item.relative_path.split('/').pop() ?? null : null);
   if (!candidate) {
     return null;
   }
 
-  const normalised = candidate.replace(/[?#].*$/, '');
-  const parts = normalised.split('.');
+  let cleaned = candidate.replace(/[?#].*$/, '');
+  try {
+    cleaned = decodeURIComponent(cleaned);
+  } catch (error) {
+    void error;
+  }
+  const parts = cleaned.split('.');
   if (parts.length > 1) {
     parts.pop();
   }
@@ -105,6 +124,11 @@ export function deriveBaseIdFromItem(item: Pick<LiveMediaItem, 'name' | 'url'>):
     return null;
   }
 
+  try {
+    return normalizeId(base);
+  } catch (error) {
+    void error;
+  }
   return base.toLowerCase();
 }
 

@@ -46,8 +46,13 @@ function resolveSubtitleTargetLanguage(status: JobState['status']): string | nul
 function resolveSidebarLanguage(job: JobState): { label: string; tooltip?: string } {
   const parameters = job.status.parameters;
   const rawLanguages = parameters?.target_languages;
-  const singleLanguage =
-    typeof parameters?.target_language === 'string' ? parameters.target_language.trim() : null;
+  const singleLanguage = (() => {
+    const raw =
+      parameters && typeof parameters === 'object'
+        ? (parameters as Record<string, unknown>)['target_language']
+        : null;
+    return typeof raw === 'string' ? raw.trim() : null;
+  })();
   const normalized =
     Array.isArray(rawLanguages) && rawLanguages.length > 0
       ? rawLanguages
@@ -207,26 +212,27 @@ export function Sidebar({
       </details>
       <details className="sidebar__section">
         <summary>Library</summary>
-        <button
-          type="button"
-          className={`sidebar__link ${selectedView === libraryView ? 'is-active' : ''}`}
-          onClick={() => onSelectView(libraryView)}
-        >
-          Browse library
-        </button>
-      </details>
-      <details className="sidebar__section">
-        <summary>Player</summary>
-        <button
-          type="button"
-          className={`sidebar__link ${selectedView === jobMediaView ? 'is-active' : ''}`}
-          onClick={onOpenPlayer}
-          disabled={!canOpenPlayer}
-        >
-          {canOpenPlayer
-            ? `Open player for job ${activeJobId}`
-            : 'Select a job to open the player'}
-        </button>
+        <ul className="sidebar__list">
+          <li>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === libraryView ? 'is-active' : ''}`}
+              onClick={() => onSelectView(libraryView)}
+            >
+              Browse library
+            </button>
+          </li>
+          <li>
+            <button
+              type="button"
+              className={`sidebar__link ${selectedView === jobMediaView ? 'is-active' : ''}`}
+              onClick={onOpenPlayer}
+              disabled={!canOpenPlayer}
+            >
+              {canOpenPlayer ? `Open player for job ${activeJobId}` : 'Select a job to open the player'}
+            </button>
+          </li>
+        </ul>
       </details>
       <details className="sidebar__section" open>
         <summary>Job Overview</summary>

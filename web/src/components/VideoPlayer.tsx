@@ -5,6 +5,13 @@ export interface VideoFile {
   poster?: string;
 }
 
+export interface SubtitleTrack {
+  url: string;
+  label?: string;
+  kind?: string;
+  language?: string;
+}
+
 interface VideoPlayerProps {
   files: VideoFile[];
   activeId: string | null;
@@ -17,6 +24,8 @@ interface VideoPlayerProps {
   isTheaterMode?: boolean;
   onExitTheaterMode?: () => void;
   onRegisterControls?: (controls: { pause: () => void; play: () => void } | null) => void;
+  subtitlesEnabled?: boolean;
+  tracks?: SubtitleTrack[];
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -33,6 +42,8 @@ export default function VideoPlayer({
   isTheaterMode = false,
   onExitTheaterMode,
   onRegisterControls,
+  subtitlesEnabled = true,
+  tracks = [],
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
@@ -245,6 +256,20 @@ export default function VideoPlayer({
     };
   }, [isTheaterMode, onExitTheaterMode]);
 
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || !element.textTracks) {
+      return;
+    }
+    Array.from(element.textTracks).forEach((track, index) => {
+      if (!subtitlesEnabled) {
+        track.mode = 'disabled';
+        return;
+      }
+      track.mode = index === 0 ? 'showing' : 'disabled';
+    });
+  }, [subtitlesEnabled, activeFile?.id]);
+
   if (files.length === 0) {
     return (
       <div className="video-player" role="status">
@@ -280,6 +305,7 @@ export default function VideoPlayer({
               className="video-player__element"
               data-testid="video-player"
               controls
+              crossOrigin="anonymous"
               src={activeFile.url}
               poster={activeFile.poster}
               autoPlay={autoPlay}
@@ -290,6 +316,16 @@ export default function VideoPlayer({
               onLoadedData={attemptAutoplay}
               onTimeUpdate={handleTimeUpdate}
             >
+              {tracks.map((track, index) => (
+                <track
+                  key={`${track.url}-${index}`}
+                  src={track.url}
+                  kind={track.kind ?? 'subtitles'}
+                  label={track.label}
+                  srcLang={track.language}
+                  default={index === 0}
+                />
+              ))}
               Your browser does not support the video element.
             </video>
           </div>

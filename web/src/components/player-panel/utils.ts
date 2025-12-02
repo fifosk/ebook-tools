@@ -38,15 +38,29 @@ export function deriveBaseIdFromReference(value: string | null | undefined): str
   if (!value) {
     return null;
   }
-  const normalised = value.replace(/^[\\/]+/, '').split(/[\\/]/).pop();
-  if (!normalised) {
+  let trimmed = value.replace(/^[\\/]+/, '').split(/[\\/]/).pop();
+  if (!trimmed) {
     return null;
   }
-  const withoutQuery = normalised.replace(/[?#].*$/, '');
+  const withoutQuery = trimmed.replace(/[?#].*$/, '');
+  let decoded = withoutQuery;
+  try {
+    decoded = decodeURIComponent(withoutQuery);
+  } catch (error) {
+    void error;
+  }
   const dotIndex = withoutQuery.lastIndexOf('.');
-  const base = dotIndex > 0 ? withoutQuery.slice(0, dotIndex) : withoutQuery;
-  const trimmed = base.trim();
-  return trimmed ? trimmed.toLowerCase() : null;
+  const base = dotIndex > 0 ? decoded.slice(0, dotIndex) : decoded;
+  const cleaned = base.trim();
+  if (!cleaned) {
+    return null;
+  }
+  try {
+    return cleaned.normalize('NFC').toLowerCase();
+  } catch (error) {
+    void error;
+  }
+  return cleaned.toLowerCase();
 }
 
 export function resolveBaseIdFromResult(
@@ -55,6 +69,9 @@ export function resolveBaseIdFromResult(
 ): string | null {
   if (result.base_id) {
     return result.base_id;
+  }
+  if (result.range_fragment) {
+    return deriveBaseIdFromReference(result.range_fragment);
   }
 
   const categories: MediaCategory[] = [];
