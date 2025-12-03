@@ -60,6 +60,7 @@ _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 _WHITESPACE_PATTERN = re.compile(r"\s+")
 _MIN_DIALOGUE_GAP_SECONDS = 0.0
 _MIN_DIALOGUE_DURATION_SECONDS = 0.1
+_LLM_WORKER_CAP = 4
 _WEBVTT_HEADER = "WEBVTT\n\n"
 _WEBVTT_STYLE_BLOCK = """STYLE
 ::cue(.original) { color: #facc15; }
@@ -186,6 +187,17 @@ def _resolve_worker_count(total_items: int, requested: Optional[int] = None) -> 
     if configured is None or configured <= 0:
         configured = 1
     return max(1, min(int(configured), max(1, total_items)))
+
+
+def _resolve_llm_worker_count(total_items: int) -> int:
+    """Return a conservative worker count for LLM-backed steps to avoid flooding APIs."""
+
+    settings = cfg.get_settings()
+    configured = settings.job_max_workers
+    if configured is None or configured <= 0:
+        configured = 1
+    capped = min(int(configured), _LLM_WORKER_CAP)
+    return max(1, min(capped, max(1, total_items)))
 
 
 def _parse_ass_timestamp(value: str) -> float:
@@ -1491,6 +1503,7 @@ def generate_dubbed_video(
     original_mix_percent: Optional[float] = None,
     flush_sentences: Optional[int] = None,
     split_batches: bool = False,
+    include_transliteration: Optional[bool] = None,
     on_batch_written: Optional[Callable[[Path], None]] = None,
 ) -> Tuple[Path, List[Path]]:
     """Render an audio dub from ``subtitle_path`` and mux it into ``video_path``."""
@@ -1571,14 +1584,20 @@ def generate_dubbed_video(
             base_original_audio = None
             logger.warning("Unable to preload original audio; will retry per flush", exc_info=True)
 
-        include_transliteration = _language_uses_non_latin(language_code)
+        include_transliteration_resolved = (
+            _language_uses_non_latin(language_code)
+            if include_transliteration is None
+            else bool(include_transliteration)
+        )
+        # Maintain the original name for any nested closures expecting it.
+        include_transliteration = include_transliteration_resolved
         transliterator: Optional[TransliterationService] = None
-        if include_transliteration:
+        if include_transliteration_resolved:
             try:
                 transliterator = get_transliterator()
             except Exception:
                 transliterator = None
-                include_transliteration = False
+                include_transliteration_resolved = False
         palette = SubtitleColorPalette.default()
         uses_non_latin = _language_uses_non_latin(language_code)
         emphasis_scale = 1.3 if uses_non_latin else 1.0
@@ -1616,12 +1635,26 @@ def generate_dubbed_video(
             )
 
         def _translate_dialogues(dialogues: List[_AssDialogue], offset: int) -> List[_AssDialogue]:
-            translated: List[_AssDialogue] = []
             needs_translation = source_language and language_code and source_language.lower() != language_code.lower()
-            for local_idx, entry in enumerate(dialogues):
+            needs_llm = needs_translation or (include_transliteration_resolved and transliterator is not None)
+            if not needs_llm:
+                return [
+                    _AssDialogue(
+                        start=entry.start,
+                        end=entry.end,
+                        translation=entry.translation,
+                        original=entry.original,
+                        transliteration=entry.transliteration,
+                        rtl_normalized=entry.rtl_normalized,
+                    )
+                    for entry in dialogues
+                ]
+
+            def _process(idx: int, entry: _AssDialogue) -> Tuple[int, _AssDialogue, bool]:
                 translated_text = entry.translation
-                transliteration_text = None
+                transliteration_text = entry.transliteration
                 rtl_normalized = entry.rtl_normalized
+                translated_flag = False
                 if needs_translation:
                     try:
                         translated_text = _translate_subtitle_text(
@@ -1630,18 +1663,12 @@ def generate_dubbed_video(
                             target_language=language_code,
                             llm_model=llm_model,
                         )
+                        translated_flag = True
                         if is_failure_annotation(translated_text):
                             translated_text = entry.translation
                     except Exception:
                         translated_text = entry.translation
-                    if tracker is not None:
-                        tracker.record_step_completion(
-                            stage="translation",
-                            index=offset + local_idx + 1,
-                            total=total_dialogues,
-                            metadata={"start": entry.start, "end": entry.end},
-                        )
-                if include_transliteration and transliterator is not None:
+                if include_transliteration_resolved and transliterator is not None and not transliteration_text:
                     try:
                         transliteration_text = _transliterate_text(
                             transliterator,
@@ -1650,17 +1677,46 @@ def generate_dubbed_video(
                         )
                     except Exception:
                         transliteration_text = None
-                translated.append(
-                    _AssDialogue(
-                        start=entry.start,
-                        end=entry.end,
-                        translation=translated_text,
-                        original=entry.original,
-                        transliteration=transliteration_text,
-                        rtl_normalized=rtl_normalized,
-                    )
-                )
-            return translated
+                return idx, _AssDialogue(
+                    start=entry.start,
+                    end=entry.end,
+                    translation=translated_text,
+                    original=entry.original,
+                    transliteration=transliteration_text,
+                    rtl_normalized=rtl_normalized,
+                ), translated_flag
+
+            workers = _resolve_llm_worker_count(len(dialogues))
+            if workers <= 1:
+                results = []
+                for local_idx, entry in enumerate(dialogues):
+                    idx, dialogue, translated_flag = _process(local_idx, entry)
+                    results.append(dialogue)
+                    if tracker is not None and translated_flag:
+                        tracker.record_step_completion(
+                            stage="translation",
+                            index=offset + idx + 1,
+                            total=total_dialogues,
+                            metadata={"start": entry.start, "end": entry.end},
+                        )
+                return results
+
+            resolved: List[Optional[_AssDialogue]] = [None] * len(dialogues)
+            futures = []
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                for local_idx, entry in enumerate(dialogues):
+                    futures.append(executor.submit(_process, local_idx, entry))
+                for future in as_completed(futures):
+                    idx, dialogue, translated_flag = future.result()
+                    resolved[idx] = dialogue
+                    if tracker is not None and translated_flag:
+                        tracker.record_step_completion(
+                            stage="translation",
+                            index=offset + idx + 1,
+                            total=total_dialogues,
+                            metadata={"start": dialogue.start, "end": dialogue.end},
+                        )
+            return [entry for entry in resolved if entry is not None]
 
         def _synthesise_batch(
             dialogues: List[_AssDialogue],
@@ -1726,7 +1782,7 @@ def generate_dubbed_video(
             next_index = start_index
             for entry in dialogues:
                 transliteration = entry.transliteration or ""
-                if include_transliteration and transliterator is not None and not transliteration:
+                if include_transliteration_resolved and transliterator is not None and not transliteration:
                     try:
                         transliteration = _transliterate_text(
                             transliterator,
@@ -1738,7 +1794,7 @@ def generate_dubbed_video(
                 render_translation = _normalize_rtl_word_order(
                     entry.translation,
                     language_code,
-                    force=not entry.rtl_normalized,
+                    force=True,
                 )
                 render_transliteration = transliteration
                 source_cue = SubtitleCue(
@@ -1796,6 +1852,11 @@ def generate_dubbed_video(
                 orig_start = translated_block[idx].start
                 orig_end = translated_block[idx].end
                 transliteration_text = translated_block[idx].transliteration
+                render_translation = _normalize_rtl_word_order(
+                    entry.translation,
+                    language_code,
+                    force=True,
+                )
                 next_gap_source = None
                 if idx + 1 < len(translated_block):
                     next_gap_source = max(0.0, translated_block[idx + 1].start - orig_end)
@@ -1814,10 +1875,10 @@ def generate_dubbed_video(
                 scheduled_entry = _AssDialogue(
                     start=cursor,
                     end=cursor + subtitle_duration,
-                    translation=entry.translation,
+                    translation=render_translation,
                     original=entry.original,
                     transliteration=transliteration_text,
-                    rtl_normalized=entry.rtl_normalized,
+                    rtl_normalized=True,
                 )
                 scheduled.append((scheduled_entry, audio, orig_start, orig_end))
                 ass_block_dialogues.append(scheduled_entry)
@@ -1856,8 +1917,8 @@ def generate_dubbed_video(
                     ass_block_dialogues,
                     batch_vtt_path,
                     target_language=language_code,
-                    include_transliteration=include_transliteration,
-                    transliterator=transliterator if include_transliteration else None,
+                    include_transliteration=include_transliteration_resolved,
+                    transliterator=transliterator if include_transliteration_resolved else None,
                 )
             elif global_ass_writer is not None:
                 # Keep ASS cues on the absolute dubbed timeline so highlights follow stretched audio.
@@ -2065,8 +2126,8 @@ def generate_dubbed_video(
                             merged_dialogues,
                             batch_path.with_suffix(".vtt"),
                             target_language=language_code,
-                            include_transliteration=include_transliteration,
-                            transliterator=transliterator if include_transliteration else None,
+                            include_transliteration=include_transliteration_resolved,
+                            transliterator=transliterator if include_transliteration_resolved else None,
                         )
                     except Exception:
                         logger.debug("Unable to write batch-aligned VTT for %s", batch_path, exc_info=True)
@@ -2125,8 +2186,8 @@ def generate_dubbed_video(
                     merged_dialogues,
                     vtt_path,
                     target_language=language_code,
-                    include_transliteration=include_transliteration,
-                    transliterator=transliterator if include_transliteration else None,
+                    include_transliteration=include_transliteration_resolved,
+                    transliterator=transliterator if include_transliteration_resolved else None,
                 )
             except Exception:
                 logger.debug("Unable to create WebVTT subtitles for %s", output_path, exc_info=True)
@@ -2248,7 +2309,7 @@ def _write_webvtt(
         translation = _normalize_rtl_word_order(
             _clean_line(entry.translation),
             resolved_language,
-            force=not entry.rtl_normalized,
+            force=True,
         )
 
         # Deduplicate content: skip lines that are identical (case-insensitive, trimmed).
@@ -2295,7 +2356,7 @@ def _ensure_webvtt_variant(
     include_transliteration: bool = False,
     transliterator: Optional[TransliterationService] = None,
 ) -> Optional[Path]:
-    """Create a WebVTT sibling for ``source`` inside ``storage_root`` if possible."""
+    """Create (or refresh) a WebVTT sibling for ``source`` inside ``storage_root`` if possible."""
 
     if storage_root is None:
         return None
@@ -2307,8 +2368,7 @@ def _ensure_webvtt_variant(
         if not dialogues:
             return None
         target = storage_root / f"{source.stem}.vtt"
-        if target.exists():
-            return target
+        # Always rewrite so latest RTL/transliteration rules apply.
         return _write_webvtt(
             dialogues,
             target,
@@ -2330,7 +2390,7 @@ def _ensure_webvtt_for_video(
     include_transliteration: bool = False,
     transliterator: Optional[TransliterationService] = None,
 ) -> Optional[Path]:
-    """Create a VTT aligned to the rendered video (including batch offsets)."""
+    """Create (or refresh) a VTT aligned to the rendered video (including batch offsets)."""
 
     if storage_root is None:
         return None
@@ -2369,8 +2429,7 @@ def _ensure_webvtt_for_video(
         if not shifted:
             return None
         target = storage_root / f"{video_path.stem}.vtt"
-        if target.exists():
-            return target
+        # Always rewrite so latest RTL/transliteration rules apply.
         return _write_webvtt(
             shifted,
             target,
@@ -2490,6 +2549,7 @@ def _run_dub_job(
     flush_sentences: Optional[int] = None,
     llm_model: Optional[str] = None,
     split_batches: bool = False,
+    include_transliteration: Optional[bool] = None,
     file_locator: Optional[FileLocator] = None,
 ) -> None:
     tracker = job.tracker or ProgressTracker()
@@ -2510,6 +2570,20 @@ def _run_dub_job(
         relative_prefix: Optional[Path] = None
         subtitle_storage_path: Path = subtitle_path
         subtitle_artifacts: List[Path] = []
+        include_transliteration_resolved = (
+            _language_uses_non_latin(language_code)
+            if include_transliteration is None
+            else bool(include_transliteration)
+        )
+        # Preserve the original name for nested closures that may still reference it.
+        include_transliteration = include_transliteration_resolved
+        transliterator: Optional[TransliterationService] = None
+        if include_transliteration_resolved:
+            try:
+                transliterator = get_transliterator()
+            except Exception:
+                transliterator = None
+                include_transliteration_resolved = False
 
         def _ensure_media_root() -> Optional[Path]:
             nonlocal media_root
@@ -2551,8 +2625,11 @@ def _run_dub_job(
                 subtitle_storage_path,
                 media_root,
                 target_language=language_code,
-                include_transliteration=include_transliteration,
-                transliterator=transliterator,
+                # Skip transliteration when copying the source subtitles into storage;
+                # the translated/batch subtitles later in the pipeline will carry the
+                # transliteration track to avoid front-loading a long LLM pass here.
+                include_transliteration=False,
+                transliterator=None,
             )
             if vtt_variant:
                 subtitle_artifacts.append(vtt_variant)
@@ -2615,7 +2692,7 @@ def _run_dub_job(
                                 copied_subtitle,
                                 media_root,
                                 target_language=language_code,
-                                include_transliteration=include_transliteration,
+                                include_transliteration=include_transliteration_resolved,
                                 transliterator=transliterator,
                             )
                             if vtt_variant:
@@ -2628,7 +2705,7 @@ def _run_dub_job(
                                 stored,
                                 media_root,
                                 target_language=language_code,
-                                include_transliteration=include_transliteration,
+                                include_transliteration=include_transliteration_resolved,
                                 transliterator=transliterator,
                             )
                             if aligned_variant:
@@ -2707,6 +2784,7 @@ def _run_dub_job(
             flush_sentences=flush_sentences,
             llm_model=llm_model,
             split_batches=split_batches,
+            include_transliteration=include_transliteration_resolved,
             on_batch_written=_register_written_path,
         )
     except _DubJobCancelled:
@@ -2791,6 +2869,7 @@ class YoutubeDubbingService:
         flush_sentences: Optional[int] = None,
         llm_model: Optional[str] = None,
         split_batches: Optional[bool] = None,
+        include_transliteration: Optional[bool] = None,
     ) -> PipelineJob:
         resolved_video = video_path.expanduser()
         resolved_subtitle = subtitle_path.expanduser()
@@ -2824,6 +2903,7 @@ class YoutubeDubbingService:
             "flush_sentences": flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
             "llm_model": llm_model,
             "split_batches": bool(split_batches) if split_batches is not None else False,
+            "include_transliteration": include_transliteration,
         }
 
         def _worker(job: PipelineJob) -> None:
@@ -2843,6 +2923,7 @@ class YoutubeDubbingService:
                 flush_sentences=flush_sentences,
                 llm_model=llm_model,
                 split_batches=bool(split_batches) if split_batches is not None else False,
+                include_transliteration=include_transliteration,
                 file_locator=self._job_manager.file_locator,
             )
 

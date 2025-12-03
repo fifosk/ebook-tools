@@ -156,10 +156,11 @@ export default function YoutubeDubPage({
   const [targetLanguage, setTargetLanguage] = useState('');
   const [startOffset, setStartOffset] = useState('');
   const [endOffset, setEndOffset] = useState('');
-  const [originalMixPercent, setOriginalMixPercent] = useState(15);
+  const [originalMixPercent, setOriginalMixPercent] = useState(5);
   const [flushSentences, setFlushSentences] = useState(10);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
-  const [splitBatches, setSplitBatches] = useState(false);
+  const [splitBatches, setSplitBatches] = useState(true);
+  const [includeTransliteration, setIncludeTransliteration] = useState(false);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
@@ -326,6 +327,8 @@ export default function YoutubeDubPage({
       Number.isFinite(prefillParameters.original_mix_percent)
     ) {
       setOriginalMixPercent(prefillParameters.original_mix_percent);
+    } else {
+      setOriginalMixPercent(5);
     }
     if (
       typeof prefillParameters.flush_sentences === 'number' &&
@@ -335,9 +338,16 @@ export default function YoutubeDubPage({
     }
     if (typeof prefillParameters.split_batches === 'boolean') {
       setSplitBatches(prefillParameters.split_batches);
+    } else {
+      setSplitBatches(true);
     }
     if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
       setLlmModel(prefillParameters.llm_model.trim());
+    }
+    if (typeof prefillParameters.include_transliteration === 'boolean') {
+      setIncludeTransliteration(prefillParameters.include_transliteration);
+    } else {
+      setIncludeTransliteration(false);
     }
   }, [formatOffset, prefillParameters]);
 
@@ -467,7 +477,8 @@ export default function YoutubeDubPage({
         original_mix_percent: originalMixPercent,
         flush_sentences: flushSentences,
         llm_model: llmModel || undefined,
-        split_batches: splitBatches
+        split_batches: splitBatches,
+        include_transliteration: includeTransliteration
       });
       setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
       onJobCreated(response.job_id);
@@ -489,6 +500,7 @@ export default function YoutubeDubPage({
     flushSentences,
     llmModel,
     splitBatches,
+    includeTransliteration,
     onJobCreated,
     parseOffset
   ]);
@@ -752,6 +764,14 @@ export default function YoutubeDubPage({
                 />
                 <span>Create separate video per batch (adds start-end sentence to filename)</span>
               </label>
+              <label className={styles.fieldCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={includeTransliteration}
+                  onChange={(event) => setIncludeTransliteration(event.target.checked)}
+                />
+                <span>Include transliteration subtitle track (default on for non-Latin targets)</span>
+              </label>
               <label className={styles.field}>
                 <span>Original audio mix</span>
                 <div className={styles.rangeRow}>
@@ -767,7 +787,7 @@ export default function YoutubeDubPage({
                   <span className={styles.rangeValue}>{originalMixPercent}% original</span>
                 </div>
                 <p className={styles.fieldHint}>
-                  Amount of the original track to keep under the dub (default 15%).
+                  Amount of the original track to keep under the dub (default 5%).
                 </p>
               </label>
               <div className={styles.field}>

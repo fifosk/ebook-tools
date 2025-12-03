@@ -139,6 +139,7 @@ export interface JobParameterSnapshot {
   original_mix_percent?: number | null;
   flush_sentences?: number | null;
   split_batches?: boolean | null;
+  include_transliteration?: boolean | null;
 }
 
 export interface PipelineStatusResponse {
@@ -256,6 +257,7 @@ export interface YoutubeDubRequest {
   flush_sentences?: number | null;
   llm_model?: string | null;
   split_batches?: boolean | null;
+  include_transliteration?: boolean | null;
 }
 
 export interface YoutubeDubResponse {

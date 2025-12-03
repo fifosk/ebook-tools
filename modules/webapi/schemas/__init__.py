@@ -339,6 +339,7 @@ class YoutubeDubRequest(BaseModel):
     flush_sentences: Optional[int] = None
     llm_model: Optional[str] = None
     split_batches: Optional[bool] = None
+    include_transliteration: Optional[bool] = None
 
 
 class YoutubeDubResponse(BaseModel):

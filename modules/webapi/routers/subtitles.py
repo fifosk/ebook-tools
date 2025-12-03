@@ -547,6 +547,7 @@ def generate_youtube_dub(
             detail="flush_sentences must be greater than zero",
         )
     llm_model = (payload.llm_model or "").strip() or None
+    include_transliteration = True if payload.include_transliteration is None else bool(payload.include_transliteration)
     split_batches = bool(payload.split_batches) if payload.split_batches is not None else False
     start_offset = _parse_time_offset(payload.start_time_offset)
     end_offset = _parse_end_time(payload.end_time_offset, start_offset)
@@ -571,6 +572,7 @@ def generate_youtube_dub(
             flush_sentences=flush_sentences,
             llm_model=llm_model,
             split_batches=split_batches,
+            include_transliteration=include_transliteration,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
