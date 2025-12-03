@@ -112,6 +112,7 @@ class _AssDialogue:
     translation: str
     original: str
     transliteration: Optional[str] = None
+    rtl_normalized: bool = False
 
     @property
     def duration(self) -> float:
@@ -256,6 +257,7 @@ def _parse_ass_dialogues(path: Path) -> List[_AssDialogue]:
                 translation=translation,
                 original=original_line,
                 transliteration=None,
+                rtl_normalized=False,
             )
         )
     return [entry for entry in dialogues if entry.end > entry.start]
@@ -276,6 +278,7 @@ def _cues_to_dialogues(cues: Sequence[SubtitleCue]) -> List[_AssDialogue]:
                 translation=text,
                 original=text,
                 transliteration=None,
+                rtl_normalized=False,
             )
         )
     return dialogues
@@ -339,6 +342,8 @@ def _enforce_dialogue_gaps(dialogues: Sequence[_AssDialogue], *, min_gap: float 
                 end=end,
                 translation=entry.translation,
                 original=entry.original,
+                transliteration=entry.transliteration,
+                rtl_normalized=entry.rtl_normalized,
             )
         )
         last_end = end
@@ -368,6 +373,7 @@ def _normalize_dialogue_windows(dialogues: Sequence[_AssDialogue]) -> List[_AssD
                 translation=entry.translation,
                 original=entry.original,
                 transliteration=entry.transliteration,
+                rtl_normalized=entry.rtl_normalized,
             )
         )
     return normalized
@@ -425,6 +431,7 @@ def _clip_dialogues_to_window(
                 translation=entry.translation,
                 original=entry.original,
                 transliteration=entry.transliteration,
+                rtl_normalized=entry.rtl_normalized,
             )
         )
     return clipped
@@ -446,6 +453,7 @@ def _merge_overlapping_dialogues(dialogues: Sequence[_AssDialogue]) -> List[_Ass
                 translation=text,
                 original=entry.original,
                 transliteration=last.transliteration or entry.transliteration,
+                rtl_normalized=last.rtl_normalized or entry.rtl_normalized,
             )
         else:
             merged.append(
@@ -455,6 +463,7 @@ def _merge_overlapping_dialogues(dialogues: Sequence[_AssDialogue]) -> List[_Ass
                     translation=text,
                     original=entry.original,
                     transliteration=entry.transliteration,
+                    rtl_normalized=entry.rtl_normalized,
                 )
             )
     return merged
@@ -1612,6 +1621,7 @@ def generate_dubbed_video(
             for local_idx, entry in enumerate(dialogues):
                 translated_text = entry.translation
                 transliteration_text = None
+                rtl_normalized = entry.rtl_normalized
                 if needs_translation:
                     try:
                         translated_text = _translate_subtitle_text(
@@ -1647,6 +1657,7 @@ def generate_dubbed_video(
                         translation=translated_text,
                         original=entry.original,
                         transliteration=transliteration_text,
+                        rtl_normalized=rtl_normalized,
                     )
                 )
             return translated
@@ -1727,13 +1738,9 @@ def generate_dubbed_video(
                 render_translation = _normalize_rtl_word_order(
                     entry.translation,
                     language_code,
-                    force=True,
+                    force=not entry.rtl_normalized,
                 )
-                render_transliteration = _normalize_rtl_word_order(
-                    transliteration,
-                    language_code,
-                    force=True,
-                )
+                render_transliteration = transliteration
                 source_cue = SubtitleCue(
                     index=next_index,
                     start=max(0.0, entry.start - offset_seconds),
@@ -1810,6 +1817,7 @@ def generate_dubbed_video(
                     translation=entry.translation,
                     original=entry.original,
                     transliteration=transliteration_text,
+                    rtl_normalized=entry.rtl_normalized,
                 )
                 scheduled.append((scheduled_entry, audio, orig_start, orig_end))
                 ass_block_dialogues.append(scheduled_entry)
@@ -2205,6 +2213,7 @@ def _write_webvtt(
     """Serialize dialogues into a WebVTT file."""
 
     destination.parent.mkdir(parents=True, exist_ok=True)
+    resolved_language = target_language or _find_language_token(destination)
 
     def _clean_line(value: str) -> str:
         if not value:
@@ -2218,13 +2227,13 @@ def _write_webvtt(
             return entry.transliteration or ""
         if entry.transliteration:
             return entry.transliteration
-        if transliterator is None or target_language is None:
+        if transliterator is None or resolved_language is None:
             return ""
         try:
             return _transliterate_text(
                 transliterator,
                 entry.translation,
-                target_language,
+                resolved_language,
             )
         except Exception:
             return ""
@@ -2233,13 +2242,13 @@ def _write_webvtt(
         original = _clean_line(entry.original)
         transliteration = _normalize_rtl_word_order(
             _clean_line(_resolve_transliteration(entry)),
-            target_language,
-            force=True,
+            resolved_language,
+            force=False,
         )
         translation = _normalize_rtl_word_order(
             _clean_line(entry.translation),
-            target_language,
-            force=True,
+            resolved_language,
+            force=not entry.rtl_normalized,
         )
 
         # Deduplicate content: skip lines that are identical (case-insensitive, trimmed).
@@ -2352,6 +2361,8 @@ def _ensure_webvtt_for_video(
                     end=local_end,
                     translation=entry.translation,
                     original=entry.original,
+                    transliteration=entry.transliteration,
+                    rtl_normalized=entry.rtl_normalized,
                 )
             )
         shifted = _merge_overlapping_dialogues(shifted)

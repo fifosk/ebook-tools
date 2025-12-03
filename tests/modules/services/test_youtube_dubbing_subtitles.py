@@ -33,6 +33,7 @@ def test_write_webvtt_includes_transliteration_with_rtl_order(tmp_path: Path) ->
         translation="مرحبا بالعالم",
         original="Hello world",
         transliteration=None,
+        rtl_normalized=False,
     )
     _write_webvtt(
         [dialogue],
@@ -43,4 +44,4 @@ def test_write_webvtt_includes_transliteration_with_rtl_order(tmp_path: Path) ->
     )
     payload = destination.read_text(encoding="utf-8")
     assert "بالعالم مرحبا" in payload
-    assert "aleikum salam" in payload
+    assert "salam aleikum" in payload
