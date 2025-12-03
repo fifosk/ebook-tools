@@ -3,11 +3,18 @@ import type { LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
 import { NavigationControls } from './PlayerPanel';
-import { DEFAULT_TRANSLATION_SPEED } from './player-panel/constants';
+import { appendAccessToken } from '../api/client';
+import {
+  DEFAULT_TRANSLATION_SPEED,
+  TRANSLATION_SPEED_MAX,
+  TRANSLATION_SPEED_MIN,
+  TRANSLATION_SPEED_STEP,
+  normaliseTranslationSpeed,
+} from './player-panel/constants';
 import { toVideoFiles } from './player-panel/utils';
 import type { NavigationIntent } from './player-panel/constants';
 
-type PlaybackControls = { pause: () => void; play: () => void };
+type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void };
 
 interface YoutubeDubPlayerProps {
   jobId: string;
@@ -35,11 +42,16 @@ export default function YoutubeDubPlayer({
     jobId,
   });
   const subtitleMap = useMemo(() => {
-    const priorities = ['vtt', 'ass', 'srt', 'text'];
+    const priorities = ['vtt', 'srt', 'ass', 'text'];
+    const resolveSuffix = (value: string | null | undefined) =>
+      value?.split('.').pop()?.toLowerCase() ?? '';
+    const formatRank = (entry: (typeof media.text)[number]) => {
+      const suffix = resolveSuffix(entry.url) || resolveSuffix(entry.name) || resolveSuffix(entry.path);
+      const score = priorities.indexOf(suffix);
+      return score >= 0 ? score : priorities.length;
+    };
     const scoreTrack = (entry: (typeof media.text)[number], context: { range: string | null; chunk: string | null; base: string | null }) => {
-      const suffix = entry.url?.split('.').pop()?.toLowerCase() ?? '';
-      const formatScore = priorities.indexOf(suffix);
-      const suffixScore = formatScore >= 0 ? formatScore : priorities.length;
+      const formatScore = formatRank(entry);
       const rangeScore = context.range
         ? entry.range_fragment === context.range
           ? 0
@@ -55,21 +67,25 @@ export default function YoutubeDubPlayer({
         : entry.chunk_id
           ? 1
           : 3;
-      return { entry, score: [rangeScore, baseScore, chunkScore, suffixScore] as const };
+      return { entry, score: [formatScore, rangeScore, chunkScore, baseScore] as const };
     };
 
     const map = new Map<string, SubtitleTrack[]>();
-    const fallbackTracks = media.text
+    const fallbackTracks: SubtitleTrack[] = media.text
       .filter((entry) => typeof entry.url === 'string' && entry.url.length > 0)
+      .sort((a, b) => formatRank(a) - formatRank(b))
       .map((entry) => ({
-        url: entry.url!,
+        url: appendAccessToken(entry.url!),
         label: entry.name ?? entry.url ?? 'Subtitles',
+        kind: 'subtitles',
+        language: (entry as { language?: string }).language ?? undefined,
       }));
     media.video.forEach((video) => {
       const url = typeof video.url === 'string' ? video.url : null;
       if (!url) {
         return;
       }
+      const videoUrl = appendAccessToken(url);
       const baseId = deriveBaseId(video);
       const range = video.range_fragment ?? null;
       const chunkId = video.chunk_id ?? null;
@@ -88,7 +104,7 @@ export default function YoutubeDubPlayer({
       });
       if (matches.length === 0) {
         if (fallbackTracks.length > 0) {
-          map.set(url, fallbackTracks);
+          map.set(videoUrl, fallbackTracks);
         }
         return;
       }
@@ -107,11 +123,12 @@ export default function YoutubeDubPlayer({
         });
       const best = scored[0]?.entry;
       if (best) {
-        map.set(url, [
+        map.set(videoUrl, [
           {
-            url: best.url!,
+            url: appendAccessToken(best.url!),
             label: best.name ?? best.url ?? 'Subtitles',
-            kind: best.type === 'text' ? 'subtitles' : best.type,
+            kind: 'subtitles',
+            language: (best as { language?: string }).language ?? undefined,
           },
         ]);
         return;
@@ -120,22 +137,72 @@ export default function YoutubeDubPlayer({
       if (filtered.length > 0) {
         map.set(
           url,
-          filtered.map((entry) => ({
-            url: entry.url!,
-            label: entry.name ?? entry.url ?? 'Subtitles',
-          })),
+          filtered
+            .sort((a, b) => formatRank(a) - formatRank(b))
+            .map((entry) => ({
+              url: appendAccessToken(entry.url!),
+              label: entry.name ?? entry.url ?? 'Subtitles',
+              kind: 'subtitles',
+              language: (entry as { language?: string }).language ?? undefined,
+            })),
         );
       }
     });
+    if (fallbackTracks.length > 0) {
+      map.set('__fallback__', fallbackTracks);
+    }
+
     return map;
   }, [deriveBaseId, media.text, media.video]);
+
+  const buildSiblingSubtitleTracks = useCallback((videoUrl: string | null | undefined): SubtitleTrack[] => {
+    if (!videoUrl) {
+      return [];
+    }
+    try {
+      const url = new URL(videoUrl, window.location.origin);
+      const candidates = ['.vtt', '.srt', '.ass'].map((suffix) => {
+        const clone = new URL(url.toString());
+        const path = clone.pathname.replace(/\.[^/.]+$/, suffix);
+        clone.pathname = path;
+        return appendAccessToken(clone.toString());
+      });
+      return candidates.map((candidate, index) => ({
+        url: candidate,
+        label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
+        kind: 'subtitles',
+      }));
+    } catch (error) {
+      void error;
+    }
+    return [];
+  }, []);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
+  const [playbackSpeed, setPlaybackSpeed] = useState(DEFAULT_TRANSLATION_SPEED);
   const pendingAutoplayRef = useRef(false);
   const previousFileCountRef = useRef<number>(videoFiles.length);
   const controlsRef = useRef<PlaybackControls | null>(null);
+  const lastActivatedVideoRef = useRef<string | null>(null);
+  const activeSubtitleTracks = useMemo(() => {
+    const base =
+      activeVideoId
+        ? subtitleMap.get(activeVideoId) ?? subtitleMap.get('__fallback__') ?? []
+        : subtitleMap.get('__fallback__') ?? [];
+    if (base.length > 0) {
+      return base;
+    }
+    const activeVideo = activeVideoId
+      ? videoFiles.find((file) => file.id === activeVideoId) ?? null
+      : null;
+    const siblingTracks = buildSiblingSubtitleTracks(activeVideo?.url);
+    if (siblingTracks.length > 0) {
+      return siblingTracks;
+    }
+    return base;
+  }, [activeVideoId, buildSiblingSubtitleTracks, subtitleMap, videoFiles]);
 
   useEffect(() => {
     const availableIds = videoFiles.map((file) => file.id);
@@ -170,6 +237,28 @@ export default function YoutubeDubPlayer({
     setIsPlaying(false);
   }, [activeVideoId]);
 
+  const resetPlaybackPosition = useCallback(
+    (videoId: string | null) => {
+      if (!videoId) {
+        return;
+      }
+      const match = media.video.find((item) => item.url === videoId) ?? null;
+      const baseId = match ? deriveBaseId(match) : null;
+      rememberPosition({
+        mediaId: videoId,
+        mediaType: 'video',
+        baseId,
+        position: 0,
+      });
+      lastActivatedVideoRef.current = videoId;
+    },
+    [deriveBaseId, media.video, rememberPosition],
+  );
+
+  useEffect(() => {
+    resetPlaybackPosition(activeVideoId);
+  }, [activeVideoId, resetPlaybackPosition]);
+
   useEffect(() => {
     onPlaybackStateChange?.(isPlaying);
     onVideoPlaybackStateChange?.(isPlaying);
@@ -202,9 +291,11 @@ export default function YoutubeDubPlayer({
       if (nextIndex === currentIndex || nextIndex < 0 || nextIndex >= videoFiles.length) {
         return;
       }
-      setActiveVideoId(videoFiles[nextIndex].id);
+      const nextId = videoFiles[nextIndex].id;
+      resetPlaybackPosition(nextId);
+      setActiveVideoId(nextId);
     },
-    [activeVideoId, videoFiles],
+    [activeVideoId, resetPlaybackPosition, videoFiles],
   );
 
   const handleTogglePlayback = useCallback(() => {
@@ -234,14 +325,44 @@ export default function YoutubeDubPlayer({
     setIsFullscreen((current) => {
       const next = !current;
       onFullscreenChange?.(next);
+      if (next) {
+        controlsRef.current?.ensureFullscreen?.();
+      }
       return next;
     });
   }, [onFullscreenChange]);
 
-  const handleExitFullscreen = useCallback(() => {
-    setIsFullscreen(false);
-    onFullscreenChange?.(false);
-  }, [onFullscreenChange]);
+  const handleExitFullscreen = useCallback(
+    (reason?: 'user' | 'lost') => {
+      if (reason === 'user') {
+        setIsFullscreen(false);
+        onFullscreenChange?.(false);
+        return;
+      }
+      // If fullscreen was lost but the toggle is still on, immediately request it again.
+      if (isFullscreen) {
+        setTimeout(() => {
+          controlsRef.current?.ensureFullscreen?.();
+        }, 0);
+        return;
+      }
+      onFullscreenChange?.(false);
+    },
+    [isFullscreen, onFullscreenChange],
+  );
+
+  useEffect(() => {
+    if (!isFullscreen) {
+      return;
+    }
+    // Reassert fullscreen whenever the active video changes while the toggle is on.
+    const timer = window.setTimeout(() => {
+      controlsRef.current?.ensureFullscreen?.();
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isFullscreen, activeVideoId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -277,6 +398,10 @@ export default function YoutubeDubPlayer({
     controlsRef.current = controls;
   }, []);
 
+  const handlePlaybackRateChange = useCallback((rate: number) => {
+    setPlaybackSpeed(normaliseTranslationSpeed(rate));
+  }, []);
+
   const handleSubtitleToggle = useCallback(() => {
     setSubtitlesEnabled((current) => !current);
   }, []);
@@ -299,7 +424,8 @@ export default function YoutubeDubPlayer({
   );
 
   const activeVideo = activeVideoId ? media.video.find((file) => file.url === activeVideoId) ?? null : null;
-  const playbackPosition = getPosition(activeVideoId);
+  const playbackPosition =
+    activeVideoId && lastActivatedVideoRef.current === activeVideoId ? getPosition(activeVideoId) : 0;
   const videoCount = videoFiles.length;
   const currentIndex = activeVideoId ? videoFiles.findIndex((file) => file.id === activeVideoId) : -1;
   const disableFirst = videoCount === 0 || currentIndex <= 0;
@@ -310,6 +436,10 @@ export default function YoutubeDubPlayer({
   const disableFullscreen = videoCount === 0;
   const selectionLabel = activeVideo?.name ?? activeVideo?.url ?? 'Video';
   const selectionMeta = activeVideo?.updated_at ?? '';
+
+  const handleTranslationSpeedChange = useCallback((value: number) => {
+    setPlaybackSpeed(normaliseTranslationSpeed(value));
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -332,15 +462,19 @@ export default function YoutubeDubPlayer({
     if (shouldResume) {
       const nextId = videoFiles[videoFiles.length - 1]?.id;
       if (nextId) {
+        resetPlaybackPosition(nextId);
         setActiveVideoId(nextId);
         // Defer play until the video element mounts with the new source.
         setTimeout(() => {
+          if (isFullscreen) {
+            controlsRef.current?.ensureFullscreen?.();
+          }
           controlsRef.current?.play();
         }, 0);
       }
       pendingAutoplayRef.current = false;
     }
-  }, [videoFiles]);
+  }, [isFullscreen, resetPlaybackPosition, videoFiles]);
 
   return (
     <section className="player-panel" aria-label={`YouTube dub ${jobId}`}>
@@ -369,15 +503,12 @@ export default function YoutubeDubPlayer({
                   onToggleSubtitles={handleSubtitleToggle}
                   subtitlesEnabled={subtitlesEnabled}
                   disableSubtitleToggle={videoCount === 0}
-                  showTranslationSpeed={false}
-                  translationSpeed={DEFAULT_TRANSLATION_SPEED}
-                  translationSpeedMin={DEFAULT_TRANSLATION_SPEED}
-                  translationSpeedMax={DEFAULT_TRANSLATION_SPEED}
-                  translationSpeedStep={DEFAULT_TRANSLATION_SPEED}
-                  onTranslationSpeedChange={(value) => {
-                    // Translation speed is unused for video playback but required by the control API.
-                    void value;
-                  }}
+                  showTranslationSpeed
+                  translationSpeed={playbackSpeed}
+                  translationSpeedMin={TRANSLATION_SPEED_MIN}
+                  translationSpeedMax={TRANSLATION_SPEED_MAX}
+                  translationSpeedStep={TRANSLATION_SPEED_STEP}
+                  onTranslationSpeedChange={handleTranslationSpeedChange}
                 />
               </div>
             </header>
@@ -396,18 +527,23 @@ export default function YoutubeDubPlayer({
                   <VideoPlayer
                     files={videoFiles}
                     activeId={activeVideoId}
-                    onSelectFile={setActiveVideoId}
+                    onSelectFile={(id) => {
+                      resetPlaybackPosition(id);
+                      setActiveVideoId(id);
+                    }}
                     autoPlay
                     onPlaybackEnded={handlePlaybackEnded}
                     playbackPosition={playbackPosition}
-                  onPlaybackPositionChange={handlePlaybackPositionChange}
-                  onPlaybackStateChange={handlePlaybackStateChange}
-                  isTheaterMode={isFullscreen}
-                  onExitTheaterMode={handleExitFullscreen}
-                  onRegisterControls={handleRegisterControls}
-                  subtitlesEnabled={subtitlesEnabled}
-                  tracks={activeVideoId ? subtitleMap.get(activeVideoId) ?? [] : []}
-                />
+                    onPlaybackPositionChange={handlePlaybackPositionChange}
+                    onPlaybackStateChange={handlePlaybackStateChange}
+                    playbackRate={playbackSpeed}
+                    onPlaybackRateChange={handlePlaybackRateChange}
+                    isTheaterMode={isFullscreen}
+                    onExitTheaterMode={handleExitFullscreen}
+                    onRegisterControls={handleRegisterControls}
+                    subtitlesEnabled={subtitlesEnabled}
+                    tracks={activeSubtitleTracks}
+                  />
                   <div className="player-panel__selection-header" data-testid="player-panel-selection">
                     <div className="player-panel__selection-name" title={selectionLabel}>
                       {selectionLabel}

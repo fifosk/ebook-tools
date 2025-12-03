@@ -21,14 +21,33 @@ interface VideoPlayerProps {
   playbackPosition?: number | null;
   onPlaybackPositionChange?: (position: number) => void;
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
+  playbackRate?: number | null;
+  onPlaybackRateChange?: (rate: number) => void;
   isTheaterMode?: boolean;
-  onExitTheaterMode?: () => void;
-  onRegisterControls?: (controls: { pause: () => void; play: () => void } | null) => void;
+  onExitTheaterMode?: (reason?: 'user' | 'lost') => void;
+  onRegisterControls?: (
+    controls:
+      | {
+          pause: () => void;
+          play: () => void;
+          ensureFullscreen?: () => void;
+        }
+      | null
+  ) => void;
   subtitlesEnabled?: boolean;
   tracks?: SubtitleTrack[];
 }
 
 import { useCallback, useEffect, useRef } from 'react';
+
+const DEFAULT_PLAYBACK_RATE = 1;
+
+function sanitiseRate(value: number | null | undefined): number {
+  if (!Number.isFinite(value) || !value) {
+    return DEFAULT_PLAYBACK_RATE;
+  }
+  return Math.max(0.25, Math.min(4, value));
+}
 
 export default function VideoPlayer({
   files,
@@ -39,6 +58,8 @@ export default function VideoPlayer({
   playbackPosition = null,
   onPlaybackPositionChange,
   onPlaybackStateChange,
+  playbackRate = DEFAULT_PLAYBACK_RATE,
+  onPlaybackRateChange,
   isTheaterMode = false,
   onExitTheaterMode,
   onRegisterControls,
@@ -53,6 +74,25 @@ export default function VideoPlayer({
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+
+  const requestFullscreenPlayback = useCallback(() => {
+    const element = elementRef.current;
+    if (typeof document === 'undefined' || !element || !isTheaterMode) {
+      return;
+    }
+    if (document.fullscreenElement === element) {
+      return;
+    }
+    if (typeof element.requestFullscreen === 'function') {
+      const result = element.requestFullscreen();
+      if (result && typeof (result as Promise<unknown>).catch === 'function') {
+        (result as Promise<unknown>).catch(() => {
+          /* Ignore request rejections (e.g. lacking user gesture). */
+        });
+      }
+      fullscreenRequestedRef.current = true;
+    }
+  }, [isTheaterMode]);
 
   useEffect(() => {
     if (!onRegisterControls) {
@@ -84,12 +124,13 @@ export default function VideoPlayer({
           // Swallow play failures caused by autoplay policies.
         }
       },
+      ensureFullscreen: requestFullscreenPlayback,
     };
     onRegisterControls(controls);
     return () => {
       onRegisterControls(null);
     };
-  }, [onRegisterControls, activeFile?.id]);
+  }, [onRegisterControls, activeFile?.id, requestFullscreenPlayback]);
 
   const attemptAutoplay = useCallback(() => {
     if (!autoPlay) {
@@ -136,6 +177,32 @@ export default function VideoPlayer({
     }
   }, [playbackPosition, activeFile?.id]);
 
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+    const safeRate = sanitiseRate(playbackRate);
+    if (Math.abs(element.playbackRate - safeRate) < 1e-3) {
+      return;
+    }
+    element.playbackRate = safeRate;
+  }, [playbackRate, activeFile?.id]);
+
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || !onPlaybackRateChange) {
+      return;
+    }
+    const handleRateChange = () => {
+      onPlaybackRateChange(sanitiseRate(element.playbackRate));
+    };
+    element.addEventListener('ratechange', handleRateChange);
+    return () => {
+      element.removeEventListener('ratechange', handleRateChange);
+    };
+  }, [onPlaybackRateChange, activeFile?.id]);
+
   const handleTimeUpdate = useCallback(() => {
     const element = elementRef.current;
     if (!element) {
@@ -165,7 +232,7 @@ export default function VideoPlayer({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        onExitTheaterMode?.();
+        onExitTheaterMode?.('user');
       }
     };
 
@@ -181,24 +248,6 @@ export default function VideoPlayer({
       return;
     }
 
-    const ensureFullscreen = () => {
-      if (!isTheaterMode) {
-        return;
-      }
-      if (document.fullscreenElement === element) {
-        return;
-      }
-      if (typeof element.requestFullscreen === 'function') {
-        const result = element.requestFullscreen();
-        if (result && typeof (result as Promise<unknown>).catch === 'function') {
-          (result as Promise<unknown>).catch(() => {
-            /* Swallow fullscreen request rejections (e.g. user gesture requirements). */
-          });
-        }
-        fullscreenRequestedRef.current = true;
-      }
-    };
-
     const releaseFullscreen = () => {
       if (typeof document.exitFullscreen === 'function') {
         const result = document.exitFullscreen();
@@ -212,7 +261,7 @@ export default function VideoPlayer({
     };
 
     if (isTheaterMode) {
-      ensureFullscreen();
+      requestFullscreenPlayback();
     } else {
       if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
         releaseFullscreen();
@@ -232,7 +281,7 @@ export default function VideoPlayer({
         releaseFullscreen();
       }
     };
-  }, [isTheaterMode, activeFile?.id]);
+  }, [isTheaterMode, activeFile?.id, requestFullscreenPlayback]);
 
   useEffect(() => {
     if (!isTheaterMode || typeof document === 'undefined') {
@@ -246,7 +295,7 @@ export default function VideoPlayer({
       }
       if (document.fullscreenElement !== element) {
         fullscreenRequestedRef.current = false;
-        onExitTheaterMode?.();
+        onExitTheaterMode?.('lost');
       }
     };
 
@@ -268,7 +317,7 @@ export default function VideoPlayer({
       }
       track.mode = index === 0 ? 'showing' : 'disabled';
     });
-  }, [subtitlesEnabled, activeFile?.id]);
+  }, [subtitlesEnabled, activeFile?.id, tracks]);
 
   if (files.length === 0) {
     return (
@@ -293,18 +342,19 @@ export default function VideoPlayer({
           type="button"
           className="video-player__backdrop"
           aria-label="Exit immersive mode"
-          onClick={onExitTheaterMode}
+          onClick={() => onExitTheaterMode?.('user')}
         />
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage">
           <div className="video-player__canvas">
             <video
+              key={activeFile.id}
               ref={elementRef}
               className="video-player__element"
               data-testid="video-player"
               controls
-              crossOrigin="anonymous"
+              crossOrigin="use-credentials"
               src={activeFile.url}
               poster={activeFile.poster}
               autoPlay={autoPlay}
@@ -321,7 +371,7 @@ export default function VideoPlayer({
                   src={track.url}
                   kind={track.kind ?? 'subtitles'}
                   label={track.label}
-                  srcLang={track.language}
+                  srcLang={track.language || 'und'}
                   default={index === 0}
                 />
               ))}

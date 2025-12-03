@@ -129,6 +129,10 @@ def build_entry(
         job_root,
     )
 
+    metadata["item_type"] = infer_item_type(metadata)
+    if metadata["item_type"] == "video":
+        apply_video_defaults(metadata, job_root)
+
     cover_path = file_ops.extract_cover_path(metadata, job_root)
     if cover_path:
         metadata["job_cover_asset"] = cover_path
@@ -156,11 +160,102 @@ def build_entry(
     )
 
 
+def infer_item_type(metadata: Mapping[str, Any]) -> str:
+    """Infer whether the library entry should be treated as a book or video."""
+
+    explicit = metadata.get("item_type")
+    if isinstance(explicit, str):
+        normalized = explicit.strip().lower()
+        if normalized in {"book", "video"}:
+            return normalized
+
+    job_type = metadata.get("job_type")
+    if isinstance(job_type, str) and job_type.strip().lower() == "youtube_dub":
+        return "video"
+
+    if isinstance(metadata.get("youtube_dub"), Mapping):
+        return "video"
+
+    result_section = metadata.get("result")
+    if isinstance(result_section, Mapping):
+        if isinstance(result_section.get("youtube_dub"), Mapping):
+            return "video"
+
+    return "book"
+
+
+def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
+    """Populate sensible defaults for dubbed video entries."""
+
+    metadata["item_type"] = "video"
+    dub_section: Optional[Mapping[str, Any]] = None
+
+    if isinstance(metadata.get("youtube_dub"), Mapping):
+        dub_section = metadata.get("youtube_dub")  # type: ignore[assignment]
+
+    result_section = metadata.get("result")
+    if isinstance(result_section, Mapping) and isinstance(result_section.get("youtube_dub"), Mapping):
+        dub_section = result_section.get("youtube_dub")  # type: ignore[assignment]
+
+    resume_context = metadata.get("resume_context")
+    request_section = metadata.get("request")
+
+    language = None
+    if isinstance(dub_section, Mapping):
+        language = dub_section.get("language")
+    if language is None and isinstance(resume_context, Mapping):
+        language = resume_context.get("target_language") or resume_context.get("language")
+    if language is None and isinstance(request_section, Mapping):
+        language = request_section.get("target_language") or request_section.get("language")
+    if isinstance(language, str) and language.strip():
+        metadata.setdefault("language", language.strip())
+
+    video_path: Optional[str] = None
+    if isinstance(dub_section, Mapping):
+        candidate = dub_section.get("video_path")
+        if isinstance(candidate, str) and candidate.strip():
+            video_path = candidate.strip()
+    if video_path is None and isinstance(resume_context, Mapping):
+        candidate = resume_context.get("video_path")
+        if isinstance(candidate, str) and candidate.strip():
+            video_path = candidate.strip()
+    if video_path is None and isinstance(request_section, Mapping):
+        candidate = request_section.get("video_path")
+        if isinstance(candidate, str) and candidate.strip():
+            video_path = candidate.strip()
+
+    title_candidate = None
+    author_candidate = None
+    if video_path:
+        try:
+            path_obj = Path(video_path)
+            title_candidate = path_obj.stem or path_obj.name
+            author_candidate = path_obj.parent.name or None
+        except Exception:
+            title_candidate = video_path.rsplit("/", 1)[-1]
+
+    if title_candidate:
+        metadata.setdefault("book_title", title_candidate)
+    if author_candidate:
+        metadata.setdefault("author", author_candidate)
+
+    metadata.setdefault("genre", "Video")
+
+    source_reference = file_ops.resolve_source_relative(metadata, job_root)
+    if source_reference:
+        apply_source_reference(metadata, source_reference)
+    elif video_path:
+        metadata.setdefault("source_path", video_path)
+        metadata.setdefault("source_file", video_path)
+
+
 __all__ = [
     "apply_isbn",
     "apply_source_reference",
     "build_entry",
     "extract_isbn",
+    "infer_item_type",
     "merge_metadata_payloads",
+    "apply_video_defaults",
     "normalize_isbn",
 ]

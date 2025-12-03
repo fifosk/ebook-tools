@@ -622,6 +622,7 @@ export function JobProgress({
   const statusValue = status?.status ?? 'pending';
   const jobType = status?.job_type ?? 'pipeline';
   const isPipelineJob = jobType === 'pipeline';
+  const isLibraryMovableJob = isPipelineJob || jobType === 'youtube_dub';
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -700,8 +701,8 @@ export function JobProgress({
   const canCopy = Boolean(onCopy);
   const mediaCompleted = useMemo(() => resolveMediaCompletion(status), [status]);
   const isLibraryCandidate =
-    isPipelineJob && (statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true));
-  const shouldRenderLibraryButton = Boolean(onMoveToLibrary) && canManage && isPipelineJob;
+    isLibraryMovableJob && (statusValue === 'completed' || (statusValue === 'paused' && mediaCompleted === true));
+  const shouldRenderLibraryButton = Boolean(onMoveToLibrary) && canManage && isLibraryMovableJob;
   const canMoveToLibrary = shouldRenderLibraryButton && isLibraryCandidate;
   const libraryButtonTitle =
     shouldRenderLibraryButton && !isLibraryCandidate

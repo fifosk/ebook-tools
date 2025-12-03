@@ -89,6 +89,9 @@ export function buildLibraryBookMetadata(
     return null;
   }
   const base = extractLibraryBookMetadata(item);
+  if ((item.itemType ?? 'book') === 'video') {
+    return base ?? {};
+  }
   const coverUrl = resolveLibraryCoverUrl(item, base);
   if (!base && !coverUrl) {
     return null;

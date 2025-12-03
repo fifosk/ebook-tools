@@ -107,6 +107,9 @@ class LibrarySync:
             metadata["status"] = normalized_status
             metadata["updated_at"] = now
             metadata["media_completed"] = bool(media_ready)
+            metadata["item_type"] = metadata_utils.infer_item_type(metadata)
+            if metadata["item_type"] == "video":
+                metadata_utils.apply_video_defaults(metadata, job_root)
 
             target_path = file_ops.resolve_library_path(self._library_root, metadata, job_id)
 
@@ -223,6 +226,7 @@ class LibrarySync:
                 job_id,
                 job_root,
             )
+            metadata["item_type"] = metadata_utils.infer_item_type(metadata)
             file_ops.write_metadata(job_root, metadata)
 
         if is_library:
@@ -348,6 +352,7 @@ class LibrarySync:
                 lock.relocate(target_resolved)
                 job_root = target_resolved
 
+            metadata["item_type"] = metadata_utils.infer_item_type(metadata)
             file_ops.write_metadata(job_root, metadata)
 
         updated_item = metadata_utils.build_entry(
@@ -381,6 +386,7 @@ class LibrarySync:
                 error_cls=LibraryError,
                 current_timestamp=utils.current_timestamp,
             )
+            refreshed["item_type"] = metadata_utils.infer_item_type(refreshed)
             file_ops.write_metadata(job_root, refreshed)
 
         refreshed_item = metadata_utils.build_entry(
@@ -433,6 +439,7 @@ class LibrarySync:
             source_relative = destination.relative_to(job_root).as_posix()
             metadata_utils.apply_source_reference(metadata, source_relative)
             metadata["updated_at"] = utils.current_timestamp()
+            metadata["item_type"] = metadata_utils.infer_item_type(metadata)
             file_ops.write_metadata(job_root, metadata)
 
         try:
@@ -480,6 +487,7 @@ class LibrarySync:
                 error_cls=LibraryError,
                 current_timestamp=utils.current_timestamp,
             )
+            updated["item_type"] = metadata_utils.infer_item_type(updated)
             file_ops.write_metadata(job_root, updated)
 
         return self.refresh_metadata(job_id)
@@ -670,6 +678,7 @@ class LibrarySync:
             "job_id": item.id,
             "author": item.author or "",
             "book_title": item.book_title or "",
+            "item_type": item.item_type or "book",
             "genre": item.genre,
             "language": item.language,
             "status": item.status,

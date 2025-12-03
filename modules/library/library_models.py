@@ -105,6 +105,7 @@ class LibraryEntry:
     created_at: str
     updated_at: str
     library_path: str
+    item_type: str = "book"
     cover_path: Optional[str] = None
     isbn: Optional[str] = None
     source_path: Optional[str] = None
@@ -119,6 +120,7 @@ class LibraryEntry:
             "job_id": self.id,
             "author": self.author or "",
             "book_title": self.book_title or "",
+            "item_type": self.item_type or "book",
             "genre": self.genre,
             "language": self.language,
             "status": self.status,

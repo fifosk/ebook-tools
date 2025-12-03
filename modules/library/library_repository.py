@@ -8,6 +8,8 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
 
+from modules.library.sync import metadata as metadata_utils
+
 from .library_models import LibraryEntry, MetadataSnapshot
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
@@ -129,6 +131,7 @@ class LibraryRepository:
             id=payload["job_id"],
             author=payload["author"],
             book_title=payload["book_title"],
+            item_type=payload.get("item_type") or "book",
             genre=payload.get("genre"),
             language=payload["language"],
             status=payload["status"],
@@ -163,12 +166,12 @@ class LibraryRepository:
             connection.executemany(
                 """
                 INSERT INTO library_items (
-                    id, author, book_title, genre, language, status,
+                    id, author, book_title, item_type, genre, language, status,
                     created_at, updated_at, library_path, cover_path,
                     isbn, source_path, meta_json
                 )
                 VALUES (
-                    :id, :author, :book_title, :genre, :language, :status,
+                    :id, :author, :book_title, :item_type, :genre, :language, :status,
                     :created_at, :updated_at, :library_path, :cover_path,
                     :isbn, :source_path, :meta_json
                 )
@@ -239,6 +242,7 @@ class LibraryRepository:
         created_at = str(metadata.get("created_at") or "")
         updated_at = str(metadata.get("updated_at") or created_at)
         cover_path = metadata.get("job_cover_asset")
+        item_type = metadata_utils.infer_item_type(metadata)
         isbn = metadata.get("isbn")
         source_path = metadata.get("source_path")
 
@@ -247,6 +251,7 @@ class LibraryRepository:
             id=job_id,
             author=author,
             book_title=book_title,
+            item_type=item_type,
             genre=str(genre) if genre not in {None, ""} else None,
             language=language,
             status=status,
@@ -276,7 +281,7 @@ class LibraryRepository:
             params["fts_query"] = normalized_query
             where_clauses.append("library_items_fts MATCH :fts_query")
 
-        for field in ("author", "book_title", "genre", "language", "status"):
+        for field in ("author", "book_title", "genre", "language", "status", "item_type"):
             value = filters.get(field)
             if value:
                 params[field] = value
@@ -291,6 +296,7 @@ class LibraryRepository:
             "id": entry.id,
             "author": entry.author,
             "book_title": entry.book_title,
+            "item_type": entry.item_type or "book",
             "genre": entry.genre,
             "language": entry.language,
             "status": entry.status,
@@ -324,6 +330,7 @@ class LibraryRepository:
             id=row["id"],
             author=row["author"] or "",
             book_title=row["book_title"] or "",
+            item_type=row["item_type"] if "item_type" in row.keys() else "book",
             genre=row["genre"],
             language=row["language"] or "",
             status=row["status"] or "",
@@ -343,18 +350,19 @@ class LibraryRepository:
             connection.execute(
                 """
                 INSERT INTO library_items (
-                    id, author, book_title, genre, language, status,
+                    id, author, book_title, item_type, genre, language, status,
                     created_at, updated_at, library_path, cover_path,
                     isbn, source_path, meta_json
                 )
                 VALUES (
-                    :id, :author, :book_title, :genre, :language, :status,
+                    :id, :author, :book_title, :item_type, :genre, :language, :status,
                     :created_at, :updated_at, :library_path, :cover_path,
                     :isbn, :source_path, :meta_json
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     author=excluded.author,
                     book_title=excluded.book_title,
+                    item_type=excluded.item_type,
                     genre=excluded.genre,
                     language=excluded.language,
                     status=excluded.status,

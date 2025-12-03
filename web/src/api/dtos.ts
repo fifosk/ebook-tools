@@ -361,6 +361,7 @@ export interface LibraryItem {
   jobId: string;
   author: string;
   bookTitle: string;
+  itemType: 'book' | 'video';
   genre?: string | null;
   language: string;
   status: 'finished' | 'paused';

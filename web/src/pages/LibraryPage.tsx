@@ -19,9 +19,45 @@ import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
 
 const PAGE_SIZE = 25;
 
+const UNKNOWN_AUTHOR = 'Unknown Author';
+const UNKNOWN_CREATOR = 'Unknown Creator';
+const UNKNOWN_GENRE = 'Unknown Genre';
+const UNTITLED_BOOK = 'Untitled Book';
+const UNTITLED_VIDEO = 'Untitled Video';
+
 type LibraryPageProps = {
   onPlay?: (item: LibraryOpenInput) => void;
 };
+
+type LibraryItemType = 'book' | 'video';
+
+function resolveItemType(item: LibraryItem | null | undefined): LibraryItemType {
+  return (item?.itemType ?? 'book') as LibraryItemType;
+}
+
+function resolveTitle(item: LibraryItem | null | undefined): string {
+  const candidate = item?.bookTitle?.trim() ?? '';
+  if (candidate) {
+    return candidate;
+  }
+  return resolveItemType(item) === 'video' ? UNTITLED_VIDEO : UNTITLED_BOOK;
+}
+
+function resolveAuthor(item: LibraryItem | null | undefined): string {
+  const candidate = item?.author?.trim() ?? '';
+  if (candidate) {
+    return candidate;
+  }
+  return resolveItemType(item) === 'video' ? UNKNOWN_CREATOR : UNKNOWN_AUTHOR;
+}
+
+function resolveGenre(item: LibraryItem | null | undefined): string {
+  const candidate = item?.genre?.toString().trim() ?? '';
+  if (candidate) {
+    return candidate;
+  }
+  return resolveItemType(item) === 'video' ? 'Video' : UNKNOWN_GENRE;
+}
 
 function LibraryPage({ onPlay }: LibraryPageProps) {
   const [query, setQuery] = useState('');
@@ -129,25 +165,32 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     setSelectedItem(item);
   }, []);
 
-  const handleOpen = useCallback((item: LibraryItem) => {
-    selectLibraryItem(item);
+  const openLibraryItem = useCallback(
+    (item: LibraryItem) => {
+      selectLibraryItem(item);
+      if (onPlay) {
+        const itemType = resolveItemType(item);
+        const payload: LibraryOpenRequest = {
+          kind: 'library-open',
+          jobId: item.jobId,
+          item,
+          selection: {
+            baseId: null,
+            preferredType: itemType === 'video' ? 'video' : 'text',
+            offsetRatio: null,
+            approximateTime: null,
+            token: Date.now()
+          }
+        };
+        onPlay(payload);
+      }
+    },
+    [onPlay, selectLibraryItem]
+  );
 
-    if (onPlay) {
-      const payload: LibraryOpenRequest = {
-        kind: 'library-open',
-        jobId: item.jobId,
-        item,
-        selection: {
-          baseId: null,
-          preferredType: 'text',
-          offsetRatio: null,
-          approximateTime: null,
-          token: Date.now()
-        }
-      };
-      onPlay(payload);
-    }
-  }, [onPlay, selectLibraryItem]);
+  const handleOpen = useCallback((item: LibraryItem) => {
+    openLibraryItem(item);
+  }, [openLibraryItem]);
 
   const handleRemoveEntry = useCallback(
     async (item: LibraryItem) => {
@@ -362,6 +405,11 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     return `Showing ${start}–${end} of ${total}`;
   }, [items.length, page, total]);
 
+  const selectedItemType = useMemo(() => resolveItemType(selectedItem), [selectedItem]);
+  const selectedTitle = useMemo(() => resolveTitle(selectedItem), [selectedItem]);
+  const selectedAuthor = useMemo(() => resolveAuthor(selectedItem), [selectedItem]);
+  const selectedGenre = useMemo(() => resolveGenre(selectedItem), [selectedItem]);
+
   const selectedBookMetadata = useMemo(
     () => extractLibraryBookMetadata(selectedItem),
     [selectedItem]
@@ -385,8 +433,8 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     if (!selectedItem || !onPlay) {
       return;
     }
-    onPlay(selectedItem);
-  }, [onPlay, selectedItem]);
+    openLibraryItem(selectedItem);
+  }, [onPlay, openLibraryItem, selectedItem]);
 
   return (
     <div className={styles.page}>
@@ -429,12 +477,12 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
         <aside className={styles.detailsCard} aria-live="polite">
           {selectedItem ? (
             <>
-              <h2>{selectedItem.bookTitle || 'Untitled Book'}</h2>
+              <h2>{selectedTitle}</h2>
               {displayedCoverUrl ? (
                 <div className={styles.coverWrapper}>
                   <img
                     src={displayedCoverUrl}
-                    alt={`Cover art for ${selectedItem.bookTitle || 'selected book'}`}
+                    alt={`Cover art for ${selectedTitle}`}
                     className={styles.coverImage}
                   />
                 </div>
@@ -466,7 +514,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   <form className={styles.editForm} onSubmit={handleEditSubmit}>
                   {editError ? <div className={styles.editError}>{editError}</div> : null}
                   <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-title">Book Name</label>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-title">Title</label>
                     <input
                       id="library-edit-title"
                       type="text"
@@ -477,7 +525,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                     />
                   </div>
                   <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-author">Author</label>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-author">Author / Creator</label>
                     <input
                       id="library-edit-author"
                       type="text"
@@ -532,11 +580,11 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                     {isbnFetchError ? <div className={styles.editError}>{isbnFetchError}</div> : null}
                   </div>
                   <div className={styles.fieldGroup}>
-                    <label className={styles.fieldLabel} htmlFor="library-edit-source">Replace Source EPUB</label>
+                    <label className={styles.fieldLabel} htmlFor="library-edit-source">Replace Source File</label>
                     <input
                       id="library-edit-source"
                       type="file"
-                      accept=".epub,.pdf"
+                      accept=".epub,.pdf,.mp4,.mkv,.mov,.webm"
                       onChange={handleSourceFileChange}
                       disabled={isSaving}
                     />
@@ -577,16 +625,19 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   <strong>Job ID:</strong> {selectedItem.jobId}
                 </li>
                 <li className={styles.detailItem}>
+                  <strong>Type:</strong> {selectedItemType === 'video' ? 'Video' : 'Book'}
+                </li>
+                <li className={styles.detailItem}>
                   <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
                 </li>
                 <li className={styles.detailItem}>
-                  <strong>Source file:</strong> {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
+                  <strong>{selectedItemType === 'video' ? 'Source video:' : 'Source file:'}</strong> {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
                 </li>
                 <li className={styles.detailItem}>
-                  <strong>Author:</strong> {selectedItem.author || 'Unknown Author'}
+                  <strong>{selectedItemType === 'video' ? 'Creator:' : 'Author:'}</strong> {selectedAuthor}
                 </li>
                 <li className={styles.detailItem}>
-                  <strong>Genre:</strong> {selectedItem.genre ?? 'Unknown Genre'}
+                  <strong>Genre:</strong> {selectedGenre}
                 </li>
                 <li className={styles.detailItem}>
                   <strong>Language:</strong> {selectedItem.language}

@@ -777,6 +777,7 @@ export function App() {
   const handlePlayLibraryItem = useCallback(
     (entry: LibraryOpenInput) => {
       let jobId: string | null = null;
+      let itemType: 'book' | 'video' | null = null;
       let metadata: Record<string, unknown> | null = null;
       let selection: MediaSelectionRequest | null = null;
 
@@ -787,10 +788,12 @@ export function App() {
         selection = entry.selection ?? null;
         if (entry.item) {
           metadata = buildLibraryBookMetadata(entry.item);
+          itemType = entry.item.itemType ?? null;
         }
       } else {
         const item = entry as LibraryItem;
         jobId = item.jobId;
+        itemType = item.itemType ?? null;
         metadata = buildLibraryBookMetadata(item);
       }
 
@@ -801,6 +804,7 @@ export function App() {
       setPlayerContext({
         type: 'library',
         jobId,
+        itemType,
         bookMetadata: metadata
       });
       setPlayerSelection(

@@ -36,6 +36,11 @@ from ...library import (
 
 router = APIRouter(prefix="/api/library", tags=["library"])
 
+# Ensure common subtitle MIME types are recognized when serving from the library.
+mimetypes.add_type("text/vtt", ".vtt")
+mimetypes.add_type("text/x-srt", ".srt")
+mimetypes.add_type("text/plain", ".ass")
+
 
 @router.post("/move/{job_id}", response_model=LibraryMoveResponse)
 async def move_job_to_library(
@@ -323,6 +328,14 @@ async def download_library_media(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     media_type, _ = mimetypes.guess_type(resolved.name)
+    if not media_type:
+        suffix = resolved.suffix.lower()
+        if suffix == ".vtt":
+            media_type = "text/vtt"
+        elif suffix == ".srt":
+            media_type = "text/x-srt"
+        elif suffix == ".ass":
+            media_type = "text/plain"
     return FileResponse(
         resolved,
         media_type=media_type or "application/octet-stream",

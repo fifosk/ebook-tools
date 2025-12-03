@@ -9,6 +9,7 @@ import type { MediaCategory, TabDefinition } from './constants';
 type PlaybackControls = {
   pause: () => void;
   play: () => void;
+  ensureFullscreen?: () => void;
 };
 
 interface AudioStageProps {
@@ -31,7 +32,7 @@ interface VideoStageProps {
   onPlaybackPositionChange: (position: number) => void;
   onPlaybackStateChange: (state: 'playing' | 'paused') => void;
   isTheaterMode: boolean;
-  onExitTheaterMode: () => void;
+  onExitTheaterMode: (reason?: 'user' | 'lost') => void;
   onRegisterControls: (controls: PlaybackControls | null) => void;
 }
 

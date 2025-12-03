@@ -37,20 +37,55 @@ type LanguageGroup = {
 };
 
 const UNKNOWN_AUTHOR = 'Unknown Author';
+const UNKNOWN_CREATOR = 'Unknown Creator';
 const UNTITLED_BOOK = 'Untitled Book';
+const UNTITLED_VIDEO = 'Untitled Video';
 const UNKNOWN_GENRE = 'Unknown Genre';
 
 type StatusVariant = 'ready' | 'missing';
 
+function normalizeItemType(item: LibraryItem): 'book' | 'video' {
+  return (item.itemType ?? 'book') as 'book' | 'video';
+}
+
+function describeItemType(item: LibraryItem): string {
+  return normalizeItemType(item) === 'video' ? 'Video' : 'Book';
+}
+
+function resolveTitle(item: LibraryItem): string {
+  const base = (item.bookTitle ?? '').trim();
+  if (base) {
+    return base;
+  }
+  return normalizeItemType(item) === 'video' ? UNTITLED_VIDEO : UNTITLED_BOOK;
+}
+
+function resolveAuthor(item: LibraryItem): string {
+  const base = (item.author ?? '').trim();
+  if (base) {
+    return base;
+  }
+  return normalizeItemType(item) === 'video' ? UNKNOWN_CREATOR : UNKNOWN_AUTHOR;
+}
+
+function resolveGenre(item: LibraryItem): string {
+  const base = (item.genre ?? '').toString().trim();
+  if (base) {
+    return base;
+  }
+  return normalizeItemType(item) === 'video' ? 'Video' : UNKNOWN_GENRE;
+}
+
 function describeStatus(item: LibraryItem): { label: string; variant?: StatusVariant } {
   const base = item.status === 'finished' ? 'Finished' : 'Paused';
+  const typeLabel = describeItemType(item);
   if (!item.mediaCompleted) {
-    return { label: `${base} · media removed`, variant: 'missing' };
+    return { label: `${base} · ${typeLabel} · media removed`, variant: 'missing' };
   }
   if (item.status === 'paused') {
-    return { label: `${base} · media finalized`, variant: 'ready' };
+    return { label: `${base} · ${typeLabel} · media finalized`, variant: 'ready' };
   }
-  return { label: base, variant: 'ready' };
+  return { label: `${base} · ${typeLabel}`, variant: 'ready' };
 }
 
 function renderStatusBadge(item: LibraryItem) {
@@ -76,8 +111,8 @@ function formatTimestamp(value: string | null | undefined): string {
 function buildAuthorGroups(items: LibraryItem[]): AuthorGroup[] {
   const authorMap = new Map<string, Map<string, Map<string, LibraryItem[]>>>();
   items.forEach((item) => {
-    const authorKey = item.author.trim() || UNKNOWN_AUTHOR;
-    const bookKey = item.bookTitle.trim() || UNTITLED_BOOK;
+    const authorKey = resolveAuthor(item);
+    const bookKey = resolveTitle(item);
     const languageKey = item.language || 'unknown';
 
     if (!authorMap.has(authorKey)) {
@@ -115,9 +150,9 @@ function buildAuthorGroups(items: LibraryItem[]): AuthorGroup[] {
 function buildGenreGroups(items: LibraryItem[]): GenreGroup[] {
   const genreMap = new Map<string, Map<string, Map<string, LibraryItem[]>>>();
   items.forEach((item) => {
-    const genreKey = (item.genre ?? '').toString().trim() || UNKNOWN_GENRE;
-    const authorKey = item.author.trim() || UNKNOWN_AUTHOR;
-    const bookKey = item.bookTitle.trim() || UNTITLED_BOOK;
+    const genreKey = resolveGenre(item);
+    const authorKey = resolveAuthor(item);
+    const bookKey = resolveTitle(item);
 
     if (!genreMap.has(genreKey)) {
       genreMap.set(genreKey, new Map());
@@ -155,8 +190,8 @@ function buildLanguageGroups(items: LibraryItem[]): LanguageGroup[] {
   const languageMap = new Map<string, Map<string, Map<string, LibraryItem[]>>>();
   items.forEach((item) => {
     const languageKey = item.language || 'unknown';
-    const authorKey = item.author.trim() || UNKNOWN_AUTHOR;
-    const bookKey = item.bookTitle.trim() || UNTITLED_BOOK;
+    const authorKey = resolveAuthor(item);
+    const bookKey = resolveTitle(item);
 
     if (!languageMap.has(languageKey)) {
       languageMap.set(languageKey, new Map());
@@ -248,6 +283,7 @@ function LibraryList({
             <thead>
               <tr>
                 <th>Title</th>
+                <th>Type</th>
                 <th>Author</th>
                 <th>Language</th>
                 <th>Status</th>
@@ -261,8 +297,9 @@ function LibraryList({
                   key={item.jobId}
                   className={selectedJobId === item.jobId ? styles.tableRowActive : undefined}
                 >
-                  <td>{item.bookTitle || UNTITLED_BOOK}</td>
-                  <td>{item.author || UNKNOWN_AUTHOR}</td>
+                  <td>{resolveTitle(item)}</td>
+                  <td>{describeItemType(item)}</td>
+                  <td>{resolveAuthor(item)}</td>
                   <td>{item.language}</td>
                   <td>
                     {renderStatusBadge(item)}
@@ -298,7 +335,7 @@ function LibraryList({
                             {renderStatusBadge(item)}
                           </div>
                           <div className={styles.itemMeta}>
-                            Updated {formatTimestamp(item.updatedAt)} · Library path {item.libraryPath}
+                            Updated {formatTimestamp(item.updatedAt)} · Type {describeItemType(item)} · Library path {item.libraryPath}
                           </div>
                           {renderActions(item)}
                         </li>
@@ -334,7 +371,7 @@ function LibraryList({
                             {renderStatusBadge(item)}
                           </div>
                           <div className={styles.itemMeta}>
-                            Language {item.language} · Updated {formatTimestamp(item.updatedAt)}
+                            Language {item.language} · Type {describeItemType(item)} · Updated {formatTimestamp(item.updatedAt)}
                           </div>
                           {renderActions(item)}
                         </li>
@@ -369,7 +406,7 @@ function LibraryList({
                           {renderStatusBadge(item)}
                         </div>
                         <div className={styles.itemMeta}>
-                          Updated {formatTimestamp(item.updatedAt)} · Library path {item.libraryPath}
+                          Updated {formatTimestamp(item.updatedAt)} · Type {describeItemType(item)} · Library path {item.libraryPath}
                         </div>
                         {renderActions(item)}
                       </li>

@@ -13,6 +13,7 @@ class LibraryItemPayload(BaseModel):
     job_id: str = Field(alias="jobId")
     author: str
     book_title: str = Field(alias="bookTitle")
+    item_type: Literal["book", "video"] = Field(alias="itemType", default="book")
     genre: Optional[str] = None
     language: str
     status: Literal["finished", "paused"]

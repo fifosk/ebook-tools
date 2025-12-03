@@ -537,6 +537,7 @@ function buildStateFromSections(
         return;
       }
       const payload = chunk as Record<string, unknown>;
+      const chunkId = toStringOrNull(payload.chunk_id ?? payload.chunkId);
       const filesRaw = payload.files;
       if (!Array.isArray(filesRaw)) {
         return;
@@ -597,7 +598,6 @@ function buildStateFromSections(
           (payload.audio_tracks as Record<string, unknown> | undefined) ??
             (payload.audioTracks as Record<string, unknown> | undefined),
         ) ?? null;
-      const chunkId = toStringOrNull(payload.chunk_id ?? payload.chunkId);
       const rawTimingSource =
         (payload.timing_tracks as unknown) ?? (payload.timingTracks as unknown);
       const timingTracks = normaliseTrackTimingCollection(
