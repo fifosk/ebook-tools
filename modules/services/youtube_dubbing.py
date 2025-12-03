@@ -2688,12 +2688,16 @@ def _run_dub_job(
                                 subtitle_artifacts.append(copied_subtitle)
                             if copied_subtitle not in batch_subtitles:
                                 batch_subtitles.append(copied_subtitle)
+                            # Avoid re-rendering VTT files when they already exist; keep the
+                            # authored transliteration/RTL ordering and skip LLM work here.
+                            if copied_subtitle.suffix.lower() == ".vtt":
+                                continue
                             vtt_variant = _ensure_webvtt_variant(
                                 copied_subtitle,
                                 media_root,
                                 target_language=language_code,
-                                include_transliteration=include_transliteration_resolved,
-                                transliterator=transliterator,
+                                include_transliteration=False,
+                                transliterator=None,
                             )
                             if vtt_variant:
                                 if vtt_variant not in subtitle_artifacts:
@@ -2705,8 +2709,8 @@ def _run_dub_job(
                                 stored,
                                 media_root,
                                 target_language=language_code,
-                                include_transliteration=include_transliteration_resolved,
-                                transliterator=transliterator,
+                                include_transliteration=False,
+                                transliterator=None,
                             )
                             if aligned_variant:
                                 if aligned_variant not in subtitle_artifacts:
