@@ -160,7 +160,7 @@ export default function YoutubeDubPage({
   const [flushSentences, setFlushSentences] = useState(10);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [splitBatches, setSplitBatches] = useState(true);
-  const [includeTransliteration, setIncludeTransliteration] = useState(false);
+  const [includeTransliteration, setIncludeTransliteration] = useState(true);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
   const [isLoadingVoices, setIsLoadingVoices] = useState(false);
@@ -347,7 +347,7 @@ export default function YoutubeDubPage({
     if (typeof prefillParameters.include_transliteration === 'boolean') {
       setIncludeTransliteration(prefillParameters.include_transliteration);
     } else {
-      setIncludeTransliteration(false);
+      setIncludeTransliteration(true);
     }
   }, [formatOffset, prefillParameters]);
 
