@@ -128,6 +128,7 @@ Older jobs included a job-level `metadata/timing_index.json` produced by `build_
 
 - Slide video rendering uses the per-sentence `timeline` payload. The renderer coalesces `HighlightEvent`s via `coalesce_highlight_events` to reduce frames, then synchronises them with the actual slide audio.
 - `SubtitlesPage` can request colourised subtitle exports via `modules/subtitles/processing.py`, which reads the same timelines and word tokens to generate ASS/SRT with word-level highlighting states.
+- ASS subtitles now pace highlights per word (character-weighted with a small uniform blend) across the subtitle span, cap preroll at 0.35s, and drop any tail padding so merged windows do not overlap. YouTube dubbing ignores noisy speech windows and spreads the highlights over the dubbed subtitle window so karaoke-style cues stay aligned even when silence detection jitters.
 
 ### 5.2 Frontend interactive transcript
 

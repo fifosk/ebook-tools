@@ -114,6 +114,8 @@ class _AssDialogue:
     original: str
     transliteration: Optional[str] = None
     rtl_normalized: bool = False
+    speech_offset: Optional[float] = None
+    speech_duration: Optional[float] = None
 
     @property
     def duration(self) -> float:
@@ -356,6 +358,8 @@ def _enforce_dialogue_gaps(dialogues: Sequence[_AssDialogue], *, min_gap: float 
                 original=entry.original,
                 transliteration=entry.transliteration,
                 rtl_normalized=entry.rtl_normalized,
+                speech_offset=entry.speech_offset,
+                speech_duration=entry.speech_duration,
             )
         )
         last_end = end
@@ -386,6 +390,8 @@ def _normalize_dialogue_windows(dialogues: Sequence[_AssDialogue]) -> List[_AssD
                 original=entry.original,
                 transliteration=entry.transliteration,
                 rtl_normalized=entry.rtl_normalized,
+                speech_offset=entry.speech_offset,
+                speech_duration=entry.speech_duration,
             )
         )
     return normalized
@@ -444,6 +450,8 @@ def _clip_dialogues_to_window(
                 original=entry.original,
                 transliteration=entry.transliteration,
                 rtl_normalized=entry.rtl_normalized,
+                speech_offset=entry.speech_offset,
+                speech_duration=entry.speech_duration,
             )
         )
     return clipped
@@ -466,6 +474,8 @@ def _merge_overlapping_dialogues(dialogues: Sequence[_AssDialogue]) -> List[_Ass
                 original=entry.original,
                 transliteration=last.transliteration or entry.transliteration,
                 rtl_normalized=last.rtl_normalized or entry.rtl_normalized,
+                speech_offset=last.speech_offset or entry.speech_offset,
+                speech_duration=last.speech_duration or entry.speech_duration,
             )
         else:
             merged.append(
@@ -476,6 +486,8 @@ def _merge_overlapping_dialogues(dialogues: Sequence[_AssDialogue]) -> List[_Ass
                     original=entry.original,
                     transliteration=entry.transliteration,
                     rtl_normalized=entry.rtl_normalized,
+                    speech_offset=entry.speech_offset,
+                    speech_duration=entry.speech_duration,
                 )
             )
     return merged
@@ -518,6 +530,32 @@ def _resolve_language_code(label: Optional[str]) -> str:
         if normalized.casefold() == name.casefold():
             return code
     return normalized
+
+
+def _measure_active_window(
+    audio: AudioSegment,
+    *,
+    silence_floor: float = -50.0,
+    head_padding_ms: int = 60,
+) -> Tuple[float, float]:
+    """Return (offset_seconds, duration_seconds) of voiced audio inside ``audio``."""
+
+    if len(audio) == 0:
+        return 0.0, 0.0
+    threshold = max(silence_floor, (audio.dBFS if math.isfinite(audio.dBFS) else silence_floor) - 18.0)
+    step_ms = 20
+    first = None
+    last = None
+    for position in range(0, len(audio), step_ms):
+        frame = audio[position : position + step_ms]
+        if frame.dBFS > threshold:
+            first = position if first is None else first
+            last = position + len(frame)
+    if first is None or last is None:
+        return 0.0, len(audio) / 1000.0
+    start_ms = max(0, first - head_padding_ms)
+    end_ms = min(len(audio), last + head_padding_ms)
+    return start_ms / 1000.0, max(0.0, (end_ms - start_ms) / 1000.0)
 
 
 def _sanitize_for_tts(text: str) -> str:
@@ -1584,11 +1622,20 @@ def generate_dubbed_video(
             base_original_audio = None
             logger.warning("Unable to preload original audio; will retry per flush", exc_info=True)
 
-        include_transliteration_resolved = (
+        requested_transliteration = (
             _language_uses_non_latin(language_code)
             if include_transliteration is None
             else bool(include_transliteration)
         )
+        include_transliteration_resolved = bool(
+            requested_transliteration and _language_uses_non_latin(language_code)
+        )
+        if requested_transliteration and not include_transliteration_resolved:
+            logger.info(
+                "Transliteration disabled for Latin-script language %s",
+                language_code,
+                extra={"event": "youtube.dub.transliteration.disabled", "language": language_code},
+            )
         # Maintain the original name for any nested closures expecting it.
         include_transliteration = include_transliteration_resolved
         transliterator: Optional[TransliterationService] = None
@@ -1646,6 +1693,8 @@ def generate_dubbed_video(
                         original=entry.original,
                         transliteration=entry.transliteration,
                         rtl_normalized=entry.rtl_normalized,
+                        speech_offset=entry.speech_offset,
+                        speech_duration=entry.speech_duration,
                     )
                     for entry in dialogues
                 ]
@@ -1684,6 +1733,8 @@ def generate_dubbed_video(
                     original=entry.original,
                     transliteration=transliteration_text,
                     rtl_normalized=rtl_normalized,
+                    speech_offset=entry.speech_offset,
+                    speech_duration=entry.speech_duration,
                 ), translated_flag
 
             workers = _resolve_llm_worker_count(len(dialogues))
@@ -1797,6 +1848,8 @@ def generate_dubbed_video(
                     force=True,
                 )
                 render_transliteration = transliteration
+                speech_offset = max(0.0, entry.speech_offset or 0.0)
+                speech_duration = entry.speech_duration if entry.speech_duration is not None else None
                 source_cue = SubtitleCue(
                     index=next_index,
                     start=max(0.0, entry.start - offset_seconds),
@@ -1811,6 +1864,10 @@ def generate_dubbed_video(
                     show_original=True,
                     renderer=ass_renderer,
                     original_text=entry.original,
+                    # Drive highlights across the dubbed subtitle span; speech windows
+                    # can be noisy for some languages.
+                    active_start_offset=0.0,
+                    active_duration=None,
                 )
                 next_index = writer.write(rendered_cues)
             try:
@@ -1849,6 +1906,7 @@ def generate_dubbed_video(
                 if len(audio) < 20:
                     # Guard against empty TTS output to keep timeline and mux stable.
                     audio = AudioSegment.silent(duration=200, frame_rate=44100).set_channels(2)
+                speech_offset, speech_duration = _measure_active_window(audio)
                 orig_start = translated_block[idx].start
                 orig_end = translated_block[idx].end
                 transliteration_text = translated_block[idx].transliteration
@@ -1879,6 +1937,8 @@ def generate_dubbed_video(
                     original=entry.original,
                     transliteration=transliteration_text,
                     rtl_normalized=True,
+                    speech_offset=speech_offset,
+                    speech_duration=speech_duration,
                 )
                 scheduled.append((scheduled_entry, audio, orig_start, orig_end))
                 ass_block_dialogues.append(scheduled_entry)
@@ -2570,11 +2630,20 @@ def _run_dub_job(
         relative_prefix: Optional[Path] = None
         subtitle_storage_path: Path = subtitle_path
         subtitle_artifacts: List[Path] = []
-        include_transliteration_resolved = (
+        requested_transliteration = (
             _language_uses_non_latin(language_code)
             if include_transliteration is None
             else bool(include_transliteration)
         )
+        include_transliteration_resolved = bool(
+            requested_transliteration and _language_uses_non_latin(language_code)
+        )
+        if requested_transliteration and not include_transliteration_resolved:
+            logger.info(
+                "Transliteration disabled for Latin-script language %s",
+                language_code,
+                extra={"event": "youtube.dub.transliteration.disabled", "language": language_code},
+            )
         # Preserve the original name for nested closures that may still reference it.
         include_transliteration = include_transliteration_resolved
         transliterator: Optional[TransliterationService] = None

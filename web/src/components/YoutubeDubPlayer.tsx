@@ -37,7 +37,18 @@ export default function YoutubeDubPlayer({
   onPlaybackStateChange,
   onVideoPlaybackStateChange,
 }: YoutubeDubPlayerProps) {
-  const videoFiles = useMemo(() => toVideoFiles(media.video), [media.video]);
+  const videoFiles = useMemo(
+    () =>
+      toVideoFiles(media.video).map((file) => {
+        const urlWithToken = appendAccessToken(file.url);
+        return {
+          ...file,
+          id: urlWithToken,
+          url: urlWithToken,
+        };
+      }),
+    [media.video],
+  );
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, deriveBaseId } = useMediaMemory({
     jobId,
   });
@@ -136,7 +147,7 @@ export default function YoutubeDubPlayer({
       const filtered = matches.filter((entry) => typeof entry.url === 'string' && entry.url.length > 0);
       if (filtered.length > 0) {
         map.set(
-          url,
+          videoUrl,
           filtered
             .sort((a, b) => formatRank(a) - formatRank(b))
             .map((entry) => ({

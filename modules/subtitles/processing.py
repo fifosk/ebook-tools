@@ -10,7 +10,7 @@ from difflib import SequenceMatcher
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, List, Optional, Sequence, TextIO
+from typing import Iterable, List, Optional, Sequence, TextIO, Tuple
 
 from modules import logging_manager as log_mgr, prompt_templates
 from modules.core.rendering.constants import NON_LATIN_LANGUAGES
@@ -1430,6 +1430,19 @@ def _resolve_ass_font_size(value: Optional[int]) -> int:
     return max(MIN_ASS_FONT_SIZE, min(MAX_ASS_FONT_SIZE, numeric))
 
 
+def _token_weight(token: str) -> float:
+    stripped = token.strip()
+    if not stripped:
+        return 1.0
+    weight = 0.0
+    for char in stripped:
+        if char.isspace():
+            continue
+        category = unicodedata.category(char)
+        weight += 0.5 if category.startswith("P") else 1.0
+    return max(weight, 0.5)
+
+
 def _build_output_cues(
     source: SubtitleCue,
     translation: str,
@@ -1439,6 +1452,8 @@ def _build_output_cues(
     show_original: bool,
     renderer: CueTextRenderer,
     original_text: Optional[str] = None,
+    active_start_offset: float = 0.0,
+    active_duration: Optional[float] = None,
 ) -> List[SubtitleCue]:
     translation = translation or ""
     normalized_original = (
@@ -1470,24 +1485,58 @@ def _build_output_cues(
             )
         ]
 
-    duration = max(source.duration, 0.2)
-    min_step = 0.22
-    max_states = max(1, int(duration / min_step))
-    if len(translation_words) > max_states:
-        group_size = max(1, math.ceil(len(translation_words) / max_states))
-    else:
-        group_size = 1
-    states = max(1, math.ceil(len(translation_words) / group_size))
-    step = duration / states
-    cues: List[SubtitleCue] = []
+    total_duration = max(source.duration, 0.2)
+    speech_offset = max(0.0, min(active_start_offset, total_duration))
+    window_duration = max(0.05, total_duration - speech_offset)
+    measured_duration = None
+    if active_duration is not None:
+        measured_duration = max(0.05, min(window_duration, active_duration))
 
-    for state_index, start_index in enumerate(range(0, len(translation_words), group_size)):
-        highlight_index = min(len(translation_words) - 1, start_index + group_size - 1)
+    highlight_duration = window_duration
+    if measured_duration is not None:
+        tail_slack = min(0.25, max(0.08, window_duration * 0.12))
+        measured_span = min(window_duration, measured_duration + tail_slack)
+        # Avoid over-trusting silence detection; if detected speech is very short,
+        # bias highlights toward the full dubbed window.
+        min_confidence = 0.7
+        if measured_span >= window_duration * min_confidence:
+            highlight_duration = measured_span
+    highlight_duration = max(0.05, highlight_duration)
+
+    highlight_start = min(source.end, source.start + speech_offset)
+    token_weights = [_token_weight(token) for token in translation_words]
+    total_weight = sum(token_weights)
+    if total_weight <= 0:
+        token_weights = [1.0 for _ in translation_words]
+        total_weight = float(len(token_weights))
+
+    # Blend character-weighted pacing with a small uniform component so highlights keep
+    # moving even when punctuation-only tokens are present.
+    uniform_share = 1.0 / max(1, len(token_weights))
+    blended_weights = []
+    for weight in token_weights:
+        normalized = weight / total_weight if total_weight > 0 else uniform_share
+        blended = normalized * 0.85 + uniform_share * 0.15
+        blended_weights.append(blended)
+    weight_sum = sum(blended_weights) or 1.0
+    normalized_weights = [weight / weight_sum for weight in blended_weights]
+
+    state_durations: List[float] = [
+        highlight_duration * weight for weight in normalized_weights
+    ]
+    total_allocated = sum(state_durations)
+    if total_allocated <= 0:
+        state_durations = [highlight_duration]
+    else:
+        correction = highlight_duration - total_allocated
+        state_durations[-1] = max(0.0, state_durations[-1] + correction)
+
+    def _build_lines(highlight_index: int) -> List[str]:
         highlight_translation = renderer.render_translation_highlight(
             translation_words,
             highlight_index,
         )
-        lines: List[str] = [base_line] if base_line else []
+        lines = [base_line] if base_line else []
         lines.append(highlight_translation)
         if transliteration:
             if transliteration_words:
@@ -1498,21 +1547,52 @@ def _build_output_cues(
                 lines.append(highlight_translit)
             else:
                 lines.append(renderer.render_transliteration(transliteration))
+        return lines
+
+    cues: List[SubtitleCue] = []
+    max_preroll = 0.35
+    preroll_end = min(source.end, source.start + min(highlight_start - source.start, max_preroll))
+    if preroll_end - source.start >= 0.05:
         cues.append(
             SubtitleCue(
                 index=source.index,
-                start=source.start + state_index * step,
-                end=source.start + (state_index + 1) * step,
-                lines=lines,
+                start=source.start,
+                end=preroll_end,
+                lines=_build_lines(0),
             )
         )
 
-    last_end = cues[-1].end if cues else source.end
-    if last_end < source.end - 0.01:
-        cues[-1].end = source.end
-    elif last_end > source.end + 0.5:
-        delta = last_end - source.end
-        cues[-1].end -= delta
+    cursor = highlight_start
+    for highlight_index, state_duration in enumerate(state_durations):
+        end_time = cursor + state_duration
+        cues.append(
+            SubtitleCue(
+                index=source.index,
+                start=cursor,
+                end=end_time,
+                lines=_build_lines(highlight_index),
+            )
+        )
+        cursor = end_time
+
+    if not cues:
+        fallback_lines = _build_lines(0)
+        cues.append(
+            SubtitleCue(
+                index=source.index,
+                start=source.start,
+                end=source.end,
+                lines=fallback_lines if fallback_lines else list(source.lines),
+            )
+        )
+
+    # Keep the final cue aligned to the subtitle window to avoid overlaps.
+    cues[-1] = SubtitleCue(
+        index=cues[-1].index,
+        start=cues[-1].start,
+        end=source.end,
+        lines=cues[-1].lines,
+    )
 
     return cues
 
