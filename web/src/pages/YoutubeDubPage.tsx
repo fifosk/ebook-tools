@@ -4,7 +4,8 @@ import {
   fetchVoiceInventory,
   generateYoutubeDub,
   synthesizeVoicePreview,
-  fetchSubtitleModels
+  fetchSubtitleModels,
+  extractInlineSubtitles
 } from '../api/client';
 import type {
   YoutubeNasLibraryResponse,
@@ -21,6 +22,11 @@ import styles from './YoutubeDubPage.module.css';
 
 const DEFAULT_VIDEO_DIR = '/Volumes/Data/Video/Youtube';
 const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
+const RESOLUTION_OPTIONS = [
+  { value: 320, label: '320p (lighter)' },
+  { value: 480, label: '480p (default)' },
+  { value: 720, label: '720p' }
+];
 
 type Props = {
   jobs: JobState[];
@@ -82,11 +88,25 @@ function subtitleLabel(sub: YoutubeNasSubtitle): string {
   return `${sub.format.toUpperCase()} ${language}`.trim();
 }
 
+function videoSourceLabel(video: YoutubeNasVideo): string {
+  const source = (video.source || '').toLowerCase();
+  if (source === 'nas_video') {
+    return 'NAS video';
+  }
+  if (source === 'youtube') {
+    return 'YouTube download';
+  }
+  if (!source) {
+    return 'YouTube download';
+  }
+  return source.charAt(0).toUpperCase() + source.slice(1);
+}
+
 function resolveDefaultSubtitle(video: YoutubeNasVideo | null): YoutubeNasSubtitle | null {
   if (!video) {
     return null;
   }
-  const candidates = video.subtitles.filter((sub) => ['ass', 'srt', 'vtt'].includes(sub.format.toLowerCase()));
+  const candidates = video.subtitles.filter((sub) => ['ass', 'srt', 'vtt', 'sub'].includes(sub.format.toLowerCase()));
   if (!candidates.length) {
     return null;
   }
@@ -158,6 +178,8 @@ export default function YoutubeDubPage({
   const [endOffset, setEndOffset] = useState('');
   const [originalMixPercent, setOriginalMixPercent] = useState(5);
   const [flushSentences, setFlushSentences] = useState(10);
+  const [targetHeight, setTargetHeight] = useState(480);
+  const [preserveAspectRatio, setPreserveAspectRatio] = useState(true);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [splitBatches, setSplitBatches] = useState(true);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
@@ -213,6 +235,8 @@ export default function YoutubeDubPage({
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [generateError, setGenerateError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExtractingSubtitles, setIsExtractingSubtitles] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
   const formatOffset = useCallback((value: number | null | undefined): string => {
     if (value === null || value === undefined || !Number.isFinite(value) || value < 0) {
       return '';
@@ -242,12 +266,19 @@ export default function YoutubeDubPage({
     if (!selectedVideo) {
       return [];
     }
-    return selectedVideo.subtitles.filter((sub) => ['ass', 'srt', 'vtt'].includes(sub.format.toLowerCase()));
+    return selectedVideo.subtitles.filter((sub) => ['ass', 'srt', 'vtt', 'sub'].includes(sub.format.toLowerCase()));
   }, [selectedVideo]);
   const selectedSubtitle = useMemo(
     () => playableSubtitles.find((sub) => sub.path === selectedSubtitlePath) ?? null,
     [playableSubtitles, selectedSubtitlePath]
   );
+  const canExtractEmbedded = useMemo(() => {
+    if (!selectedVideo) {
+      return false;
+    }
+    const lower = selectedVideo.path.toLowerCase();
+    return lower.endsWith('.mkv') || lower.endsWith('.mp4') || lower.endsWith('.mov') || lower.endsWith('.m4v');
+  }, [selectedVideo]);
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
@@ -272,7 +303,7 @@ export default function YoutubeDubPage({
       }
     } catch (error) {
       const message =
-        error instanceof Error ? error.message || 'Unable to load YouTube NAS videos.' : 'Unable to load YouTube NAS videos.';
+        error instanceof Error ? error.message || 'Unable to load NAS videos.' : 'Unable to load NAS videos.';
       setLoadError(message);
     } finally {
       setIsLoading(false);
@@ -335,6 +366,19 @@ export default function YoutubeDubPage({
       Number.isFinite(prefillParameters.flush_sentences)
     ) {
       setFlushSentences(prefillParameters.flush_sentences);
+    }
+    if (
+      typeof prefillParameters.target_height === 'number' &&
+      Number.isFinite(prefillParameters.target_height)
+    ) {
+      setTargetHeight(prefillParameters.target_height);
+    } else {
+      setTargetHeight(480);
+    }
+    if (typeof prefillParameters.preserve_aspect_ratio === 'boolean') {
+      setPreserveAspectRatio(prefillParameters.preserve_aspect_ratio);
+    } else {
+      setPreserveAspectRatio(true);
     }
     if (typeof prefillParameters.split_batches === 'boolean') {
       setSplitBatches(prefillParameters.split_batches);
@@ -443,6 +487,32 @@ export default function YoutubeDubPage({
     }
   }, [playableSubtitles, targetLanguage]);
 
+  const handleExtractSubtitles = useCallback(async () => {
+    if (!selectedVideo) {
+      return;
+    }
+    setIsExtractingSubtitles(true);
+    setExtractError(null);
+    setStatusMessage(null);
+    try {
+      const response = await extractInlineSubtitles(selectedVideo.path);
+      const count = response.extracted?.length ?? 0;
+      setStatusMessage(
+        count > 0
+          ? `Extracted ${count} subtitle ${count === 1 ? 'track' : 'tracks'} from ${selectedVideo.filename}.`
+          : 'No subtitle streams found to extract.'
+      );
+      await handleRefresh();
+      setSelectedVideoPath(selectedVideo.path);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message || 'Unable to extract subtitles.' : 'Unable to extract subtitles.';
+      setExtractError(message);
+    } finally {
+      setIsExtractingSubtitles(false);
+    }
+  }, [handleRefresh, selectedVideo]);
+
   const handleGenerate = useCallback(async () => {
     if (!selectedVideo || !selectedSubtitle) {
       setGenerateError('Choose a video and an ASS subtitle before generating audio.');
@@ -478,7 +548,9 @@ export default function YoutubeDubPage({
         flush_sentences: flushSentences,
         llm_model: llmModel || undefined,
         split_batches: splitBatches,
-        include_transliteration: includeTransliteration
+        include_transliteration: includeTransliteration,
+        target_height: targetHeight,
+        preserve_aspect_ratio: preserveAspectRatio
       });
       setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
       onJobCreated(response.job_id);
@@ -501,6 +573,8 @@ export default function YoutubeDubPage({
     llmModel,
     splitBatches,
     includeTransliteration,
+    targetHeight,
+    preserveAspectRatio,
     onJobCreated,
     parseOffset
   ]);
@@ -580,10 +654,10 @@ export default function YoutubeDubPage({
   return (
     <div className={styles.container}>
       <div>
-        <p className={styles.kicker}>YouTube → NAS</p>
-        <h1 className={styles.title}>Dub downloaded videos from ASS subtitles</h1>
+        <p className={styles.kicker}>NAS dubbing</p>
+        <h1 className={styles.title}>Dub downloaded videos from subtitles</h1>
         <p className={styles.subtitle}>
-          Pick a downloaded YouTube video from the NAS share, choose an ASS translation next to it, and render a new audio track that follows the subtitle timing.
+          Pick a downloaded YouTube video or a generic NAS video (MP4/MKV), pair it with ASS/SRT/SUB subtitles in the same folder, and render a dubbed track aligned to that timing.
         </p>
       </div>
 
@@ -609,7 +683,7 @@ export default function YoutubeDubPage({
           </div>
         </div>
         {loadError ? <p className={styles.error}>{loadError}</p> : null}
-        {isLoading && videos.length === 0 ? <p className={styles.status}>Loading YouTube videos…</p> : null}
+        {isLoading && videos.length === 0 ? <p className={styles.status}>Loading videos…</p> : null}
         {!isLoading && videos.length === 0 ? (
           <p className={styles.status}>No downloaded videos found in this directory.</p>
         ) : null}
@@ -628,13 +702,14 @@ export default function YoutubeDubPage({
                 <div className={styles.videoContent}>
                   <div className={styles.videoTitle}>{video.filename}</div>
                   <div className={styles.videoMeta}>
+                    <span className={`${styles.pill} ${styles.pillSource}`}>{videoSourceLabel(video)}</span>
                     <span>{formatBytes(video.size_bytes)}</span>
                     <span aria-hidden="true">·</span>
                     <span>{formatDate(video.modified_at)}</span>
                   </div>
                   <div className={styles.subtitleRow} aria-label="Available subtitles">
                     {video.subtitles.length === 0 ? (
-                      <span className={styles.pillMuted}>No subtitles</span>
+                      <span className={`${styles.pill} ${styles.pillMuted}`}>No subtitles</span>
                     ) : (
                       video.subtitles.map((sub) => (
                         <span
@@ -681,6 +756,20 @@ export default function YoutubeDubPage({
                 </label>
               ))}
             </div>
+            <div className={styles.inlineActions}>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={() => void handleExtractSubtitles()}
+                disabled={!canExtractEmbedded || isExtractingSubtitles}
+              >
+                {isExtractingSubtitles ? 'Extracting…' : 'Extract embedded subtitles'}
+              </button>
+              <p className={styles.fieldHint}>
+                Pulls subtitle streams from the selected video (writes .srt files next to it).
+              </p>
+            </div>
+            {extractError ? <p className={styles.error}>{extractError}</p> : null}
           </div>
           <div>
             <h3 className={styles.sectionTitle}>Audio options</h3>
@@ -740,6 +829,29 @@ export default function YoutubeDubPage({
                 <p className={styles.fieldHint}>Model used when translating subtitles before TTS (defaults to kimi).</p>
                 {isLoadingModels ? <p className={styles.status}>Loading models…</p> : null}
                 {modelError ? <p className={styles.error}>{modelError}</p> : null}
+              </label>
+              <label className={styles.field}>
+                <span>Target resolution</span>
+                <select
+                  className={styles.input}
+                  value={targetHeight}
+                  onChange={(event) => setTargetHeight(Number(event.target.value))}
+                >
+                  {RESOLUTION_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className={styles.fieldHint}>Downscale dubbed batches to this height (480p default for NAS playback).</p>
+              </label>
+              <label className={styles.fieldCheckbox}>
+                <input
+                  type="checkbox"
+                  checked={preserveAspectRatio}
+                  onChange={(event) => setPreserveAspectRatio(event.target.checked)}
+                />
+                <span>Keep original aspect ratio (recommended)</span>
               </label>
               <label className={styles.field}>
                 <span>Flush interval (sentences)</span>
@@ -841,7 +953,7 @@ export default function YoutubeDubPage({
         <div className={styles.cardHeader}>
           <div>
             <h2 className={styles.cardTitle}>Dubbing jobs</h2>
-            <p className={styles.cardHint}>Monitor active and recent YouTube dubbing tasks.</p>
+            <p className={styles.cardHint}>Monitor active and recent dubbing tasks.</p>
           </div>
         </div>
         {jobs.length === 0 ? (

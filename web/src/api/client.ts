@@ -40,6 +40,7 @@ import {
   YoutubeVideoDownloadRequest,
   YoutubeVideoDownloadResponse,
   YoutubeNasLibraryResponse,
+  YoutubeSubtitleExtractionResponse,
   YoutubeDubRequest,
   YoutubeDubResponse
 } from './dtos';
@@ -250,6 +251,17 @@ export async function fetchYoutubeLibrary(
   const query = baseDir ? `?base_dir=${encodeURIComponent(baseDir)}` : '';
   const response = await apiFetch(`/api/subtitles/youtube/library${query}`);
   return handleResponse<YoutubeNasLibraryResponse>(response);
+}
+
+export async function extractInlineSubtitles(videoPath: string): Promise<YoutubeSubtitleExtractionResponse> {
+  const response = await apiFetch('/api/subtitles/youtube/extract-subtitles', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ video_path: videoPath })
+  });
+  return handleResponse<YoutubeSubtitleExtractionResponse>(response);
 }
 
 export async function generateYoutubeDub(

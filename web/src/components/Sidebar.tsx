@@ -188,7 +188,7 @@ export function Sidebar({
         </ul>
       </details>
       <details className="sidebar__section" open>
-        <summary>YouTube</summary>
+        <summary>Videos</summary>
         <ul className="sidebar__list">
           <li>
             <button
@@ -196,7 +196,7 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === youtubeSubtitlesView ? 'is-active' : ''}`}
               onClick={() => onSelectView(youtubeSubtitlesView)}
             >
-              YouTube subtitles
+              YouTube video
             </button>
           </li>
           <li>
@@ -205,7 +205,7 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === youtubeDubView ? 'is-active' : ''}`}
               onClick={() => onSelectView(youtubeDubView)}
             >
-              YouTube dubbing
+              Dubbing
             </button>
           </li>
         </ul>
@@ -344,7 +344,7 @@ export function Sidebar({
             )}
           </details>
           <details className="sidebar__section" open>
-            <summary>YouTube dubbing</summary>
+            <summary>Dubbing</summary>
             {youtubeDubJobs.length > 0 ? (
               <ul className="sidebar__list">
                 {youtubeDubJobs.map((job) => {

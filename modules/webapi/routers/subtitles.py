@@ -30,6 +30,7 @@ from modules.services.youtube_subtitles import (
 from modules.services.youtube_dubbing import (
     DEFAULT_YOUTUBE_VIDEO_ROOT,
     YoutubeDubbingService,
+    extract_inline_subtitles,
     list_downloaded_videos,
 )
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
@@ -58,6 +59,8 @@ from ..schemas import (
     YoutubeNasLibraryResponse,
     YoutubeNasSubtitlePayload,
     YoutubeNasVideoPayload,
+    YoutubeSubtitleExtractionRequest,
+    YoutubeSubtitleExtractionResponse,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
@@ -423,6 +426,7 @@ def _serialize_nas_video(entry) -> YoutubeNasVideoPayload:
         size_bytes=entry.size_bytes,
         modified_at=entry.modified_at,
         subtitles=subtitles,
+        source=getattr(entry, "source", None) or "youtube",
     )
 
 
@@ -516,6 +520,40 @@ def list_youtube_library(base_dir: Optional[str] = None) -> YoutubeNasLibraryRes
     return YoutubeNasLibraryResponse(base_dir=target_root.as_posix(), videos=payload)
 
 
+@router.post("/youtube/extract-subtitles", response_model=YoutubeSubtitleExtractionResponse)
+def extract_inline_subtitles_from_video(
+    payload: YoutubeSubtitleExtractionRequest,
+) -> YoutubeSubtitleExtractionResponse:
+    """Extract embedded subtitle tracks from a NAS video into SRT files."""
+
+    video_path = Path(payload.video_path).expanduser()
+    try:
+        extracted = extract_inline_subtitles(video_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("Unable to extract subtitle tracks from %s", video_path, exc_info=True)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to extract subtitles: {exc}",
+        ) from exc
+
+    return YoutubeSubtitleExtractionResponse(
+        video_path=video_path.as_posix(),
+        extracted=[
+            YoutubeNasSubtitlePayload(
+                path=sub.path.as_posix(),
+                filename=sub.path.name,
+                language=sub.language,
+                format=sub.format,
+            )
+            for sub in extracted
+        ],
+    )
+
+
 @router.post("/youtube/dub", response_model=YoutubeDubResponse, status_code=status.HTTP_202_ACCEPTED)
 def generate_youtube_dub(
     payload: YoutubeDubRequest,
@@ -540,6 +578,14 @@ def generate_youtube_dub(
             status.HTTP_400_BAD_REQUEST,
             detail="original_mix_percent must be between 0 and 100",
         )
+    target_height = int(payload.target_height) if payload.target_height is not None else 480
+    allowed_heights = {320, 480, 720}
+    if target_height not in allowed_heights:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="target_height must be one of 320, 480, or 720",
+        )
+    preserve_aspect_ratio = True if payload.preserve_aspect_ratio is None else bool(payload.preserve_aspect_ratio)
     flush_sentences = payload.flush_sentences
     if flush_sentences is not None and flush_sentences <= 0:
         raise HTTPException(
@@ -573,6 +619,8 @@ def generate_youtube_dub(
             llm_model=llm_model,
             split_batches=split_batches,
             include_transliteration=include_transliteration,
+            target_height=target_height,
+            preserve_aspect_ratio=preserve_aspect_ratio,
         )
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc

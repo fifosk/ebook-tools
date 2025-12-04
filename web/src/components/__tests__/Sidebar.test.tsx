@@ -106,8 +106,8 @@ describe('Sidebar', () => {
     expect(addBookButton).toBeInTheDocument();
     expect(addBookButton).toHaveClass('is-active');
     expect(screen.getByRole('button', { name: /^Subtitles$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /YouTube subtitles/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /YouTube dubbing/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /YouTube video/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Dubbing/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create book/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
   });
@@ -161,7 +161,7 @@ describe('Sidebar', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Add book/i }));
-    fireEvent.click(screen.getByRole('button', { name: /YouTube dubbing/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Dubbing/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);
     expect(handleSelectView.mock.calls).toContainEqual(['subtitles:youtube-dub']);

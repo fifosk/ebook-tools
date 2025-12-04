@@ -180,6 +180,15 @@
   font-size: 0.9rem;
 }
 
+.pillSource {
+  background: rgba(16, 185, 129, 0.14);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
 .pillAss {
   background: rgba(56, 189, 248, 0.12);
   color: #7dd3fc;
@@ -284,6 +293,12 @@
   display: grid;
   gap: var(--space-xs);
   align-content: start;
+}
+
+.inlineActions {
+  display: grid;
+  gap: var(--space-xxs);
+  margin-top: var(--space-sm);
 }
 
 .primaryButton {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+import json
 import math
 import os
 import re
@@ -11,7 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import unicodedata
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -33,6 +34,7 @@ from modules.subtitles.processing import (
     _translate_text as _translate_subtitle_text,
     _target_uses_non_latin_script,
     _build_output_cues,
+    write_srt,
     CueTextRenderer,
     _SubtitleFileWriter,
 )
@@ -46,11 +48,15 @@ logger = log_mgr.get_logger().getChild("services.youtube_dubbing")
 DEFAULT_YOUTUBE_VIDEO_ROOT = Path("/Volumes/Data/Video/Youtube").expanduser()
 
 _VIDEO_EXTENSIONS = {"mp4", "mkv", "mov", "webm", "m4v"}
-_SUBTITLE_EXTENSIONS = {"ass", "srt", "vtt"}
+_SUBTITLE_EXTENSIONS = {"ass", "srt", "vtt", "sub"}
 _LANGUAGE_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,16}$")
 _DEFAULT_ORIGINAL_MIX_PERCENT = 15.0
 _DEFAULT_FLUSH_SENTENCES = 10
 _TEMP_DIR = Path("/tmp")
+_GAP_MIX_SCALAR = 0.25
+_GAP_MIX_MAX_PERCENT = 5.0
+_TARGET_DUB_HEIGHT = 480
+_YOUTUBE_ID_PATTERN = re.compile(r"\[[a-z0-9_-]{8,15}\]", re.IGNORECASE)
 _ASS_DIALOGUE_PATTERN = re.compile(
     r"^Dialogue:\s*[^,]*,(?P<start>[^,]+),(?P<end>[^,]+),[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,[^,]*,(?P<text>.*)$",
     re.IGNORECASE,
@@ -61,6 +67,7 @@ _WHITESPACE_PATTERN = re.compile(r"\s+")
 _MIN_DIALOGUE_GAP_SECONDS = 0.0
 _MIN_DIALOGUE_DURATION_SECONDS = 0.1
 _LLM_WORKER_CAP = 4
+_ENCODING_WORKER_CAP = 10
 _WEBVTT_HEADER = "WEBVTT\n\n"
 _WEBVTT_STYLE_BLOCK = """STYLE
 ::cue(.original) { color: #facc15; }
@@ -102,6 +109,7 @@ class YoutubeNasVideo:
     size_bytes: int
     modified_at: datetime
     subtitles: List[YoutubeNasSubtitle]
+    source: str = "youtube"
 
 
 @dataclass(frozen=True)
@@ -199,6 +207,17 @@ def _resolve_llm_worker_count(total_items: int) -> int:
     if configured is None or configured <= 0:
         configured = 1
     capped = min(int(configured), _LLM_WORKER_CAP)
+    return max(1, min(capped, max(1, total_items)))
+
+
+def _resolve_encoding_worker_count(total_items: int, requested: Optional[int] = None) -> int:
+    """Return a worker count for encoding tasks capped at a safe ceiling."""
+
+    settings = cfg.get_settings()
+    configured = requested if requested is not None else settings.job_max_workers
+    if configured is None or configured <= 0:
+        configured = _ENCODING_WORKER_CAP
+    capped = min(int(configured), _ENCODING_WORKER_CAP)
     return max(1, min(capped, max(1, total_items)))
 
 
@@ -643,7 +662,7 @@ def _time_stretch_to_duration(segment: AudioSegment, target_ms: int) -> AudioSeg
         final = final[:target_ms]
     elif len(final) < target_ms:
         final += AudioSegment.silent(duration=target_ms - len(final), frame_rate=final.frame_rate)
-    return final.set_frame_rate(segment.frame_rate).set_channels(segment.channels)
+    return _coerce_channels(final.set_frame_rate(segment.frame_rate), segment.channels)
 
 
 def _fit_segment_to_window(
@@ -676,6 +695,32 @@ def _subtitle_matches_video(video_path: Path, subtitle_path: Path) -> bool:
     if subtitle_name.startswith(f"{base_stem}-"):
         return True
     return False
+
+
+def _classify_video_source(video_path: Path) -> str:
+    """Return a source label for NAS videos to distinguish YouTube downloads."""
+
+    stem = video_path.stem.lower()
+    normalized = video_path.name.replace("_", "-")
+    if stem.endswith("-yt") or stem.endswith("_yt"):
+        return "youtube"
+    if _YOUTUBE_ID_PATTERN.search(normalized):
+        return "youtube"
+    return "nas_video"
+
+
+def _normalize_language_hint(raw: Optional[str]) -> Optional[str]:
+    """Return a sanitized language tag suitable for filenames."""
+
+    if not raw:
+        return None
+    token = raw.strip().replace(" ", "-").lower()
+    token = re.sub(r"[^a-z0-9_-]+", "", token)
+    if not token:
+        return None
+    if len(token) > 16:
+        token = token[:16]
+    return token
 
 
 def _synthesise_track_from_ass(
@@ -761,7 +806,7 @@ def _synthesise_track_from_ass(
         sanitized = _sanitize_for_tts(entry.translation)
         segment = generate_audio(sanitized, language, voice, macos_reading_speed)
         fitted = _fit_segment_to_window(segment, entry.duration)
-        normalized = fitted.set_frame_rate(target_rate).set_channels(target_channels)
+        normalized = _coerce_channels(fitted.set_frame_rate(target_rate), target_channels)
         return index, entry, normalized
 
     if tracker is not None:
@@ -855,6 +900,118 @@ def _clamp_original_mix(percent: Optional[float]) -> float:
     return max(0.0, min(100.0, value))
 
 
+def _compute_reference_rms(audios: Sequence[AudioSegment]) -> float:
+    """Return a median-ish RMS reference for dubbing segments."""
+
+    values = [audio.rms for audio in audios if audio and audio.rms]
+    if not values:
+        return 1.0
+    values.sort()
+    mid = len(values) // 2
+    if len(values) % 2 == 1:
+        return float(values[mid])
+    return float((values[mid - 1] + values[mid]) / 2.0)
+
+
+def _compute_underlay_gain_db(reference_rms: float, original_rms: float, mix_percent: float) -> float:
+    """
+    Compute the gain (in dB) that makes the original audio sit at ``mix_percent`` of the dubbed loudness.
+
+    Falls back to a gentle attenuation when RMS values are missing.
+    """
+
+    if mix_percent <= 0:
+        return -120.0
+    target_linear = max(0.0, min(1.0, mix_percent / 100.0))
+    dubbed_rms = max(reference_rms or 0.0, 1.0)
+    original_rms = max(original_rms or 0.0, 1.0)
+    relative_linear = target_linear * (dubbed_rms / original_rms)
+    if relative_linear <= 0:
+        return -120.0
+    return 20 * math.log10(relative_linear)
+
+
+def _resolve_gap_mix_percent(original_mix_percent: float) -> float:
+    """Return a quieter mix percentage for silent gaps to avoid loud jumps."""
+
+    clamped = _clamp_original_mix(original_mix_percent)
+    scaled = clamped * _GAP_MIX_SCALAR
+    return max(0.0, min(_GAP_MIX_MAX_PERCENT, scaled))
+
+
+def _coerce_channels(segment: AudioSegment, target_channels: int) -> AudioSegment:
+    """Safely convert to ``target_channels`` by downmixing to mono first when needed."""
+
+    if target_channels <= 0 or segment.channels == target_channels:
+        return segment
+    if target_channels == 1:
+        return segment.set_channels(1)
+    if segment.channels == 1:
+        return segment.set_channels(target_channels)
+    mono = segment.set_channels(1)
+    if target_channels == 1:
+        return mono
+    return mono.set_channels(target_channels)
+
+
+def _apply_audio_gain_to_clip(path: Path, gain_db: float) -> Path:
+    """Apply an audio gain to a video clip while copying video streams."""
+
+    if abs(gain_db) < 0.01:
+        return path
+    if not _has_audio_stream(path):
+        return path
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    with tempfile.NamedTemporaryFile(
+        suffix=path.suffix or ".mp4",
+        delete=False,
+        prefix="dub-gain-",
+        dir=_TEMP_DIR,
+    ) as handle:
+        target = Path(handle.name)
+    command = [
+        ffmpeg_bin,
+        "-y",
+        "-i",
+        str(path),
+        "-c:v",
+        "copy",
+        "-af",
+        f"volume={gain_db:.4f}dB",
+        "-c:a",
+        "aac",
+        str(target),
+    ]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode != 0:
+        target.unlink(missing_ok=True)
+        return path
+    try:
+        path.unlink(missing_ok=True)
+    except Exception:
+        pass
+    return target
+
+
+def _apply_gap_audio_mix(path: Path, *, mix_percent: float, reference_rms: float) -> Path:
+    """Downmix gap clip audio to a quieter underlay level to avoid jumps."""
+
+    gap_mix_percent = _resolve_gap_mix_percent(mix_percent)
+    if gap_mix_percent >= 99.0:
+        return path
+    if gap_mix_percent <= 0.0:
+        return _apply_audio_gain_to_clip(path, -120.0)
+    clip_rms = 1.0
+    try:
+        clip_audio = _coerce_channels(AudioSegment.from_file(path).set_frame_rate(44100), 2)
+        if clip_audio.rms:
+            clip_rms = clip_audio.rms
+    except Exception:
+        clip_rms = 1.0
+    gain_db = _compute_underlay_gain_db(reference_rms, clip_rms, gap_mix_percent)
+    return _apply_audio_gain_to_clip(path, gain_db)
+
+
 def _mix_with_original_audio(
     dubbed_track: AudioSegment,
     source_video: Path,
@@ -884,7 +1041,7 @@ def _mix_with_original_audio(
 
     target_rate = dubbed_track.frame_rate
     target_channels = dubbed_track.channels
-    original = original.set_frame_rate(target_rate).set_channels(target_channels)
+    original = _coerce_channels(original.set_frame_rate(target_rate), target_channels)
 
     max_duration_ms = None
     if expected_duration_seconds is not None:
@@ -957,7 +1114,7 @@ def _has_video_stream(path: Path) -> bool:
                 "-show_entries",
                 "stream=pix_fmt,width,height",
                 "-of",
-                "default=noprint_wrappers=1:nokey=1",
+                "json",
                 str(path),
             ],
             stdout=subprocess.PIPE,
@@ -966,13 +1123,30 @@ def _has_video_stream(path: Path) -> bool:
         )
         if result.returncode != 0:
             return False
-        payload = result.stdout.decode().strip()
-        if not payload:
+        try:
+            payload = json.loads(result.stdout.decode() or "{}")
+        except Exception:
             return False
-        parts = payload.splitlines()
-        # pix_fmt should be first entry; treat empty/unknown as invalid.
-        pix_fmt = parts[0].strip() if parts else ""
-        return bool(pix_fmt and pix_fmt.lower() != "unknown")
+        streams = payload.get("streams") or []
+        if not streams:
+            return False
+        stream = streams[0] or {}
+        pix_fmt = (stream.get("pix_fmt") or "").strip()
+        if not pix_fmt:
+            return False
+        pix_fmt_lower = pix_fmt.lower()
+        if pix_fmt_lower in {"unknown", "none"}:
+            return False
+        # If width/height are present, ensure they are sane (>0).
+        width = stream.get("width")
+        height = stream.get("height")
+        if width is not None and height is not None:
+            try:
+                if int(width) <= 0 or int(height) <= 0:
+                    return False
+            except Exception:
+                return False
+        return True
     except Exception:
         return False
 
@@ -1003,6 +1177,209 @@ def _probe_duration_seconds(path: Path) -> float:
         return float(result.stdout.decode().strip() or 0.0)
     except Exception:
         return 0.0
+
+
+def _probe_video_height(path: Path) -> Optional[int]:
+    """Return the primary video stream height, or None when unavailable."""
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_bin,
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=height",
+                "-of",
+                "csv=p=0",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        payload = result.stdout.decode().strip()
+        return int(payload) if payload else None
+    except Exception:
+        return None
+
+
+def _resolve_target_width(target_height: int) -> int:
+    """Return an even width roughly matching 16:9 for the requested height."""
+
+    if target_height <= 0:
+        return 0
+    width = int(round(target_height * 16 / 9))
+    if width % 2:
+        width += 1
+    return max(2, width)
+
+
+def _downscale_video(
+    path: Path,
+    *,
+    target_height: int = _TARGET_DUB_HEIGHT,
+    preserve_aspect_ratio: bool = True,
+    output_path: Optional[Path] = None,
+) -> Path:
+    """
+    Downscale ``path`` to ``target_height`` using H.264 while copying other streams.
+    Returns the final path (same as input when no change was needed). When
+    ``output_path`` is provided, the final file is moved there (useful when the
+    input lives on a RAM disk and the destination is NAS storage).
+    """
+
+    destination = output_path or path
+    if target_height <= 0:
+        if destination != path and path.exists():
+            try:
+                shutil.move(str(path), destination)
+                return destination
+            except Exception:
+                logger.debug("Unable to move %s to %s", path, destination, exc_info=True)
+        return path
+    current_height = _probe_video_height(path)
+    if current_height is not None and current_height <= target_height:
+        if destination != path and path.exists():
+            try:
+                shutil.move(str(path), destination)
+                return destination
+            except Exception:
+                logger.debug("Unable to move %s to %s", path, destination, exc_info=True)
+        return path
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+
+    def _make_temp_output(prefix: str) -> Path:
+        candidates = [_TEMP_DIR, Path("/tmp")]
+        for candidate in candidates:
+            try:
+                candidate.mkdir(parents=True, exist_ok=True)
+                with tempfile.NamedTemporaryFile(
+                    suffix=path.suffix or ".mp4",
+                    delete=False,
+                    prefix=prefix,
+                    dir=candidate,
+                ) as handle:
+                    return Path(handle.name)
+            except Exception:
+                continue
+        with tempfile.NamedTemporaryFile(suffix=path.suffix or ".mp4", delete=False, prefix=prefix) as handle:
+            return Path(handle.name)
+
+    temp_output = _make_temp_output("dub-resize-")
+    command = [
+        ffmpeg_bin,
+        "-y",
+        "-i",
+        str(path),
+        "-map",
+        "0",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-vf",
+        f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height}",
+        "-c:a",
+        "copy",
+        "-c:s",
+        "copy",
+        "-movflags",
+        "+faststart+frag_keyframe+empty_moov+default_base_moof",
+        str(temp_output),
+    ]
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if result.returncode != 0:
+        temp_output.unlink(missing_ok=True)
+        logger.warning(
+            "Unable to downscale dubbed output to %sp (exit %s)",
+            target_height,
+            result.returncode,
+            extra={"event": "youtube.dub.downscale.failed", "path": path.as_posix()},
+        )
+        if destination != path and path.exists():
+            try:
+                shutil.move(str(path), destination)
+                return destination
+            except Exception:
+                logger.debug("Unable to move failed downscale source %s to %s", path, destination, exc_info=True)
+        return path
+    try:
+        shutil.move(str(temp_output), destination)
+    except Exception:
+        logger.debug("Unable to replace %s with downscaled copy", destination, exc_info=True)
+        temp_output.unlink(missing_ok=True)
+        if destination != path and path.exists():
+            try:
+                shutil.move(str(path), destination)
+            except Exception:
+                logger.debug("Unable to move original %s to %s after downscale failure", path, destination, exc_info=True)
+        return destination
+
+    # Verify the resulting height; if it is still above target, retry with a stricter transcode.
+    try:
+        new_height = _probe_video_height(destination)
+    except Exception:
+        new_height = None
+    if new_height is not None and new_height > target_height:
+        logger.warning(
+            "Downscaled output still above target height (target=%s, actual=%s); retrying fallback transcode",
+            target_height,
+            new_height,
+            extra={"event": "youtube.dub.downscale.retry", "path": destination.as_posix()},
+        )
+        fallback_output = _make_temp_output("dub-resize-fallback-")
+        fallback_command = [
+            ffmpeg_bin,
+            "-y",
+            "-i",
+            str(destination),
+            "-map",
+            "0",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-vf",
+            f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height}",
+            "-c:a",
+            "aac",
+            "-c:s",
+            "copy",
+            "-movflags",
+            "+faststart+frag_keyframe+empty_moov+default_base_moof",
+            str(fallback_output),
+        ]
+        fallback_result = subprocess.run(
+            fallback_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if fallback_result.returncode == 0:
+            try:
+                shutil.move(str(fallback_output), destination)
+            except Exception:
+                logger.debug("Unable to replace %s with fallback downscaled copy", destination, exc_info=True)
+            else:
+                return destination
+        fallback_output.unlink(missing_ok=True)
+        logger.warning(
+            "Fallback downscale failed; keeping existing output",
+            extra={"event": "youtube.dub.downscale.retry_failed", "path": destination.as_posix()},
+        )
+    if destination != path and path.exists():
+        try:
+            path.unlink(missing_ok=True)
+        except Exception:
+            logger.debug("Unable to clean up source after downscale", exc_info=True)
+    return destination
 
 
 def _pad_clip_to_duration(path: Path, target_seconds: float) -> Path:
@@ -1146,6 +1523,33 @@ def _resolve_temp_batch_path(base_output: Path, start_seconds: float, *, suffix:
         counter += 1
 
 
+def _resolve_temp_output_path(base_output: Path) -> Path:
+    """Return a temp path on the RAM disk mirroring the final output name."""
+
+    stem = base_output.stem
+    suffix = base_output.suffix or ".mp4"
+    counter = 1
+    while True:
+        name = f"{stem}{'' if counter == 1 else f'-{counter}'}{suffix}"
+        candidate = _TEMP_DIR / name
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
+
+def _resolve_temp_target(target: Path) -> Path:
+    """Return a temp RAM-disk path mirroring the target name."""
+
+    stem = target.stem or "dub"
+    suffix = target.suffix or ""
+    counter = 1
+    while True:
+        name = f"{stem}{'' if counter == 1 else f'-{counter}'}{suffix}"
+        candidate = _TEMP_DIR / name
+        if not candidate.exists():
+            return candidate
+        counter += 1
+
 def _trim_video_segment(
     video_path: Path,
     *,
@@ -1272,7 +1676,7 @@ def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
     for segment in segments:
         has_audio, duration = _probe_media(segment)
         has_video = _has_video_stream(segment)
-        if not has_video or duration <= 0.05:
+        if not has_video or duration <= 0.1:
             logger.warning(
                 "Skipping invalid concat segment (video=%s, duration=%.3fs)",
                 has_video,
@@ -1516,11 +1920,236 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                     size_bytes=stat.st_size,
                     modified_at=datetime.fromtimestamp(stat.st_mtime),
                     subtitles=sorted(subtitles, key=lambda s: s.path.name),
+                    source=_classify_video_source(path),
                 )
             )
 
     videos.sort(key=lambda entry: entry.modified_at, reverse=True)
     return videos
+
+
+def _probe_subtitle_streams(video_path: Path) -> List[dict]:
+    """Return parsed subtitle streams from ffprobe output."""
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    result = subprocess.run(
+        [
+            ffprobe_bin,
+            "-v",
+            "error",
+            "-select_streams",
+            "s",
+            "-show_entries",
+            "stream=index,codec_type,codec_name:stream_tags=language,title",
+            "-of",
+            "json",
+            str(video_path),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        stderr = result.stderr.decode(errors="ignore") if result.stderr else ""
+        raise RuntimeError(f"ffprobe failed with exit code {result.returncode}: {stderr.strip()}")
+    try:
+        payload = json.loads(result.stdout.decode() or "{}")
+    except Exception as exc:
+        raise RuntimeError("Unable to parse ffprobe output") from exc
+    streams = payload.get("streams") or []
+    subtitle_streams = [stream for stream in streams if stream.get("codec_type") == "subtitle"]
+    for position, stream in enumerate(subtitle_streams):
+        stream["__position__"] = position
+    return subtitle_streams
+
+
+def _build_subtitle_output_path(video_path: Path, language: Optional[str], stream_index: int) -> Path:
+    """Return a unique SRT path next to the video for the given stream."""
+
+    folder = video_path.parent
+    stem = video_path.stem
+    label_parts = [stem]
+    if language:
+        label_parts.append(language)
+    label_parts.append(f"sub{stream_index}")
+    base_name = ".".join(label_parts) + ".srt"
+    candidate = folder / base_name
+    suffix = 1
+    while candidate.exists():
+        candidate = folder / f"{stem}.{language or 'sub'}{stream_index}.{suffix}.srt"
+        suffix += 1
+    return candidate
+
+
+def _looks_all_caps(text: str) -> bool:
+    """Return True when the text contains letters and all are uppercase."""
+
+    if not text:
+        return False
+    sanitized = _ASS_TAG_PATTERN.sub(" ", text)
+    sanitized = _HTML_TAG_PATTERN.sub(" ", sanitized)
+    letters = [ch for ch in sanitized if ch.isalpha()]
+    if not letters:
+        return False
+    return all(ch.isupper() for ch in letters)
+
+
+def _sanitize_subtitle_text(text: str) -> str:
+    """Return subtitle text stripped of markup and normalized whitespace."""
+
+    normalized = html.unescape(text or "")
+    normalized = _ASS_TAG_PATTERN.sub(" ", normalized)
+    normalized = _HTML_TAG_PATTERN.sub(" ", normalized)
+    normalized = _WHITESPACE_PATTERN.sub(" ", normalized)
+    return normalized.strip()
+
+
+def _sentence_case_line(line: str) -> str:
+    """Lowercase the line (outside formatting tags) and capitalize the first letter."""
+
+    chars: List[str] = []
+    in_angle_tag = False
+    brace_depth = 0
+    first_done = False
+    for ch in line:
+        if ch == "<":
+            in_angle_tag = True
+            chars.append(ch)
+            continue
+        if in_angle_tag:
+            chars.append(ch)
+            if ch == ">":
+                in_angle_tag = False
+            continue
+        if ch == "{":
+            brace_depth += 1
+            chars.append(ch)
+            continue
+        if brace_depth > 0:
+            chars.append(ch)
+            if ch == "}":
+                brace_depth = max(0, brace_depth - 1)
+            continue
+        if ch.isalpha():
+            if not first_done:
+                chars.append(ch.upper())
+                first_done = True
+            else:
+                chars.append(ch.lower())
+        else:
+            chars.append(ch)
+    return "".join(chars)
+
+
+def _normalize_all_caps_cues(cues: Sequence[SubtitleCue]) -> List[SubtitleCue]:
+    """Normalize cues that are fully uppercase into sentence case."""
+
+    normalized: List[SubtitleCue] = []
+    for cue in cues:
+        if not _looks_all_caps(cue.as_text()):
+            normalized.append(cue)
+            continue
+        normalized_lines = [_sentence_case_line(_sanitize_subtitle_text(line)) for line in cue.lines]
+        normalized.append(
+            SubtitleCue(
+                index=cue.index,
+                start=cue.start,
+                end=cue.end,
+                lines=normalized_lines,
+            )
+        )
+    return normalized
+
+
+def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
+    """
+    Extract embedded subtitle tracks from ``video_path`` into SRT files.
+
+    Returns the list of extracted subtitles, written alongside the video.
+    """
+
+    resolved = video_path.expanduser()
+    if not resolved.exists():
+        raise FileNotFoundError(f"Video file '{resolved}' does not exist")
+    streams = _probe_subtitle_streams(resolved)
+    if not streams:
+        raise ValueError("No subtitle streams found in the video")
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    extracted: List[YoutubeNasSubtitle] = []
+    failed_reasons: List[str] = []
+    for stream in streams:
+        stream_index = stream.get("index")
+        position = int(stream.get("__position__", 0))
+        if stream_index is None or position is None:
+            continue
+        tags = stream.get("tags") or {}
+        language = _normalize_language_hint(tags.get("language") or tags.get("LANGUAGE"))
+        output_path = _build_subtitle_output_path(resolved, language, stream_index)
+        with tempfile.NamedTemporaryFile(
+            suffix=".srt",
+            delete=False,
+            prefix=f"dub-sub-{stream_index}-",
+            dir=_TEMP_DIR,
+        ) as handle:
+            temp_output = Path(handle.name)
+        command = [
+            ffmpeg_bin,
+            "-y",
+            "-i",
+            str(resolved),
+            "-map",
+            f"0:s:{position}",
+            "-c:s",
+            "srt",
+            str(temp_output),
+        ]
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if result.returncode != 0:
+            temp_output.unlink(missing_ok=True)
+            stderr = result.stderr.decode(errors="ignore") if result.stderr else ""
+            failed_reasons.append(f"stream {stream_index}: {stderr.strip() or 'ffmpeg failed'}")
+            logger.warning(
+                "Failed to extract subtitle stream %s from %s",
+                stream_index,
+                resolved.as_posix(),
+                extra={
+                    "event": "youtube.dub.subtitles.extract.failed",
+                    "stream_index": stream_index,
+                    "exit_code": result.returncode,
+                },
+            )
+            continue
+        try:
+            shutil.move(str(temp_output), output_path)
+        except Exception:
+            logger.debug("Unable to move extracted subtitle to %s", output_path, exc_info=True)
+            temp_output.unlink(missing_ok=True)
+            continue
+        extracted.append(
+            YoutubeNasSubtitle(
+                path=output_path.resolve(),
+                language=language,
+                format="srt",
+            )
+        )
+        try:
+            cues = load_subtitle_cues(output_path)
+            normalized_cues = _normalize_all_caps_cues(cues)
+            if normalized_cues != cues:
+                write_srt(output_path, normalized_cues)
+        except Exception:
+            logger.warning(
+                "Unable to normalize capitalized subtitles for %s",
+                output_path,
+                exc_info=True,
+            )
+    if not extracted:
+        reason = ""
+        if streams:
+            reason = f" ({'; '.join(failed_reasons)})" if failed_reasons else " (streams may be image-based or unsupported)"
+        raise ValueError(f"No subtitle streams could be extracted from the video{reason}")
+    return extracted
 
 
 def generate_dubbed_video(
@@ -1543,6 +2172,8 @@ def generate_dubbed_video(
     split_batches: bool = False,
     include_transliteration: Optional[bool] = None,
     on_batch_written: Optional[Callable[[Path], None]] = None,
+    target_height: int = _TARGET_DUB_HEIGHT,
+    preserve_aspect_ratio: bool = True,
 ) -> Tuple[Path, List[Path]]:
     """Render an audio dub from ``subtitle_path`` and mux it into ``video_path``."""
 
@@ -1550,12 +2181,16 @@ def generate_dubbed_video(
         raise FileNotFoundError(f"Video file '{video_path}' does not exist")
     if not subtitle_path.exists():
         raise FileNotFoundError(f"Subtitle file '{subtitle_path}' does not exist")
-    if subtitle_path.suffix.lower() not in {".ass", ".srt", ".vtt"}:
-        raise ValueError("Subtitle must be an ASS, SRT, or VTT file for timing extraction")
+    if subtitle_path.suffix.lower() not in {".ass", ".srt", ".vtt", ".sub"}:
+        raise ValueError("Subtitle must be an ASS, SRT, SUB, or VTT file for timing extraction")
 
     start_offset, end_offset = _validate_time_window(start_time_offset, end_time_offset)
     mix_percent = _clamp_original_mix(original_mix_percent)
     flush_block = flush_sentences if flush_sentences and flush_sentences > 0 else _DEFAULT_FLUSH_SENTENCES
+    target_height_resolved = int(target_height) if target_height is not None else _TARGET_DUB_HEIGHT
+    if target_height_resolved < 0:
+        target_height_resolved = 0
+    preserve_aspect_ratio = bool(preserve_aspect_ratio)
     clipped_dialogues = _clip_dialogues_to_window(
         _parse_dialogues(subtitle_path),
         start_offset=start_offset,
@@ -1589,6 +2224,8 @@ def generate_dubbed_video(
                 "original_mix_percent": mix_percent,
                 "flush_sentences": flush_block,
                 "llm_model": llm_model,
+                "target_height": target_height_resolved,
+                "preserve_aspect_ratio": preserve_aspect_ratio,
             },
         },
     )
@@ -1596,6 +2233,11 @@ def generate_dubbed_video(
     source_video: Path = video_path
     written_paths: List[Path] = []
     written_set = set()
+    written_batches: List[Tuple[float, Path]] = []
+    encoding_futures: List[Tuple[float, Future[Path]]] = []
+    encoding_executor: Optional[ThreadPoolExecutor] = None
+    encoding_workers = 1
+    encoding_lock = threading.Lock()
     output_path = _resolve_output_path(
         video_path,
         language_code,
@@ -1617,7 +2259,7 @@ def generate_dubbed_video(
         source_language = _find_language_token(subtitle_path) or language_code
 
         try:
-            base_original_audio = AudioSegment.from_file(source_video).set_frame_rate(44100).set_channels(2)
+            base_original_audio = _coerce_channels(AudioSegment.from_file(source_video).set_frame_rate(44100), 2)
         except Exception:
             base_original_audio = None
             logger.warning("Unable to preload original audio; will retry per flush", exc_info=True)
@@ -1680,6 +2322,14 @@ def generate_dubbed_video(
                     "flush_sentences": flush_block,
                 }
             )
+        if write_batches:
+            expected_batches = max(1, math.ceil(total_dialogues / flush_block))
+            encoding_workers = _resolve_encoding_worker_count(expected_batches, requested=max_workers)
+            if encoding_workers > 1:
+                encoding_executor = ThreadPoolExecutor(
+                    max_workers=encoding_workers,
+                    thread_name_prefix="dub-encode",
+                )
 
         def _translate_dialogues(dialogues: List[_AssDialogue], offset: int) -> List[_AssDialogue]:
             needs_translation = source_language and language_code and source_language.lower() != language_code.lower()
@@ -1795,7 +2445,7 @@ def generate_dubbed_video(
                 reading_speed = _apply_reading_speed_factor(macos_reading_speed, batch_pace)
                 sanitized = _sanitize_for_tts(entry.translation)
                 segment = generate_audio(sanitized, language_code, voice, reading_speed)
-                normalized = segment.set_frame_rate(44100).set_channels(2)
+                normalized = _coerce_channels(segment.set_frame_rate(44100), 2)
                 return index, entry, normalized
 
             if tracker is not None:
@@ -1876,6 +2526,148 @@ def generate_dubbed_video(
                 pass
             return next_index
 
+        def _encode_batch(
+            sentence_clip_paths: List[Path],
+            sentence_audio_paths: List[Path],
+            *,
+            block_source_start: float,
+            block_start_seconds: float,
+            block_end_seconds: float,
+            ass_block_dialogues: List[_AssDialogue],
+            scheduled_entries: List[_AssDialogue],
+            final_batch_path: Path,
+            temp_batch_path: Path,
+            temp_ass_path: Path,
+            temp_vtt_path: Path,
+            final_ass_path: Path,
+            final_vtt_path: Path,
+            batch_start_sentence: int,
+            batch_end_sentence: int,
+            processed_sentences_snapshot: int,
+        ) -> Path:
+            batch_path = final_batch_path
+            try:
+                _concat_video_segments(sentence_clip_paths, temp_batch_path)
+                batch_path = _downscale_video(
+                    temp_batch_path,
+                    target_height=target_height_resolved,
+                    preserve_aspect_ratio=preserve_aspect_ratio,
+                    output_path=final_batch_path,
+                )
+                try:
+                    merged_dialogues = _merge_overlapping_dialogues(scheduled_entries)
+                    _write_webvtt(
+                        merged_dialogues,
+                        temp_vtt_path,
+                        target_language=language_code,
+                        include_transliteration=include_transliteration_resolved,
+                        transliterator=transliterator if include_transliteration_resolved else None,
+                    )
+                except Exception:
+                    logger.debug("Unable to write batch-aligned VTT for %s", batch_path, exc_info=True)
+                try:
+                    temp_ass_path.parent.mkdir(parents=True, exist_ok=True)
+                    with temp_ass_path.open("w", encoding="utf-8") as handle:
+                        writer = _SubtitleFileWriter(
+                            handle,
+                            ass_renderer,
+                            "ass",
+                            start_index=1,
+                        )
+                        _render_ass_for_block(
+                            ass_block_dialogues,
+                            writer,
+                            start_index=1,
+                            offset_seconds=block_start_seconds,
+                        )
+                    final_ass_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.move(str(temp_ass_path), final_ass_path)
+                except Exception:
+                    logger.debug("Unable to write batch ASS for %s", batch_path, exc_info=True)
+                    try:
+                        temp_ass_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                try:
+                    final_vtt_path.parent.mkdir(parents=True, exist_ok=True)
+                    if temp_vtt_path.exists():
+                        shutil.move(str(temp_vtt_path), final_vtt_path)
+                except Exception:
+                    logger.debug("Unable to move batch VTT for %s", batch_path, exc_info=True)
+                    try:
+                        temp_vtt_path.unlink(missing_ok=True)
+                    except Exception:
+                        pass
+                try:
+                    rendered_duration = _probe_duration_seconds(batch_path)
+                    expected_duration = block_end_seconds - block_start_seconds
+                    if abs(rendered_duration - expected_duration) > 0.15:
+                        logger.warning(
+                            "Batch duration drift detected (expected=%.3fs, actual=%.3fs)",
+                            expected_duration,
+                            rendered_duration,
+                            extra={
+                                "event": "youtube.dub.batch.duration_drift",
+                                "batch": batch_path.as_posix(),
+                                "expected": expected_duration,
+                                "actual": rendered_duration,
+                            },
+                        )
+                except Exception:
+                    logger.debug("Unable to probe batch duration for %s", batch_path, exc_info=True)
+                should_notify = False
+                with encoding_lock:
+                    if batch_path not in written_set:
+                        written_set.add(batch_path)
+                        written_paths.append(batch_path)
+                        written_batches.append((block_source_start, batch_path))
+                        should_notify = True
+                if tracker is not None:
+                    try:
+                        tracker.publish_progress(
+                            {
+                                "stage": "mux",
+                                "seconds_written": block_end_seconds,
+                                "output_path": batch_path.as_posix(),
+                                "processed_sentences": processed_sentences_snapshot,
+                                "block_size": flush_block,
+                                "batch_start_sentence": batch_start_sentence,
+                                "batch_end_sentence": batch_end_sentence,
+                            }
+                        )
+                    except Exception:
+                        logger.debug("Unable to publish mux progress for %s", batch_path, exc_info=True)
+                if should_notify and on_batch_written is not None:
+                    try:
+                        on_batch_written(batch_path)
+                    except Exception:
+                        logger.warning("Unable to process written batch %s", batch_path, exc_info=True)
+                return batch_path
+            finally:
+                for clip in sentence_clip_paths:
+                    clip.unlink(missing_ok=True)
+                for audio_path in sentence_audio_paths:
+                    audio_path.unlink(missing_ok=True)
+                if temp_batch_path.exists() and temp_batch_path != batch_path:
+                    temp_batch_path.unlink(missing_ok=True)
+                if temp_ass_path.exists():
+                    temp_ass_path.unlink(missing_ok=True)
+                if temp_vtt_path.exists():
+                    temp_vtt_path.unlink(missing_ok=True)
+
+        def _wait_for_encoding_futures() -> None:
+            if not encoding_futures:
+                if written_batches:
+                    ordered = sorted(written_batches, key=lambda item: item[0])
+                    written_paths[:] = [path for _, path in ordered]
+                return
+            for _start, future in encoding_futures:
+                future.result()
+            encoding_futures.clear()
+            if written_batches:
+                ordered = sorted(written_batches, key=lambda item: item[0])
+                written_paths[:] = [path for _, path in ordered]
+
         processed_sentences = 0
         global_pace = None
         if flush_block >= total_dialogues:
@@ -1891,6 +2683,7 @@ def generate_dubbed_video(
                 else:
                     next_starts.append(None)
             synthesized = _synthesise_batch(translated_block, batch_pace=block_pace, next_starts=next_starts)
+            reference_rms = _compute_reference_rms([audio for _entry, audio in synthesized])
             batch_start_sentence = block_index + 1
             batch_end_sentence = block_index + len(synthesized)
             block_start_seconds = 0.0 if write_batches else flushed_until
@@ -1953,34 +2746,8 @@ def generate_dubbed_video(
 
             all_subtitle_dialogues.extend(ass_block_dialogues if write_batches else scheduled_entries)
 
-            # Render batch ASS subtitles aligned to this batch.
-            if write_batches:
-                batch_ass_path = _resolve_batch_output_path(
-                    output_path, block_source_start
-                ).with_suffix(".ass")
-                batch_ass_path.parent.mkdir(parents=True, exist_ok=True)
-                with batch_ass_path.open("w", encoding="utf-8") as handle:
-                    writer = _SubtitleFileWriter(
-                        handle,
-                        ass_renderer,
-                        "ass",
-                        start_index=1,
-                    )
-                    _render_ass_for_block(
-                        ass_block_dialogues,
-                        writer,
-                        start_index=1,
-                        offset_seconds=block_start_seconds,
-                    )
-                batch_vtt_path = batch_ass_path.with_suffix(".vtt")
-                _write_webvtt(
-                    ass_block_dialogues,
-                    batch_vtt_path,
-                    target_language=language_code,
-                    include_transliteration=include_transliteration_resolved,
-                    transliterator=transliterator if include_transliteration_resolved else None,
-                )
-            elif global_ass_writer is not None:
+            # Defer batch subtitle writes until the batch media is finalized on RAM disk.
+            if not write_batches and global_ass_writer is not None:
                 # Keep ASS cues on the absolute dubbed timeline so highlights follow stretched audio.
                 subtitle_index = _render_ass_for_block(
                     ass_block_dialogues if write_batches else scheduled_entries,
@@ -2003,6 +2770,11 @@ def generate_dubbed_video(
                             end_offset=orig_start,
                         )
                         gap_clip = _pad_clip_to_duration(gap_clip, gap_duration)
+                        gap_clip = _apply_gap_audio_mix(
+                            gap_clip,
+                            mix_percent=mix_percent,
+                            reference_rms=reference_rms,
+                        )
                         sentence_clip_paths.append(gap_clip)
                         timeline_cursor += gap_duration
                     except Exception:
@@ -2164,6 +2936,11 @@ def generate_dubbed_video(
                         end_offset=block_source_end,
                     )
                     gap_clip = _pad_clip_to_duration(gap_clip, trailing_gap)
+                    gap_clip = _apply_gap_audio_mix(
+                        gap_clip,
+                        mix_percent=mix_percent,
+                        reference_rms=reference_rms,
+                    )
                     sentence_clip_paths.append(gap_clip)
                 except Exception:
                     logger.warning(
@@ -2175,63 +2952,60 @@ def generate_dubbed_video(
                     )
             processed_sentences += len(synthesized)
             if write_batches and sentence_clip_paths:
-                batch_path = _resolve_batch_output_path(output_path, block_source_start)
-                batch_path.parent.mkdir(parents=True, exist_ok=True)
-                try:
-                    _concat_video_segments(sentence_clip_paths, batch_path)
-                    try:
-                        # Emit a VTT aligned to the scheduled batch timeline (already stretched to dubbed audio).
-                        merged_dialogues = _merge_overlapping_dialogues(scheduled_entries)
-                        _write_webvtt(
-                            merged_dialogues,
-                            batch_path.with_suffix(".vtt"),
-                            target_language=language_code,
-                            include_transliteration=include_transliteration_resolved,
-                            transliterator=transliterator if include_transliteration_resolved else None,
+                final_batch_path = _resolve_batch_output_path(output_path, block_source_start)
+                final_batch_path.parent.mkdir(parents=True, exist_ok=True)
+                temp_batch_path = _resolve_temp_batch_path(output_path, block_source_start)
+                temp_batch_path.parent.mkdir(parents=True, exist_ok=True)
+                final_ass_path = final_batch_path.with_suffix(".ass")
+                final_vtt_path = final_ass_path.with_suffix(".vtt")
+                temp_ass_path = _resolve_temp_target(final_ass_path)
+                temp_vtt_path = _resolve_temp_target(final_vtt_path)
+                processed_snapshot = processed_sentences
+                if encoding_executor is not None:
+                    encoding_futures.append(
+                        (
+                            block_source_start,
+                            encoding_executor.submit(
+                                _encode_batch,
+                                sentence_clip_paths,
+                                sentence_audio_paths,
+                                block_source_start=block_source_start,
+                                block_start_seconds=block_start_seconds,
+                                block_end_seconds=block_end_seconds,
+                                ass_block_dialogues=list(ass_block_dialogues),
+                                scheduled_entries=list(scheduled_entries),
+                                final_batch_path=final_batch_path,
+                                temp_batch_path=temp_batch_path,
+                                temp_ass_path=temp_ass_path,
+                                temp_vtt_path=temp_vtt_path,
+                                final_ass_path=final_ass_path,
+                                final_vtt_path=final_vtt_path,
+                                batch_start_sentence=batch_start_sentence,
+                                batch_end_sentence=batch_end_sentence,
+                                processed_sentences_snapshot=processed_snapshot,
+                            ),
                         )
-                    except Exception:
-                        logger.debug("Unable to write batch-aligned VTT for %s", batch_path, exc_info=True)
-                    # Verify batch duration equals scheduled sum (sentences + gaps); warn if not.
-                    rendered_duration = _probe_duration_seconds(batch_path)
-                    expected_duration = block_end_seconds - block_start_seconds
-                    if abs(rendered_duration - expected_duration) > 0.15:
-                        logger.warning(
-                            "Batch duration drift detected (expected=%.3fs, actual=%.3fs)",
-                            expected_duration,
-                            rendered_duration,
-                            extra={
-                                "event": "youtube.dub.batch.duration_drift",
-                                "batch": batch_path.as_posix(),
-                                "expected": expected_duration,
-                                "actual": rendered_duration,
-                            },
-                        )
-                finally:
-                    for clip in sentence_clip_paths:
-                        clip.unlink(missing_ok=True)
-                    for audio_path in sentence_audio_paths:
-                        audio_path.unlink(missing_ok=True)
-                flushed_until = block_end_seconds
-                if batch_path not in written_set:
-                    written_paths.append(batch_path)
-                    written_set.add(batch_path)
-                    if on_batch_written is not None:
-                        try:
-                            on_batch_written(batch_path)
-                        except Exception:
-                            logger.warning("Unable to process written batch %s", batch_path, exc_info=True)
-                if tracker is not None:
-                    tracker.publish_progress(
-                        {
-                            "stage": "mux",
-                            "seconds_written": block_end_seconds,
-                            "output_path": batch_path.as_posix(),
-                            "processed_sentences": processed_sentences,
-                            "block_size": flush_block,
-                            "batch_start_sentence": batch_start_sentence,
-                            "batch_end_sentence": batch_end_sentence,
-                        }
                     )
+                else:
+                    _encode_batch(
+                        sentence_clip_paths,
+                        sentence_audio_paths,
+                        block_source_start=block_source_start,
+                        block_start_seconds=block_start_seconds,
+                        block_end_seconds=block_end_seconds,
+                        ass_block_dialogues=list(ass_block_dialogues),
+                        scheduled_entries=list(scheduled_entries),
+                        final_batch_path=final_batch_path,
+                        temp_batch_path=temp_batch_path,
+                        temp_ass_path=temp_ass_path,
+                        temp_vtt_path=temp_vtt_path,
+                        final_ass_path=final_ass_path,
+                        final_vtt_path=final_vtt_path,
+                        batch_start_sentence=batch_start_sentence,
+                        batch_end_sentence=batch_end_sentence,
+                        processed_sentences_snapshot=processed_snapshot,
+                    )
+                flushed_until = block_end_seconds
             if write_batches:
                 continue
             else:
@@ -2251,6 +3025,9 @@ def generate_dubbed_video(
                 )
             except Exception:
                 logger.debug("Unable to create WebVTT subtitles for %s", output_path, exc_info=True)
+
+        if write_batches:
+            _wait_for_encoding_futures()
 
         total_seconds = flushed_until
         final_output = written_paths[0] if write_batches and written_paths else output_path
@@ -2276,6 +3053,9 @@ def generate_dubbed_video(
                 dir=_TEMP_DIR,
             ) as chunk_handle:
                 chunk_path = Path(chunk_handle.name)
+            final_output_path = output_path
+            temp_output_path = _resolve_temp_output_path(output_path)
+            temp_output_path.parent.mkdir(parents=True, exist_ok=True)
             try:
                 final_audio_slice.export(
                     chunk_path,
@@ -2285,13 +3065,21 @@ def generate_dubbed_video(
                 _mux_audio_track(
                     source_video,
                     chunk_path,
-                    output_path,
+                    temp_output_path,
                     language_code,
                     start_time=start_offset if start_offset > 0 else None,
                     end_time=end_offset,
                 )
             finally:
                 chunk_path.unlink(missing_ok=True)
+            output_path = _downscale_video(
+                temp_output_path,
+                target_height=target_height_resolved,
+                preserve_aspect_ratio=preserve_aspect_ratio,
+                output_path=final_output_path,
+            )
+            if temp_output_path.exists() and temp_output_path != output_path:
+                temp_output_path.unlink(missing_ok=True)
             written_paths.append(output_path)
             if on_batch_written is not None:
                 try:
@@ -2311,6 +3099,16 @@ def generate_dubbed_video(
             written_paths.append(output_path)
         return final_output, written_paths
     finally:
+        try:
+            if write_batches:
+                _wait_for_encoding_futures()
+        except Exception:
+            logger.debug("Unable to flush encoding futures during cleanup", exc_info=True)
+        if encoding_executor is not None:
+            try:
+                encoding_executor.shutdown(wait=True)
+            except Exception:
+                logger.debug("Unable to shut down encoding executor", exc_info=True)
         try:
             if global_ass_handle is not None:
                 global_ass_handle.close()
@@ -2560,6 +3358,8 @@ def _build_job_result(
     written_paths: List[Path],
     video_path: Path,
     subtitle_path: Path,
+    source_subtitle_path: Optional[Path],
+    source_kind: str,
     language: str,
     voice: str,
     tempo: float,
@@ -2570,12 +3370,16 @@ def _build_job_result(
     original_mix_percent: float,
     flush_sentences: int,
     llm_model: Optional[str],
+    target_height: int,
+    preserve_aspect_ratio: bool,
 ) -> dict:
     return {
         "youtube_dub": {
             "output_path": output_path.as_posix(),
             "video_path": video_path.as_posix(),
             "subtitle_path": subtitle_path.as_posix(),
+            "source_subtitle_path": source_subtitle_path.as_posix() if source_subtitle_path else subtitle_path.as_posix(),
+            "source_kind": source_kind,
             "language": language,
             "voice": voice,
             "tempo": tempo,
@@ -2588,6 +3392,8 @@ def _build_job_result(
             "llm_model": llm_model,
             "written_paths": [path.as_posix() for path in written_paths],
             "split_batches": len(written_paths) > 1,
+            "target_height": target_height,
+            "preserve_aspect_ratio": preserve_aspect_ratio,
         }
     }
 
@@ -2610,10 +3416,16 @@ def _run_dub_job(
     llm_model: Optional[str] = None,
     split_batches: bool = False,
     include_transliteration: Optional[bool] = None,
+    target_height: int = _TARGET_DUB_HEIGHT,
+    preserve_aspect_ratio: bool = True,
     file_locator: Optional[FileLocator] = None,
-) -> None:
+    source_subtitle_path: Optional[Path] = None,
+    source_kind: str = "youtube",
+    ) -> None:
     tracker = job.tracker or ProgressTracker()
     stop_event = job.stop_event or threading.Event()
+    source_subtitle = source_subtitle_path or subtitle_path
+    target_height_resolved = int(target_height)
     tracker.publish_progress(
         {
             "stage": "validation",
@@ -2859,6 +3671,8 @@ def _run_dub_job(
             split_batches=split_batches,
             include_transliteration=include_transliteration_resolved,
             on_batch_written=_register_written_path,
+            target_height=target_height,
+            preserve_aspect_ratio=preserve_aspect_ratio,
         )
     except _DubJobCancelled:
         job.status = PipelineJobStatus.CANCELLED
@@ -2888,6 +3702,8 @@ def _run_dub_job(
         written_paths=written_paths,
         video_path=video_path,
         subtitle_path=subtitle_storage_path,
+        source_subtitle_path=source_subtitle,
+        source_kind=source_kind,
         language=language_code,
         voice=voice,
         tempo=tempo,
@@ -2898,6 +3714,8 @@ def _run_dub_job(
         original_mix_percent=_clamp_original_mix(original_mix_percent),
         flush_sentences=flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
         llm_model=llm_model,
+        target_height=target_height_resolved,
+        preserve_aspect_ratio=preserve_aspect_ratio,
     )
     try:
         job.generated_files = tracker.get_generated_files()
@@ -2943,6 +3761,8 @@ class YoutubeDubbingService:
         llm_model: Optional[str] = None,
         split_batches: Optional[bool] = None,
         include_transliteration: Optional[bool] = None,
+        target_height: Optional[int] = None,
+        preserve_aspect_ratio: Optional[bool] = None,
     ) -> PipelineJob:
         resolved_video = video_path.expanduser()
         resolved_subtitle = subtitle_path.expanduser()
@@ -2952,19 +3772,29 @@ class YoutubeDubbingService:
             raise FileNotFoundError(f"Subtitle file '{resolved_subtitle}' does not exist")
         if resolved_video.parent != resolved_subtitle.parent:
             raise ValueError("subtitle_path must be in the same directory as the video file")
-        if resolved_subtitle.suffix.lower() not in {".ass", ".srt", ".vtt"}:
-            raise ValueError("subtitle_path must reference an ASS, SRT, or VTT subtitle file.")
+        if resolved_subtitle.suffix.lower() not in {".ass", ".srt", ".vtt", ".sub"}:
+            raise ValueError("subtitle_path must reference an ASS, SRT, SUB, or VTT subtitle file.")
 
         start_offset, end_offset = _validate_time_window(start_time_offset, end_time_offset)
+        resolved_target_height = int(target_height) if target_height is not None else _TARGET_DUB_HEIGHT
+        if resolved_target_height < 0:
+            resolved_target_height = 0
+        allowed_heights = {320, 480, 720}
+        if resolved_target_height not in allowed_heights:
+            raise ValueError("target_height must be one of 320, 480, or 720")
+        preserve_aspect_ratio_resolved = True if preserve_aspect_ratio is None else bool(preserve_aspect_ratio)
 
         tracker = ProgressTracker()
         stop_event = threading.Event()
+        source_kind = _classify_video_source(resolved_video)
         language_code = _resolve_language_code(
             target_language or _find_language_token(resolved_subtitle) or "en"
         )
         payload = {
             "video_path": resolved_video.as_posix(),
             "subtitle_path": resolved_subtitle.as_posix(),
+            "source_subtitle_path": resolved_subtitle.as_posix(),
+            "source_kind": source_kind,
             "target_language": language_code,
             "voice": voice,
             "tempo": tempo,
@@ -2977,6 +3807,8 @@ class YoutubeDubbingService:
             "llm_model": llm_model,
             "split_batches": bool(split_batches) if split_batches is not None else False,
             "include_transliteration": include_transliteration,
+            "target_height": resolved_target_height,
+            "preserve_aspect_ratio": preserve_aspect_ratio_resolved,
         }
 
         def _worker(job: PipelineJob) -> None:
@@ -2997,7 +3829,11 @@ class YoutubeDubbingService:
                 llm_model=llm_model,
                 split_batches=bool(split_batches) if split_batches is not None else False,
                 include_transliteration=include_transliteration,
+                target_height=resolved_target_height,
+                preserve_aspect_ratio=preserve_aspect_ratio_resolved,
                 file_locator=self._job_manager.file_locator,
+                source_subtitle_path=resolved_subtitle,
+                source_kind=source_kind,
             )
 
         return self._job_manager.submit_background_job(
@@ -3017,5 +3853,6 @@ __all__ = [
     "YoutubeNasVideo",
     "generate_dubbed_video",
     "list_downloaded_videos",
+    "extract_inline_subtitles",
     "YoutubeDubbingService",
 ]

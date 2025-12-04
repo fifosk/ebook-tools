@@ -313,6 +313,7 @@ class YoutubeNasVideoPayload(BaseModel):
     folder: str
     size_bytes: int
     modified_at: datetime
+    source: Optional[str] = Field(default="youtube")
     subtitles: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
 
 
@@ -321,6 +322,19 @@ class YoutubeNasLibraryResponse(BaseModel):
 
     base_dir: str
     videos: List[YoutubeNasVideoPayload] = Field(default_factory=list)
+
+
+class YoutubeSubtitleExtractionRequest(BaseModel):
+    """Request payload for extracting embedded subtitle tracks from a video."""
+
+    video_path: str
+
+
+class YoutubeSubtitleExtractionResponse(BaseModel):
+    """Response describing extracted subtitle tracks."""
+
+    video_path: str
+    extracted: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
 
 
 class YoutubeDubRequest(BaseModel):
@@ -340,6 +354,8 @@ class YoutubeDubRequest(BaseModel):
     llm_model: Optional[str] = None
     split_batches: Optional[bool] = None
     include_transliteration: Optional[bool] = None
+    target_height: Optional[int] = None
+    preserve_aspect_ratio: Optional[bool] = None
 
 
 class YoutubeDubResponse(BaseModel):

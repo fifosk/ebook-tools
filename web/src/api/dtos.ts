@@ -140,6 +140,8 @@ export interface JobParameterSnapshot {
   flush_sentences?: number | null;
   split_batches?: boolean | null;
   include_transliteration?: boolean | null;
+  target_height?: number | null;
+  preserve_aspect_ratio?: boolean | null;
 }
 
 export interface PipelineStatusResponse {
@@ -235,12 +237,18 @@ export interface YoutubeNasVideo {
   folder: string;
   size_bytes: number;
   modified_at: string;
+  source?: string;
   subtitles: YoutubeNasSubtitle[];
 }
 
 export interface YoutubeNasLibraryResponse {
   base_dir: string;
   videos: YoutubeNasVideo[];
+}
+
+export interface YoutubeSubtitleExtractionResponse {
+  video_path: string;
+  extracted: YoutubeNasSubtitle[];
 }
 
 export interface YoutubeDubRequest {
@@ -258,6 +266,8 @@ export interface YoutubeDubRequest {
   llm_model?: string | null;
   split_batches?: boolean | null;
   include_transliteration?: boolean | null;
+  target_height?: number | null;
+  preserve_aspect_ratio?: boolean | null;
 }
 
 export interface YoutubeDubResponse {

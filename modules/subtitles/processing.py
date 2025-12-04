@@ -72,16 +72,38 @@ class SubtitleJobCancelled(RuntimeError):
 def load_subtitle_cues(path: Path) -> List[SubtitleCue]:
     """Parse ``path`` as an SRT/VTT file and return normalized cues."""
 
-    try:
-        payload = path.read_text(encoding="utf-8")
-    except UnicodeDecodeError:
-        payload = path.read_text(encoding="utf-8-sig")
+    payload = _read_subtitle_text(path)
 
     if WEBVTT_HEADER.match(payload.splitlines()[0] if payload else ""):
         return _parse_webvtt(payload)
     if path.suffix.lower() == ".vtt":
         return _parse_webvtt(payload)
     return _parse_srt(payload)
+
+
+def _read_subtitle_text(path: Path) -> str:
+    """Return subtitle text with defensive decoding and binary detection."""
+
+    raw = path.read_bytes()
+    suffix = path.suffix.lower()
+
+    # Detect common VobSub (.sub) MPEG stream headers that are binary and unsupported.
+    if suffix == ".sub":
+        header = raw[:16]
+        if header.startswith(b"\x00\x00\x01\xba") or header.startswith(b"\x00\x00\x01\xb3"):
+            raise ValueError(
+                "Binary .sub (VobSub) subtitles are not supported. Please convert to SRT, VTT, or ASS."
+            )
+
+    for encoding in ("utf-8", "utf-8-sig", "latin-1"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+
+    raise ValueError(
+        f"Unable to decode subtitle file '{path}'. Please provide a UTF-8/Latin-1 encoded SRT, VTT, or ASS file."
+    )
 
 
 def _normalize_language_label(value: str) -> str:
