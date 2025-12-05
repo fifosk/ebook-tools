@@ -192,6 +192,11 @@ export default function YoutubeDubPlayer({
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
+  const [cueVisibility, setCueVisibility] = useState({
+    original: true,
+    transliteration: true,
+    translation: true,
+  });
   const [playbackSpeed, setPlaybackSpeed] = useState(DEFAULT_TRANSLATION_SPEED);
   const pendingAutoplayRef = useRef(false);
   const previousFileCountRef = useRef<number>(videoFiles.length);
@@ -417,6 +422,45 @@ export default function YoutubeDubPlayer({
     setSubtitlesEnabled((current) => !current);
   }, []);
 
+  const cuePreferenceKey = useMemo(() => `youtube-dub-cue-preference-${jobId}`, [jobId]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const stored = window.localStorage.getItem(cuePreferenceKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          setCueVisibility((current) => ({
+            original: typeof parsed.original === 'boolean' ? parsed.original : current.original,
+            transliteration:
+              typeof parsed.transliteration === 'boolean' ? parsed.transliteration : current.transliteration,
+            translation: typeof parsed.translation === 'boolean' ? parsed.translation : current.translation,
+          }));
+        }
+      }
+    } catch (error) {
+      void error;
+    }
+  }, [cuePreferenceKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(cuePreferenceKey, JSON.stringify(cueVisibility));
+    } catch (error) {
+      void error;
+    }
+  }, [cuePreferenceKey, cueVisibility]);
+
+  const toggleCueVisibility = useCallback((key: 'original' | 'transliteration' | 'translation') => {
+    setCueVisibility((current) => ({ ...current, [key]: !current[key] }));
+  }, []);
+
   const handlePlaybackPositionChange = useCallback(
     (position: number) => {
       if (!activeVideoId) {
@@ -514,6 +558,10 @@ export default function YoutubeDubPlayer({
                   onToggleSubtitles={handleSubtitleToggle}
                   subtitlesEnabled={subtitlesEnabled}
                   disableSubtitleToggle={videoCount === 0}
+                  showCueLayerToggles
+                  cueVisibility={cueVisibility}
+                  onToggleCueLayer={toggleCueVisibility}
+                  disableCueLayerToggles={videoCount === 0 || !subtitlesEnabled}
                   showTranslationSpeed
                   translationSpeed={playbackSpeed}
                   translationSpeedMin={TRANSLATION_SPEED_MIN}
@@ -543,36 +591,37 @@ export default function YoutubeDubPlayer({
                       setActiveVideoId(id);
                     }}
                     autoPlay
-                    onPlaybackEnded={handlePlaybackEnded}
-                    playbackPosition={playbackPosition}
-                    onPlaybackPositionChange={handlePlaybackPositionChange}
-                    onPlaybackStateChange={handlePlaybackStateChange}
-                    playbackRate={playbackSpeed}
-                    onPlaybackRateChange={handlePlaybackRateChange}
-                    isTheaterMode={isFullscreen}
-                    onExitTheaterMode={handleExitFullscreen}
-                    onRegisterControls={handleRegisterControls}
-                    subtitlesEnabled={subtitlesEnabled}
-                    tracks={activeSubtitleTracks}
-                  />
-                  <div className="player-panel__selection-header" data-testid="player-panel-selection">
-                    <div className="player-panel__selection-name" title={selectionLabel}>
-                      {selectionLabel}
-                    </div>
-                    <dl className="player-panel__selection-meta">
-                      <div className="player-panel__selection-meta-item">
-                        <dt>Updated</dt>
-                        <dd>{selectionMeta || '—'}</dd>
-                      </div>
-                      <div className="player-panel__selection-meta-item">
-                        <dt>Batches</dt>
-                        <dd>
-                          {videoCount > 0 && currentIndex >= 0 ? `${currentIndex + 1} of ${videoCount}` : '—'}
-                        </dd>
-                      </div>
-                    </dl>
+                  onPlaybackEnded={handlePlaybackEnded}
+                  playbackPosition={playbackPosition}
+                  onPlaybackPositionChange={handlePlaybackPositionChange}
+                  onPlaybackStateChange={handlePlaybackStateChange}
+                  playbackRate={playbackSpeed}
+                  onPlaybackRateChange={handlePlaybackRateChange}
+                  isTheaterMode={isFullscreen}
+                  onExitTheaterMode={handleExitFullscreen}
+                  onRegisterControls={handleRegisterControls}
+                  subtitlesEnabled={subtitlesEnabled}
+                  tracks={activeSubtitleTracks}
+                  cueVisibility={cueVisibility}
+                />
+                <div className="player-panel__selection-header" data-testid="player-panel-selection">
+                  <div className="player-panel__selection-name" title={selectionLabel}>
+                    {selectionLabel}
                   </div>
-                </>
+                  <dl className="player-panel__selection-meta">
+                    <div className="player-panel__selection-meta-item">
+                      <dt>Updated</dt>
+                      <dd>{selectionMeta || '—'}</dd>
+                    </div>
+                    <div className="player-panel__selection-meta-item">
+                      <dt>Batches</dt>
+                      <dd>
+                        {videoCount > 0 && currentIndex >= 0 ? `${currentIndex + 1} of ${videoCount}` : '—'}
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </>
               )}
             </div>
           </div>

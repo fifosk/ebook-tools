@@ -17,7 +17,7 @@ import type {
 import type { MacOSVoice, GTTSLanguage } from '../api/dtos';
 import type { JobState } from '../components/JobList';
 import { VOICE_OPTIONS } from '../constants/menuOptions';
-import { resolveLanguageName } from '../constants/languageCodes';
+import { LANGUAGE_CODES, resolveLanguageName } from '../constants/languageCodes';
 import styles from './YoutubeDubPage.module.css';
 
 const DEFAULT_VIDEO_DIR = '/Volumes/Data/Video/Youtube';
@@ -257,10 +257,21 @@ export default function YoutubeDubPage({
     [videos, selectedVideoPath]
   );
   const languageOptions: GTTSLanguage[] = useMemo(() => {
-    if (!voiceInventory) {
-      return [];
+    const seen = new Set<string>();
+    const entries: GTTSLanguage[] = [];
+    const append = (code: string, name: string) => {
+      const normalised = code.trim().toLowerCase();
+      if (!normalised || seen.has(normalised)) {
+        return;
+      }
+      seen.add(normalised);
+      entries.push({ code: normalised, name });
+    };
+    if (voiceInventory) {
+      voiceInventory.gtts.forEach((language) => append(language.code, language.name));
     }
-    return voiceInventory.gtts.slice().sort((a, b) => a.name.localeCompare(b.name));
+    Object.entries(LANGUAGE_CODES).forEach(([name, code]) => append(code, name));
+    return entries.sort((a, b) => a.name.localeCompare(b.name));
   }, [voiceInventory]);
   const playableSubtitles = useMemo(() => {
     if (!selectedVideo) {

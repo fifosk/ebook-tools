@@ -208,6 +208,13 @@ _SCRIPT_POLICIES: tuple[ScriptPolicy, ...] = (
         script_pattern=regex.compile(r"[\u0700-\u074F]"),
         instruction="Always respond in Syriac script; do NOT use Latin letters or transliteration.",
     ),
+    ScriptPolicy(
+        key="persian_script",
+        aliases=("persian", "farsi", "fa", "fa-ir", "fa_ir"),
+        script_label="Arabic",
+        script_pattern=regex.compile(r"[\u0600-\u06FF]"),
+        instruction="Always respond in Persian (Arabic) script; do NOT use Latin letters or transliteration.",
+    ),
 )
 
 
@@ -243,6 +250,9 @@ SCRIPT_BLOCKS: Dict[str, regex.Pattern] = {
 _EXTRA_NON_LATIN_HINTS: Set[str] = {
     "arabic",
     "ar",
+    "persian",
+    "farsi",
+    "fa",
     "hebrew",
     "he",
     "iw",

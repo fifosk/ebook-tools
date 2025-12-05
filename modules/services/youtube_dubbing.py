@@ -53,6 +53,9 @@ _LANGUAGE_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,16}$")
 _DEFAULT_ORIGINAL_MIX_PERCENT = 15.0
 _DEFAULT_FLUSH_SENTENCES = 10
 _TEMP_DIR = Path("/tmp")
+_SUBTITLE_MIRROR_DIR = (
+    Path(os.environ.get("SUBTITLE_SOURCE_DIR") or "/Volumes/Data/Download/Subtitles").expanduser()
+)
 _GAP_MIX_SCALAR = 0.25
 _GAP_MIX_MAX_PERCENT = 5.0
 _TARGET_DUB_HEIGHT = 480
@@ -2005,6 +2008,23 @@ def _sanitize_subtitle_text(text: str) -> str:
     return normalized.strip()
 
 
+def _sanitize_cue_markup(cues: Sequence[SubtitleCue]) -> List[SubtitleCue]:
+    """Strip HTML/ASS markup from cue lines."""
+
+    sanitized: List[SubtitleCue] = []
+    for cue in cues:
+        sanitized_lines = [_sanitize_subtitle_text(line) for line in cue.lines]
+        sanitized.append(
+            SubtitleCue(
+                index=cue.index,
+                start=cue.start,
+                end=cue.end,
+                lines=sanitized_lines,
+            )
+        )
+    return sanitized
+
+
 def _sentence_case_line(line: str) -> str:
     """Lowercase the line (outside formatting tags) and capitalize the first letter."""
 
@@ -2060,6 +2080,29 @@ def _normalize_all_caps_cues(cues: Sequence[SubtitleCue]) -> List[SubtitleCue]:
             )
         )
     return normalized
+
+
+def _mirror_subtitle_to_source_dir(subtitle_path: Path) -> Optional[Path]:
+    """Copy ``subtitle_path`` into the NAS subtitle source directory."""
+
+    try:
+        target_dir = _SUBTITLE_MIRROR_DIR
+        if not target_dir:
+            return None
+        target_dir.mkdir(parents=True, exist_ok=True)
+        destination = target_dir / subtitle_path.name
+        if destination.resolve() == subtitle_path.resolve():
+            return destination
+        shutil.copy2(subtitle_path, destination)
+        return destination
+    except Exception:
+        logger.warning(
+            "Unable to mirror extracted subtitle %s to %s",
+            subtitle_path,
+            _SUBTITLE_MIRROR_DIR,
+            exc_info=True,
+        )
+        return None
 
 
 def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
@@ -2135,7 +2178,8 @@ def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
         )
         try:
             cues = load_subtitle_cues(output_path)
-            normalized_cues = _normalize_all_caps_cues(cues)
+            sanitized_cues = _sanitize_cue_markup(cues)
+            normalized_cues = _normalize_all_caps_cues(sanitized_cues)
             if normalized_cues != cues:
                 write_srt(output_path, normalized_cues)
         except Exception:
@@ -2144,6 +2188,7 @@ def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
                 output_path,
                 exc_info=True,
             )
+        _mirror_subtitle_to_source_dir(output_path)
     if not extracted:
         reason = ""
         if streams:
@@ -3561,7 +3606,8 @@ def _run_dub_job(
                 subtitle_candidate = base.with_suffix(".ass")
                 alt_subtitle = base.with_suffix(".srt")
                 vtt_subtitle = base.with_suffix(".vtt")
-                for candidate in (subtitle_candidate, alt_subtitle, vtt_subtitle):
+                candidates = (vtt_subtitle, subtitle_candidate, alt_subtitle)
+                for candidate in candidates:
                     try:
                         if candidate.exists():
                             copied_subtitle = _copy_into_storage(candidate)
@@ -3577,8 +3623,8 @@ def _run_dub_job(
                                 copied_subtitle,
                                 media_root,
                                 target_language=language_code,
-                                include_transliteration=False,
-                                transliterator=None,
+                                include_transliteration=include_transliteration_resolved,
+                                transliterator=transliterator if include_transliteration_resolved else None,
                             )
                             if vtt_variant:
                                 if vtt_variant not in subtitle_artifacts:
@@ -3590,8 +3636,8 @@ def _run_dub_job(
                                 stored,
                                 media_root,
                                 target_language=language_code,
-                                include_transliteration=False,
-                                transliterator=None,
+                                include_transliteration=include_transliteration_resolved,
+                                transliterator=transliterator if include_transliteration_resolved else None,
                             )
                             if aligned_variant:
                                 if aligned_variant not in subtitle_artifacts:

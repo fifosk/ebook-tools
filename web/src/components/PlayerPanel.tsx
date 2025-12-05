@@ -95,6 +95,14 @@ interface NavigationControlsProps {
   onToggleSubtitles?: () => void;
   subtitlesEnabled?: boolean;
   disableSubtitleToggle?: boolean;
+  showCueLayerToggles?: boolean;
+  cueVisibility?: {
+    original: boolean;
+    transliteration: boolean;
+    translation: boolean;
+  };
+  onToggleCueLayer?: (key: 'original' | 'transliteration' | 'translation') => void;
+  disableCueLayerToggles?: boolean;
   showTranslationSpeed: boolean;
   translationSpeed: TranslationSpeed;
   translationSpeedMin: number;
@@ -142,6 +150,10 @@ export function NavigationControls({
   onToggleSubtitles,
   subtitlesEnabled = true,
   disableSubtitleToggle = false,
+  showCueLayerToggles = false,
+  cueVisibility,
+  onToggleCueLayer,
+  disableCueLayerToggles = false,
   showTranslationSpeed,
   translationSpeed,
   translationSpeedMin,
@@ -202,6 +214,16 @@ export function NavigationControls({
   }
   const fullscreenIcon = isFullscreen ? '🗗' : '⛶';
   const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
+  const resolvedCueVisibility =
+    cueVisibility ??
+    ({
+      original: true,
+      transliteration: true,
+      translation: true,
+    } as const);
+  const handleToggleCueLayer = (key: 'original' | 'transliteration' | 'translation') => {
+    onToggleCueLayer?.(key);
+  };
   const handleSpeedChange = (event: ChangeEvent<HTMLInputElement>) => {
     const raw = Number.parseFloat(event.target.value);
     if (!Number.isFinite(raw)) {
@@ -313,6 +335,30 @@ export function NavigationControls({
               Subs
             </span>
           </button>
+        ) : null}
+        {showCueLayerToggles ? (
+          <div
+            className="player-panel__subtitle-flags player-panel__subtitle-flags--controls"
+            role="group"
+            aria-label="Subtitle layers"
+          >
+            {[
+              { key: 'original' as const, label: 'Orig' },
+              { key: 'transliteration' as const, label: 'Translit' },
+              { key: 'translation' as const, label: 'Trans' },
+            ].map((entry) => (
+              <button
+                key={entry.key}
+                type="button"
+                className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
+                aria-pressed={resolvedCueVisibility[entry.key]}
+                onClick={() => handleToggleCueLayer(entry.key)}
+                disabled={disableCueLayerToggles || disableSubtitleToggle}
+              >
+                {entry.label}
+              </button>
+            ))}
+          </div>
         ) : null}
         <button
           type="button"

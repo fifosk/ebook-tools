@@ -36,6 +36,11 @@ interface VideoPlayerProps {
   ) => void;
   subtitlesEnabled?: boolean;
   tracks?: SubtitleTrack[];
+  cueVisibility?: {
+    original: boolean;
+    transliteration: boolean;
+    translation: boolean;
+  };
 }
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -65,6 +70,7 @@ export default function VideoPlayer({
   onRegisterControls,
   subtitlesEnabled = true,
   tracks = [],
+  cueVisibility = { original: true, transliteration: true, translation: true },
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
@@ -359,6 +365,9 @@ export default function VideoPlayer({
               poster={activeFile.poster}
               autoPlay={autoPlay}
               playsInline
+              data-cue-original={cueVisibility.original ? 'on' : 'off'}
+              data-cue-transliteration={cueVisibility.transliteration ? 'on' : 'off'}
+              data-cue-translation={cueVisibility.translation ? 'on' : 'off'}
               onPlay={handlePlay}
               onPause={handlePause}
               onEnded={handleEnded}

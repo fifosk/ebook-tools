@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence, TextIO, Tuple
 
 from modules import logging_manager as log_mgr, prompt_templates
-from modules.core.rendering.constants import NON_LATIN_LANGUAGES
+from modules.core.rendering.constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.progress_tracker import ProgressTracker
 from modules.llm_client import create_client
@@ -58,7 +58,18 @@ ASS_BOX_OUTLINE = 6
 def _target_uses_non_latin_script(language: str) -> bool:
     """Return True when ``language`` should receive transliteration output."""
 
-    return (language or "").strip() in NON_LATIN_LANGUAGES
+    normalized = (language or "").strip()
+    if not normalized:
+        return False
+    normalized_lower = normalized.lower()
+    # Accept both human-readable names and language codes.
+    for candidate in NON_LATIN_LANGUAGES:
+        if candidate.lower() == normalized_lower:
+            return True
+    for name, code in LANGUAGE_CODES.items():
+        if name in NON_LATIN_LANGUAGES and code.lower() == normalized_lower:
+            return True
+    return False
 
 
 class SubtitleProcessingError(RuntimeError):
