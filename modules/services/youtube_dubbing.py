@@ -1753,6 +1753,7 @@ def _mux_audio_track(
     end_time: Optional[float] = None,
     target_duration_seconds: Optional[float] = None,
     include_source_audio: bool = True,
+    source_duration_seconds: Optional[float] = None,
 ) -> None:
     ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
     command = [ffmpeg_bin, "-y"]
@@ -1766,6 +1767,8 @@ def _mux_audio_track(
         segment_duration = end_time
         if start_time is not None and start_time > 0:
             segment_duration = max(0.0, end_time - start_time)
+    if source_duration_seconds is not None and source_duration_seconds > 0:
+        segment_duration = source_duration_seconds
     stretch_ratio = None
     if target_duration_seconds is not None and target_duration_seconds > 0 and segment_duration:
         if target_duration_seconds > segment_duration + 0.01:
@@ -1813,7 +1816,7 @@ def _mux_audio_track(
     )
     duration_arg = None
     if target_duration_seconds is not None and target_duration_seconds > 0:
-        duration_arg = max(target_duration_seconds, segment_duration or 0.0)
+        duration_arg = target_duration_seconds
     elif segment_duration is not None:
         duration_arg = segment_duration
     if duration_arg is not None and duration_arg > 0:
@@ -2830,8 +2833,9 @@ def generate_dubbed_video(
                             extra={"event": "youtube.dub.gap.clip.failed"},
                             exc_info=True,
                         )
-                audio_len_seconds = len(audio) / 1000.0
-                audio_end_seconds = entry.start + audio_len_seconds
+                audio_duration = len(audio) / 1000.0
+                audio_end_seconds = entry.start + audio_duration
+                source_window_duration = max(0.0, orig_end - orig_start)
                 if not write_batches:
                     end_ms = int(audio_end_seconds * 1000) + 50
                     if len(dubbed_track) < end_ms:
@@ -2848,7 +2852,7 @@ def generate_dubbed_video(
                         audio,
                         source_video,
                         original_mix_percent=mix_percent,
-                        expected_duration_seconds=audio_len_seconds,
+                        expected_duration_seconds=audio_duration,
                         original_audio=original_slice,
                     )
                     with tempfile.NamedTemporaryFile(
@@ -2866,7 +2870,7 @@ def generate_dubbed_video(
                     sentence_audio_paths.append(sentence_audio_path)
                     local_start = orig_start
                     # Drive video length from dubbed audio; stretch/pad as needed.
-                    local_end = audio_len_seconds
+                    window_duration = source_window_duration
                     sentence_video = source_video
                     trimmed = False
                     try:
@@ -2880,6 +2884,19 @@ def generate_dubbed_video(
                         local_start = 0.0
                     except Exception:
                         sentence_video = source_video
+                    video_source_duration = None
+                    if trimmed:
+                        try:
+                            video_source_duration = _probe_duration_seconds(sentence_video)
+                        except Exception:
+                            video_source_duration = None
+                    if video_source_duration and video_source_duration > 0:
+                        window_duration = video_source_duration
+                if window_duration <= 0 and audio_duration > 0:
+                    window_duration = audio_duration
+                window_end = None
+                if window_duration > 0:
+                    window_end = local_start + window_duration
                     sentence_output = _resolve_temp_batch_path(
                         output_path,
                         orig_start,
@@ -2891,9 +2908,10 @@ def generate_dubbed_video(
                         sentence_output,
                         language_code,
                         start_time=local_start,
-                        end_time=local_start + local_end if local_end > 0 else None,
-                        target_duration_seconds=audio_len_seconds,
+                        end_time=window_end,
+                        target_duration_seconds=audio_duration,
                         include_source_audio=False,
+                        source_duration_seconds=window_duration if window_duration > 0 else None,
                     )
                     if not _has_audio_stream(sentence_output):
                         logger.warning(
@@ -2932,7 +2950,7 @@ def generate_dubbed_video(
                                     "-f",
                                     "lavfi",
                                     "-i",
-                                    f"color=c=black:s=16x16:d={audio_len_seconds:.6f}",
+                                    f"color=c=black:s=16x16:d={audio_duration:.6f}",
                                     "-i",
                                     str(sentence_audio_paths[-1]),
                                     "-map",
@@ -2951,25 +2969,25 @@ def generate_dubbed_video(
                                 stderr=subprocess.PIPE,
                                 check=False,
                             )
-                    sentence_output = _pad_clip_to_duration(sentence_output, audio_len_seconds)
+                    sentence_output = _pad_clip_to_duration(sentence_output, audio_duration)
                     final_duration = _probe_duration_seconds(sentence_output)
-                    if abs(final_duration - audio_len_seconds) > 0.05:
+                    if abs(final_duration - audio_duration) > 0.05:
                         logger.warning(
                             "Sentence clip duration drift (expected=%.3fs, actual=%.3fs); padding to fix",
-                            audio_len_seconds,
+                            audio_duration,
                             final_duration,
                             extra={
                                 "event": "youtube.dub.sentence.duration_drift",
                                 "clip": sentence_output.as_posix(),
-                                "expected": audio_len_seconds,
+                                "expected": audio_duration,
                                 "actual": final_duration,
                             },
                         )
-                        sentence_output = _pad_clip_to_duration(sentence_output, audio_len_seconds)
+                        sentence_output = _pad_clip_to_duration(sentence_output, audio_duration)
                     sentence_clip_paths.append(sentence_output)
                     if trimmed and sentence_video != source_video:
                         sentence_video.unlink(missing_ok=True)
-                    timeline_cursor = entry.start + audio_len_seconds
+                    timeline_cursor = entry.start + audio_duration
                 gap_start = orig_end
             # Add trailing gap within the batch window so video length matches scheduled timeline.
             trailing_gap = max(0.0, block_end_seconds - timeline_cursor)
