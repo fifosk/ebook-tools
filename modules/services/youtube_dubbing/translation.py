@@ -5,7 +5,7 @@ from typing import List, Optional, Tuple
 
 from modules.progress_tracker import ProgressTracker
 from modules.retry_annotations import is_failure_annotation
-from modules.subtitles.processing import _translate_text as _translate_subtitle_text
+from modules.subtitles.translation import _translate_text as _translate_subtitle_text
 from modules.transliteration import TransliterationService
 
 from .common import _AssDialogue, logger

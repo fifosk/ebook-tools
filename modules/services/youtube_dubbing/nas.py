@@ -12,7 +12,8 @@ from typing import List, Optional, Sequence
 
 from modules.subtitles import load_subtitle_cues
 from modules.subtitles.models import SubtitleCue
-from modules.subtitles.processing import merge_youtube_subtitle_cues, write_srt
+from modules.subtitles.io import write_srt
+from modules.subtitles.merge import merge_youtube_subtitle_cues
 
 from .common import (
     DEFAULT_YOUTUBE_VIDEO_ROOT,

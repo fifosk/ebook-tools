@@ -3,13 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from modules.subtitles.models import SubtitleCue, SubtitleJobOptions
-from modules.subtitles.processing import (
-    CueTextRenderer,
-    SubtitleColorPalette,
-    _build_output_cues,
-    process_subtitle_file,
-)
+from modules.subtitles.models import SubtitleColorPalette, SubtitleCue, SubtitleJobOptions
+from modules.subtitles.processing import process_subtitle_file
+from modules.subtitles.render import CueTextRenderer, _build_output_cues
 
 
 def _sample_source_cue() -> SubtitleCue:
@@ -100,7 +96,7 @@ def srt_source(tmp_path: Path) -> Path:
 
 def _stub_translation(monkeypatch: pytest.MonkeyPatch, value: str) -> None:
     monkeypatch.setattr(
-        "modules.subtitles.processing.translate_sentence_simple",
+        "modules.subtitles.translation.translate_sentence_simple",
         lambda text, src, tgt, include_transliteration=False, client=None: value,
     )
 
@@ -314,7 +310,9 @@ def test_process_subtitle_file_emits_ass_with_header(tmp_path: Path, srt_source:
     payload = output_path.read_text(encoding="utf-8")
     assert payload.startswith("[Script Info]")
     assert "Style: DRT,Arial,56,&H5DC521&,&H3C92FB&,&H64000000,&HA0000000" in payload
-    assert "Dialogue: 0,0:00:00.00,0:00:01.00,DRT" in payload
+    assert payload.count("Dialogue: 0,") == 2
+    assert "Dialogue: 0,0:00:00.00" in payload
+    assert "0:00:02.00,DRT" in payload
     assert "{\\c&H3C92FB&}{\\b1}hola{\\b0}" in payload
 
 
@@ -358,9 +356,9 @@ def test_process_subtitle_file_uses_custom_llm_model(
         used_clients.append(client)
         return "hola mundo"
 
-    monkeypatch.setattr("modules.subtitles.processing.create_client", _fake_create_client)
+    monkeypatch.setattr("modules.subtitles.translation.create_client", _fake_create_client)
     monkeypatch.setattr(
-        "modules.subtitles.processing.translate_sentence_simple",
+        "modules.subtitles.translation.translate_sentence_simple",
         _fake_translate,
     )
 
@@ -431,7 +429,7 @@ def test_process_subtitle_file_respects_end_time(tmp_path: Path, monkeypatch: py
 
 def test_original_line_sanitises_html_tags(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "modules.subtitles.processing.translate_sentence_simple",
+        "modules.subtitles.translation.translate_sentence_simple",
         lambda text, *_args, **_kwargs: "hola mundo",
     )
     cue = SubtitleCue(

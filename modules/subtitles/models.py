@@ -332,3 +332,23 @@ class SubtitleProcessingResult:
     cue_count: int
     translated_count: int
     metadata: Dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(slots=True)
+class SubtitleOutputSummary:
+    """Lightweight summary describing the generated subtitle file."""
+
+    relative_path: str
+    format: str
+    word_count: int
+
+
+@dataclass(slots=True)
+class SubtitleHtmlEntry:
+    """Plain-text snippet appended to the companion HTML transcript."""
+
+    start: float
+    end: float
+    original_text: str
+    transliteration_text: str
+    translation_text: str

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import subprocess  # Exposed for test monkeypatching
 
-from modules.subtitles.processing import _SubtitleFileWriter
+from modules.subtitles.render import _SubtitleFileWriter
 
 from .audio_utils import (
     _apply_audio_gain_to_clip,

@@ -7,7 +7,7 @@ from typing import Optional
 
 from modules import language_policies
 from modules.core.rendering.constants import LANGUAGE_CODES
-from modules.subtitles.processing import _target_uses_non_latin_script
+from modules.subtitles.language import _target_uses_non_latin_script
 from modules.transliteration import TransliterationService
 
 from .common import _LANGUAGE_TOKEN_PATTERN, logger

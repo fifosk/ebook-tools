@@ -8,7 +8,7 @@ from typing import List, Optional, Sequence, Tuple
 
 from modules.subtitles import load_subtitle_cues
 from modules.subtitles.models import SubtitleCue
-from modules.subtitles.processing import merge_youtube_subtitle_cues
+from modules.subtitles.merge import merge_youtube_subtitle_cues
 
 from .common import (
     _ASS_DIALOGUE_PATTERN,

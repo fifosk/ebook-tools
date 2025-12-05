@@ -15,13 +15,9 @@ from pydub import AudioSegment
 from modules.audio.tts import generate_audio
 from modules.progress_tracker import ProgressTracker
 from modules.retry_annotations import is_failure_annotation
-from modules.subtitles.processing import (
-    CueTextRenderer,
-    _build_output_cues,
-    _SubtitleFileWriter,
-    _translate_text as _translate_subtitle_text,
-)
 from modules.subtitles.models import SubtitleCue, SubtitleColorPalette
+from modules.subtitles.render import CueTextRenderer, _SubtitleFileWriter, _build_output_cues
+from modules.subtitles.translation import _translate_text as _translate_subtitle_text
 from modules.transliteration import TransliterationService, get_transliterator
 
 from .audio_utils import (

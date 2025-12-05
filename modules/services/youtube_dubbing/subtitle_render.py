@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 from modules.subtitles.models import SubtitleCue
-from modules.subtitles.processing import CueTextRenderer, _SubtitleFileWriter, _build_output_cues
+from modules.subtitles.render import CueTextRenderer, _SubtitleFileWriter, _build_output_cues
 from modules.transliteration import TransliterationService
 
 from .common import _AssDialogue

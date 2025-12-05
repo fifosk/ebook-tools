@@ -14,7 +14,7 @@ from pydub import AudioSegment
 
 from modules.audio.tts import generate_audio
 from modules.retry_annotations import is_failure_annotation
-from modules.subtitles.processing import _translate_text as _translate_subtitle_text
+from modules.subtitles.translation import _translate_text as _translate_subtitle_text
 from modules.transliteration import TransliterationService
 
 from .common import (

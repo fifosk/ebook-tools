@@ -13,10 +13,8 @@ from modules import logging_manager as log_mgr
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.subtitles import SubtitleJobOptions
+from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
 from modules.subtitles.processing import (
-    ASS_EXTENSION,
-    DEFAULT_OUTPUT_SUFFIX,
-    SRT_EXTENSION,
     SubtitleJobCancelled,
     SubtitleProcessingError,
     load_subtitle_cues,
