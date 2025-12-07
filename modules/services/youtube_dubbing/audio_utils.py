@@ -209,11 +209,12 @@ def _compute_underlay_gain_db(reference_rms: float, original_rms: float, mix_per
 
 
 def _resolve_gap_mix_percent(original_mix_percent: float) -> float:
-    """Return a quieter mix percentage for silent gaps to avoid loud jumps."""
+    """Return a mix percentage for silent gaps that matches the underlay blend."""
 
-    clamped = _clamp_original_mix(original_mix_percent)
-    scaled = clamped * _GAP_MIX_SCALAR
-    return max(0.0, min(_GAP_MIX_MAX_PERCENT, scaled))
+    original = _clamp_original_mix(original_mix_percent)
+    # Keep gaps quieter than the underlay so the bed never jumps in front of dialogue.
+    scaled = original * _GAP_MIX_SCALAR
+    return min(original, _GAP_MIX_MAX_PERCENT, scaled)
 
 
 def _coerce_channels(segment: AudioSegment, target_channels: int) -> AudioSegment:
@@ -316,6 +317,10 @@ def _apply_gap_audio_mix(path: Path, *, mix_percent: float, reference_rms: float
     except Exception:
         clip_rms = 1.0
     gain_db = _compute_underlay_gain_db(reference_rms, clip_rms, gap_mix_percent)
+    # Avoid boosting quiet ambience and always enforce a strong attenuation in gaps.
+    if gain_db > 0:
+        gain_db = 0.0
+    gain_db = min(gain_db, -42.0)
     return _apply_audio_gain_to_clip(path, gain_db)
 
 
@@ -326,6 +331,9 @@ def _mix_with_original_audio(
     original_mix_percent: float,
     expected_duration_seconds: Optional[float] = None,
     original_audio: Optional[AudioSegment] = None,
+    speech_windows: Optional[Sequence[Tuple[float, float]]] = None,
+    reference_rms: Optional[float] = None,
+    gap_mix_percent: Optional[float] = None,
 ) -> AudioSegment:
     """Blend the original audio underneath the dubbed track at the given percentage."""
 
@@ -362,14 +370,39 @@ def _mix_with_original_audio(
     elif len(original) > target_ms:
         original = original[:target_ms]
 
-    # Normalize the underlay relative to the dubbed track so the percentage reflects loudness, not just peak.
-    dubbed_rms = dubbed_track.rms or 1
+    reference_rms_resolved = reference_rms if reference_rms is not None else (dubbed_track.rms or 1)
     original_rms = original.rms or 1
+    # Normalize the underlay relative to the dubbed track so the percentage reflects loudness, not just peak.
+    dubbed_rms = reference_rms_resolved or 1
     target_linear = mix_percent / 100.0
     relative_linear = target_linear * (dubbed_rms / original_rms)
     if relative_linear <= 0:
         return dubbed_track
     original_gain_db = 20 * math.log10(relative_linear)
+    if speech_windows and gap_mix_percent is not None:
+        gap_target_linear = max(0.0, min(1.0, gap_mix_percent / 100.0))
+        gap_relative_linear = gap_target_linear * (dubbed_rms / original_rms)
+        gap_gain_db = -120.0
+        if gap_relative_linear > 0:
+            gap_gain_db = 20 * math.log10(gap_relative_linear)
+        if gap_gain_db > 0:
+            gap_gain_db = 0.0
+        gap_gain_db = min(gap_gain_db, -42.0)
+        base_underlay = original.apply_gain(gap_gain_db)
+        bump_track = AudioSegment.silent(duration=target_ms, frame_rate=target_rate).set_channels(target_channels)
+        bump_gain_db = original_gain_db
+        if bump_gain_db > 0:
+            bump_gain_db = 0.0
+        for start_sec, end_sec in speech_windows:
+            start_ms = max(0, int(start_sec * 1000))
+            end_ms = min(target_ms, int(end_sec * 1000))
+            if end_ms <= start_ms:
+                continue
+            segment = original[start_ms:end_ms].apply_gain(bump_gain_db)
+            bump_track = bump_track.overlay(segment, position=start_ms)
+        underlay = base_underlay.overlay(bump_track)
+        base = dubbed_track - 1.0  # Leave a little headroom before mixing in the underlay.
+        return base.overlay(underlay)
 
     base = dubbed_track - 1.0  # Leave a little headroom before mixing in the underlay.
     return base.overlay(original.apply_gain(original_gain_db))

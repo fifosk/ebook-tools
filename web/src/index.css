@@ -1107,7 +1107,7 @@ main {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: var(--font-size-small);
+  font-size: calc(var(--font-size-small) + 0.12rem);
 }
 
 .sidebar__link .job-status {

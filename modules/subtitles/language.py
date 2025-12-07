@@ -16,27 +16,55 @@ if TYPE_CHECKING:  # pragma: no cover
     from .models import SubtitleCue, SubtitleJobOptions
 
 
-def _target_uses_non_latin_script(language: str) -> bool:
-    """Return True when ``language`` should receive transliteration output."""
-
-    normalized = (language or "").strip()
-    if not normalized:
-        return False
-    normalized_lower = normalized.lower()
-    # Accept both human-readable names and language codes.
-    for candidate in NON_LATIN_LANGUAGES:
-        if candidate.lower() == normalized_lower:
-            return True
-    for name, code in LANGUAGE_CODES.items():
-        if name in NON_LATIN_LANGUAGES and code.lower() == normalized_lower:
-            return True
-    return False
-
-
 def _normalize_language_label(value: str) -> str:
     normalized = (value or "").strip().casefold()
     normalized = normalized.replace("-", "").replace("_", "").replace(" ", "")
     return normalized
+
+
+def _target_uses_non_latin_script(language: str) -> bool:
+    """Return True when ``language`` should receive transliteration output."""
+
+    normalized = _normalize_language_label(language)
+    if not normalized:
+        return False
+    # Accept both human-readable names and language codes.
+    for candidate in NON_LATIN_LANGUAGES:
+        if _normalize_language_label(candidate) == normalized:
+            return True
+    for name, code in LANGUAGE_CODES.items():
+        if name in NON_LATIN_LANGUAGES and _normalize_language_label(code) == normalized:
+            return True
+    return False
+
+
+_CYRILLIC_LANGUAGES = {
+    "Russian",
+    "Ukrainian",
+    "Bulgarian",
+    "Serbian",
+    "Macedonian",
+    "Belarusian",
+    "Kazakh",
+    "Kyrgyz",
+    "Mongolian",
+    "Tajik",
+}
+
+
+def _target_uses_cyrillic_script(language: str) -> bool:
+    """Return True when ``language`` commonly uses a Cyrillic script."""
+
+    normalized = _normalize_language_label(language)
+    if not normalized:
+        return False
+    for candidate in _CYRILLIC_LANGUAGES:
+        if _normalize_language_label(candidate) == normalized:
+            return True
+    for name, code in LANGUAGE_CODES.items():
+        if name in _CYRILLIC_LANGUAGES and _normalize_language_label(code) == normalized:
+            return True
+    return False
 
 
 def _languages_match(first: str, second: str) -> bool:
@@ -138,5 +166,6 @@ __all__ = [
     "_languages_match",
     "_normalize_language_label",
     "_resolve_language_context",
+    "_target_uses_cyrillic_script",
     "_target_uses_non_latin_script",
 ]

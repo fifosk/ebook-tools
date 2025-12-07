@@ -29,6 +29,7 @@ from .audio_utils import (
     _measure_active_window,
     _mix_with_original_audio,
     _sanitize_for_tts,
+    _resolve_gap_mix_percent,
 )
 from .common import _DEFAULT_FLUSH_SENTENCES, _TARGET_DUB_HEIGHT, _TEMP_DIR, _AssDialogue, _DubJobCancelled, logger
 from .dialogues import (
@@ -150,6 +151,8 @@ def generate_dubbed_video(
     encoding_executor: Optional[ThreadPoolExecutor] = None
     encoding_workers = 1
     encoding_lock = threading.Lock()
+    speech_windows: List[Tuple[float, float]] = []
+    last_reference_rms: Optional[float] = None
     output_path = _resolve_output_path(
         video_path,
         language_code,
@@ -469,6 +472,8 @@ def generate_dubbed_video(
                     next_starts.append(None)
             synthesized = _synthesise_batch(translated_block, batch_pace=block_pace, next_starts=next_starts)
             reference_rms = _compute_reference_rms([audio for _entry, audio in synthesized])
+            if reference_rms:
+                last_reference_rms = reference_rms
             batch_start_sentence = block_index + 1
             batch_end_sentence = block_index + len(synthesized)
             block_start_seconds = 0.0 if write_batches else flushed_until
@@ -508,6 +513,11 @@ def generate_dubbed_video(
                 if next_gap_source is not None:
                     base_pad = min(base_pad, max(0.0, next_gap_source - 0.05))
                 subtitle_duration = duration_sec + base_pad
+                speech_start = cursor + max(0.0, speech_offset or 0.0)
+                speech_end = cursor + max(0.0, (speech_offset or 0.0) + (speech_duration or duration_sec))
+                if speech_end < speech_start:
+                    speech_end = speech_start
+                speech_windows.append((speech_start, speech_end))
                 scheduled_entry = _AssDialogue(
                     start=cursor,
                     end=cursor + subtitle_duration,
@@ -849,6 +859,9 @@ def generate_dubbed_video(
                 original_mix_percent=mix_percent,
                 expected_duration_seconds=total_seconds if total_seconds > 0 else None,
                 original_audio=original_audio_slice,
+                speech_windows=speech_windows,
+                reference_rms=last_reference_rms,
+                gap_mix_percent=_resolve_gap_mix_percent(mix_percent),
             )
             with tempfile.NamedTemporaryFile(
                 suffix=".wav",

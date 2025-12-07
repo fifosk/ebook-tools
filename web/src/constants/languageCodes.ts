@@ -90,6 +90,68 @@ export const LANGUAGE_CODES: Record<string, string> = {
   Persian: 'fa'
 };
 
+const LANGUAGE_CODE_ALIASES: Record<string, string> = {
+  amh: 'am',
+  ara: 'ar',
+  ben: 'bn',
+  bos: 'bs',
+  bul: 'bg',
+  ces: 'cs',
+  chi: 'zh-CN',
+  chs: 'zh-CN',
+  cht: 'zh-TW',
+  cmn: 'zh-CN',
+  cze: 'cs',
+  dan: 'da',
+  deu: 'de',
+  dut: 'nl',
+  ell: 'el',
+  eng: 'en',
+  est: 'et',
+  fas: 'fa',
+  fin: 'fi',
+  fre: 'fr',
+  fra: 'fr',
+  ger: 'de',
+  gre: 'el',
+  heb: 'he',
+  hin: 'hi',
+  hrv: 'hr',
+  hun: 'hu',
+  ind: 'id',
+  ita: 'it',
+  jpn: 'ja',
+  kor: 'ko',
+  lav: 'lv',
+  lit: 'lt',
+  may: 'ms',
+  msa: 'ms',
+  nor: 'no',
+  pes: 'fa',
+  per: 'fa',
+  pol: 'pl',
+  por: 'pt',
+  'por-br': 'pt-br',
+  ptbr: 'pt-br',
+  pus: 'ps',
+  ron: 'ro',
+  rum: 'ro',
+  rus: 'ru',
+  slo: 'sk',
+  slk: 'sk',
+  slv: 'sl',
+  spa: 'es',
+  srp: 'sr',
+  swe: 'sv',
+  tam: 'ta',
+  tel: 'te',
+  tha: 'th',
+  tur: 'tr',
+  ukr: 'uk',
+  vie: 'vi',
+  zho: 'zh-CN'
+};
+
 export function resolveLanguageCode(language: string): string | null {
   const direct = LANGUAGE_CODES[language];
   if (direct) {
@@ -97,8 +159,13 @@ export function resolveLanguageCode(language: string): string | null {
   }
 
   const normalized = language.trim().toLowerCase();
+  const canonical = normalized.replace(/_/g, '-');
   if (!normalized) {
     return null;
+  }
+
+  if (LANGUAGE_CODE_ALIASES[canonical]) {
+    return LANGUAGE_CODE_ALIASES[canonical];
   }
 
   for (const [name, code] of Object.entries(LANGUAGE_CODES)) {
@@ -107,8 +174,12 @@ export function resolveLanguageCode(language: string): string | null {
     }
   }
 
-  if (/^[a-z]{2}(?:[-_][a-z]{2})?$/i.test(language.trim())) {
-    return language.trim().toLowerCase();
+  if (LANGUAGE_CODE_ALIASES[canonical]) {
+    return LANGUAGE_CODE_ALIASES[canonical];
+  }
+
+  if (/^[a-z]{2,3}(?:[-_][a-z]{2,3})?$/i.test(normalized)) {
+    return canonical;
   }
 
   return null;

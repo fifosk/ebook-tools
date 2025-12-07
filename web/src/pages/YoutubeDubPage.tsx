@@ -22,7 +22,7 @@ import type {
 import type { MacOSVoice } from '../api/dtos';
 import type { JobState } from '../components/JobList';
 import { VOICE_OPTIONS } from '../constants/menuOptions';
-import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag, resolveLanguageName } from '../constants/languageCodes';
+import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
   buildLanguageOptions,
@@ -31,7 +31,12 @@ import {
   preferLanguageLabel,
   resolveLanguageCode
 } from '../utils/languages';
-import { subtitleLanguageDetail } from '../utils/subtitles';
+import {
+  resolveSubtitleFlag,
+  resolveSubtitleLanguageCandidate,
+  resolveSubtitleLanguageLabel,
+  subtitleLanguageDetail
+} from '../utils/subtitles';
 import styles from './YoutubeDubPage.module.css';
 
 const DEFAULT_VIDEO_DIR = '/Volumes/Data/Download/DStation';
@@ -106,8 +111,9 @@ function formatDateShort(value: string): string {
 }
 
 function subtitleLabel(sub: YoutubeNasSubtitle): string {
-  const language = sub.language ? `(${sub.language})` : '';
-  return `${sub.format.toUpperCase()} ${language}`.trim();
+  const language = resolveSubtitleLanguageLabel(sub.language, sub.path, sub.filename);
+  const languageSuffix = language ? `(${language})` : '';
+  return `${sub.format.toUpperCase()} ${languageSuffix}`.trim();
 }
 
 function subtitleStreamLabel(stream: YoutubeInlineSubtitleStream): string {
@@ -342,7 +348,21 @@ export default function YoutubeDubPage({
     [playableSubtitles, selectedSubtitlePath]
   );
   const subtitleLanguageLabel = useMemo(
-    () => normalizeLanguageLabel(selectedSubtitle?.language ?? ''),
+    () =>
+      resolveSubtitleLanguageLabel(
+        selectedSubtitle?.language,
+        selectedSubtitle?.path,
+        selectedSubtitle?.filename
+      ),
+    [selectedSubtitle]
+  );
+  const subtitleLanguageCode = useMemo(
+    () =>
+      resolveSubtitleLanguageCandidate(
+        selectedSubtitle?.language,
+        selectedSubtitle?.path,
+        selectedSubtitle?.filename
+      ),
     [selectedSubtitle]
   );
   const languageOptions = useMemo(
@@ -366,9 +386,9 @@ export default function YoutubeDubPage({
   );
   const targetLanguageCode = useMemo(() => {
     const preferredLabel = preferLanguageLabel([targetLanguage, subtitleLanguageLabel, primaryTargetLanguage]);
-    const fallback = selectedSubtitle?.language ?? '';
+    const fallback = subtitleLanguageCode || '';
     return resolveLanguageCode(preferredLabel || fallback);
-  }, [primaryTargetLanguage, selectedSubtitle, subtitleLanguageLabel, targetLanguage]);
+  }, [primaryTargetLanguage, subtitleLanguageCode, subtitleLanguageLabel, targetLanguage]);
 
   const handleRefresh = useCallback(async () => {
     setIsLoading(true);
@@ -1054,7 +1074,7 @@ export default function YoutubeDubPage({
                           aria-label={subtitleLabel(sub)}
                         >
                           <span className={styles.pillFlag} aria-hidden="true">
-                            {resolveLanguageFlag(sub.language ?? '') ?? DEFAULT_LANGUAGE_FLAG}
+                            {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
                           </span>
                           <span>{(sub.format ?? '').toUpperCase()}</span>
                         </span>
@@ -1096,11 +1116,11 @@ export default function YoutubeDubPage({
                                         </span>
                                         <span
                                           className={`${styles.pill} ${styles.pillMuted}`}
-                                          title={subtitleLanguageDetail(sub.language)}
-                                          aria-label={subtitleLanguageDetail(sub.language)}
+                                          title={subtitleLanguageDetail(sub.language, sub.path, sub.filename)}
+                                          aria-label={subtitleLanguageDetail(sub.language, sub.path, sub.filename)}
                                         >
                                           <span className={styles.pillFlag} aria-hidden="true">
-                                            {resolveLanguageFlag(sub.language ?? '') ?? DEFAULT_LANGUAGE_FLAG}
+                                            {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
                                           </span>
                                         </span>
                                       </div>

@@ -15,8 +15,12 @@ import type { SubtitleJobResultPayload, SubtitleSourceEntry } from '../api/dtos'
 import { formatTimestamp } from '../utils/mediaFormatters';
 import type { JobParameterSnapshot } from '../api/dtos';
 import { buildLanguageOptions, formatLanguageWithFlag, normalizeLanguageLabel } from '../utils/languages';
-import { inferSubtitleLanguageFromPath, subtitleFormatFromPath, subtitleLanguageDetail } from '../utils/subtitles';
-import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
+import {
+  resolveSubtitleFlag,
+  resolveSubtitleLanguageCandidate,
+  subtitleFormatFromPath,
+  subtitleLanguageDetail
+} from '../utils/subtitles';
 import { getStatusGlyph } from '../utils/status';
 import styles from './SubtitlesPage.module.css';
 
@@ -865,9 +869,9 @@ export default function SubtitlesPage({
                   {sortedSources.map((entry) => {
                     const isActive = selectedSource === entry.path;
                     const isDeleting = deletingSourcePath === entry.path;
-                    const language = entry.language || inferSubtitleLanguageFromPath(entry.path);
-                    const languageLabel = subtitleLanguageDetail(language);
-                    const languageFlag = resolveLanguageFlag(language ?? '') ?? DEFAULT_LANGUAGE_FLAG;
+                    const language = resolveSubtitleLanguageCandidate(entry.language, entry.path, entry.name);
+                    const languageLabel = subtitleLanguageDetail(language, entry.path, entry.name);
+                    const languageFlag = resolveSubtitleFlag(language, entry.path, entry.name);
                     const format = (entry.format || subtitleFormatFromPath(entry.path) || 'srt').toUpperCase();
                     const isAssFormat = format.toLowerCase() === 'ass';
                     return (

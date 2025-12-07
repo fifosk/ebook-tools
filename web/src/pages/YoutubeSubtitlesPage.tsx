@@ -14,7 +14,7 @@ import type {
   YoutubeSubtitleTrack,
   YoutubeVideoFormat
 } from '../api/dtos';
-import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
+import { resolveSubtitleFlag, resolveSubtitleLanguageLabel } from '../utils/subtitles';
 import styles from './YoutubeSubtitlesPage.module.css';
 
 const SUBTITLE_NAS_DIR = '/Volumes/Data/Download/Subtitles';
@@ -112,7 +112,8 @@ function formatDateLong(value?: string | null): string {
 }
 
 function subtitleBadgeLabel(subtitle: YoutubeNasVideo['subtitles'][number]): string {
-  const language = subtitle.language ? subtitle.language.toUpperCase() : '—';
+  const language =
+    resolveSubtitleLanguageLabel(subtitle.language, subtitle.path, subtitle.filename) || '—';
   const format = subtitle.format ? subtitle.format.toUpperCase() : '';
   return `${language} ${format}`.trim();
 }
@@ -574,7 +575,7 @@ export default function YoutubeSubtitlesPage() {
                           aria-label={subtitleBadgeLabel(sub)}
                         >
                           <span className={styles.pillFlag} aria-hidden="true">
-                            {resolveLanguageFlag(sub.language ?? '') ?? DEFAULT_LANGUAGE_FLAG}
+                            {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
                           </span>
                           <span>{(sub.format ?? '').toUpperCase()}</span>
                         </span>

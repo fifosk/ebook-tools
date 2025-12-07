@@ -19,6 +19,7 @@ from .language import (
     SubtitleLanguageContext,
     _normalize_language_label,
     _resolve_language_context,
+    _target_uses_cyrillic_script,
     _target_uses_non_latin_script,
 )
 from .merge import (
@@ -145,7 +146,9 @@ def process_subtitle_file(
 
     resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
     resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
-    if not _target_uses_non_latin_script(options.target_language):
+    if not _target_uses_non_latin_script(options.target_language) or _target_uses_cyrillic_script(
+        options.target_language
+    ):
         resolved_ass_emphasis = min(resolved_ass_emphasis, _LATIN_ASS_EMPHASIS_CAP)
     temp_output = output_path.with_suffix(output_path.suffix + ".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)

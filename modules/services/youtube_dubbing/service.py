@@ -19,6 +19,26 @@ from .video_utils import _classify_video_source
 from .webvtt import _ensure_webvtt_for_video, _ensure_webvtt_variant
 
 
+def _resolve_partial_video(path: Path) -> Path:
+    """Recover or reject partial downloads that still end with .part."""
+
+    resolved = path.expanduser()
+    if resolved.suffix.lower() != ".part":
+        return resolved
+    candidate = resolved.with_suffix("")
+    if candidate.exists():
+        logger.info("Using completed download for %s (recovered from .part)", candidate)
+        return candidate
+    try:
+        resolved.rename(candidate)
+        logger.info("Recovered partial video download as %s", candidate)
+        return candidate
+    except OSError as exc:
+        raise FileNotFoundError(
+            f"Video file '{resolved}' appears to be an incomplete download (.part); finish the download first."
+        ) from exc
+
+
 def _serialize_generated_files(output_path: Path, *, relative_prefix: Optional[Path] = None) -> dict:
     return _serialize_generated_files_batch([output_path], relative_prefix=relative_prefix)
 
@@ -141,6 +161,7 @@ def _run_dub_job(
     source_subtitle_path: Optional[Path] = None,
     source_kind: str = "youtube",
 ) -> None:
+    video_path = _resolve_partial_video(video_path)
     tracker = job.tracker or ProgressTracker()
     stop_event = job.stop_event or threading.Event()
     source_subtitle = source_subtitle_path or subtitle_path
@@ -484,7 +505,7 @@ class YoutubeDubbingService:
         target_height: Optional[int] = None,
         preserve_aspect_ratio: Optional[bool] = None,
     ) -> PipelineJob:
-        resolved_video = video_path.expanduser()
+        resolved_video = _resolve_partial_video(video_path)
         resolved_subtitle = subtitle_path.expanduser()
         if not resolved_video.exists():
             raise FileNotFoundError(f"Video file '{resolved_video}' does not exist")

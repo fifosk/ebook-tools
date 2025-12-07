@@ -47,11 +47,35 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
         raise FileNotFoundError(f"Video directory '{resolved}' is not accessible")
 
     videos: List[YoutubeNasVideo] = []
+
+    def _finalize_partial_video(path: Path) -> Optional[Path]:
+        """Attempt to recover a completed download by dropping a trailing .part suffix."""
+
+        if path.suffix.lower() != ".part":
+            return None
+        target = path.with_suffix("")
+        if target.exists():
+            return None
+        try:
+            path.rename(target)
+            logger.info("Recovered partial YouTube download as %s", target)
+            return target
+        except OSError:
+            logger.debug("Unable to rename partial download %s", path, exc_info=True)
+            return None
+
     for root, _dirs, files in os.walk(resolved):
         folder = Path(root)
         for filename in files:
             path = folder / filename
-            ext = path.suffix.lower().lstrip(".")
+            if path.suffix.lower() == ".part":
+                recovered = _finalize_partial_video(path)
+                if recovered is None:
+                    continue
+                path = recovered
+                ext = path.suffix.lower().lstrip(".")
+            else:
+                ext = path.suffix.lower().lstrip(".")
             if ".dub" in path.stem.lower():
                 continue
             if ext not in _VIDEO_EXTENSIONS:
