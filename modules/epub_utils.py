@@ -21,12 +21,12 @@ _CONTAINER_XML = """<?xml version='1.0' encoding='utf-8'?>
 """
 
 
-def _build_chapter_xhtml(sentences: Sequence[str]) -> str:
+def _build_chapter_xhtml(sentences: Sequence[str], title: str) -> str:
     body = "\n".join(f"    <p>{escape(sentence)}</p>" for sentence in sentences)
     return (
         "<?xml version='1.0' encoding='utf-8'?>\n"
         "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n"
-        "  <head><title>Sample Chapter</title></head>\n"
+        f"  <head><title>{escape(title)}</title></head>\n"
         "  <body>\n"
         f"{body}\n"
         "  </body>\n"
@@ -34,7 +34,8 @@ def _build_chapter_xhtml(sentences: Sequence[str]) -> str:
     )
 
 
-def _build_nav_xhtml() -> str:
+def _build_nav_xhtml(nav_label: str, content_href: str) -> str:
+    safe_label = escape(nav_label)
     return (
         "<?xml version='1.0' encoding='utf-8'?>\n"
         "<html xmlns=\"http://www.w3.org/1999/xhtml\" xmlns:epub=\"http://www.idpf.org/2007/ops\">\n"
@@ -43,7 +44,7 @@ def _build_nav_xhtml() -> str:
         "    <nav epub:type=\"toc\" id=\"toc\">\n"
         "      <h1>Table of Contents</h1>\n"
         "      <ol>\n"
-        "        <li><a href=\"chapter1.xhtml\">Chapter 1</a></li>\n"
+        f"        <li><a href=\"{escape(content_href)}\">{safe_label}</a></li>\n"
         "      </ol>\n"
         "    </nav>\n"
         "  </body>\n"
@@ -51,27 +52,30 @@ def _build_nav_xhtml() -> str:
     )
 
 
-def _build_content_opf(book_id: str) -> str:
+def _build_content_opf(book_id: str, *, book_title: str, content_id: str, content_href: str) -> str:
+    safe_title = escape(book_title)
     return (
         "<?xml version='1.0' encoding='utf-8'?>\n"
         "<package xmlns=\"http://www.idpf.org/2007/opf\" version=\"3.0\" unique-identifier=\"bookid\">\n"
         "  <metadata xmlns:dc=\"http://purl.org/dc/elements/1.1/\">\n"
         "    <dc:identifier id=\"bookid\">urn:uuid:{} </dc:identifier>\n"
-        "    <dc:title>Sample EPUB</dc:title>\n"
+        f"    <dc:title>{safe_title}</dc:title>\n"
         "    <dc:language>en</dc:language>\n"
         "  </metadata>\n"
         "  <manifest>\n"
         "    <item id=\"toc\" href=\"nav.xhtml\" media-type=\"application/xhtml+xml\" properties=\"nav\"/>\n"
-        "    <item id=\"chapter1\" href=\"chapter1.xhtml\" media-type=\"application/xhtml+xml\"/>\n"
+        f"    <item id=\"{content_id}\" href=\"{escape(content_href)}\" media-type=\"application/xhtml+xml\"/>\n"
         "  </manifest>\n"
         "  <spine>\n"
-        "    <itemref idref=\"chapter1\"/>\n"
+        f"    <itemref idref=\"{content_id}\"/>\n"
         "  </spine>\n"
         "</package>\n"
     ).format(book_id)
 
 
-def create_epub_from_sentences(sentences: Iterable[str], output_path: Path | str) -> Path:
+def create_epub_from_sentences(
+    sentences: Iterable[str], output_path: Path | str, book_title: str | None = None
+) -> Path:
     """Create a minimal EPUB file containing ``sentences`` and return its path."""
 
     sentences = [str(sentence) for sentence in sentences]
@@ -81,10 +85,16 @@ def create_epub_from_sentences(sentences: Iterable[str], output_path: Path | str
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
 
+    normalized_title = (book_title or "").strip() or "Generated Book"
+    content_filename = "content.xhtml"
+    content_id = "content"
+
     book_id = str(uuid4())
-    chapter_content = _build_chapter_xhtml(sentences)
-    nav_content = _build_nav_xhtml()
-    opf_content = _build_content_opf(book_id)
+    chapter_content = _build_chapter_xhtml(sentences, normalized_title)
+    nav_content = _build_nav_xhtml(normalized_title, content_filename)
+    opf_content = _build_content_opf(
+        book_id, book_title=normalized_title, content_id=content_id, content_href=content_filename
+    )
     sentences_payload = json.dumps({"sentences": sentences}, ensure_ascii=False, indent=2)
 
     with zipfile.ZipFile(output, "w") as zf:
@@ -92,7 +102,7 @@ def create_epub_from_sentences(sentences: Iterable[str], output_path: Path | str
         zf.writestr("META-INF/container.xml", _CONTAINER_XML, compress_type=zipfile.ZIP_DEFLATED)
         zf.writestr("OEBPS/content.opf", opf_content, compress_type=zipfile.ZIP_DEFLATED)
         zf.writestr("OEBPS/nav.xhtml", nav_content, compress_type=zipfile.ZIP_DEFLATED)
-        zf.writestr("OEBPS/chapter1.xhtml", chapter_content, compress_type=zipfile.ZIP_DEFLATED)
+        zf.writestr(f"OEBPS/{content_filename}", chapter_content, compress_type=zipfile.ZIP_DEFLATED)
         zf.writestr("OEBPS/sentences.json", sentences_payload, compress_type=zipfile.ZIP_DEFLATED)
 
     return output

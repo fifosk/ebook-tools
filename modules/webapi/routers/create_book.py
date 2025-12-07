@@ -332,7 +332,7 @@ def _execute_book_job(
     )
 
     _check_cancelled("epub preparation")
-    create_epub_from_sentences(sentences, epub_path)
+    create_epub_from_sentences(sentences, epub_path, book_title=generator_payload.book_name)
     relative_epub_path = _relative_epub_path(epub_path, data_root)
 
     summary = _build_summary(generator_payload.topic, generator_payload.genre)
@@ -473,7 +473,12 @@ async def create_book(
     config_payload["input_file"] = str(epub_path)
 
     try:
-        await run_in_threadpool(create_epub_from_sentences, sentences, epub_path)
+        await run_in_threadpool(
+            create_epub_from_sentences,
+            sentences,
+            epub_path,
+            book_title=payload.book_name,
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

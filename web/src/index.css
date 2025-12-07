@@ -552,6 +552,10 @@ main {
   display: none;
 }
 
+.sidebar__account {
+  margin-top: auto;
+}
+
 .dashboard__sidebar--collapsed .sidebar__header {
   flex-direction: row;
   align-items: center;
@@ -566,7 +570,20 @@ main {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-md);
+}
+
+.sidebar__brand {
+  display: inline-flex;
+  align-items: center;
   gap: var(--space-sm);
+}
+
+.sidebar__logo-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
 }
 
 .sidebar__collapse-toggle {
@@ -1021,6 +1038,50 @@ main {
   justify-content: space-between;
 }
 
+.sidebar__player {
+  margin-bottom: var(--space-sm);
+}
+
+.sidebar__link--player {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar__player-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+}
+
+.sidebar__player-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xxs);
+}
+
+.sidebar__player-label-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.sidebar__player-label-text-inner {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar__player-language {
+  font-size: var(--font-size-small);
+  color: var(--color-text-secondary);
+}
+
 .sidebar__job-label {
   min-width: 0;
   overflow: hidden;
@@ -1068,8 +1129,8 @@ main {
 
   .dashboard__sidebar {
     padding: var(--space-lg);
-    flex: 0 0 22rem;
-    max-width: 22rem;
+    flex: 0 0 24rem;
+    max-width: 24rem;
     height: 100vh;
     border-bottom: none;
     border-right: 1px solid var(--color-sidebar-border);

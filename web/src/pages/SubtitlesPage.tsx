@@ -17,6 +17,7 @@ import type { JobParameterSnapshot } from '../api/dtos';
 import { buildLanguageOptions, formatLanguageWithFlag, normalizeLanguageLabel } from '../utils/languages';
 import { inferSubtitleLanguageFromPath, subtitleFormatFromPath, subtitleLanguageDetail } from '../utils/subtitles';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
+import { getStatusGlyph } from '../utils/status';
 import styles from './SubtitlesPage.module.css';
 
 type SourceMode = 'existing' | 'upload';
@@ -1328,6 +1329,7 @@ export default function SubtitlesPage({
               const transliterationRetries = retrySummary
                 ? formatRetryCounts(retrySummary.transliteration)
                 : null;
+              const statusGlyph = getStatusGlyph(job.status.status);
               const updatedAt = job.status.completed_at
                 || job.status.started_at
                 || (event ? new Date(event.timestamp * 1000).toISOString() : null);
@@ -1335,7 +1337,14 @@ export default function SubtitlesPage({
                 <article key={job.jobId} className="subtitle-job-card">
                   <header>
                     <h3>Job {job.jobId}</h3>
-                    <span className={`job-status badge-${job.status.status}`}>{job.status.status}</span>
+                    <span
+                      className={`job-status badge-${job.status.status}`}
+                      data-state={job.status.status}
+                      title={statusGlyph.label}
+                      aria-label={statusGlyph.label}
+                    >
+                      {statusGlyph.icon}
+                    </span>
                   </header>
                   <dl>
                     <div>

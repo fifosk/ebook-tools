@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { PipelineStatusResponse, ProgressEventPayload } from '../api/dtos';
+import { getStatusGlyph } from '../utils/status';
 import { JobProgress } from './JobProgress';
 
 export interface JobState {
@@ -60,13 +61,14 @@ export function JobList({
         <div className="job-grid">
           {sortedJobs.map((job) => {
             const statusValue = job.status?.status ?? 'pending';
+            const statusGlyph = getStatusGlyph(statusValue);
             return (
               <details key={job.jobId} className="job-collapsible" open>
                 <summary>
                   <span>Job {job.jobId}</span>
                   <span className="job-type">{job.status.job_type}</span>
-                  <span className="job-status" data-state={statusValue}>
-                    {statusValue}
+                  <span className="job-status" data-state={statusValue} title={statusGlyph.label} aria-label={statusGlyph.label}>
+                    {statusGlyph.icon}
                   </span>
                 </summary>
                 <JobProgress

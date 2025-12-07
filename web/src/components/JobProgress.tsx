@@ -8,6 +8,7 @@ import {
   ProgressEventPayload
 } from '../api/dtos';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
+import { getStatusGlyph } from '../utils/status';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 type Props = {
@@ -717,6 +718,7 @@ export function JobProgress({
       : undefined;
   const showLibraryReadyNotice = canManage && isLibraryCandidate;
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
+  const statusGlyph = getStatusGlyph(statusValue);
 
   return (
     <div className="job-card" aria-live="polite">
@@ -726,8 +728,8 @@ export function JobProgress({
           <span className="job-card__badge">{jobType}</span>
         </div>
         <div className="job-card__header-actions">
-          <span className="job-status" data-state={statusValue}>
-            {statusValue}
+          <span className="job-status" data-state={statusValue} title={statusGlyph.label} aria-label={statusGlyph.label}>
+            {statusGlyph.icon}
           </span>
           <div className="job-actions" aria-label={`Actions for job ${jobId}`} aria-busy={isMutating}>
             {canPause ? (

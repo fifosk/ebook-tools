@@ -1111,10 +1111,11 @@ export function App() {
         <div className="sidebar__header">
           <div className="sidebar__brand">
             <span className="sidebar__logo-mark" aria-hidden="true">
-              LT
+              🌐
             </span>
-            <span className="sidebar__title">Language tools</span>
-            <span className="sidebar__subtitle">Language tools</span>
+            <span className="sidebar__title" aria-label="Language Tools">
+              Language Tools
+            </span>
           </div>
           <button
             type="button"
@@ -1131,6 +1132,22 @@ export function App() {
             </span>
           </button>
         </div>
+        <Sidebar
+          selectedView={selectedView}
+          onSelectView={handleSidebarSelectView}
+          sidebarJobs={sidebarJobs}
+          activeJobId={activeJobId}
+          onSelectJob={handleSelectSidebarJob}
+          onOpenPlayer={handleOpenPlayerForJob}
+          isAdmin={isAdmin}
+          createBookView={CREATE_BOOK_VIEW}
+          libraryView={LIBRARY_VIEW}
+          subtitlesView={SUBTITLES_VIEW}
+          youtubeSubtitlesView={YOUTUBE_SUBTITLES_VIEW}
+          youtubeDubView={YOUTUBE_DUB_VIEW}
+          jobMediaView={JOB_MEDIA_VIEW}
+          adminView={ADMIN_USER_MANAGEMENT_VIEW}
+        />
         <div className="sidebar__account">
           <div
             className={`session-info ${
@@ -1236,22 +1253,6 @@ export function App() {
             </div>
           </div>
         </div>
-        <Sidebar
-          selectedView={selectedView}
-          onSelectView={handleSidebarSelectView}
-          sidebarJobs={sidebarJobs}
-          activeJobId={activeJobId}
-          onSelectJob={handleSelectSidebarJob}
-          onOpenPlayer={handleOpenPlayerForJob}
-          isAdmin={isAdmin}
-          createBookView={CREATE_BOOK_VIEW}
-          libraryView={LIBRARY_VIEW}
-          subtitlesView={SUBTITLES_VIEW}
-          youtubeSubtitlesView={YOUTUBE_SUBTITLES_VIEW}
-          youtubeDubView={YOUTUBE_DUB_VIEW}
-          jobMediaView={JOB_MEDIA_VIEW}
-          adminView={ADMIN_USER_MANAGEMENT_VIEW}
-        />
       </aside>
       <div className="dashboard__content">
         <main className="dashboard__main">

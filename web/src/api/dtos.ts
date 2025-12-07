@@ -161,6 +161,7 @@ export interface PipelineStatusResponse {
   parameters?: JobParameterSnapshot | null;
   media_completed?: boolean | null;
   retry_summary?: Record<string, Record<string, number>> | null;
+  job_label?: string | null;
 }
 
 export interface SubtitleSourceEntry {
