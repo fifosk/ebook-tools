@@ -1,4 +1,13 @@
-import { DragEvent, FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  DragEvent,
+  FormEvent,
+  ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import {
   MacOSVoice,
   PipelineFileBrowserResponse,
@@ -24,6 +33,7 @@ import {
   WRITTEN_MODE_OPTIONS
 } from '../constants/menuOptions';
 import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
+import { formatLanguageWithFlag } from '../utils/languages';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import PipelineSourceSection from './PipelineSourceSection';
 import PipelineLanguageSection from './PipelineLanguageSection';
@@ -31,7 +41,6 @@ import PipelineOutputSection from './PipelineOutputSection';
 import PipelinePerformanceSection from './PipelinePerformanceSection';
 import PipelineSubmitSection from './PipelineSubmitSection';
 import FileSelectionDialog from './FileSelectionDialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/Tabs';
 
 const SAMPLE_SENTENCES: Record<string, string> = {
   en: 'Hello from ebook-tools! This is a sample narration.',
@@ -92,6 +101,11 @@ type Props = {
   prefillInputFile?: string | null;
   prefillParameters?: JobParameterSnapshot | null;
   recentJobs?: PipelineStatusResponse[] | null;
+  sourceMode?: 'upload' | 'generated';
+  submitLabel?: string;
+  forcedBaseOutputFile?: string | null;
+  customSourceSection?: ReactNode;
+  sectionOverrides?: Partial<Record<PipelineFormSection, { title: string; description: string }>>;
 };
 
 type JsonFields =
@@ -517,8 +531,14 @@ export function PipelineSubmissionForm({
   externalError = null,
   prefillInputFile = null,
   prefillParameters = null,
-  recentJobs = null
+  recentJobs = null,
+  sourceMode = 'upload',
+  submitLabel,
+  forcedBaseOutputFile = null,
+  customSourceSection = null,
+  sectionOverrides = {}
 }: Props) {
+  const isGeneratedSource = sourceMode === 'generated';
   const {
     inputLanguage: sharedInputLanguage,
     setInputLanguage: setSharedInputLanguage,
@@ -527,6 +547,7 @@ export function PipelineSubmissionForm({
   } = useLanguagePreferences();
   const [formState, setFormState] = useState<FormState>(() => ({
     ...DEFAULT_FORM_STATE,
+    base_output_file: forcedBaseOutputFile ?? DEFAULT_FORM_STATE.base_output_file,
     input_language: sharedInputLanguage ?? DEFAULT_FORM_STATE.input_language,
     target_languages:
       sharedTargetLanguages.length > 0
@@ -558,6 +579,20 @@ export function PipelineSubmissionForm({
   const userEditedInputRef = useRef<boolean>(false);
   const userEditedEndRef = useRef<boolean>(false);
   const lastAutoEndSentenceRef = useRef<string | null>(null);
+
+  const sectionMeta = useMemo(() => {
+    const base: Record<PipelineFormSection, { title: string; description: string }> = {
+      ...PIPELINE_SECTION_META
+    };
+    for (const [key, override] of Object.entries(sectionOverrides)) {
+      if (!override) {
+        continue;
+      }
+      const sectionKey = key as PipelineFormSection;
+      base[sectionKey] = { ...PIPELINE_SECTION_META[sectionKey], ...override };
+    }
+    return base;
+  }, [sectionOverrides]);
 
   useEffect(() => {
     recentJobsRef.current = recentJobs ?? null;
@@ -667,14 +702,14 @@ export function PipelineSubmissionForm({
     });
   }, []);
 
-  const tabSections: PipelineFormSection[] = ['source', 'language', 'output', 'performance'];
+  const tabSections: PipelineFormSection[] = ['submit', 'source', 'language', 'output', 'performance'];
   const [activeTab, setActiveTab] = useState<PipelineFormSection>(() => {
     if (activeSection && tabSections.includes(activeSection)) {
       return activeSection;
     }
     return 'source';
   });
-  const isSubmitSection = activeSection === 'submit';
+  const isSubmitSection = activeTab === 'submit';
 
   useEffect(() => {
     if (activeSection && tabSections.includes(activeSection)) {
@@ -707,16 +742,18 @@ export function PipelineSubmissionForm({
       const shouldUpdateBase =
         !previous.base_output_file || previous.base_output_file === previousDerivedBase;
       const suggestedStart = resolveStartFromHistory(normalizedPrefill);
+      const resolvedBase =
+        forcedBaseOutputFile ?? (shouldUpdateBase ? nextDerivedBase : previous.base_output_file);
       return {
         ...previous,
         input_file: normalizedPrefill,
-        base_output_file: shouldUpdateBase ? nextDerivedBase : previous.base_output_file,
+        base_output_file: resolvedBase,
         book_metadata: '{}',
         start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
     prefillAppliedRef.current = normalizedPrefill;
-  }, [prefillInputFile, resolveStartFromHistory]);
+  }, [prefillInputFile, resolveStartFromHistory, forcedBaseOutputFile]);
 
   useEffect(() => {
     if (!prefillParameters) {
@@ -785,7 +822,7 @@ export function PipelineSubmissionForm({
       return {
         ...previous,
         input_file: inputFile,
-        base_output_file: baseOutputFile,
+        base_output_file: forcedBaseOutputFile ?? baseOutputFile,
         input_language: inputLanguage,
         target_languages: targetLanguages,
         custom_target_languages: '',
@@ -799,7 +836,7 @@ export function PipelineSubmissionForm({
         voice_overrides: voiceOverrides
       };
     });
-  }, [prefillParameters]);
+  }, [prefillParameters, forcedBaseOutputFile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -817,10 +854,11 @@ export function PipelineSubmissionForm({
         setFormState((previous) => {
           const next = applyConfigDefaults(previous, config);
           const suggestedStart = resolveStartFromHistory(next.input_file);
+          const baseOutput = forcedBaseOutputFile ?? next.base_output_file;
           if (suggestedStart !== null) {
-            return { ...next, start_sentence: suggestedStart };
+            return { ...next, start_sentence: suggestedStart, base_output_file: baseOutput };
           }
-          return next;
+          return { ...next, base_output_file: baseOutput };
         });
         const inputLanguage = typeof config['input_language'] === 'string' ? config['input_language'] : null;
         if (inputLanguage) {
@@ -847,7 +885,7 @@ export function PipelineSubmissionForm({
     return () => {
       cancelled = true;
     };
-  }, [resolveStartFromHistory, setSharedInputLanguage, setSharedTargetLanguages]);
+  }, [resolveStartFromHistory, setSharedInputLanguage, setSharedTargetLanguages, forcedBaseOutputFile]);
 
   useEffect(() => {
     let cancelled = false;
@@ -903,6 +941,9 @@ export function PipelineSubmissionForm({
   }, [sharedTargetLanguages]);
 
   useEffect(() => {
+    if (isGeneratedSource || forcedBaseOutputFile) {
+      return;
+    }
     if (userEditedInputRef.current) {
       return;
     }
@@ -929,7 +970,7 @@ export function PipelineSubmissionForm({
         start_sentence: suggestedStart ?? previous.start_sentence
       };
     });
-  }, [resolveLatestJobSelection, resolveStartFromHistory, recentJobs]);
+  }, [resolveLatestJobSelection, resolveStartFromHistory, recentJobs, isGeneratedSource, forcedBaseOutputFile]);
 
   useEffect(() => {
     if (userEditedStartRef.current) {
@@ -1007,6 +1048,9 @@ export function PipelineSubmissionForm({
       userEditedEndRef.current = true;
       lastAutoEndSentenceRef.current = null;
     } else if (key === 'base_output_file') {
+      if (forcedBaseOutputFile !== null && forcedBaseOutputFile !== undefined) {
+        return;
+      }
       userEditedInputRef.current = true;
     }
     setFormState((previous) => {
@@ -1075,10 +1119,12 @@ export function PipelineSubmissionForm({
         !previous.base_output_file ||
         previous.base_output_file === previousDerivedBase;
       const suggestedStart = resolveStartFromHistory(value);
+      const resolvedBase =
+        forcedBaseOutputFile ?? (shouldUpdateBase ? nextDerivedBase : previous.base_output_file);
       return {
         ...previous,
         input_file: value,
-        base_output_file: shouldUpdateBase ? nextDerivedBase : previous.base_output_file,
+        base_output_file: resolvedBase,
         book_metadata: '{}',
         start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
@@ -1240,6 +1286,11 @@ export function PipelineSubmissionForm({
   );
 
   const refreshFiles = useCallback(async () => {
+    if (isGeneratedSource) {
+      setIsLoadingFiles(false);
+      setFileOptions(null);
+      return;
+    }
     setIsLoadingFiles(true);
     try {
       const response = await fetchPipelineFiles();
@@ -1253,7 +1304,7 @@ export function PipelineSubmissionForm({
     } finally {
       setIsLoadingFiles(false);
     }
-  }, []);
+  }, [isGeneratedSource]);
 
   const handleDeleteEbook = useCallback(
     async (entry: PipelineFileEntry) => {
@@ -1274,7 +1325,8 @@ export function PipelineSubmissionForm({
           }
           const derivedBase = deriveBaseOutputName(entry.name);
           const nextBase =
-            previous.base_output_file === derivedBase ? '' : previous.base_output_file;
+            forcedBaseOutputFile ??
+            (previous.base_output_file === derivedBase ? '' : previous.base_output_file);
           return {
             ...previous,
             input_file: '',
@@ -1292,7 +1344,7 @@ export function PipelineSubmissionForm({
         setFileDialogError(message);
       }
     },
-    [refreshFiles]
+    [refreshFiles, forcedBaseOutputFile]
   );
 
   const processFileUpload = useCallback(
@@ -1396,11 +1448,40 @@ export function PipelineSubmissionForm({
   }, [cleanupPreviewAudio]);
 
   useEffect(() => {
+    if (!isGeneratedSource) {
+      return;
+    }
+    userEditedStartRef.current = false;
+    userEditedEndRef.current = false;
+    lastAutoEndSentenceRef.current = null;
+    setFormState((previous) => ({
+      ...previous,
+      start_sentence: 1,
+      end_sentence: ''
+    }));
+  }, [isGeneratedSource]);
+
+  useEffect(() => {
+    if (forcedBaseOutputFile === null || forcedBaseOutputFile === undefined) {
+      return;
+    }
+    setFormState((previous) => {
+      if (previous.base_output_file === forcedBaseOutputFile) {
+        return previous;
+      }
+      return {
+        ...previous,
+        base_output_file: forcedBaseOutputFile
+      };
+    });
+  }, [forcedBaseOutputFile]);
+
+  useEffect(() => {
     void refreshFiles();
   }, [refreshFiles]);
 
   useEffect(() => {
-    if (!fileOptions || fileOptions.ebooks.length === 0) {
+    if (!fileOptions || fileOptions.ebooks.length === 0 || isGeneratedSource) {
       return;
     }
     setFormState((previous) => {
@@ -1422,7 +1503,7 @@ export function PipelineSubmissionForm({
         start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
-  }, [fileOptions, resolveStartFromHistory]);
+  }, [fileOptions, isGeneratedSource, resolveStartFromHistory]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1495,32 +1576,38 @@ export function PipelineSubmissionForm({
         pipelineOverrides.ollama_model = selectedModel;
       }
 
-      const normalizedStartSentence = Math.max(1, Math.trunc(Number(formState.start_sentence)));
+      const normalizedStartSentence = isGeneratedSource
+        ? 1
+        : Math.max(1, Math.trunc(Number(formState.start_sentence)));
       if (!Number.isFinite(normalizedStartSentence)) {
         throw new Error('Start sentence must be a valid number.');
       }
-      const normalizedEndSentence = parseEndSentenceInput(
-        formState.end_sentence,
-        normalizedStartSentence
-      );
+      const normalizedEndSentence = isGeneratedSource
+        ? null
+        : parseEndSentenceInput(formState.end_sentence, normalizedStartSentence);
+      const resolvedBaseOutput = (forcedBaseOutputFile ?? formState.base_output_file).trim();
+      const trimmedInputFile = formState.input_file.trim();
+      const fallbackInputFile = resolvedBaseOutput || 'generated-book';
+      const resolvedInputFile =
+        trimmedInputFile || (isGeneratedSource ? `${fallbackInputFile}.epub` : trimmedInputFile);
 
       const payload: PipelineRequestPayload = {
         config: configOverrides,
         environment_overrides: json.environment_overrides,
         pipeline_overrides: pipelineOverrides,
         inputs: {
-          input_file: formState.input_file,
-          base_output_file: formState.base_output_file,
-          input_language: formState.input_language,
+          input_file: resolvedInputFile,
+          base_output_file: resolvedBaseOutput,
+          input_language: formState.input_language.trim(),
           target_languages: normalizedTargetLanguages,
           sentences_per_output_file: Number(formState.sentences_per_output_file),
           start_sentence: normalizedStartSentence,
           end_sentence: normalizedEndSentence,
           stitch_full: formState.stitch_full,
           generate_audio: formState.generate_audio,
-          audio_mode: formState.audio_mode,
-          written_mode: formState.written_mode,
-          selected_voice: formState.selected_voice,
+          audio_mode: formState.audio_mode.trim(),
+          written_mode: formState.written_mode.trim(),
+          selected_voice: formState.selected_voice.trim(),
           voice_overrides: sanitizedVoiceOverrides,
           output_html: formState.output_html,
           output_pdf: formState.output_pdf,
@@ -1541,12 +1628,12 @@ export function PipelineSubmissionForm({
     }
   };
 
-  const headerTitle = activeSection ? PIPELINE_SECTION_META[activeSection].title : 'Submit a Pipeline Job';
-  const headerDescription = activeSection
-    ? PIPELINE_SECTION_META[activeSection].description
-    : 'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';
+  const headerTitle = sectionMeta[activeTab]?.title ?? 'Submit a Pipeline Job';
+  const headerDescription =
+    sectionMeta[activeTab]?.description ??
+    'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';
   const missingRequirements: string[] = [];
-  if (!formState.input_file.trim()) {
+  if (!isGeneratedSource && !formState.input_file.trim()) {
     missingRequirements.push('an input EPUB');
   }
   if (!formState.base_output_file.trim()) {
@@ -1556,7 +1643,13 @@ export function PipelineSubmissionForm({
     missingRequirements.push('at least one target language');
   }
   const targetLanguageSummary =
-    normalizedTargetLanguages.length > 0 ? normalizedTargetLanguages.join(', ') : 'None selected';
+    normalizedTargetLanguages.length > 0
+      ? normalizedTargetLanguages.map((language) => formatLanguageWithFlag(language) || language).join(', ')
+      : 'None selected';
+  const inputSummaryValue =
+    isGeneratedSource && !formState.input_file.trim()
+      ? `${formState.base_output_file.trim() || 'generated-book'}.epub`
+      : formState.input_file;
   const isSubmitDisabled = isSubmitting || missingRequirements.length > 0;
   const outputFormats =
     [
@@ -1574,44 +1667,48 @@ export function PipelineSubmissionForm({
     switch (section) {
       case 'source':
         return (
-          <PipelineSourceSection
-            key="source"
-            headingId="pipeline-card-source"
-            title={PIPELINE_SECTION_META.source.title}
-            description={PIPELINE_SECTION_META.source.description}
-            inputFile={formState.input_file}
-            baseOutputFile={formState.base_output_file}
-            onInputFileChange={handleInputFileChange}
-            onBaseOutputFileChange={(value) => handleChange('base_output_file', value)}
-            onBrowseClick={(dialogType) => setActiveFileDialog(dialogType)}
-            canBrowseFiles={canBrowseFiles}
-            isLoadingFiles={isLoadingFiles}
-            fileDialogError={fileDialogError}
-            isDraggingFile={isDraggingFile}
-            isUploadingFile={isUploadingFile}
-            onDropzoneDragOver={handleDropzoneDragOver}
-            onDropzoneDragLeave={handleDropzoneDragLeave}
-            onDropzoneDrop={handleDropzoneDrop}
-            onUploadFile={processFileUpload}
-            uploadError={uploadError}
-            recentUploadName={recentUploadName}
-            configOverrides={formState.config}
-            environmentOverrides={formState.environment_overrides}
-            pipelineOverrides={formState.pipeline_overrides}
-            bookMetadata={formState.book_metadata}
-            onConfigOverridesChange={(value) => handleChange('config', value)}
-            onEnvironmentOverridesChange={(value) => handleChange('environment_overrides', value)}
-            onPipelineOverridesChange={(value) => handleChange('pipeline_overrides', value)}
-            onBookMetadataChange={(value) => handleChange('book_metadata', value)}
-          />
+          customSourceSection ?? (
+            <PipelineSourceSection
+              key="source"
+              headingId="pipeline-card-source"
+              title={sectionMeta.source.title}
+              description={sectionMeta.source.description}
+              inputFile={formState.input_file}
+              baseOutputFile={formState.base_output_file}
+              onInputFileChange={handleInputFileChange}
+              onBaseOutputFileChange={(value) => handleChange('base_output_file', value)}
+              onBrowseClick={(dialogType) => setActiveFileDialog(dialogType)}
+              canBrowseFiles={canBrowseFiles}
+              isLoadingFiles={isLoadingFiles}
+              fileDialogError={fileDialogError}
+              isDraggingFile={isDraggingFile}
+              isUploadingFile={isUploadingFile}
+              onDropzoneDragOver={handleDropzoneDragOver}
+              onDropzoneDragLeave={handleDropzoneDragLeave}
+              onDropzoneDrop={handleDropzoneDrop}
+              onUploadFile={processFileUpload}
+              uploadError={uploadError}
+              recentUploadName={recentUploadName}
+              configOverrides={formState.config}
+              environmentOverrides={formState.environment_overrides}
+              pipelineOverrides={formState.pipeline_overrides}
+              bookMetadata={formState.book_metadata}
+              onConfigOverridesChange={(value) => handleChange('config', value)}
+              onEnvironmentOverridesChange={(value) => handleChange('environment_overrides', value)}
+              onPipelineOverridesChange={(value) => handleChange('pipeline_overrides', value)}
+              onBookMetadataChange={(value) => handleChange('book_metadata', value)}
+              showAdvancedOverrides={false}
+              disableBaseOutput={isGeneratedSource || Boolean(forcedBaseOutputFile)}
+            />
+          )
         );
       case 'language':
         return (
           <PipelineLanguageSection
             key="language"
             headingId="pipeline-card-language"
-            title={PIPELINE_SECTION_META.language.title}
-            description={PIPELINE_SECTION_META.language.description}
+            title={sectionMeta.language.title}
+            description={sectionMeta.language.description}
             inputLanguage={formState.input_language}
             targetLanguages={formState.target_languages}
             customTargetLanguages={formState.custom_target_languages}
@@ -1623,6 +1720,7 @@ export function PipelineSubmissionForm({
             startSentence={formState.start_sentence}
             endSentence={formState.end_sentence}
             stitchFull={formState.stitch_full}
+            disableProcessingWindow={isGeneratedSource}
             onInputLanguageChange={(value) => handleChange('input_language', value)}
             onTargetLanguagesChange={(value) => handleChange('target_languages', value)}
             onCustomTargetLanguagesChange={(value) => handleChange('custom_target_languages', value)}
@@ -1640,8 +1738,8 @@ export function PipelineSubmissionForm({
           <PipelineOutputSection
             key="output"
             headingId="pipeline-card-output"
-            title={PIPELINE_SECTION_META.output.title}
-            description={PIPELINE_SECTION_META.output.description}
+            title={sectionMeta.output.title}
+            description={sectionMeta.output.description}
             generateAudio={formState.generate_audio}
             audioMode={formState.audio_mode}
             selectedVoice={formState.selected_voice}
@@ -1681,8 +1779,8 @@ export function PipelineSubmissionForm({
           <PipelinePerformanceSection
             key="performance"
             headingId="pipeline-card-performance"
-            title={PIPELINE_SECTION_META.performance.title}
-            description={PIPELINE_SECTION_META.performance.description}
+            title={sectionMeta.performance.title}
+            description={sectionMeta.performance.description}
             threadCount={formState.thread_count}
             queueSize={formState.queue_size}
             jobMaxWorkers={formState.job_max_workers}
@@ -1701,20 +1799,22 @@ export function PipelineSubmissionForm({
           <PipelineSubmitSection
             key="submit"
             headingId="pipeline-card-submit"
-            title={PIPELINE_SECTION_META.submit.title}
-            description={PIPELINE_SECTION_META.submit.description}
+            title={sectionMeta.submit.title}
+            description={sectionMeta.submit.description}
             missingRequirements={missingRequirements}
             missingRequirementText={missingRequirementText}
             isSubmitSection={isSubmitSection}
             error={error}
             externalError={externalError}
-            inputFile={formState.input_file}
+            inputFile={inputSummaryValue}
             baseOutputFile={formState.base_output_file}
             inputLanguage={formState.input_language}
             targetLanguageSummary={targetLanguageSummary}
             outputFormats={outputFormats}
             isSubmitting={isSubmitting}
             isSubmitDisabled={isSubmitDisabled}
+            submitLabel={submitLabel}
+            sourceMode={sourceMode}
           />
         );
     }
@@ -1730,30 +1830,29 @@ export function PipelineSubmissionForm({
         </div>
       ) : null}
       <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
-        <Tabs
-          className="pipeline-tabs"
-          value={activeTab}
-          onValueChange={(next) => setActiveTab(next as PipelineFormSection)}
-        >
-          <TabsList className="pipeline-tabs__list">
-            {tabSections.map((section) => (
-              <TabsTrigger key={section} value={section} className="pipeline-tabs__trigger">
-                <span className="pipeline-tabs__trigger-title">
-                  {PIPELINE_SECTION_META[section].title}
+        <div className="pipeline-setup-grid" role="list">
+          {tabSections.map((section) => {
+            const meta = sectionMeta[section];
+            const isActive = activeTab === section;
+            return (
+              <button
+                type="button"
+                key={section}
+                className={`pipeline-setup-card ${isActive ? 'is-active' : ''}`}
+                onClick={() => setActiveTab(section)}
+                aria-pressed={isActive}
+                role="listitem"
+              >
+                <span className="pipeline-setup-card__title">{meta.title}</span>
+                <span className="pipeline-setup-card__description">{meta.description}</span>
+                <span className="pipeline-setup-card__cta">
+                  {isActive ? 'Selected' : section === 'submit' ? 'Review & submit' : 'Configure'}
                 </span>
-                <span className="pipeline-tabs__trigger-description">
-                  {PIPELINE_SECTION_META[section].description}
-                </span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          {tabSections.map((section) => (
-            <TabsContent key={section} value={section} className="pipeline-tabs__content">
-              {renderSection(section)}
-            </TabsContent>
-          ))}
-        </Tabs>
-        {renderSection('submit')}
+              </button>
+            );
+          })}
+        </div>
+        <div className="pipeline-section-panel">{renderSection(activeTab)}</div>
       </form>
       {activeFileDialog && fileOptions ? (
         <FileSelectionDialog

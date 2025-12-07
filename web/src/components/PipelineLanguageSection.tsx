@@ -15,6 +15,7 @@ type LanguageSectionProps = {
   startSentence: number;
   endSentence: string;
   stitchFull: boolean;
+  disableProcessingWindow?: boolean;
   onInputLanguageChange: (value: string) => void;
   onTargetLanguagesChange: (value: string[]) => void;
   onCustomTargetLanguagesChange: (value: string) => void;
@@ -40,6 +41,7 @@ const PipelineLanguageSection = ({
   startSentence,
   endSentence,
   stitchFull,
+  disableProcessingWindow = false,
   onInputLanguageChange,
   onTargetLanguagesChange,
   onCustomTargetLanguagesChange,
@@ -126,6 +128,7 @@ const PipelineLanguageSection = ({
               type="number"
               min={1}
               value={startSentence}
+              disabled={disableProcessingWindow}
               onChange={(event) => onStartSentenceChange(Number(event.target.value))}
             />
           </label>
@@ -137,6 +140,7 @@ const PipelineLanguageSection = ({
               type="text"
               inputMode="numeric"
               value={endSentence}
+              disabled={disableProcessingWindow}
               onChange={(event) => onEndSentenceChange(event.target.value)}
               placeholder="Leave blank for full run or enter +100 for the next 100 sentences"
             />

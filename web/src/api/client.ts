@@ -51,10 +51,10 @@ import {
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
-const API_BASE_URL = resolveApiBaseUrl();
+export const API_BASE_URL = resolveApiBaseUrl();
 const STORAGE_BASE_URL = resolveStorageBaseUrl(API_BASE_URL);
 
-function resolveApiBaseUrl(): string {
+export function resolveApiBaseUrl(): string {
   const explicit = (import.meta.env.VITE_API_BASE_URL ?? '').trim().replace(/\/$/, '');
   if (explicit) {
     return explicit;
@@ -72,7 +72,7 @@ function resolveApiBaseUrl(): string {
   return '';
 }
 
-function withBase(path: string): string {
+export function withBase(path: string): string {
   if (!path.startsWith('/')) {
     return `${API_BASE_URL}/${path}`;
   }

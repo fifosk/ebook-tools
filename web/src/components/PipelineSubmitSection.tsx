@@ -14,6 +14,8 @@ type PipelineSubmitSectionProps = {
   outputFormats: string;
   isSubmitting: boolean;
   isSubmitDisabled: boolean;
+  submitLabel?: string;
+  sourceMode?: 'upload' | 'generated';
 };
 
 const PipelineSubmitSection = ({
@@ -31,9 +33,14 @@ const PipelineSubmitSection = ({
   targetLanguageSummary,
   outputFormats,
   isSubmitting,
-  isSubmitDisabled
+  isSubmitDisabled,
+  submitLabel,
+  sourceMode = 'upload'
 }: PipelineSubmitSectionProps) => {
   const hasMissingRequirements = missingRequirements.length > 0;
+  const isGeneratedSource = sourceMode === 'generated';
+  const submitText = submitLabel ?? 'Submit job';
+  const inputSummary = inputFile || (isGeneratedSource ? 'Will be generated automatically' : 'Not set');
 
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
@@ -59,7 +66,7 @@ const PipelineSubmitSection = ({
         <dl className="pipeline-summary">
           <div>
             <dt>Input file</dt>
-            <dd>{inputFile || 'Not set'}</dd>
+            <dd>{inputSummary}</dd>
           </div>
           <div>
             <dt>Base output</dt>
@@ -79,7 +86,7 @@ const PipelineSubmitSection = ({
           </div>
         </dl>
         <button type="submit" disabled={isSubmitDisabled}>
-          {isSubmitting ? 'Submitting…' : 'Submit job'}
+          {isSubmitting ? 'Submitting…' : submitText}
         </button>
       </div>
     </section>

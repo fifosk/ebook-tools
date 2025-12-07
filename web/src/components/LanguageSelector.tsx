@@ -1,5 +1,6 @@
 import { ChangeEvent, useId, useMemo } from 'react';
 import { TOP_LANGUAGES } from '../constants/menuOptions';
+import { formatLanguageWithFlag } from '../utils/languages';
 
 type Props = {
   id?: string;
@@ -47,7 +48,7 @@ export function LanguageSelector({ id, value, onChange }: Props) {
       >
         {combinedOptions.map((language) => (
           <option key={language} value={language}>
-            {language}
+            {formatLanguageWithFlag(language)}
           </option>
         ))}
       </select>

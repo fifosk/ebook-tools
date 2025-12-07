@@ -126,11 +126,12 @@ export function App() {
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
   const { mode: themeMode, resolvedTheme, setMode: setThemeMode } = useTheme();
+  const pipelineJobTypes = useMemo(() => new Set(['pipeline', 'book']), []);
   const recentPipelineJobs = useMemo(() => {
     return Object.values(jobs)
       .map((entry) => entry.status)
-      .filter((status) => status.job_type === 'pipeline');
-  }, [jobs]);
+      .filter((status) => pipelineJobTypes.has(status.job_type));
+  }, [jobs, pipelineJobTypes]);
   const isAuthenticated = Boolean(session);
   const sessionUser = session?.user ?? null;
   const sessionUsername = sessionUser?.username ?? null;
@@ -270,7 +271,7 @@ export function App() {
       return null;
     }
     const jobEntry = jobs[activeJobId];
-    if (!jobEntry || jobEntry.status.job_type !== 'pipeline') {
+    if (!jobEntry || !pipelineJobTypes.has(jobEntry.status.job_type)) {
       return null;
     }
     const rawResult = jobEntry.status.result;
@@ -279,7 +280,7 @@ export function App() {
         ? (rawResult as Record<string, unknown>).book_metadata
         : null;
     return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
-  }, [activeJobId, jobs]);
+  }, [activeJobId, jobs, pipelineJobTypes]);
 
   const playerJobMetadata = useMemo<Record<string, unknown> | null>(() => {
     if (playerContext?.type !== 'job') {
@@ -289,7 +290,7 @@ export function App() {
       return activeJobMetadata;
     }
     const entry = jobs[playerContext.jobId];
-    if (!entry || entry.status.job_type !== 'pipeline') {
+    if (!entry || !pipelineJobTypes.has(entry.status.job_type)) {
       return null;
     }
     const rawResult = entry.status.result;
@@ -298,7 +299,7 @@ export function App() {
         ? (rawResult as Record<string, unknown>).book_metadata
         : null;
     return metadata && typeof metadata === 'object' ? (metadata as Record<string, unknown>) : null;
-  }, [activeJobId, activeJobMetadata, jobs, playerContext]);
+  }, [activeJobId, activeJobMetadata, jobs, pipelineJobTypes, playerContext]);
 
   useEffect(() => {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
@@ -1283,12 +1284,12 @@ export function App() {
             </>
           ) : isCreateBookView ? (
             <>
-              <h1>Create book</h1>
-              <p>Generate a seed EPUB with the LLM, then fine-tune the pipeline settings before submitting.</p>
+              <h1>Create Audiobook</h1>
+              <p>Generate a seed EPUB with the LLM, then fine-tune the audiobook pipeline before submitting.</p>
             </>
           ) : isAddBookView ? (
             <>
-              <h1>Add book</h1>
+              <h1>Narrate Ebook</h1>
             </>
           ) : (
             <>
@@ -1305,17 +1306,14 @@ export function App() {
           ) : isCreateBookView ? (
             <section>
               <CreateBookPage
-                onCreated={(creation) => {
-                  setIsImmersiveMode(false);
-                  setActiveJobId(null);
-                  const nextInput =
-                    creation.input_file ??
-                    (creation.epub_path && creation.epub_path.trim() ? creation.epub_path : null);
-                  if (nextInput) {
-                    setPendingInputFile(nextInput);
+                onJobSubmitted={(jobId) => {
+                  if (jobId) {
+                    setActiveJobId(jobId);
+                    setSelectedView(JOB_PROGRESS_VIEW);
+                    setIsImmersiveMode(false);
                   }
-                  setSelectedView('pipeline:source');
                 }}
+                recentJobs={recentPipelineJobs}
               />
             </section>
           ) : (

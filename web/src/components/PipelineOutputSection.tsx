@@ -1,4 +1,5 @@
 import { MenuOption } from '../constants/menuOptions';
+import { formatLanguageWithFlag } from '../utils/languages';
 
 type VoicePreviewStatus = 'idle' | 'loading' | 'playing';
 
@@ -148,27 +149,28 @@ const PipelineOutputSection = ({
             </p>
           ) : null}
           <div className="voice-override-list">
-            {languagesForOverride.map(({ label, code }) => {
-              const effectiveCode = code ?? '';
-              const options = buildVoiceOptions(label, code);
-              const overrideValue = code ? voiceOverrides[code] ?? '' : '';
-              const status = voicePreviewStatus[effectiveCode] ?? 'idle';
-              const previewError = voicePreviewError[effectiveCode];
-              const defaultVoiceLabel =
-                availableVoices.find((option) => option.value === selectedVoice)?.label ||
-                selectedVoice;
-              return (
-                <div key={effectiveCode || label} className="voice-override-row">
-                  <div className="voice-override-info">
-                    <strong>{label}</strong>
-                    <span className="voice-override-code">{code ?? 'Unknown code'}</span>
-                  </div>
-                  {code && options.length > 0 ? (
-                    <div className="voice-override-controls">
-                      <select
-                        aria-label={`Voice override for ${label}`}
-                        value={overrideValue}
-                        onChange={(event) => onVoiceOverrideChange(code, event.target.value)}
+          {languagesForOverride.map(({ label, code }) => {
+            const effectiveCode = code ?? '';
+            const options = buildVoiceOptions(label, code);
+            const overrideValue = code ? voiceOverrides[code] ?? '' : '';
+            const status = voicePreviewStatus[effectiveCode] ?? 'idle';
+            const previewError = voicePreviewError[effectiveCode];
+            const defaultVoiceLabel =
+              availableVoices.find((option) => option.value === selectedVoice)?.label ||
+              selectedVoice;
+            const flaggedLabel = formatLanguageWithFlag(label) || label;
+            return (
+              <div key={effectiveCode || label} className="voice-override-row">
+                <div className="voice-override-info">
+                  <strong>{flaggedLabel}</strong>
+                  <span className="voice-override-code">{code ?? 'Unknown code'}</span>
+                </div>
+                {code && options.length > 0 ? (
+                  <div className="voice-override-controls">
+                    <select
+                      aria-label={`Voice override for ${label}`}
+                      value={overrideValue}
+                      onChange={(event) => onVoiceOverrideChange(code, event.target.value)}
                       >
                         <option value="">{`Default (${defaultVoiceLabel})`}</option>
                         {options.map((option) => (

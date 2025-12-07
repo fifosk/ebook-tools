@@ -14,8 +14,9 @@ import {
 import type { SubtitleJobResultPayload, SubtitleSourceEntry } from '../api/dtos';
 import { formatTimestamp } from '../utils/mediaFormatters';
 import type { JobParameterSnapshot } from '../api/dtos';
-import { buildLanguageOptions, normalizeLanguageLabel } from '../utils/languages';
+import { buildLanguageOptions, formatLanguageWithFlag, normalizeLanguageLabel } from '../utils/languages';
 import { inferSubtitleLanguageFromPath, subtitleFormatFromPath, subtitleLanguageDetail } from '../utils/subtitles';
+import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import styles from './SubtitlesPage.module.css';
 
 type SourceMode = 'existing' | 'upload';
@@ -865,8 +866,9 @@ export default function SubtitlesPage({
                     const isDeleting = deletingSourcePath === entry.path;
                     const language = entry.language || inferSubtitleLanguageFromPath(entry.path);
                     const languageLabel = subtitleLanguageDetail(language);
-                    const languageCode = (language || 'UNK').toUpperCase();
+                    const languageFlag = resolveLanguageFlag(language ?? '') ?? DEFAULT_LANGUAGE_FLAG;
                     const format = (entry.format || subtitleFormatFromPath(entry.path) || 'srt').toUpperCase();
+                    const isAssFormat = format.toLowerCase() === 'ass';
                     return (
                       <div
                         key={entry.path}
@@ -885,12 +887,17 @@ export default function SubtitlesPage({
                             <div className={styles.sourceHeaderRow}>
                               <div className={styles.sourceName}>{entry.name}</div>
                               <div className={styles.sourceBadges} aria-label="Subtitle details">
-                                <span className={`${styles.pill} ${styles.pillFormat}`}>{format}</span>
                                 <span
-                                  className={`${styles.pill} ${styles.pillMuted}`}
-                                  title={languageLabel}
+                                  className={`${styles.pill} ${isAssFormat ? styles.pillAss : styles.pillFormat}`}
                                 >
-                                  {languageCode}
+                                  {format}
+                                </span>
+                                <span
+                                  className={`${styles.pill} ${styles.pillMuted} ${styles.pillFlag}`}
+                                  title={languageLabel}
+                                  aria-label={languageLabel}
+                                >
+                                  {languageFlag}
                                 </span>
                               </div>
                             </div>
@@ -939,7 +946,7 @@ export default function SubtitlesPage({
               >
                 {languageOptions.map((language) => (
                   <option key={language} value={language}>
-                    {language}
+                    {formatLanguageWithFlag(language)}
                   </option>
                 ))}
               </select>
@@ -953,7 +960,7 @@ export default function SubtitlesPage({
               >
                 {languageOptions.map((language) => (
                   <option key={language} value={language}>
-                    {language}
+                    {formatLanguageWithFlag(language)}
                   </option>
                 ))}
               </select>

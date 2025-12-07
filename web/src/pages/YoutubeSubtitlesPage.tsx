@@ -14,6 +14,7 @@ import type {
   YoutubeSubtitleTrack,
   YoutubeVideoFormat
 } from '../api/dtos';
+import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import styles from './YoutubeSubtitlesPage.module.css';
 
 const SUBTITLE_NAS_DIR = '/Volumes/Data/Download/Subtitles';
@@ -23,11 +24,19 @@ function resolveDefaultTrack(tracks: YoutubeSubtitleTrack[]): YoutubeSubtitleTra
   if (!tracks.length) {
     return null;
   }
-  const manualEnglish = tracks.find(
-    (track) => track.kind === 'manual' && track.language.toLowerCase().startsWith('en')
+  const lower = tracks.map((track) => ({
+    track,
+    language: track.language.toLowerCase()
+  }));
+  const manualEnglish = lower.find(
+    (entry) => entry.track.kind === 'manual' && entry.language.startsWith('en')
   );
   if (manualEnglish) {
-    return manualEnglish;
+    return manualEnglish.track;
+  }
+  const anyEnglish = lower.find((entry) => entry.language.startsWith('en'));
+  if (anyEnglish) {
+    return anyEnglish.track;
   }
   const firstManual = tracks.find((track) => track.kind === 'manual');
   return firstManual ?? tracks[0];
@@ -118,8 +127,6 @@ export default function YoutubeSubtitlesPage() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [isLoadingTracks, setIsLoadingTracks] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadVideo, setDownloadVideo] = useState(true);
-  const [videoPath, setVideoPath] = useState(VIDEO_NAS_DIR);
   const [listError, setListError] = useState<string | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
@@ -256,8 +263,8 @@ export default function YoutubeSubtitlesPage() {
     setDownloadMessage(null);
     setDownloadPaths([]);
     setVideoDownloadPath(null);
-    const resolvedVideoDir = videoPath.trim() || VIDEO_NAS_DIR;
-    const timestamp = downloadVideo ? new Date().toISOString() : undefined;
+    const resolvedVideoDir = VIDEO_NAS_DIR;
+    const timestamp = new Date().toISOString();
 
     const savedFiles: string[] = [];
     try {
@@ -266,7 +273,7 @@ export default function YoutubeSubtitlesPage() {
           url: activeUrl,
           language: track.language,
           kind: track.kind,
-          video_output_dir: downloadVideo ? resolvedVideoDir : undefined,
+          video_output_dir: resolvedVideoDir,
           timestamp
         } as const;
         const response = await downloadYoutubeSubtitle(payload);
@@ -274,15 +281,13 @@ export default function YoutubeSubtitlesPage() {
       }
       setDownloadPaths(savedFiles);
       setDownloadMessage(`Saved ${savedFiles.length} file(s) to ${SUBTITLE_NAS_DIR}`);
-      if (downloadVideo) {
-        const videoResponse = await downloadYoutubeVideo({
-          url: activeUrl,
-          output_dir: resolvedVideoDir,
-          format_id: selectedVideoFormat || undefined,
-          timestamp
-        });
-        setVideoDownloadPath(videoResponse.output_path || videoResponse.filename);
-      }
+      const videoResponse = await downloadYoutubeVideo({
+        url: activeUrl,
+        output_dir: resolvedVideoDir,
+        format_id: selectedVideoFormat || undefined,
+        timestamp
+      });
+      setVideoDownloadPath(videoResponse.output_path || videoResponse.filename);
       await refreshDownloads();
     } catch (error) {
       const message =
@@ -293,7 +298,7 @@ export default function YoutubeSubtitlesPage() {
     } finally {
       setIsDownloading(false);
     }
-  }, [resolvedUrl, url, selectedTracks, downloadVideo, videoPath, selectedVideoFormat, refreshDownloads]);
+  }, [resolvedUrl, url, selectedTracks, selectedVideoFormat, refreshDownloads]);
 
   const selectedLabel = useMemo(() => {
     if (!selectedTracks.length) {
@@ -314,12 +319,12 @@ export default function YoutubeSubtitlesPage() {
         <header className={styles.cardHeader}>
           <div>
             <p className={styles.kicker}>YouTube captions → NAS</p>
-            <h2 className={styles.cardTitle}>Download subtitles as SRT</h2>
+            <h2 className={styles.cardTitle}>Download settings</h2>
             <p className={styles.cardHint}>
-              Probe a YouTube video with yt-dlp, select one or more languages, and write SRT files into the subtitle NAS directory.
+              Probe a YouTube video, pick one or more caption tracks, and save SRT files plus the mp4 to NAS.
             </p>
             <p className={styles.pathNote}>
-              Target directory: <code>{SUBTITLE_NAS_DIR}</code>
+              Subtitles: <code>{SUBTITLE_NAS_DIR}</code> · Videos: <code>{VIDEO_NAS_DIR}</code>
             </p>
           </div>
           {listing ? (
@@ -329,185 +334,158 @@ export default function YoutubeSubtitlesPage() {
             </div>
           ) : null}
         </header>
-        <form className={styles.form} onSubmit={handleFetchTracks}>
-          <label className={styles.label} htmlFor="youtube-url">
-            YouTube URL
-          </label>
-          <div className={styles.inputRow}>
-            <input
-              id="youtube-url"
-              name="youtube-url"
-              type="url"
-              placeholder="https://youtu.be/..."
-              value={url}
-              onChange={(event) => setUrl(event.target.value)}
-              className={styles.input}
-              required
-            />
-            <button type="submit" className={styles.primaryButton} disabled={isLoadingTracks}>
-              {isLoadingTracks ? 'Inspecting…' : 'List subtitles'}
-            </button>
-          </div>
-          {listError ? <p className={styles.error}>{listError}</p> : null}
-          {listing ? (
-            <p className={styles.status}>
-              {listing.title ? <strong>{listing.title}</strong> : 'Subtitle tracks found'} ·{' '}
-              {listing.tracks.length} track{listing.tracks.length === 1 ? '' : 's'} available
-            </p>
-          ) : null}
-        </form>
-      </section>
-
-      <section className={styles.card}>
-        <header className={styles.cardHeader}>
-          <div>
-            <p className={styles.kicker}>Languages</p>
-            <h2 className={styles.cardTitle}>Select subtitle tracks</h2>
-            <p className={styles.cardHint}>
-              Use Cmd/Ctrl + click to pick multiple tracks (manual and auto). SRT output is generated for each selection.
-            </p>
-          </div>
-          <div className={styles.selectionSummary}>{selectedLabel}</div>
-        </header>
-        {tracks.length > 0 ? (
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="subtitle-track-list">
-              Subtitle tracks
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Inspect a video</h3>
+          <p className={styles.sectionHint}>
+            List available caption tracks and mp4 qualities with yt-dlp before downloading.
+          </p>
+          <form className={styles.form} onSubmit={handleFetchTracks}>
+            <label className={styles.label} htmlFor="youtube-url">
+              YouTube URL
             </label>
-            <select
-              id="subtitle-track-list"
-              multiple
-              size={Math.min(10, Math.max(4, tracks.length))}
-              value={Array.from(selectedKeys)}
-              onChange={handleSelectionChange}
-              className={styles.select}
-            >
-              {tracks.map((track) => {
-                const value = trackKey(track);
-                const kindLabel = track.kind === 'auto' ? 'Auto captions' : 'Manual captions';
-                const detail = track.name ? ` — ${track.name}` : '';
-                const formatLabel =
-                  track.formats && track.formats.length > 0
-                    ? ` (${track.formats.join(', ')})`
-                    : '';
-                return (
-                  <option key={value} value={value}>
-                    {track.language} · {kindLabel}
-                    {detail}
-                    {formatLabel}
-                  </option>
-                );
-              })}
-            </select>
-            <p className={styles.helpText}>
-              The list mirrors the classic subtitle UI. Hold Cmd/Ctrl (or Shift) to pick multiple tracks.
-            </p>
-          </div>
-        ) : (
-          <div className={styles.emptyState}>
-            <p>No subtitle tracks listed yet. Inspect a YouTube URL to populate options.</p>
-          </div>
-        )}
-      </section>
-
-      <section className={styles.card}>
-        <header className={styles.cardHeader}>
-          <div>
-            <p className={styles.kicker}>Download</p>
-            <h2 className={styles.cardTitle}>Save SRT files</h2>
-            <p className={styles.cardHint}>
-              Downloads run with yt-dlp and reuse the Android player client args for YouTube; we always convert to SRT before saving.
-            </p>
-          </div>
-        </header>
-        <div className={styles.actions}>
-          <label className={styles.toggle}>
-            <input
-              type="checkbox"
-              checked={downloadVideo}
-              onChange={(event) => setDownloadVideo(event.target.checked)}
-            />
-            Also download video to NAS ({VIDEO_NAS_DIR})
-          </label>
-          {downloadVideo ? (
-            <>
-              <div className={styles.field}>
-                <label className={styles.label} htmlFor="video-path">
-                  Video output directory
-                </label>
-                <input
-                  id="video-path"
-                  type="text"
-                  className={styles.input}
-                  value={videoPath}
-                  onChange={(event) => setVideoPath(event.target.value)}
-                  placeholder={VIDEO_NAS_DIR}
-                />
-                <p className={styles.helpText}>Folder will include video title and download timestamp.</p>
-              </div>
-              {videoFormats.length > 0 ? (
-                <div className={styles.field}>
-                  <label className={styles.label} htmlFor="video-quality">
-                    MP4 quality
-                  </label>
-                  <select
-                    id="video-quality"
-                    className={styles.input}
-                    value={selectedVideoFormat ?? ''}
-                    onChange={(event) => setSelectedVideoFormat(event.target.value || null)}
-                  >
-                    {videoFormats.map((format) => (
-                      <option key={format.format_id} value={format.format_id}>
-                        {describeFormat(format)}
-                      </option>
-                    ))}
-                  </select>
-                  <p className={styles.helpText}>
-                    Format list is pulled when listing subtitles. Highest quality is preselected.
-                  </p>
-                </div>
-              ) : (
-                <p className={styles.helpText}>
-                  {listing
-                    ? 'No mp4 formats were detected for this video.'
-                    : 'List subtitles to load available mp4 qualities.'}
-                </p>
-              )}
-            </>
-          ) : null}
-          <button
-            type="button"
-            className={styles.primaryButton}
-            onClick={() => {
-              void handleDownload();
-            }}
-            disabled={isDownloading || !selectedTracks.length || !tracks.length}
-          >
-            {isDownloading ? 'Downloading…' : 'Download subtitles'}
-          </button>
-          {downloadError ? <p className={styles.error}>{downloadError}</p> : null}
-          {downloadMessage ? (
-            <p className={styles.success} aria-live="polite">
-              {downloadMessage}
-            </p>
-          ) : null}
-          {downloadPaths.length > 0 ? (
-            <div className={styles.downloadList}>
-              <p className={styles.status}>Saved files:</p>
-              <ul>
-                {downloadPaths.map((path) => (
-                  <li key={path}>
-                    <code>{path}</code>
-                  </li>
-                ))}
-              </ul>
+            <div className={styles.inputRow}>
+              <input
+                id="youtube-url"
+                name="youtube-url"
+                type="url"
+                placeholder="https://youtu.be/..."
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                className={styles.input}
+                required
+              />
+              <button type="submit" className={styles.primaryButton} disabled={isLoadingTracks}>
+                {isLoadingTracks ? 'Inspecting…' : 'List subtitles'}
+              </button>
             </div>
-          ) : null}
-          {downloadVideo && videoDownloadPath ? (
-            <p className={styles.status}>
-              Saved video to: <code>{videoDownloadPath}</code>
-            </p>
-          ) : null}
+            {listError ? <p className={styles.error}>{listError}</p> : null}
+            {listing ? (
+              <p className={styles.status}>
+                {listing.title ? <strong>{listing.title}</strong> : 'Subtitle tracks found'} ·{' '}
+                {listing.tracks.length} track{listing.tracks.length === 1 ? '' : 's'} available
+              </p>
+            ) : null}
+          </form>
+        </div>
+
+        <div className={styles.section}>
+          <div className={styles.sectionHeaderRow}>
+            <div>
+              <h3 className={styles.sectionTitle}>Select subtitle tracks</h3>
+              <p className={styles.sectionHint}>
+                Use Cmd/Ctrl + click to pick multiple tracks (manual and auto). SRT output is generated for each selection.
+              </p>
+            </div>
+            <div className={styles.selectionSummary}>{selectedLabel}</div>
+          </div>
+          {tracks.length > 0 ? (
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="subtitle-track-list">
+                Subtitle tracks
+              </label>
+              <select
+                id="subtitle-track-list"
+                multiple
+                size={Math.min(10, Math.max(4, tracks.length))}
+                value={Array.from(selectedKeys)}
+                onChange={handleSelectionChange}
+                className={styles.select}
+              >
+                {tracks.map((track) => {
+                  const value = trackKey(track);
+                  const kindLabel = track.kind === 'auto' ? 'Auto captions' : 'Manual captions';
+                  const detail = track.name ? ` — ${track.name}` : '';
+                  const formatLabel =
+                    track.formats && track.formats.length > 0
+                      ? ` (${track.formats.join(', ')})`
+                      : '';
+                  return (
+                    <option key={value} value={value}>
+                      {track.language} · {kindLabel}
+                      {detail}
+                      {formatLabel}
+                    </option>
+                  );
+                })}
+              </select>
+              <p className={styles.helpText}>
+                The list mirrors the classic subtitle UI. Hold Cmd/Ctrl (or Shift) to pick multiple tracks.
+              </p>
+            </div>
+          ) : (
+            <div className={styles.emptyState}>
+              <p>No subtitle tracks listed yet. Inspect a YouTube URL to populate options.</p>
+            </div>
+          )}
+        </div>
+
+        <div className={styles.section}>
+          <h3 className={styles.sectionTitle}>Download</h3>
+          <p className={styles.sectionHint}>
+            Downloads run with yt-dlp and reuse the Android player client args for YouTube; we always convert to SRT before saving.
+          </p>
+          <div className={styles.actions}>
+            <p className={styles.helpText}>We always download the video to {VIDEO_NAS_DIR} alongside subtitles.</p>
+            {videoFormats.length > 0 ? (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor="video-quality">
+                  MP4 quality
+                </label>
+                <select
+                  id="video-quality"
+                  className={styles.input}
+                  value={selectedVideoFormat ?? ''}
+                  onChange={(event) => setSelectedVideoFormat(event.target.value || null)}
+                >
+                  {videoFormats.map((format) => (
+                    <option key={format.format_id} value={format.format_id}>
+                      {describeFormat(format)}
+                    </option>
+                  ))}
+                </select>
+                <p className={styles.helpText}>
+                  Format list is pulled when listing subtitles. Highest quality is preselected.
+                </p>
+              </div>
+            ) : (
+              <p className={styles.helpText}>
+                {listing ? 'No mp4 formats were detected for this video.' : 'List subtitles to load available mp4 qualities.'}
+              </p>
+            )}
+            <button
+              type="button"
+              className={styles.primaryButton}
+              onClick={() => {
+                void handleDownload();
+              }}
+              disabled={isDownloading || !selectedTracks.length || !tracks.length}
+            >
+              {isDownloading ? 'Downloading…' : '⬇️ Download video + subtitles'}
+            </button>
+            {downloadError ? <p className={styles.error}>{downloadError}</p> : null}
+            {downloadMessage ? (
+              <p className={styles.success} aria-live="polite">
+                {downloadMessage}
+              </p>
+            ) : null}
+            {downloadPaths.length > 0 ? (
+              <div className={styles.downloadList}>
+                <p className={styles.status}>Saved files:</p>
+                <ul>
+                  {downloadPaths.map((path) => (
+                    <li key={path}>
+                      <code>{path}</code>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            {videoDownloadPath ? (
+              <p className={styles.status}>
+                Saved video to: <code>{videoDownloadPath}</code>
+              </p>
+            ) : null}
+          </div>
         </div>
       </section>
 
@@ -515,7 +493,7 @@ export default function YoutubeSubtitlesPage() {
         <div className={styles.cardHeader}>
           <div>
             <p className={styles.kicker}>Downloads</p>
-            <h2 className={styles.cardTitle}>Downloaded YouTube videos</h2>
+            <h2 className={styles.cardTitle}>Downloads</h2>
             <p className={styles.cardHint}>
               Base path: <code>{libraryBaseDir}</code>
             </p>
@@ -593,8 +571,12 @@ export default function YoutubeSubtitlesPage() {
                             sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
                           }`}
                           title={sub.path}
+                          aria-label={subtitleBadgeLabel(sub)}
                         >
-                          {subtitleBadgeLabel(sub)}
+                          <span className={styles.pillFlag} aria-hidden="true">
+                            {resolveLanguageFlag(sub.language ?? '') ?? DEFAULT_LANGUAGE_FLAG}
+                          </span>
+                          <span>{(sub.format ?? '').toUpperCase()}</span>
                         </span>
                       ))
                     )}

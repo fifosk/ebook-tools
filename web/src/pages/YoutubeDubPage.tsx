@@ -22,10 +22,11 @@ import type {
 import type { MacOSVoice } from '../api/dtos';
 import type { JobState } from '../components/JobList';
 import { VOICE_OPTIONS } from '../constants/menuOptions';
-import { resolveLanguageName } from '../constants/languageCodes';
+import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag, resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
   buildLanguageOptions,
+  formatLanguageWithFlag,
   normalizeLanguageLabel,
   preferLanguageLabel,
   resolveLanguageCode
@@ -1050,8 +1051,12 @@ export default function YoutubeDubPage({
                           className={`${styles.pill} ${
                             sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
                           }`}
+                          aria-label={subtitleLabel(sub)}
                         >
-                          {subtitleLabel(sub)}
+                          <span className={styles.pillFlag} aria-hidden="true">
+                            {resolveLanguageFlag(sub.language ?? '') ?? DEFAULT_LANGUAGE_FLAG}
+                          </span>
+                          <span>{(sub.format ?? '').toUpperCase()}</span>
                         </span>
                       ))
                     )}
@@ -1089,8 +1094,14 @@ export default function YoutubeDubPage({
                                         <span className={`${styles.pill} ${styles.pillFormat}`}>
                                           {sub.format.toUpperCase()}
                                         </span>
-                                        <span className={`${styles.pill} ${styles.pillMuted}`}>
-                                          {subtitleLanguageDetail(sub.language)}
+                                        <span
+                                          className={`${styles.pill} ${styles.pillMuted}`}
+                                          title={subtitleLanguageDetail(sub.language)}
+                                          aria-label={subtitleLanguageDetail(sub.language)}
+                                        >
+                                          <span className={styles.pillFlag} aria-hidden="true">
+                                            {resolveLanguageFlag(sub.language ?? '') ?? DEFAULT_LANGUAGE_FLAG}
+                                          </span>
                                         </span>
                                       </div>
                                     </div>
@@ -1252,7 +1263,7 @@ export default function YoutubeDubPage({
             <select className={styles.input} value={targetLanguage} onChange={(event) => applyTargetLanguage(event.target.value)}>
               {languageOptions.map((language) => (
                 <option key={language} value={language}>
-                  {language}
+                  {formatLanguageWithFlag(language)}
                 </option>
               ))}
             </select>

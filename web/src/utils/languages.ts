@@ -1,5 +1,10 @@
 import { TOP_LANGUAGES } from '../constants/menuOptions';
-import { LANGUAGE_CODES, resolveLanguageName } from '../constants/languageCodes';
+import {
+  DEFAULT_LANGUAGE_FLAG,
+  LANGUAGE_CODES,
+  resolveLanguageFlag,
+  resolveLanguageName
+} from '../constants/languageCodes';
 
 function normalizeLanguageCodeCandidate(candidate: string): string {
   return candidate.replace('-', '_');
@@ -86,4 +91,13 @@ export function preferLanguageLabel(values: Array<string | null | undefined>): s
     }
   }
   return '';
+}
+
+export function formatLanguageWithFlag(value?: string | null): string {
+  const label = normalizeLanguageLabel(value);
+  if (!label) {
+    return '';
+  }
+  const flag = resolveLanguageFlag(value ?? label) ?? DEFAULT_LANGUAGE_FLAG;
+  return `${flag} ${label}`;
 }

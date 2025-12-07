@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
+import { formatLanguageWithFlag } from '../utils/languages';
 import {
   PipelineJobStatus,
   PipelineResponsePayload,
@@ -276,7 +277,7 @@ function formatLanguageList(values: string[] | undefined): string | null {
   if (!values || values.length === 0) {
     return null;
   }
-  return values.join(', ');
+  return values.map((value) => formatLanguageWithFlag(value) || value).join(', ');
 }
 
 function formatTimeOffset(seconds: number | null | undefined): string | null {
@@ -321,8 +322,9 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   }
   const entries: JobParameterEntry[] = [];
   const parameters = status.parameters ?? null;
+  const isPipelineLike = status.job_type === 'pipeline' || status.job_type === 'book';
   const pipelineResult =
-    status.job_type === 'pipeline' && status.result && typeof status.result === 'object'
+    isPipelineLike && status.result && typeof status.result === 'object'
       ? (status.result as PipelineResponsePayload)
       : null;
   const pipelineConfig =
@@ -622,7 +624,8 @@ export function JobProgress({
   const statusValue = status?.status ?? 'pending';
   const jobType = status?.job_type ?? 'pipeline';
   const isPipelineJob = jobType === 'pipeline';
-  const isLibraryMovableJob = isPipelineJob || jobType === 'youtube_dub';
+  const isPipelineLikeJob = isPipelineJob || jobType === 'book';
+  const isLibraryMovableJob = isPipelineLikeJob || jobType === 'youtube_dub';
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;
@@ -633,7 +636,7 @@ export function JobProgress({
   usePipelineEvents(jobId, !isTerminal, onEvent);
 
   const pipelineResult =
-    status?.job_type === 'pipeline' && status?.result && typeof status.result === 'object'
+    isPipelineLikeJob && status?.result && typeof status.result === 'object'
       ? (status.result as PipelineResponsePayload)
       : null;
   const event = latestEvent ?? status?.latest_event ?? undefined;
@@ -697,7 +700,11 @@ export function JobProgress({
   const canCancel = canManage && !isTerminal;
   const canDelete = canManage && isTerminal;
   const canRestart =
-    canManage && statusValue !== 'running' && statusValue !== 'pending' && statusValue !== 'pausing';
+    isPipelineJob &&
+    canManage &&
+    statusValue !== 'running' &&
+    statusValue !== 'pending' &&
+    statusValue !== 'pausing';
   const canCopy = Boolean(onCopy);
   const mediaCompleted = useMemo(() => resolveMediaCompletion(status), [status]);
   const isLibraryCandidate =

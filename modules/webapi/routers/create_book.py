@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import copy
 import json
 import re
+from dataclasses import replace as dataclass_replace
 from pathlib import Path
 from typing import Any, Iterable
 from uuid import uuid4
@@ -16,12 +18,28 @@ from modules.llm_client_manager import client_scope
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
 
+from ...services.job_manager.job import PipelineJobStatus
+from ...services.pipeline_service import (
+    PipelineService,
+    serialize_pipeline_request,
+    serialize_pipeline_response,
+)
+from ...services.file_locator import FileLocator
 from ..dependencies import (
+    RequestUserContext,
     RuntimeContextProvider,
     get_auth_service,
+    get_pipeline_job_manager,
+    get_pipeline_service,
+    get_request_user,
     get_runtime_context_provider,
 )
-from ..schemas.create_book import BookCreationRequest, BookCreationResponse
+from ..schemas import PipelineSubmissionResponse
+from ..schemas.create_book import (
+    BookCreationRequest,
+    BookCreationResponse,
+    BookGenerationJobSubmission,
+)
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
@@ -175,6 +193,216 @@ def _relative_epub_path(epub_path: Path, books_dir: Path) -> str:
         return epub_path.as_posix()
 
 
+def _ensure_book_role(request_user: RequestUserContext) -> None:
+    role = (request_user.user_role or "").strip().lower()
+    if _ALLOWED_ROLES and role not in _ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions",
+        )
+
+
+def _maybe_update_voice_selection(
+    request: PipelineRequest,
+    generator_voice: str | None,
+) -> str:
+    current_voice = request.inputs.selected_voice
+    if generator_voice and generator_voice.strip():
+        request.inputs.selected_voice = generator_voice.strip()
+        return request.inputs.selected_voice
+    if current_voice and current_voice.strip():
+        return current_voice
+    configured = request.config.get("selected_voice")
+    if isinstance(configured, str) and configured.strip():
+        request.inputs.selected_voice = configured.strip()
+        return request.inputs.selected_voice
+    return "gTTS"
+
+
+def _execute_book_job(
+    job,
+    *,
+    generator: BookGenerationJobSubmission,
+    context_provider: RuntimeContextProvider,
+    pipeline_service: PipelineService,
+    file_locator: FileLocator,
+) -> None:
+    tracker = job.tracker
+    stop_event = job.stop_event
+    generator_payload = generator.generator
+    pipeline_payload = generator.pipeline
+
+    def _publish_progress(metadata: dict[str, object]) -> None:
+        if tracker is not None:
+            tracker.publish_progress(metadata)
+
+    def _check_cancelled(stage: str) -> None:
+        if stop_event is not None and stop_event.is_set():
+            job.status = PipelineJobStatus.CANCELLED
+            job.error_message = f"Cancelled during {stage}"
+            raise RuntimeError(job.error_message)
+
+    _publish_progress({"stage": "book_generation", "message": "Preparing job context."})
+    resolved_config = context_provider.resolve_config(pipeline_payload.config)
+    overrides = dict(pipeline_payload.environment_overrides)
+    overrides.update(pipeline_payload.pipeline_overrides)
+    context = context_provider.build_context(resolved_config, overrides)
+
+    request = pipeline_payload.to_pipeline_request(
+        context=context,
+        resolved_config=resolved_config,
+    )
+    request.progress_tracker = tracker
+    request.stop_event = stop_event
+    request.correlation_id = request.correlation_id or job.job_id
+    request.job_id = job.job_id
+
+    input_language = (
+        generator_payload.input_language
+        or request.inputs.input_language
+        or resolved_config.get("input_language")
+        or ""
+    ).strip()
+    if not input_language:
+        raise RuntimeError("Input language is required to generate a book.")
+    request.inputs.input_language = input_language
+    target_language = (
+        generator_payload.output_language
+        or (request.inputs.target_languages[0] if request.inputs.target_languages else None)
+        or input_language
+    )
+    if target_language and target_language not in request.inputs.target_languages:
+        request.inputs.target_languages.insert(0, target_language)
+
+    base_output = request.inputs.base_output_file.strip() or _slugify(generator_payload.book_name)
+    request.inputs.base_output_file = base_output
+
+    data_root = file_locator.data_root(job.job_id)
+    data_root.mkdir(parents=True, exist_ok=True)
+
+    media_root = file_locator.media_root(job.job_id)
+    media_root.mkdir(parents=True, exist_ok=True)
+    request.environment_overrides = dict(request.environment_overrides)
+    request.environment_overrides.setdefault("output_dir", str(media_root))
+    job_storage_url = file_locator.resolve_url(job.job_id, "media")
+    if job_storage_url:
+        request.environment_overrides.setdefault("job_storage_url", job_storage_url)
+    context = dataclass_replace(request.context, output_dir=media_root)
+    request.context = context
+
+    if request.inputs.sentences_per_output_file < 1:
+        fallback_chunk_size = resolved_config.get("sentences_per_output_file") or 1
+        try:
+            resolved_chunk_size = int(fallback_chunk_size)
+        except (TypeError, ValueError):
+            resolved_chunk_size = 1
+        request.inputs.sentences_per_output_file = max(1, resolved_chunk_size)
+    selected_voice = _maybe_update_voice_selection(request, generator_payload.voice)
+
+    epub_path = data_root / f"{base_output}.epub"
+    request.inputs.input_file = str(epub_path)
+
+    _check_cancelled("sentence generation")
+    _publish_progress(
+        {
+            "stage": "book_generation",
+            "message": "Requesting source sentences from the language model.",
+            "target_language": target_language or input_language,
+        }
+    )
+    sentences = _generate_sentences(
+        count=generator_payload.num_sentences,
+        input_language=input_language,
+        topic=generator_payload.topic,
+        target_language=target_language or input_language,
+    )
+    sentence_count = len(sentences)
+    warnings: list[str] = []
+    if sentence_count < generator_payload.num_sentences:
+        warnings.append(
+            f"Requested {generator_payload.num_sentences} sentences, but only {sentence_count} unique sentences were returned."
+        )
+    sentences_preview = sentences[: min(5, sentence_count)]
+    _publish_progress(
+        {
+            "stage": "book_generation",
+            "message": f"Generated {sentence_count} sentences. Preparing EPUB…",
+            "generated_sentences": sentence_count,
+        }
+    )
+
+    _check_cancelled("epub preparation")
+    create_epub_from_sentences(sentences, epub_path)
+    relative_epub_path = _relative_epub_path(epub_path, data_root)
+
+    summary = _build_summary(generator_payload.topic, generator_payload.genre)
+    creation_messages = [
+        f"Generated {sentence_count} unique sentences using the language model.",
+        f"Seed EPUB created at {relative_epub_path}.",
+        "Seed EPUB prepared; continuing with pipeline processing.",
+    ]
+    creation_summary = {
+        "epub_path": relative_epub_path,
+        "messages": list(creation_messages),
+        "warnings": list(warnings),
+        "sentences_preview": list(sentences_preview),
+    }
+
+    metadata_updates = {
+        "book_title": generator_payload.book_name,
+        "book_author": generator_payload.author or "Me",
+        "book_genre": generator_payload.genre,
+        "book_topic": generator_payload.topic,
+        "book_summary": summary,
+        "source_language": input_language,
+        "target_language": target_language or input_language,
+        "selected_voice": selected_voice,
+        "sentence_count": generator_payload.num_sentences,
+        "generated_sentences": list(sentences),
+        "job_label": generator_payload.book_name,
+        "created_via": "book_generation_job",
+        "seed_epub_path": relative_epub_path,
+        "creation_messages": creation_messages,
+        "creation_warnings": list(warnings),
+        "creation_sentences_preview": list(sentences_preview),
+        "creation_summary": creation_summary,
+    }
+    request.inputs.book_metadata.update(metadata_updates)
+    request.pipeline_overrides = dict(request.pipeline_overrides)
+    request.pipeline_overrides.setdefault(
+        "book_generation",
+        {
+            "topic": generator_payload.topic,
+            "book_name": generator_payload.book_name,
+            "genre": generator_payload.genre,
+            "num_sentences": generator_payload.num_sentences,
+        },
+    )
+
+    serialized_request = serialize_pipeline_request(request)
+    job.request_payload = copy.deepcopy(serialized_request)
+    job.resume_context = copy.deepcopy(serialized_request)
+    job.request = request
+
+    _publish_progress(
+        {"stage": "book_generation", "message": "Seed EPUB prepared; starting pipeline run."}
+    )
+    _check_cancelled("pipeline")
+    response = pipeline_service.run_sync(request)
+    job.result = response
+    job.result_payload = serialize_pipeline_response(response)
+    job.generated_files = copy.deepcopy(response.generated_files)
+    job.chunk_manifest = copy.deepcopy(response.chunk_manifest)
+    job.media_completed = bool(response.success)
+    if job.status != PipelineJobStatus.CANCELLED:
+        job.status = (
+            PipelineJobStatus.COMPLETED if response.success else PipelineJobStatus.FAILED
+        )
+        job.error_message = None if response.success else "Pipeline execution reported failure."
+    else:
+        job.error_message = job.error_message or "Job cancelled during pipeline execution."
+
+
 @router.post("/create", response_model=BookCreationResponse)
 async def create_book(
     payload: BookCreationRequest,
@@ -229,7 +457,6 @@ async def create_book(
             "selected_voice": selected_voice,
             "generate_audio": bool(config_payload.get("generate_audio", True)),
             "generate_video": False,
-            "sentences_per_output_file": payload.num_sentences,
             "book_title": payload.book_name,
             "book_author": payload.author or "Me",
             "book_summary": _build_summary(payload.topic, payload.genre),
@@ -298,4 +525,43 @@ async def create_book(
         epub_path=relative_epub_path,
         input_file=str(epub_path),
         sentences_preview=list(sentences_preview),
+    )
+
+
+@router.post("/jobs", response_model=PipelineSubmissionResponse, status_code=status.HTTP_202_ACCEPTED)
+async def submit_book_job(
+    payload: BookGenerationJobSubmission,
+    request_user: RequestUserContext = Depends(get_request_user),
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    job_manager=Depends(get_pipeline_job_manager),
+):
+    _ensure_book_role(request_user)
+
+    generator_payload = payload.generator
+    request_payload = payload.pipeline.model_dump()
+    request_payload["book_generation"] = generator_payload.model_dump()
+
+    def _worker(job):
+        _execute_book_job(
+            job,
+            generator=payload,
+            context_provider=context_provider,
+            pipeline_service=pipeline_service,
+            file_locator=job_manager.file_locator if hasattr(job_manager, "file_locator") else FileLocator(),
+        )
+
+    job = job_manager.submit_background_job(
+        job_type="book",
+        worker=_worker,
+        request_payload=request_payload,
+        user_id=request_user.user_id,
+        user_role=request_user.user_role,
+    )
+
+    return PipelineSubmissionResponse(
+        job_id=job.job_id,
+        status=job.status,
+        created_at=job.created_at,
+        job_type=job.job_type,
     )

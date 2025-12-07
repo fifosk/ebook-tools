@@ -242,6 +242,11 @@
   color: var(--color-text-secondary);
 }
 
+.pillFlag {
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
 .pillAction {
   background: rgba(248, 113, 113, 0.14);
   color: #fca5a5;

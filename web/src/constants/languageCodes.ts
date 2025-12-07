@@ -126,3 +126,123 @@ export function resolveLanguageName(code: string): string | null {
   }
   return null;
 }
+
+export const LANGUAGE_FLAG_MAP: Record<string, string> = {
+  af: '🇿🇦',
+  am: '🇪🇹',
+  ar: '🇸🇦',
+  be: '🇧🇾',
+  bg: '🇧🇬',
+  bn: '🇧🇩',
+  bs: '🇧🇦',
+  ca: '🇪🇸',
+  cs: '🇨🇿',
+  cy: '🇬🇧',
+  da: '🇩🇰',
+  de: '🇩🇪',
+  el: '🇬🇷',
+  en: '🇺🇸',
+  'en-gb': '🇬🇧',
+  'en-us': '🇺🇸',
+  es: '🇪🇸',
+  et: '🇪🇪',
+  eu: '🇪🇸',
+  fa: '🇮🇷',
+  fi: '🇫🇮',
+  fil: '🇵🇭',
+  fo: '🇫🇴',
+  fr: '🇫🇷',
+  ga: '🇮🇪',
+  gd: '🇬🇧',
+  gl: '🇪🇸',
+  gu: '🇮🇳',
+  ha: '🇳🇬',
+  he: '🇮🇱',
+  hi: '🇮🇳',
+  hr: '🇭🇷',
+  hu: '🇭🇺',
+  hy: '🇦🇲',
+  id: '🇮🇩',
+  is: '🇮🇸',
+  it: '🇮🇹',
+  ja: '🇯🇵',
+  jw: '🇮🇩',
+  ka: '🇬🇪',
+  kk: '🇰🇿',
+  km: '🇰🇭',
+  kn: '🇮🇳',
+  ko: '🇰🇷',
+  ky: '🇰🇬',
+  la: '🇻🇦',
+  lb: '🇱🇺',
+  lt: '🇱🇹',
+  lv: '🇱🇻',
+  mk: '🇲🇰',
+  ml: '🇮🇳',
+  mn: '🇲🇳',
+  mr: '🇮🇳',
+  ms: '🇲🇾',
+  mt: '🇲🇹',
+  my: '🇲🇲',
+  ne: '🇳🇵',
+  nl: '🇳🇱',
+  no: '🇳🇴',
+  pa: '🇮🇳',
+  pl: '🇵🇱',
+  ps: '🇦🇫',
+  pt: '🇵🇹',
+  'pt-br': '🇧🇷',
+  ro: '🇷🇴',
+  ru: '🇷🇺',
+  sco: '🇬🇧',
+  si: '🇱🇰',
+  sk: '🇸🇰',
+  sl: '🇸🇮',
+  sq: '🇦🇱',
+  sr: '🇷🇸',
+  su: '🇮🇩',
+  sv: '🇸🇪',
+  sw: '🇰🇪',
+  ta: '🇮🇳',
+  te: '🇮🇳',
+  tg: '🇹🇯',
+  th: '🇹🇭',
+  tl: '🇵🇭',
+  tr: '🇹🇷',
+  uk: '🇺🇦',
+  ur: '🇵🇰',
+  uz: '🇺🇿',
+  vi: '🇻🇳',
+  xh: '🇿🇦',
+  yo: '🇳🇬',
+  zh: '🇨🇳',
+  'zh-cn': '🇨🇳',
+  'zh-tw': '🇹🇼',
+  zu: '🇿🇦'
+};
+
+export const DEFAULT_LANGUAGE_FLAG = '🌐';
+
+function normalizeLanguageFlagKey(value: string): string | null {
+  const normalized = value.trim().toLowerCase().replace(/_/g, '-');
+  return normalized || null;
+}
+
+export function resolveLanguageFlag(language: string): string | null {
+  const code = resolveLanguageCode(language) ?? language;
+  if (!code) {
+    return null;
+  }
+  const normalized = normalizeLanguageFlagKey(code);
+  if (!normalized) {
+    return null;
+  }
+  if (LANGUAGE_FLAG_MAP[normalized]) {
+    return LANGUAGE_FLAG_MAP[normalized];
+  }
+  const base = normalized.split('-')[0];
+  if (base && LANGUAGE_FLAG_MAP[base]) {
+    return LANGUAGE_FLAG_MAP[base];
+  }
+  return null;
+}

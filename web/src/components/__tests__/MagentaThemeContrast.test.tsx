@@ -117,7 +117,7 @@ describe('Magenta theme contrast', () => {
 
     const bodyColor = resolveColor(getComputedStyle(document.body).backgroundColor, [1, 1, 1]);
     const links = Array.from(container.querySelectorAll<HTMLButtonElement>('.sidebar__link'));
-    const createBookLink = links.find((link) => link.textContent?.includes('Create book'));
+    const createBookLink = links.find((link) => link.textContent?.includes('Create Audiobook'));
     const activeLink = links.find((link) => link.classList.contains('is-active'));
 
     expect(createBookLink).toBeDefined();

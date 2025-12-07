@@ -1035,6 +1035,20 @@ main {
   flex-shrink: 0;
 }
 
+.sidebar__job-type {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-small);
+}
+
+.sidebar__job-flag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-small);
+}
+
 .sidebar__link .job-status {
   font-size: var(--font-size-small);
   padding: 0.15rem clamp(0.5rem, 0.45rem + 0.2vw, 0.65rem);
@@ -1054,8 +1068,8 @@ main {
 
   .dashboard__sidebar {
     padding: var(--space-lg);
-    flex: 0 0 20rem;
-    max-width: 20rem;
+    flex: 0 0 22rem;
+    max-width: 22rem;
     height: 100vh;
     border-bottom: none;
     border-right: 1px solid var(--color-sidebar-border);
@@ -1174,23 +1188,9 @@ section {
 }
 
 .pipeline-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: var(--space-md);
-}
-
-@media (min-width: 64rem) {
-  .pipeline-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .pipeline-form > .pipeline-card {
-    height: 100%;
-  }
-
-  .pipeline-form > .pipeline-card[aria-labelledby='pipeline-card-submit'] {
-    grid-column: 1 / -1;
-  }
 }
 
 .pipeline-settings {
@@ -1363,6 +1363,53 @@ section {
 
 .pipeline-tabs__content {
   margin-bottom: var(--space-sm);
+}
+
+.pipeline-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-sm);
+  margin: var(--space-md) 0 var(--space-sm);
+}
+
+.pipeline-setup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: var(--space-md);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-card-alt);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.pipeline-setup-card.is-active {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 1px var(--color-accent);
+  background: var(--color-card-bg);
+}
+
+.pipeline-setup-card__title {
+  font-weight: 700;
+  color: var(--color-text-heading);
+  font-size: 1rem;
+}
+
+.pipeline-setup-card__description {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-small);
+}
+
+.pipeline-setup-card__cta {
+  font-size: var(--font-size-small);
+  color: var(--color-button-link-text);
+  font-weight: 600;
+}
+
+.pipeline-section-panel {
+  margin-bottom: var(--space-md);
 }
 
 .pipeline-form legend {

@@ -460,6 +460,30 @@ def _ensure_directory(path: Path) -> Path:
     return resolved
 
 
+def _finalize_partial_download(base_dir: Path, media_base: str) -> Optional[Path]:
+    """Attempt to rescue a completed .part file if yt-dlp bailed mid-rename."""
+
+    # yt-dlp writes {media_base}.{ext}.part before the final rename
+    partials = sorted(
+        (path for path in base_dir.glob(f"{media_base}*.part") if path.is_file()),
+        key=lambda path: -path.stat().st_mtime,
+    )
+    for partial in partials:
+        target_path = partial.with_suffix("")  # drop the trailing .part
+        candidate = _tag_youtube_filename(target_path)
+        # Avoid clobbering an existing completed file.
+        if candidate.exists():
+            continue
+        try:
+            partial.rename(candidate)
+            logger.info("Recovered partial YouTube download as %s", candidate)
+            return candidate
+        except OSError:
+            logger.warning("Unable to rename partial download %s", partial, exc_info=True)
+            continue
+    return None
+
+
 def download_video(
     url: str,
     *,
@@ -506,6 +530,9 @@ def download_video(
             info = _extract_with_backoff(ydl, url, download=True)
         except (DownloadError, ExtractorError) as exc:
             logger.warning("Unable to download YouTube video for %s", url, exc_info=True)
+            recovered = _finalize_partial_download(base_dir, media_base)
+            if recovered:
+                return recovered
             raise
         # Prefer any muxed output file in the download directory, falling back to
         # yt-dlp's prepared filename if needed.
@@ -541,6 +568,9 @@ def download_video(
                 except OSError:
                     return candidate
             return candidate
+        recovered = _finalize_partial_download(base_dir, media_base)
+        if recovered:
+            return recovered
     raise FileNotFoundError("Video download failed; output file not found")
 
 

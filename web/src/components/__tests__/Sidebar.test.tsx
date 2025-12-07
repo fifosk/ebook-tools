@@ -82,7 +82,7 @@ const runningWithProgress: JobState = {
 };
 
 describe('Sidebar', () => {
-  it('renders the Add book entry as active for pipeline views', () => {
+  it('renders the Narrate Ebook entry as active for pipeline views', () => {
     render(
       <Sidebar
         selectedView="pipeline:source"
@@ -102,13 +102,13 @@ describe('Sidebar', () => {
       />
     );
 
-    const addBookButton = screen.getByRole('button', { name: /Add book/i });
-    expect(addBookButton).toBeInTheDocument();
-    expect(addBookButton).toHaveClass('is-active');
+    const narrateButton = screen.getByRole('button', { name: /Narrate Ebook/i });
+    expect(narrateButton).toBeInTheDocument();
+    expect(narrateButton).toHaveClass('is-active');
     expect(screen.getByRole('button', { name: /Subtitles/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /YT Download/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Dub Video/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Create book/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Create audiobook/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
   });
 
@@ -160,7 +160,7 @@ describe('Sidebar', () => {
       />
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /Add book/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Narrate Ebook/i }));
     fireEvent.click(screen.getByRole('button', { name: /Dub Video/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);

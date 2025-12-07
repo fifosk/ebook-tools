@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import type { LibraryItem, LibraryViewMode } from '../api/dtos';
+import { formatLanguageWithFlag } from '../utils/languages';
 import styles from './LibraryList.module.css';
 
 type Props = {
@@ -38,6 +39,11 @@ type LanguageGroup = {
 
 const UNKNOWN_AUTHOR = 'Unknown Author';
 const UNKNOWN_CREATOR = 'Unknown Creator';
+
+function renderLanguageLabel(language: string | null | undefined): string {
+  const label = language ?? 'Unknown';
+  return formatLanguageWithFlag(label) || label;
+}
 const UNTITLED_BOOK = 'Untitled Book';
 const UNTITLED_VIDEO = 'Untitled Video';
 const UNKNOWN_GENRE = 'Unknown Genre';
@@ -300,7 +306,7 @@ function LibraryList({
                   <td>{resolveTitle(item)}</td>
                   <td>{describeItemType(item)}</td>
                   <td>{resolveAuthor(item)}</td>
-                  <td>{item.language}</td>
+                  <td>{renderLanguageLabel(item.language)}</td>
                   <td>
                     {renderStatusBadge(item)}
                   </td>
@@ -326,7 +332,7 @@ function LibraryList({
                 <summary>{book.bookTitle}</summary>
                 {book.languages.map((entry) => (
                   <div key={entry.language}>
-                    <h4 className={styles.languageHeader}>{entry.language}</h4>
+                    <h4 className={styles.languageHeader}>{renderLanguageLabel(entry.language)}</h4>
                     <ul className={styles.itemList}>
                       {entry.items.map((item) => (
                         <li key={item.jobId} className={styles.itemCard}>
@@ -371,7 +377,7 @@ function LibraryList({
                             {renderStatusBadge(item)}
                           </div>
                           <div className={styles.itemMeta}>
-                            Language {item.language} · Type {describeItemType(item)} · Updated {formatTimestamp(item.updatedAt)}
+                            Language {renderLanguageLabel(item.language)} · Type {describeItemType(item)} · Updated {formatTimestamp(item.updatedAt)}
                           </div>
                           {renderActions(item)}
                         </li>
@@ -391,7 +397,7 @@ function LibraryList({
     <div className={styles.listContainer}>
       {languageGroups.map((group) => (
         <details key={group.language} className={styles.group} open>
-          <summary>{group.language}</summary>
+          <summary>{renderLanguageLabel(group.language)}</summary>
           {group.authors.map((author) => (
             <details key={author.author} className={styles.subGroup} open>
               <summary>{author.author}</summary>
