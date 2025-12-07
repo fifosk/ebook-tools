@@ -107,6 +107,7 @@ export function App() {
   const [reloadingJobs, setReloadingJobs] = useState<Record<string, boolean>>({});
   const [mutatingJobs, setMutatingJobs] = useState<Record<string, boolean>>({});
   const [selectedView, setSelectedView] = useState<SelectedView>('pipeline:source');
+  const [subtitleRefreshKey, setSubtitleRefreshKey] = useState<number>(0);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
   const [playerSelection, setPlayerSelection] = useState<MediaSelectionRequest | null>(null);
@@ -680,6 +681,7 @@ export function App() {
 
       if (jobType === 'subtitle') {
         setSubtitlePrefillParameters(parameters);
+        setSubtitleRefreshKey((value) => value + 1);
         setSelectedView(SUBTITLES_VIEW);
         return;
       }
@@ -843,9 +845,12 @@ export function App() {
 
   const handleSidebarSelectView = useCallback(
     (view: SelectedView) => {
+      if (view === SUBTITLES_VIEW) {
+        setSubtitleRefreshKey((value) => value + 1);
+      }
       setSelectedView(view);
     },
-    [setSelectedView]
+    [setSelectedView, setSubtitleRefreshKey]
   );
 
   const handleSubtitleJobCreated = useCallback(
@@ -1336,6 +1341,7 @@ export function App() {
                     onJobCreated={handleSubtitleJobCreated}
                     onSelectJob={handleSubtitleJobSelected}
                     prefillParameters={subtitlePrefillParameters}
+                    refreshSignal={subtitleRefreshKey}
                   />
                 </section>
               ) : null}

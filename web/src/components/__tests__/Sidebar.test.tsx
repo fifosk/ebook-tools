@@ -39,8 +39,8 @@ const youtubeDubJob: JobState = {
     tuning: null,
     parameters: {
       target_languages: ['es'],
-      video_path: '/Volumes/Data/Video/Youtube/sample.mp4',
-      subtitle_path: '/Volumes/Data/Video/Youtube/sample.es.ass'
+      video_path: '/Volumes/Data/Download/DStation/sample.mp4',
+      subtitle_path: '/Volumes/Data/Download/DStation/sample.es.ass'
     }
   },
   latestEvent: undefined,
@@ -105,9 +105,9 @@ describe('Sidebar', () => {
     const addBookButton = screen.getByRole('button', { name: /Add book/i });
     expect(addBookButton).toBeInTheDocument();
     expect(addBookButton).toHaveClass('is-active');
-    expect(screen.getByRole('button', { name: /^Subtitles$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /YouTube video/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Dubbing/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Subtitles/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /YT Download/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Dub Video/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create book/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
   });
@@ -161,7 +161,7 @@ describe('Sidebar', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Add book/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Dubbing/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Dub Video/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);
     expect(handleSelectView.mock.calls).toContainEqual(['subtitles:youtube-dub']);

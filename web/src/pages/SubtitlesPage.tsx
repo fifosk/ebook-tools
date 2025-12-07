@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { JobState } from '../components/JobList';
 import { useLanguagePreferences } from '../context/LanguageProvider';
@@ -8,12 +8,15 @@ import {
   fetchSubtitleResult,
   fetchLlmModels,
   resolveSubtitleDownloadUrl,
-  submitSubtitleJob
+  submitSubtitleJob,
+  deleteSubtitleSource
 } from '../api/client';
 import type { SubtitleJobResultPayload, SubtitleSourceEntry } from '../api/dtos';
-import { TOP_LANGUAGES } from '../constants/menuOptions';
 import { formatTimestamp } from '../utils/mediaFormatters';
 import type { JobParameterSnapshot } from '../api/dtos';
+import { buildLanguageOptions, normalizeLanguageLabel } from '../utils/languages';
+import { inferSubtitleLanguageFromPath, subtitleFormatFromPath, subtitleLanguageDetail } from '../utils/subtitles';
+import styles from './SubtitlesPage.module.css';
 
 type SourceMode = 'existing' | 'upload';
 type SubtitleOutputFormat = 'srt' | 'ass';
@@ -23,6 +26,7 @@ type Props = {
   onJobCreated: (jobId: string) => void;
   onSelectJob: (jobId: string) => void;
   prefillParameters?: JobParameterSnapshot | null;
+  refreshSignal?: number;
 };
 
 const DEFAULT_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
@@ -37,21 +41,6 @@ const MAX_ASS_FONT_SIZE = 120;
 const DEFAULT_ASS_EMPHASIS = 1.3;
 const MIN_ASS_EMPHASIS = 1.0;
 const MAX_ASS_EMPHASIS = 2.5;
-
-function deriveDirectoryFromPath(value: string | undefined): string {
-  if (!value) {
-    return DEFAULT_SOURCE_DIRECTORY;
-  }
-  const normalised = value.trim().replace(/\\+/g, '/');
-  if (!normalised) {
-    return DEFAULT_SOURCE_DIRECTORY;
-  }
-  const index = normalised.lastIndexOf('/');
-  if (index <= 0) {
-    return normalised;
-  }
-  return normalised.slice(0, index);
-}
 
 function formatRetryCounts(counts?: Record<string, number> | null): string | null {
   if (!counts) {
@@ -208,44 +197,68 @@ function normaliseTimecodeInput(
   return absolute.normalized;
 }
 
-export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob, prefillParameters = null }: Props) {
+export default function SubtitlesPage({
+  subtitleJobs,
+  onJobCreated,
+  onSelectJob,
+  prefillParameters = null,
+  refreshSignal = 0
+}: Props) {
   const {
     inputLanguage,
     setInputLanguage,
     primaryTargetLanguage,
     setPrimaryTargetLanguage
   } = useLanguagePreferences();
-  const [targetLanguage, setTargetLanguage] = useState<string>(primaryTargetLanguage ?? 'French');
+  const [targetLanguage, setTargetLanguage] = useState<string>(
+    normalizeLanguageLabel(primaryTargetLanguage ?? 'French')
+  );
   const [fetchedLanguages, setFetchedLanguages] = useState<string[]>([]);
-  const languageOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const result: string[] = [];
-    const append = (value: string | null | undefined) => {
-      const trimmed = (value ?? '').trim();
-      if (!trimmed) {
-        return;
-      }
-      const key = trimmed.toLowerCase();
-      if (seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-      result.push(trimmed);
-    };
-    for (const entry of fetchedLanguages) {
-      append(entry);
-    }
-    for (const entry of TOP_LANGUAGES) {
-      append(entry);
-    }
-    append(inputLanguage);
-    append(primaryTargetLanguage);
-    append(targetLanguage);
-    return result.length > 0 ? result : ['English'];
-  }, [fetchedLanguages, inputLanguage, primaryTargetLanguage, targetLanguage]);
+  const languageOptions = useMemo(
+    () =>
+      buildLanguageOptions({
+        fetchedLanguages,
+        preferredLanguages: [inputLanguage, primaryTargetLanguage, targetLanguage]
+      }),
+    [fetchedLanguages, inputLanguage, primaryTargetLanguage, targetLanguage]
+  );
   const [sourceMode, setSourceMode] = useState<SourceMode>('existing');
   const [sources, setSources] = useState<SubtitleSourceEntry[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>('');
+  const selectedSourceRef = useRef<string>('');
+  useEffect(() => {
+    selectedSourceRef.current = selectedSource;
+  }, [selectedSource]);
+  const selectedSourceEntry = useMemo(
+    () => sources.find((entry) => entry.path === selectedSource) ?? null,
+    [selectedSource, sources]
+  );
+  const selectedSourceFormat = useMemo(() => {
+    if (!selectedSourceEntry) {
+      return '';
+    }
+    return (selectedSourceEntry.format || subtitleFormatFromPath(selectedSourceEntry.path) || '').toLowerCase();
+  }, [selectedSourceEntry]);
+  const isAssSelection = useMemo(
+    () => sourceMode === 'existing' && selectedSourceFormat === 'ass',
+    [sourceMode, selectedSourceFormat]
+  );
+  const sortedSources = useMemo(() => {
+    return [...sources]
+      .map((entry, index) => ({ entry, index }))
+      .sort((left, right) => {
+        const leftFormat = (left.entry.format || subtitleFormatFromPath(left.entry.path) || '').toLowerCase();
+        const rightFormat = (right.entry.format || subtitleFormatFromPath(right.entry.path) || '').toLowerCase();
+        const leftWeight = leftFormat === 'ass' ? 1 : 0;
+        const rightWeight = rightFormat === 'ass' ? 1 : 0;
+        if (leftWeight !== rightWeight) {
+          return leftWeight - rightWeight;
+        }
+        return left.index - right.index;
+      })
+      .map(({ entry }) => entry);
+  }, [sources]);
+  const sourceDirectory = DEFAULT_SOURCE_DIRECTORY;
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
@@ -276,6 +289,9 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
+  const [deletingSourcePath, setDeletingSourcePath] = useState<string | null>(null);
+  const [sourceMessage, setSourceMessage] = useState<string | null>(null);
+  const [sourceError, setSourceError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [lastSubmittedJobId, setLastSubmittedJobId] = useState<string | null>(null);
@@ -349,6 +365,15 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
     if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
       setSelectedModel(prefillParameters.llm_model.trim());
     }
+    const sourcePath =
+      typeof prefillParameters.subtitle_path === 'string'
+        ? prefillParameters.subtitle_path.trim()
+        : typeof prefillParameters.input_file === 'string' && prefillParameters.input_file
+          ? prefillParameters.input_file.trim()
+          : '';
+    if (sourcePath) {
+      setSelectedSource(sourcePath);
+    }
   }, [
     prefillParameters,
     secondsToTimecode,
@@ -368,13 +393,14 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
           ? (config['target_languages'] as unknown[])
           : [];
         const normalised = targetLanguages
-          .map((language) => (typeof language === 'string' ? language.trim() : ''))
+          .map((language) => (typeof language === 'string' ? normalizeLanguageLabel(language) : ''))
           .filter((language) => language.length > 0);
         if (normalised.length > 0) {
           setFetchedLanguages(normalised);
         }
-        const defaultInput =
-          typeof config['input_language'] === 'string' ? config['input_language'].trim() : '';
+        const defaultInput = normalizeLanguageLabel(
+          typeof config['input_language'] === 'string' ? config['input_language'] : ''
+        );
         if (defaultInput && !inputLanguage) {
           setInputLanguage(defaultInput);
         }
@@ -436,27 +462,72 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
   }, [languageOptions, setPrimaryTargetLanguage, targetLanguage]);
 
   const refreshSources = useCallback(
-    async (hint?: string) => {
+    async (resetSelection: boolean = false) => {
+      const directory = sourceDirectory;
       setLoadingSources(true);
+      setSourceError(null);
+      setSourceMessage(null);
       try {
-        const directory = deriveDirectoryFromPath(hint);
         const entries = await fetchSubtitleSources(directory);
         setSources(entries);
-        if (!selectedSource && entries.length > 0) {
-          setSelectedSource(entries[0].path);
+        const currentSelection = resetSelection ? '' : selectedSourceRef.current;
+        if (!currentSelection) {
+          const pickLatest = (items: SubtitleSourceEntry[]): string => {
+            const parseTimestamp = (value: string | null | undefined): number => {
+              if (!value) {
+                return 0;
+              }
+              const parsed = Date.parse(value);
+              return Number.isNaN(parsed) ? 0 : parsed;
+            };
+            const preferred = items.filter((item) => {
+              const format = (item.format || subtitleFormatFromPath(item.path) || '').toLowerCase();
+              return format !== 'ass';
+            });
+            const pool = preferred.length > 0 ? preferred : items;
+            if (pool.length === 0) {
+              return '';
+            }
+            return pool.reduce<string>((latest, candidate) => {
+              if (!latest) {
+                return candidate.path;
+              }
+              const latestEntry = pool.find((item) => item.path === latest) ?? candidate;
+              const latestTs = parseTimestamp(latestEntry.modified_at);
+              const candidateTs = parseTimestamp(candidate.modified_at);
+              if (candidateTs > latestTs) {
+                return candidate.path;
+              }
+              if (candidateTs === latestTs && candidate.path.localeCompare(latest) < 0) {
+                return candidate.path;
+              }
+              return latest;
+            }, '');
+          };
+          const nextSelection = pickLatest(entries);
+          if (nextSelection) {
+            setSelectedSource(nextSelection);
+          }
+        } else if (resetSelection && entries.length === 0) {
+          setSelectedSource('');
+        }
+        if (entries.length === 0) {
+          setSourceMessage(`No subtitles found in ${directory}`);
         }
       } catch (error) {
         console.warn('Unable to list subtitle sources', error);
+        const message = error instanceof Error ? error.message : 'Unable to list subtitle sources.';
+        setSourceError(message);
       } finally {
         setLoadingSources(false);
       }
     },
-    [selectedSource]
+    [sourceDirectory]
   );
 
   useEffect(() => {
     refreshSources();
-  }, [refreshSources]);
+  }, [refreshSignal, refreshSources]);
 
   useEffect(() => {
     const completedSubtitleJobs = subtitleJobs.filter(
@@ -506,9 +577,33 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
     setSubmitError(null);
   }, []);
 
-  const handleSourceChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    setSelectedSource(event.target.value);
-  }, []);
+  const handleDeleteSource = useCallback(
+    async (entry: SubtitleSourceEntry) => {
+      const confirmed =
+        typeof window === 'undefined' ||
+        window.confirm(
+          `Delete ${entry.name}? This removes the subtitle and any mirrored HTML transcript copies.`,
+        );
+      if (!confirmed) {
+        return;
+      }
+      setSourceError(null);
+      setSourceMessage(null);
+      setDeletingSourcePath(entry.path);
+      try {
+        await deleteSubtitleSource(entry.path);
+        const resetSelection = selectedSource === entry.path;
+        await refreshSources(resetSelection);
+        setSourceMessage(`Deleted ${entry.name}`);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to delete subtitle.';
+        setSourceError(message);
+      } finally {
+        setDeletingSourcePath(null);
+      }
+    },
+    [refreshSources, selectedSource]
+  );
 
   const handleUploadChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files && event.target.files.length > 0 ? event.target.files[0] : null;
@@ -536,6 +631,12 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
       const trimmedOriginal = normaliseLanguage(inputLanguage);
       if (!trimmedOriginal) {
         setSubmitError('Choose an original language.');
+        return;
+      }
+      if (isAssSelection) {
+        setSubmitError(
+          'Generated ASS files cannot be used as sources. Choose the original SRT/VTT or upload a new subtitle.'
+        );
         return;
       }
       const trimmedTarget = normaliseLanguage(targetLanguage);
@@ -726,29 +827,90 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
             </div>
             {sourceMode === 'existing' ? (
               <div className="field">
-                <label className="field-label" htmlFor="subtitle-source-input">
-                  Subtitle path
-                </label>
-                <input
-                  id="subtitle-source-input"
-                  type="text"
-                  value={selectedSource}
-                  onChange={handleSourceChange}
-                  list="subtitle-source-list"
-                  placeholder={`${DEFAULT_SOURCE_DIRECTORY}/example.srt`}
-                  disabled={isLoadingSources}
-                />
-                <datalist id="subtitle-source-list">
-                  {sources.map((entry) => (
-                    <option key={entry.path} value={entry.path}>
-                      {entry.name}
-                    </option>
-                  ))}
-                </datalist>
-                <div className="field-actions">
-                  <button type="button" className="link-button" onClick={() => refreshSources(selectedSource)}>
-                    Refresh list
-                  </button>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <div className="field-label">Subtitle directory</div>
+                    <p className={styles.cardHint}>
+                      Using the default NAS Subtitles folder; scans for .srt/.vtt files plus generated .ass outputs and mirrors deletions alongside HTML transcripts.
+                    </p>
+                    <p className={styles.sourcePath}>{sourceDirectory}</p>
+                  </div>
+                  <div className={styles.controlRow}>
+                    <button
+                      type="button"
+                      className={styles.secondaryButton}
+                      onClick={() => void refreshSources()}
+                      disabled={isLoadingSources || Boolean(deletingSourcePath)}
+                    >
+                      {isLoadingSources ? 'Refreshing…' : 'Refresh list'}
+                    </button>
+                  </div>
+                </div>
+                {sourceError ? <div className="alert" role="alert">{sourceError}</div> : null}
+                {sourceMessage && !sourceError ? <p className={styles.status}>{sourceMessage}</p> : null}
+                <div className={styles.sourceList}>
+                  {isLoadingSources && sources.length === 0 ? (
+                    <p className={styles.status}>Scanning directory…</p>
+                  ) : null}
+                  {!isLoadingSources && sources.length === 0 ? (
+                    <p className={styles.status}>No subtitles found in {sourceDirectory}.</p>
+                  ) : null}
+                  {isAssSelection ? (
+                    <p className={styles.status}>
+                      Generated ASS files are read-only—pick the original SRT/VTT or upload a new subtitle to process.
+                    </p>
+                  ) : null}
+                  {sortedSources.map((entry) => {
+                    const isActive = selectedSource === entry.path;
+                    const isDeleting = deletingSourcePath === entry.path;
+                    const language = entry.language || inferSubtitleLanguageFromPath(entry.path);
+                    const languageLabel = subtitleLanguageDetail(language);
+                    const languageCode = (language || 'UNK').toUpperCase();
+                    const format = (entry.format || subtitleFormatFromPath(entry.path) || 'srt').toUpperCase();
+                    return (
+                      <div
+                        key={entry.path}
+                        className={`${styles.sourceCard} ${isActive ? styles.sourceCardActive : ''}`}
+                      >
+                        <label className={styles.sourceChoice}>
+                          <input
+                            type="radio"
+                            name="subtitle_source"
+                            value={entry.path}
+                            checked={isActive}
+                            disabled={Boolean(deletingSourcePath)}
+                            onChange={() => setSelectedSource(entry.path)}
+                          />
+                          <div className={styles.sourceBody}>
+                            <div className={styles.sourceHeaderRow}>
+                              <div className={styles.sourceName}>{entry.name}</div>
+                              <div className={styles.sourceBadges} aria-label="Subtitle details">
+                                <span className={`${styles.pill} ${styles.pillFormat}`}>{format}</span>
+                                <span
+                                  className={`${styles.pill} ${styles.pillMuted}`}
+                                  title={languageLabel}
+                                >
+                                  {languageCode}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </label>
+                        <div className={styles.sourceActions}>
+                          <button
+                            type="button"
+                            className={styles.dangerButton}
+                            onClick={() => void handleDeleteSource(entry)}
+                            disabled={Boolean(deletingSourcePath) || isLoadingSources}
+                            title={`Delete ${entry.name}`}
+                            aria-label={`Delete ${entry.name}`}
+                          >
+                            {isDeleting ? '…' : '🗑'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ) : (
@@ -1033,7 +1195,7 @@ export default function SubtitlesPage({ subtitleJobs, onJobCreated, onSelectJob,
           ) : null}
 
           <div className="form-actions">
-            <button type="submit" className="primary" disabled={isSubmitting}>
+            <button type="submit" className="primary" disabled={isSubmitting || isAssSelection}>
               {isSubmitting ? 'Submitting…' : 'Create subtitle job'}
             </button>
           </div>

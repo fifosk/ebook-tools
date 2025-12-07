@@ -7,6 +7,7 @@ from dataclasses import dataclass
 import logging
 import os
 import re
+import shutil
 from pathlib import Path
 import socket
 
@@ -35,6 +36,7 @@ from .routes.media_routes import (
 )
 from .routes import router, storage_router
 from .routers.video import router as video_router
+from modules.services.file_locator import FileLocator
 
 load_environment()
 
@@ -60,6 +62,7 @@ RANGE_REQUEST_HEADERS = ("Range",)
 RANGE_RESPONSE_HEADERS = ("Content-Range",)
 
 _STARTUP_RUNTIME_CONTEXT: cfg.RuntimeContext | None = None
+_EMPTY_JOB_PRUNE_LIMIT = 200
 
 
 def _initialise_tmp_workspace() -> None:
@@ -97,6 +100,61 @@ def _teardown_tmp_workspace() -> None:
             )
     finally:
         _STARTUP_RUNTIME_CONTEXT = None
+
+
+def _directory_contains_payload(path: Path) -> bool:
+    """Return True when ``path`` has any files or symlinks beneath it."""
+
+    for child in path.rglob("*"):
+        try:
+            if child.is_file() or child.is_symlink():
+                return True
+        except OSError:
+            continue
+    return False
+
+
+def _cleanup_empty_job_folders(storage_root: Path | None = None) -> int:
+    """
+    Remove empty job directories under the storage root.
+
+    Returns the number of directories removed.
+    """
+
+    try:
+        root = storage_root or FileLocator().storage_root
+    except Exception:  # pragma: no cover - defensive logging
+        LOGGER.warning("Unable to resolve storage root while pruning empty jobs", exc_info=True)
+        return 0
+
+    if not root.exists() or not root.is_dir():
+        return 0
+
+    removed = 0
+    for index, entry in enumerate(root.iterdir()):
+        if _EMPTY_JOB_PRUNE_LIMIT and index >= _EMPTY_JOB_PRUNE_LIMIT:
+            break
+        if not entry.is_dir():
+            continue
+        try:
+            if _directory_contains_payload(entry):
+                continue
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.debug("Skipping job folder %s due to inspection error", entry, exc_info=True)
+            continue
+
+        try:
+            shutil.rmtree(entry)
+            removed += 1
+        except FileNotFoundError:
+            continue
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.warning("Failed to prune empty job folder %s", entry, exc_info=True)
+            continue
+
+    if removed:
+        LOGGER.info("Pruned %s empty job folder(s) from %s", removed, root)
+    return removed
 
 
 @dataclass(frozen=True)
@@ -252,6 +310,10 @@ def create_app() -> FastAPI:
             load_media_config()
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to parse supplemental media configuration")
+        try:
+            _cleanup_empty_job_folders()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to prune empty job folders on startup")
 
     @app.on_event("shutdown")
     async def _cleanup_runtime() -> None:
@@ -259,6 +321,10 @@ def create_app() -> FastAPI:
             _teardown_tmp_workspace()
         except Exception:  # pragma: no cover - defensive logging
             LOGGER.exception("Failed to clean up temporary workspace")
+        try:
+            _cleanup_empty_job_folders()
+        except Exception:  # pragma: no cover - defensive logging
+            LOGGER.exception("Failed to prune empty job folders on shutdown")
 
     _configure_cors(app)
 

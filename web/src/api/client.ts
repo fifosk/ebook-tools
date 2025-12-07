@@ -34,13 +34,18 @@ import {
   LlmModelListResponse,
   SubtitleSourceEntry,
   SubtitleSourceListResponse,
+  SubtitleDeleteResponse,
   YoutubeSubtitleDownloadRequest,
   YoutubeSubtitleDownloadResponse,
   YoutubeSubtitleListResponse,
   YoutubeVideoDownloadRequest,
   YoutubeVideoDownloadResponse,
   YoutubeNasLibraryResponse,
+  YoutubeInlineSubtitleListResponse,
   YoutubeSubtitleExtractionResponse,
+  YoutubeSubtitleDeleteResponse,
+  YoutubeVideoDeleteRequest,
+  YoutubeVideoDeleteResponse,
   YoutubeDubRequest,
   YoutubeDubResponse
 } from './dtos';
@@ -213,6 +218,23 @@ export async function fetchSubtitleSources(directory?: string): Promise<Subtitle
   return payload.sources;
 }
 
+export async function deleteSubtitleSource(
+  subtitlePath: string,
+  baseDir?: string | null
+): Promise<SubtitleDeleteResponse> {
+  const response = await apiFetch('/api/subtitles/delete-source', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      subtitle_path: subtitlePath,
+      base_dir: baseDir ?? null
+    })
+  });
+  return handleResponse<SubtitleDeleteResponse>(response);
+}
+
 export async function fetchYoutubeSubtitleTracks(url: string): Promise<YoutubeSubtitleListResponse> {
   const query = `?url=${encodeURIComponent(url)}`;
   const response = await apiFetch(`/api/subtitles/youtube/subtitles${query}`);
@@ -253,15 +275,60 @@ export async function fetchYoutubeLibrary(
   return handleResponse<YoutubeNasLibraryResponse>(response);
 }
 
-export async function extractInlineSubtitles(videoPath: string): Promise<YoutubeSubtitleExtractionResponse> {
+export async function fetchInlineSubtitleStreams(
+  videoPath: string
+): Promise<YoutubeInlineSubtitleListResponse> {
+  const query = `?video_path=${encodeURIComponent(videoPath)}`;
+  const response = await apiFetch(`/api/subtitles/youtube/subtitle-streams${query}`);
+  return handleResponse<YoutubeInlineSubtitleListResponse>(response);
+}
+
+export async function extractInlineSubtitles(
+  videoPath: string,
+  languages?: string[]
+): Promise<YoutubeSubtitleExtractionResponse> {
+  const payload: Record<string, unknown> = { video_path: videoPath };
+  if (languages && languages.length > 0) {
+    payload.languages = languages;
+  }
   const response = await apiFetch('/api/subtitles/youtube/extract-subtitles', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ video_path: videoPath })
+    body: JSON.stringify(payload)
   });
   return handleResponse<YoutubeSubtitleExtractionResponse>(response);
+}
+
+export async function deleteNasSubtitle(
+  videoPath: string,
+  subtitlePath: string
+): Promise<YoutubeSubtitleDeleteResponse> {
+  const response = await apiFetch('/api/subtitles/youtube/delete-subtitle', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      video_path: videoPath,
+      subtitle_path: subtitlePath
+    })
+  });
+  return handleResponse<YoutubeSubtitleDeleteResponse>(response);
+}
+
+export async function deleteYoutubeVideo(
+  payload: YoutubeVideoDeleteRequest
+): Promise<YoutubeVideoDeleteResponse> {
+  const response = await apiFetch('/api/subtitles/youtube/delete-video', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<YoutubeVideoDeleteResponse>(response);
 }
 
 export async function generateYoutubeDub(

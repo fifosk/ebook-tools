@@ -210,6 +210,25 @@ class SubtitleSourceEntry(BaseModel):
 
     name: str
     path: str
+    format: str
+    language: Optional[str] = None
+    modified_at: Optional[datetime] = None
+
+
+class SubtitleDeleteRequest(BaseModel):
+    """Request payload used to delete a subtitle source file."""
+
+    subtitle_path: str
+    base_dir: Optional[str] = None
+
+
+class SubtitleDeleteResponse(BaseModel):
+    """Outcome of deleting a subtitle source file."""
+
+    subtitle_path: str
+    base_dir: Optional[str] = None
+    removed: List[str] = Field(default_factory=list)
+    missing: List[str] = Field(default_factory=list)
 
 
 class SubtitleSubmissionPayload(BaseModel):
@@ -314,6 +333,7 @@ class YoutubeNasVideoPayload(BaseModel):
     size_bytes: int
     modified_at: datetime
     source: Optional[str] = Field(default="youtube")
+    linked_job_ids: List[str] = Field(default_factory=list)
     subtitles: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
 
 
@@ -328,6 +348,18 @@ class YoutubeSubtitleExtractionRequest(BaseModel):
     """Request payload for extracting embedded subtitle tracks from a video."""
 
     video_path: str
+    languages: Optional[List[str]] = None
+
+
+class YoutubeInlineSubtitleStream(BaseModel):
+    """Single subtitle stream embedded in a video file."""
+
+    index: int
+    position: int
+    language: Optional[str] = None
+    codec: Optional[str] = None
+    title: Optional[str] = None
+    can_extract: bool = True
 
 
 class YoutubeSubtitleExtractionResponse(BaseModel):
@@ -335,6 +367,43 @@ class YoutubeSubtitleExtractionResponse(BaseModel):
 
     video_path: str
     extracted: List[YoutubeNasSubtitlePayload] = Field(default_factory=list)
+
+
+class YoutubeInlineSubtitleListResponse(BaseModel):
+    """Response describing subtitle streams embedded in a video."""
+
+    video_path: str
+    streams: List[YoutubeInlineSubtitleStream] = Field(default_factory=list)
+
+
+class YoutubeSubtitleDeleteRequest(BaseModel):
+    """Request payload for deleting a subtitle next to a NAS video."""
+
+    video_path: str
+    subtitle_path: str
+
+
+class YoutubeSubtitleDeleteResponse(BaseModel):
+    """Response payload after deleting a NAS subtitle and companions."""
+
+    video_path: str
+    subtitle_path: str
+    removed: List[str] = Field(default_factory=list)
+    missing: List[str] = Field(default_factory=list)
+
+
+class YoutubeVideoDeleteRequest(BaseModel):
+    """Request payload to delete a downloaded YouTube video."""
+
+    video_path: str
+
+
+class YoutubeVideoDeleteResponse(BaseModel):
+    """Response payload after deleting a YouTube video and companions."""
+
+    video_path: str
+    removed: List[str] = Field(default_factory=list)
+    missing: List[str] = Field(default_factory=list)
 
 
 class YoutubeDubRequest(BaseModel):

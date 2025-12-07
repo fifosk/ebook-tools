@@ -166,10 +166,20 @@ export interface PipelineStatusResponse {
 export interface SubtitleSourceEntry {
   name: string;
   path: string;
+  format: string;
+  language?: string | null;
+  modified_at?: string | null;
 }
 
 export interface SubtitleSourceListResponse {
   sources: SubtitleSourceEntry[];
+}
+
+export interface SubtitleDeleteResponse {
+  subtitle_path: string;
+  base_dir?: string | null;
+  removed: string[];
+  missing: string[];
 }
 
 export type YoutubeSubtitleKind = 'auto' | 'manual';
@@ -238,6 +248,7 @@ export interface YoutubeNasVideo {
   size_bytes: number;
   modified_at: string;
   source?: string;
+   linked_job_ids?: string[];
   subtitles: YoutubeNasSubtitle[];
 }
 
@@ -246,9 +257,40 @@ export interface YoutubeNasLibraryResponse {
   videos: YoutubeNasVideo[];
 }
 
+export interface YoutubeInlineSubtitleStream {
+  index: number;
+  position: number;
+  language?: string | null;
+  codec?: string | null;
+  title?: string | null;
+  can_extract: boolean;
+}
+
+export interface YoutubeInlineSubtitleListResponse {
+  video_path: string;
+  streams: YoutubeInlineSubtitleStream[];
+}
+
 export interface YoutubeSubtitleExtractionResponse {
   video_path: string;
   extracted: YoutubeNasSubtitle[];
+}
+
+export interface YoutubeSubtitleDeleteResponse {
+  video_path: string;
+  subtitle_path: string;
+  removed: string[];
+  missing: string[];
+}
+
+export interface YoutubeVideoDeleteRequest {
+  video_path: string;
+}
+
+export interface YoutubeVideoDeleteResponse {
+  video_path: string;
+  removed: string[];
+  missing: string[];
 }
 
 export interface YoutubeDubRequest {

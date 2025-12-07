@@ -151,7 +151,7 @@ export function Sidebar({
   return (
     <nav className="sidebar__nav" aria-label="Dashboard menu">
       <details className="sidebar__section" open>
-        <summary>Books</summary>
+        <summary>📖 Books</summary>
         <ul className="sidebar__list">
           <li>
             <button
@@ -159,7 +159,7 @@ export function Sidebar({
               className={`sidebar__link ${isAddBookActive ? 'is-active' : ''}`}
               onClick={() => onSelectView('pipeline:source')}
             >
-              Add book
+              📚 Add book
             </button>
           </li>
           <li>
@@ -168,13 +168,13 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === createBookView ? 'is-active' : ''}`}
               onClick={() => onSelectView(createBookView)}
             >
-              Create book
+              📝 Create book
             </button>
           </li>
         </ul>
       </details>
       <details className="sidebar__section" open>
-        <summary>Media</summary>
+        <summary>🎬 Media</summary>
         <ul className="sidebar__list">
           <li>
             <button
@@ -182,13 +182,13 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === subtitlesView ? 'is-active' : ''}`}
               onClick={() => onSelectView(subtitlesView)}
             >
-              Subtitles
+              🎞️ Subtitles
             </button>
           </li>
         </ul>
       </details>
       <details className="sidebar__section" open>
-        <summary>Videos</summary>
+        <summary>📺 Videos</summary>
         <ul className="sidebar__list">
           <li>
             <button
@@ -196,7 +196,7 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === youtubeSubtitlesView ? 'is-active' : ''}`}
               onClick={() => onSelectView(youtubeSubtitlesView)}
             >
-              YouTube video
+              📺 YT Download
             </button>
           </li>
           <li>
@@ -205,13 +205,13 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === youtubeDubView ? 'is-active' : ''}`}
               onClick={() => onSelectView(youtubeDubView)}
             >
-              Dubbing
+              🎙️ Dub Video
             </button>
           </li>
         </ul>
       </details>
       <details className="sidebar__section">
-        <summary>Library</summary>
+        <summary>🗃️ Library</summary>
         <ul className="sidebar__list">
           <li>
             <button
@@ -219,7 +219,7 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === libraryView ? 'is-active' : ''}`}
               onClick={() => onSelectView(libraryView)}
             >
-              Browse library
+              🗂️ Browse library
             </button>
           </li>
           <li>
@@ -229,13 +229,13 @@ export function Sidebar({
               onClick={onOpenPlayer}
               disabled={!canOpenPlayer}
             >
-              {canOpenPlayer ? `Open player for job ${activeJobId}` : 'Select a job to open the player'}
+              {canOpenPlayer ? `🎬 Open player for job ${activeJobId}` : '🎬 Select a job to open the player'}
             </button>
           </li>
         </ul>
       </details>
       <details className="sidebar__section" open>
-        <summary>Job Overview</summary>
+        <summary>📊 Job Overview</summary>
         <div>
           <details className="sidebar__section" open>
             <summary>Books</summary>
@@ -400,13 +400,13 @@ export function Sidebar({
       </details>
       {isAdmin ? (
         <details className="sidebar__section">
-          <summary>Administration</summary>
+          <summary>🛠️ Administration</summary>
           <button
             type="button"
             className={`sidebar__link ${selectedView === adminView ? 'is-active' : ''}`}
             onClick={() => onSelectView(adminView)}
           >
-            User management
+            🛠️ User management
           </button>
         </details>
       ) : null}

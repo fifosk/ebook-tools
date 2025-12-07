@@ -1,6 +1,14 @@
-import { ChangeEvent, FormEvent, useCallback, useMemo, useState } from 'react';
-import { downloadYoutubeSubtitle, downloadYoutubeVideo, fetchYoutubeSubtitleTracks } from '../api/client';
+import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  deleteYoutubeVideo,
+  downloadYoutubeSubtitle,
+  downloadYoutubeVideo,
+  fetchYoutubeLibrary,
+  fetchYoutubeSubtitleTracks
+} from '../api/client';
 import type {
+  YoutubeNasLibraryResponse,
+  YoutubeNasVideo,
   YoutubeSubtitleKind,
   YoutubeSubtitleListResponse,
   YoutubeSubtitleTrack,
@@ -9,7 +17,7 @@ import type {
 import styles from './YoutubeSubtitlesPage.module.css';
 
 const SUBTITLE_NAS_DIR = '/Volumes/Data/Download/Subtitles';
-const VIDEO_NAS_DIR = '/Volumes/Data/Video/Youtube';
+const VIDEO_NAS_DIR = '/Volumes/Data/Download/DStation';
 
 function resolveDefaultTrack(tracks: YoutubeSubtitleTrack[]): YoutubeSubtitleTrack | null {
   if (!tracks.length) {
@@ -50,6 +58,56 @@ function describeFormat(format: YoutubeVideoFormat): string {
   return `mp4 • ${parts.join(' • ')}`;
 }
 
+function isYoutubeSource(video: YoutubeNasVideo): boolean {
+  return (video.source || '').toLowerCase() === 'youtube';
+}
+
+function videoSourceBadge(video: YoutubeNasVideo): { icon: string; label: string; title: string } {
+  if (isYoutubeSource(video)) {
+    return { icon: '📺', label: 'YT', title: 'YouTube download' };
+  }
+  return { icon: '🗃️', label: 'NAS', title: 'NAS video' };
+}
+
+function formatBytes(bytes?: number | null): string {
+  if (!bytes || bytes < 0) {
+    return '—';
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const units = ['KB', 'MB', 'GB', 'TB'];
+  let value = bytes / 1024;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value >= 10 ? value.toFixed(0) : value.toFixed(1)} ${units[unitIndex]}`;
+}
+
+function formatDateShort(value?: string | null): string {
+  if (!value) {
+    return '—';
+  }
+  const date = new Date(value);
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function formatDateLong(value?: string | null): string {
+  if (!value) {
+    return '—';
+  }
+  const date = new Date(value);
+  return date.toLocaleString();
+}
+
+function subtitleBadgeLabel(subtitle: YoutubeNasVideo['subtitles'][number]): string {
+  const language = subtitle.language ? subtitle.language.toUpperCase() : '—';
+  const format = subtitle.format ? subtitle.format.toUpperCase() : '';
+  return `${language} ${format}`.trim();
+}
+
 export default function YoutubeSubtitlesPage() {
   const [url, setUrl] = useState('');
   const [resolvedUrl, setResolvedUrl] = useState<string | null>(null);
@@ -67,6 +125,11 @@ export default function YoutubeSubtitlesPage() {
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
   const [downloadPaths, setDownloadPaths] = useState<string[]>([]);
   const [videoDownloadPath, setVideoDownloadPath] = useState<string | null>(null);
+  const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
+  const [videos, setVideos] = useState<YoutubeNasVideo[]>([]);
+  const [isLoadingLibrary, setIsLoadingLibrary] = useState(false);
+  const [libraryError, setLibraryError] = useState<string | null>(null);
+  const [deletingVideoPath, setDeletingVideoPath] = useState<string | null>(null);
 
   const handleFetchTracks = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
@@ -115,12 +178,63 @@ export default function YoutubeSubtitlesPage() {
     [url]
   );
 
+  const refreshDownloads = useCallback(async () => {
+    setIsLoadingLibrary(true);
+    setLibraryError(null);
+    try {
+      const response = await fetchYoutubeLibrary();
+      const youtubeVideos = (response.videos ?? []).filter(isYoutubeSource);
+      setLibrary(response);
+      setVideos(youtubeVideos);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message || 'Unable to load downloaded videos.'
+          : 'Unable to load downloaded videos.';
+      setLibraryError(message);
+    } finally {
+      setIsLoadingLibrary(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshDownloads();
+  }, [refreshDownloads]);
+
   const selectedTracks = useMemo(() => {
     const lookup = new Map(tracks.map((track) => [trackKey(track), track]));
     return Array.from(selectedKeys)
       .map((key) => lookup.get(key))
       .filter((track): track is YoutubeSubtitleTrack => Boolean(track));
   }, [selectedKeys, tracks]);
+
+  const handleDeleteVideo = useCallback(
+    async (video: YoutubeNasVideo) => {
+      if (video.linked_job_ids && video.linked_job_ids.length > 0) {
+        return;
+      }
+      const targetFolder = video.folder || video.path;
+      const confirmed = window.confirm(
+        `Delete the folder "${targetFolder}" and all dubbed outputs/subtitles inside it? This will remove the downloaded video and any generated artifacts.`
+      );
+      if (!confirmed) {
+        return;
+      }
+      setDeletingVideoPath(video.path);
+      setLibraryError(null);
+      try {
+        await deleteYoutubeVideo({ video_path: video.path });
+        setVideos((prev) => prev.filter((entry) => entry.path !== video.path));
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message || 'Unable to delete video.' : 'Unable to delete video.';
+        setLibraryError(message);
+      } finally {
+        setDeletingVideoPath(null);
+      }
+    },
+    []
+  );
 
   const handleSelectionChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
     const values = Array.from(event.target.selectedOptions).map((option) => option.value);
@@ -169,6 +283,7 @@ export default function YoutubeSubtitlesPage() {
         });
         setVideoDownloadPath(videoResponse.output_path || videoResponse.filename);
       }
+      await refreshDownloads();
     } catch (error) {
       const message =
         error instanceof Error
@@ -178,7 +293,7 @@ export default function YoutubeSubtitlesPage() {
     } finally {
       setIsDownloading(false);
     }
-  }, [resolvedUrl, url, selectedTracks, downloadVideo, videoPath, selectedVideoFormat]);
+  }, [resolvedUrl, url, selectedTracks, downloadVideo, videoPath, selectedVideoFormat, refreshDownloads]);
 
   const selectedLabel = useMemo(() => {
     if (!selectedTracks.length) {
@@ -190,6 +305,8 @@ export default function YoutubeSubtitlesPage() {
     });
     return labels.join(', ');
   }, [selectedTracks]);
+
+  const libraryBaseDir = library?.base_dir ?? VIDEO_NAS_DIR;
 
   return (
     <div className={styles.container}>
@@ -391,6 +508,113 @@ export default function YoutubeSubtitlesPage() {
               Saved video to: <code>{videoDownloadPath}</code>
             </p>
           ) : null}
+        </div>
+      </section>
+
+      <section className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div>
+            <p className={styles.kicker}>Downloads</p>
+            <h2 className={styles.cardTitle}>Downloaded YouTube videos</h2>
+            <p className={styles.cardHint}>
+              Base path: <code>{libraryBaseDir}</code>
+            </p>
+          </div>
+          <div>
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => void refreshDownloads()}
+              disabled={isLoadingLibrary}
+            >
+              {isLoadingLibrary ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+        {libraryError ? <p className={styles.error}>{libraryError}</p> : null}
+        {isLoadingLibrary && videos.length === 0 ? (
+          <p className={styles.status}>Loading downloads…</p>
+        ) : null}
+        {!isLoadingLibrary && videos.length === 0 ? (
+          <p className={styles.status}>No downloaded YouTube videos found.</p>
+        ) : null}
+        <div className={styles.videoList}>
+          {videos.map((video) => {
+            const badge = videoSourceBadge(video);
+            const hasLinkedJobs = (video.linked_job_ids ?? []).length > 0;
+            const disableDelete = hasLinkedJobs || deletingVideoPath === video.path;
+            const jobTitle = hasLinkedJobs
+              ? `Linked jobs: ${(video.linked_job_ids ?? []).join(', ')}`
+              : 'Delete downloaded video';
+            return (
+              <div key={video.path} className={`${styles.videoOption} ${styles.videoOptionStatic}`}>
+                <div className={styles.videoContent}>
+                  <div className={styles.videoTitle}>{video.filename}</div>
+                  <div className={styles.videoMeta}>
+                    <span
+                      className={`${styles.pill} ${styles.pillMeta} ${styles.pillSource}`}
+                      title={`${badge.title} · ${video.folder || video.path}`}
+                    >
+                      <span aria-hidden="true">{badge.icon}</span>
+                      <span>{badge.label}</span>
+                    </span>
+                    <span
+                      className={`${styles.pill} ${styles.pillMeta}`}
+                      title={`Size: ${formatBytes(video.size_bytes)}`}
+                    >
+                      <span aria-hidden="true">💾</span>
+                      <span>{formatBytes(video.size_bytes)}</span>
+                    </span>
+                    <span
+                      className={`${styles.pill} ${styles.pillMeta}`}
+                      title={`Modified: ${formatDateLong(video.modified_at)}`}
+                    >
+                      <span aria-hidden="true">🕒</span>
+                      <span>{formatDateShort(video.modified_at)}</span>
+                    </span>
+                    {hasLinkedJobs ? (
+                      <span
+                        className={`${styles.pill} ${styles.pillWarning}`}
+                        title={`Linked jobs: ${(video.linked_job_ids ?? []).join(', ')}`}
+                      >
+                        🔗 {video.linked_job_ids?.length ?? 0} job
+                        {(video.linked_job_ids?.length ?? 0) === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className={styles.subtitleRow} aria-label="Subtitles next to video">
+                    {video.subtitles.length === 0 ? (
+                      <span className={`${styles.pill} ${styles.pillMuted}`}>No subtitles</span>
+                    ) : (
+                      video.subtitles.map((sub) => (
+                        <span
+                          key={sub.path}
+                          className={`${styles.pill} ${
+                            sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
+                          }`}
+                          title={sub.path}
+                        >
+                          {subtitleBadgeLabel(sub)}
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className={styles.videoActions}>
+                  <button
+                    type="button"
+                    className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
+                    onClick={() => void handleDeleteVideo(video)}
+                    disabled={disableDelete}
+                    title={jobTitle}
+                    aria-label={jobTitle}
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
     </div>

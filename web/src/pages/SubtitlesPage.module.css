@@ -1,0 +1,156 @@
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.cardHint {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 0.9rem;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.input {
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  min-width: 16rem;
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+}
+
+.secondaryButton {
+  background: transparent;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.9rem;
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.secondaryButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.status {
+  margin: 0.35rem 0;
+  color: var(--color-text-secondary);
+  font-size: 0.95rem;
+}
+
+.sourceList {
+  display: grid;
+  gap: var(--space-sm);
+  margin-top: var(--space-sm);
+}
+
+.sourceCard {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-sm);
+  align-items: stretch;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-muted);
+}
+
+.sourceCardActive {
+  border-color: var(--color-border-accent);
+  box-shadow: 0 10px 20px rgba(56, 189, 248, 0.14);
+}
+
+.sourceChoice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-sm);
+  align-items: start;
+}
+
+.sourceBody {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.sourceHeaderRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.sourceName {
+  font-weight: 600;
+  color: var(--color-text-heading);
+  word-break: break-word;
+}
+
+.sourceBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xxs);
+  justify-content: flex-end;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-subtle);
+  font-size: 0.9rem;
+}
+
+.pillFormat {
+  background: rgba(59, 130, 246, 0.12);
+  color: #93c5fd;
+  border-color: rgba(59, 130, 246, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+}
+
+.pillMuted {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--color-text-secondary);
+}
+
+.sourcePath {
+  word-break: break-all;
+}
+
+.sourceActions {
+  display: flex;
+  align-items: center;
+}
+
+.dangerButton {
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.08);
+  color: #fca5a5;
+  padding: 0.45rem 0.6rem;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  cursor: pointer;
+  min-width: 2.4rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dangerButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

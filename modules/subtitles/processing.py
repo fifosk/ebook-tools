@@ -49,6 +49,9 @@ from .translation import _translate_text
 from .utils import _is_cancelled, _resolve_batch_size, _resolve_worker_count
 
 
+_LATIN_ASS_EMPHASIS_CAP = 1.1
+
+
 def process_subtitle_file(
     source_path: Path,
     output_path: Path,
@@ -142,6 +145,8 @@ def process_subtitle_file(
 
     resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
     resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
+    if not _target_uses_non_latin_script(options.target_language):
+        resolved_ass_emphasis = min(resolved_ass_emphasis, _LATIN_ASS_EMPHASIS_CAP)
     temp_output = output_path.with_suffix(output_path.suffix + ".tmp")
     output_path.parent.mkdir(parents=True, exist_ok=True)
     renderer = CueTextRenderer(

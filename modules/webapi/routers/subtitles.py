@@ -1,10 +1,11 @@
 """Routes exposing subtitle job orchestration."""
 
 from __future__ import annotations
+
 from datetime import datetime
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import Mapping, Optional, Union
 
 from fastapi import (
     APIRouter,
@@ -30,8 +31,12 @@ from modules.services.youtube_subtitles import (
 from modules.services.youtube_dubbing import (
     DEFAULT_YOUTUBE_VIDEO_ROOT,
     YoutubeDubbingService,
+    delete_nas_subtitle,
+    delete_downloaded_video,
     extract_inline_subtitles,
+    list_inline_subtitle_streams,
     list_downloaded_videos,
+    _find_language_token,
 )
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 
@@ -47,6 +52,8 @@ from ..schemas import (
     SubtitleSourceEntry,
     SubtitleSourceListResponse,
     LLMModelListResponse,
+    SubtitleDeleteRequest,
+    SubtitleDeleteResponse,
     YoutubeSubtitleDownloadRequest,
     YoutubeSubtitleDownloadResponse,
     YoutubeSubtitleListResponse,
@@ -59,8 +66,13 @@ from ..schemas import (
     YoutubeNasLibraryResponse,
     YoutubeNasSubtitlePayload,
     YoutubeNasVideoPayload,
+    YoutubeInlineSubtitleListResponse,
     YoutubeSubtitleExtractionRequest,
     YoutubeSubtitleExtractionResponse,
+    YoutubeSubtitleDeleteRequest,
+    YoutubeSubtitleDeleteResponse,
+    YoutubeVideoDeleteRequest,
+    YoutubeVideoDeleteResponse,
 )
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
@@ -256,12 +268,21 @@ def _parse_end_time(value: Optional[str], start_seconds: float) -> Optional[floa
     return float(end_seconds)
 
 
+def _infer_language_from_name(path: Path) -> Optional[str]:
+    """Return a language token parsed from the subtitle filename, if any."""
+
+    try:
+        return _find_language_token(path)
+    except Exception:
+        return None
+
+
 @router.get("/sources", response_model=SubtitleSourceListResponse)
 def list_subtitle_sources(
     directory: Optional[str] = None,
     service: SubtitleService = Depends(get_subtitle_service),
 ) -> SubtitleSourceListResponse:
-    """Return discoverable subtitle files."""
+    """Return discoverable subtitle files (.srt/.vtt plus generated .ass)."""
 
     base_path = Path(directory).expanduser() if directory else None
     try:
@@ -271,11 +292,55 @@ def list_subtitle_sources(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
 
-    payload = [
-        SubtitleSourceEntry(name=path.name, path=path.as_posix())
-        for path in entries
-    ]
+    payload = []
+    for path in entries:
+        try:
+            stat = path.stat()
+            modified_at = datetime.fromtimestamp(stat.st_mtime)
+        except Exception:
+            modified_at = None
+        payload.append(
+            SubtitleSourceEntry(
+                name=path.name,
+                path=path.as_posix(),
+                format=path.suffix.lstrip(".").lower(),
+                language=_infer_language_from_name(path),
+                modified_at=modified_at,
+            )
+        )
     return SubtitleSourceListResponse(sources=payload)
+
+
+@router.post("/delete-source", response_model=SubtitleDeleteResponse)
+def delete_subtitle_source(
+    payload: SubtitleDeleteRequest,
+    service: SubtitleService = Depends(get_subtitle_service),
+) -> SubtitleDeleteResponse:
+    """Delete a subtitle source and any mirrored HTML transcript."""
+
+    base_dir = Path(payload.base_dir).expanduser() if payload.base_dir else service.default_source_dir
+    subtitle_path = Path(payload.subtitle_path).expanduser()
+    try:
+        result = service.delete_source(subtitle_path, base_dir=base_dir)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("Unable to delete subtitle %s", subtitle_path, exc_info=True)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to delete subtitle: {exc}",
+        ) from exc
+
+    return SubtitleDeleteResponse(
+        subtitle_path=subtitle_path.as_posix(),
+        base_dir=base_dir.as_posix(),
+        removed=[path.as_posix() for path in result.removed],
+        missing=[path.as_posix() for path in result.missing],
+    )
 
 
 def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
@@ -409,7 +474,47 @@ def _looks_like_youtube_subtitle(path: Path) -> bool:
     return bool(regex.search(r"\[[a-z0-9_-]{8,15}\]", name, flags=regex.IGNORECASE))
 
 
-def _serialize_nas_video(entry) -> YoutubeNasVideoPayload:
+def _normalize_path_token(path: Path) -> Optional[str]:
+    try:
+        return path.expanduser().resolve().as_posix()
+    except Exception:
+        try:
+            return path.expanduser().as_posix()
+        except Exception:
+            return None
+
+
+def _index_youtube_video_jobs(
+    job_manager: PipelineJobManager,
+    request_user: Optional[RequestUserContext],
+) -> dict[str, set[str]]:
+    jobs_by_video: dict[str, set[str]] = {}
+    try:
+        jobs = job_manager.list(
+            user_id=request_user.user_id if request_user else None,
+            user_role=request_user.user_role if request_user else None,
+        ).values()
+    except Exception:
+        logger.warning("Unable to enumerate jobs while tagging YouTube videos", exc_info=True)
+        return jobs_by_video
+
+    for job in jobs:
+        if getattr(job, "job_type", "").lower() != "youtube_dub":
+            continue
+        payload = job.request_payload or job.resume_context or {}
+        if not isinstance(payload, Mapping):
+            continue
+        video_path = payload.get("video_path") or payload.get("input_file")
+        if not video_path:
+            continue
+        token = _normalize_path_token(Path(str(video_path)))
+        if not token:
+            continue
+        jobs_by_video.setdefault(token, set()).add(job.job_id)
+    return jobs_by_video
+
+
+def _serialize_nas_video(entry, *, linked_jobs: Optional[set[str]] = None) -> YoutubeNasVideoPayload:
     subtitles = [
         YoutubeNasSubtitlePayload(
             path=sub.path.as_posix(),
@@ -419,6 +524,7 @@ def _serialize_nas_video(entry) -> YoutubeNasVideoPayload:
         )
         for sub in getattr(entry, "subtitles", []) or []
     ]
+    job_ids = sorted(linked_jobs) if linked_jobs else []
     return YoutubeNasVideoPayload(
         path=entry.path.as_posix(),
         filename=entry.path.name,
@@ -427,6 +533,7 @@ def _serialize_nas_video(entry) -> YoutubeNasVideoPayload:
         modified_at=entry.modified_at,
         subtitles=subtitles,
         source=getattr(entry, "source", None) or "youtube",
+        linked_job_ids=job_ids,
     )
 
 
@@ -459,7 +566,7 @@ def download_youtube_video(
 ) -> YoutubeVideoDownloadResponse:
     """Download a YouTube video to the NAS directory."""
 
-    target_root = Path(payload.output_dir or "/Volumes/Data/Video/Youtube").expanduser()
+    target_root = Path(payload.output_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
     timestamp_value = _parse_timestamp(payload.timestamp)
     try:
         target_root.mkdir(parents=True, exist_ok=True)
@@ -508,7 +615,11 @@ def download_youtube_video(
 
 
 @router.get("/youtube/library", response_model=YoutubeNasLibraryResponse)
-def list_youtube_library(base_dir: Optional[str] = None) -> YoutubeNasLibraryResponse:
+def list_youtube_library(
+    base_dir: Optional[str] = None,
+    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeNasLibraryResponse:
     """Return downloaded YouTube videos discovered in the NAS path."""
 
     target_root = Path(base_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
@@ -516,8 +627,48 @@ def list_youtube_library(base_dir: Optional[str] = None) -> YoutubeNasLibraryRes
         videos = list_downloaded_videos(target_root)
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    payload = [_serialize_nas_video(video) for video in videos]
+    linked_jobs = _index_youtube_video_jobs(job_manager, request_user)
+    payload = [
+        _serialize_nas_video(
+            video,
+            linked_jobs=linked_jobs.get(_normalize_path_token(video.path), set()),
+        )
+        for video in videos
+    ]
     return YoutubeNasLibraryResponse(base_dir=target_root.as_posix(), videos=payload)
+
+
+@router.get("/youtube/subtitle-streams", response_model=YoutubeInlineSubtitleListResponse)
+def list_inline_subtitle_streams_from_video(video_path: str) -> YoutubeInlineSubtitleListResponse:
+    """List embedded subtitle streams for a video without extracting them."""
+
+    resolved = Path(video_path).expanduser()
+    try:
+        streams = list_inline_subtitle_streams(resolved)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("Unable to probe subtitle streams for %s", resolved, exc_info=True)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to inspect subtitle streams: {exc}",
+        ) from exc
+
+    return YoutubeInlineSubtitleListResponse(
+        video_path=resolved.as_posix(),
+        streams=[
+            {
+                "index": int(stream.get("index")),
+                "position": int(stream.get("position", 0)),
+                "language": stream.get("language"),
+                "codec": stream.get("codec"),
+                "title": stream.get("title"),
+                "can_extract": bool(stream.get("can_extract", True)),
+            }
+            for stream in streams
+            if stream.get("index") is not None
+        ],
+    )
 
 
 @router.post("/youtube/extract-subtitles", response_model=YoutubeSubtitleExtractionResponse)
@@ -528,7 +679,7 @@ def extract_inline_subtitles_from_video(
 
     video_path = Path(payload.video_path).expanduser()
     try:
-        extracted = extract_inline_subtitles(video_path)
+        extracted = extract_inline_subtitles(video_path, languages=payload.languages)
     except FileNotFoundError as exc:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except ValueError as exc:
@@ -551,6 +702,79 @@ def extract_inline_subtitles_from_video(
             )
             for sub in extracted
         ],
+    )
+
+
+@router.post("/youtube/delete-subtitle", response_model=YoutubeSubtitleDeleteResponse)
+def delete_youtube_subtitle(payload: YoutubeSubtitleDeleteRequest) -> YoutubeSubtitleDeleteResponse:
+    """Delete a NAS subtitle and its mirrored companions."""
+
+    video_path = Path(payload.video_path).expanduser()
+    subtitle_path = Path(payload.subtitle_path).expanduser()
+
+    if not video_path.exists():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Video file not found.")
+    if video_path.parent != subtitle_path.parent:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="subtitle_path must be in the same folder as the video file",
+        )
+
+    try:
+        result = delete_nas_subtitle(subtitle_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.warning("Unable to delete subtitle %s", subtitle_path, exc_info=True)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Unable to delete subtitle: {exc}",
+        ) from exc
+
+    return YoutubeSubtitleDeleteResponse(
+        video_path=video_path.as_posix(),
+        subtitle_path=subtitle_path.as_posix(),
+        removed=[path.as_posix() for path in result.removed],
+        missing=[path.as_posix() for path in result.missing],
+    )
+
+
+@router.post("/youtube/delete-video", response_model=YoutubeVideoDeleteResponse)
+def delete_youtube_video(
+    payload: YoutubeVideoDeleteRequest,
+    job_manager: PipelineJobManager = Depends(get_pipeline_job_manager),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeVideoDeleteResponse:
+    """Delete a downloaded YouTube video when no linked jobs reference it."""
+
+    video_path = Path(payload.video_path).expanduser()
+    linked_jobs = _index_youtube_video_jobs(job_manager, request_user)
+    token = _normalize_path_token(video_path)
+    if token and linked_jobs.get(token):
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Video is referenced by existing dubbing jobs and cannot be removed.",
+        )
+
+    try:
+        result = delete_downloaded_video(video_path)
+    except FileNotFoundError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:  # pragma: no cover - defensive logging
+        logger.warning("Unable to delete YouTube video %s", video_path, exc_info=True)
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to delete YouTube video.",
+        ) from exc
+
+    return YoutubeVideoDeleteResponse(
+        video_path=video_path.as_posix(),
+        removed=[path.as_posix() for path in result.removed],
+        missing=[path.as_posix() for path in result.missing],
     )
 
 

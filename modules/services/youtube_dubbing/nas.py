@@ -6,9 +6,10 @@ import os
 import shutil
 import subprocess
 import tempfile
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Iterable, List, Optional, Sequence, Set
 
 from modules.subtitles import load_subtitle_cues
 from modules.subtitles.models import SubtitleCue
@@ -28,6 +29,14 @@ from .common import (
 from .dialogues import _ASS_TAG_PATTERN, _HTML_TAG_PATTERN, _WHITESPACE_PATTERN
 from .language import _find_language_token, _normalize_language_hint
 from .video_utils import _classify_video_source, _subtitle_matches_video
+
+
+@dataclass(frozen=True)
+class SubtitleDeletionResult:
+    """Outcome from deleting a subtitle and its mirrored artifacts."""
+
+    removed: List[Path]
+    missing: List[Path]
 
 
 def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[YoutubeNasVideo]:
@@ -114,6 +123,99 @@ def _probe_subtitle_streams(video_path: Path) -> List[dict]:
     for position, stream in enumerate(subtitle_streams):
         stream["__position__"] = position
     return subtitle_streams
+
+
+def _subtitle_codec_is_image_based(codec_name: Optional[str]) -> bool:
+    """Return True when the subtitle codec represents images (no text to extract)."""
+
+    if not codec_name:
+        return False
+    lowered = codec_name.lower()
+    # Common bitmap codecs that cannot be converted to text-based SRT without OCR.
+    return lowered in {
+        "hdmv_pgs_subtitle",
+        "pgssub",
+        "dvb_subtitle",
+        "dvd_subtitle",
+        "xsub",
+        "dvb_teletext",
+    }
+
+
+def _summarize_ffmpeg_error(stderr: str) -> str:
+    """Return a compact error string instead of the full ffmpeg banner."""
+
+    if not stderr:
+        return "ffmpeg failed"
+    lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+    # Drop leading banner/configuration noise.
+    while lines and lines[0].lower().startswith("ffmpeg version"):
+        lines.pop(0)
+    # Prefer the last line that looks like an error message.
+    for line in reversed(lines):
+        lower = line.lower()
+        if "error" in lower or "invalid" in lower or "unsupported" in lower:
+            return line
+    # Fall back to the final line to keep the response concise.
+    return lines[-1] if lines else "ffmpeg failed"
+
+
+def _normalize_language_filters(languages: Optional[Iterable[str]]) -> Set[str]:
+    """Return a normalized set of language filters (lowercase tokens)."""
+
+    filters: Set[str] = set()
+    if not languages:
+        return filters
+    for value in languages:
+        if not value:
+            continue
+        normalized = _normalize_language_hint(value) or value.strip().lower()
+        if normalized:
+            filters.add(normalized)
+    return filters
+
+
+def _language_matches_filters(language: Optional[str], filters: Set[str]) -> bool:
+    """Return True when the given language matches one of the filters."""
+
+    if not filters:
+        return True
+    if not language:
+        return False
+    normalized = _normalize_language_hint(language) or language.strip().lower()
+    if not normalized:
+        return False
+    if normalized in filters:
+        return True
+    return any(normalized.startswith(f"{token}-") for token in filters)
+
+
+def list_inline_subtitle_streams(video_path: Path) -> List[dict]:
+    """Return metadata about embedded subtitle streams without extracting them."""
+
+    resolved = video_path.expanduser()
+    if not resolved.exists():
+        raise FileNotFoundError(f"Video file '{resolved}' does not exist")
+    streams = _probe_subtitle_streams(resolved)
+    results: List[dict] = []
+    for stream in streams:
+        stream_index = stream.get("index")
+        position = int(stream.get("__position__", 0))
+        tags = stream.get("tags") or {}
+        language = _normalize_language_hint(tags.get("language") or tags.get("LANGUAGE"))
+        codec = stream.get("codec_name") or stream.get("codec")
+        title = tags.get("title") or tags.get("TITLE")
+        results.append(
+            {
+                "index": stream_index,
+                "position": position,
+                "language": language,
+                "codec": codec,
+                "title": title,
+                "can_extract": not _subtitle_codec_is_image_based(codec),
+            }
+        )
+    return results
 
 
 def _build_subtitle_output_path(video_path: Path, language: Optional[str], stream_index: int) -> Path:
@@ -254,7 +356,123 @@ def _mirror_subtitle_to_source_dir(subtitle_path: Path) -> Optional[Path]:
         return None
 
 
-def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
+def delete_nas_subtitle(subtitle_path: Path) -> SubtitleDeletionResult:
+    """
+    Delete a subtitle from the NAS along with any mirrored HTML transcript.
+
+    Removes the subtitle beside the video, the mirrored copy inside
+    ``_SUBTITLE_MIRROR_DIR`` (when configured), and an ``html/<name>.html``
+    companion if present in either location.
+    """
+
+    resolved = subtitle_path.expanduser()
+    suffix = resolved.suffix.lower().lstrip(".")
+    if suffix not in _SUBTITLE_EXTENSIONS:
+        raise ValueError("subtitle_path must reference an ASS, SRT, VTT, or SUB subtitle file")
+    if not resolved.exists():
+        raise FileNotFoundError(f"Subtitle file '{resolved}' does not exist")
+
+    removed: List[Path] = []
+    missing: List[Path] = []
+
+    def _delete(path: Path) -> None:
+        try:
+            if path.exists() and path.is_file():
+                path.unlink()
+                removed.append(path.resolve())
+            else:
+                missing.append(path.resolve())
+        except FileNotFoundError:
+            missing.append(path.resolve())
+        except Exception:
+            logger.warning("Unable to delete subtitle artifact %s", path, exc_info=True)
+
+    _delete(resolved)
+
+    companions: Set[Path] = {
+        resolved.parent / "html" / f"{resolved.stem}.html",
+    }
+    if _SUBTITLE_MIRROR_DIR:
+        companions.add(_SUBTITLE_MIRROR_DIR / resolved.name)
+        companions.add(_SUBTITLE_MIRROR_DIR / "html" / f"{resolved.stem}.html")
+
+    for companion in companions:
+        _delete(companion)
+
+    return SubtitleDeletionResult(removed=removed, missing=missing)
+
+
+def delete_downloaded_video(video_path: Path) -> SubtitleDeletionResult:
+    """
+    Delete a downloaded video folder and any adjacent subtitles or mirrored artifacts.
+
+    This removes the parent directory of the video (covering the video file,
+    dubbed output folders, and matching subtitle files in the same directory)
+    plus any mirrored HTML companions when present.
+    """
+
+    resolved = video_path.expanduser()
+    try:
+        resolved = resolved.resolve()
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Video file '{resolved}' does not exist")
+
+    if not resolved.exists():
+        raise FileNotFoundError(f"Video file '{resolved}' does not exist")
+    if not resolved.is_file():
+        raise ValueError("video_path must reference a file")
+
+    video_dir = resolved.parent
+
+    removed: List[Path] = []
+    missing: List[Path] = []
+
+    subtitles: List[Path] = []
+    try:
+        for candidate in video_dir.iterdir():
+            if candidate.is_dir():
+                continue
+            suffix = candidate.suffix.lower().lstrip(".")
+            if suffix not in _SUBTITLE_EXTENSIONS:
+                continue
+            if not _subtitle_matches_video(resolved, candidate):
+                continue
+            subtitles.append(candidate)
+    except OSError:
+        logger.warning("Unable to scan subtitles for %s during deletion", resolved, exc_info=True)
+
+    for subtitle in subtitles:
+        try:
+            result = delete_nas_subtitle(subtitle)
+            removed.extend(result.removed)
+            missing.extend(result.missing)
+        except FileNotFoundError:
+            missing.append(subtitle.resolve())
+        except Exception:
+            logger.warning("Unable to delete subtitle %s while removing %s", subtitle, resolved, exc_info=True)
+
+    try:
+        shutil.rmtree(video_dir)
+        removed.append(video_dir.resolve())
+        removed.append(resolved)
+    except FileNotFoundError:
+        missing.append(video_dir.resolve())
+    except Exception:
+        logger.warning("Unable to delete folder %s for %s; falling back to file removal", video_dir, resolved, exc_info=True)
+        try:
+            resolved.unlink()
+            removed.append(resolved)
+        except FileNotFoundError:
+            missing.append(resolved)
+        except Exception:
+            logger.warning("Unable to delete video %s after folder removal failed", resolved, exc_info=True)
+
+    return SubtitleDeletionResult(removed=removed, missing=missing)
+
+
+def extract_inline_subtitles(
+    video_path: Path, languages: Optional[Sequence[str]] = None
+) -> List[YoutubeNasSubtitle]:
     """
     Extract embedded subtitle tracks from ``video_path`` into SRT files.
 
@@ -264,6 +482,7 @@ def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
     resolved = video_path.expanduser()
     if not resolved.exists():
         raise FileNotFoundError(f"Video file '{resolved}' does not exist")
+    language_filters = _normalize_language_filters(languages)
     streams = _probe_subtitle_streams(resolved)
     if not streams:
         raise ValueError("No subtitle streams found in the video")
@@ -277,6 +496,38 @@ def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
             continue
         tags = stream.get("tags") or {}
         language = _normalize_language_hint(tags.get("language") or tags.get("LANGUAGE"))
+        codec = stream.get("codec_name") or stream.get("codec")
+        if language_filters and not _language_matches_filters(language, language_filters):
+            logger.info(
+                "Skipping subtitle stream %s (language=%s) not in selection %s",
+                stream_index,
+                language,
+                sorted(language_filters),
+                extra={
+                    "event": "youtube.dub.subtitles.extract.skipped",
+                    "reason": "language-filter",
+                    "language": language,
+                    "filters": sorted(language_filters),
+                },
+            )
+            continue
+        if _subtitle_codec_is_image_based(codec):
+            failed_reasons.append(
+                f"stream {stream_index}: image-based subtitle codec '{codec}' cannot be converted to SRT;"
+                " provide a text subtitle instead"
+            )
+            logger.info(
+                "Skipping image-based subtitle stream %s (%s) in %s",
+                stream_index,
+                codec,
+                resolved.as_posix(),
+                extra={
+                    "event": "youtube.dub.subtitles.extract.skipped",
+                    "reason": "image-based",
+                    "codec": codec,
+                },
+            )
+            continue
         output_path = _build_subtitle_output_path(resolved, language, stream_index)
         with tempfile.NamedTemporaryFile(
             suffix=".srt",
@@ -300,7 +551,7 @@ def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
         if result.returncode != 0:
             temp_output.unlink(missing_ok=True)
             stderr = result.stderr.decode(errors="ignore") if result.stderr else ""
-            failed_reasons.append(f"stream {stream_index}: {stderr.strip() or 'ffmpeg failed'}")
+            failed_reasons.append(f"stream {stream_index}: {_summarize_ffmpeg_error(stderr)}")
             logger.warning(
                 "Failed to extract subtitle stream %s from %s",
                 stream_index,
@@ -339,9 +590,14 @@ def extract_inline_subtitles(video_path: Path) -> List[YoutubeNasSubtitle]:
             )
         _mirror_subtitle_to_source_dir(output_path)
     if not extracted:
-        reason = ""
-        if streams:
-            reason = f" ({'; '.join(failed_reasons)})" if failed_reasons else " (streams may be image-based or unsupported)"
+        reason_parts: List[str] = []
+        if language_filters and streams:
+            reason_parts.append(f"no subtitle streams matched languages: {', '.join(sorted(language_filters))}")
+        if failed_reasons:
+            reason_parts.extend(failed_reasons)
+        elif streams:
+            reason_parts.append("streams may be image-based or unsupported")
+        reason = f" ({'; '.join(reason_parts)})" if reason_parts else ""
         raise ValueError(f"No subtitle streams could be extracted from the video{reason}")
     return extracted
 
@@ -350,10 +606,17 @@ __all__ = [
     "DEFAULT_YOUTUBE_VIDEO_ROOT",
     "YoutubeNasSubtitle",
     "YoutubeNasVideo",
+    "SubtitleDeletionResult",
     "_build_subtitle_output_path",
     "_mirror_subtitle_to_source_dir",
+    "delete_nas_subtitle",
     "_normalize_all_caps_cues",
+    "_normalize_language_filters",
+    "_language_matches_filters",
     "_probe_subtitle_streams",
+    "list_inline_subtitle_streams",
+    "_subtitle_codec_is_image_based",
+    "_summarize_ffmpeg_error",
     "_sanitize_cue_markup",
     "_sanitize_subtitle_text",
     "_sentence_case_line",

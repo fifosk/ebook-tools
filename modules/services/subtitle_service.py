@@ -12,6 +12,7 @@ from typing import Callable, Dict, Iterable, List, Mapping, Optional
 from modules import logging_manager as log_mgr
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
+from modules.services.youtube_dubbing import delete_nas_subtitle
 from modules.subtitles import SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
 from modules.subtitles.processing import (
@@ -24,6 +25,7 @@ from modules.subtitles.processing import (
 logger = log_mgr.get_logger().getChild("services.subtitles")
 
 SUPPORTED_EXTENSIONS = {".srt", ".vtt"}
+DISCOVERABLE_EXTENSIONS = SUPPORTED_EXTENSIONS | {".ass"}
 
 
 @dataclass(frozen=True)
@@ -295,6 +297,30 @@ class SubtitleService:
             setup=_setup,
         )
 
+    def delete_source(self, subtitle_path: Path, *, base_dir: Optional[Path] = None):
+        """Delete a subtitle source plus any mirrored HTML companions."""
+
+        try:
+            resolved_path = subtitle_path.expanduser().resolve()
+        except Exception as exc:
+            raise FileNotFoundError(f"Subtitle path '{subtitle_path}' is invalid") from exc
+
+        if not resolved_path.exists():
+            raise FileNotFoundError(f"Subtitle file '{resolved_path}' does not exist")
+
+        target_base = base_dir.expanduser() if base_dir is not None else self._default_source_dir
+        resolved_base = self._probe_directory(target_base, require_write=True)
+        if resolved_base is None:
+            raise FileNotFoundError(f"Subtitle directory '{target_base}' is not accessible")
+        try:
+            resolved_path.relative_to(resolved_base)
+        except ValueError as exc:
+            raise PermissionError(
+                f"Subtitle '{resolved_path}' is outside allowed directory '{resolved_base}'"
+            ) from exc
+
+        return delete_nas_subtitle(resolved_path)
+
     def list_sources(self, directory: Optional[Path] = None) -> List[Path]:
         """Return discovered subtitle files under ``directory``."""
 
@@ -306,7 +332,7 @@ class SubtitleService:
             return []
         entries: List[Path] = []
         for candidate in resolved.iterdir():
-            if candidate.is_file() and candidate.suffix.lower() in SUPPORTED_EXTENSIONS:
+            if candidate.is_file() and candidate.suffix.lower() in DISCOVERABLE_EXTENSIONS:
                 entries.append(candidate.resolve())
         entries.sort()
         return entries

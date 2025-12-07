@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -11,7 +11,7 @@ from modules import logging_manager as log_mgr
 
 logger = log_mgr.get_logger().getChild("services.youtube_dubbing")
 
-DEFAULT_YOUTUBE_VIDEO_ROOT = Path("/Volumes/Data/Video/Youtube").expanduser()
+DEFAULT_YOUTUBE_VIDEO_ROOT = Path("/Volumes/Data/Download/DStation").expanduser()
 
 _VIDEO_EXTENSIONS = {"mp4", "mkv", "mov", "webm", "m4v"}
 _SUBTITLE_EXTENSIONS = {"ass", "srt", "vtt", "sub"}
@@ -55,6 +55,7 @@ class YoutubeNasVideo:
     modified_at: datetime
     subtitles: List[YoutubeNasSubtitle]
     source: str = "youtube"
+    linked_job_ids: List[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)

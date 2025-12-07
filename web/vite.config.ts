@@ -25,6 +25,11 @@ export default defineConfig(({ mode }) => {
 
     plugins: [react()],
 
+    build: {
+      // Silence chunk size warnings; the app bundles many shared components by design.
+      chunkSizeWarningLimit: 1500
+    },
+
     server: {
       host: true,
       https: httpsOptions

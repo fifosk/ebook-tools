@@ -2,10 +2,14 @@ import {
   fetchYoutubeLibrary,
   fetchVoiceInventory,
   fetchSubtitleModels,
-  extractInlineSubtitles
+  fetchInlineSubtitleStreams,
+  extractInlineSubtitles,
+  deleteNasSubtitle,
+  fetchPipelineDefaults
 } from '../../api/client';
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { LanguageProvider } from '../../context/LanguageProvider';
 import YoutubeDubPage from '../YoutubeDubPage';
 import type { JobState } from '../../components/JobList';
 
@@ -15,35 +19,44 @@ vi.mock('../../api/client', () => ({
   generateYoutubeDub: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   fetchSubtitleModels: vi.fn(),
-  extractInlineSubtitles: vi.fn()
+  fetchInlineSubtitleStreams: vi.fn(),
+  extractInlineSubtitles: vi.fn(),
+  deleteNasSubtitle: vi.fn(),
+  fetchPipelineDefaults: vi.fn()
 }));
 
 const mockFetchYoutubeLibrary = vi.mocked(fetchYoutubeLibrary);
 const mockFetchVoiceInventory = vi.mocked(fetchVoiceInventory);
 const mockFetchSubtitleModels = vi.mocked(fetchSubtitleModels);
+const mockFetchInlineSubtitleStreams = vi.mocked(fetchInlineSubtitleStreams);
 const mockExtractInlineSubtitles = vi.mocked(extractInlineSubtitles);
+const mockDeleteNasSubtitle = vi.mocked(deleteNasSubtitle);
+const mockFetchPipelineDefaults = vi.mocked(fetchPipelineDefaults);
 
 describe('YoutubeDubPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockFetchInlineSubtitleStreams.mockResolvedValue({ video_path: '', streams: [] });
     mockExtractInlineSubtitles.mockResolvedValue({ video_path: '', extracted: [] });
+    mockDeleteNasSubtitle.mockResolvedValue({ video_path: '', subtitle_path: '', removed: [], missing: [] });
+    mockFetchPipelineDefaults.mockResolvedValue({ config: {} });
   });
 
   it('renders NAS videos with SUB subtitles listed', async () => {
     const modifiedAt = new Date('2024-01-02T03:04:05Z').toISOString();
     mockFetchYoutubeLibrary.mockResolvedValue({
-      base_dir: '/Volumes/Data/Video/Youtube',
+      base_dir: '/Volumes/Data/Download/DStation',
       videos: [
         {
-          path: '/Volumes/Data/Video/Youtube/generic-video.mkv',
+          path: '/Volumes/Data/Download/DStation/generic-video.mkv',
           filename: 'generic-video.mkv',
-          folder: '/Volumes/Data/Video/Youtube',
+          folder: '/Volumes/Data/Download/DStation',
           size_bytes: 2048,
           modified_at: modifiedAt,
           source: 'nas_video',
           subtitles: [
             {
-              path: '/Volumes/Data/Video/Youtube/generic-video.en.sub',
+              path: '/Volumes/Data/Download/DStation/generic-video.en.sub',
               filename: 'generic-video.en.sub',
               language: 'en',
               format: 'sub'
@@ -56,19 +69,81 @@ describe('YoutubeDubPage', () => {
     mockFetchSubtitleModels.mockResolvedValue([]);
 
     render(
-      <YoutubeDubPage
-        jobs={[] as JobState[]}
-        onJobCreated={() => {}}
-        onSelectJob={() => {}}
-        onOpenJobMedia={() => {}}
-      />
+      <LanguageProvider>
+        <YoutubeDubPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
     );
 
     await waitFor(() => expect(mockFetchYoutubeLibrary).toHaveBeenCalled());
     expect(await screen.findByText(/generic-video\.mkv/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/NAS video/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/SUB \(en\)/i)).toBeInTheDocument();
+    expect(screen.getAllByTitle(/NAS video/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/SUB/i)).toBeInTheDocument();
+    expect(screen.getByText(/English \(en\)/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Target resolution/i)).toHaveValue('480');
     expect(screen.getByRole('checkbox', { name: /Keep original aspect ratio/i })).toBeChecked();
+  });
+
+  it('allows deleting a subtitle and refreshes the library', async () => {
+    const modifiedAt = new Date('2024-01-02T03:04:05Z').toISOString();
+    mockFetchYoutubeLibrary.mockResolvedValue({
+      base_dir: '/Volumes/Data/Download/DStation',
+      videos: [
+        {
+          path: '/Volumes/Data/Download/DStation/generic-video.mkv',
+          filename: 'generic-video.mkv',
+          folder: '/Volumes/Data/Download/DStation',
+          size_bytes: 2048,
+          modified_at: modifiedAt,
+          source: 'nas_video',
+          subtitles: [
+            {
+              path: '/Volumes/Data/Download/DStation/generic-video.en.sub',
+              filename: 'generic-video.en.sub',
+              language: 'en',
+              format: 'sub'
+            },
+            {
+              path: '/Volumes/Data/Download/DStation/generic-video.es.srt',
+              filename: 'generic-video.es.srt',
+              language: 'es',
+              format: 'srt'
+            }
+          ]
+        }
+      ]
+    });
+    mockFetchVoiceInventory.mockResolvedValue({ gtts: [], macos: [] });
+    mockFetchSubtitleModels.mockResolvedValue([]);
+
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    render(
+      <LanguageProvider>
+        <YoutubeDubPage
+          jobs={[] as JobState[]}
+          onJobCreated={() => {}}
+          onSelectJob={() => {}}
+          onOpenJobMedia={() => {}}
+        />
+      </LanguageProvider>
+    );
+
+    await waitFor(() => expect(mockFetchYoutubeLibrary).toHaveBeenCalled());
+
+    const deleteButtons = await screen.findAllByRole('button', { name: /delete/i });
+    deleteButtons[0].click();
+
+    await waitFor(() => expect(mockDeleteNasSubtitle).toHaveBeenCalled());
+    expect(mockDeleteNasSubtitle).toHaveBeenCalledWith(
+      '/Volumes/Data/Download/DStation/generic-video.mkv',
+      '/Volumes/Data/Download/DStation/generic-video.en.sub'
+    );
+    expect(mockFetchYoutubeLibrary).toHaveBeenCalledTimes(2);
+    confirmSpy.mockRestore();
   });
 });
