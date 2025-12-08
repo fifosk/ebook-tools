@@ -109,6 +109,12 @@ interface NavigationControlsProps {
   translationSpeedMax: number;
   translationSpeedStep: number;
   onTranslationSpeedChange: (value: TranslationSpeed) => void;
+  showSubtitleScale?: boolean;
+  subtitleScale?: number;
+  subtitleScaleMin?: number;
+  subtitleScaleMax?: number;
+  subtitleScaleStep?: number;
+  onSubtitleScaleChange?: (value: number) => void;
   showSentenceJump?: boolean;
   sentenceJumpValue?: string;
   sentenceJumpMin?: number | null;
@@ -160,6 +166,12 @@ export function NavigationControls({
   translationSpeedMax,
   translationSpeedStep,
   onTranslationSpeedChange,
+  showSubtitleScale = false,
+  subtitleScale = 1,
+  subtitleScaleMin = 0.5,
+  subtitleScaleMax = 2,
+  subtitleScaleStep = 0.25,
+  onSubtitleScaleChange,
   showSentenceJump = false,
   sentenceJumpValue = '',
   sentenceJumpMin = null,
@@ -197,6 +209,7 @@ export function NavigationControls({
   const subtitleToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', subtitlesEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
   const subtitleToggleTitle = disableSubtitleToggle ? 'Subtitles will appear after media finalizes' : 'Toggle Subtitles';
   const sliderId = useId();
+  const subtitleSliderId = useId();
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
   const fontScaleSliderId = useId();
@@ -397,6 +410,34 @@ export function NavigationControls({
           <div className="player-panel__nav-speed-scale" aria-hidden="true">
             <span>{formatTranslationSpeedLabel(translationSpeedMin)}</span>
             <span>{formatTranslationSpeedLabel(translationSpeedMax)}</span>
+          </div>
+        </div>
+      ) : null}
+      {showSubtitleScale ? (
+        <div className="player-panel__nav-subtitles" data-testid="player-panel-subtitle-scale">
+          <label className="player-panel__nav-subtitles-label" htmlFor={subtitleSliderId}>
+            Subtitles
+          </label>
+          <div className="player-panel__nav-subtitles-control">
+            <input
+              id={subtitleSliderId}
+              type="range"
+              className="player-panel__nav-subtitles-slider"
+              min={subtitleScaleMin}
+              max={subtitleScaleMax}
+              step={subtitleScaleStep}
+              value={subtitleScale}
+              onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
+              aria-label="Subtitle size"
+              aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
+            />
+            <span className="player-panel__nav-subtitles-value" aria-live="polite">
+              {Math.round(subtitleScale * 100)}%
+            </span>
+          </div>
+          <div className="player-panel__nav-subtitles-scale" aria-hidden="true">
+            <span>{Math.round(subtitleScaleMin * 100)}%</span>
+            <span>{Math.round(subtitleScaleMax * 100)}%</span>
           </div>
         </div>
       ) : null}

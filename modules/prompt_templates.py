@@ -55,6 +55,9 @@ _DIACRITIC_REQUIREMENTS = {
     },
 }
 
+_ROMANI_ALIASES = {"romani", "rom", "romany"}
+_PASHTO_ALIASES = {"pashto", "ps", "pushto", "pashtu"}
+
 def make_translation_prompt(
     source_language: str,
     target_language: str,
@@ -120,6 +123,15 @@ def make_translation_prompt(
             )
 
     instructions.extend(language_policies.script_prompt_instructions(target_language))
+
+    if target_lower in _ROMANI_ALIASES:
+        instructions.append(
+            "Translate into Romani (ISO 639-2 rom, the Romany language of Roma communities), NOT Romanian. Use authentic Romani vocabulary and grammar and avoid Romanian words unless they are genuine Romani loanwords."
+        )
+    if target_lower in _PASHTO_ALIASES:
+        instructions.append(
+            "Translate into Pashto (ISO 639-1 ps), NOT Urdu or Hindi. Use authentic Pashto vocabulary and grammar, written in Pashto’s Arabic-derived script, and avoid Urdu/Hindi calques unless they are genuine Pashto usage."
+        )
 
     for requirement in _DIACRITIC_REQUIREMENTS.values():
         if any(alias in target_lower for alias in requirement["aliases"]):

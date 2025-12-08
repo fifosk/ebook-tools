@@ -41,9 +41,11 @@ interface VideoPlayerProps {
     transliteration: boolean;
     translation: boolean;
   };
+  subtitleScale?: number;
 }
 
 import { useCallback, useEffect, useRef } from 'react';
+import type { CSSProperties } from 'react';
 
 const DEFAULT_PLAYBACK_RATE = 1;
 
@@ -52,6 +54,58 @@ function sanitiseRate(value: number | null | undefined): number {
     return DEFAULT_PLAYBACK_RATE;
   }
   return Math.max(0.25, Math.min(4, value));
+}
+
+function filterCueTextByVisibility(
+  rawText: string,
+  visibility: { original: boolean; transliteration: boolean; translation: boolean }
+): string {
+  if (!rawText) {
+    return rawText;
+  }
+  const lines = rawText.split(/\r?\n/);
+  const filtered: string[] = [];
+
+  for (const line of lines) {
+    const classMatch = line.match(/<c\.([^>]+)>/i);
+    if (classMatch) {
+      const classes = classMatch[1]
+        .split(/\s+/)
+        .map((value) => value.trim())
+        .filter(Boolean);
+      if (classes.some((value) => value === 'original') && !visibility.original) {
+        continue;
+      }
+      if (classes.some((value) => value === 'transliteration') && !visibility.transliteration) {
+        continue;
+      }
+      if (classes.some((value) => value === 'translation') && !visibility.translation) {
+        continue;
+      }
+    }
+    filtered.push(line);
+  }
+
+  if (filtered.length === lines.length) {
+    return rawText;
+  }
+  return filtered.join('\n');
+}
+
+function extractMediaName(file: VideoFile, fallbackLabel?: string): string {
+  const raw = file.name || file.url || fallbackLabel || "";
+  if (!raw) {
+    return "";
+  }
+  const withoutQuery = raw.split(/[?#]/)[0];
+  const afterSlash = withoutQuery.replace(/\\/g, "/");
+  const leaf = afterSlash.substring(afterSlash.lastIndexOf("/") + 1) || afterSlash;
+  const trimmedLeaf = leaf.endsWith("/") ? leaf.slice(0, -1) : leaf;
+  const dotIndex = trimmedLeaf.lastIndexOf(".");
+  if (dotIndex > 0) {
+    return trimmedLeaf.slice(0, dotIndex) || trimmedLeaf;
+  }
+  return trimmedLeaf || raw;
 }
 
 export default function VideoPlayer({
@@ -71,15 +125,28 @@ export default function VideoPlayer({
   subtitlesEnabled = true,
   tracks = [],
   cueVisibility = { original: true, transliteration: true, translation: true },
+  subtitleScale = 1,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
+  const cueTextCacheRef = useRef<WeakMap<TextTrackCue, string>>(new WeakMap());
   const labels = files.map((file, index) => ({
     id: file.id,
     label: file.name ?? `Video ${index + 1}`
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+  const activeIndex = activeFile ? labels.findIndex((file) => file.id === activeFile.id) : -1;
+  const fallbackLabel = activeIndex >= 0 ? labels[activeIndex]?.label : undefined;
+  const displayName = activeFile ? extractMediaName(activeFile, fallbackLabel) : '';
+  const labelText =
+    displayName && activeIndex >= 0
+      ? `Now playing \u2022 ${displayName} (Video ${activeIndex + 1} of ${labels.length})`
+      : displayName
+        ? `Now playing \u2022 ${displayName}`
+        : activeIndex >= 0
+          ? `Now playing \u2022 Video ${activeIndex + 1} of ${labels.length}`
+          : 'Now playing';
 
   const requestFullscreenPlayback = useCallback(() => {
     const element = elementRef.current;
@@ -325,6 +392,49 @@ export default function VideoPlayer({
     });
   }, [subtitlesEnabled, activeFile?.id, tracks]);
 
+  useEffect(() => {
+    if (!subtitlesEnabled) {
+      return;
+    }
+    const element = elementRef.current;
+    if (!element || !element.textTracks) {
+      return;
+    }
+    const track =
+      Array.from(element.textTracks).find((item) => item.mode === 'showing' || item.mode === 'hidden') ??
+      element.textTracks[0] ??
+      null;
+    if (!track) {
+      return;
+    }
+
+    const cache = cueTextCacheRef.current;
+
+    const applyCueVisibility = () => {
+      const cues = track.cues;
+      if (!cues) {
+        return;
+      }
+      for (let index = 0; index < cues.length; index += 1) {
+        const cue = cues[index];
+        const rawText = cache.get(cue) ?? cue.text;
+        if (!cache.has(cue)) {
+          cache.set(cue, rawText);
+        }
+        const filteredText = filterCueTextByVisibility(rawText, cueVisibility);
+        if (cue.text !== filteredText) {
+          cue.text = filteredText;
+        }
+      }
+    };
+
+    applyCueVisibility();
+    track.addEventListener('cuechange', applyCueVisibility);
+    return () => {
+      track.removeEventListener('cuechange', applyCueVisibility);
+    };
+  }, [cueVisibility, subtitlesEnabled, activeFile?.id, tracks]);
+
   if (files.length === 0) {
     return (
       <div className="video-player" role="status">
@@ -353,13 +463,21 @@ export default function VideoPlayer({
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage">
+          <div
+            className="video-player__active-label"
+            title={activeFile.name ?? activeFile.url ?? 'Active video'}
+            data-testid="video-player-active-label"
+          >
+            {labelText}
+          </div>
           <div className="video-player__canvas">
             <video
               key={activeFile.id}
               ref={elementRef}
-              className="video-player__element"
-              data-testid="video-player"
-              controls
+          className="video-player__element"
+          style={{ '--subtitle-scale': subtitleScale } as CSSProperties}
+          data-testid="video-player"
+          controls
               crossOrigin="use-credentials"
               src={activeFile.url}
               poster={activeFile.poster}

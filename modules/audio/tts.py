@@ -37,12 +37,12 @@ _LANGUAGE_TO_MACOS_LOCALES: Dict[str, Tuple[str, ...]] = {
 
 # Map unsupported languages to close TTS-capable fallbacks.
 _VOICE_LANG_FALLBACKS = {
-    # Romani lacks native TTS coverage; lean on Romanian.
-    "rom": "ro",
-    "romani": "ro",
-    # Pashto unavailable in gTTS; lean on Persian.
-    "ps": "fa",
-    "pashto": "fa",
+    # Romani lacks native TTS coverage; lean on Slovak.
+    "rom": "sk",
+    "romani": "sk",
+    # Pashto unavailable in gTTS; lean on Urdu.
+    "ps": "ur",
+    "pashto": "ur",
     # Languages missing in gTTS mapped to closest available cousins.
     "armenian": "ru",
     "be": "ru",  # Belarusian → Russian
@@ -455,6 +455,7 @@ def normalize_gtts_language_code(language: str) -> str:
 
     # Use provider inventory to avoid unnecessary fallbacks when support exists.
     available = _available_gtts_languages()
+    have_inventory = bool(available)
 
     def _is_supported(code: str) -> bool:
         candidate = code.lower()
@@ -468,17 +469,21 @@ def normalize_gtts_language_code(language: str) -> str:
         return code
 
     normalized = _apply_legacy_hebrew(raw)
-    if _is_supported(normalized):
+    if have_inventory and _is_supported(normalized):
         return normalized
 
     fallback = _apply_voice_language_fallback(raw)
     fallback = _apply_legacy_hebrew((fallback or "").strip().lower().replace("_", "-"))
-    if fallback and _is_supported(fallback):
+    if fallback and (not have_inventory or _is_supported(fallback)):
         return fallback
 
     base = normalized.split("-")[0]
-    if _is_supported(base):
+    if have_inventory and _is_supported(base):
         return base
+
+    if not have_inventory:
+        # Without a provider inventory, prefer a best-effort fallback/base code over English.
+        return fallback or base or normalized or "en"
 
     return "en"
 

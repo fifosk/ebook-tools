@@ -9,6 +9,7 @@ import {
 } from '../api/dtos';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
+import { formatModelLabel } from '../utils/modelInfo';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 type Props = {
@@ -338,7 +339,8 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   const sentenceRange = resolveSentenceRange(status);
   const startSentence = parameters?.start_sentence ?? sentenceRange.start;
   const endSentence = parameters?.end_sentence ?? sentenceRange.end;
-  const llmModel = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
+  const llmModelRaw = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
+  const llmModel = formatModelLabel(llmModelRaw);
   const retrySummary = status.retry_summary ?? null;
 
   if (status.job_type === 'subtitle') {

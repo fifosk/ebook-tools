@@ -24,11 +24,47 @@ export function toAudioFiles(media: LiveMediaState['audio']) {
     }));
 }
 
+function stripQuery(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  return trimmed.replace(/[?#].*$/, '');
+}
+
+export function buildMediaFileId(item: LiveMediaItem, index: number): string {
+  const relativePath = typeof item.relative_path === 'string' ? item.relative_path.trim() : '';
+  if (relativePath) {
+    return relativePath;
+  }
+  const path = typeof item.path === 'string' ? item.path.trim() : '';
+  if (path) {
+    return path;
+  }
+  const url = typeof item.url === 'string' ? stripQuery(item.url) : '';
+  if (url) {
+    return url;
+  }
+  const name = typeof item.name === 'string' ? item.name.trim() : '';
+  if (name) {
+    return name;
+  }
+  const chunkId = typeof item.chunk_id === 'string' ? item.chunk_id.trim() : '';
+  if (chunkId) {
+    return `${item.type}:${chunkId}`;
+  }
+  const rangeFragment = typeof item.range_fragment === 'string' ? item.range_fragment.trim() : '';
+  if (rangeFragment) {
+    return `${item.type}:${rangeFragment}`;
+  }
+  return `${item.type}-${index}`;
+}
+
 export function toVideoFiles(media: LiveMediaState['video']) {
   return media
     .filter((item) => typeof item.url === 'string' && item.url.length > 0)
     .map((item, index) => ({
-      id: item.url ?? `${item.type}-${index}`,
+      id: buildMediaFileId(item, index),
       url: item.url ?? '',
       name: typeof item.name === 'string' ? item.name : undefined,
     }));

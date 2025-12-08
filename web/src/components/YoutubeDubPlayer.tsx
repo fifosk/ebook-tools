@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { LiveMediaState } from '../hooks/useLiveMedia';
+import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
 import { NavigationControls } from './PlayerPanel';
@@ -11,7 +11,7 @@ import {
   TRANSLATION_SPEED_STEP,
   normaliseTranslationSpeed,
 } from './player-panel/constants';
-import { toVideoFiles } from './player-panel/utils';
+import { buildMediaFileId, toVideoFiles } from './player-panel/utils';
 import type { NavigationIntent } from './player-panel/constants';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void };
@@ -37,13 +37,23 @@ export default function YoutubeDubPlayer({
   onPlaybackStateChange,
   onVideoPlaybackStateChange,
 }: YoutubeDubPlayerProps) {
+  const videoLookup = useMemo(() => {
+    const map = new Map<string, LiveMediaItem>();
+    media.video.forEach((item, index) => {
+      if (typeof item.url !== 'string' || item.url.length === 0) {
+        return;
+      }
+      const id = buildMediaFileId(item, index);
+      map.set(id, item);
+    });
+    return map;
+  }, [media.video]);
   const videoFiles = useMemo(
     () =>
       toVideoFiles(media.video).map((file) => {
         const urlWithToken = appendAccessToken(file.url);
         return {
           ...file,
-          id: urlWithToken,
           url: urlWithToken,
         };
       }),
@@ -91,12 +101,12 @@ export default function YoutubeDubPlayer({
         kind: 'subtitles',
         language: (entry as { language?: string }).language ?? undefined,
       }));
-    media.video.forEach((video) => {
-      const url = typeof video.url === 'string' ? video.url : null;
-      if (!url) {
+    media.video.forEach((video, index) => {
+      if (typeof video.url !== 'string' || video.url.length === 0) {
         return;
       }
-      const videoUrl = appendAccessToken(url);
+      const videoId = buildMediaFileId(video, index);
+      const videoUrl = appendAccessToken(video.url);
       const baseId = deriveBaseId(video);
       const range = video.range_fragment ?? null;
       const chunkId = video.chunk_id ?? null;
@@ -134,7 +144,7 @@ export default function YoutubeDubPlayer({
         });
       const best = scored[0]?.entry;
       if (best) {
-        map.set(videoUrl, [
+        map.set(videoId, [
           {
             url: appendAccessToken(best.url!),
             label: best.name ?? best.url ?? 'Subtitles',
@@ -147,7 +157,7 @@ export default function YoutubeDubPlayer({
       const filtered = matches.filter((entry) => typeof entry.url === 'string' && entry.url.length > 0);
       if (filtered.length > 0) {
         map.set(
-          videoUrl,
+          videoId,
           filtered
             .sort((a, b) => formatRank(a) - formatRank(b))
             .map((entry) => ({
@@ -198,6 +208,7 @@ export default function YoutubeDubPlayer({
     translation: true,
   });
   const [playbackSpeed, setPlaybackSpeed] = useState(DEFAULT_TRANSLATION_SPEED);
+  const [subtitleScale, setSubtitleScale] = useState(1);
   const pendingAutoplayRef = useRef(false);
   const previousFileCountRef = useRef<number>(videoFiles.length);
   const controlsRef = useRef<PlaybackControls | null>(null);
@@ -243,11 +254,11 @@ export default function YoutubeDubPlayer({
     if (!activeVideoId) {
       return;
     }
-    const match = media.video.find((item) => item.url === activeVideoId);
+    const match = videoLookup.get(activeVideoId);
     if (match) {
-      rememberSelection({ media: match });
+      rememberSelection({ media: { ...match, url: activeVideoId } });
     }
-  }, [activeVideoId, media.video, rememberSelection]);
+  }, [activeVideoId, rememberSelection, videoLookup]);
 
   useEffect(() => {
     setIsPlaying(false);
@@ -258,7 +269,7 @@ export default function YoutubeDubPlayer({
       if (!videoId) {
         return;
       }
-      const match = media.video.find((item) => item.url === videoId) ?? null;
+      const match = videoLookup.get(videoId) ?? null;
       const baseId = match ? deriveBaseId(match) : null;
       rememberPosition({
         mediaId: videoId,
@@ -268,7 +279,7 @@ export default function YoutubeDubPlayer({
       });
       lastActivatedVideoRef.current = videoId;
     },
-    [deriveBaseId, media.video, rememberPosition],
+    [deriveBaseId, rememberPosition, videoLookup],
   );
 
   useEffect(() => {
@@ -423,6 +434,7 @@ export default function YoutubeDubPlayer({
   }, []);
 
   const cuePreferenceKey = useMemo(() => `youtube-dub-cue-preference-${jobId}`, [jobId]);
+  const subtitleScaleKey = useMemo(() => `youtube-dub-subtitle-scale-${jobId}`, [jobId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -450,12 +462,52 @@ export default function YoutubeDubPlayer({
     if (typeof window === 'undefined') {
       return;
     }
+    setSubtitleScale(1);
+  }, [subtitleScaleKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      const stored = window.localStorage.getItem(subtitleScaleKey);
+      if (!stored) {
+        return;
+      }
+      const parsed = Number(stored);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      setSubtitleScale((current) => {
+        const next = Math.min(Math.max(parsed, 0.5), 2);
+        return Math.abs(next - current) < 1e-3 ? current : next;
+      });
+    } catch (error) {
+      void error;
+    }
+  }, [subtitleScaleKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     try {
       window.localStorage.setItem(cuePreferenceKey, JSON.stringify(cueVisibility));
     } catch (error) {
       void error;
     }
   }, [cuePreferenceKey, cueVisibility]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(subtitleScaleKey, subtitleScale.toString());
+    } catch (error) {
+      void error;
+    }
+  }, [subtitleScale, subtitleScaleKey]);
 
   const toggleCueVisibility = useCallback((key: 'original' | 'transliteration' | 'translation') => {
     setCueVisibility((current) => ({ ...current, [key]: !current[key] }));
@@ -466,7 +518,7 @@ export default function YoutubeDubPlayer({
       if (!activeVideoId) {
         return;
       }
-      const match = media.video.find((item) => item.url === activeVideoId) ?? null;
+      const match = videoLookup.get(activeVideoId) ?? null;
       const baseId = match ? deriveBaseId(match) : null;
       rememberPosition({
         mediaId: activeVideoId,
@@ -475,10 +527,10 @@ export default function YoutubeDubPlayer({
         position: Math.max(position, 0),
       });
     },
-    [activeVideoId, deriveBaseId, media.video, rememberPosition],
+    [activeVideoId, deriveBaseId, rememberPosition, videoLookup],
   );
 
-  const activeVideo = activeVideoId ? media.video.find((file) => file.url === activeVideoId) ?? null : null;
+  const activeVideo = activeVideoId ? videoLookup.get(activeVideoId) ?? null : null;
   const playbackPosition =
     activeVideoId && lastActivatedVideoRef.current === activeVideoId ? getPosition(activeVideoId) : 0;
   const videoCount = videoFiles.length;
@@ -494,6 +546,13 @@ export default function YoutubeDubPlayer({
 
   const handleTranslationSpeedChange = useCallback((value: number) => {
     setPlaybackSpeed(normaliseTranslationSpeed(value));
+  }, []);
+  const handleSubtitleScaleChange = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const clamped = Math.min(Math.max(value, 0.5), 2);
+    setSubtitleScale(clamped);
   }, []);
 
   useEffect(() => {
@@ -568,6 +627,12 @@ export default function YoutubeDubPlayer({
                   translationSpeedMax={TRANSLATION_SPEED_MAX}
                   translationSpeedStep={TRANSLATION_SPEED_STEP}
                   onTranslationSpeedChange={handleTranslationSpeedChange}
+                  showSubtitleScale
+                  subtitleScale={subtitleScale}
+                  subtitleScaleMin={0.5}
+                  subtitleScaleMax={2}
+                  subtitleScaleStep={0.25}
+                  onSubtitleScaleChange={handleSubtitleScaleChange}
                 />
               </div>
             </header>
@@ -603,6 +668,7 @@ export default function YoutubeDubPlayer({
                   subtitlesEnabled={subtitlesEnabled}
                   tracks={activeSubtitleTracks}
                   cueVisibility={cueVisibility}
+                  subtitleScale={subtitleScale}
                 />
                 <div className="player-panel__selection-header" data-testid="player-panel-selection">
                   <div className="player-panel__selection-name" title={selectionLabel}>

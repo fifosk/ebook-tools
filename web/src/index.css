@@ -2186,6 +2186,57 @@ button.link-button:focus {
   transform: none;
 }
 
+.player-panel__nav-speed,
+.player-panel__nav-subtitles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.player-panel__nav-speed-control,
+.player-panel__nav-subtitles-control {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.player-panel__nav-speed-slider,
+.player-panel__nav-subtitles-slider {
+  flex: 1;
+  accent-color: rgba(129, 140, 248, 0.9);
+}
+
+.player-panel__nav-speed-slider:focus-visible,
+.player-panel__nav-subtitles-slider:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+}
+
+.player-panel__nav-speed-label,
+.player-panel__nav-subtitles-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.player-panel__nav-speed-value,
+.player-panel__nav-subtitles-value {
+  min-width: 3rem;
+  text-align: right;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.player-panel__nav-speed-scale,
+.player-panel__nav-subtitles-scale {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
 .player-panel__nav-jump {
   display: flex;
   flex-direction: column;
@@ -3214,6 +3265,18 @@ button.link-button:focus {
   gap: 0.5rem;
 }
 
+.video-player__active-label {
+  width: 100%;
+  padding: 0.35rem 0.65rem;
+  border-radius: 0.65rem;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--color-text-heading);
+  font-weight: 600;
+  text-align: left;
+  word-break: break-word;
+}
+
 .video-player__canvas {
   position: relative;
   display: flex;
@@ -3223,9 +3286,15 @@ button.link-button:focus {
 .audio-player__element,
 .video-player__element {
   width: 100%;
+  --subtitle-scale: 1;
   border-radius: 0.75rem;
   background: rgba(15, 23, 42, 0.65);
   border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.video-player__element::cue {
+  font-size: calc(1em * var(--subtitle-scale, 1));
+  line-height: calc(1.2em * var(--subtitle-scale, 1));
 }
 
 .video-player__element[data-cue-original='off']::cue(.original),
@@ -3240,6 +3309,7 @@ button.link-button:focus {
 
 .audio-player__playlist,
 .video-player__playlist {
+  grid-column: 1 / -1;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -3374,6 +3444,11 @@ button.link-button:focus {
 
 .job-collapsible > summary .job-status {
   justify-self: end;
+}
+
+.job-collapsible > summary .job-model {
+  font-size: 0.95rem;
+  color: var(--color-text-secondary);
 }
 
 .job-card {

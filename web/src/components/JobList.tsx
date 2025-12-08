@@ -1,6 +1,11 @@
 import { useMemo } from 'react';
-import { PipelineStatusResponse, ProgressEventPayload } from '../api/dtos';
+import {
+  PipelineResponsePayload,
+  PipelineStatusResponse,
+  ProgressEventPayload
+} from '../api/dtos';
 import { getStatusGlyph } from '../utils/status';
+import { formatModelLabel } from '../utils/modelInfo';
 import { JobProgress } from './JobProgress';
 
 export interface JobState {
@@ -62,11 +67,33 @@ export function JobList({
           {sortedJobs.map((job) => {
             const statusValue = job.status?.status ?? 'pending';
             const statusGlyph = getStatusGlyph(statusValue);
+            const parameters = job.status?.parameters ?? null;
+            const pipelineResult =
+              job.status?.result && typeof job.status.result === 'object'
+                ? (job.status.result as PipelineResponsePayload)
+                : null;
+            const pipelineConfig =
+              pipelineResult &&
+              pipelineResult.pipeline_config &&
+              typeof pipelineResult.pipeline_config === 'object'
+                ? (pipelineResult.pipeline_config as Record<string, unknown>)
+                : null;
+            const llmModelRaw =
+              (parameters && typeof parameters.llm_model === 'string' ? parameters.llm_model : null) ??
+              (pipelineConfig && typeof pipelineConfig['ollama_model'] === 'string'
+                ? (pipelineConfig['ollama_model'] as string)
+                : null);
+            const llmModel = formatModelLabel(llmModelRaw);
             return (
               <details key={job.jobId} className="job-collapsible" open>
                 <summary>
                   <span>Job {job.jobId}</span>
                   <span className="job-type">{job.status.job_type}</span>
+                  {llmModel ? (
+                    <span className="job-model" title="LLM model">
+                      {llmModel}
+                    </span>
+                  ) : null}
                   <span className="job-status" data-state={statusValue} title={statusGlyph.label} aria-label={statusGlyph.label}>
                     {statusGlyph.icon}
                   </span>
