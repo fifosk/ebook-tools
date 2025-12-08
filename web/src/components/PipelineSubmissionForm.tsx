@@ -105,6 +105,7 @@ type Props = {
   submitLabel?: string;
   forcedBaseOutputFile?: string | null;
   customSourceSection?: ReactNode;
+  implicitEndOffsetThreshold?: number | null;
   sectionOverrides?: Partial<Record<PipelineFormSection, { title: string; description: string }>>;
 };
 
@@ -457,7 +458,11 @@ function parseOptionalNumberInput(value: string): number | undefined {
   return parsed;
 }
 
-function parseEndSentenceInput(value: string, startSentence: number): number | null {
+function parseEndSentenceInput(
+  value: string,
+  startSentence: number,
+  implicitOffsetThreshold?: number | null
+): number | null {
   const trimmed = value.trim();
   if (!trimmed) {
     return null;
@@ -480,7 +485,14 @@ function parseEndSentenceInput(value: string, startSentence: number): number | n
     throw new Error('End sentence must be positive.');
   }
 
-  const candidate = isOffset ? normalizedStart + normalizedEnd - 1 : normalizedEnd;
+  const treatAsImplicitOffset =
+    !isOffset &&
+    typeof implicitOffsetThreshold === 'number' &&
+    implicitOffsetThreshold > 0 &&
+    normalizedEnd < implicitOffsetThreshold;
+
+  const candidate =
+    isOffset || treatAsImplicitOffset ? normalizedStart + normalizedEnd - 1 : normalizedEnd;
   if (candidate < normalizedStart) {
     throw new Error('End sentence must be greater than or equal to the start sentence.');
   }
@@ -536,6 +548,7 @@ export function PipelineSubmissionForm({
   submitLabel,
   forcedBaseOutputFile = null,
   customSourceSection = null,
+  implicitEndOffsetThreshold = null,
   sectionOverrides = {}
 }: Props) {
   const isGeneratedSource = sourceMode === 'generated';
@@ -1584,7 +1597,11 @@ export function PipelineSubmissionForm({
       }
       const normalizedEndSentence = isGeneratedSource
         ? null
-        : parseEndSentenceInput(formState.end_sentence, normalizedStartSentence);
+        : parseEndSentenceInput(
+            formState.end_sentence,
+            normalizedStartSentence,
+            implicitEndOffsetThreshold
+          );
       const resolvedBaseOutput = (forcedBaseOutputFile ?? formState.base_output_file).trim();
       const trimmedInputFile = formState.input_file.trim();
       const fallbackInputFile = resolvedBaseOutput || 'generated-book';

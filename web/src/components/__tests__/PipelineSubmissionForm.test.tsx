@@ -325,4 +325,39 @@ describe('PipelineSubmissionForm', () => {
     expect(payload.inputs.start_sentence).toBe(200);
     expect(payload.inputs.end_sentence).toBe(299);
   });
+
+  it('treats small end sentence values as offsets when configured', async () => {
+    const user = userEvent.setup();
+    const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
+
+    await act(async () => {
+      renderWithLanguageProvider(
+        <PipelineSubmissionForm onSubmit={handleSubmit} implicitEndOffsetThreshold={200} />
+      );
+    });
+
+    await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
+    await waitFor(() => expect(fetchPipelineFiles).toHaveBeenCalled());
+    await resolveFetches();
+
+    await user.clear(screen.getByLabelText(/Input file path/i));
+    await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
+    await user.clear(screen.getByLabelText(/Base output file/i));
+    await user.type(screen.getByLabelText(/Base output file/i), 'output');
+
+    const startField = screen.getByLabelText(/Start sentence/i);
+    await user.clear(startField);
+    await user.type(startField, '500');
+
+    const endField = screen.getByLabelText(/End sentence/i);
+    await user.clear(endField);
+    await user.type(endField, '50');
+
+    await user.click(screen.getByRole('button', { name: /Submit job/i }));
+
+    expect(handleSubmit).toHaveBeenCalled();
+    const [payload] = handleSubmit.mock.calls[0];
+    expect(payload.inputs.start_sentence).toBe(500);
+    expect(payload.inputs.end_sentence).toBe(549);
+  });
 });

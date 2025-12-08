@@ -35,6 +35,7 @@ export default function NewImmersiveBookPage({
         activeSection={effectiveSection}
         externalError={submitError}
         recentJobs={recentJobs}
+        implicitEndOffsetThreshold={200}
       />
     </div>
   );
