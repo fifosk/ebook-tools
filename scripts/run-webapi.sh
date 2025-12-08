@@ -56,7 +56,14 @@ if [ "$NEEDS_HOST" = true ]; then
 fi
 
 HTTPS_ENABLED=false
+HTTPS_REQUESTED_VIA_ENV=false
+DEFAULT_CERT_PATH="${REPO_ROOT}/conf/certs/dev.crt"
+DEFAULT_KEY_PATH="${REPO_ROOT}/conf/certs/dev.key"
+CERT_PATH="${EBOOK_API_SSL_CERTFILE:-$DEFAULT_CERT_PATH}"
+KEY_PATH="${EBOOK_API_SSL_KEYFILE:-$DEFAULT_KEY_PATH}"
+
 if [ -n "${EBOOK_API_ENABLE_HTTPS:-}" ]; then
+  HTTPS_REQUESTED_VIA_ENV=true
   if parse_bool "$EBOOK_API_ENABLE_HTTPS"; then
     HTTPS_ENABLED=true
   else
@@ -65,13 +72,17 @@ if [ -n "${EBOOK_API_ENABLE_HTTPS:-}" ]; then
     fi
     HTTPS_ENABLED=false
   fi
-elif [ -n "${EBOOK_API_SSL_CERTFILE:-}" ] || [ -n "${EBOOK_API_SSL_KEYFILE:-}" ]; then
-  HTTPS_ENABLED=true
+fi
+
+if [ "$HTTPS_ENABLED" = false ]; then
+  if [ -n "${EBOOK_API_SSL_CERTFILE:-}" ] || [ -n "${EBOOK_API_SSL_KEYFILE:-}" ]; then
+    HTTPS_ENABLED=true
+  elif [ -f "$CERT_PATH" ] && [ -f "$KEY_PATH" ]; then
+    HTTPS_ENABLED=true
+  fi
 fi
 
 if [ "$HTTPS_ENABLED" = true ]; then
-  CERT_PATH="${EBOOK_API_SSL_CERTFILE:-${REPO_ROOT}/conf/certs/dev.crt}"
-  KEY_PATH="${EBOOK_API_SSL_KEYFILE:-${REPO_ROOT}/conf/certs/dev.key}"
   KEY_PASSWORD="${EBOOK_API_SSL_KEYFILE_PASSWORD:-}"
 
   if [ ! -f "$CERT_PATH" ]; then
@@ -89,6 +100,12 @@ if [ "$HTTPS_ENABLED" = true ]; then
   fi
 
   echo "Starting web API with HTTPS enabled (cert: $CERT_PATH)." >&2
+else
+  if [ "$HTTPS_REQUESTED_VIA_ENV" = true ]; then
+    echo "EBOOK_API_ENABLE_HTTPS is disabled; starting web API without TLS." >&2
+  elif [ -f "$DEFAULT_CERT_PATH" ] && [ -f "$DEFAULT_KEY_PATH" ]; then
+    echo "Found default certs at ${DEFAULT_CERT_PATH} / ${DEFAULT_KEY_PATH} but HTTPS is off. Set EBOOK_API_ENABLE_HTTPS=1 to enable TLS." >&2
+  fi
 fi
 
 if command -v poetry >/dev/null 2>&1; then

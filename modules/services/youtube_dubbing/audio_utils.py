@@ -267,8 +267,6 @@ def _apply_audio_gain_to_clip(path: Path, gain_db: float) -> Path:
 
     if abs(gain_db) < 0.01:
         return path
-    if not _has_audio_stream(path):
-        return path
     ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
     with tempfile.NamedTemporaryFile(
         suffix=path.suffix or ".mp4",
@@ -292,6 +290,26 @@ def _apply_audio_gain_to_clip(path: Path, gain_db: float) -> Path:
     ]
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
     if result.returncode != 0:
+        # Some containers (e.g., certain MKVs) may not expose the audio stream cleanly to ffprobe/ffmpeg.
+        # When we're trying to attenuate heavily, fall back to stripping the audio entirely to avoid loud gaps.
+        if gain_db <= -20.0:
+            mute_cmd = [
+                ffmpeg_bin,
+                "-y",
+                "-i",
+                str(path),
+                "-c:v",
+                "copy",
+                "-an",
+                str(target),
+            ]
+            mute_result = subprocess.run(mute_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if mute_result.returncode == 0:
+                try:
+                    path.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                return target
         target.unlink(missing_ok=True)
         return path
     try:
@@ -317,10 +335,10 @@ def _apply_gap_audio_mix(path: Path, *, mix_percent: float, reference_rms: float
     except Exception:
         clip_rms = 1.0
     gain_db = _compute_underlay_gain_db(reference_rms, clip_rms, gap_mix_percent)
-    # Avoid boosting quiet ambience and always enforce a strong attenuation in gaps.
+    # Avoid boosting quiet ambience and enforce a consistent attenuation in gaps.
     if gain_db > 0:
         gain_db = 0.0
-    gain_db = min(gain_db, -42.0)
+    gain_db = min(gain_db, -20.0)
     return _apply_audio_gain_to_clip(path, gain_db)
 
 
@@ -387,7 +405,7 @@ def _mix_with_original_audio(
             gap_gain_db = 20 * math.log10(gap_relative_linear)
         if gap_gain_db > 0:
             gap_gain_db = 0.0
-        gap_gain_db = min(gap_gain_db, -42.0)
+        gap_gain_db = min(gap_gain_db, -20.0)
         base_underlay = original.apply_gain(gap_gain_db)
         bump_track = AudioSegment.silent(duration=target_ms, frame_rate=target_rate).set_channels(target_channels)
         bump_gain_db = original_gain_db
