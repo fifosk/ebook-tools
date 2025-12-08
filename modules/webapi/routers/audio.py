@@ -16,7 +16,7 @@ from starlette.background import BackgroundTask
 
 from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
-from modules.audio.tts import macos_voice_inventory, select_voice
+from modules.audio.tts import macos_voice_inventory, normalize_gtts_language_code, select_voice
 from modules.webapi.audio_utils import resolve_language, resolve_speed, resolve_voice
 from modules.webapi.audio import get_say_voices
 from modules.webapi.schemas import (
@@ -44,11 +44,8 @@ def _cleanup_file(path: Path) -> None:
 def _gtts_identifier(language: str) -> str:
     """Return canonical gTTS identifier for ``language``."""
 
-    normalized = language.strip().lower()
-    if not normalized:
-        return "gTTS-en"
-    short = normalized.replace("_", "-").split("-")[0]
-    short = short or "en"
+    normalized = normalize_gtts_language_code(language)
+    short = normalized.split("-")[0] or "en"
     return f"gTTS-{short}"
 
 
@@ -57,7 +54,7 @@ def _extract_gtts_language(identifier: str) -> str:
 
     parts = identifier.split("-", 1)
     if len(parts) == 2 and parts[1]:
-        return parts[1]
+        return normalize_gtts_language_code(parts[1])
     return "en"
 
 

@@ -97,6 +97,12 @@ flowchart TD
 - `modules/logging_manager.py` centralises structured logging primitives and console helpers.
 - `modules/metadata_manager.py` infers book metadata that can be refreshed mid-run.
 
+### Subtitle processing notes
+- YouTube-style cues are merged into ~5s windows during parsing, not by mutating the source file. `process_subtitle_file` calls `merge_youtube_subtitle_cues` when `_should_merge_youtube_cues` tags the input (explicit `source_is_youtube` flag from the router or heuristics: filename hints plus dense short overlaps), otherwise it only collapses redundant text windows (`modules/subtitles/processing.py`).
+- Dubbing uses the same merged windows for every video source. `_parse_dialogues` feeds SRT/VTT/SUB subtitles through `merge_youtube_subtitle_cues` before building dialogue windows, and `_normalize_dialogue_windows` enforces gaps/min durations (`modules/services/youtube_dubbing/dialogues.py`). The downstream audio renderer and ASS exports therefore share the merged timeline for YouTube downloads and generic NAS videos alike.
+- WebVTT companions mirror the merged view: both `_ensure_webvtt_variant` (subtitle copies) and `_ensure_webvtt_for_video` (batch-aligned VTTs) parse with `_parse_dialogues`, so NAS and YouTube artifacts stay consistent (`modules/services/youtube_dubbing/webvtt.py`).
+- Because merging happens on read, the stored SRT/ASS next to a video remains untouched; the rendered ASS/SRT/VTT outputs and dubbing schedules are derived from the merged cue set.
+
 ## API Surface
 - `modules/webapi/application.py` creates the FastAPI app, configures CORS, serves SPA assets, and exposes health checks.
 - `modules/webapi/routes.py` offers endpoints to browse files, submit pipeline jobs, refresh metadata, poll status, and stream progress via Server-Sent Events.

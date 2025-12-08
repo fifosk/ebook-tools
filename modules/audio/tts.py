@@ -37,9 +37,52 @@ _LANGUAGE_TO_MACOS_LOCALES: Dict[str, Tuple[str, ...]] = {
 
 # Map unsupported languages to close TTS-capable fallbacks.
 _VOICE_LANG_FALLBACKS = {
-    # Romani lacks native TTS coverage; fall back to Slovak voices/code.
-    "rom": "sk",
-    "romani": "sk",
+    # Romani lacks native TTS coverage; lean on Romanian.
+    "rom": "ro",
+    "romani": "ro",
+    # Pashto unavailable in gTTS; lean on Persian.
+    "ps": "fa",
+    "pashto": "fa",
+    # Languages missing in gTTS mapped to closest available cousins.
+    "armenian": "ru",
+    "be": "ru",  # Belarusian → Russian
+    "belarusian": "ru",
+    "eo": "it",  # Esperanto → Italian (phonetic, common)
+    "esperanto": "it",
+    "fa": "ur",  # Persian/Farsi → Urdu
+    "farsi": "ur",
+    "fo": "da",  # Faroese → Danish
+    "faroese": "da",
+    "georgian": "ru",
+    "hy": "ru",  # Armenian → Russian
+    "ka": "ru",  # Georgian → Russian
+    "kazakh": "tr",
+    "kk": "tr",  # Kazakh → Turkish
+    "kyrgyz": "tr",
+    "ky": "tr",  # Kyrgyz → Turkish
+    "lb": "de",  # Luxembourgish → German
+    "luxembourgish": "de",
+    "macedonian": "bg",
+    "mk": "bg",  # Macedonian → Bulgarian
+    "maltese": "it",
+    "mn": "ru",  # Mongolian → Russian
+    "mongolian": "ru",
+    "mt": "it",  # Maltese → Italian
+    "persian": "ur",
+    "sl": "sr",  # Slovenian → Serbian
+    "slovenian": "sr",
+    "tajik": "fa",
+    "tg": "fa",  # Tajik → Persian
+    "tk": "tr",  # Turkmen → Turkish
+    "turkmen": "tr",
+    "uz": "tr",  # Uzbek → Turkish
+    "uzbek": "tr",
+    "xh": "zu",  # Xhosa → Zulu
+    "xhosa": "zu",
+    "yo": "sw",  # Yoruba → Swahili
+    "yoruba": "sw",
+    "zu": "xh",  # Zulu → Xhosa
+    "zulu": "xh",
     # Celtic languages without broad TTS coverage fall back to English voices.
     "ga": "en",
     "irish": "en",
@@ -89,6 +132,19 @@ def _apply_voice_language_fallback(language: str) -> str:
     short = normalized.replace("_", "-").split("-")[0]
     fallback = _VOICE_LANG_FALLBACKS.get(normalized) or _VOICE_LANG_FALLBACKS.get(short)
     return fallback or language
+
+
+@lru_cache(maxsize=1)
+def _available_gtts_languages() -> Tuple[str, ...]:
+    """Return gTTS language identifiers as a cached tuple."""
+
+    try:
+        from gtts.lang import tts_langs
+
+        langs = tts_langs()
+        return tuple(sorted({code.lower() for code in langs}))
+    except Exception:
+        return tuple()
 
 
 def _macos_voice_directories() -> Tuple[Path, ...]:
@@ -385,12 +441,46 @@ def _format_voice_display(voice: Tuple[str, str, str, Optional[str]]) -> str:
 def _gtts_fallback(language: str) -> str:
     """Return fallback identifier for gTTS based on ``language``."""
 
-    normalized = _apply_voice_language_fallback(language).strip().lower()
-    if not normalized:
-        return "gTTS-en"
-    short = normalized.replace("_", "-").split("-")[0]
-    short = short or "en"
+    normalized = normalize_gtts_language_code(language)
+    short = normalized.split("-")[0] or "en"
     return f"gTTS-{short}"
+
+
+def normalize_gtts_language_code(language: str) -> str:
+    """Return a gTTS-compatible language code, applying provider quirks."""
+
+    raw = (language or "").strip().lower().replace("_", "-")
+    if not raw:
+        return "en"
+
+    # Use provider inventory to avoid unnecessary fallbacks when support exists.
+    available = _available_gtts_languages()
+
+    def _is_supported(code: str) -> bool:
+        candidate = code.lower()
+        base = candidate.split("-")[0]
+        return candidate in available or base in available
+
+    def _apply_legacy_hebrew(code: str) -> str:
+        base = code.split("-")[0]
+        if base in {"he", "hebrew", "heb", "iw"}:
+            return "iw"
+        return code
+
+    normalized = _apply_legacy_hebrew(raw)
+    if _is_supported(normalized):
+        return normalized
+
+    fallback = _apply_voice_language_fallback(raw)
+    fallback = _apply_legacy_hebrew((fallback or "").strip().lower().replace("_", "-"))
+    if fallback and _is_supported(fallback):
+        return fallback
+
+    base = normalized.split("-")[0]
+    if _is_supported(base):
+        return base
+
+    return "en"
 
 
 def select_voice(language: str, voice_preference: str) -> str:
@@ -405,7 +495,7 @@ def select_voice(language: str, voice_preference: str) -> str:
 
 
 def _synthesize_with_gtts(text: str, lang_code: str, speed: int) -> AudioSegment:
-    lang_code = _apply_voice_language_fallback(lang_code)
+    lang_code = normalize_gtts_language_code(lang_code)
     service = AudioService(backend_name=GTTSBackend.name)
     return service.synthesize(
         text=text,
