@@ -128,6 +128,7 @@ export default function VideoPlayer({
   subtitleScale = 1,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
+  const fullscreenRef = useRef<HTMLDivElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
   const cueTextCacheRef = useRef<WeakMap<TextTrackCue, string>>(new WeakMap());
   const labels = files.map((file, index) => ({
@@ -148,16 +149,18 @@ export default function VideoPlayer({
           ? `Now playing \u2022 Video ${activeIndex + 1} of ${labels.length}`
           : 'Now playing';
 
+  const getFullscreenTarget = useCallback(() => fullscreenRef.current ?? elementRef.current, []);
+
   const requestFullscreenPlayback = useCallback(() => {
-    const element = elementRef.current;
-    if (typeof document === 'undefined' || !element || !isTheaterMode) {
+    const target = getFullscreenTarget();
+    if (typeof document === 'undefined' || !target || !isTheaterMode) {
       return;
     }
-    if (document.fullscreenElement === element) {
+    if (document.fullscreenElement === target) {
       return;
     }
-    if (typeof element.requestFullscreen === 'function') {
-      const result = element.requestFullscreen();
+    if (typeof target.requestFullscreen === 'function') {
+      const result = target.requestFullscreen();
       if (result && typeof (result as Promise<unknown>).catch === 'function') {
         (result as Promise<unknown>).catch(() => {
           /* Ignore request rejections (e.g. lacking user gesture). */
@@ -165,7 +168,7 @@ export default function VideoPlayer({
       }
       fullscreenRequestedRef.current = true;
     }
-  }, [isTheaterMode]);
+  }, [getFullscreenTarget, isTheaterMode]);
 
   useEffect(() => {
     if (!onRegisterControls) {
@@ -306,6 +309,7 @@ export default function VideoPlayer({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onExitTheaterMode?.('user');
+        fullscreenRequestedRef.current = false;
       }
     };
 
@@ -317,7 +321,8 @@ export default function VideoPlayer({
 
   useEffect(() => {
     const element = elementRef.current;
-    if (typeof document === 'undefined' || !element) {
+    const target = getFullscreenTarget();
+    if (typeof document === 'undefined' || !target) {
       return;
     }
 
@@ -336,7 +341,7 @@ export default function VideoPlayer({
     if (isTheaterMode) {
       requestFullscreenPlayback();
     } else {
-      if (document.fullscreenElement === element || fullscreenRequestedRef.current) {
+      if (document.fullscreenElement === target || fullscreenRequestedRef.current) {
         releaseFullscreen();
       } else {
         fullscreenRequestedRef.current = false;
@@ -349,34 +354,52 @@ export default function VideoPlayer({
       }
       if (
         typeof document !== 'undefined' &&
-        (document.fullscreenElement === element || fullscreenRequestedRef.current)
+        (document.fullscreenElement === target || fullscreenRequestedRef.current)
       ) {
         releaseFullscreen();
       }
     };
-  }, [isTheaterMode, activeFile?.id, requestFullscreenPlayback]);
+  }, [getFullscreenTarget, isTheaterMode, activeFile?.id, requestFullscreenPlayback]);
 
   useEffect(() => {
-    if (!isTheaterMode || typeof document === 'undefined') {
+    const target = getFullscreenTarget();
+    if (!isTheaterMode || typeof document === 'undefined' || !target) {
       return;
     }
 
     const handleFullscreenChange = () => {
-      const element = elementRef.current;
-      if (!element) {
+      if (document.fullscreenElement === target) {
+        fullscreenRequestedRef.current = true;
         return;
       }
-      if (document.fullscreenElement !== element) {
-        fullscreenRequestedRef.current = false;
-        onExitTheaterMode?.('lost');
+      // If we expected fullscreen but lost it (e.g. source change), try to re-request.
+      if (isTheaterMode && fullscreenRequestedRef.current) {
+        requestFullscreenPlayback();
+        return;
       }
+      fullscreenRequestedRef.current = false;
+      onExitTheaterMode?.('lost');
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
     };
-  }, [isTheaterMode, onExitTheaterMode]);
+  }, [getFullscreenTarget, isTheaterMode, onExitTheaterMode, requestFullscreenPlayback]);
+
+  useEffect(() => {
+    const element = elementRef.current;
+    if (!element || !isTheaterMode) {
+      return;
+    }
+    const handleLoadedData = () => {
+      requestFullscreenPlayback();
+    };
+    element.addEventListener('loadeddata', handleLoadedData);
+    return () => {
+      element.removeEventListener('loadeddata', handleLoadedData);
+    };
+  }, [isTheaterMode, activeFile?.id, requestFullscreenPlayback]);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -417,13 +440,14 @@ export default function VideoPlayer({
       }
       for (let index = 0; index < cues.length; index += 1) {
         const cue = cues[index];
-        const rawText = cache.get(cue) ?? cue.text;
+        const cueWithText = cue as VTTCue & { text?: string };
+        const baseText = cache.get(cue) ?? cueWithText.text ?? '';
         if (!cache.has(cue)) {
-          cache.set(cue, rawText);
+          cache.set(cue, baseText);
         }
-        const filteredText = filterCueTextByVisibility(rawText, cueVisibility);
-        if (cue.text !== filteredText) {
-          cue.text = filteredText;
+        const filteredText = filterCueTextByVisibility(baseText, cueVisibility);
+        if (cueWithText.text !== filteredText && typeof cueWithText.text === 'string') {
+          cueWithText.text = filteredText;
         }
       }
     };
@@ -462,7 +486,7 @@ export default function VideoPlayer({
         />
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
-        <div className="video-player__stage">
+        <div className="video-player__stage" ref={fullscreenRef}>
           <div
             className="video-player__active-label"
             title={activeFile.name ?? activeFile.url ?? 'Active video'}
@@ -472,12 +496,11 @@ export default function VideoPlayer({
           </div>
           <div className="video-player__canvas">
             <video
-              key={activeFile.id}
               ref={elementRef}
-          className="video-player__element"
-          style={{ '--subtitle-scale': subtitleScale } as CSSProperties}
-          data-testid="video-player"
-          controls
+              className="video-player__element"
+              style={{ '--subtitle-scale': subtitleScale } as CSSProperties}
+              data-testid="video-player"
+              controls
               crossOrigin="use-credentials"
               src={activeFile.url}
               poster={activeFile.poster}

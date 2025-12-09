@@ -213,6 +213,10 @@ export default function YoutubeDubPlayer({
   const previousFileCountRef = useRef<number>(videoFiles.length);
   const controlsRef = useRef<PlaybackControls | null>(null);
   const lastActivatedVideoRef = useRef<string | null>(null);
+  const localPositionRef = useRef<number>(0);
+  const toggleCueVisibility = useCallback((key: 'original' | 'transliteration' | 'translation') => {
+    setCueVisibility((current) => ({ ...current, [key]: !current[key] }));
+  }, []);
   const activeSubtitleTracks = useMemo(() => {
     const base =
       activeVideoId
@@ -281,10 +285,21 @@ export default function YoutubeDubPlayer({
     },
     [deriveBaseId, rememberPosition, videoLookup],
   );
+  const markActivatedVideo = useCallback((videoId: string | null) => {
+    if (!videoId) {
+      return;
+    }
+    lastActivatedVideoRef.current = videoId;
+  }, []);
 
   useEffect(() => {
-    resetPlaybackPosition(activeVideoId);
-  }, [activeVideoId, resetPlaybackPosition]);
+    if (!activeVideoId) {
+      localPositionRef.current = 0;
+      return;
+    }
+    localPositionRef.current = getPosition(activeVideoId);
+    markActivatedVideo(activeVideoId);
+  }, [activeVideoId, getPosition, markActivatedVideo]);
 
   useEffect(() => {
     onPlaybackStateChange?.(isPlaying);
@@ -413,13 +428,28 @@ export default function YoutubeDubPlayer({
       if (key === 'f') {
         handleToggleFullscreen();
         event.preventDefault();
+        return;
+      }
+      if (key === 'o') {
+        toggleCueVisibility('original');
+        event.preventDefault();
+        return;
+      }
+      if (key === 'i') {
+        toggleCueVisibility('transliteration');
+        event.preventDefault();
+        return;
+      }
+      if (key === 'p') {
+        toggleCueVisibility('translation');
+        event.preventDefault();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [handleToggleFullscreen]);
+  }, [handleToggleFullscreen, toggleCueVisibility]);
 
   const handleRegisterControls = useCallback((controls: PlaybackControls | null) => {
     controlsRef.current = controls;
@@ -509,15 +539,12 @@ export default function YoutubeDubPlayer({
     }
   }, [subtitleScale, subtitleScaleKey]);
 
-  const toggleCueVisibility = useCallback((key: 'original' | 'transliteration' | 'translation') => {
-    setCueVisibility((current) => ({ ...current, [key]: !current[key] }));
-  }, []);
-
   const handlePlaybackPositionChange = useCallback(
     (position: number) => {
       if (!activeVideoId) {
         return;
       }
+      localPositionRef.current = Math.max(position, 0);
       const match = videoLookup.get(activeVideoId) ?? null;
       const baseId = match ? deriveBaseId(match) : null;
       rememberPosition({
@@ -532,7 +559,7 @@ export default function YoutubeDubPlayer({
 
   const activeVideo = activeVideoId ? videoLookup.get(activeVideoId) ?? null : null;
   const playbackPosition =
-    activeVideoId && lastActivatedVideoRef.current === activeVideoId ? getPosition(activeVideoId) : 0;
+    activeVideoId && lastActivatedVideoRef.current === activeVideoId ? localPositionRef.current : 0;
   const videoCount = videoFiles.length;
   const currentIndex = activeVideoId ? videoFiles.findIndex((file) => file.id === activeVideoId) : -1;
   const disableFirst = videoCount === 0 || currentIndex <= 0;
