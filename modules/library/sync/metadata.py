@@ -123,8 +123,8 @@ def build_entry(
     if isbn:
         apply_isbn(metadata, isbn)
 
-    metadata["generated_files"] = file_ops.retarget_generated_files(
-        metadata.get("generated_files"),
+    metadata, _ = file_ops.retarget_metadata_generated_files(
+        metadata,
         job_id,
         job_root,
     )

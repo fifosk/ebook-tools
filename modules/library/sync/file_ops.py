@@ -470,6 +470,44 @@ def resolve_library_path(
     return library_root / author_segment / book_segment / language_segment / job_segment
 
 
+def retarget_metadata_generated_files(
+    metadata: Mapping[str, Any],
+    job_id: str,
+    job_root: Path,
+) -> Tuple[Dict[str, Any], bool]:
+    """Retarget generated media references on the root and nested result payloads."""
+
+    if not isinstance(metadata, Mapping):
+        return {}, False
+
+    changed = False
+    updated: Dict[str, Any] = dict(metadata)
+
+    def _retarget_field(payload: Dict[str, Any], key: str) -> None:
+        nonlocal changed
+        if key not in payload:
+            return
+        original = payload.get(key)
+        retargeted = retarget_generated_files(original, job_id, job_root)
+        if retargeted is not original and retargeted != original:
+            changed = True
+        payload[key] = retargeted
+
+    _retarget_field(updated, "generated_files")
+
+    for nested_key in ("result", "result_payload"):
+        section = updated.get(nested_key)
+        if not isinstance(section, Mapping):
+            continue
+        section_payload = dict(section)
+        _retarget_field(section_payload, "generated_files")
+        if section_payload != section:
+            changed = True
+        updated[nested_key] = section_payload
+
+    return updated, changed
+
+
 def retarget_generated_files(payload: Any, job_id: str, job_root: Path) -> Any:
     """Rewrite generated file payloads so they reference library paths."""
 
@@ -984,6 +1022,7 @@ __all__ = [
     "resolve_source_relative",
     "retarget_chunk_entry",
     "retarget_generated_files",
+    "retarget_metadata_generated_files",
     "retarget_media_entry",
     "sanitize_source_filename",
     "serialize_media_entries",

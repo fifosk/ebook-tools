@@ -64,8 +64,18 @@ export default function YoutubeDubPlayer({
   });
   const subtitleMap = useMemo(() => {
     const priorities = ['vtt', 'srt', 'ass', 'text'];
-    const resolveSuffix = (value: string | null | undefined) =>
-      value?.split('.').pop()?.toLowerCase() ?? '';
+    const resolveSuffix = (value: string | null | undefined) => {
+      if (!value) {
+        return '';
+      }
+      const cleaned = value.split(/[?#]/)[0] ?? '';
+      const leaf = cleaned.split('/').pop() ?? cleaned;
+      const parts = leaf.split('.');
+      if (parts.length <= 1) {
+        return '';
+      }
+      return parts.pop()?.toLowerCase() ?? '';
+    };
     const formatRank = (entry: (typeof media.text)[number]) => {
       const suffix = resolveSuffix(entry.url) || resolveSuffix(entry.name) || resolveSuffix(entry.path);
       const score = priorities.indexOf(suffix);
@@ -234,6 +244,18 @@ export default function YoutubeDubPlayer({
     }
     return base;
   }, [activeVideoId, buildSiblingSubtitleTracks, subtitleMap, videoFiles]);
+
+  useEffect(() => {
+    if (activeSubtitleTracks.length > 0 || media.text.length > 0) {
+      // Helpful runtime visibility into subtitle selection/resolution.
+      console.debug('Subtitle tracks attached', {
+        activeVideoId,
+        trackCount: activeSubtitleTracks.length,
+        sample: activeSubtitleTracks[0],
+        textEntries: media.text.length,
+      });
+    }
+  }, [activeSubtitleTracks, activeVideoId, media.text.length]);
 
   useEffect(() => {
     const availableIds = videoFiles.map((file) => file.id);

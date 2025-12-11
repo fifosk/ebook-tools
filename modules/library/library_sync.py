@@ -142,8 +142,8 @@ class LibrarySync:
             if isbn_value:
                 metadata_utils.apply_isbn(metadata, isbn_value)
 
-            metadata["generated_files"] = file_ops.retarget_generated_files(
-                metadata.get("generated_files"),
+            metadata, _ = file_ops.retarget_metadata_generated_files(
+                metadata,
                 job_id,
                 target_path,
             )
@@ -221,8 +221,8 @@ class LibrarySync:
             removed = file_ops.purge_media_files(job_root)
             metadata["updated_at"] = utils.current_timestamp()
             metadata["media_completed"] = False
-            metadata["generated_files"] = file_ops.retarget_generated_files(
-                metadata.get("generated_files"),
+            metadata, _ = file_ops.retarget_metadata_generated_files(
+                metadata,
                 job_id,
                 job_root,
             )
@@ -385,6 +385,11 @@ class LibrarySync:
                 self._metadata_manager,
                 error_cls=LibraryError,
                 current_timestamp=utils.current_timestamp,
+            )
+            refreshed, _ = file_ops.retarget_metadata_generated_files(
+                refreshed,
+                job_id,
+                job_root,
             )
             refreshed["item_type"] = metadata_utils.infer_item_type(refreshed)
             file_ops.write_metadata(job_root, refreshed)
@@ -618,7 +623,31 @@ class LibrarySync:
 
         job_root = Path(item.library_path)
         metadata = file_ops.load_metadata(job_root)
+        metadata, changed = file_ops.retarget_metadata_generated_files(
+            metadata,
+            job_id,
+            job_root,
+        )
         generated = metadata.get("generated_files")
+        if not isinstance(generated, Mapping):
+            result_section = metadata.get("result")
+            if isinstance(result_section, Mapping):
+                generated_candidate = result_section.get("generated_files")
+                if isinstance(generated_candidate, Mapping):
+                    generated = file_ops.retarget_generated_files(
+                        generated_candidate,
+                        job_id,
+                        job_root,
+                    )
+                    metadata["generated_files"] = generated
+                    changed = True
+
+        if changed:
+            try:
+                file_ops.write_metadata(job_root, metadata)
+            except Exception:
+                LOGGER.debug("Unable to persist retargeted metadata for %s", job_id, exc_info=True)
+
         media_map, chunk_records, generated_complete = file_ops.serialize_media_entries(
             job_id,
             generated,
