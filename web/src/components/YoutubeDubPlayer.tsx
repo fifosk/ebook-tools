@@ -699,6 +699,7 @@ export default function YoutubeDubPlayer({
               <div className="player-panel__tabs-row">
                 <NavigationControls
                   context="panel"
+                  controlsLayout="compact"
                   onNavigate={handleNavigate}
                   onToggleFullscreen={handleToggleFullscreen}
                   onTogglePlayback={handleTogglePlayback}

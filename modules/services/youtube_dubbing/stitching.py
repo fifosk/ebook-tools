@@ -20,6 +20,7 @@ from .video_utils import (
     _concat_video_segments_ts_copy,
     _downscale_video,
     _probe_duration_seconds,
+    _segments_safe_for_stream_copy_concat,
 )
 from .webvtt import _write_webvtt
 
@@ -196,20 +197,22 @@ def stitch_dub_batches(
     stitched_video.parent.mkdir(parents=True, exist_ok=True)
 
     try:
-        try:
-            _concat_video_segments_copy(ordered, stitched_video)
+        stitched_final: Path
+        copy_safe = _segments_safe_for_stream_copy_concat(ordered)
+        if copy_safe:
             try:
-                _validate_stitched_video(stitched_video)
+                _concat_video_segments_copy(ordered, stitched_video)
+                try:
+                    _validate_stitched_video(stitched_video)
+                except Exception:
+                    stitched_video.unlink(missing_ok=True)
+                    raise
+                stitched_final = stitched_video
+                logger.info(
+                    "Stitched batch videos via stream-copy concat (mp4)",
+                    extra={"event": "youtube.dub.stitch.copy", "output": stitched_final.as_posix()},
+                )
             except Exception:
-                stitched_video.unlink(missing_ok=True)
-                raise
-            stitched_final = stitched_video
-            logger.info(
-                "Stitched batch videos via stream-copy concat (mp4)",
-                extra={"event": "youtube.dub.stitch.copy", "output": stitched_final.as_posix()},
-            )
-        except Exception:
-            try:
                 _concat_video_segments_ts_copy(ordered, stitched_video)
                 _validate_stitched_video(stitched_video)
                 stitched_final = stitched_video
@@ -217,23 +220,27 @@ def stitch_dub_batches(
                     "Stitched batch videos via stream-copy concat (ts)",
                     extra={"event": "youtube.dub.stitch.ts_copy", "output": stitched_final.as_posix()},
                 )
-            except Exception:
-                temp_concat = stitched_video.with_suffix(".concat.mp4")
-                try:
-                    _concat_video_segments(ordered, temp_concat)
-                    stitched_final = _downscale_video(
-                        temp_concat,
-                        target_height=int(target_height),
-                        preserve_aspect_ratio=bool(preserve_aspect_ratio),
-                        output_path=stitched_video,
-                    )
-                    _validate_stitched_video(stitched_final)
-                    logger.info(
-                        "Stitched batch videos via re-encode concat",
-                        extra={"event": "youtube.dub.stitch.reencode", "output": stitched_final.as_posix()},
-                    )
-                finally:
-                    temp_concat.unlink(missing_ok=True)
+        else:
+            logger.info(
+                "Skipping stream-copy concat due to mismatched batch stream timing; re-encoding stitched output",
+                extra={"event": "youtube.dub.stitch.copy_skipped"},
+            )
+            temp_concat = stitched_video.with_suffix(".concat.mp4")
+            try:
+                _concat_video_segments(ordered, temp_concat)
+                stitched_final = _downscale_video(
+                    temp_concat,
+                    target_height=int(target_height),
+                    preserve_aspect_ratio=bool(preserve_aspect_ratio),
+                    output_path=stitched_video,
+                )
+                _validate_stitched_video(stitched_final)
+                logger.info(
+                    "Stitched batch videos via re-encode concat",
+                    extra={"event": "youtube.dub.stitch.reencode", "output": stitched_final.as_posix()},
+                )
+            finally:
+                temp_concat.unlink(missing_ok=True)
     except Exception:
         logger.warning("Unable to stitch batch videos into %s", stitched_video, exc_info=True)
         return None

@@ -1995,6 +1995,11 @@ button.link-button:focus {
   gap: 0.75rem;
 }
 
+.player-panel__navigation-group--compact-controls {
+  width: 100%;
+  justify-content: space-between;
+}
+
 .player-panel__navigation {
   display: inline-flex;
   align-items: center;
@@ -2079,6 +2084,50 @@ button.link-button:focus {
 
 .player-panel__navigation--fullscreen {
   justify-content: center;
+}
+
+.player-panel__control-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid var(--color-border-subtle);
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.player-panel__control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.player-panel__control-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-text-muted);
+}
+
+.player-panel__control-slider {
+  width: clamp(6.75rem, 14vw, 10rem);
+  accent-color: rgba(129, 140, 248, 0.9);
+}
+
+.player-panel__control-slider:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35);
+  border-radius: 999px;
+}
+
+.player-panel__control-value {
+  min-width: 3.25rem;
+  text-align: right;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-text-primary);
 }
 
 .player-panel__immersive-toggle:hover,
@@ -3472,8 +3521,8 @@ button.link-button:focus {
   color: transparent !important;
   background: transparent !important;
   text-shadow: none !important;
-  font-size: 0;
-  line-height: 0;
+  font-size: 0 !important;
+  line-height: 0 !important;
 }
 
 .audio-player__playlist,

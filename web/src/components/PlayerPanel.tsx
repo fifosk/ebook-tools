@@ -78,6 +78,7 @@ interface NavigationControlsProps {
   onNavigate: (intent: NavigationIntent) => void;
   onToggleFullscreen: () => void;
   onTogglePlayback: () => void;
+  controlsLayout?: 'stacked' | 'compact';
   disableFirst: boolean;
   disablePrevious: boolean;
   disableNext: boolean;
@@ -145,6 +146,7 @@ export function NavigationControls({
   onNavigate,
   onToggleFullscreen,
   onTogglePlayback,
+  controlsLayout = 'stacked',
   disableFirst,
   disablePrevious,
   disableNext,
@@ -202,10 +204,14 @@ export function NavigationControls({
   fontScaleStep = FONT_SCALE_STEP,
   onFontScaleChange,
 }: NavigationControlsProps) {
-  const groupClassName =
+  const groupClassName = [
     context === 'fullscreen'
       ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
-      : 'player-panel__navigation-group';
+      : 'player-panel__navigation-group',
+    controlsLayout === 'compact' && context === 'panel' ? 'player-panel__navigation-group--compact-controls' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
   const navigationClassName =
     context === 'fullscreen'
       ? 'player-panel__navigation player-panel__navigation--fullscreen'
@@ -243,6 +249,10 @@ export function NavigationControls({
   const formattedSubtitleBackgroundOpacity = `${Math.round(
     Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax),
   )}%`;
+  const shouldShowCompactControls =
+    controlsLayout === 'compact' &&
+    context === 'panel' &&
+    (showTranslationSpeed || showSubtitleScale || showSubtitleBackgroundOpacity);
   const resolvedCueVisibility =
     cueVisibility ??
     ({
@@ -401,7 +411,78 @@ export function NavigationControls({
           <span aria-hidden="true">{fullscreenIcon}</span>
         </button>
       </div>
-      {showTranslationSpeed ? (
+      {shouldShowCompactControls ? (
+        <div className="player-panel__control-bar" role="group" aria-label="Playback tuning">
+          {showTranslationSpeed ? (
+            <div className="player-panel__control" data-testid="player-panel-speed">
+              <label className="player-panel__control-label" htmlFor={sliderId}>
+                Speed
+              </label>
+              <input
+                id={sliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={translationSpeedMin}
+                max={translationSpeedMax}
+                step={translationSpeedStep}
+                value={translationSpeed}
+                onChange={handleSpeedChange}
+                aria-label="Speed"
+                aria-valuetext={formattedSpeed}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedSpeed}
+              </span>
+            </div>
+          ) : null}
+          {showSubtitleScale ? (
+            <div className="player-panel__control" data-testid="player-panel-subtitle-scale">
+              <label className="player-panel__control-label" htmlFor={subtitleSliderId}>
+                Subs
+              </label>
+              <input
+                id={subtitleSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={subtitleScaleMin}
+                max={subtitleScaleMax}
+                step={subtitleScaleStep}
+                value={subtitleScale}
+                onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
+                aria-label="Subtitle size"
+                aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {Math.round(subtitleScale * 100)}%
+              </span>
+            </div>
+          ) : null}
+          {showSubtitleBackgroundOpacity ? (
+            <div className="player-panel__control" data-testid="player-panel-subtitle-background">
+              <label className="player-panel__control-label" htmlFor={subtitleBackgroundSliderId}>
+                Box
+              </label>
+              <input
+                id={subtitleBackgroundSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={subtitleBackgroundOpacityMin}
+                max={subtitleBackgroundOpacityMax}
+                step={subtitleBackgroundOpacityStep}
+                value={subtitleBackgroundOpacityPercent}
+                onChange={(event) => onSubtitleBackgroundOpacityChange?.(Number(event.target.value))}
+                aria-label="Subtitle background opacity"
+                aria-valuetext={formattedSubtitleBackgroundOpacity}
+                disabled={disableSubtitleToggle || !subtitlesEnabled}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedSubtitleBackgroundOpacity}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {controlsLayout !== 'compact' && showTranslationSpeed ? (
         <div className="player-panel__nav-speed" data-testid="player-panel-speed">
           <label className="player-panel__nav-speed-label" htmlFor={sliderId}>
             Speed
@@ -429,7 +510,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showSubtitleScale ? (
+      {controlsLayout !== 'compact' && showSubtitleScale ? (
         <div className="player-panel__nav-subtitles" data-testid="player-panel-subtitle-scale">
           <label className="player-panel__nav-subtitles-label" htmlFor={subtitleSliderId}>
             Subtitles
@@ -457,7 +538,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showSubtitleBackgroundOpacity ? (
+      {controlsLayout !== 'compact' && showSubtitleBackgroundOpacity ? (
         <div className="player-panel__nav-subtitle-background" data-testid="player-panel-subtitle-background">
           <label className="player-panel__nav-subtitle-background-label" htmlFor={subtitleBackgroundSliderId}>
             Box

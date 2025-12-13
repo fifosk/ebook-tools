@@ -15,6 +15,8 @@ from .audio_utils import _build_atempo_filters, _has_audio_stream
 from .common import _TARGET_DUB_HEIGHT, _TEMP_DIR, _YOUTUBE_ID_PATTERN, logger
 
 _MP4_MOVFLAGS = "+faststart"
+_IOS_TARGET_FPS = os.environ.get("EBOOK_IOS_TARGET_FPS", "30000/1001")
+_IOS_VIDEO_TRACK_TIMESCALE = os.environ.get("EBOOK_IOS_VIDEO_TRACK_TIMESCALE", "90000")
 _IOS_VIDEO_CODEC_ARGS = (
     "-c:v",
     "libx264",
@@ -32,6 +34,20 @@ def _movflags_args(destination: Path) -> list[str]:
     if destination.suffix.lower() in {".mp4", ".m4v"}:
         return ["-movflags", _MP4_MOVFLAGS]
     return []
+
+
+def _ios_timing_args(destination: Path) -> list[str]:
+    """
+    Return ffmpeg args that make output MP4 playback more predictable on iOS.
+
+    A CFR output dramatically improves concat safety and avoids iOS/Safari edge cases where
+    muxed VFR segments play back with frozen video while audio continues.
+    """
+
+    args = ["-vsync", "cfr", "-r", _IOS_TARGET_FPS]
+    if destination.suffix.lower() in {".mp4", ".m4v"} and _IOS_VIDEO_TRACK_TIMESCALE:
+        args.extend(["-video_track_timescale", str(_IOS_VIDEO_TRACK_TIMESCALE)])
+    return args
 
 
 def _subtitle_matches_video(video_path: Path, subtitle_path: Path) -> bool:
@@ -172,6 +188,77 @@ def _probe_video_height(path: Path) -> Optional[int]:
         return None
 
 
+def _probe_video_stream_signature(path: Path) -> Optional[dict]:
+    """
+    Return a compact signature of the primary video stream for concat compatibility checks.
+
+    Returns None when probing fails.
+    """
+
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    try:
+        result = subprocess.run(
+            [
+                ffprobe_bin,
+                "-v",
+                "error",
+                "-select_streams",
+                "v:0",
+                "-show_entries",
+                "stream=codec_name,profile,level,width,height,pix_fmt,r_frame_rate,avg_frame_rate,time_base",
+                "-of",
+                "json",
+                str(path),
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        payload = json.loads(result.stdout.decode() or "{}")
+        streams = payload.get("streams") or []
+        if not streams:
+            return None
+        stream = streams[0] or {}
+        return {
+            "codec_name": stream.get("codec_name"),
+            "profile": stream.get("profile"),
+            "level": stream.get("level"),
+            "width": stream.get("width"),
+            "height": stream.get("height"),
+            "pix_fmt": stream.get("pix_fmt"),
+            "r_frame_rate": stream.get("r_frame_rate"),
+            "avg_frame_rate": stream.get("avg_frame_rate"),
+            "time_base": stream.get("time_base"),
+        }
+    except Exception:
+        return None
+
+
+def _segments_safe_for_stream_copy_concat(segments: Sequence[Path]) -> bool:
+    """
+    Return True if ffmpeg concat demuxer + `-c copy` is likely to be safe for these segments.
+
+    We require identical codec parameters *and* timing metadata (frame rate + time_base). If timing
+    differs, MP4 stream-copy concat can produce outputs that appear valid in ffprobe yet freeze in
+    Safari/iOS players.
+    """
+
+    reference: Optional[dict] = None
+    for segment in segments:
+        signature = _probe_video_stream_signature(segment)
+        if signature is None:
+            return False
+        if reference is None:
+            reference = signature
+            continue
+        if signature != reference:
+            return False
+    return reference is not None
+
+
 def _resolve_target_width(target_height: int) -> int:
     """Return an even width roughly matching 16:9 for the requested height."""
 
@@ -251,6 +338,7 @@ def _downscale_video(
         "-vf",
         f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height},format=yuv420p",
         *_IOS_AUDIO_CODEC_ARGS,
+        *_ios_timing_args(temp_output),
         *_movflags_args(temp_output),
         str(temp_output),
     ]
@@ -310,6 +398,7 @@ def _downscale_video(
             "-vf",
             f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height},format=yuv420p",
             *_IOS_AUDIO_CODEC_ARGS,
+            *_ios_timing_args(fallback_output),
             *_movflags_args(fallback_output),
             str(fallback_output),
         ]
@@ -374,6 +463,7 @@ def _pad_clip_to_duration(path: Path, target_seconds: float) -> Path:
             "-preset",
             "veryfast",
             *_IOS_AUDIO_CODEC_ARGS,
+            *_ios_timing_args(trimmed_path),
             *_movflags_args(trimmed_path),
             str(trimmed_path),
         ]
@@ -414,6 +504,7 @@ def _pad_clip_to_duration(path: Path, target_seconds: float) -> Path:
         "-preset",
         "veryfast",
         *_IOS_AUDIO_CODEC_ARGS,
+        *_ios_timing_args(padded_path),
         *_movflags_args(padded_path),
         str(padded_path),
     ]
@@ -695,6 +786,7 @@ def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
         "-preset",
         "veryfast",
         *_IOS_AUDIO_CODEC_ARGS,
+        *_ios_timing_args(output_path),
         *_movflags_args(output_path),
         str(output_path),
     ]
@@ -893,6 +985,7 @@ def _mux_audio_track(
             "-preset",
             "veryfast",
             *_IOS_AUDIO_CODEC_ARGS,
+            *_ios_timing_args(output_path),
             *_movflags_args(output_path),
             "-disposition:a:0",
             "default",
@@ -978,6 +1071,7 @@ __all__ = [
     "_concat_video_segments_copy",
     "_format_clip_suffix",
     "_format_time_prefix",
+    "_segments_safe_for_stream_copy_concat",
     "_has_video_stream",
     "_mux_audio_track",
     "_pad_clip_to_duration",

@@ -77,14 +77,18 @@ function sanitiseOpacityPercent(value: number | null | undefined): number | null
   return Math.max(0, Math.min(100, snapped));
 }
 
-function injectVttBackgroundStyle(payload: string, percent: number): string {
-  const clamped = Math.max(0, Math.min(100, Math.round(percent / 10) * 10));
-  const alpha = clamped / 100;
-  const cueRule =
-    clamped === 0
-      ? `::cue { background: none !important; background-color: transparent !important; }\n`
-      : `::cue { background: rgba(0, 0, 0, ${alpha}) !important; background-color: rgba(0, 0, 0, ${alpha}) !important; }\n`;
-  const styleBlock = `STYLE\n${cueRule}\n`;
+function injectVttCueStyle(payload: string, backgroundPercent: number, subtitleScale: number): string {
+  const clampedBackground = Math.max(0, Math.min(100, Math.round(backgroundPercent / 10) * 10));
+  const alpha = clampedBackground / 100;
+  const clampedScale = Math.max(0.25, Math.min(4, subtitleScale));
+  const scalePercent = Math.round(clampedScale * 100);
+  const cueRules = [
+    `::cue { font-size: ${scalePercent}% !important; line-height: 1.2 !important; }`,
+    clampedBackground === 0
+      ? `::cue { background: none !important; background-color: transparent !important; }`
+      : `::cue { background: rgba(0, 0, 0, ${alpha}) !important; background-color: rgba(0, 0, 0, ${alpha}) !important; }`,
+  ].join('\n');
+  const styleBlock = `STYLE\n${cueRules}\n\n`;
   if (!payload) {
     return `WEBVTT\n\n${styleBlock}`;
   }
@@ -272,7 +276,7 @@ export default function VideoPlayer({
           return;
         }
         const raw = await response.text();
-        const vtt = injectVttBackgroundStyle(raw, resolvedSubtitleBackgroundOpacityPercent);
+        const vtt = injectVttCueStyle(raw, resolvedSubtitleBackgroundOpacityPercent, subtitleScale);
         const blob = new Blob([vtt], { type: 'text/vtt' });
         const objectUrl = URL.createObjectURL(blob);
         revokedUrl = objectUrl;
@@ -291,7 +295,7 @@ export default function VideoPlayer({
         URL.revokeObjectURL(revokedUrl);
       }
     };
-  }, [activeSubtitleTrack?.url, resolvedSubtitleBackgroundOpacityPercent, subtitlesEnabled]);
+  }, [activeSubtitleTrack?.url, resolvedSubtitleBackgroundOpacityPercent, subtitleScale, subtitlesEnabled]);
 
   const applySubtitleTrack = useCallback(
     (track: SubtitleTrack | null) => {
