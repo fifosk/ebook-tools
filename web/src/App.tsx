@@ -7,7 +7,7 @@ import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
 import SubtitlesPage from './pages/SubtitlesPage';
-import YoutubeSubtitlesPage from './pages/YoutubeSubtitlesPage';
+import YoutubeVideoPage from './pages/YoutubeVideoPage';
 import YoutubeDubPage from './pages/YoutubeDubPage';
 import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
@@ -1326,7 +1326,7 @@ export function App() {
               ) : null}
               {isYoutubeSubtitlesView ? (
                 <section>
-                  <YoutubeSubtitlesPage />
+                  <YoutubeVideoPage />
                 </section>
               ) : null}
               {isYoutubeDubView ? (
@@ -1369,7 +1369,7 @@ export function App() {
                 </section>
               ) : null}
               {selectedView === JOB_MEDIA_VIEW ? (
-                <section className="job-media-section">
+                <div className="job-media-section">
                   <PlayerView
                     context={playerContext}
                     jobBookMetadata={playerJobMetadata}
@@ -1378,7 +1378,7 @@ export function App() {
                     onOpenLibraryItem={handlePlayLibraryItem}
                     selectionRequest={playerSelection}
                   />
-                </section>
+                </div>
               ) : null}
             </>
           )}

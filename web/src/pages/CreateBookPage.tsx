@@ -192,12 +192,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
   );
 
   return (
-    <section className="create-book-page">
-      <h2>Create an Audiobook</h2>
-      <p>
-        Describe the story you want, then configure the pipeline settings to synthesize an EPUB,
-        narration, and media in one managed audiobook job.
-      </p>
+    <div className="create-book-page">
       {successMessage ? (
         <div className="form-callout form-callout--success" role="status">
           <p style={{ margin: 0, fontWeight: 600 }}>{successMessage}</p>
@@ -213,6 +208,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         submitLabel="Generate & process"
         forcedBaseOutputFile={forcedBaseOutput}
         customSourceSection={bookPromptSection}
+        showInfoHeader={false}
         sectionOverrides={{
           source: {
             title: 'Book prompt',
@@ -220,6 +216,6 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
           }
         }}
       />
-    </section>
+    </div>
   );
 }

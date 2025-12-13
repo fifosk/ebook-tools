@@ -14,7 +14,12 @@ import {
 import type { SubtitleJobResultPayload, SubtitleSourceEntry } from '../api/dtos';
 import { formatTimestamp } from '../utils/mediaFormatters';
 import type { JobParameterSnapshot } from '../api/dtos';
-import { buildLanguageOptions, formatLanguageWithFlag, normalizeLanguageLabel } from '../utils/languages';
+import {
+  buildLanguageOptions,
+  formatLanguageOptionLabel,
+  normalizeLanguageLabel,
+  sortLanguageLabelsByName
+} from '../utils/languages';
 import {
   resolveSubtitleFlag,
   resolveSubtitleLanguageCandidate,
@@ -26,6 +31,7 @@ import styles from './SubtitlesPage.module.css';
 
 type SourceMode = 'existing' | 'upload';
 type SubtitleOutputFormat = 'srt' | 'ass';
+type SubtitlesTab = 'subtitles' | 'options' | 'jobs';
 
 type Props = {
   subtitleJobs: JobState[];
@@ -210,6 +216,7 @@ export default function SubtitlesPage({
   prefillParameters = null,
   refreshSignal = 0
 }: Props) {
+  const [activeTab, setActiveTab] = useState<SubtitlesTab>('subtitles');
   const {
     inputLanguage,
     setInputLanguage,
@@ -228,6 +235,7 @@ export default function SubtitlesPage({
       }),
     [fetchedLanguages, inputLanguage, primaryTargetLanguage, targetLanguage]
   );
+  const sortedLanguageOptions = useMemo(() => sortLanguageLabelsByName(languageOptions), [languageOptions]);
   const [sourceMode, setSourceMode] = useState<SourceMode>('existing');
   const [sources, setSources] = useState<SubtitleSourceEntry[]>([]);
   const [selectedSource, setSelectedSource] = useState<string>('');
@@ -757,6 +765,7 @@ export default function SubtitlesPage({
           setAssEmphasis(resolvedAssEmphasis);
         }
         onJobCreated(response.job_id);
+        setActiveTab('jobs');
         if (sourceMode === 'upload') {
           setUploadFile(null);
         }
@@ -782,6 +791,7 @@ export default function SubtitlesPage({
       mirrorToSourceDir,
       startTime,
       endTime,
+      setActiveTab,
       selectedModel,
       outputFormat,
       assFontSize,
@@ -798,12 +808,111 @@ export default function SubtitlesPage({
   }, [subtitleJobs]);
 
   return (
-    <div className="subtitles-page">
-      <section className="card">
-        <h2>Submit subtitle job</h2>
-        <form onSubmit={handleSubmit} className="subtitle-form">
-          <fieldset>
-            <legend>Subtitle source</legend>
+    <div className={styles.container}>
+      <div className={styles.tabsRow}>
+        <div className={styles.tabs} role="tablist" aria-label="Subtitle job tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'subtitles'}
+            className={`${styles.tabButton} ${activeTab === 'subtitles' ? styles.tabButtonActive : ''}`}
+            onClick={() => setActiveTab('subtitles')}
+          >
+            <span>Subtitles</span>
+            <span className={styles.sectionCount}>{sources.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'options'}
+            className={`${styles.tabButton} ${activeTab === 'options' ? styles.tabButtonActive : ''}`}
+            onClick={() => setActiveTab('options')}
+          >
+            Options
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'jobs'}
+            className={`${styles.tabButton} ${activeTab === 'jobs' ? styles.tabButtonActive : ''}`}
+            onClick={() => setActiveTab('jobs')}
+          >
+            <span>Jobs</span>
+            <span className={styles.sectionCount}>{sortedSubtitleJobs.length}</span>
+          </button>
+        </div>
+        <div className={styles.tabsActions}>
+          <button
+            type="submit"
+            form="subtitle-submit-form"
+            className={styles.primaryButton}
+            disabled={isSubmitting || isAssSelection}
+          >
+            {isSubmitting ? 'Submitting…' : 'Create subtitle job'}
+          </button>
+        </div>
+      </div>
+
+      {submitError ? <div className="alert" role="alert">{submitError}</div> : null}
+      {lastSubmittedJobId ? (
+        <div className="notice notice--info" role="status">
+          Submitted subtitle job {lastSubmittedJobId}
+          {(() => {
+            const details: string[] = [];
+            if (lastSubmittedWorkerCount) {
+              details.push(
+                `${lastSubmittedWorkerCount} thread${lastSubmittedWorkerCount === 1 ? '' : 's'}`
+              );
+            }
+            if (lastSubmittedBatchSize) {
+              details.push(`batch size ${lastSubmittedBatchSize}`);
+            }
+            if (lastSubmittedStartTime && lastSubmittedStartTime !== DEFAULT_START_TIME) {
+              details.push(`starting at ${lastSubmittedStartTime}`);
+            }
+            if (lastSubmittedEndTime) {
+              const display =
+                lastSubmittedEndTime.startsWith('+')
+                  ? `ending after ${lastSubmittedEndTime.slice(1)}`
+                  : `ending at ${lastSubmittedEndTime}`;
+              details.push(display);
+            }
+            if (lastSubmittedModel) {
+              details.push(`LLM ${lastSubmittedModel}`);
+            }
+            if (lastSubmittedFormat) {
+              const label = lastSubmittedFormat === 'ass' ? 'ASS subtitles' : 'SRT subtitles';
+              details.push(label);
+              if (lastSubmittedFormat === 'ass' && lastSubmittedAssFontSize) {
+                details.push(`font size ${lastSubmittedAssFontSize}`);
+              }
+              if (lastSubmittedFormat === 'ass' && lastSubmittedAssEmphasis) {
+                details.push(`scale ${lastSubmittedAssEmphasis}×`);
+              }
+            }
+            if (details.length === 0) {
+              return ' using auto-detected concurrency. Live status appears in the Jobs tab.';
+            }
+            const detailText =
+              details.length === 1
+                ? details[0]
+                : `${details.slice(0, -1).join(', ')} and ${details[details.length - 1]}`;
+            return ` using ${detailText}. Live status appears in the Jobs tab.`;
+          })()}
+        </div>
+      ) : null}
+
+      <form id="subtitle-submit-form" onSubmit={handleSubmit} className="subtitle-form">
+        {activeTab === 'subtitles' ? (
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2 className={styles.cardTitle}>Subtitle selection</h2>
+                <p className={styles.cardHint}>Pick an existing NAS subtitle file or upload a new one to translate.</p>
+              </div>
+            </div>
+            <fieldset>
+              <legend>Subtitle source</legend>
             <div className="field">
               <label>
                 <input
@@ -934,9 +1043,19 @@ export default function SubtitlesPage({
               </div>
             )}
           </fieldset>
+          </section>
+        ) : null}
 
-          <fieldset>
-            <legend>Languages</legend>
+        {activeTab === 'options' ? (
+          <section className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2 className={styles.cardTitle}>Subtitle options</h2>
+                <p className={styles.cardHint}>Configure translation, highlighting, output format, and batching.</p>
+              </div>
+            </div>
+            <fieldset>
+              <legend>Languages</legend>
             <div className="field">
               <label className="field-label" htmlFor="subtitle-input-language">Original language</label>
               <select
@@ -944,9 +1063,9 @@ export default function SubtitlesPage({
                 value={inputLanguage}
                 onChange={handleInputLanguageChange}
               >
-                {languageOptions.map((language) => (
+                {sortedLanguageOptions.map((language) => (
                   <option key={language} value={language}>
-                    {formatLanguageWithFlag(language)}
+                    {formatLanguageOptionLabel(language)}
                   </option>
                 ))}
               </select>
@@ -958,9 +1077,9 @@ export default function SubtitlesPage({
                 value={targetLanguage}
                 onChange={handleTargetLanguageChange}
               >
-                {languageOptions.map((language) => (
+                {sortedLanguageOptions.map((language) => (
                   <option key={language} value={language}>
-                    {formatLanguageWithFlag(language)}
+                    {formatLanguageOptionLabel(language)}
                   </option>
                 ))}
               </select>
@@ -1155,66 +1274,18 @@ export default function SubtitlesPage({
               </label>
             </div>
           </fieldset>
+          </section>
+        ) : null}
+      </form>
 
-          {submitError ? <div className="alert" role="alert">{submitError}</div> : null}
-          {lastSubmittedJobId ? (
-            <div className="notice notice--info" role="status">
-              Submitted subtitle job {lastSubmittedJobId}
-              {(() => {
-                const details: string[] = [];
-                if (lastSubmittedWorkerCount) {
-                  details.push(
-                    `${lastSubmittedWorkerCount} thread${lastSubmittedWorkerCount === 1 ? '' : 's'}`
-                  );
-                }
-                if (lastSubmittedBatchSize) {
-                  details.push(`batch size ${lastSubmittedBatchSize}`);
-                }
-                if (lastSubmittedStartTime && lastSubmittedStartTime !== DEFAULT_START_TIME) {
-                  details.push(`starting at ${lastSubmittedStartTime}`);
-                }
-                if (lastSubmittedEndTime) {
-                  const display =
-                    lastSubmittedEndTime.startsWith('+')
-                      ? `ending after ${lastSubmittedEndTime.slice(1)}`
-                      : `ending at ${lastSubmittedEndTime}`;
-                  details.push(display);
-                }
-                if (lastSubmittedModel) {
-                  details.push(`LLM ${lastSubmittedModel}`);
-                }
-                if (lastSubmittedFormat) {
-                  const label = lastSubmittedFormat === 'ass' ? 'ASS subtitles' : 'SRT subtitles';
-                  details.push(label);
-                  if (lastSubmittedFormat === 'ass' && lastSubmittedAssFontSize) {
-                    details.push(`font size ${lastSubmittedAssFontSize}`);
-                  }
-                  if (lastSubmittedFormat === 'ass' && lastSubmittedAssEmphasis) {
-                    details.push(`scale ${lastSubmittedAssEmphasis}×`);
-                  }
-                }
-                if (details.length === 0) {
-                  return ' using auto-detected concurrency. Live status appears below.';
-                }
-                const detailText =
-                  details.length === 1
-                    ? details[0]
-                    : `${details.slice(0, -1).join(', ')} and ${details[details.length - 1]}`;
-                return ` using ${detailText}. Live status appears below.`;
-              })()}
-            </div>
-          ) : null}
-
-          <div className="form-actions">
-            <button type="submit" className="primary" disabled={isSubmitting || isAssSelection}>
-              {isSubmitting ? 'Submitting…' : 'Create subtitle job'}
-            </button>
+      {activeTab === 'jobs' ? (
+      <section className={styles.card}>
+        <div className={styles.cardHeader}>
+          <div>
+            <h2 className={styles.cardTitle}>Subtitle jobs</h2>
+            <p className={styles.cardHint}>Track progress and download completed subtitle exports.</p>
           </div>
-        </form>
-      </section>
-
-      <section className="card">
-        <h2>Subtitle jobs</h2>
+        </div>
         {sortedSubtitleJobs.length === 0 ? (
           <p>No subtitle jobs yet. Submit a job to get started.</p>
         ) : (
@@ -1466,6 +1537,7 @@ export default function SubtitlesPage({
           </div>
         )}
       </section>
+      ) : null}
     </div>
   );
 }

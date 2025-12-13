@@ -106,10 +106,12 @@ describe('Sidebar', () => {
     expect(narrateButton).toBeInTheDocument();
     expect(narrateButton).toHaveClass('is-active');
     expect(screen.getByRole('button', { name: /Subtitles/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /YT Download/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /YouTube Video/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Dub Video/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Create audiobook/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Browse library/i })).toBeInTheDocument();
+    expect(screen.queryByText(/No subtitle jobs yet/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No dubbing jobs yet/i)).not.toBeInTheDocument();
   });
 
   it('shows progress for running jobs with progress events', () => {

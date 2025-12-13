@@ -107,6 +107,7 @@ type Props = {
   customSourceSection?: ReactNode;
   implicitEndOffsetThreshold?: number | null;
   sectionOverrides?: Partial<Record<PipelineFormSection, { title: string; description: string }>>;
+  showInfoHeader?: boolean;
 };
 
 type JsonFields =
@@ -552,7 +553,8 @@ export function PipelineSubmissionForm({
   forcedBaseOutputFile = null,
   customSourceSection = null,
   implicitEndOffsetThreshold = null,
-  sectionOverrides = {}
+  sectionOverrides = {},
+  showInfoHeader = true
 }: Props) {
   const isGeneratedSource = sourceMode === 'generated';
   const {
@@ -1829,9 +1831,13 @@ export function PipelineSubmissionForm({
   };
 
   return (
-    <section className="pipeline-settings">
-      <h2>{headerTitle}</h2>
-      <p>{headerDescription}</p>
+    <div className="pipeline-settings">
+      {showInfoHeader ? (
+        <>
+          <h2>{headerTitle}</h2>
+          <p>{headerDescription}</p>
+        </>
+      ) : null}
       <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
         <div className="pipeline-step-bar">
           <div className="pipeline-step-tabs" role="tablist" aria-label="Pipeline steps">
@@ -1897,7 +1903,7 @@ export function PipelineSubmissionForm({
           }
         />
       ) : null}
-    </section>
+    </div>
   );
 
 }

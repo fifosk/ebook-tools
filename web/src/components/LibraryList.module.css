@@ -76,6 +76,21 @@
   min-width: 1.75rem;
 }
 
+.languageLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  white-space: nowrap;
+}
+
+.languageFlag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(var(--font-size-small) + 0.12rem);
+  line-height: 1;
+}
+
 .tableRowActive {
   outline: 2px solid var(--color-accent, #4f46e5);
   outline-offset: -2px;

@@ -30,11 +30,11 @@ export default function PlayerView({
 }: PlayerViewProps) {
   if (!context) {
     return (
-      <section className="job-detail" aria-label="Player">
+      <div className="job-detail" role="region" aria-label="Player">
         <div className="job-detail__placeholder">
           Select a job or library book to open the player.
         </div>
-      </section>
+      </div>
     );
   }
 
@@ -78,7 +78,7 @@ export default function PlayerView({
   }, [chunks, context.itemType, media.video]);
 
   return (
-    <section className="job-detail" aria-label={`Player for library job ${context.jobId}`}>
+    <div className="job-detail" role="region" aria-label={`Player for library job ${context.jobId}`}>
       {isVideoItem ? (
         <YoutubeDubPlayer
           jobId={context.jobId}
@@ -107,6 +107,6 @@ export default function PlayerView({
           selectionRequest={selectionRequest}
         />
       )}
-    </section>
+    </div>
   );
 }

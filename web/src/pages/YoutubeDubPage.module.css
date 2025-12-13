@@ -4,27 +4,6 @@
   align-content: start;
 }
 
-.kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: rgba(226, 243, 255, 0.82);
-  margin: 0 0 var(--space-xs);
-}
-
-.title {
-  margin: 0 0 var(--space-sm);
-  font-size: clamp(1.9rem, 2vw, 2.35rem);
-  color: var(--color-text-heading);
-}
-
-.subtitle {
-  margin: 0;
-  max-width: 52rem;
-  color: var(--color-text-secondary);
-}
-
 .tabsRow {
   display: flex;
   align-items: center;

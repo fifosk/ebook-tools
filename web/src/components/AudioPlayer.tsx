@@ -16,9 +16,10 @@ interface AudioPlayerProps {
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
 }
 
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useId, useRef } from 'react';
 import PlayerCore from '../player/PlayerCore';
 import { usePlayerCore } from '../hooks/usePlayerCore';
+import { formatMediaDropdownLabel } from '../utils/mediaLabels';
 
 export default function AudioPlayer({
   files,
@@ -33,9 +34,10 @@ export default function AudioPlayer({
 }: AudioPlayerProps) {
   const { ref: attachCore, core } = usePlayerCore();
   const lastReportedTime = useRef<number | null>(null);
+  const playlistSelectId = useId();
   const labels = files.map((file, index) => ({
     id: file.id,
-    label: file.name ?? `Track ${index + 1}`
+    label: formatMediaDropdownLabel(file.name ?? file.url, `Track ${index + 1}`),
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
@@ -175,18 +177,27 @@ export default function AudioPlayer({
       >
         Your browser does not support the audio element.
       </PlayerCore>
-      <div className="audio-player__playlist" role="group" aria-label="Audio tracks">
-        {labels.map((file) => (
-          <button
-            key={file.id}
-            type="button"
-            className="audio-player__track"
-            aria-pressed={file.id === activeId}
-            onClick={() => onSelectFile(file.id)}
-          >
-            {file.label}
-          </button>
-        ))}
+      <div className="audio-player__selector">
+        <label className="audio-player__selector-label" htmlFor={playlistSelectId}>
+          Audio
+        </label>
+        <select
+          id={playlistSelectId}
+          className="audio-player__select"
+          value={activeFile.id}
+          onChange={(event) => {
+            const next = event.target.value;
+            if (next) {
+              onSelectFile(next);
+            }
+          }}
+        >
+          {labels.map((file) => (
+            <option key={file.id} value={file.id}>
+              {file.label}
+            </option>
+          ))}
+        </select>
       </div>
     </div>
   );

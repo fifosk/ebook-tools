@@ -342,6 +342,7 @@ export function Sidebar({
   );
   const subtitleJobs = sidebarJobs.filter((job) => job.status.job_type === 'subtitle');
   const youtubeDubJobs = sidebarJobs.filter((job) => job.status.job_type === 'youtube_dub');
+  const hasJobOverview = bookJobs.length > 0 || subtitleJobs.length > 0 || youtubeDubJobs.length > 0;
 
   return (
     <nav className="sidebar__nav" aria-label="Dashboard menu">
@@ -404,6 +405,13 @@ export function Sidebar({
             <span className="sidebar__player-meta">Select a job</span>
           )}
         </button>
+        <button
+          type="button"
+          className={`sidebar__link ${selectedView === libraryView ? 'is-active' : ''}`}
+          onClick={() => onSelectView(libraryView)}
+        >
+          🗂️ Browse library
+        </button>
       </div>
       <details className="sidebar__section" open>
         <summary>🎧 Audiobooks</summary>
@@ -446,7 +454,7 @@ export function Sidebar({
               className={`sidebar__link ${selectedView === youtubeSubtitlesView ? 'is-active' : ''}`}
               onClick={() => onSelectView(youtubeSubtitlesView)}
             >
-              📺 YT Download
+              📺 YouTube Video
             </button>
           </li>
           <li>
@@ -463,9 +471,10 @@ export function Sidebar({
       <details className="sidebar__section" open>
         <summary>📊 Job Overview</summary>
         <div>
-          <details className="sidebar__section" open>
-            <summary>🎧 Audiobooks</summary>
-            {bookJobs.length > 0 ? (
+          {!hasJobOverview ? <p className="sidebar__empty">No jobs yet.</p> : null}
+          {bookJobs.length > 0 ? (
+            <details className="sidebar__section" open>
+              <summary>🎧 Audiobooks</summary>
               <ul className="sidebar__list">
 	                {bookJobs.map((job) => {
 	                  const statusValue = job.status?.status ?? 'pending';
@@ -533,13 +542,11 @@ export function Sidebar({
                   );
                 })}
               </ul>
-            ) : (
-              <p className="sidebar__empty">No audiobook jobs yet.</p>
-            )}
-          </details>
-          <details className="sidebar__section" open>
-            <summary>🎞️ Subtitles</summary>
-            {subtitleJobs.length > 0 ? (
+            </details>
+          ) : null}
+          {subtitleJobs.length > 0 ? (
+            <details className="sidebar__section" open>
+              <summary>🎞️ Subtitles</summary>
               <ul className="sidebar__list">
 	                {subtitleJobs.map((job) => {
 	                  const statusValue = job.status?.status ?? 'pending';
@@ -607,13 +614,11 @@ export function Sidebar({
                   );
                 })}
               </ul>
-            ) : (
-              <p className="sidebar__empty">No subtitle jobs yet.</p>
-            )}
-          </details>
-          <details className="sidebar__section" open>
-            <summary>📺 Videos</summary>
-            {youtubeDubJobs.length > 0 ? (
+            </details>
+          ) : null}
+          {youtubeDubJobs.length > 0 ? (
+            <details className="sidebar__section" open>
+              <summary>📺 Videos</summary>
               <ul className="sidebar__list">
 	                {youtubeDubJobs.map((job) => {
 	                  const statusValue = job.status?.status ?? 'pending';
@@ -681,25 +686,9 @@ export function Sidebar({
                   );
                 })}
               </ul>
-            ) : (
-              <p className="sidebar__empty">No dubbing jobs yet.</p>
-            )}
-          </details>
+            </details>
+          ) : null}
         </div>
-      </details>
-      <details className="sidebar__section">
-        <summary>🗃️ Library</summary>
-        <ul className="sidebar__list">
-          <li>
-            <button
-              type="button"
-              className={`sidebar__link ${selectedView === libraryView ? 'is-active' : ''}`}
-              onClick={() => onSelectView(libraryView)}
-            >
-              🗂️ Browse library
-            </button>
-          </li>
-        </ul>
       </details>
       {isAdmin ? (
         <details className="sidebar__section">

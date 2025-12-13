@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import type { LibraryItem, LibraryViewMode } from '../api/dtos';
+import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
-import { formatLanguageWithFlag } from '../utils/languages';
+import { normalizeLanguageLabel } from '../utils/languages';
 import styles from './LibraryList.module.css';
 
 type Props = {
@@ -43,9 +44,17 @@ type LanguageGroup = {
 const UNKNOWN_AUTHOR = 'Unknown Author';
 const UNKNOWN_CREATOR = 'Unknown Creator';
 
-function renderLanguageLabel(language: string | null | undefined): string {
-  const label = language ?? 'Unknown';
-  return formatLanguageWithFlag(label) || label;
+function renderLanguageLabel(language: string | null | undefined) {
+  const label = normalizeLanguageLabel(language) || 'Unknown';
+  const flag = resolveLanguageFlag(language ?? label) ?? DEFAULT_LANGUAGE_FLAG;
+  return (
+    <span className={styles.languageLabel}>
+      <span className={styles.languageFlag} aria-hidden="true">
+        {flag}
+      </span>
+      <span>{label}</span>
+    </span>
+  );
 }
 const UNTITLED_BOOK = 'Untitled Book';
 const UNTITLED_VIDEO = 'Untitled Video';

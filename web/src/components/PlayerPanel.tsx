@@ -139,6 +139,8 @@ interface NavigationControlsProps {
   fontScaleMax?: number;
   fontScaleStep?: number;
   onFontScaleChange?: (value: number) => void;
+  nowPlayingText?: string | null;
+  nowPlayingTitle?: string | null;
 }
 
 export function NavigationControls({
@@ -203,6 +205,8 @@ export function NavigationControls({
   fontScaleMax = FONT_SCALE_MAX,
   fontScaleStep = FONT_SCALE_STEP,
   onFontScaleChange,
+  nowPlayingText = null,
+  nowPlayingTitle = null,
 }: NavigationControlsProps) {
   const groupClassName = [
     context === 'fullscreen'
@@ -339,6 +343,11 @@ export function NavigationControls({
         >
           <span aria-hidden="true">⏭</span>
         </button>
+        {nowPlayingText ? (
+          <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
+            {nowPlayingText}
+          </span>
+        ) : null}
         {auxiliaryToggleVariant === 'original' ? (
           <button
             type="button"
@@ -3444,22 +3453,22 @@ const scheduleChunkMetadataAppend = useCallback(
 
   if (error) {
     return (
-      <section className="player-panel" aria-label={sectionLabel}>
+      <div className="player-panel" role="region" aria-label={sectionLabel}>
         <p role="alert">Unable to load generated media: {error.message}</p>
-      </section>
+      </div>
     );
   }
 
   if (isLoading && media.text.length === 0 && media.audio.length === 0 && media.video.length === 0) {
     return (
-      <section className="player-panel" aria-label={sectionLabel}>
+      <div className="player-panel" role="region" aria-label={sectionLabel}>
         <p role="status">{loadingMessage}</p>
-      </section>
+      </div>
     );
   }
 
   return (
-    <section className={panelClassName} aria-label={sectionLabel}>
+    <div className={panelClassName} role="region" aria-label={sectionLabel}>
       {sentenceJumpDatalist}
       {!hasJobId ? (
         <div className="player-panel__empty" role="status">
@@ -3558,6 +3567,6 @@ const scheduleChunkMetadataAppend = useCallback(
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

@@ -80,7 +80,6 @@ interface PlayerPanelStageProps {
   audio: AudioStageProps;
   video: VideoStageProps;
   text: TextStageProps;
-  selection: SelectionInfo;
 }
 
 export function PlayerPanelStage({
@@ -95,7 +94,6 @@ export function PlayerPanelStage({
   audio,
   video,
   text,
-  selection,
 }: PlayerPanelStageProps) {
   return (
     <>
@@ -187,25 +185,6 @@ export function PlayerPanelStage({
                         )}
                       </div>
                     ) : null}
-                  </div>
-                  <div className="player-panel__selection-header" data-testid="player-panel-selection">
-                    <div className="player-panel__selection-name" title={selection.title}>
-                      {selection.label}
-                    </div>
-                    <dl className="player-panel__selection-meta">
-                      <div className="player-panel__selection-meta-item">
-                        <dt>Created</dt>
-                        <dd>{selection.timestamp ?? '—'}</dd>
-                      </div>
-                      <div className="player-panel__selection-meta-item">
-                        <dt>File size</dt>
-                        <dd>{selection.size ?? '—'}</dd>
-                      </div>
-                      <div className="player-panel__selection-meta-item">
-                        <dt>Sentences</dt>
-                        <dd>{selection.sentenceRange}</dd>
-                      </div>
-                    </dl>
                   </div>
                 </div>
               ) : null

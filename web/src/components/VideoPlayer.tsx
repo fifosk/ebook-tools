@@ -45,8 +45,9 @@ interface VideoPlayerProps {
   subtitleBackgroundOpacity?: number;
 }
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
+import { formatMediaDropdownLabel } from '../utils/mediaLabels';
 
 const DEFAULT_PLAYBACK_RATE = 1;
 
@@ -138,22 +139,6 @@ function filterCueTextByVisibility(
   return filtered.join('\n');
 }
 
-function extractMediaName(file: VideoFile, fallbackLabel?: string): string {
-  const raw = file.name || file.url || fallbackLabel || "";
-  if (!raw) {
-    return "";
-  }
-  const withoutQuery = raw.split(/[?#]/)[0];
-  const afterSlash = withoutQuery.replace(/\\/g, "/");
-  const leaf = afterSlash.substring(afterSlash.lastIndexOf("/") + 1) || afterSlash;
-  const trimmedLeaf = leaf.endsWith("/") ? leaf.slice(0, -1) : leaf;
-  const dotIndex = trimmedLeaf.lastIndexOf(".");
-  if (dotIndex > 0) {
-    return trimmedLeaf.slice(0, dotIndex) || trimmedLeaf;
-  }
-  return trimmedLeaf || raw;
-}
-
 const EMPTY_VTT_DATA_URL = 'data:text/vtt;charset=utf-8,WEBVTT%0A%0A';
 
 function selectPrimarySubtitleTrack(tracks: SubtitleTrack[]): SubtitleTrack | null {
@@ -196,6 +181,7 @@ export default function VideoPlayer({
   subtitleScale = 1,
   subtitleBackgroundOpacity,
 }: VideoPlayerProps) {
+  const playlistSelectId = useId();
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRef = useRef<HTMLDivElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
@@ -210,21 +196,10 @@ export default function VideoPlayer({
   const cueTextCacheRef = useRef<WeakMap<TextTrackCue, string>>(new WeakMap());
   const labels = files.map((file, index) => ({
     id: file.id,
-    label: file.name ?? `Video ${index + 1}`
+    label: formatMediaDropdownLabel(file.name ?? file.url, `Video ${index + 1}`),
   }));
 
   const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
-  const activeIndex = activeFile ? labels.findIndex((file) => file.id === activeFile.id) : -1;
-  const fallbackLabel = activeIndex >= 0 ? labels[activeIndex]?.label : undefined;
-  const displayName = activeFile ? extractMediaName(activeFile, fallbackLabel) : '';
-  const labelText =
-    displayName && activeIndex >= 0
-      ? `Now playing \u2022 ${displayName} (Video ${activeIndex + 1} of ${labels.length})`
-      : displayName
-        ? `Now playing \u2022 ${displayName}`
-        : activeIndex >= 0
-          ? `Now playing \u2022 Video ${activeIndex + 1} of ${labels.length}`
-          : 'Now playing';
 
   const getFullscreenTarget = useCallback(() => fullscreenRef.current ?? elementRef.current, []);
 
@@ -318,23 +293,81 @@ export default function VideoPlayer({
       }
 
       const nextSrc = subtitlesEnabled && track?.url ? processedSubtitleUrl : EMPTY_VTT_DATA_URL;
-      if (trackElement.getAttribute('src') !== nextSrc) {
-        trackElement.setAttribute('src', nextSrc);
-      }
+      const wantsEnabled = Boolean(subtitlesEnabled && track?.url && nextSrc !== EMPTY_VTT_DATA_URL);
 
-      try {
-        const textTrack = trackElement.track;
-        if (!subtitlesEnabled || !track?.url || nextSrc === EMPTY_VTT_DATA_URL) {
-          textTrack.mode = 'disabled';
-        } else {
-          textTrack.mode = 'hidden';
-          textTrack.mode = 'showing';
+      const setTrackSrc = (src: string) => {
+        if (trackElement.getAttribute('src') !== src) {
+          trackElement.setAttribute('src', src);
         }
-      } catch (error) {
-        // Ignore text track mode failures in unsupported environments.
+        try {
+          // Some browsers (notably iOS Safari) behave more consistently when using the property setter.
+          trackElement.src = src;
+        } catch (error) {
+          void error;
+        }
+      };
+
+      const bumpRevision = () => {
+        setSubtitleRevision((value) => value + 1);
+      };
+
+      const applyEnabledMode = () => {
+        try {
+          const textTrack = trackElement.track;
+          textTrack.mode = 'hidden';
+          const show = () => {
+            try {
+              textTrack.mode = 'showing';
+            } catch (error) {
+              void error;
+            }
+          };
+          show();
+          if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+            window.requestAnimationFrame(show);
+          }
+          setTimeout(show, 0);
+        } catch (error) {
+          // Ignore text track mode failures in unsupported environments.
+        }
+      };
+
+      const applyDisabledMode = () => {
+        try {
+          const textTrack = trackElement.track;
+          textTrack.mode = 'disabled';
+        } catch (error) {
+          // Ignore text track mode failures in unsupported environments.
+        }
+      };
+
+      const previousSrc = trackElement.getAttribute('src') ?? '';
+      const needsReload = wantsEnabled && previousSrc === EMPTY_VTT_DATA_URL && nextSrc !== EMPTY_VTT_DATA_URL;
+
+      if (needsReload) {
+        // Safari can fail to restore cues after disabling a track unless the source is reloaded asynchronously.
+        setTrackSrc(EMPTY_VTT_DATA_URL);
+        applyDisabledMode();
+        const scheduleApply = () => {
+          setTrackSrc(nextSrc);
+          applyEnabledMode();
+          bumpRevision();
+        };
+        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+          window.requestAnimationFrame(scheduleApply);
+        } else {
+          setTimeout(scheduleApply, 0);
+        }
+        return;
       }
 
-      setSubtitleRevision((value) => value + 1);
+      setTrackSrc(nextSrc);
+      if (!wantsEnabled) {
+        applyDisabledMode();
+      } else {
+        applyEnabledMode();
+      }
+      bumpRevision();
     },
     [processedSubtitleUrl, subtitlesEnabled],
   );
@@ -345,6 +378,24 @@ export default function VideoPlayer({
     if (typeof document === 'undefined' || !target || (!force && !isTheaterMode)) {
       return;
     }
+
+    const presentationVideo = videoElement as unknown as
+      | { webkitSetPresentationMode?: (mode: string) => void; webkitPresentationMode?: string }
+      | null;
+    if (presentationVideo && typeof presentationVideo.webkitSetPresentationMode === 'function') {
+      try {
+        if (presentationVideo.webkitPresentationMode !== 'fullscreen') {
+          presentationVideo.webkitSetPresentationMode('fullscreen');
+        }
+        fullscreenRequestedRef.current = true;
+        fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
+        sourceChangedWhileFullscreenRef.current = false;
+        return;
+      } catch (error) {
+        void error;
+      }
+    }
+
     const fullscreenElement =
       document.fullscreenElement ??
       (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ??
@@ -386,27 +437,27 @@ export default function VideoPlayer({
       }
     }
 
-    const anyVideo = videoElement as unknown as {
+    const legacyVideo = videoElement as unknown as {
       webkitEnterFullscreen?: () => void;
       webkitEnterFullScreen?: () => void;
     } | null;
 
-    if (!anyVideo) {
+    if (!legacyVideo) {
       return;
     }
 
     try {
-      if (typeof anyVideo.webkitEnterFullscreen === 'function') {
-        anyVideo.webkitEnterFullscreen();
+      if (typeof legacyVideo.webkitEnterFullscreen === 'function') {
+        legacyVideo.webkitEnterFullscreen();
         fullscreenRequestedRef.current = true;
-      } else if (typeof anyVideo.webkitEnterFullScreen === 'function') {
-        anyVideo.webkitEnterFullScreen();
+      } else if (typeof legacyVideo.webkitEnterFullScreen === 'function') {
+        legacyVideo.webkitEnterFullScreen();
         fullscreenRequestedRef.current = true;
       }
     } catch (error) {
       // Ignore failures caused by gesture requirements or unsupported environments.
     }
-  }, [getFullscreenTarget, isTheaterMode]);
+  }, [activeFile?.id, getFullscreenTarget, isTheaterMode]);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -418,6 +469,8 @@ export default function VideoPlayer({
       nativeFullscreenRef.current = true;
       nativeFullscreenReentryRef.current = false;
       nativeFullscreenReentryDeadlineRef.current = 0;
+      fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
+      sourceChangedWhileFullscreenRef.current = false;
     };
 
     const handleEnd = () => {
@@ -431,6 +484,10 @@ export default function VideoPlayer({
         nativeFullscreenReentryRef.current = false;
         nativeFullscreenReentryDeadlineRef.current = 0;
       }
+      const ended = Boolean(element.ended);
+      const treatAsLost =
+        Boolean(isTheaterMode) && (sourceChangedWhileFullscreenRef.current || nativeFullscreenReentryRef.current || ended);
+      sourceChangedWhileFullscreenRef.current = false;
       if (pendingSubtitleTrackRef.current) {
         const pending = pendingSubtitleTrackRef.current;
         pendingSubtitleTrackRef.current = null;
@@ -439,7 +496,11 @@ export default function VideoPlayer({
         }, 0);
       }
       if (isTheaterMode) {
-        onExitTheaterMode?.('user');
+        onExitTheaterMode?.(treatAsLost ? 'lost' : 'user');
+        if (!treatAsLost) {
+          nativeFullscreenReentryRef.current = false;
+          nativeFullscreenReentryDeadlineRef.current = 0;
+        }
       }
     };
 
@@ -450,7 +511,7 @@ export default function VideoPlayer({
       element.removeEventListener('webkitbeginfullscreen', handleBegin as EventListener);
       element.removeEventListener('webkitendfullscreen', handleEnd as EventListener);
     };
-  }, [applySubtitleTrack, isTheaterMode, onExitTheaterMode]);
+  }, [activeFile?.id, applySubtitleTrack, isTheaterMode, onExitTheaterMode]);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -627,6 +688,23 @@ export default function VideoPlayer({
     }
 
     const releaseFullscreen = () => {
+      const anyVideo = element as unknown as
+        | {
+            webkitExitFullscreen?: () => void;
+            webkitExitFullScreen?: () => void;
+            webkitSetPresentationMode?: (mode: string) => void;
+          }
+        | null;
+      if (anyVideo) {
+        try {
+          if (typeof anyVideo.webkitSetPresentationMode === 'function') {
+            anyVideo.webkitSetPresentationMode('inline');
+          }
+        } catch (error) {
+          // Ignore presentation mode failures.
+        }
+      }
+
       const anyDocument = document as Document & {
         exitFullscreen?: () => Promise<void> | void;
         webkitExitFullscreen?: () => Promise<void> | void;
@@ -653,13 +731,13 @@ export default function VideoPlayer({
         }
       }
 
-      const anyVideo = element as unknown as { webkitExitFullscreen?: () => void; webkitExitFullScreen?: () => void } | null;
-      if (anyVideo) {
+      const anyLegacyVideo = element as unknown as { webkitExitFullscreen?: () => void; webkitExitFullScreen?: () => void } | null;
+      if (anyLegacyVideo) {
         try {
-          if (typeof anyVideo.webkitExitFullscreen === 'function') {
-            anyVideo.webkitExitFullscreen();
-          } else if (typeof anyVideo.webkitExitFullScreen === 'function') {
-            anyVideo.webkitExitFullScreen();
+          if (typeof anyLegacyVideo.webkitExitFullscreen === 'function') {
+            anyLegacyVideo.webkitExitFullscreen();
+          } else if (typeof anyLegacyVideo.webkitExitFullScreen === 'function') {
+            anyLegacyVideo.webkitExitFullScreen();
           }
         } catch (error) {
           // Ignore exit failures for unsupported environments.
@@ -933,13 +1011,6 @@ export default function VideoPlayer({
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage" ref={fullscreenRef}>
-          <div
-            className="video-player__active-label"
-            title={activeFile.name ?? activeFile.url ?? 'Active video'}
-            data-testid="video-player-active-label"
-          >
-            {labelText}
-          </div>
           <div className="video-player__canvas">
             <video
               ref={elementRef}
@@ -969,18 +1040,27 @@ export default function VideoPlayer({
             </video>
           </div>
         </div>
-        <div className="video-player__playlist" role="group" aria-label="Video playlist">
-          {labels.map((file) => (
-            <button
-              key={file.id}
-              type="button"
-              className="video-player__item"
-              aria-pressed={file.id === activeId}
-              onClick={() => onSelectFile(file.id)}
-            >
-              {file.label}
-            </button>
-          ))}
+        <div className="video-player__selector">
+          <label className="video-player__selector-label" htmlFor={playlistSelectId}>
+            Video
+          </label>
+          <select
+            id={playlistSelectId}
+            className="video-player__select"
+            value={activeFile.id}
+            onChange={(event) => {
+              const next = event.target.value;
+              if (next) {
+                onSelectFile(next);
+              }
+            }}
+          >
+            {labels.map((file) => (
+              <option key={file.id} value={file.id}>
+                {file.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
     </>

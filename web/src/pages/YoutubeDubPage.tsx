@@ -26,10 +26,11 @@ import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import {
   buildLanguageOptions,
-  formatLanguageWithFlag,
+  formatLanguageOptionLabel,
   normalizeLanguageLabel,
   preferLanguageLabel,
-  resolveLanguageCode
+  resolveLanguageCode,
+  sortLanguageLabelsByName
 } from '../utils/languages';
 import {
   resolveSubtitleFlag,
@@ -455,6 +456,7 @@ export default function YoutubeDubPage({
       }),
     [fetchedLanguages, primaryTargetLanguage, subtitleLanguageLabel, targetLanguage]
   );
+  const sortedLanguageOptions = useMemo(() => sortLanguageLabelsByName(languageOptions), [languageOptions]);
   const canExtractEmbedded = useMemo(() => {
     if (!selectedVideo) {
       return false;
@@ -1081,14 +1083,6 @@ export default function YoutubeDubPage({
 
   return (
     <div className={styles.container}>
-      <div>
-        <p className={styles.kicker}>NAS dubbing</p>
-        <h1 className={styles.title}>Dub downloaded videos from subtitles</h1>
-        <p className={styles.subtitle}>
-          Pick a downloaded YouTube video or a generic NAS video (MP4/MKV), pair it with ASS/SRT/SUB subtitles in the same folder, and render a dubbed track aligned to that timing.
-        </p>
-      </div>
-
       <div className={styles.tabsRow}>
         <div className={styles.tabs} role="tablist" aria-label="Dubbed video tabs">
           <button
@@ -1430,9 +1424,9 @@ export default function YoutubeDubPage({
           <label className={styles.field}>
             <span>Translation language</span>
             <select className={styles.input} value={targetLanguage} onChange={(event) => applyTargetLanguage(event.target.value)}>
-              {languageOptions.map((language) => (
+              {sortedLanguageOptions.map((language) => (
                 <option key={language} value={language}>
-                  {formatLanguageWithFlag(language)}
+                  {formatLanguageOptionLabel(language)}
                 </option>
               ))}
             </select>

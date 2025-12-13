@@ -101,3 +101,25 @@ export function formatLanguageWithFlag(value?: string | null): string {
   const flag = resolveLanguageFlag(value ?? label) ?? DEFAULT_LANGUAGE_FLAG;
   return `${flag} ${label}`;
 }
+
+export function formatLanguageOptionLabel(value?: string | null): string {
+  const label = normalizeLanguageLabel(value);
+  if (!label) {
+    return '';
+  }
+  const flag = resolveLanguageFlag(value ?? label) ?? DEFAULT_LANGUAGE_FLAG;
+  return `${label} ${flag}`;
+}
+
+export function sortLanguageLabelsByName(values: string[]): string[] {
+  const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+  return [...values].sort((left, right) => {
+    const leftLabel = normalizeLanguageLabel(left) || left;
+    const rightLabel = normalizeLanguageLabel(right) || right;
+    const primary = collator.compare(leftLabel, rightLabel);
+    if (primary !== 0) {
+      return primary;
+    }
+    return collator.compare(left, right);
+  });
+}

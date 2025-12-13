@@ -620,7 +620,6 @@ export default function YoutubeDubPlayer({
     [activeVideoId, deriveBaseId, rememberPosition, videoLookup],
   );
 
-  const activeVideo = activeVideoId ? videoLookup.get(activeVideoId) ?? null : null;
   const playbackPosition =
     activeVideoId && lastActivatedVideoRef.current === activeVideoId ? localPositionRef.current : 0;
   const videoCount = videoFiles.length;
@@ -631,8 +630,6 @@ export default function YoutubeDubPlayer({
   const disableLast = videoCount === 0 || currentIndex >= videoCount - 1;
   const disablePlayback = videoCount === 0 || !controlsRef.current;
   const disableFullscreen = videoCount === 0;
-  const selectionLabel = activeVideo?.name ?? activeVideo?.url ?? 'Video';
-  const selectionMeta = activeVideo?.updated_at ?? '';
 
   const handleTranslationSpeedChange = useCallback((value: number) => {
     setPlaybackSpeed(normaliseTranslationSpeed(value));
@@ -689,7 +686,7 @@ export default function YoutubeDubPlayer({
   }, [isFullscreen, resetPlaybackPosition, videoFiles]);
 
   return (
-    <section className="player-panel" aria-label={`YouTube dub ${jobId}`}>
+    <div className="player-panel" role="region" aria-label={`YouTube dub ${jobId}`}>
       {error ? (
         <p role="alert">Unable to load generated media: {error.message}</p>
       ) : (
@@ -712,6 +709,11 @@ export default function YoutubeDubPlayer({
                   isFullscreen={isFullscreen}
                   isPlaying={isPlaying}
                   fullscreenLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                  nowPlayingText={
+                    videoCount > 0 && currentIndex >= 0
+                      ? `Video ${currentIndex + 1} of ${videoCount}`
+                      : null
+                  }
                   showSubtitleToggle
                   onToggleSubtitles={handleSubtitleToggle}
                   subtitlesEnabled={subtitlesEnabled}
@@ -776,29 +778,12 @@ export default function YoutubeDubPlayer({
                   subtitleScale={subtitleScale}
                   subtitleBackgroundOpacity={subtitleBackgroundOpacityPercent / 100}
                 />
-                <div className="player-panel__selection-header" data-testid="player-panel-selection">
-                  <div className="player-panel__selection-name" title={selectionLabel}>
-                    {selectionLabel}
-                  </div>
-                  <dl className="player-panel__selection-meta">
-                    <div className="player-panel__selection-meta-item">
-                      <dt>Updated</dt>
-                      <dd>{selectionMeta || '—'}</dd>
-                    </div>
-                    <div className="player-panel__selection-meta-item">
-                      <dt>Batches</dt>
-                      <dd>
-                        {videoCount > 0 && currentIndex >= 0 ? `${currentIndex + 1} of ${videoCount}` : '—'}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
               </>
               )}
             </div>
           </div>
         </>
       )}
-    </section>
+    </div>
   );
 }

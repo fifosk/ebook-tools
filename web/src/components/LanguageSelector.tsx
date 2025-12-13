@@ -1,6 +1,6 @@
 import { ChangeEvent, useId, useMemo } from 'react';
 import { TOP_LANGUAGES } from '../constants/menuOptions';
-import { formatLanguageWithFlag } from '../utils/languages';
+import { formatLanguageOptionLabel, sortLanguageLabelsByName } from '../utils/languages';
 
 type Props = {
   id?: string;
@@ -13,9 +13,7 @@ export function LanguageSelector({ id, value, onChange }: Props) {
   const selectId = id ?? `language-selector-${autoId}`;
   const helperId = `${selectId}-helper`;
   const sortedLanguages = useMemo(() => {
-    const copy = TOP_LANGUAGES.slice();
-    copy.sort((a, b) => a.localeCompare(b));
-    return copy;
+    return sortLanguageLabelsByName(TOP_LANGUAGES);
   }, []);
   const combinedOptions = useMemo(() => {
     const optionSet = new Set(sortedLanguages.map((language) => language.toLowerCase()));
@@ -27,7 +25,7 @@ export function LanguageSelector({ id, value, onChange }: Props) {
         extras.push(language);
       }
     }
-    return [...sortedLanguages, ...extras];
+    return sortLanguageLabelsByName([...sortedLanguages, ...extras]);
   }, [sortedLanguages, value]);
 
   const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -48,7 +46,7 @@ export function LanguageSelector({ id, value, onChange }: Props) {
       >
         {combinedOptions.map((language) => (
           <option key={language} value={language}>
-            {formatLanguageWithFlag(language)}
+            {formatLanguageOptionLabel(language)}
           </option>
         ))}
       </select>

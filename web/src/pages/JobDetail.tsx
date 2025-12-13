@@ -44,18 +44,18 @@ export default function JobDetail({
 
   if (!normalisedJobId) {
     return (
-      <section className="job-detail" aria-label="Job detail">
+      <div className="job-detail" role="region" aria-label="Job detail">
         <div className="job-detail__placeholder">
           Select a job to explore generated text, audio, and video segments.
         </div>
-      </section>
+      </div>
     );
   }
 
   const isYoutubeDub = (jobType ?? '').toLowerCase() === 'youtube_dub';
 
   return (
-    <section className="job-detail" aria-label={`Job ${normalisedJobId} detail`}>
+    <div className="job-detail" role="region" aria-label={`Job ${normalisedJobId} detail`}>
       {isYoutubeDub ? (
         <YoutubeDubPlayer
           jobId={normalisedJobId}
@@ -83,6 +83,6 @@ export default function JobDetail({
           selectionRequest={selectionRequest}
         />
       )}
-    </section>
+    </div>
   );
 }

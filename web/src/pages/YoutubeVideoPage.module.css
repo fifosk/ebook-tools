@@ -4,25 +4,65 @@
   align-content: start;
 }
 
-.kicker {
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: rgba(226, 243, 255, 0.82);
-  margin: 0 0 var(--space-xs);
+.tabsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
 }
 
-.title {
-  margin: 0 0 var(--space-sm);
-  font-size: clamp(1.8rem, 2vw, 2.35rem);
-  color: #eaf5ff;
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-subtle);
 }
 
-.subtitle {
-  margin: 0 0 var(--space-sm);
-  max-width: 48rem;
-  color: rgba(226, 243, 255, 0.9);
+.tabButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  color: var(--color-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tabButtonActive {
+  background: rgba(56, 189, 248, 0.16);
+  color: rgba(226, 243, 255, 0.92);
+}
+
+.sectionCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.2rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.24);
+  color: inherit;
+}
+
+.tabButtonActive .sectionCount {
+  background: rgba(56, 189, 248, 0.22);
+}
+
+.tabsActions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
 }
 
 .pathNote {
@@ -161,6 +201,10 @@
 .primaryButton:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(129, 140, 248, 0.35);
+}
+
+.primaryButtonCompact {
+  padding: 0.55rem 0.9rem;
 }
 
 .secondaryButton {
