@@ -14,6 +14,7 @@ from .audio_utils import _clamp_original_mix
 from .common import _DEFAULT_FLUSH_SENTENCES, _TARGET_DUB_HEIGHT, _DubJobCancelled, logger
 from .dialogues import _clip_dialogues_to_window, _parse_dialogues, _validate_time_window
 from .generation import generate_dubbed_video
+from .stitching import stitch_dub_batches
 from .language import _find_language_token, _language_uses_non_latin, _resolve_language_code, _transliterate_text
 from .video_utils import _classify_video_source
 from .webvtt import _ensure_webvtt_for_video, _ensure_webvtt_variant
@@ -154,6 +155,7 @@ def _run_dub_job(
     flush_sentences: Optional[int] = None,
     llm_model: Optional[str] = None,
     split_batches: bool = False,
+    stitch_batches: bool = True,
     include_transliteration: Optional[bool] = None,
     target_height: int = _TARGET_DUB_HEIGHT,
     preserve_aspect_ratio: bool = True,
@@ -175,6 +177,7 @@ def _run_dub_job(
             "start_offset": start_time_offset or 0.0,
             "end_offset": end_time_offset,
             "split_batches": split_batches,
+            "stitch_batches": stitch_batches,
         }
     )
     try:
@@ -182,6 +185,7 @@ def _run_dub_job(
         relative_prefix: Optional[Path] = None
         subtitle_storage_path: Path = subtitle_path
         subtitle_artifacts: List[Path] = []
+        stitched_generated_files_snapshot: Optional[dict] = None
         requested_transliteration = (
             _language_uses_non_latin(language_code)
             if include_transliteration is None
@@ -314,6 +318,10 @@ def _run_dub_job(
                             # authored transliteration/RTL ordering and skip LLM work here.
                             if copied_subtitle.suffix.lower() == ".vtt":
                                 continue
+                            # If we already have an explicit VTT sibling for this video/subtitle pair,
+                            # do not regenerate/realign another VTT from ASS/SRT.
+                            if vtt_subtitle.exists():
+                                continue
                             vtt_variant = _ensure_webvtt_variant(
                                 copied_subtitle,
                                 media_root,
@@ -415,6 +423,144 @@ def _run_dub_job(
             target_height=target_height,
             preserve_aspect_ratio=preserve_aspect_ratio,
         )
+        try:
+            for candidate in written_paths:
+                expected = (media_root / candidate.name) if media_root is not None else candidate
+                if expected not in storage_written_paths:
+                    _register_written_path(candidate)
+        except Exception:
+            logger.debug("Unable to register final written paths for %s", job.job_id, exc_info=True)
+
+        stitched_video_path: Optional[Path] = None
+        if bool(split_batches) and bool(stitch_batches) and media_root is not None:
+            try:
+                batch_candidates = [path for path in storage_written_paths if path.suffix.lower() == ".mp4"]
+                batch_candidates.sort(key=lambda p: p.name)
+                if len(batch_candidates) >= 2:
+                    try:
+                        tracker.publish_progress(
+                            {
+                                "stage": "stitching.start",
+                                "batch_count": len(batch_candidates),
+                            }
+                        )
+                    except Exception:
+                        logger.debug("Unable to publish stitching start progress for %s", job.job_id, exc_info=True)
+                    from re import sub as _re_sub
+
+                    base_name = _re_sub(r"^\\d{2}-\\d{2}-\\d{2}-", "", batch_candidates[0].name)
+                    base_output = media_root / base_name
+                    stitched = stitch_dub_batches(
+                        batch_candidates,
+                        base_output=base_output,
+                        language_code=language_code,
+                        include_transliteration=include_transliteration_resolved,
+                        transliterator=transliterator if include_transliteration_resolved else None,
+                        target_height=target_height_resolved,
+                        preserve_aspect_ratio=preserve_aspect_ratio,
+                    )
+                    if stitched is not None:
+                        stitched_video, stitched_vtt, stitched_ass = stitched
+                        stitched_video_path = stitched_video
+                        try:
+                            tracker.publish_progress(
+                                {
+                                    "stage": "stitching.done",
+                                    "output_path": stitched_video_path.as_posix(),
+                                }
+                            )
+                        except Exception:
+                            logger.debug("Unable to publish stitching done progress for %s", job.job_id, exc_info=True)
+                        # Ensure the stitched artifacts are registered for storage and listing.
+                        _register_written_path(stitched_video)
+                        if stitched_vtt.exists():
+                            _copy_into_storage(stitched_vtt)
+                        if stitched_ass.exists():
+                            _copy_into_storage(stitched_ass)
+            except Exception:
+                logger.warning("Unable to stitch YouTube dub batches for job %s", job.job_id, exc_info=True)
+
+        if stitched_video_path is not None and media_root is not None:
+            try:
+                subtitle_only: List[Path] = []
+                for candidate in (
+                    stitched_video_path.with_suffix(".vtt"),
+                    stitched_video_path.with_suffix(".ass"),
+                ):
+                    if candidate.exists():
+                        subtitle_only.append(candidate)
+                relative_prefix = Path("media")
+                stitched_generated_files_snapshot = _serialize_generated_files_batch(
+                    [stitched_video_path],
+                    relative_prefix=relative_prefix,
+                    subtitle_paths=subtitle_only,
+                    subtitle_relative_prefix=relative_prefix,
+                )
+                job.generated_files = stitched_generated_files_snapshot
+                final_output = stitched_video_path
+                try:
+                    tracker.publish_progress(
+                        {
+                            "stage": "media.reset",
+                            "media_reset": True,
+                            "generated_files": stitched_generated_files_snapshot,
+                            "output_path": stitched_video_path.as_posix(),
+                        }
+                    )
+                except Exception:
+                    logger.debug("Unable to publish stitched media reset for %s", job.job_id, exc_info=True)
+
+                # Mirror stitched outputs back next to the NAS batch files for convenient playback outside the app.
+                # Prefer an explicit output_dir when provided; otherwise use the parent directory of the generated batches.
+                try:
+                    mirror_dir: Optional[Path] = output_dir
+                    if mirror_dir is None:
+                        for candidate in written_paths:
+                            if candidate.suffix.lower() == ".mp4":
+                                mirror_dir = candidate.parent
+                                break
+                    if mirror_dir is not None:
+                        try:
+                            tracker.publish_progress(
+                                {
+                                    "stage": "nas.mirror.start",
+                                    "destination": mirror_dir.as_posix(),
+                                }
+                            )
+                        except Exception:
+                            logger.debug("Unable to publish NAS mirror start progress for %s", job.job_id, exc_info=True)
+                        mirror_dir.mkdir(parents=True, exist_ok=True)
+                        for artifact in (
+                            stitched_video_path,
+                            stitched_video_path.with_suffix(".vtt"),
+                            stitched_video_path.with_suffix(".ass"),
+                        ):
+                            if not artifact.exists():
+                                continue
+                            destination = mirror_dir / artifact.name
+                            try:
+                                if artifact.resolve() == destination.resolve():
+                                    continue
+                            except Exception:
+                                pass
+                            shutil.copy2(artifact, destination)
+                        try:
+                            tracker.publish_progress(
+                                {
+                                    "stage": "nas.mirror.done",
+                                    "destination": mirror_dir.as_posix(),
+                                }
+                            )
+                        except Exception:
+                            logger.debug("Unable to publish NAS mirror done progress for %s", job.job_id, exc_info=True)
+                except Exception:
+                    logger.warning(
+                        "Unable to mirror stitched YouTube dub outputs into NAS folder for job %s",
+                        job.job_id,
+                        exc_info=True,
+                    )
+            except Exception:
+                logger.debug("Unable to replace generated files with stitched output for %s", job.job_id, exc_info=True)
     except _DubJobCancelled:
         job.status = PipelineJobStatus.CANCELLED
         job.error_message = None
@@ -429,7 +575,10 @@ def _run_dub_job(
         for path in written_paths:
             _register_written_path(path)
     try:
-        job.generated_files = tracker.get_generated_files()
+        if stitched_generated_files_snapshot is not None:
+            job.generated_files = stitched_generated_files_snapshot
+        else:
+            job.generated_files = tracker.get_generated_files()
     except Exception:
         logger.debug("Unable to snapshot generated files after completion", exc_info=True)
     job.media_completed = True
@@ -439,7 +588,7 @@ def _run_dub_job(
         end_offset=end_time_offset,
     )
     job.result_payload = _build_job_result(
-        output_path=(storage_written_paths[0] if storage_written_paths else final_output),
+        output_path=(storage_written_paths[-1] if storage_written_paths else final_output),
         written_paths=written_paths,
         video_path=video_path,
         subtitle_path=subtitle_storage_path,
@@ -459,7 +608,10 @@ def _run_dub_job(
         preserve_aspect_ratio=preserve_aspect_ratio,
     )
     try:
-        job.generated_files = tracker.get_generated_files()
+        if stitched_generated_files_snapshot is not None:
+            job.generated_files = stitched_generated_files_snapshot
+        else:
+            job.generated_files = tracker.get_generated_files()
     except Exception:
         logger.debug("Unable to snapshot generated files from tracker on completion; falling back to serialized batch", exc_info=True)
         job.generated_files = _serialize_generated_files_batch(
@@ -501,6 +653,7 @@ class YoutubeDubbingService:
         flush_sentences: Optional[int] = None,
         llm_model: Optional[str] = None,
         split_batches: Optional[bool] = None,
+        stitch_batches: Optional[bool] = None,
         include_transliteration: Optional[bool] = None,
         target_height: Optional[int] = None,
         preserve_aspect_ratio: Optional[bool] = None,
@@ -547,6 +700,7 @@ class YoutubeDubbingService:
             "flush_sentences": flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
             "llm_model": llm_model,
             "split_batches": bool(split_batches) if split_batches is not None else False,
+            "stitch_batches": True if stitch_batches is None else bool(stitch_batches),
             "include_transliteration": include_transliteration,
             "target_height": resolved_target_height,
             "preserve_aspect_ratio": preserve_aspect_ratio_resolved,
@@ -569,6 +723,7 @@ class YoutubeDubbingService:
                 flush_sentences=flush_sentences,
                 llm_model=llm_model,
                 split_batches=bool(split_batches) if split_batches is not None else False,
+                stitch_batches=True if stitch_batches is None else bool(stitch_batches),
                 include_transliteration=include_transliteration,
                 target_height=resolved_target_height,
                 preserve_aspect_ratio=preserve_aspect_ratio_resolved,

@@ -7,6 +7,13 @@ import type { SelectedView } from '../App';
 import type { JobState } from './JobList';
 import { getStatusGlyph } from '../utils/status';
 
+const SIDEBAR_STAGE_GLYPHS: Record<string, { icon: string; tooltip: string }> = {
+  'stitching.start': { icon: '🧵', tooltip: 'Stitching batches' },
+  'stitching.done': { icon: '🧵', tooltip: 'Stitching complete' },
+  'nas.mirror.start': { icon: '🗄️', tooltip: 'Copying stitched output to NAS' },
+  'nas.mirror.done': { icon: '🗄️', tooltip: 'NAS copy complete' }
+};
+
 interface SidebarProps {
   selectedView: SelectedView;
   onSelectView: (view: SelectedView) => void;
@@ -259,6 +266,20 @@ function resolveSidebarStatus(value: string): { icon: string; tooltip: string } 
   return { icon: glyph.icon, tooltip: glyph.label };
 }
 
+function resolveSidebarStage(job: JobState): { icon: string; tooltip: string } | null {
+  const event = job.latestEvent ?? job.status.latest_event ?? null;
+  const metadata = event?.metadata;
+  if (!metadata || typeof metadata !== 'object') {
+    return null;
+  }
+  const stageRaw = (metadata as Record<string, unknown>)['stage'];
+  const stage = typeof stageRaw === 'string' ? stageRaw.trim() : '';
+  if (!stage) {
+    return null;
+  }
+  return SIDEBAR_STAGE_GLYPHS[stage] ?? null;
+}
+
 function resolveJobGlyph(jobType: string): { icon: string; label: string } {
   switch (jobType) {
     case 'pipeline':
@@ -325,6 +346,7 @@ export function Sidebar({
   const activeJobGlyph = activeJob ? resolveJobGlyph(activeJob.status.job_type) : null;
   const activeJobLanguage = activeJob ? resolveSidebarLanguage(activeJob) : null;
   const activeJobStatus = activeJob ? resolveSidebarStatus(activeJob.status.status ?? 'pending') : null;
+  const activeJobStage = activeJob ? resolveSidebarStage(activeJob) : null;
   const bookJobs = sidebarJobs.filter((job) =>
     job.status.job_type === 'pipeline' || job.status.job_type === 'book'
   );
@@ -357,20 +379,25 @@ export function Sidebar({
             )}
           </span>
           {activeJob ? (
-            <span className="sidebar__player-meta">
-              {activeJobLanguage?.flag ? (
-                <span
-                  className="sidebar__job-flag"
-                  title={activeJobLanguage.tooltip ?? activeJobLanguage.label}
-                  aria-label={activeJobLanguage.tooltip ?? activeJobLanguage.label}
-                >
-                  {activeJobLanguage.flag}
-                </span>
-              ) : null}
-              {activeJobStatus ? (
-                <span
-                  className="job-status"
-                  data-state={activeJob.status.status ?? 'pending'}
+	            <span className="sidebar__player-meta">
+	              {activeJobLanguage?.flag ? (
+	                <span
+	                  className="sidebar__job-flag"
+	                  title={activeJobLanguage.tooltip ?? activeJobLanguage.label}
+	                  aria-label={activeJobLanguage.tooltip ?? activeJobLanguage.label}
+	                >
+	                  {activeJobLanguage.flag}
+	                </span>
+	              ) : null}
+	              {activeJobStage ? (
+	                <span className="job-stage" title={activeJobStage.tooltip} aria-label={activeJobStage.tooltip}>
+	                  {activeJobStage.icon}
+	                </span>
+	              ) : null}
+	              {activeJobStatus ? (
+	                <span
+	                  className="job-status"
+	                  data-state={activeJob.status.status ?? 'pending'}
                   title={activeJobStatus.tooltip}
                   aria-label={activeJobStatus.tooltip}
                 >
@@ -450,18 +477,19 @@ export function Sidebar({
             <summary>🎧 Audiobooks</summary>
             {bookJobs.length > 0 ? (
               <ul className="sidebar__list">
-                {bookJobs.map((job) => {
-                  const statusValue = job.status?.status ?? 'pending';
-                  const statusLabel = resolveSidebarStatus(statusValue);
-                  const isActiveJob = activeJobId === job.jobId;
-                  const languageMeta = resolveSidebarLanguage(job);
-                  const nameMeta = resolveSidebarLabel(job);
-                  const progressPercent = resolveSidebarProgress(job);
-                  const glyph = resolveJobGlyph(job.status.job_type);
-                  return (
-                    <li key={job.jobId}>
-                      <button
-                        type="button"
+	                {bookJobs.map((job) => {
+	                  const statusValue = job.status?.status ?? 'pending';
+	                  const statusLabel = resolveSidebarStatus(statusValue);
+	                  const isActiveJob = activeJobId === job.jobId;
+	                  const languageMeta = resolveSidebarLanguage(job);
+	                  const nameMeta = resolveSidebarLabel(job);
+	                  const progressPercent = resolveSidebarProgress(job);
+	                  const glyph = resolveJobGlyph(job.status.job_type);
+	                  const stageGlyph = resolveSidebarStage(job);
+	                  return (
+	                    <li key={job.jobId}>
+	                      <button
+	                        type="button"
                         className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
                         onClick={() => onSelectJob(job.jobId)}
                         title={`${nameMeta.tooltip} (${job.jobId})`}
@@ -487,19 +515,24 @@ export function Sidebar({
                           >
                             {glyph.icon}
                           </span>
-                          {languageMeta.flag ? (
-                            <span
-                              className="sidebar__job-flag"
-                              title={languageMeta.tooltip ?? languageMeta.label}
-                              aria-label={languageMeta.tooltip ?? languageMeta.label}
-                            >
-                              {languageMeta.flag}
-                            </span>
-                          ) : null}
-                          <span
-                            className="job-status"
-                            data-state={statusValue}
-                            title={statusLabel.tooltip}
+	                          {languageMeta.flag ? (
+	                            <span
+	                              className="sidebar__job-flag"
+	                              title={languageMeta.tooltip ?? languageMeta.label}
+	                              aria-label={languageMeta.tooltip ?? languageMeta.label}
+	                            >
+	                              {languageMeta.flag}
+	                            </span>
+	                          ) : null}
+	                          {stageGlyph ? (
+	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
+	                              {stageGlyph.icon}
+	                            </span>
+	                          ) : null}
+	                          <span
+	                            className="job-status"
+	                            data-state={statusValue}
+	                            title={statusLabel.tooltip}
                             aria-label={statusLabel.tooltip}
                           >
                             {statusLabel.icon}
@@ -518,18 +551,19 @@ export function Sidebar({
             <summary>🎞️ Subtitles</summary>
             {subtitleJobs.length > 0 ? (
               <ul className="sidebar__list">
-                {subtitleJobs.map((job) => {
-                  const statusValue = job.status?.status ?? 'pending';
-                  const statusLabel = resolveSidebarStatus(statusValue);
-                  const isActiveJob = activeJobId === job.jobId;
-                  const languageMeta = resolveSidebarLanguage(job);
-                  const nameMeta = resolveSidebarLabel(job);
-                  const progressPercent = resolveSidebarProgress(job);
-                  const glyph = resolveJobGlyph(job.status.job_type);
-                  return (
-                    <li key={job.jobId}>
-                      <button
-                        type="button"
+	                {subtitleJobs.map((job) => {
+	                  const statusValue = job.status?.status ?? 'pending';
+	                  const statusLabel = resolveSidebarStatus(statusValue);
+	                  const isActiveJob = activeJobId === job.jobId;
+	                  const languageMeta = resolveSidebarLanguage(job);
+	                  const nameMeta = resolveSidebarLabel(job);
+	                  const progressPercent = resolveSidebarProgress(job);
+	                  const glyph = resolveJobGlyph(job.status.job_type);
+	                  const stageGlyph = resolveSidebarStage(job);
+	                  return (
+	                    <li key={job.jobId}>
+	                      <button
+	                        type="button"
                         className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
                         onClick={() => onSelectJob(job.jobId)}
                         title={`${nameMeta.tooltip} (${job.jobId})`}
@@ -555,19 +589,24 @@ export function Sidebar({
                           >
                             {glyph.icon}
                           </span>
-                          {languageMeta.flag ? (
-                            <span
-                              className="sidebar__job-flag"
-                              title={languageMeta.tooltip ?? languageMeta.label}
-                              aria-label={languageMeta.tooltip ?? languageMeta.label}
-                            >
-                              {languageMeta.flag}
-                            </span>
-                          ) : null}
-                          <span
-                            className="job-status"
-                            data-state={statusValue}
-                            title={statusLabel.tooltip}
+	                          {languageMeta.flag ? (
+	                            <span
+	                              className="sidebar__job-flag"
+	                              title={languageMeta.tooltip ?? languageMeta.label}
+	                              aria-label={languageMeta.tooltip ?? languageMeta.label}
+	                            >
+	                              {languageMeta.flag}
+	                            </span>
+	                          ) : null}
+	                          {stageGlyph ? (
+	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
+	                              {stageGlyph.icon}
+	                            </span>
+	                          ) : null}
+	                          <span
+	                            className="job-status"
+	                            data-state={statusValue}
+	                            title={statusLabel.tooltip}
                             aria-label={statusLabel.tooltip}
                           >
                             {statusLabel.icon}
@@ -586,18 +625,19 @@ export function Sidebar({
             <summary>📺 Videos</summary>
             {youtubeDubJobs.length > 0 ? (
               <ul className="sidebar__list">
-                {youtubeDubJobs.map((job) => {
-                  const statusValue = job.status?.status ?? 'pending';
-                  const statusLabel = resolveSidebarStatus(statusValue);
-                  const isActiveJob = activeJobId === job.jobId;
-                  const languageMeta = resolveSidebarLanguage(job);
-                  const nameMeta = resolveSidebarLabel(job);
-                  const progressPercent = resolveSidebarProgress(job);
-                  const glyph = resolveJobGlyph(job.status.job_type);
-                  return (
-                    <li key={job.jobId}>
-                      <button
-                        type="button"
+	                {youtubeDubJobs.map((job) => {
+	                  const statusValue = job.status?.status ?? 'pending';
+	                  const statusLabel = resolveSidebarStatus(statusValue);
+	                  const isActiveJob = activeJobId === job.jobId;
+	                  const languageMeta = resolveSidebarLanguage(job);
+	                  const nameMeta = resolveSidebarLabel(job);
+	                  const progressPercent = resolveSidebarProgress(job);
+	                  const glyph = resolveJobGlyph(job.status.job_type);
+	                  const stageGlyph = resolveSidebarStage(job);
+	                  return (
+	                    <li key={job.jobId}>
+	                      <button
+	                        type="button"
                         className={`sidebar__link sidebar__link--job ${isActiveJob ? 'is-active' : ''}`}
                         onClick={() => onSelectJob(job.jobId)}
                         title={`${nameMeta.tooltip} (${job.jobId})`}
@@ -623,19 +663,24 @@ export function Sidebar({
                           >
                             {glyph.icon}
                           </span>
-                          {languageMeta.flag ? (
-                            <span
-                              className="sidebar__job-flag"
-                              title={languageMeta.tooltip ?? languageMeta.label}
-                              aria-label={languageMeta.tooltip ?? languageMeta.label}
-                            >
-                              {languageMeta.flag}
-                            </span>
-                          ) : null}
-                          <span
-                            className="job-status"
-                            data-state={statusValue}
-                            title={statusLabel.tooltip}
+	                          {languageMeta.flag ? (
+	                            <span
+	                              className="sidebar__job-flag"
+	                              title={languageMeta.tooltip ?? languageMeta.label}
+	                              aria-label={languageMeta.tooltip ?? languageMeta.label}
+	                            >
+	                              {languageMeta.flag}
+	                            </span>
+	                          ) : null}
+	                          {stageGlyph ? (
+	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
+	                              {stageGlyph.icon}
+	                            </span>
+	                          ) : null}
+	                          <span
+	                            className="job-status"
+	                            data-state={statusValue}
+	                            title={statusLabel.tooltip}
                             aria-label={statusLabel.tooltip}
                           >
                             {statusLabel.icon}

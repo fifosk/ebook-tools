@@ -20,14 +20,34 @@ logger = log_mgr.logger
 DEFAULT_FRAME_PRESET: Sequence[str] = (
     "-c:v",
     "libx264",
+    "-profile:v",
+    "main",
+    "-level:v",
+    "4.1",
     "-pix_fmt",
     "yuv420p",
     "-vf",
     "format=yuv420p",
+    "-movflags",
+    "+faststart",
     "-an",
 )
 DEFAULT_CONCAT_PRESET: Sequence[str] = ("-c", "copy")
-DEFAULT_MERGE_PRESET: Sequence[str] = ("-c:v", "copy", "-c:a", "aac")
+DEFAULT_MERGE_PRESET: Sequence[str] = ("-c:v", "copy", "-c:a", "aac", "-movflags", "+faststart")
+DEFAULT_PAD_PRESET: Sequence[str] = (
+    "-c:v",
+    "libx264",
+    "-profile:v",
+    "main",
+    "-level:v",
+    "4.1",
+    "-pix_fmt",
+    "yuv420p",
+    "-c:a",
+    "aac",
+    "-movflags",
+    "+faststart",
+)
 
 
 class FFmpegVideoRenderer(BaseVideoRenderer):
@@ -277,7 +297,7 @@ class FFmpegVideoRenderer(BaseVideoRenderer):
                 "-af",
                 f"apad=pad_dur={frame_batch.pad_duration:.2f}",
             ]
-            pad_command.extend(self._preset("pad", ()))
+            pad_command.extend(self._preset("pad", DEFAULT_PAD_PRESET))
             pad_command.append(final_video_path)
 
             try:

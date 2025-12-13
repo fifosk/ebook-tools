@@ -819,6 +819,7 @@ def generate_youtube_dub(
     llm_model = (payload.llm_model or "").strip() or None
     include_transliteration = True if payload.include_transliteration is None else bool(payload.include_transliteration)
     split_batches = bool(payload.split_batches) if payload.split_batches is not None else False
+    stitch_batches = True if payload.stitch_batches is None else bool(payload.stitch_batches)
     start_offset = _parse_time_offset(payload.start_time_offset)
     end_offset = _parse_end_time(payload.end_time_offset, start_offset)
     voice = (payload.voice or "gTTS").strip() or "gTTS"
@@ -842,6 +843,7 @@ def generate_youtube_dub(
             flush_sentences=flush_sentences,
             llm_model=llm_model,
             split_batches=split_batches,
+            stitch_batches=stitch_batches,
             include_transliteration=include_transliteration,
             target_height=target_height,
             preserve_aspect_ratio=preserve_aspect_ratio,

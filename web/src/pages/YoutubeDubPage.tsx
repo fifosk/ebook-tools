@@ -232,6 +232,7 @@ export default function YoutubeDubPage({
   const [preserveAspectRatio, setPreserveAspectRatio] = useState(true);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [splitBatches, setSplitBatches] = useState(true);
+  const [stitchBatches, setStitchBatches] = useState(true);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
@@ -864,6 +865,7 @@ export default function YoutubeDubPage({
         flush_sentences: flushSentences,
         llm_model: llmModel || undefined,
         split_batches: splitBatches,
+        stitch_batches: stitchBatches,
         include_transliteration: includeTransliteration,
         target_height: targetHeight,
         preserve_aspect_ratio: preserveAspectRatio
@@ -888,6 +890,7 @@ export default function YoutubeDubPage({
     flushSentences,
     llmModel,
     splitBatches,
+    stitchBatches,
     includeTransliteration,
     targetHeight,
     preserveAspectRatio,
@@ -1370,6 +1373,15 @@ export default function YoutubeDubPage({
               onChange={(event) => setSplitBatches(event.target.checked)}
             />
             <span>Create separate video per batch (adds start-end sentence to filename)</span>
+          </label>
+          <label className={styles.fieldCheckbox}>
+            <input
+              type="checkbox"
+              checked={stitchBatches}
+              onChange={(event) => setStitchBatches(event.target.checked)}
+              disabled={!splitBatches}
+            />
+            <span>Stitch batches into a single final MP4 (default on)</span>
           </label>
           <label className={styles.fieldCheckbox}>
             <input

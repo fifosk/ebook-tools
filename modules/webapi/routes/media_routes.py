@@ -688,7 +688,9 @@ async def get_job_media_live(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     generated_payload: Optional[Mapping[str, Any]] = None
-    if job.tracker is not None:
+    if job.media_completed and job.generated_files is not None:
+        generated_payload = job.generated_files
+    elif job.tracker is not None:
         generated_payload = job.tracker.get_generated_files()
     elif job.generated_files is not None:
         generated_payload = job.generated_files
@@ -718,10 +720,11 @@ def _parse_byte_range(range_value: str, file_size: int) -> Tuple[int, int]:
     if file_size <= 0:
         raise _RangeParseError
 
-    if not range_value.startswith("bytes="):
+    header = range_value.strip()
+    if not header.lower().startswith("bytes="):
         raise _RangeParseError
 
-    raw_spec = range_value[len("bytes=") :].strip()
+    raw_spec = header[len("bytes=") :].strip()
     if "," in raw_spec:
         raise _RangeParseError
 
@@ -785,6 +788,31 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
 
     file_size = int(stat_result.st_size)
+    suffix = resolved_path.suffix.lower()
+    media_type = mimetypes.guess_type(resolved_path.name)[0]
+    if not media_type:
+        if suffix == ".vtt":
+            media_type = "text/vtt"
+        elif suffix == ".srt":
+            media_type = "text/x-srt"
+        elif suffix == ".ass":
+            media_type = "text/plain"
+        elif suffix in {".m4v", ".mp4"}:
+            media_type = "video/mp4"
+
+    def _should_inline(content_type: str | None) -> bool:
+        if not content_type:
+            return False
+        if content_type.startswith(("video/", "audio/", "image/")):
+            return True
+        if content_type in {"text/vtt"}:
+            return True
+        return False
+
+    if range_header and "," in range_header:
+        # Some clients (notably iOS) may request multiple ranges. We only support a single
+        # contiguous range, so fall back to streaming the full payload instead of failing.
+        range_header = None
 
     if range_header:
         try:
@@ -813,16 +841,16 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
     original_name = resolved_path.name
     safe_ascii = re.sub(r"[^0-9A-Za-z._-]", "_", original_name) or "download"
     quoted_utf8 = urllib.parse.quote(original_name)
+    disposition = "inline" if _should_inline(media_type) else "attachment"
     headers["Content-Disposition"] = (
-        f'attachment; filename="{safe_ascii}"; filename*=UTF-8\'\'{quoted_utf8}'
+        f'{disposition}; filename="{safe_ascii}"; filename*=UTF-8\'\'{quoted_utf8}'
     )
 
     body_iterator = _iter_file_chunks(resolved_path, start, end)
-    media_type = mimetypes.guess_type(resolved_path.name)[0] or "application/octet-stream"
     return StreamingResponse(
         body_iterator,
         status_code=status_code,
-        media_type=media_type,
+        media_type=media_type or "application/octet-stream",
         headers=headers,
     )
 

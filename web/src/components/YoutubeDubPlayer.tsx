@@ -116,7 +116,6 @@ export default function YoutubeDubPlayer({
         return;
       }
       const videoId = buildMediaFileId(video, index);
-      const videoUrl = appendAccessToken(video.url);
       const baseId = deriveBaseId(video);
       const range = video.range_fragment ?? null;
       const chunkId = video.chunk_id ?? null;
@@ -135,7 +134,7 @@ export default function YoutubeDubPlayer({
       });
       if (matches.length === 0) {
         if (fallbackTracks.length > 0) {
-          map.set(videoUrl, fallbackTracks);
+          map.set(videoId, fallbackTracks);
         }
         return;
       }
@@ -202,6 +201,7 @@ export default function YoutubeDubPlayer({
         url: candidate,
         label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
         kind: 'subtitles',
+        language: 'und',
       }));
     } catch (error) {
       void error;
@@ -228,12 +228,9 @@ export default function YoutubeDubPlayer({
     setCueVisibility((current) => ({ ...current, [key]: !current[key] }));
   }, []);
   const activeSubtitleTracks = useMemo(() => {
-    const base =
-      activeVideoId
-        ? subtitleMap.get(activeVideoId) ?? subtitleMap.get('__fallback__') ?? []
-        : subtitleMap.get('__fallback__') ?? [];
-    if (base.length > 0) {
-      return base;
+    const direct = activeVideoId ? subtitleMap.get(activeVideoId) ?? [] : [];
+    if (direct.length > 0) {
+      return direct;
     }
     const activeVideo = activeVideoId
       ? videoFiles.find((file) => file.id === activeVideoId) ?? null
@@ -242,7 +239,8 @@ export default function YoutubeDubPlayer({
     if (siblingTracks.length > 0) {
       return siblingTracks;
     }
-    return base;
+    const fallback = subtitleMap.get('__fallback__') ?? [];
+    return fallback;
   }, [activeVideoId, buildSiblingSubtitleTracks, subtitleMap, videoFiles]);
 
   useEffect(() => {

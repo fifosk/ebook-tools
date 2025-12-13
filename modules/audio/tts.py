@@ -351,19 +351,26 @@ def _unique_preserving_order(values: Iterable[str]) -> Tuple[str, ...]:
 def _language_variants(language: str) -> Tuple[str, ...]:
     """Return locale variants to consider for ``language`` selection."""
 
-    normalized = _apply_voice_language_fallback(language).strip()
-    if not normalized:
+    def _variants_for(code: str) -> List[str]:
+        normalized_code = code.replace("-", "_")
+        short_code = normalized_code.lower().split("_")[0]
+        preferred_locales = _LANGUAGE_TO_MACOS_LOCALES.get(short_code, tuple())
+        variants: List[str] = list(preferred_locales)
+        variants.append(normalized_code)
+        if short_code:
+            variants.append(short_code)
+        return variants
+
+    raw_language = (language or "").strip()
+    if not raw_language:
         return tuple()
 
-    normalized = normalized.replace("-", "_")
-    lowered = normalized.lower()
-    short = lowered.split("_")[0]
-    preferred_locales = _LANGUAGE_TO_MACOS_LOCALES.get(short, tuple())
+    candidates: List[str] = _variants_for(raw_language)
 
-    candidates: List[str] = list(preferred_locales)
-    candidates.append(normalized)
-    if short:
-        candidates.append(short)
+    fallback_language = _apply_voice_language_fallback(raw_language)
+    if fallback_language and fallback_language.strip().lower().replace("-", "_") != raw_language.replace("-", "_").lower():
+        candidates.extend(_variants_for(fallback_language))
+
     return _unique_preserving_order(candidates)
 
 
@@ -491,12 +498,12 @@ def normalize_gtts_language_code(language: str) -> str:
 def select_voice(language: str, voice_preference: str) -> str:
     """Select a voice identifier for ``language`` respecting ``voice_preference``."""
 
-    language = _apply_voice_language_fallback(language)
     variants = _language_variants(language)
     candidate = _select_macos_voice_candidate(variants, voice_preference)
     if candidate is not None:
         return _format_voice_display(candidate)
-    return _gtts_fallback(language)
+    fallback_language = _apply_voice_language_fallback(language)
+    return _gtts_fallback(fallback_language)
 
 
 def _synthesize_with_gtts(text: str, lang_code: str, speed: int) -> AudioSegment:
@@ -519,13 +526,13 @@ def _resolve_auto_voice_preference(selected_voice: str) -> str:
 
 
 def _resolve_macos_voice_name(selected_voice: str, lang_code: str) -> Optional[str]:
-    lang_code = _apply_voice_language_fallback(lang_code)
+    normalized_lang_code = (lang_code or "").strip()
     if selected_voice in {AUTO_MACOS_VOICE, AUTO_MACOS_VOICE_FEMALE, AUTO_MACOS_VOICE_MALE}:
         preference = _resolve_auto_voice_preference(selected_voice)
-        cache_key = (lang_code, preference)
+        cache_key = (normalized_lang_code, preference)
         cached_voice = _AUTO_VOICE_CACHE.get(cache_key)
         if cache_key not in _AUTO_VOICE_CACHE:
-            variants = _language_variants(lang_code)
+            variants = _language_variants(normalized_lang_code)
             cached_voice = _select_macos_voice_candidate(variants, preference)
             _AUTO_VOICE_CACHE[cache_key] = cached_voice
         if cached_voice:
@@ -540,7 +547,7 @@ def _resolve_macos_voice_name(selected_voice: str, lang_code: str) -> Optional[s
     if not voice_name:
         return None
 
-    if voice_locale and not _locale_matches(lang_code, voice_locale):
+    if voice_locale and normalized_lang_code and not _locale_matches(normalized_lang_code, voice_locale):
         return None
 
     return voice_name

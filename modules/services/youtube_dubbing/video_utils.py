@@ -14,6 +14,25 @@ from modules.services.youtube_subtitles import trim_stem_preserving_id
 from .audio_utils import _build_atempo_filters, _has_audio_stream
 from .common import _TARGET_DUB_HEIGHT, _TEMP_DIR, _YOUTUBE_ID_PATTERN, logger
 
+_MP4_MOVFLAGS = "+faststart"
+_IOS_VIDEO_CODEC_ARGS = (
+    "-c:v",
+    "libx264",
+    "-profile:v",
+    "main",
+    "-level:v",
+    "4.1",
+    "-pix_fmt",
+    "yuv420p",
+)
+_IOS_AUDIO_CODEC_ARGS = ("-c:a", "aac", "-ac", "2", "-ar", "44100")
+
+
+def _movflags_args(destination: Path) -> list[str]:
+    if destination.suffix.lower() in {".mp4", ".m4v"}:
+        return ["-movflags", _MP4_MOVFLAGS]
+    return []
+
 
 def _subtitle_matches_video(video_path: Path, subtitle_path: Path) -> bool:
     """Return True if ``subtitle_path`` appears to belong to ``video_path``."""
@@ -172,7 +191,8 @@ def _downscale_video(
     output_path: Optional[Path] = None,
 ) -> Path:
     """
-    Downscale ``path`` to ``target_height`` using H.264 while copying other streams.
+    Downscale ``path`` to ``target_height`` producing an iOS-friendly MP4 (H.264 + AAC).
+
     Returns the final path (same as input when no change was needed). When
     ``output_path`` is provided, the final file is moved there (useful when the
     input lives on a RAM disk and the destination is NAS storage).
@@ -222,19 +242,16 @@ def _downscale_video(
         "-i",
         str(path),
         "-map",
-        "0",
-        "-c:v",
-        "libx264",
+        "0:v:0",
+        "-map",
+        "0:a?",
+        *_IOS_VIDEO_CODEC_ARGS,
         "-preset",
         "veryfast",
         "-vf",
-        f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height}",
-        "-c:a",
-        "copy",
-        "-c:s",
-        "copy",
-        "-movflags",
-        "+faststart+frag_keyframe+empty_moov+default_base_moof",
+        f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height},format=yuv420p",
+        *_IOS_AUDIO_CODEC_ARGS,
+        *_movflags_args(temp_output),
         str(temp_output),
     ]
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -284,19 +301,16 @@ def _downscale_video(
             "-i",
             str(destination),
             "-map",
-            "0",
-            "-c:v",
-            "libx264",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            *_IOS_VIDEO_CODEC_ARGS,
             "-preset",
             "veryfast",
             "-vf",
-            f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height}",
-            "-c:a",
-            "aac",
-            "-c:s",
-            "copy",
-            "-movflags",
-            "+faststart+frag_keyframe+empty_moov+default_base_moof",
+            f"scale={'-2' if preserve_aspect_ratio else _resolve_target_width(target_height)}:{target_height},format=yuv420p",
+            *_IOS_AUDIO_CODEC_ARGS,
+            *_movflags_args(fallback_output),
             str(fallback_output),
         ]
         fallback_result = subprocess.run(
@@ -356,12 +370,11 @@ def _pad_clip_to_duration(path: Path, target_seconds: float) -> Path:
             str(path),
             "-t",
             f"{target_seconds:.6f}",
-            "-c:v",
-            "libx264",
+            *_IOS_VIDEO_CODEC_ARGS,
             "-preset",
             "veryfast",
-            "-c:a",
-            "aac",
+            *_IOS_AUDIO_CODEC_ARGS,
+            *_movflags_args(trimmed_path),
             str(trimmed_path),
         ]
         result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -392,17 +405,16 @@ def _pad_clip_to_duration(path: Path, target_seconds: float) -> Path:
         "-i",
         str(path),
         "-vf",
-        video_pad,
+        f"{video_pad},format=yuv420p",
         "-af",
         audio_pad,
         "-t",
         f"{target_seconds:.6f}",
-        "-c:v",
-        "libx264",
+        *_IOS_VIDEO_CODEC_ARGS,
         "-preset",
         "veryfast",
-        "-c:a",
-        "aac",
+        *_IOS_AUDIO_CODEC_ARGS,
+        *_movflags_args(padded_path),
         str(padded_path),
     ]
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -562,10 +574,17 @@ def _trim_video_segment(
             "0:a?",
             "-c:v",
             "libx264",
+            "-pix_fmt",
+            "yuv420p",
             "-preset",
             "veryfast",
             "-c:a",
             "aac",
+            "-ac",
+            "2",
+            "-ar",
+            "44100",
+            *_movflags_args(trimmed_path),
             str(trimmed_path),
         ]
     )
@@ -672,14 +691,11 @@ def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
         "[v]",
         "-map",
         "[a]",
-        "-c:v",
-        "libx264",
+        *_IOS_VIDEO_CODEC_ARGS,
         "-preset",
         "veryfast",
-        "-c:a",
-        "aac",
-        "-movflags",
-        "+faststart+frag_keyframe+empty_moov+default_base_moof",
+        *_IOS_AUDIO_CODEC_ARGS,
+        *_movflags_args(output_path),
         str(output_path),
     ]
     result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -687,6 +703,135 @@ def _concat_video_segments(segments: Sequence[Path], output_path: Path) -> None:
         raise RuntimeError(
             f"ffmpeg concat failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
         )
+
+
+def _concat_video_segments_copy(segments: Sequence[Path], output_path: Path) -> None:
+    """
+    Concatenate ``segments`` into ``output_path`` by stream copying.
+
+    This is significantly faster than re-encoding, but requires compatible
+    streams (same codec parameters across all inputs).
+    """
+
+    if not segments:
+        raise ValueError("No segments provided for concatenation")
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        suffix=".txt",
+        delete=False,
+        prefix="concat-copy-",
+        dir=_TEMP_DIR,
+    ) as handle:
+        list_path = Path(handle.name)
+        for segment in segments:
+            path_value = str(segment)
+            handle.write("file '" + path_value.replace("'", "\\'") + "'\n")
+    try:
+        command = [
+            ffmpeg_bin,
+            "-y",
+            "-f",
+            "concat",
+            "-safe",
+            "0",
+            "-i",
+            str(list_path),
+            "-c",
+            "copy",
+            *_movflags_args(output_path),
+            str(output_path),
+        ]
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"ffmpeg concat copy failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
+            )
+    finally:
+        list_path.unlink(missing_ok=True)
+
+
+def _concat_video_segments_ts_copy(segments: Sequence[Path], output_path: Path) -> None:
+    """
+    Concatenate ``segments`` into ``output_path`` by stream-copying via MPEG-TS intermediates.
+
+    This is a fallback for cases where MP4 concat demuxer + stream copy fails due
+    to subtle container differences; it avoids a full re-encode.
+    """
+
+    if not segments:
+        raise ValueError("No segments provided for concatenation")
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    for segment in segments:
+        if not _has_audio_stream(segment):
+            raise RuntimeError(f"Segment lacks audio stream: {segment.as_posix()}")
+
+    with tempfile.TemporaryDirectory(prefix="youtube-dub-ts-", dir=str(_TEMP_DIR)) as temp_dir:
+        ts_dir = Path(temp_dir)
+        ts_paths: List[Path] = []
+        for index, segment in enumerate(segments):
+            ts_path = ts_dir / f"seg-{index:04d}.ts"
+            command = [
+                ffmpeg_bin,
+                "-y",
+                "-i",
+                str(segment),
+                "-map",
+                "0:v:0",
+                "-map",
+                "0:a:0",
+                "-c",
+                "copy",
+                "-bsf:v",
+                "h264_mp4toannexb",
+                "-f",
+                "mpegts",
+                str(ts_path),
+            ]
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"ffmpeg ts remux failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
+                )
+            ts_paths.append(ts_path)
+
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            suffix=".txt",
+            delete=False,
+            prefix="concat-ts-",
+            dir=_TEMP_DIR,
+        ) as handle:
+            list_path = Path(handle.name)
+            for ts_path in ts_paths:
+                handle.write("file '" + str(ts_path).replace("'", "\\'") + "'\n")
+        try:
+            command = [
+                ffmpeg_bin,
+                "-y",
+                "-f",
+                "concat",
+                "-safe",
+                "0",
+                "-i",
+                str(list_path),
+                "-c",
+                "copy",
+                "-bsf:a",
+                "aac_adtstoasc",
+                *_movflags_args(output_path),
+                str(output_path),
+            ]
+            result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"ffmpeg ts concat copy failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
+                )
+        finally:
+            list_path.unlink(missing_ok=True)
 
 
 def _mux_audio_track(
@@ -744,14 +889,11 @@ def _mux_audio_track(
         command.extend(["-map", "0:a?"])
     command.extend(
         [
-            "-c:v",
-            "libx264",
+            *_IOS_VIDEO_CODEC_ARGS,
             "-preset",
             "veryfast",
-            "-c:a",
-            "aac",
-            "-movflags",
-            "+faststart+frag_keyframe+empty_moov+default_base_moof",
+            *_IOS_AUDIO_CODEC_ARGS,
+            *_movflags_args(output_path),
             "-disposition:a:0",
             "default",
             "-metadata:s:a:0",
@@ -833,6 +975,7 @@ def _mux_audio_track(
 __all__ = [
     "_classify_video_source",
     "_concat_video_segments",
+    "_concat_video_segments_copy",
     "_format_clip_suffix",
     "_format_time_prefix",
     "_has_video_stream",

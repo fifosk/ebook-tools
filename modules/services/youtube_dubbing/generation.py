@@ -686,9 +686,21 @@ def generate_dubbed_video(
                             "-map",
                             "1:a:0",
                             "-c:v",
-                            "copy",
+                            "libx264",
+                            "-profile:v",
+                            "main",
+                            "-level:v",
+                            "4.1",
+                            "-pix_fmt",
+                            "yuv420p",
                             "-c:a",
                             "aac",
+                            "-ac",
+                            "2",
+                            "-ar",
+                            "44100",
+                            "-movflags",
+                            "+faststart",
                             str(sentence_output),
                         ]
                         subprocess.run(recover_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
@@ -710,10 +722,22 @@ def generate_dubbed_video(
                                     "1:a:0",
                                     "-c:v",
                                     "libx264",
+                                    "-profile:v",
+                                    "main",
+                                    "-level:v",
+                                    "4.1",
+                                    "-pix_fmt",
+                                    "yuv420p",
                                     "-preset",
                                     "ultrafast",
                                     "-c:a",
                                     "aac",
+                                    "-ac",
+                                    "2",
+                                    "-ar",
+                                    "44100",
+                                    "-movflags",
+                                    "+faststart",
                                     str(sentence_output),
                                 ],
                                 stdout=subprocess.PIPE,
@@ -844,7 +868,10 @@ def generate_dubbed_video(
             _wait_for_encoding_futures()
 
         total_seconds = flushed_until
-        final_output = written_paths[0] if write_batches and written_paths else output_path
+        if write_batches and written_paths:
+            final_output = written_paths[0]
+        else:
+            final_output = output_path
 
         if not write_batches:
             # Mux the full accumulated track once to avoid batch sync gaps.

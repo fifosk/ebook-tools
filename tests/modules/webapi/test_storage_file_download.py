@@ -38,7 +38,7 @@ def test_download_full_file(storage_app) -> None:
     assert response.content == b"pipeline completed"
     assert response.headers["Content-Length"] == str(len("pipeline completed"))
     assert response.headers["Accept-Ranges"] == "bytes"
-    assert response.headers["Content-Disposition"].endswith('"output.txt"')
+    assert 'filename="output.txt"' in response.headers["Content-Disposition"]
 
 
 def test_download_full_file_without_files_prefix(storage_app) -> None:
@@ -55,7 +55,7 @@ def test_download_full_file_without_files_prefix(storage_app) -> None:
     assert response.content == b"pipeline completed"
     assert response.headers["Content-Length"] == str(len("pipeline completed"))
     assert response.headers["Accept-Ranges"] == "bytes"
-    assert response.headers["Content-Disposition"].endswith('"output.txt"')
+    assert 'filename="output.txt"' in response.headers["Content-Disposition"]
 
 
 def test_download_partial_range(storage_app) -> None:
@@ -94,6 +94,23 @@ def test_download_invalid_range_returns_416(storage_app) -> None:
     assert response.headers["Content-Range"] == "bytes */5"
 
 
+def test_download_multi_range_falls_back_to_full_payload(storage_app) -> None:
+    app, locator = storage_app
+    job_id = "download-multi-range"
+    file_path = locator.resolve_path(job_id, "media/chunk.bin")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"abcdefghij")
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/storage/jobs/{job_id}/files/media/chunk.bin",
+            headers={"Range": "bytes=0-1,4-5"},
+        )
+
+    assert response.status_code == 200
+    assert response.content == b"abcdefghij"
+
+
 def test_download_missing_file_returns_404(storage_app) -> None:
     app, _ = storage_app
     job_id = "missing-file"
@@ -118,9 +135,45 @@ def test_download_cover_file(tmp_path: Path) -> None:
 
         assert response.status_code == 200
         assert response.content == b"cover-bytes"
-        assert response.headers["Content-Disposition"].endswith('"test-cover.jpg"')
+        assert 'filename="test-cover.jpg"' in response.headers["Content-Disposition"]
     finally:
         try:
             cover_path.unlink()
         except FileNotFoundError:
             pass
+
+
+def test_download_video_defaults_inline_disposition(storage_app) -> None:
+    app, locator = storage_app
+    job_id = "download-video-inline"
+    file_path = locator.resolve_path(job_id, "media/video/output.mp4")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"not-a-real-mp4")
+
+    with TestClient(app) as client:
+        response = client.get(f"/storage/jobs/{job_id}/files/media/video/output.mp4")
+
+    assert response.status_code == 200
+    assert response.content == b"not-a-real-mp4"
+    assert response.headers["Accept-Ranges"] == "bytes"
+    assert response.headers["Content-Type"].startswith("video/mp4")
+    assert response.headers["Content-Disposition"].startswith("inline;")
+
+
+def test_download_video_range_keeps_inline_disposition(storage_app) -> None:
+    app, locator = storage_app
+    job_id = "download-video-range-inline"
+    file_path = locator.resolve_path(job_id, "media/video/output.mp4")
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(b"0123456789")
+
+    with TestClient(app) as client:
+        response = client.get(
+            f"/storage/jobs/{job_id}/files/media/video/output.mp4",
+            headers={"Range": "bytes=0-3"},
+        )
+
+    assert response.status_code == 206
+    assert response.content == b"0123"
+    assert response.headers["Content-Range"] == "bytes 0-3/10"
+    assert response.headers["Content-Disposition"].startswith("inline;")

@@ -84,30 +84,29 @@ const PipelineLanguageSection = ({
           onChange={(event) => onCustomTargetLanguagesChange(event.target.value)}
           placeholder="e.g. Klingon, Sindarin"
         />
-        <label htmlFor="ollama_model">
-          LLM model (optional)
-          <input
-            id="ollama_model"
-            name="ollama_model"
-            type="text"
-            value={ollamaModel}
-            onChange={(event) => onOllamaModelChange(event.target.value)}
-            list={llmModelListId}
-            placeholder="Use server default"
-          />
-          <datalist id={llmModelListId}>
-            {llmModels.map((model) => (
-              <option key={model} value={model} />
-            ))}
-          </datalist>
-          <small className="form-help-text">
-            {llmModelsLoading
-              ? 'Loading available models…'
-              : llmModelsError
-              ? `Unable to load models (${llmModelsError}).`
-              : 'Leave blank to use the default server model.'}
-          </small>
-        </label>
+        <label htmlFor="ollama_model">LLM model (optional)</label>
+        <input
+          id="ollama_model"
+          name="ollama_model"
+          type="text"
+          value={ollamaModel}
+          onChange={(event) => onOllamaModelChange(event.target.value)}
+          list={llmModelListId}
+          placeholder="Use server default"
+          disabled={llmModelsLoading && llmModels.length === 0}
+        />
+        <datalist id={llmModelListId}>
+          {llmModels.map((model) => (
+            <option key={model} value={model} />
+          ))}
+        </datalist>
+        <small className="form-help-text">
+          {llmModelsLoading
+            ? 'Loading available models…'
+            : llmModelsError
+            ? `Unable to load models (${llmModelsError}).`
+            : 'Leave blank to use the default server model.'}
+        </small>
         <div className="field-grid">
           <label htmlFor="sentences_per_output_file">
             Sentences per output file

@@ -18,7 +18,7 @@ _SUBTITLE_EXTENSIONS = {"ass", "srt", "vtt", "sub"}
 _LANGUAGE_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{1,16}$")
 _DEFAULT_ORIGINAL_MIX_PERCENT = 15.0
 _DEFAULT_FLUSH_SENTENCES = 10
-_TEMP_DIR = Path("/tmp")
+_TEMP_DIR = Path(os.environ.get("EBOOK_TOOLS_TMPDIR") or os.environ.get("TMPDIR") or "/tmp").expanduser()
 _SUBTITLE_MIRROR_DIR = (
     Path(os.environ.get("SUBTITLE_SOURCE_DIR") or "/Volumes/Data/Download/Subtitles").expanduser()
 )

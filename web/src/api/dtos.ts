@@ -308,6 +308,7 @@ export interface YoutubeDubRequest {
   flush_sentences?: number | null;
   llm_model?: string | null;
   split_batches?: boolean | null;
+  stitch_batches?: boolean | null;
   include_transliteration?: boolean | null;
   target_height?: number | null;
   preserve_aspect_ratio?: boolean | null;

@@ -422,6 +422,7 @@ class YoutubeDubRequest(BaseModel):
     flush_sentences: Optional[int] = None
     llm_model: Optional[str] = None
     split_batches: Optional[bool] = None
+    stitch_batches: Optional[bool] = True
     include_transliteration: Optional[bool] = None
     target_height: Optional[int] = None
     preserve_aspect_ratio: Optional[bool] = None

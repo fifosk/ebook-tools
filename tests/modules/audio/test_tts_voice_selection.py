@@ -50,3 +50,27 @@ def test_select_voice_uses_locale_overrides(monkeypatch):
     result = tts.select_voice("es", "female")
 
     assert result.startswith("Carla - es_MX - (Enhanced)")
+
+
+def test_select_voice_prefers_exact_language_over_fallback(monkeypatch):
+    monkeypatch.setattr(
+        tts,
+        "macos_voice_inventory",
+        lambda debug_enabled=False: [
+            ("Dariush", "fa_IR", "Premium", "male"),
+            ("Laila", "ur_PK", "Enhanced", "female"),
+        ],
+    )
+
+    result = tts.select_voice("fa", "any")
+
+    assert result.startswith("Dariush - fa_IR - (Premium)")
+    assert result.endswith("Male")
+
+
+def test_resolve_macos_voice_respects_explicit_voice_language(monkeypatch):
+    monkeypatch.setattr(tts, "_AUTO_VOICE_CACHE", {})
+
+    resolved = tts._resolve_macos_voice_name("Dariush - fa_IR - (Premium)", "fa")
+
+    assert resolved == "Dariush"

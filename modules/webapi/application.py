@@ -59,7 +59,7 @@ DEFAULT_DEVSERVER_ORIGINS = (
 # Additional headers that should be explicitly allowed/exposed for media
 # streaming support.
 RANGE_REQUEST_HEADERS = ("Range",)
-RANGE_RESPONSE_HEADERS = ("Content-Range",)
+RANGE_RESPONSE_HEADERS = ("Accept-Ranges", "Content-Length", "Content-Range")
 
 _STARTUP_RUNTIME_CONTEXT: cfg.RuntimeContext | None = None
 _EMPTY_JOB_PRUNE_LIMIT = 200
@@ -194,16 +194,40 @@ def _default_devserver_origins() -> list[str]:
     """Return the default dev server origins, including the local IP if available."""
 
     origins = set(DEFAULT_LOCAL_ORIGINS) | set(DEFAULT_DEVSERVER_ORIGINS)
-    try:
-        with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as sock:
-            # The socket never sends data; the connection is only used to discover
-            # the local interface address that would be used for outbound traffic.
-            sock.connect(("8.8.8.8", 80))
-            local_ip = sock.getsockname()[0]
-    except OSError:
-        local_ip = None
 
-    if local_ip and local_ip not in {"127.0.0.1", "0.0.0.0"}:
+    def _collect_candidate_ips() -> set[str]:
+        ips: set[str] = set()
+        # Preferred approach: infer the outbound interface IP without sending data.
+        try:
+            with closing(socket.socket(socket.AF_INET, socket.SOCK_DGRAM)) as sock:
+                sock.connect(("8.8.8.8", 80))
+                candidate = sock.getsockname()[0]
+                if candidate:
+                    ips.add(candidate)
+        except OSError:
+            pass
+
+        # Fallbacks for environments where outbound routing is blocked (common on LAN/dev setups).
+        for host in filter(None, {socket.gethostname(), socket.getfqdn()}):
+            try:
+                for entry in socket.getaddrinfo(host, None, family=socket.AF_INET):
+                    candidate = entry[4][0]
+                    if candidate:
+                        ips.add(candidate)
+            except OSError:
+                continue
+
+        try:
+            _, _, candidates = socket.gethostbyname_ex(socket.gethostname())
+            for candidate in candidates:
+                if candidate:
+                    ips.add(candidate)
+        except OSError:
+            pass
+
+        return {ip for ip in ips if ip not in {"127.0.0.1", "0.0.0.0"}}
+
+    for local_ip in _collect_candidate_ips():
         origins.add(f"http://{local_ip}")
         origins.add(f"http://{local_ip}:5173")
         origins.add(f"https://{local_ip}")

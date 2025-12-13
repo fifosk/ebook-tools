@@ -7,10 +7,10 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Literal, Mapping, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile, status
 
 from ..dependencies import get_library_service, get_library_sync
+from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
     LibraryMediaRemovalResponse,
@@ -319,6 +319,7 @@ async def download_library_media(
     job_id: str,
     relative_path: str,
     sync: LibrarySync = Depends(get_library_sync),
+    range_header: str | None = Header(default=None, alias="Range"),
 ):
     try:
         resolved = sync.resolve_media_file(job_id, relative_path)
@@ -326,18 +327,4 @@ async def download_library_media(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
-    media_type, _ = mimetypes.guess_type(resolved.name)
-    if not media_type:
-        suffix = resolved.suffix.lower()
-        if suffix == ".vtt":
-            media_type = "text/vtt"
-        elif suffix == ".srt":
-            media_type = "text/x-srt"
-        elif suffix == ".ass":
-            media_type = "text/plain"
-    return FileResponse(
-        resolved,
-        media_type=media_type or "application/octet-stream",
-        filename=resolved.name,
-    )
+    return _stream_local_file(resolved, range_header)

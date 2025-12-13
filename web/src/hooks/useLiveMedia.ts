@@ -1122,7 +1122,39 @@ export function useLiveMedia(
 
     return subscribeToJobEvents(jobId, {
       onEvent: (event) => {
-        if (event.event_type !== 'file_chunk_generated') {
+        if (event.event_type === 'complete') {
+          setIsComplete(true);
+          fetchJobMedia(jobId)
+            .then((fallbackResponse: PipelineMediaResponse) => {
+              const { media: nextMedia, chunks: nextChunks, complete } = normaliseFetchedMedia(fallbackResponse, jobId);
+              setMedia(nextMedia);
+              setChunks(nextChunks);
+              if (complete) {
+                setIsComplete(true);
+              }
+            })
+            .catch(() => {
+              // Ignore failures; last known snapshot will remain in place.
+            });
+          return;
+        }
+
+        const metadataRecord = event.metadata as Record<string, unknown>;
+        const stage = typeof metadataRecord.stage === 'string' ? metadataRecord.stage : null;
+        if (event.event_type === 'progress' && stage === 'complete') {
+          setIsComplete(true);
+          fetchJobMedia(jobId)
+            .then((fallbackResponse: PipelineMediaResponse) => {
+              const { media: nextMedia, chunks: nextChunks, complete } = normaliseFetchedMedia(fallbackResponse, jobId);
+              setMedia(nextMedia);
+              setChunks(nextChunks);
+              if (complete) {
+                setIsComplete(true);
+              }
+            })
+            .catch(() => {
+              // Ignore failures; last known snapshot will remain in place.
+            });
           return;
         }
 
@@ -1132,6 +1164,18 @@ export function useLiveMedia(
         }
 
         const { media: nextMedia, chunks: incomingChunks, complete } = normaliseGeneratedSnapshot(snapshot, jobId);
+
+        if (event.event_type === 'progress' && metadataRecord.media_reset === true) {
+          setMedia(nextMedia);
+          setChunks(incomingChunks);
+          setIsComplete(complete);
+          return;
+        }
+
+        if (event.event_type !== 'file_chunk_generated') {
+          return;
+        }
+
         setMedia((current) => mergeMediaBuckets(current, nextMedia));
         if (incomingChunks.length > 0) {
           setChunks((current) => mergeChunkCollections(current, incomingChunks));
