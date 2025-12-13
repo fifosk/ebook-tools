@@ -42,6 +42,7 @@ interface VideoPlayerProps {
     translation: boolean;
   };
   subtitleScale?: number;
+  subtitleBackgroundOpacity?: number;
 }
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -54,6 +55,47 @@ function sanitiseRate(value: number | null | undefined): number {
     return DEFAULT_PLAYBACK_RATE;
   }
   return Math.max(0.25, Math.min(4, value));
+}
+
+function sanitiseOpacity(value: number | null | undefined): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  return Math.max(0, Math.min(1, value));
+}
+
+function sanitiseOpacityPercent(value: number | null | undefined): number | null {
+  const opacity = sanitiseOpacity(value);
+  if (opacity === null) {
+    return null;
+  }
+  const percent = Math.round(opacity * 100);
+  const snapped = Math.round(percent / 10) * 10;
+  return Math.max(0, Math.min(100, snapped));
+}
+
+function injectVttBackgroundStyle(payload: string, percent: number): string {
+  const clamped = Math.max(0, Math.min(100, Math.round(percent / 10) * 10));
+  const alpha = clamped / 100;
+  const cueRule =
+    clamped === 0
+      ? `::cue { background: none !important; background-color: transparent !important; }\n`
+      : `::cue { background: rgba(0, 0, 0, ${alpha}) !important; background-color: rgba(0, 0, 0, ${alpha}) !important; }\n`;
+  const styleBlock = `STYLE\n${cueRule}\n`;
+  if (!payload) {
+    return `WEBVTT\n\n${styleBlock}`;
+  }
+  if (/^\ufeff?WEBVTT/i.test(payload)) {
+    const headerMatch = payload.match(/^\ufeff?WEBVTT[^\n]*\n(?:\n|\r\n)/i);
+    if (headerMatch && headerMatch.index === 0) {
+      const headerLength = headerMatch[0].length;
+      return `${payload.slice(0, headerLength)}${styleBlock}${payload.slice(headerLength)}`;
+    }
+  }
+  return `WEBVTT\n\n${styleBlock}${payload}`;
 }
 
 function filterCueTextByVisibility(
@@ -148,6 +190,7 @@ export default function VideoPlayer({
   tracks = [],
   cueVisibility = { original: true, transliteration: true, translation: true },
   subtitleScale = 1,
+  subtitleBackgroundOpacity,
 }: VideoPlayerProps) {
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRef = useRef<HTMLDivElement | null>(null);
@@ -182,6 +225,73 @@ export default function VideoPlayer({
   const getFullscreenTarget = useCallback(() => fullscreenRef.current ?? elementRef.current, []);
 
   const activeSubtitleTrack = useMemo(() => selectPrimarySubtitleTrack(tracks), [tracks]);
+  const resolvedSubtitleBackgroundOpacity = useMemo(
+    () => sanitiseOpacity(subtitleBackgroundOpacity),
+    [subtitleBackgroundOpacity],
+  );
+  const resolvedSubtitleBackgroundOpacityPercent = useMemo(
+    () => sanitiseOpacityPercent(subtitleBackgroundOpacity),
+    [subtitleBackgroundOpacity],
+  );
+  const [processedSubtitleUrl, setProcessedSubtitleUrl] = useState<string>(EMPTY_VTT_DATA_URL);
+  const videoStyle = useMemo(() => {
+    return { '--subtitle-scale': subtitleScale } as CSSProperties;
+  }, [subtitleScale]);
+
+  useEffect(() => {
+    if (!subtitlesEnabled || !activeSubtitleTrack?.url) {
+      setProcessedSubtitleUrl(EMPTY_VTT_DATA_URL);
+      return;
+    }
+
+    if (resolvedSubtitleBackgroundOpacityPercent === null) {
+      setProcessedSubtitleUrl(activeSubtitleTrack.url);
+      return;
+    }
+
+    const candidate = activeSubtitleTrack.url ?? '';
+    const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
+    if (!withoutQuery.toLowerCase().endsWith('.vtt')) {
+      setProcessedSubtitleUrl(activeSubtitleTrack.url);
+      return;
+    }
+
+    if (typeof fetch !== 'function') {
+      setProcessedSubtitleUrl(activeSubtitleTrack.url);
+      return;
+    }
+
+    const controller = new AbortController();
+    let revokedUrl: string | null = null;
+
+    const run = async () => {
+      try {
+        const response = await fetch(activeSubtitleTrack.url, { signal: controller.signal });
+        if (!response.ok) {
+          setProcessedSubtitleUrl(activeSubtitleTrack.url);
+          return;
+        }
+        const raw = await response.text();
+        const vtt = injectVttBackgroundStyle(raw, resolvedSubtitleBackgroundOpacityPercent);
+        const blob = new Blob([vtt], { type: 'text/vtt' });
+        const objectUrl = URL.createObjectURL(blob);
+        revokedUrl = objectUrl;
+        setProcessedSubtitleUrl(objectUrl);
+      } catch (error) {
+        void error;
+        setProcessedSubtitleUrl(activeSubtitleTrack.url);
+      }
+    };
+
+    void run();
+
+    return () => {
+      controller.abort();
+      if (revokedUrl) {
+        URL.revokeObjectURL(revokedUrl);
+      }
+    };
+  }, [activeSubtitleTrack?.url, resolvedSubtitleBackgroundOpacityPercent, subtitlesEnabled]);
 
   const applySubtitleTrack = useCallback(
     (track: SubtitleTrack | null) => {
@@ -203,14 +313,14 @@ export default function VideoPlayer({
         // Ignore attribute failures in unsupported environments.
       }
 
-      const nextSrc = subtitlesEnabled && track?.url ? track.url : EMPTY_VTT_DATA_URL;
+      const nextSrc = subtitlesEnabled && track?.url ? processedSubtitleUrl : EMPTY_VTT_DATA_URL;
       if (trackElement.getAttribute('src') !== nextSrc) {
         trackElement.setAttribute('src', nextSrc);
       }
 
       try {
         const textTrack = trackElement.track;
-        if (!subtitlesEnabled || !track?.url) {
+        if (!subtitlesEnabled || !track?.url || nextSrc === EMPTY_VTT_DATA_URL) {
           textTrack.mode = 'disabled';
         } else {
           textTrack.mode = 'hidden';
@@ -222,7 +332,7 @@ export default function VideoPlayer({
 
       setSubtitleRevision((value) => value + 1);
     },
-    [subtitlesEnabled],
+    [processedSubtitleUrl, subtitlesEnabled],
   );
 
   const requestFullscreenPlayback = useCallback((force = false) => {
@@ -350,7 +460,7 @@ export default function VideoPlayer({
     }
     pendingSubtitleTrackRef.current = null;
     applySubtitleTrack(activeSubtitleTrack);
-  }, [activeFile?.id, activeSubtitleTrack, applySubtitleTrack]);
+  }, [activeFile?.id, activeSubtitleTrack, applySubtitleTrack, processedSubtitleUrl]);
 
   useEffect(() => {
     if (!onRegisterControls) {
@@ -830,7 +940,7 @@ export default function VideoPlayer({
             <video
               ref={elementRef}
               className="video-player__element"
-              style={{ '--subtitle-scale': subtitleScale } as CSSProperties}
+              style={videoStyle}
               data-testid="video-player"
               controls
               crossOrigin="anonymous"
@@ -838,6 +948,9 @@ export default function VideoPlayer({
               poster={activeFile.poster}
               autoPlay={autoPlay}
               playsInline
+              data-subtitle-bg-opacity={
+                resolvedSubtitleBackgroundOpacity !== null ? String(resolvedSubtitleBackgroundOpacityPercent ?? 70) : undefined
+              }
               data-cue-original={cueVisibility.original ? 'on' : 'off'}
               data-cue-transliteration={cueVisibility.transliteration ? 'on' : 'off'}
               data-cue-translation={cueVisibility.translation ? 'on' : 'off'}

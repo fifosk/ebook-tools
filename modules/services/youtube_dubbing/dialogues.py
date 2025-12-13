@@ -85,13 +85,19 @@ def _parse_ass_dialogues(path: Path) -> List[_AssDialogue]:
         cleaned_lines = [entry for entry in cleaned_lines if entry]
         translation = _extract_translation(cleaned_lines)
         original_line = cleaned_lines[0] if cleaned_lines else translation
+        transliteration_line: Optional[str] = None
+        # Our ASS renderer emits: original, translation, transliteration (when enabled).
+        # Preserve the transliteration so stitched subtitle generation does not
+        # re-run expensive per-cue LLM transliteration.
+        if len(cleaned_lines) >= 3:
+            transliteration_line = cleaned_lines[2]
         dialogues.append(
             _AssDialogue(
                 start=start,
                 end=end,
                 translation=translation,
                 original=original_line,
-                transliteration=None,
+                transliteration=transliteration_line,
                 rtl_normalized=False,
             )
         )

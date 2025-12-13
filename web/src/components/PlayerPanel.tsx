@@ -115,6 +115,12 @@ interface NavigationControlsProps {
   subtitleScaleMax?: number;
   subtitleScaleStep?: number;
   onSubtitleScaleChange?: (value: number) => void;
+  showSubtitleBackgroundOpacity?: boolean;
+  subtitleBackgroundOpacityPercent?: number;
+  subtitleBackgroundOpacityMin?: number;
+  subtitleBackgroundOpacityMax?: number;
+  subtitleBackgroundOpacityStep?: number;
+  onSubtitleBackgroundOpacityChange?: (value: number) => void;
   showSentenceJump?: boolean;
   sentenceJumpValue?: string;
   sentenceJumpMin?: number | null;
@@ -172,6 +178,12 @@ export function NavigationControls({
   subtitleScaleMax = 2,
   subtitleScaleStep = 0.25,
   onSubtitleScaleChange,
+  showSubtitleBackgroundOpacity = false,
+  subtitleBackgroundOpacityPercent = 70,
+  subtitleBackgroundOpacityMin = 0,
+  subtitleBackgroundOpacityMax = 100,
+  subtitleBackgroundOpacityStep = 10,
+  onSubtitleBackgroundOpacityChange,
   showSentenceJump = false,
   sentenceJumpValue = '',
   sentenceJumpMin = null,
@@ -210,6 +222,7 @@ export function NavigationControls({
   const subtitleToggleTitle = disableSubtitleToggle ? 'Subtitles will appear after media finalizes' : 'Toggle Subtitles';
   const sliderId = useId();
   const subtitleSliderId = useId();
+  const subtitleBackgroundSliderId = useId();
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
   const fontScaleSliderId = useId();
@@ -227,6 +240,9 @@ export function NavigationControls({
   }
   const fullscreenIcon = isFullscreen ? '🗗' : '⛶';
   const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
+  const formattedSubtitleBackgroundOpacity = `${Math.round(
+    Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax),
+  )}%`;
   const resolvedCueVisibility =
     cueVisibility ??
     ({
@@ -438,6 +454,35 @@ export function NavigationControls({
           <div className="player-panel__nav-subtitles-scale" aria-hidden="true">
             <span>{Math.round(subtitleScaleMin * 100)}%</span>
             <span>{Math.round(subtitleScaleMax * 100)}%</span>
+          </div>
+        </div>
+      ) : null}
+      {showSubtitleBackgroundOpacity ? (
+        <div className="player-panel__nav-subtitle-background" data-testid="player-panel-subtitle-background">
+          <label className="player-panel__nav-subtitle-background-label" htmlFor={subtitleBackgroundSliderId}>
+            Box
+          </label>
+          <div className="player-panel__nav-subtitle-background-control">
+            <input
+              id={subtitleBackgroundSliderId}
+              type="range"
+              className="player-panel__nav-subtitle-background-slider"
+              min={subtitleBackgroundOpacityMin}
+              max={subtitleBackgroundOpacityMax}
+              step={subtitleBackgroundOpacityStep}
+              value={subtitleBackgroundOpacityPercent}
+              onChange={(event) => onSubtitleBackgroundOpacityChange?.(Number(event.target.value))}
+              aria-label="Subtitle background opacity"
+              aria-valuetext={formattedSubtitleBackgroundOpacity}
+              disabled={disableSubtitleToggle || !subtitlesEnabled}
+            />
+            <span className="player-panel__nav-subtitle-background-value" aria-live="polite">
+              {formattedSubtitleBackgroundOpacity}
+            </span>
+          </div>
+          <div className="player-panel__nav-subtitle-background-scale" aria-hidden="true">
+            <span>{Math.round(subtitleBackgroundOpacityMin)}%</span>
+            <span>{Math.round(subtitleBackgroundOpacityMax)}%</span>
           </div>
         </div>
       ) : null}

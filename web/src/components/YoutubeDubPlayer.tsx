@@ -219,6 +219,7 @@ export default function YoutubeDubPlayer({
   });
   const [playbackSpeed, setPlaybackSpeed] = useState(DEFAULT_TRANSLATION_SPEED);
   const [subtitleScale, setSubtitleScale] = useState(1);
+  const [subtitleBackgroundOpacityPercent, setSubtitleBackgroundOpacityPercent] = useState(70);
   const pendingAutoplayRef = useRef(false);
   const previousFileCountRef = useRef<number>(videoFiles.length);
   const controlsRef = useRef<PlaybackControls | null>(null);
@@ -485,6 +486,7 @@ export default function YoutubeDubPlayer({
 
   const cuePreferenceKey = useMemo(() => `youtube-dub-cue-preference-${jobId}`, [jobId]);
   const subtitleScaleKey = useMemo(() => `youtube-dub-subtitle-scale-${jobId}`, [jobId]);
+  const subtitleBackgroundOpacityKey = useMemo(() => `youtube-dub-subtitle-bg-opacity-${jobId}`, [jobId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -519,6 +521,13 @@ export default function YoutubeDubPlayer({
     if (typeof window === 'undefined') {
       return;
     }
+    setSubtitleBackgroundOpacityPercent(70);
+  }, [subtitleBackgroundOpacityKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     try {
       const stored = window.localStorage.getItem(subtitleScaleKey);
       if (!stored) {
@@ -542,6 +551,29 @@ export default function YoutubeDubPlayer({
       return;
     }
     try {
+      const stored = window.localStorage.getItem(subtitleBackgroundOpacityKey);
+      if (!stored) {
+        return;
+      }
+      const parsed = Number(stored);
+      if (!Number.isFinite(parsed)) {
+        return;
+      }
+      setSubtitleBackgroundOpacityPercent((current) => {
+        const clamped = Math.min(Math.max(parsed, 0), 100);
+        const next = Math.round(clamped / 10) * 10;
+        return next === current ? current : next;
+      });
+    } catch (error) {
+      void error;
+    }
+  }, [subtitleBackgroundOpacityKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
       window.localStorage.setItem(cuePreferenceKey, JSON.stringify(cueVisibility));
     } catch (error) {
       void error;
@@ -558,6 +590,17 @@ export default function YoutubeDubPlayer({
       void error;
     }
   }, [subtitleScale, subtitleScaleKey]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(subtitleBackgroundOpacityKey, subtitleBackgroundOpacityPercent.toString());
+    } catch (error) {
+      void error;
+    }
+  }, [subtitleBackgroundOpacityKey, subtitleBackgroundOpacityPercent]);
 
   const handlePlaybackPositionChange = useCallback(
     (position: number) => {
@@ -600,6 +643,14 @@ export default function YoutubeDubPlayer({
     }
     const clamped = Math.min(Math.max(value, 0.5), 2);
     setSubtitleScale(clamped);
+  }, []);
+  const handleSubtitleBackgroundOpacityChange = useCallback((value: number) => {
+    if (!Number.isFinite(value)) {
+      return;
+    }
+    const clamped = Math.min(Math.max(value, 0), 100);
+    const snapped = Math.round(clamped / 10) * 10;
+    setSubtitleBackgroundOpacityPercent(snapped);
   }, []);
 
   useEffect(() => {
@@ -680,6 +731,12 @@ export default function YoutubeDubPlayer({
                   subtitleScaleMax={2}
                   subtitleScaleStep={0.25}
                   onSubtitleScaleChange={handleSubtitleScaleChange}
+                  showSubtitleBackgroundOpacity
+                  subtitleBackgroundOpacityPercent={subtitleBackgroundOpacityPercent}
+                  subtitleBackgroundOpacityMin={0}
+                  subtitleBackgroundOpacityMax={100}
+                  subtitleBackgroundOpacityStep={10}
+                  onSubtitleBackgroundOpacityChange={handleSubtitleBackgroundOpacityChange}
                 />
               </div>
             </header>
@@ -716,6 +773,7 @@ export default function YoutubeDubPlayer({
                   tracks={activeSubtitleTracks}
                   cueVisibility={cueVisibility}
                   subtitleScale={subtitleScale}
+                  subtitleBackgroundOpacity={subtitleBackgroundOpacityPercent / 100}
                 />
                 <div className="player-panel__selection-header" data-testid="player-panel-selection">
                   <div className="player-panel__selection-name" title={selectionLabel}>

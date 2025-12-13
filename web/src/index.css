@@ -2195,7 +2195,8 @@ button.link-button:focus {
 }
 
 .player-panel__nav-speed,
-.player-panel__nav-subtitles {
+.player-panel__nav-subtitles,
+.player-panel__nav-subtitle-background {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -2203,34 +2204,39 @@ button.link-button:focus {
 }
 
 .player-panel__nav-speed-control,
-.player-panel__nav-subtitles-control {
+.player-panel__nav-subtitles-control,
+.player-panel__nav-subtitle-background-control {
   display: flex;
   align-items: center;
   gap: 0.6rem;
 }
 
 .player-panel__nav-speed-slider,
-.player-panel__nav-subtitles-slider {
+.player-panel__nav-subtitles-slider,
+.player-panel__nav-subtitle-background-slider {
   flex: 1;
   accent-color: rgba(129, 140, 248, 0.9);
 }
 
 .player-panel__nav-speed-slider:focus-visible,
-.player-panel__nav-subtitles-slider:focus-visible {
+.player-panel__nav-subtitles-slider:focus-visible,
+.player-panel__nav-subtitle-background-slider:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.35);
   border-radius: 999px;
 }
 
 .player-panel__nav-speed-label,
-.player-panel__nav-subtitles-label {
+.player-panel__nav-subtitles-label,
+.player-panel__nav-subtitle-background-label {
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--color-text-muted);
 }
 
 .player-panel__nav-speed-value,
-.player-panel__nav-subtitles-value {
+.player-panel__nav-subtitles-value,
+.player-panel__nav-subtitle-background-value {
   min-width: 3rem;
   text-align: right;
   font-weight: 600;
@@ -2238,7 +2244,8 @@ button.link-button:focus {
 }
 
 .player-panel__nav-speed-scale,
-.player-panel__nav-subtitles-scale {
+.player-panel__nav-subtitles-scale,
+.player-panel__nav-subtitle-background-scale {
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
@@ -3347,6 +3354,116 @@ button.link-button:focus {
 .video-player__element::cue {
   font-size: calc(1em * var(--subtitle-scale, 1));
   line-height: calc(1.2em * var(--subtitle-scale, 1));
+}
+
+.video-player__element[data-subtitle-bg-opacity='0']::cue {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='0']::cue(*) {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='10']::cue {
+  background: rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='10']::cue(*) {
+  background: rgba(0, 0, 0, 0.1) !important;
+  background-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='20']::cue {
+  background: rgba(0, 0, 0, 0.2) !important;
+  background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='20']::cue(*) {
+  background: rgba(0, 0, 0, 0.2) !important;
+  background-color: rgba(0, 0, 0, 0.2) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='30']::cue {
+  background: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='30']::cue(*) {
+  background: rgba(0, 0, 0, 0.3) !important;
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='40']::cue {
+  background: rgba(0, 0, 0, 0.4) !important;
+  background-color: rgba(0, 0, 0, 0.4) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='40']::cue(*) {
+  background: rgba(0, 0, 0, 0.4) !important;
+  background-color: rgba(0, 0, 0, 0.4) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='50']::cue {
+  background: rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='50']::cue(*) {
+  background: rgba(0, 0, 0, 0.5) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='60']::cue {
+  background: rgba(0, 0, 0, 0.6) !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='60']::cue(*) {
+  background: rgba(0, 0, 0, 0.6) !important;
+  background-color: rgba(0, 0, 0, 0.6) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='70']::cue {
+  background: rgba(0, 0, 0, 0.7) !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='70']::cue(*) {
+  background: rgba(0, 0, 0, 0.7) !important;
+  background-color: rgba(0, 0, 0, 0.7) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='80']::cue {
+  background: rgba(0, 0, 0, 0.8) !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='80']::cue(*) {
+  background: rgba(0, 0, 0, 0.8) !important;
+  background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='90']::cue {
+  background: rgba(0, 0, 0, 0.9) !important;
+  background-color: rgba(0, 0, 0, 0.9) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='90']::cue(*) {
+  background: rgba(0, 0, 0, 0.9) !important;
+  background-color: rgba(0, 0, 0, 0.9) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='100']::cue {
+  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
+}
+
+.video-player__element[data-subtitle-bg-opacity='100']::cue(*) {
+  background: rgba(0, 0, 0, 1) !important;
+  background-color: rgba(0, 0, 0, 1) !important;
 }
 
 .video-player__element[data-cue-original='off']::cue(.original),

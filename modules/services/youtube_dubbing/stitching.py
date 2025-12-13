@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import statistics
+import subprocess
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
 
@@ -9,7 +12,7 @@ from modules.transliteration import TransliterationService
 
 from .common import _TARGET_DUB_HEIGHT, _AssDialogue, logger
 from .dialogues import _merge_overlapping_dialogues, _parse_dialogues
-from .language import _language_uses_non_latin
+from .language import _language_uses_non_latin, _normalize_rtl_word_order
 from .subtitle_render import render_ass_for_block
 from .video_utils import (
     _concat_video_segments,
@@ -27,11 +30,90 @@ def _resolve_stitched_output_path(base_output: Path) -> Path:
     suffix = base_output.suffix or ".mp4"
     base_name = f"{base_output.stem}{_STITCHED_SUFFIX}{suffix}"
     candidate = base_output.with_name(base_name)
+    if candidate.exists():
+        validity = _is_stitched_video_valid(candidate)
+        # If the existing stitched output is known-bad (frozen video), overwrite it in-place
+        # so downstream clients keep the stable `.full` filename.
+        if validity is False:
+            return candidate
     counter = 2
     while candidate.exists():
         candidate = base_output.with_name(f"{base_output.stem}{_STITCHED_SUFFIX}-{counter}{suffix}")
         counter += 1
     return candidate
+
+
+def _validate_stitched_video(video_path: Path) -> None:
+    """
+    Best-effort validation for stitched MP4 playback correctness.
+
+    Some MP4 stream-copy concat runs can yield a file whose video timestamps stop advancing
+    part-way through (audio continues, video appears frozen). Detect this cheaply by probing
+    frame timestamps near the end of the file.
+    """
+
+    duration = _probe_duration_seconds(video_path)
+    if duration <= 1.0:
+        return
+    probe_start = max(0.0, duration - 15.0)
+    ffmpeg_bin = os.environ.get("FFMPEG_PATH") or os.environ.get("FFMPEG_BIN") or "ffmpeg"
+    ffprobe_bin = ffmpeg_bin.replace("ffmpeg", "ffprobe")
+    result = subprocess.run(
+        [
+            ffprobe_bin,
+            "-v",
+            "error",
+            "-select_streams",
+            "v:0",
+            "-show_frames",
+            "-read_intervals",
+            f"{probe_start}%+3",
+            "-show_entries",
+            "frame=best_effort_timestamp_time",
+            "-of",
+            "csv=p=0",
+            str(video_path),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ffprobe validation failed (exit {result.returncode}): {result.stderr.decode(errors='ignore')}"
+        )
+    timestamps: List[float] = []
+    for line in result.stdout.decode(errors="ignore").splitlines():
+        candidate = line.strip()
+        if not candidate:
+            continue
+        try:
+            timestamps.append(float(candidate))
+        except Exception:
+            continue
+    if len(timestamps) < 10:
+        raise RuntimeError(f"Stitched video validation failed: only {len(timestamps)} frames probed")
+    deltas = [b - a for a, b in zip(timestamps, timestamps[1:]) if b > a]
+    if not deltas:
+        raise RuntimeError("Stitched video validation failed: non-increasing frame timestamps")
+    span = timestamps[-1] - timestamps[0]
+    median_delta = statistics.median(deltas)
+    # If timestamps barely advance, playback will appear frozen while audio continues.
+    if span < 0.2 or median_delta < 0.001:
+        raise RuntimeError(
+            f"Stitched video validation failed: timestamp span={span:.6f}s median_step={median_delta:.6f}s"
+        )
+
+
+def _is_stitched_video_valid(video_path: Path) -> Optional[bool]:
+    try:
+        _validate_stitched_video(video_path)
+    except Exception as exc:
+        message = str(exc)
+        if "validation failed" in message:
+            return False
+        return None
+    return True
 
 
 def _shift_dialogues(dialogues: Sequence[_AssDialogue], offset_seconds: float) -> List[_AssDialogue]:
@@ -52,6 +134,41 @@ def _shift_dialogues(dialogues: Sequence[_AssDialogue], offset_seconds: float) -
             )
         )
     return shifted
+
+
+def _prepare_dialogues_for_stitched_render(
+    dialogues: Sequence[_AssDialogue],
+    *,
+    language_code: str,
+) -> List[_AssDialogue]:
+    """
+    Prepare parsed dialogue text for stitched subtitle rendering.
+
+    The batch pipeline stores RTL translations in a pre-normalized (word-reversed)
+    form and the subtitle renderers apply RTL normalization again when writing ASS/VTT.
+    When stitching, we parse the batch subtitle exports (which are already "double
+    normalized") and re-render them. To preserve the same highlight direction and
+    layout, pre-normalize RTL translations here so stitched ASS/VTT outputs match
+    the per-batch subtitle behavior.
+    """
+
+    if not dialogues:
+        return []
+    prepared: List[_AssDialogue] = []
+    for entry in dialogues:
+        prepared.append(
+            _AssDialogue(
+                start=entry.start,
+                end=entry.end,
+                translation=_normalize_rtl_word_order(entry.translation, language_code, force=True),
+                original=entry.original,
+                transliteration=entry.transliteration,
+                rtl_normalized=True if entry.translation else entry.rtl_normalized,
+                speech_offset=entry.speech_offset,
+                speech_duration=entry.speech_duration,
+            )
+        )
+    return prepared
 
 
 def stitch_dub_batches(
@@ -81,6 +198,11 @@ def stitch_dub_batches(
     try:
         try:
             _concat_video_segments_copy(ordered, stitched_video)
+            try:
+                _validate_stitched_video(stitched_video)
+            except Exception:
+                stitched_video.unlink(missing_ok=True)
+                raise
             stitched_final = stitched_video
             logger.info(
                 "Stitched batch videos via stream-copy concat (mp4)",
@@ -89,6 +211,7 @@ def stitch_dub_batches(
         except Exception:
             try:
                 _concat_video_segments_ts_copy(ordered, stitched_video)
+                _validate_stitched_video(stitched_video)
                 stitched_final = stitched_video
                 logger.info(
                     "Stitched batch videos via stream-copy concat (ts)",
@@ -104,6 +227,7 @@ def stitch_dub_batches(
                         preserve_aspect_ratio=bool(preserve_aspect_ratio),
                         output_path=stitched_video,
                     )
+                    _validate_stitched_video(stitched_final)
                     logger.info(
                         "Stitched batch videos via re-encode concat",
                         extra={"event": "youtube.dub.stitch.reencode", "output": stitched_final.as_posix()},
@@ -133,6 +257,7 @@ def stitch_dub_batches(
         if subtitle_source is not None:
             try:
                 dialogues = _parse_dialogues(subtitle_source)
+                dialogues = _prepare_dialogues_for_stitched_render(dialogues, language_code=language_code)
                 stitched_dialogues.extend(_shift_dialogues(dialogues, offset))
             except Exception:
                 logger.debug("Unable to parse stitched subtitles from %s", subtitle_source, exc_info=True)
