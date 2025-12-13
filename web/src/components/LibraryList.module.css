@@ -4,6 +4,23 @@
   border-radius: 0.75rem;
   padding: 1rem;
   box-shadow: var(--shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.08));
+  overflow: auto;
+  --library-list-row-height: 2.6rem;
+  --library-list-header-height: 2.4rem;
+  --library-list-visible-rows: 4;
+  max-height: calc(
+    var(--library-list-header-height) +
+      (var(--library-list-row-height) * var(--library-list-visible-rows)) +
+      2.5rem
+  );
+}
+
+.listContainerEmbedded {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
 }
 
 .tableWrapper {
@@ -24,15 +41,39 @@
   color: var(--color-text-muted, #475467);
   font-weight: 600;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--color-card-bg, #ffffff);
+  z-index: 1;
 }
 
 .table tbody tr:nth-of-type(even) {
   background: var(--color-card-alt, #f9fafb);
 }
 
+.table tbody tr {
+  cursor: pointer;
+  height: var(--library-list-row-height);
+}
+
 .table tbody td {
   padding: 0.6rem 0.75rem;
   vertical-align: middle;
+}
+
+.cellTitle,
+.cellAuthor {
+  max-width: 14rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jobGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
 }
 
 .tableRowActive {

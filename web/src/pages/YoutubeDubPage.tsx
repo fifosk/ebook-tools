@@ -41,6 +41,11 @@ import styles from './YoutubeDubPage.module.css';
 
 const DEFAULT_VIDEO_DIR = '/Volumes/Data/Download/DStation';
 const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
+const STORAGE_KEYS = {
+  baseDir: 'ebookTools.youtubeDub.baseDir',
+  selectedVideoPath: 'ebookTools.youtubeDub.selectedVideoPath',
+  selectedSubtitlePath: 'ebookTools.youtubeDub.selectedSubtitlePath'
+} as const;
 const RESOLUTION_OPTIONS = [
   { value: 320, label: '320p (lighter)' },
   { value: 480, label: '480p (default)' },
@@ -54,6 +59,8 @@ type Props = {
   onOpenJobMedia?: (jobId: string) => void;
   prefillParameters?: JobParameterSnapshot | null;
 };
+
+type YoutubeDubTab = 'videos' | 'options' | 'jobs';
 
 function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
   const quality = voice.quality ? voice.quality : 'Default';
@@ -211,13 +218,46 @@ export default function YoutubeDubPage({
   prefillParameters = null
 }: Props) {
   const { primaryTargetLanguage, setPrimaryTargetLanguage } = useLanguagePreferences();
-  const [baseDir, setBaseDir] = useState(DEFAULT_VIDEO_DIR);
+  const [baseDir, setBaseDir] = useState(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_VIDEO_DIR;
+    }
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEYS.baseDir);
+      return stored && stored.trim() ? stored.trim() : DEFAULT_VIDEO_DIR;
+    } catch {
+      return DEFAULT_VIDEO_DIR;
+    }
+  });
   const [library, setLibrary] = useState<YoutubeNasLibraryResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<YoutubeDubTab>('videos');
 
-  const [selectedVideoPath, setSelectedVideoPath] = useState<string | null>(null);
-  const [selectedSubtitlePath, setSelectedSubtitlePath] = useState<string | null>(null);
+  const [selectedVideoPath, setSelectedVideoPath] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEYS.selectedVideoPath);
+      return stored && stored.trim() ? stored.trim() : null;
+    } catch {
+      return null;
+    }
+  });
+  const [selectedSubtitlePath, setSelectedSubtitlePath] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    try {
+      const stored = window.localStorage.getItem(STORAGE_KEYS.selectedSubtitlePath);
+      return stored && stored.trim() ? stored.trim() : null;
+    } catch {
+      return null;
+    }
+  });
+  const selectedVideoPathRef = useRef<string | null>(selectedVideoPath);
+  const selectedSubtitlePathRef = useRef<string | null>(selectedSubtitlePath);
 
   const [voice, setVoice] = useState('gTTS');
   const [targetLanguage, setTargetLanguage] = useState<string>(
@@ -251,6 +291,47 @@ export default function YoutubeDubPage({
       previewAudioRef.current = null;
     }
   }, []);
+
+  useEffect(() => {
+    selectedVideoPathRef.current = selectedVideoPath;
+    if (typeof window !== 'undefined') {
+      try {
+        if (selectedVideoPath) {
+          window.localStorage.setItem(STORAGE_KEYS.selectedVideoPath, selectedVideoPath);
+        } else {
+          window.localStorage.removeItem(STORAGE_KEYS.selectedVideoPath);
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [selectedVideoPath]);
+
+  useEffect(() => {
+    selectedSubtitlePathRef.current = selectedSubtitlePath;
+    if (typeof window !== 'undefined') {
+      try {
+        if (selectedSubtitlePath) {
+          window.localStorage.setItem(STORAGE_KEYS.selectedSubtitlePath, selectedSubtitlePath);
+        } else {
+          window.localStorage.removeItem(STORAGE_KEYS.selectedSubtitlePath);
+        }
+      } catch {
+        // ignore storage errors
+      }
+    }
+  }, [selectedSubtitlePath]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.baseDir, baseDir);
+    } catch {
+      // ignore storage errors
+    }
+  }, [baseDir]);
 
   const parseOffset = useCallback((value: string): number => {
     const trimmed = value.trim();
@@ -400,12 +481,33 @@ export default function YoutubeDubPage({
         setLibrary(response);
         setBaseDir(response.base_dir || baseDir);
         if (response.videos.length > 0) {
-          const existingSelection = response.videos.find((video) => video.path === selectedVideoPath);
-          const nextVideo = existingSelection ?? response.videos[0];
+          const prefilledVideoPath =
+            prefillParameters?.input_file && typeof prefillParameters.input_file === 'string'
+              ? prefillParameters.input_file.trim()
+              : prefillParameters?.video_path && typeof prefillParameters.video_path === 'string'
+                ? prefillParameters.video_path.trim()
+                : null;
+          const prefilledSubtitlePath =
+            prefillParameters?.subtitle_path && typeof prefillParameters.subtitle_path === 'string'
+              ? prefillParameters.subtitle_path.trim()
+              : null;
+          const previousSelectedVideoPath = prefilledVideoPath || selectedVideoPathRef.current;
+          const previousSelectedSubtitlePath = prefilledSubtitlePath || selectedSubtitlePathRef.current;
+          const nextVideo =
+            response.videos.find((video) => video.path === previousSelectedVideoPath) ?? response.videos[0];
           setSelectedVideoPath(nextVideo.path);
-          const defaultSubtitle = resolveDefaultSubtitle(nextVideo);
-          setSelectedSubtitlePath(defaultSubtitle?.path ?? null);
-          ensureTargetLanguage(defaultSubtitle?.language);
+          const subtitleCandidates = nextVideo.subtitles.filter((sub) =>
+            ['ass', 'srt', 'vtt', 'sub'].includes(sub.format.toLowerCase())
+          );
+          const keepExistingSubtitle =
+            previousSelectedVideoPath === nextVideo.path &&
+            !!previousSelectedSubtitlePath &&
+            subtitleCandidates.some((sub) => sub.path === previousSelectedSubtitlePath);
+          const resolvedSubtitle = keepExistingSubtitle
+            ? subtitleCandidates.find((sub) => sub.path === previousSelectedSubtitlePath) ?? null
+            : resolveDefaultSubtitle(nextVideo) ?? subtitleCandidates[0] ?? null;
+          setSelectedSubtitlePath(resolvedSubtitle?.path ?? null);
+          ensureTargetLanguage(resolvedSubtitle?.language);
         } else {
           setSelectedVideoPath(null);
           setSelectedSubtitlePath(null);
@@ -417,7 +519,7 @@ export default function YoutubeDubPage({
     } finally {
       setIsLoading(false);
     }
-  }, [baseDir, ensureTargetLanguage, selectedVideoPath]);
+  }, [baseDir, ensureTargetLanguage, prefillParameters]);
 
   const handleDeleteVideo = useCallback(
     async (video: YoutubeNasVideo) => {
@@ -468,7 +570,7 @@ export default function YoutubeDubPage({
 
   useEffect(() => {
     void handleRefresh();
-  }, [handleRefresh]);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -872,6 +974,7 @@ export default function YoutubeDubPage({
       });
       setStatusMessage(`Dub job submitted as ${response.job_id}. Track progress below.`);
       onJobCreated(response.job_id);
+      setActiveTab('jobs');
     } catch (error) {
       const message =
         error instanceof Error ? error.message || 'Unable to generate dubbed video.' : 'Unable to generate dubbed video.';
@@ -986,6 +1089,47 @@ export default function YoutubeDubPage({
         </p>
       </div>
 
+      <div className={styles.tabsRow}>
+        <div className={styles.tabs} role="tablist" aria-label="Dubbed video tabs">
+          <button
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeTab === 'videos' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeTab === 'videos'}
+            onClick={() => setActiveTab('videos')}
+          >
+            Videos <span className={styles.sectionCount}>{videos.length}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeTab === 'options' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeTab === 'options'}
+            onClick={() => setActiveTab('options')}
+          >
+            Options
+          </button>
+          <button
+            type="button"
+            role="tab"
+            className={`${styles.tabButton} ${activeTab === 'jobs' ? styles.tabButtonActive : ''}`}
+            aria-selected={activeTab === 'jobs'}
+            onClick={() => setActiveTab('jobs')}
+          >
+            Jobs <span className={styles.sectionCount}>{jobs.length}</span>
+          </button>
+        </div>
+        <div className={styles.tabsActions}>
+          <button className={styles.primaryButton} type="button" onClick={() => void handleGenerate()} disabled={!canGenerate}>
+            {isGenerating ? 'Rendering…' : 'Generate dubbed video'}
+          </button>
+        </div>
+      </div>
+
+      {statusMessage ? <p className={styles.success}>{statusMessage}</p> : null}
+      {generateError ? <p className={styles.error}>{generateError}</p> : null}
+
+      {activeTab === 'videos' ? (
       <section className={styles.card}>
         <div className={styles.cardHeader}>
           <div>
@@ -1272,7 +1416,9 @@ export default function YoutubeDubPage({
           })}
         </div>
       </section>
+      ) : null}
 
+      {activeTab === 'options' ? (
       <section className={styles.card}>
         <div className={styles.cardHeader}>
           <div>
@@ -1296,19 +1442,29 @@ export default function YoutubeDubPage({
           </label>
           <label className={styles.field}>
             <span>Voice / audio mode</span>
-            <select
-              className={styles.input}
-              value={voice}
-              onChange={(event) => setVoice(event.target.value)}
-              disabled={availableVoiceOptions.length === 0 && isLoadingVoices}
-            >
-              {availableVoiceOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-              {availableVoiceOptions.length === 0 ? <option value={voice}>{voice || 'gTTS'}</option> : null}
-            </select>
+            <div className={styles.voiceRow}>
+              <select
+                className={styles.input}
+                value={voice}
+                onChange={(event) => setVoice(event.target.value)}
+                disabled={availableVoiceOptions.length === 0 && isLoadingVoices}
+              >
+                {availableVoiceOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+                {availableVoiceOptions.length === 0 ? <option value={voice}>{voice || 'gTTS'}</option> : null}
+              </select>
+              <button
+                className={styles.secondaryButton}
+                type="button"
+                onClick={() => void handlePreviewVoice()}
+                disabled={isPreviewing}
+              >
+                {isPreviewing ? 'Playing…' : 'Play sample'}
+              </button>
+            </div>
             <p className={styles.fieldHint}>Switch between macOS voices, gTTS, or other configured modes.</p>
           </label>
           <p className={styles.fieldHint}>
@@ -1431,24 +1587,13 @@ export default function YoutubeDubPage({
           </div>
         </div>
         <div className={styles.actions}>
-          <button className={styles.primaryButton} type="button" onClick={() => void handleGenerate()} disabled={!canGenerate}>
-            {isGenerating ? 'Rendering…' : 'Generate dubbed video'}
-          </button>
-          <button
-            className={styles.secondaryButton}
-            type="button"
-            onClick={() => void handlePreviewVoice()}
-            disabled={isPreviewing}
-          >
-            {isPreviewing ? 'Playing…' : 'Play sample'}
-          </button>
           {isLoadingVoices ? <p className={styles.status}>Loading voices…</p> : null}
           {voiceInventoryError ? <p className={styles.error}>{voiceInventoryError}</p> : null}
           {previewError ? <p className={styles.error}>{previewError}</p> : null}
-          {statusMessage ? <p className={styles.success}>{statusMessage}</p> : null}
-          {generateError ? <p className={styles.error}>{generateError}</p> : null}
         </div>
       </section>
+      ) : null}
+      {activeTab === 'jobs' ? (
       <section className={styles.card}>
         <div className={styles.cardHeader}>
           <div>
@@ -1504,6 +1649,7 @@ export default function YoutubeDubPage({
           </div>
         )}
       </section>
+      ) : null}
     </div>
   );
 }

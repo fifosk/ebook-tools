@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import shutil
+import threading
+import time
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
+from uuid import uuid4
 
 from modules import logging_manager
 from modules.fsutils import AtomicMoveError, ChecksumMismatchError, DirectoryLock, atomic_move
@@ -50,6 +54,139 @@ class LibrarySearchResult:
 class LibrarySync:
     """Coordinate filesystem operations and index maintenance for the Library."""
 
+    def _prepare_youtube_dub_library_bundle(
+        self,
+        job_id: str,
+        *,
+        job_root: Path,
+        metadata: Dict[str, Any],
+    ) -> Tuple[Path, Dict[str, Any]]:
+        """Create a slimmed bundle that only contains stitched YouTube dub artifacts."""
+
+        media_root = job_root / "media"
+        if not media_root.exists():
+            media_root = job_root
+
+        mp4_candidates = sorted([path for path in media_root.glob("*.mp4") if path.is_file()])
+        if not mp4_candidates:
+            raise LibraryError(f"Unable to locate dubbed media for job {job_id}")
+
+        def _is_stitched(path: Path) -> bool:
+            lowered = path.name.lower()
+            return ".dub.full." in lowered or lowered.endswith(".dub.full.mp4")
+
+        stitched_candidates = [path for path in mp4_candidates if _is_stitched(path)]
+
+        selected_video: Path
+        if stitched_candidates:
+            selected_video = stitched_candidates[0]
+        else:
+            generated = metadata.get("generated_files")
+            generated_video: Optional[Path] = None
+            if isinstance(generated, Mapping):
+                files = generated.get("files")
+                if isinstance(files, list):
+                    for entry in files:
+                        if not isinstance(entry, Mapping):
+                            continue
+                        if str(entry.get("type", "")).strip().lower() != "video":
+                            continue
+                        path_value = entry.get("relative_path") or entry.get("path")
+                        if not isinstance(path_value, str) or not path_value.strip():
+                            continue
+                        candidate = Path(path_value.strip().replace("\\", "/"))
+                        if not candidate.is_absolute():
+                            candidate = (job_root / candidate).resolve()
+                        if candidate.exists() and candidate.suffix.lower() == ".mp4":
+                            generated_video = candidate
+                            break
+            try:
+                selected_video = generated_video or max(
+                    mp4_candidates, key=lambda path: path.stat().st_size
+                )
+            except Exception:
+                selected_video = generated_video or mp4_candidates[0]
+
+        subtitle_candidates: List[Path] = []
+        for suffix in (".vtt", ".ass"):
+            candidate = selected_video.with_suffix(suffix)
+            if candidate.exists():
+                subtitle_candidates.append(candidate)
+
+        def _relative_under_media(path: Path) -> Path:
+            try:
+                rel = path.relative_to(job_root)
+            except ValueError:
+                rel = Path("media") / path.name
+            if not rel.parts:
+                return Path("media") / path.name
+            if rel.parts[0] != "media":
+                rel = Path("media") / rel.name
+            return rel
+
+        selected_assets = [selected_video, *subtitle_candidates]
+        generated_files_payload = {
+            "complete": True,
+            "chunks": [
+                {
+                    "chunk_id": "youtube_dub",
+                    "range_fragment": "dub",
+                    "files": [
+                        {
+                            "type": "video" if asset.suffix.lower() == ".mp4" else "text",
+                            "name": asset.name,
+                            "path": _relative_under_media(asset).as_posix(),
+                            "relative_path": _relative_under_media(asset).as_posix(),
+                        }
+                        for asset in selected_assets
+                    ],
+                }
+            ],
+            "files": [
+                {
+                    "chunk_id": "youtube_dub",
+                    "range_fragment": "dub",
+                    "type": "video" if asset.suffix.lower() == ".mp4" else "text",
+                    "name": asset.name,
+                    "path": _relative_under_media(asset).as_posix(),
+                    "relative_path": _relative_under_media(asset).as_posix(),
+                }
+                for asset in selected_assets
+            ],
+        }
+
+        updated_metadata = dict(metadata)
+        updated_metadata["generated_files"] = generated_files_payload
+        for nested_key in ("result", "result_payload"):
+            section = updated_metadata.get(nested_key)
+            if not isinstance(section, Mapping):
+                continue
+            section_payload = dict(section)
+            if "generated_files" in section_payload:
+                section_payload["generated_files"] = generated_files_payload
+            updated_metadata[nested_key] = section_payload
+
+        staging_root = job_root.parent / f".{job_id}.library-move.{uuid4().hex}"
+        if staging_root.exists():
+            shutil.rmtree(staging_root, ignore_errors=True)
+
+        (staging_root / "media").mkdir(parents=True, exist_ok=True)
+        metadata_dir = job_root / "metadata"
+        if metadata_dir.exists():
+            shutil.copytree(metadata_dir, staging_root / "metadata")
+        else:
+            (staging_root / "metadata").mkdir(parents=True, exist_ok=True)
+
+        for asset in selected_assets:
+            destination = staging_root / _relative_under_media(asset)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                os.link(asset, destination)
+            except OSError:
+                shutil.copy2(asset, destination)
+
+        return staging_root, updated_metadata
+
     def __init__(
         self,
         *,
@@ -84,18 +221,18 @@ class LibrarySync:
     ) -> LibraryEntry:
         """Move ``job_id`` from the queue storage into the Library."""
 
-        job_root = self._locator.job_root(job_id)
-        if not job_root.exists():
+        source_job_root = self._locator.job_root(job_id)
+        if not source_job_root.exists():
             raise LibraryNotFoundError(f"Job {job_id} not found in queue storage")
 
-        with DirectoryLock(job_root) as lock:
-            metadata = file_ops.load_metadata(job_root)
+        with DirectoryLock(source_job_root) as lock:
+            metadata = file_ops.load_metadata(source_job_root)
             normalized_status = utils.normalize_status(
                 status_override or metadata.get("status"),
                 error_cls=LibraryError,
             )
             now = utils.current_timestamp()
-            media_ready = file_ops.is_media_complete(metadata, normalized_status, job_root)
+            media_ready = file_ops.is_media_complete(metadata, normalized_status, source_job_root)
             if normalized_status == "paused" and not media_ready and not force:
                 raise LibraryError(
                     "Job media is still finalizing; wait for generation to complete or retry with force."
@@ -109,7 +246,7 @@ class LibrarySync:
             metadata["media_completed"] = bool(media_ready)
             metadata["item_type"] = metadata_utils.infer_item_type(metadata)
             if metadata["item_type"] == "video":
-                metadata_utils.apply_video_defaults(metadata, job_root)
+                metadata_utils.apply_video_defaults(metadata, source_job_root)
 
             target_path = file_ops.resolve_library_path(self._library_root, metadata, job_id)
 
@@ -127,12 +264,45 @@ class LibrarySync:
             if existing_item and not force:
                 raise LibraryConflictError(f"Job {job_id} already indexed in library")
 
+            move_root = source_job_root
+            cleanup_source_after_move = False
+            if str(metadata.get("job_type", "")).strip().lower() == "youtube_dub":
+                media_root = source_job_root / "media"
+                has_stitched = False
+                if media_root.exists():
+                    for candidate in media_root.glob("*.mp4"):
+                        lowered = candidate.name.lower()
+                        if ".dub.full." in lowered or lowered.endswith(".dub.full.mp4"):
+                            has_stitched = True
+                            break
+                if has_stitched:
+                    try:
+                        move_root, metadata = self._prepare_youtube_dub_library_bundle(
+                            job_id,
+                            job_root=source_job_root,
+                            metadata=metadata,
+                        )
+                        cleanup_source_after_move = True
+                    except Exception as exc:
+                        if not force:
+                            raise LibraryError(
+                                f"Unable to prepare YouTube dub bundle for job {job_id}: {exc}"
+                            ) from exc
+                        LOGGER.warning(
+                            "Falling back to full directory move for YouTube dub job %s due to bundle error",
+                            job_id,
+                            exc_info=True,
+                        )
+
             try:
-                atomic_move(job_root, target_path)
+                atomic_move(move_root, target_path)
             except (AtomicMoveError, ChecksumMismatchError) as exc:
+                if cleanup_source_after_move and move_root != source_job_root and move_root.exists():
+                    shutil.rmtree(move_root, ignore_errors=True)
                 raise LibraryError(f"Failed to move job {job_id} into library: {exc}") from exc
 
-            lock.relocate(target_path)
+            if not cleanup_source_after_move:
+                lock.relocate(target_path)
 
             source_relative = file_ops.ensure_source_material(target_path, metadata)
             if source_relative:
@@ -190,6 +360,27 @@ class LibrarySync:
                     metadata["book_metadata"] = nested
 
             file_ops.write_metadata(target_path, metadata)
+
+            if cleanup_source_after_move and source_job_root.exists():
+                cleanup_target = source_job_root.parent / f".{job_id}.moved.{uuid4().hex}"
+                try:
+                    source_job_root.replace(cleanup_target)
+                    lock.relocate(cleanup_target)
+                except Exception:
+                    cleanup_target = source_job_root
+
+                def _cleanup(path: Path) -> None:
+                    try:
+                        lock_path = path / ".lock"
+                        for _ in range(100):
+                            if not lock_path.exists():
+                                break
+                            time.sleep(0.1)
+                        shutil.rmtree(path, ignore_errors=True)
+                    except Exception:
+                        LOGGER.debug("Unable to cleanup moved job directory %s", path, exc_info=True)
+
+                threading.Thread(target=_cleanup, args=(cleanup_target,), daemon=True).start()
 
         library_item = metadata_utils.build_entry(
             metadata,

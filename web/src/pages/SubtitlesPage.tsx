@@ -799,11 +799,6 @@ export default function SubtitlesPage({
 
   return (
     <div className="subtitles-page">
-      <header className="page-header">
-        <h1>Subtitle processing</h1>
-        <p>Translate or transliterate subtitle files into dynamic highlight (DRT) output.</p>
-      </header>
-
       <section className="card">
         <h2>Submit subtitle job</h2>
         <form onSubmit={handleSubmit} className="subtitle-form">
@@ -972,20 +967,24 @@ export default function SubtitlesPage({
             </div>
             <div className="field">
               <label className="field-label" htmlFor="subtitle-llm-model">LLM model (optional)</label>
-              <input
+              <select
                 id="subtitle-llm-model"
-                type="text"
-                list="subtitle-llm-models"
-                placeholder="Use server default"
                 value={selectedModel}
                 onChange={(event) => setSelectedModel(event.target.value)}
-                disabled={modelsLoading && availableModels.length === 0}
-              />
-              <datalist id="subtitle-llm-models">
-                {availableModels.map((model) => (
-                  <option key={model} value={model} />
+                disabled={modelsLoading && availableModels.length === 0 && selectedModel.trim().length === 0}
+              >
+                <option value="">Use server default</option>
+                {Array.from(
+                  new Set([
+                    ...(selectedModel.trim() ? [selectedModel.trim()] : []),
+                    ...(availableModels.length ? availableModels : [DEFAULT_LLM_MODEL])
+                  ])
+                ).map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
                 ))}
-              </datalist>
+              </select>
               <small className="field-note">
                 {modelsLoading
                   ? 'Loading models from Ollama…'

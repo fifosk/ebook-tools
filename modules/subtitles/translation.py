@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+import unicodedata
 from typing import Optional
 
 from modules.llm_client import create_client
@@ -9,6 +11,62 @@ from modules.retry_annotations import format_retry_failure, is_failure_annotatio
 from modules.translation_engine import _unexpected_script_used, translate_sentence_simple
 
 from .common import logger
+
+
+_REPEATED_CHAR_PATTERN = re.compile(r"(.)\1{11,}")
+
+
+def _looks_like_gibberish_translation(*, source: str, candidate: str) -> bool:
+    """Return True when a translation looks suspiciously corrupted/repetitive."""
+
+    candidate_text = " ".join((candidate or "").split())
+    if not candidate_text:
+        return True
+
+    source_text = " ".join((source or "").split())
+    if source_text:
+        # Hard guardrail: very large expansions are almost always a bad model response.
+        if len(candidate_text) > max(600, len(source_text) * 10 + 200):
+            return True
+
+    if _REPEATED_CHAR_PATTERN.search(candidate_text):
+        return True
+
+    # Token repetition ("mmm mmm mmm ...", or the same word repeated).
+    tokens = candidate_text.split()
+    if len(tokens) >= 20:
+        counts: dict[str, int] = {}
+        max_count = 0
+        for token in tokens:
+            normalized = token.strip(".,!?؛،:;\"'()[]{}").lower()
+            if not normalized:
+                continue
+            next_count = counts.get(normalized, 0) + 1
+            counts[normalized] = next_count
+            if next_count > max_count:
+                max_count = next_count
+        if max_count >= 10:
+            return True
+        if tokens and max_count / max(1, len(tokens)) >= 0.45:
+            return True
+
+    # Character diversity / letter ratio guard.
+    non_space_chars = [ch for ch in candidate_text if not ch.isspace()]
+    if len(non_space_chars) >= 80:
+        unique_ratio = len(set(non_space_chars)) / max(1, len(non_space_chars))
+        if unique_ratio < 0.12:
+            return True
+
+    if len(non_space_chars) >= 40:
+        letter_or_number = sum(
+            1
+            for ch in non_space_chars
+            if (category := unicodedata.category(ch)) and category[0] in {"L", "N"}
+        )
+        if letter_or_number / max(1, len(non_space_chars)) < 0.25:
+            return True
+
+    return False
 
 
 def _translate_text(
@@ -55,6 +113,15 @@ def _translate_text(
                 "Retrying subtitle translation due to script mismatch (target=%s, reason=%s)",
                 target_language,
                 last_error,
+            )
+            return None
+        if _looks_like_gibberish_translation(source=text, candidate=candidate):
+            last_error = "Gibberish translation detected"
+            logger.debug(
+                "Retrying subtitle translation due to gibberish output (target=%s, source_len=%s, candidate_len=%s)",
+                target_language,
+                len(text or ""),
+                len(candidate or ""),
             )
             return None
         return candidate

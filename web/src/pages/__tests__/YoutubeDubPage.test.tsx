@@ -84,6 +84,9 @@ describe('YoutubeDubPage', () => {
     expect(screen.getAllByTitle(/NAS video/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/SUB/i)).toBeInTheDocument();
     expect(screen.getByText(/English \(en\)/i)).toBeInTheDocument();
+
+    screen.getByRole('tab', { name: /Options/i }).click();
+
     expect(screen.getByLabelText(/Target resolution/i)).toHaveValue('480');
     expect(screen.getByRole('checkbox', { name: /Keep original aspect ratio/i })).toBeChecked();
   });

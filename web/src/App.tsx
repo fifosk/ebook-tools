@@ -311,32 +311,32 @@ export function App() {
     if (selectedView === JOB_PROGRESS_VIEW) {
       if (!activeJobId || !jobs[activeJobId]) {
         setActiveJobId(null);
-        setSelectedView('pipeline:submit');
+        setSelectedView('pipeline:source');
       }
       return;
     }
     if (selectedView === JOB_MEDIA_VIEW) {
       if (!playerContext) {
-        setSelectedView('pipeline:submit');
+        setSelectedView('pipeline:source');
         return;
       }
       if (playerContext.type === 'job' && !jobs[playerContext.jobId]) {
         setPlayerContext(null);
         setPlayerSelection(null);
-        setSelectedView('pipeline:submit');
+        setSelectedView('pipeline:source');
       }
     }
   }, [activeJobId, jobs, playerContext, selectedView]);
 
   useEffect(() => {
     if (selectedView === JOB_PROGRESS_VIEW && !activeJobId) {
-      setSelectedView('pipeline:submit');
+      setSelectedView('pipeline:source');
       return;
     }
     if (selectedView === JOB_MEDIA_VIEW && playerContext?.type === 'job' && !activeJobId) {
       setPlayerContext(null);
       setPlayerSelection(null);
-      setSelectedView('pipeline:submit');
+      setSelectedView('pipeline:source');
     }
   }, [activeJobId, playerContext, selectedView]);
 
@@ -1272,39 +1272,19 @@ export function App() {
               />
             </section>
           ) : null}
-          <header className="dashboard__header">
-          {isAdminView ? (
-            <>
-              <h1>User management</h1>
-              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
-            </>
-          ) : isLibraryView ? (
-            <>
-              <h1>Library</h1>
-              <p>Browse archived jobs, review metadata, and manage stored media across completed runs.</p>
-            </>
-          ) : isCreateBookView ? (
-            <>
-              <h1>Create Audiobook</h1>
-              <p>Generate a seed EPUB with the LLM, then fine-tune the audiobook pipeline before submitting.</p>
-            </>
-          ) : isAddBookView ? (
-            <>
-              <h1>Narrate Ebook</h1>
-            </>
-          ) : (
-            <>
-              <h1>Language tools</h1>
-            </>
-          )}
-          </header>
-          {isAdminView ? (
-            <section>
-              <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
-            </section>
-          ) : isLibraryView ? (
-            <LibraryPage onPlay={handlePlayLibraryItem} />
-          ) : isCreateBookView ? (
+	          {isAdminView ? (
+	            <header className="dashboard__header">
+	              <h1>User management</h1>
+	              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
+	            </header>
+	          ) : null}
+	          {isAdminView ? (
+	            <section>
+	              <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
+	            </section>
+	          ) : isLibraryView ? (
+	            <LibraryPage onPlay={handlePlayLibraryItem} />
+	          ) : isCreateBookView ? (
             <section>
               <CreateBookPage
                 onJobSubmitted={(jobId) => {
@@ -1319,20 +1299,20 @@ export function App() {
             </section>
           ) : (
             <>
-              {isAddBookView ? (
-                <section>
-                  <NewImmersiveBookPage
-                    activeSection={activePipelineSection ?? 'source'}
-                    onSectionChange={handleImmersiveSectionChange}
-                    onSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
-                    prefillInputFile={pendingInputFile}
-                    prefillParameters={copiedJobParameters}
-                    submitError={activePipelineSection === 'submit' ? submitError : null}
-                    recentJobs={recentPipelineJobs}
-                  />
-                </section>
-              ) : null}
+	              {isAddBookView ? (
+	                <section>
+	                  <NewImmersiveBookPage
+	                    activeSection={activePipelineSection ?? 'source'}
+	                    onSectionChange={handleImmersiveSectionChange}
+	                    onSubmit={handleSubmit}
+	                    isSubmitting={isSubmitting}
+	                    prefillInputFile={pendingInputFile}
+	                    prefillParameters={copiedJobParameters}
+	                    submitError={submitError}
+	                    recentJobs={recentPipelineJobs}
+	                  />
+	                </section>
+	              ) : null}
               {isSubtitlesView ? (
                 <section>
                   <SubtitlesPage

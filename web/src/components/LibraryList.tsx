@@ -1,16 +1,19 @@
 import { useMemo } from 'react';
 import type { LibraryItem, LibraryViewMode } from '../api/dtos';
+import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
 import { formatLanguageWithFlag } from '../utils/languages';
 import styles from './LibraryList.module.css';
 
 type Props = {
   items: LibraryItem[];
   view: LibraryViewMode;
+  onSelect?: (item: LibraryItem) => void;
   onOpen: (item: LibraryItem) => void;
   onRemove: (item: LibraryItem) => void;
   onEditMetadata: (item: LibraryItem) => void;
   selectedJobId?: string | null;
   mutating?: Record<string, boolean>;
+  variant?: 'card' | 'embedded';
 };
 
 type AuthorGroup = {
@@ -54,8 +57,18 @@ function normalizeItemType(item: LibraryItem): 'book' | 'video' {
   return (item.itemType ?? 'book') as 'book' | 'video';
 }
 
-function describeItemType(item: LibraryItem): string {
-  return normalizeItemType(item) === 'video' ? 'Video' : 'Book';
+function resolveJobType(item: LibraryItem): string {
+  return extractJobType(item.metadata) ?? 'pipeline';
+}
+
+function renderJobTypeGlyph(item: LibraryItem) {
+  const jobType = resolveJobType(item);
+  const glyph = getJobTypeGlyph(jobType);
+  return (
+    <span className={styles.jobGlyph} title={glyph.label} aria-label={glyph.label}>
+      {glyph.icon}
+    </span>
+  );
 }
 
 function resolveTitle(item: LibraryItem): string {
@@ -84,7 +97,7 @@ function resolveGenre(item: LibraryItem): string {
 
 function describeStatus(item: LibraryItem): { label: string; variant?: StatusVariant } {
   const base = item.status === 'finished' ? 'Finished' : 'Paused';
-  const typeLabel = describeItemType(item);
+  const typeLabel = normalizeItemType(item) === 'video' ? 'Video' : 'Book';
   if (!item.mediaCompleted) {
     return { label: `${base} · ${typeLabel} · media removed`, variant: 'missing' };
   }
@@ -234,22 +247,33 @@ function buildLanguageGroups(items: LibraryItem[]): LanguageGroup[] {
 function LibraryList({
   items,
   view,
+  onSelect,
   onOpen,
   onRemove,
   onEditMetadata,
   selectedJobId,
-  mutating = {}
+  mutating = {},
+  variant = 'card'
 }: Props) {
   const authorGroups = useMemo(() => buildAuthorGroups(items), [items]);
   const genreGroups = useMemo(() => buildGenreGroups(items), [items]);
   const languageGroups = useMemo(() => buildLanguageGroups(items), [items]);
+
+  const handleSelect = (item: LibraryItem) => {
+    if (onSelect) {
+      onSelect(item);
+    }
+  };
 
   const renderActions = (item: LibraryItem) => (
     <div className={styles.actions}>
       <button
         type="button"
         className={styles.actionButton}
-        onClick={() => onOpen(item)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onOpen(item);
+        }}
         disabled={Boolean(mutating[item.jobId])}
       >
         Play
@@ -257,7 +281,10 @@ function LibraryList({
       <button
         type="button"
         className={styles.actionButton}
-        onClick={() => onEditMetadata(item)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onEditMetadata(item);
+        }}
         disabled={Boolean(mutating[item.jobId])}
       >
         Edit
@@ -265,7 +292,10 @@ function LibraryList({
       <button
         type="button"
         className={styles.actionButton}
-        onClick={() => onRemove(item)}
+        onClick={(event) => {
+          event.stopPropagation();
+          onRemove(item);
+        }}
         disabled={Boolean(mutating[item.jobId])}
       >
         Delete
@@ -275,7 +305,7 @@ function LibraryList({
 
   if (items.length === 0) {
     return (
-      <div className={styles.listContainer}>
+      <div className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}>
         <p className={styles.emptyState}>No library entries match the current filters.</p>
       </div>
     );
@@ -283,13 +313,13 @@ function LibraryList({
 
   if (view === 'flat') {
     return (
-      <div className={styles.listContainer}>
+      <div className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}>
         <div className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Type</th>
+                <th>Job</th>
                 <th>Author</th>
                 <th>Language</th>
                 <th>Status</th>
@@ -302,10 +332,11 @@ function LibraryList({
                 <tr
                   key={item.jobId}
                   className={selectedJobId === item.jobId ? styles.tableRowActive : undefined}
+                  onClick={() => handleSelect(item)}
                 >
-                  <td>{resolveTitle(item)}</td>
-                  <td>{describeItemType(item)}</td>
-                  <td>{resolveAuthor(item)}</td>
+                  <td className={styles.cellTitle}>{resolveTitle(item)}</td>
+                  <td>{renderJobTypeGlyph(item)}</td>
+                  <td className={styles.cellAuthor}>{resolveAuthor(item)}</td>
                   <td>{renderLanguageLabel(item.language)}</td>
                   <td>
                     {renderStatusBadge(item)}
@@ -323,7 +354,7 @@ function LibraryList({
 
   if (view === 'by_author') {
     return (
-      <div className={styles.listContainer}>
+      <div className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}>
         {authorGroups.map((group) => (
           <details key={group.author} className={styles.group} open>
             <summary>{group.author}</summary>
@@ -335,13 +366,17 @@ function LibraryList({
                     <h4 className={styles.languageHeader}>{renderLanguageLabel(entry.language)}</h4>
                     <ul className={styles.itemList}>
                       {entry.items.map((item) => (
-                        <li key={item.jobId} className={styles.itemCard}>
+                        <li
+                          key={item.jobId}
+                          className={styles.itemCard}
+                          onClick={() => handleSelect(item)}
+                        >
                           <div className={styles.itemHeader}>
                             <span>Job {item.jobId}</span>
                             {renderStatusBadge(item)}
                           </div>
                           <div className={styles.itemMeta}>
-                            Updated {formatTimestamp(item.updatedAt)} · Type {describeItemType(item)} · Library path {item.libraryPath}
+                            Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
                           </div>
                           {renderActions(item)}
                         </li>
@@ -359,7 +394,7 @@ function LibraryList({
 
   if (view === 'by_genre') {
     return (
-      <div className={styles.listContainer}>
+      <div className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}>
         {genreGroups.map((group) => (
           <details key={group.genre} className={styles.group} open>
             <summary>{group.genre}</summary>
@@ -371,13 +406,17 @@ function LibraryList({
                     <h4 className={styles.languageHeader}>{book.bookTitle}</h4>
                     <ul className={styles.itemList}>
                       {book.items.map((item) => (
-                        <li key={item.jobId} className={styles.itemCard}>
+                        <li
+                          key={item.jobId}
+                          className={styles.itemCard}
+                          onClick={() => handleSelect(item)}
+                        >
                           <div className={styles.itemHeader}>
                             <span>Job {item.jobId}</span>
                             {renderStatusBadge(item)}
                           </div>
                           <div className={styles.itemMeta}>
-                            Language {renderLanguageLabel(item.language)} · Type {describeItemType(item)} · Updated {formatTimestamp(item.updatedAt)}
+                            Language {renderLanguageLabel(item.language)} · Job {renderJobTypeGlyph(item)} · Updated {formatTimestamp(item.updatedAt)}
                           </div>
                           {renderActions(item)}
                         </li>
@@ -394,7 +433,7 @@ function LibraryList({
   }
 
   return (
-    <div className={styles.listContainer}>
+    <div className={`${styles.listContainer} ${variant === 'embedded' ? styles.listContainerEmbedded : ''}`}>
       {languageGroups.map((group) => (
         <details key={group.language} className={styles.group} open>
           <summary>{renderLanguageLabel(group.language)}</summary>
@@ -406,13 +445,17 @@ function LibraryList({
                   <h4 className={styles.languageHeader}>{book.bookTitle}</h4>
                   <ul className={styles.itemList}>
                     {book.items.map((item) => (
-                      <li key={item.jobId} className={styles.itemCard}>
+                      <li
+                        key={item.jobId}
+                        className={styles.itemCard}
+                        onClick={() => handleSelect(item)}
+                      >
                         <div className={styles.itemHeader}>
                           <span>Job {item.jobId}</span>
                           {renderStatusBadge(item)}
                         </div>
                         <div className={styles.itemMeta}>
-                          Updated {formatTimestamp(item.updatedAt)} · Type {describeItemType(item)} · Library path {item.libraryPath}
+                          Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
                         </div>
                         {renderActions(item)}
                       </li>

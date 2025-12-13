@@ -532,7 +532,6 @@ def _run_dub_job(
                         mirror_dir.mkdir(parents=True, exist_ok=True)
                         for artifact in (
                             stitched_video_path,
-                            stitched_video_path.with_suffix(".vtt"),
                             stitched_video_path.with_suffix(".ass"),
                         ):
                             if not artifact.exists():

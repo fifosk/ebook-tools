@@ -39,7 +39,6 @@ import PipelineSourceSection from './PipelineSourceSection';
 import PipelineLanguageSection from './PipelineLanguageSection';
 import PipelineOutputSection from './PipelineOutputSection';
 import PipelinePerformanceSection from './PipelinePerformanceSection';
-import PipelineSubmitSection from './PipelineSubmitSection';
 import FileSelectionDialog from './FileSelectionDialog';
 
 const SAMPLE_SENTENCES: Record<string, string> = {
@@ -97,6 +96,7 @@ type Props = {
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
   isSubmitting?: boolean;
   activeSection?: PipelineFormSection;
+  onSectionChange?: (section: PipelineFormSection) => void;
   externalError?: string | null;
   prefillInputFile?: string | null;
   prefillParameters?: JobParameterSnapshot | null;
@@ -186,6 +186,8 @@ const SECTION_ORDER: PipelineFormSection[] = [
   'performance',
   'submit'
 ];
+
+const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = ['source', 'language', 'output', 'performance'];
 
 export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
   source: {
@@ -540,6 +542,7 @@ export function PipelineSubmissionForm({
   onSubmit,
   isSubmitting = false,
   activeSection,
+  onSectionChange,
   externalError = null,
   prefillInputFile = null,
   prefillParameters = null,
@@ -715,20 +718,27 @@ export function PipelineSubmissionForm({
     });
   }, []);
 
-  const tabSections: PipelineFormSection[] = ['submit', 'source', 'language', 'output', 'performance'];
+  const tabSections: PipelineFormSection[] = PIPELINE_TAB_SECTIONS;
   const [activeTab, setActiveTab] = useState<PipelineFormSection>(() => {
     if (activeSection && tabSections.includes(activeSection)) {
       return activeSection;
     }
     return 'source';
   });
-  const isSubmitSection = activeTab === 'submit';
+
+  const handleSectionChange = useCallback(
+    (section: PipelineFormSection) => {
+      setActiveTab(section);
+      onSectionChange?.(section);
+    },
+    [onSectionChange]
+  );
 
   useEffect(() => {
     if (activeSection && tabSections.includes(activeSection)) {
       setActiveTab(activeSection);
     }
-  }, [activeSection]);
+  }, [activeSection, tabSections]);
 
   useEffect(() => {
     if (prefillInputFile === undefined) {
@@ -1668,6 +1678,8 @@ export function PipelineSubmissionForm({
       ? `${formState.base_output_file.trim() || 'generated-book'}.epub`
       : formState.input_file;
   const isSubmitDisabled = isSubmitting || missingRequirements.length > 0;
+  const submitText = submitLabel ?? 'Submit job';
+  const hasMissingRequirements = missingRequirements.length > 0;
   const outputFormats =
     [
       formState.output_html ? 'HTML' : null,
@@ -1812,28 +1824,7 @@ export function PipelineSubmissionForm({
         );
       case 'submit':
       default:
-        return (
-          <PipelineSubmitSection
-            key="submit"
-            headingId="pipeline-card-submit"
-            title={sectionMeta.submit.title}
-            description={sectionMeta.submit.description}
-            missingRequirements={missingRequirements}
-            missingRequirementText={missingRequirementText}
-            isSubmitSection={isSubmitSection}
-            error={error}
-            externalError={externalError}
-            inputFile={inputSummaryValue}
-            baseOutputFile={formState.base_output_file}
-            inputLanguage={formState.input_language}
-            targetLanguageSummary={targetLanguageSummary}
-            outputFormats={outputFormats}
-            isSubmitting={isSubmitting}
-            isSubmitDisabled={isSubmitDisabled}
-            submitLabel={submitLabel}
-            sourceMode={sourceMode}
-          />
-        );
+        return null;
     }
   };
 
@@ -1841,34 +1832,42 @@ export function PipelineSubmissionForm({
     <section className="pipeline-settings">
       <h2>{headerTitle}</h2>
       <p>{headerDescription}</p>
-      {error ? (
-        <div className="alert" role="alert">
-          {error}
-        </div>
-      ) : null}
       <form className="pipeline-form" onSubmit={handleSubmit} noValidate>
-        <div className="pipeline-setup-grid" role="list">
-          {tabSections.map((section) => {
-            const meta = sectionMeta[section];
-            const isActive = activeTab === section;
-            return (
-              <button
-                type="button"
-                key={section}
-                className={`pipeline-setup-card ${isActive ? 'is-active' : ''}`}
-                onClick={() => setActiveTab(section)}
-                aria-pressed={isActive}
-                role="listitem"
-              >
-                <span className="pipeline-setup-card__title">{meta.title}</span>
-                <span className="pipeline-setup-card__description">{meta.description}</span>
-                <span className="pipeline-setup-card__cta">
-                  {isActive ? 'Selected' : section === 'submit' ? 'Review & submit' : 'Configure'}
-                </span>
-              </button>
-            );
-          })}
+        <div className="pipeline-step-bar">
+          <div className="pipeline-step-tabs" role="tablist" aria-label="Pipeline steps">
+            {tabSections.map((section) => {
+              const meta = sectionMeta[section];
+              const isActive = activeTab === section;
+              return (
+                <button
+                  type="button"
+                  key={section}
+                  className={`pipeline-step-tab ${isActive ? 'is-active' : ''}`}
+                  onClick={() => handleSectionChange(section)}
+                  aria-selected={isActive}
+                  role="tab"
+                >
+                  <span className="pipeline-step-tab__label">{meta.title}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="pipeline-step-actions">
+            <button type="submit" disabled={isSubmitDisabled}>
+              {isSubmitting ? 'Submitting…' : submitText}
+            </button>
+          </div>
         </div>
+        {hasMissingRequirements ? (
+          <div className="form-callout form-callout--warning" role="status">
+            Provide {missingRequirementText} before submitting.
+          </div>
+        ) : null}
+        {error || externalError ? (
+          <div className="alert" role="alert">
+            {error ?? externalError}
+          </div>
+        ) : null}
         <div className="pipeline-section-panel">{renderSection(activeTab)}</div>
       </form>
       {activeFileDialog && fileOptions ? (

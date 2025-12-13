@@ -16,6 +16,7 @@ import LibraryToolbar from '../components/LibraryToolbar';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
+import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
 
 const PAGE_SIZE = 25;
 
@@ -67,6 +68,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [total, setTotal] = useState(0);
   const [selectedItem, setSelectedItem] = useState<LibraryItem | null>(null);
+  const [activeTab, setActiveTab] = useState<LibraryItemType>('book');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mutating, setMutating] = useState<Record<string, boolean>>({});
@@ -159,9 +161,19 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     }
   }, [selectedItem]);
 
+  useEffect(() => {
+    setSelectedItem((current) => {
+      if (!current) {
+        return null;
+      }
+      return resolveItemType(current) === activeTab ? current : null;
+    });
+  }, [activeTab]);
+
   const selectLibraryItem = useCallback((item: LibraryItem) => {
     setIsEditing(false);
     setEditError(null);
+    setActiveTab(resolveItemType(item));
     setSelectedItem(item);
   }, []);
 
@@ -265,11 +277,11 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const handleEditCancel = useCallback(() => {
     setIsEditing(false);
     setEditError(null);
-     setSelectedFile(null);
-     setIsbnPreview(null);
-     setPreviewCoverUrl(null);
-     setIsbnFetchError(null);
-     setIsFetchingIsbn(false);
+    setSelectedFile(null);
+    setIsbnPreview(null);
+    setPreviewCoverUrl(null);
+    setIsbnFetchError(null);
+    setIsFetchingIsbn(false);
   }, []);
 
   const handleEditValueChange = useCallback(
@@ -409,6 +421,12 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const selectedTitle = useMemo(() => resolveTitle(selectedItem), [selectedItem]);
   const selectedAuthor = useMemo(() => resolveAuthor(selectedItem), [selectedItem]);
   const selectedGenre = useMemo(() => resolveGenre(selectedItem), [selectedItem]);
+  const selectedJobType = useMemo(() => extractJobType(selectedItem?.metadata) ?? null, [selectedItem]);
+  const selectedJobGlyph = useMemo(() => getJobTypeGlyph(selectedJobType), [selectedJobType]);
+
+  const bookItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'book'), [items]);
+  const videoItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'video'), [items]);
+  const activeItems = useMemo(() => (activeTab === 'video' ? videoItems : bookItems), [activeTab, bookItems, videoItems]);
 
   const selectedBookMetadata = useMemo(
     () => extractLibraryBookMetadata(selectedItem),
@@ -450,34 +468,65 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
         isReindexing={isReindexing}
       />
       <div className={styles.content}>
-        <div>
-          <LibraryList
-            items={items}
-            view={view}
-            onOpen={handleOpen}
-            onRemove={handleRemoveEntry}
-            onEditMetadata={handleEditMetadata}
-            selectedJobId={selectedItem?.jobId}
-            mutating={mutating}
-          />
-          <div className={styles.pagination}>
-            <button type="button" onClick={() => setPage((previous) => Math.max(1, previous - 1))} disabled={page <= 1}>
-              Previous
-            </button>
-            <span>{rangeLabel}</span>
-            <button
-              type="button"
-              onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
-              disabled={page >= totalPages}
-            >
-              Next
-            </button>
+        <section aria-label="Library entries">
+          <div className={styles.listCard}>
+            <div className={styles.sectionHeader}>
+              <div className={styles.tabs} role="tablist" aria-label="Library tabs">
+                <button
+                  type="button"
+                  role="tab"
+                  className={`${styles.tabButton} ${activeTab === 'book' ? styles.tabButtonActive : ''}`}
+                  aria-selected={activeTab === 'book'}
+                  onClick={() => setActiveTab('book')}
+                >
+                  Books <span className={styles.sectionCount}>{bookItems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={`${styles.tabButton} ${activeTab === 'video' ? styles.tabButtonActive : ''}`}
+                  aria-selected={activeTab === 'video'}
+                  onClick={() => setActiveTab('video')}
+                >
+                  Videos <span className={styles.sectionCount}>{videoItems.length}</span>
+                </button>
+              </div>
+            </div>
+            <LibraryList
+              items={activeItems}
+              view={view}
+              variant="embedded"
+              onSelect={selectLibraryItem}
+              onOpen={handleOpen}
+              onRemove={handleRemoveEntry}
+              onEditMetadata={handleEditMetadata}
+              selectedJobId={selectedItem?.jobId}
+              mutating={mutating}
+            />
           </div>
+        </section>
+        <div className={styles.pagination}>
+          <button type="button" onClick={() => setPage((previous) => Math.max(1, previous - 1))} disabled={page <= 1}>
+            Previous
+          </button>
+          <span>{rangeLabel}</span>
+          <button
+            type="button"
+            onClick={() => setPage((previous) => Math.min(totalPages, previous + 1))}
+            disabled={page >= totalPages}
+          >
+            Next
+          </button>
         </div>
         <aside className={styles.detailsCard} aria-live="polite">
           {selectedItem ? (
             <>
-              <h2>{selectedTitle}</h2>
+              <h2 className={styles.detailsTitle}>
+                <span className={styles.detailsJobGlyph} title={selectedJobGlyph.label} aria-label={selectedJobGlyph.label}>
+                  {selectedJobGlyph.icon}
+                </span>
+                {selectedTitle}
+              </h2>
               {displayedCoverUrl ? (
                 <div className={styles.coverWrapper}>
                   <img
@@ -626,6 +675,9 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                 </li>
                 <li className={styles.detailItem}>
                   <strong>Type:</strong> {selectedItemType === 'video' ? 'Video' : 'Book'}
+                </li>
+                <li className={styles.detailItem}>
+                  <strong>Job:</strong> {selectedJobGlyph.icon} {selectedJobType ?? '—'}
                 </li>
                 <li className={styles.detailItem}>
                   <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}

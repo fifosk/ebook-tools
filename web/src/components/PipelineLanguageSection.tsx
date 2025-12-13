@@ -51,7 +51,9 @@ const PipelineLanguageSection = ({
   onEndSentenceChange,
   onStitchFullChange
 }: LanguageSectionProps) => {
-  const llmModelListId = `${headingId}-llm-models`;
+  const currentModel = ollamaModel.trim();
+  const resolvedModels = llmModels.length ? llmModels : currentModel ? [currentModel] : [];
+  const modelOptions = Array.from(new Set([...(currentModel ? [currentModel] : []), ...resolvedModels]));
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
@@ -85,21 +87,20 @@ const PipelineLanguageSection = ({
           placeholder="e.g. Klingon, Sindarin"
         />
         <label htmlFor="ollama_model">LLM model (optional)</label>
-        <input
+        <select
           id="ollama_model"
           name="ollama_model"
-          type="text"
           value={ollamaModel}
           onChange={(event) => onOllamaModelChange(event.target.value)}
-          list={llmModelListId}
-          placeholder="Use server default"
-          disabled={llmModelsLoading && llmModels.length === 0}
-        />
-        <datalist id={llmModelListId}>
-          {llmModels.map((model) => (
-            <option key={model} value={model} />
+          disabled={llmModelsLoading && llmModels.length === 0 && currentModel.length === 0}
+        >
+          <option value="">Use server default</option>
+          {modelOptions.map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
           ))}
-        </datalist>
+        </select>
         <small className="form-help-text">
           {llmModelsLoading
             ? 'Loading available models…'

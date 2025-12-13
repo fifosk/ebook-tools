@@ -33,6 +33,7 @@ export default function NewImmersiveBookPage({
         prefillInputFile={prefillInputFile}
         prefillParameters={prefillParameters}
         activeSection={effectiveSection}
+        onSectionChange={onSectionChange}
         externalError={submitError}
         recentJobs={recentJobs}
         implicitEndOffsetThreshold={200}

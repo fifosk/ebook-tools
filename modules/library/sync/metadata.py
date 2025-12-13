@@ -147,6 +147,7 @@ def build_entry(
         id=job_id,
         author=author,
         book_title=book_title,
+        item_type=str(metadata.get("item_type") or infer_item_type(metadata)).strip() or "book",
         genre=str(genre) if genre not in {None, ""} else None,
         language=language,
         status=status,

@@ -1441,6 +1441,62 @@ section {
   margin: var(--space-md) 0 var(--space-sm);
 }
 
+.pipeline-step-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--color-card-alt);
+  border: 1px solid var(--color-border-subtle);
+  flex-wrap: wrap;
+  margin: var(--space-md) 0 var(--space-sm);
+}
+
+.pipeline-step-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.pipeline-step-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.pipeline-step-tab {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.15s ease, color 0.15s ease;
+  box-shadow: none;
+  transform: none;
+}
+
+.pipeline-step-tab:hover,
+.pipeline-step-tab:focus {
+  transform: none;
+  box-shadow: none;
+}
+
+.pipeline-step-tab.is-active {
+  background: var(--color-sidebar-link-active-bg, rgba(56, 189, 248, 0.16));
+  color: var(--color-sidebar-link-active-text, var(--color-text-primary));
+}
+
+.pipeline-step-tab__label {
+  font-size: 0.95rem;
+}
+
 .pipeline-setup-card {
   display: flex;
   flex-direction: column;

@@ -99,17 +99,24 @@ def list_downloaded_videos(base_dir: Path = DEFAULT_YOUTUBE_VIDEO_ROOT) -> List[
                     )
                 )
             stat = path.stat()
+            try:
+                folder_stat = folder.stat()
+                effective_mtime = max(stat.st_mtime, folder_stat.st_mtime)
+            except Exception:
+                effective_mtime = stat.st_mtime
             videos.append(
                 YoutubeNasVideo(
                     path=path.resolve(),
                     size_bytes=stat.st_size,
-                    modified_at=datetime.fromtimestamp(stat.st_mtime),
+                    # Prefer the folder mtime when available because NAS downloads can preserve the
+                    # original file timestamp, which makes "recently added" videos appear old.
+                    modified_at=datetime.fromtimestamp(effective_mtime),
                     subtitles=sorted(subtitles, key=lambda s: s.path.name),
                     source=_classify_video_source(path),
                 )
             )
 
-    videos.sort(key=lambda entry: entry.modified_at, reverse=True)
+    videos.sort(key=lambda entry: (entry.modified_at, entry.path.as_posix()), reverse=True)
     return videos
 
 

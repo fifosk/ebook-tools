@@ -5,10 +5,75 @@
 }
 
 .content {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 1.5rem;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  align-items: start;
+}
+
+.listCard {
+  background: var(--color-card-bg, #ffffff);
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  padding: 0;
+}
+
+.tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: 999px;
+  background: var(--color-card-alt, #f9fafb);
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+}
+
+.tabButton {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  color: var(--color-text-muted, #475467);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.tabButtonActive {
+  background: var(--color-sidebar-link-active-bg, #eef4ff);
+  color: var(--color-sidebar-link-active-text, #1d4ed8);
+}
+
+.sectionCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.2rem;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(16, 24, 40, 0.08);
+  color: inherit;
+}
+
+.tabButtonActive .sectionCount {
+  background: rgba(29, 78, 216, 0.18);
 }
 
 .detailsCard {
@@ -20,9 +85,19 @@
   color: var(--color-text-primary, #101828);
 }
 
-.detailsCard h2 {
+.detailsTitle {
   margin-top: 0;
   margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.detailsJobGlyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
 }
 
 .detailList {
@@ -99,9 +174,11 @@
 }
 
 .coverImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
 }
 
 .actionBar {
@@ -233,10 +310,4 @@
 .actionHint {
   font-size: 0.85rem;
   color: var(--color-text-muted, #475467);
-}
-
-@media (max-width: 1024px) {
-  .content {
-    grid-template-columns: 1fr;
-  }
 }

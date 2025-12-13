@@ -6,6 +6,7 @@ import {
 import type { SelectedView } from '../App';
 import type { JobState } from './JobList';
 import { getStatusGlyph } from '../utils/status';
+import { getJobTypeGlyph } from '../utils/jobGlyphs';
 
 const SIDEBAR_STAGE_GLYPHS: Record<string, { icon: string; tooltip: string }> = {
   'stitching.start': { icon: '🧵', tooltip: 'Stitching batches' },
@@ -281,18 +282,7 @@ function resolveSidebarStage(job: JobState): { icon: string; tooltip: string } |
 }
 
 function resolveJobGlyph(jobType: string): { icon: string; label: string } {
-  switch (jobType) {
-    case 'pipeline':
-      return { icon: '🎙️', label: 'Narration job' };
-    case 'book':
-      return { icon: '📝', label: 'Create audiobook job' };
-    case 'subtitle':
-      return { icon: '🎞️', label: 'Subtitle job' };
-    case 'youtube_dub':
-      return { icon: '🎙️', label: 'Dub video job' };
-    default:
-      return { icon: '📦', label: `${jobType} job` };
-  }
+  return getJobTypeGlyph(jobType);
 }
 
 function resolveSidebarProgress(job: JobState): number | null {
