@@ -24,6 +24,7 @@ import type { JobState } from '../components/JobList';
 import { VOICE_OPTIONS } from '../constants/menuOptions';
 import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
+import { sampleSentenceFor } from '../utils/sampleSentences';
 import {
   buildLanguageOptions,
   formatLanguageOptionLabel,
@@ -79,12 +80,6 @@ function formatMacOSVoiceLabel(voice: MacOSVoice): string {
   }
   const meta = descriptors.length > 0 ? ` (${descriptors.join(', ')})` : '';
   return `${voice.name}${meta}`;
-}
-
-function sampleSentenceFor(languageCode: string, fallbackLabel: string): string {
-  const resolvedName = resolveLanguageName(languageCode) ?? fallbackLabel ?? '';
-  const display = resolvedName || 'this language';
-  return `Sample narration for ${display}.`;
 }
 
 function formatBytes(bytes: number): string {

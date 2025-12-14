@@ -34,20 +34,13 @@ import {
 } from '../constants/menuOptions';
 import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
 import { formatLanguageWithFlag } from '../utils/languages';
+import { sampleSentenceFor } from '../utils/sampleSentences';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import PipelineSourceSection from './PipelineSourceSection';
 import PipelineLanguageSection from './PipelineLanguageSection';
 import PipelineOutputSection from './PipelineOutputSection';
 import PipelinePerformanceSection from './PipelinePerformanceSection';
 import FileSelectionDialog from './FileSelectionDialog';
-
-const SAMPLE_SENTENCES: Record<string, string> = {
-  en: 'Hello from ebook-tools! This is a sample narration.',
-  es: 'Hola desde ebook-tools. Esta es una frase de ejemplo.',
-  fr: 'Bonjour de ebook-tools. Ceci est une phrase exemple.',
-  ar: 'مرحبا من منصة ebook-tools.',
-  ja: 'ebook-tools からのサンプル文です。'
-};
 
 const PREFERRED_SAMPLE_EBOOK = 'test-agatha-poirot-30sentences.epub';
 
@@ -74,16 +67,6 @@ function formatMacOSVoiceLabel(voice: MacOSVoice): string {
   }
   const meta = segments.length > 0 ? ` (${segments.join(', ')})` : '';
   return `${voice.name}${meta}`;
-}
-
-function sampleSentenceFor(languageCode: string, fallbackLabel: string): string {
-  const normalized = languageCode.trim().toLowerCase();
-  if (normalized && SAMPLE_SENTENCES[normalized]) {
-    return SAMPLE_SENTENCES[normalized];
-  }
-  const resolvedName = resolveLanguageName(languageCode) ?? fallbackLabel;
-  const displayName = resolvedName || 'this language';
-  return `Sample narration for ${displayName}.`;
 }
 export type PipelineFormSection =
   | 'source'
