@@ -11,11 +11,12 @@ import type {
   CSSProperties,
   MutableRefObject,
   PointerEvent as ReactPointerEvent,
+  MouseEvent as ReactMouseEvent,
   ReactNode,
   UIEvent,
 } from 'react';
-import { appendAccessToken, fetchJobTiming } from '../api/client';
-import type { AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
+import { appendAccessToken, assistantLookup, fetchJobTiming } from '../api/client';
+import type { AssistantLookupResponse, AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
 import { useMediaClock } from '../hooks/useLiveMedia';
 import PlayerCore from '../player/PlayerCore';
@@ -38,6 +39,7 @@ import TextPlayer, {
 import type { ChunkSentenceMetadata, TrackTimingPayload, WordTiming } from '../api/dtos';
 import { buildWordIndex, collectActiveWordIds, lowerBound, type WordIndex } from '../lib/timing/wordSync';
 import { WORD_SYNC, normaliseTranslationSpeed } from './player-panel/constants';
+import { useLanguagePreferences } from '../context/LanguageProvider';
 
 type HighlightDebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean; overlay?: boolean } };
 
@@ -100,6 +102,15 @@ const WORD_SYNC_LANE_LABELS: Record<WordSyncLane, string> = {
 };
 
 const DICTIONARY_LOOKUP_LONG_PRESS_MS = 450;
+const MY_LINGUIST_BUBBLE_MAX_CHARS = 600;
+const MY_LINGUIST_EMPTY_SENTINEL = '__EMPTY__';
+const MY_LINGUIST_STORAGE_KEYS = {
+  inputLanguage: 'ebookTools.myLinguist.inputLanguage',
+  lookupLanguage: 'ebookTools.myLinguist.lookupLanguage',
+  llmModel: 'ebookTools.myLinguist.llmModel',
+  systemPrompt: 'ebookTools.myLinguist.systemPrompt',
+} as const;
+const MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE = 'English';
 
 const EMPTY_TIMING_PAYLOAD: TimingPayload = {
   trackKind: 'translation_only',
@@ -221,6 +232,55 @@ function normalizeNumber(value: unknown): number | undefined {
   }
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+type LinguistBubblePlacement = 'above' | 'below';
+
+type LinguistBubbleState = {
+  query: string;
+  status: 'loading' | 'ready' | 'error';
+  answer: string;
+  modelLabel: string;
+  placement: LinguistBubblePlacement;
+  x: number;
+  y: number;
+};
+
+function clamp(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(Math.max(value, min), max);
+}
+
+function sanitizeLookupQuery(raw: string): string {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const stripped = trimmed.replace(/^[\s"'“”‘’()[\]{}<>.,!?;:]+|[\s"'“”‘’()[\]{}<>.,!?;:]+$/g, '');
+  return stripped.trim() || trimmed;
+}
+
+function loadMyLinguistStored(key: string, { allowEmpty = false }: { allowEmpty?: boolean } = {}): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw === null) {
+      return null;
+    }
+    if (raw === MY_LINGUIST_EMPTY_SENTINEL) {
+      return '';
+    }
+    if (!raw.trim()) {
+      return allowEmpty ? '' : null;
+    }
+    return raw;
+  } catch {
+    return null;
+  }
 }
 
 function normalizeValidation(
@@ -645,9 +705,13 @@ interface InteractiveTextViewerProps {
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
   totalSentencesInBook?: number | null;
+  bookTotalSentences?: number | null;
+  jobStartSentence?: number | null;
+  jobEndSentence?: number | null;
   activeAudioUrl: string | null;
   noAudioAvailable: boolean;
   jobId?: string | null;
+  onActiveSentenceChange?: (sentenceNumber: number | null) => void;
   onScroll?: (event: UIEvent<HTMLDivElement>) => void;
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
@@ -867,9 +931,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     bookTitle = null,
     bookCoverUrl = null,
     bookCoverAltText = null,
+    onActiveSentenceChange,
+    bookTotalSentences = null,
+    jobStartSentence = null,
+    jobEndSentence = null,
   },
   forwardedRef,
 ) {
+  const { inputLanguage: globalInputLanguage } = useLanguagePreferences();
   const resolvedTranslationSpeed = useMemo(
     () => normaliseTranslationSpeed(translationSpeed),
     [translationSpeed],
@@ -902,6 +971,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     bookCoverAltText ?? (safeBookTitle ? `Cover of ${safeBookTitle}` : 'Book cover preview');
   const rootRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const linguistBubbleRef = useRef<HTMLDivElement | null>(null);
+  const linguistSelectionArmedRef = useRef(false);
+  const linguistRequestCounterRef = useRef(0);
+  const [linguistBubble, setLinguistBubble] = useState<LinguistBubbleState | null>(null);
   const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dictionaryPointerIdRef = useRef<number | null>(null);
   const dictionaryAwaitingResumeRef = useRef(false);
@@ -1081,6 +1154,19 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, []);
   const handlePointerDownCapture = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {
+      const bubbleEl = linguistBubbleRef.current;
+      const pointerInsideBubble =
+        bubbleEl !== null && event.target instanceof Node && bubbleEl.contains(event.target);
+      if (
+        event.pointerType === 'mouse' &&
+        event.button === 0 &&
+        event.isPrimary &&
+        !pointerInsideBubble
+      ) {
+        linguistSelectionArmedRef.current = Boolean(event.metaKey || event.altKey);
+      } else {
+        linguistSelectionArmedRef.current = false;
+      }
       if (dictionaryAwaitingResumeRef.current) {
         resumeDictionaryInteraction();
       }
@@ -1129,9 +1215,305 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       if (event.pointerId === dictionaryPointerIdRef.current) {
         clearDictionaryTimer();
       }
+      linguistSelectionArmedRef.current = false;
     },
     [clearDictionaryTimer],
   );
+
+  const toggleInlinePlayback = useCallback(() => {
+    const element = audioRef.current;
+    if (!element || !(element.currentSrc || element.src)) {
+      return;
+    }
+    try {
+      if (element.paused) {
+        inlineAudioPlayingRef.current = true;
+        onInlineAudioPlaybackStateChange?.('playing');
+        const attempt = element.play?.();
+        if (attempt && typeof attempt.catch === 'function') {
+          attempt.catch(() => {
+            inlineAudioPlayingRef.current = false;
+            onInlineAudioPlaybackStateChange?.('paused');
+          });
+        }
+      } else {
+        element.pause();
+        inlineAudioPlayingRef.current = false;
+        onInlineAudioPlaybackStateChange?.('paused');
+      }
+    } catch {
+      // Ignore playback toggles blocked by autoplay policies.
+    }
+  }, [onInlineAudioPlaybackStateChange]);
+
+  const isRenderedTextTarget = useCallback((target: EventTarget | null) => {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+    return Boolean(
+      target.closest(
+        '[data-text-player-token="true"], .player-panel__document-text, .player-panel__document-status',
+      ),
+    );
+  }, []);
+
+  const closeLinguistBubble = useCallback(() => {
+    linguistRequestCounterRef.current += 1;
+    setLinguistBubble(null);
+  }, []);
+
+  const openLinguistBubbleForRect = useCallback(
+    (query: string, rect: DOMRect, trigger: 'modifier_click' | 'selection') => {
+      const cleanedQuery = sanitizeLookupQuery(query);
+      if (!cleanedQuery) {
+        return;
+      }
+      const slicedQuery =
+        cleanedQuery.length > MY_LINGUIST_BUBBLE_MAX_CHARS
+          ? `${cleanedQuery.slice(0, MY_LINGUIST_BUBBLE_MAX_CHARS)}…`
+          : cleanedQuery;
+
+      const anchorX = rect.left + rect.width / 2;
+      const shouldPlaceBelow = rect.top < 140;
+      const placement: LinguistBubblePlacement = shouldPlaceBelow ? 'below' : 'above';
+      const anchorY = shouldPlaceBelow ? rect.bottom + 10 : rect.top - 10;
+      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+      const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 768;
+      const x = clamp(anchorX, 16, viewportWidth - 16);
+      const y = clamp(anchorY, 16, viewportHeight - 16);
+
+      const storedInputLanguage =
+        loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.inputLanguage) ?? globalInputLanguage;
+      const storedLookupLanguage =
+        loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.lookupLanguage) ?? MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE;
+      const storedModel = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.llmModel, { allowEmpty: true });
+      const storedPrompt = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.systemPrompt, { allowEmpty: true });
+
+      const resolvedInputLanguage = storedInputLanguage.trim() || globalInputLanguage;
+      const resolvedLookupLanguage = storedLookupLanguage.trim() || MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE;
+      const resolvedModel = storedModel && storedModel.trim() ? storedModel.trim() : null;
+      const modelLabel = resolvedModel ?? 'Auto';
+
+      const requestId = (linguistRequestCounterRef.current += 1);
+      setLinguistBubble({
+        query: slicedQuery,
+        status: 'loading',
+        answer: 'Lookup in progress…',
+        modelLabel,
+        placement,
+        x,
+        y,
+      });
+
+      const page = typeof window !== 'undefined' ? window.location.pathname : null;
+      void assistantLookup({
+        query: slicedQuery,
+        input_language: resolvedInputLanguage,
+        lookup_language: resolvedLookupLanguage,
+        llm_model: resolvedModel,
+        system_prompt: storedPrompt && storedPrompt.trim() ? storedPrompt.trim() : null,
+        context: {
+          source: 'my_linguist',
+          page,
+          job_id: jobId,
+          selection_text: trigger === 'selection' ? slicedQuery : null,
+          metadata: {
+            ui: 'interactive_bubble',
+            trigger,
+            chunk_id: chunk?.chunkId ?? null,
+          },
+        },
+      })
+        .then((response: AssistantLookupResponse) => {
+          if (linguistRequestCounterRef.current !== requestId) {
+            return;
+          }
+          setLinguistBubble((previous) => {
+            if (!previous) {
+              return previous;
+            }
+            return {
+              ...previous,
+              status: 'ready',
+              answer: response.answer,
+            };
+          });
+        })
+        .catch((error: unknown) => {
+          if (linguistRequestCounterRef.current !== requestId) {
+            return;
+          }
+          const message = error instanceof Error ? error.message : 'Unable to reach MyLinguist.';
+          setLinguistBubble((previous) => {
+            if (!previous) {
+              return previous;
+            }
+            return {
+              ...previous,
+              status: 'error',
+              answer: `Error: ${message}`,
+            };
+          });
+        });
+    },
+    [chunk?.chunkId, globalInputLanguage, jobId],
+  );
+
+  const handleLinguistModifierClickCapture = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || !(event.metaKey || event.altKey)) {
+        return;
+      }
+      const container = containerRef.current;
+      if (!container) {
+        return;
+      }
+      if (!(event.target instanceof HTMLElement)) {
+        return;
+      }
+      const token = event.target.closest('[data-text-player-token="true"]');
+      if (!token || !(token instanceof HTMLElement) || !container.contains(token)) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof (event.nativeEvent as MouseEvent | undefined)?.stopImmediatePropagation === 'function') {
+        (event.nativeEvent as MouseEvent).stopImmediatePropagation();
+      }
+      const tokenText = token.textContent ?? '';
+      const rect = token.getBoundingClientRect();
+      openLinguistBubbleForRect(tokenText, rect, 'modifier_click');
+    },
+    [openLinguistBubbleForRect],
+  );
+
+  const handleSelectionLookup = useCallback(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+    const bubbleEl = linguistBubbleRef.current;
+    const selection = document.getSelection();
+    if (!selection || selection.isCollapsed) {
+      return;
+    }
+    const anchorNode = selection.anchorNode;
+    const focusNode = selection.focusNode;
+    const anchorInside = anchorNode instanceof Node ? container.contains(anchorNode) : false;
+    const focusInside = focusNode instanceof Node ? container.contains(focusNode) : false;
+    if (!anchorInside && !focusInside) {
+      return;
+    }
+    if (bubbleEl) {
+      const anchorInBubble = anchorNode instanceof Node ? bubbleEl.contains(anchorNode) : false;
+      const focusInBubble = focusNode instanceof Node ? bubbleEl.contains(focusNode) : false;
+      if (anchorInBubble || focusInBubble) {
+        return;
+      }
+    }
+    const rawText = selection.toString();
+    const trimmed = rawText.trim();
+    if (!trimmed) {
+      return;
+    }
+    const range = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+    let rect: DOMRect | null = null;
+    if (range) {
+      rect = range.getBoundingClientRect();
+    }
+    if (!rect || (!rect.width && !rect.height)) {
+      const node = (focusNode instanceof HTMLElement ? focusNode : focusNode?.parentElement) ?? null;
+      rect = node ? node.getBoundingClientRect() : null;
+    }
+    if (!rect) {
+      return;
+    }
+    openLinguistBubbleForRect(trimmed, rect, 'selection');
+  }, [openLinguistBubbleForRect]);
+
+  const handlePointerUpCaptureWithSelection = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      handlePointerUpCapture(event);
+      const shouldLookupSelection = linguistSelectionArmedRef.current;
+      linguistSelectionArmedRef.current = false;
+      if (event.pointerType !== 'mouse' || event.button !== 0 || !event.isPrimary) {
+        return;
+      }
+      if (!shouldLookupSelection) {
+        return;
+      }
+      if (typeof window === 'undefined') {
+        return;
+      }
+      const bubbleEl = linguistBubbleRef.current;
+      if (bubbleEl && event.target instanceof Node && bubbleEl.contains(event.target)) {
+        return;
+      }
+      window.setTimeout(() => {
+        handleSelectionLookup();
+      }, 0);
+    },
+    [handlePointerUpCapture, handleSelectionLookup],
+  );
+
+  const handleInteractiveBackgroundClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if (event.button !== 0) {
+        return;
+      }
+      if (event.metaKey || event.altKey || event.ctrlKey || event.shiftKey) {
+        return;
+      }
+      const bubbleEl = linguistBubbleRef.current;
+      if (bubbleEl && event.target instanceof Node && bubbleEl.contains(event.target)) {
+        return;
+      }
+      const selection = typeof document !== 'undefined' ? document.getSelection() : null;
+      if (selection && !selection.isCollapsed) {
+        return;
+      }
+      if (isRenderedTextTarget(event.target)) {
+        return;
+      }
+      toggleInlinePlayback();
+    },
+    [isRenderedTextTarget, toggleInlinePlayback],
+  );
+
+  useEffect(() => {
+    if (!linguistBubble) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' || event.key === 'Esc') {
+        closeLinguistBubble();
+      }
+    };
+    const handlePointerDown = (event: PointerEvent) => {
+      const bubbleEl = linguistBubbleRef.current;
+      if (!bubbleEl) {
+        closeLinguistBubble();
+        return;
+      }
+      const target = event.target;
+      if (target instanceof Node && bubbleEl.contains(target)) {
+        return;
+      }
+      closeLinguistBubble();
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+    };
+  }, [closeLinguistBubble, linguistBubble]);
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -2338,6 +2720,35 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [content, totalSentences]);
 
   useEffect(() => {
+    if (!onActiveSentenceChange) {
+      return;
+    }
+    if (!totalSentences || totalSentences <= 0) {
+      onActiveSentenceChange(null);
+      return;
+    }
+    const activeSentenceNumber = (() => {
+      const rawSentenceNumber = chunk?.sentences?.[activeSentenceIndex]?.sentence_number ?? null;
+      const chunkSentenceNumber =
+        typeof rawSentenceNumber === 'number' && Number.isFinite(rawSentenceNumber)
+          ? Math.trunc(rawSentenceNumber)
+          : null;
+      if (chunkSentenceNumber !== null) {
+        return chunkSentenceNumber;
+      }
+      const start =
+        typeof chunk?.startSentence === 'number' && Number.isFinite(chunk.startSentence)
+          ? Math.trunc(chunk.startSentence)
+          : null;
+      if (start !== null) {
+        return start + Math.max(0, Math.trunc(activeSentenceIndex));
+      }
+      return Math.max(1, Math.trunc(activeSentenceIndex) + 1);
+    })();
+    onActiveSentenceChange(activeSentenceNumber);
+  }, [activeSentenceIndex, chunk?.sentences, chunk?.startSentence, onActiveSentenceChange, totalSentences]);
+
+  useEffect(() => {
     if (!timelineDisplay) {
       return;
     }
@@ -2956,30 +3367,69 @@ const handleAudioSeeked = useCallback(() => {
       return typeof last === 'number' && Number.isFinite(last) ? Math.trunc(last) : null;
     })();
 
-    const jobEndExplicit =
+    const explicitJobEnd =
+      typeof jobEndSentence === 'number' && Number.isFinite(jobEndSentence)
+        ? Math.max(Math.trunc(jobEndSentence), 1)
+        : null;
+    const jobEndFromChunk =
       typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
         ? Math.max(Math.trunc(chunk.endSentence), start ?? 1)
         : null;
+    const jobEnd = explicitJobEnd ?? jobEndFromChunk ?? jobEndFromCount ?? jobEndFromMetadata;
 
-    const jobEnd = jobEndExplicit ?? jobEndFromCount ?? jobEndFromMetadata;
+    const resolvedJobStart =
+      typeof jobStartSentence === 'number' && Number.isFinite(jobStartSentence)
+        ? Math.max(Math.trunc(jobStartSentence), 1)
+        : start ?? 1;
 
-    const bookTotal =
-      typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
-        ? Math.max(Math.trunc(totalSentencesInBook), jobEnd ?? 1, 1)
-        : jobEndFromMetadata ?? jobEnd ?? null;
+    const resolvedBookTotal =
+      typeof bookTotalSentences === 'number' && Number.isFinite(bookTotalSentences)
+        ? Math.max(Math.trunc(bookTotalSentences), 1)
+        : typeof totalSentencesInBook === 'number' && Number.isFinite(totalSentencesInBook)
+          ? Math.max(Math.trunc(totalSentencesInBook), 1)
+          : null;
 
-    if (current === null || jobEnd === null || bookTotal === null) {
+    if (current === null) {
       return null;
     }
 
-    const displayCurrent = Math.min(current, jobEnd, bookTotal);
+    const displayCurrent = jobEnd !== null ? Math.min(current, jobEnd) : current;
+    const base = jobEnd !== null ? `Playing sentence ${displayCurrent} of ${jobEnd}` : `Playing sentence ${displayCurrent}`;
 
-    return {
-      current: displayCurrent,
-      jobEnd,
-      bookTotal,
-    };
-  }, [activeSentenceIndex, chunk, totalSentencesInBook]);
+    const jobPercent = (() => {
+      if (jobEnd === null) {
+        return null;
+      }
+      const span = Math.max(jobEnd - resolvedJobStart, 0);
+      const ratio = span > 0 ? (displayCurrent - resolvedJobStart) / span : 1;
+      if (!Number.isFinite(ratio)) {
+        return null;
+      }
+      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
+    })();
+
+    const bookPercent = (() => {
+      if (resolvedBookTotal === null) {
+        return null;
+      }
+      const ratio = resolvedBookTotal > 0 ? displayCurrent / resolvedBookTotal : null;
+      if (ratio === null || !Number.isFinite(ratio)) {
+        return null;
+      }
+      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
+    })();
+
+    const suffixParts: string[] = [];
+    if (jobPercent !== null) {
+      suffixParts.push(`Job ${jobPercent}%`);
+    }
+    if (bookPercent !== null) {
+      suffixParts.push(`Book ${bookPercent}%`);
+    }
+    const label = suffixParts.length > 0 ? `${base} · ${suffixParts.join(' · ')}` : base;
+
+    return { label };
+  }, [activeSentenceIndex, bookTotalSentences, chunk, jobEndSentence, jobStartSentence, totalSentencesInBook]);
 
   return (
     <>
@@ -3041,9 +3491,11 @@ const handleAudioSeeked = useCallback(() => {
         className="player-panel__document-body player-panel__interactive-body"
         data-testid="player-panel-document"
         onScroll={handleScroll}
+        onClickCapture={handleLinguistModifierClickCapture}
+        onClick={handleInteractiveBackgroundClick}
         onPointerDownCapture={handlePointerDownCapture}
         onPointerMoveCapture={handlePointerMoveCapture}
-        onPointerUpCapture={handlePointerUpCapture}
+        onPointerUpCapture={handlePointerUpCaptureWithSelection}
         onPointerCancelCapture={handlePointerCancelCapture}
         style={bodyStyle}
       >
@@ -3063,8 +3515,8 @@ const handleAudioSeeked = useCallback(() => {
           </div>
         ) : null}
         {slideIndicator ? (
-          <div className="player-panel__interactive-slide-indicator">
-            {slideIndicator.current}/{slideIndicator.bookTotal}
+          <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
+            {slideIndicator.label}
           </div>
         ) : null}
         {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : textPlayerSentences && textPlayerSentences.length > 0 ? (
@@ -3080,6 +3532,41 @@ const handleAudioSeeked = useCallback(() => {
             Text preview will appear once generated.
           </div>
         )}
+        {linguistBubble ? (
+          <div
+            ref={linguistBubbleRef}
+            className={[
+              'player-panel__my-linguist-bubble',
+              linguistBubble.placement === 'below'
+                ? 'player-panel__my-linguist-bubble--below'
+                : 'player-panel__my-linguist-bubble--above',
+              linguistBubble.status === 'loading' ? 'player-panel__my-linguist-bubble--loading' : null,
+              linguistBubble.status === 'error' ? 'player-panel__my-linguist-bubble--error' : null,
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            style={{ left: `${linguistBubble.x}px`, top: `${linguistBubble.y}px` }}
+            role="dialog"
+            aria-label="MyLinguist lookup"
+          >
+            <div className="player-panel__my-linguist-bubble-header">
+              <div className="player-panel__my-linguist-bubble-header-left">
+                <span className="player-panel__my-linguist-bubble-title">MyLinguist</span>
+                <span className="player-panel__my-linguist-bubble-meta">Model: {linguistBubble.modelLabel}</span>
+              </div>
+              <button
+                type="button"
+                className="player-panel__my-linguist-bubble-close"
+                onClick={closeLinguistBubble}
+                aria-label="Close MyLinguist lookup"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="player-panel__my-linguist-bubble-query">{linguistBubble.query}</div>
+            <div className="player-panel__my-linguist-bubble-body">{linguistBubble.answer}</div>
+          </div>
+        ) : null}
       </div>
     </div>
     <DebugOverlay audioEl={overlayAudioEl} />

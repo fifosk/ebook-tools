@@ -11,6 +11,7 @@ import YoutubeVideoPage from './pages/YoutubeVideoPage';
 import YoutubeDubPage from './pages/YoutubeDubPage';
 import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
+import MyLinguistAssistant from './components/MyLinguistAssistant';
 import {
   LibraryItem,
   PipelineRequestPayload,
@@ -1384,6 +1385,7 @@ export function App() {
           )}
         </main>
       </div>
+      <MyLinguistAssistant />
     </div>
   );
 }

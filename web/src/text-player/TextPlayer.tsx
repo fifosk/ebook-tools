@@ -175,7 +175,7 @@ function renderVariant(
 const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek }) => {
   if (!sentences.length) {
     return (
-      <div className={styles.frame}>
+      <div className={styles.frame} data-text-player-frame="true">
         <div className={styles.lineRow}>
           <span className={styles.lineLabel}>Waiting for transcript…</span>
         </div>
@@ -184,7 +184,7 @@ const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek }) => {
   }
 
   return (
-    <div className={styles.frame}>
+    <div className={styles.frame} data-text-player-frame="true">
       {sentences.map((sentence) => {
         const classNames = [styles.sentence];
         if (sentence.state === 'active') {

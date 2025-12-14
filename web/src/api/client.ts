@@ -47,7 +47,9 @@ import {
   YoutubeVideoDeleteRequest,
   YoutubeVideoDeleteResponse,
   YoutubeDubRequest,
-  YoutubeDubResponse
+  YoutubeDubResponse,
+  AssistantLookupRequest,
+  AssistantLookupResponse
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -352,6 +354,17 @@ export async function fetchLlmModels(): Promise<string[]> {
 
 export async function fetchSubtitleModels(): Promise<string[]> {
   return fetchLlmModels();
+}
+
+export async function assistantLookup(payload: AssistantLookupRequest): Promise<AssistantLookupResponse> {
+  const response = await apiFetch('/api/assistant/lookup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<AssistantLookupResponse>(response);
 }
 
 export async function submitSubtitleJob(formData: FormData): Promise<PipelineSubmissionResponse> {

@@ -326,6 +326,38 @@ export interface LlmModelListResponse {
   models: string[];
 }
 
+export type AssistantChatMessageRole = 'user' | 'assistant';
+
+export interface AssistantChatMessage {
+  role: AssistantChatMessageRole;
+  content: string;
+}
+
+export interface AssistantRequestContext {
+  source?: string | null;
+  page?: string | null;
+  job_id?: string | null;
+  selection_text?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+export interface AssistantLookupRequest {
+  query: string;
+  input_language: string;
+  lookup_language: string;
+  llm_model?: string | null;
+  system_prompt?: string | null;
+  history?: AssistantChatMessage[];
+  context?: AssistantRequestContext | null;
+}
+
+export interface AssistantLookupResponse {
+  answer: string;
+  model: string;
+  token_usage?: Record<string, number>;
+  source?: string | null;
+}
+
 export interface SubtitleJobResultPayload {
   subtitle?: {
     output_path?: string;

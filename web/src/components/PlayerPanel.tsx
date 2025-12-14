@@ -141,6 +141,10 @@ interface NavigationControlsProps {
   onFontScaleChange?: (value: number) => void;
   nowPlayingText?: string | null;
   nowPlayingTitle?: string | null;
+  activeSentenceNumber?: number | null;
+  totalSentencesInBook?: number | null;
+  jobStartSentence?: number | null;
+  bookTotalSentences?: number | null;
 }
 
 export function NavigationControls({
@@ -207,12 +211,16 @@ export function NavigationControls({
   onFontScaleChange,
   nowPlayingText = null,
   nowPlayingTitle = null,
+  activeSentenceNumber = null,
+  totalSentencesInBook = null,
+  jobStartSentence = null,
+  bookTotalSentences = null,
 }: NavigationControlsProps) {
   const groupClassName = [
     context === 'fullscreen'
       ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
       : 'player-panel__navigation-group',
-    controlsLayout === 'compact' && context === 'panel' ? 'player-panel__navigation-group--compact-controls' : null,
+    controlsLayout === 'compact' ? 'player-panel__navigation-group--compact-controls' : null,
   ]
     .filter(Boolean)
     .join(' ');
@@ -255,8 +263,7 @@ export function NavigationControls({
   )}%`;
   const shouldShowCompactControls =
     controlsLayout === 'compact' &&
-    context === 'panel' &&
-    (showTranslationSpeed || showSubtitleScale || showSubtitleBackgroundOpacity);
+    (showTranslationSpeed || showSubtitleScale || showSubtitleBackgroundOpacity || showFontScale);
   const resolvedCueVisibility =
     cueVisibility ??
     ({
@@ -293,132 +300,231 @@ export function NavigationControls({
   const formattedFontScale = `${Math.round(
     Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax),
   )}%`;
+  const sentenceNowPlayingText = (() => {
+    if (activeSentenceNumber === null) {
+      return null;
+    }
+    const jobTotal = totalSentencesInBook;
+    const base =
+      jobTotal !== null ? `Playing sentence ${activeSentenceNumber} of ${jobTotal}` : `Playing sentence ${activeSentenceNumber}`;
+
+    const jobPercent = (() => {
+      if (jobStartSentence === null || jobTotal === null) {
+        return null;
+      }
+      const span = Math.max(jobTotal - jobStartSentence, 0);
+      const ratio = span > 0 ? (activeSentenceNumber - jobStartSentence) / span : 1;
+      if (!Number.isFinite(ratio)) {
+        return null;
+      }
+      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
+    })();
+
+    const bookPercent = (() => {
+      if (bookTotalSentences === null) {
+        return null;
+      }
+      const ratio = bookTotalSentences > 0 ? activeSentenceNumber / bookTotalSentences : null;
+      if (ratio === null || !Number.isFinite(ratio)) {
+        return null;
+      }
+      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
+    })();
+
+    const suffixParts: string[] = [];
+    if (jobPercent !== null) {
+      suffixParts.push(`Job ${jobPercent}%`);
+    }
+    if (bookPercent !== null) {
+      suffixParts.push(`Book ${bookPercent}%`);
+    }
+    if (suffixParts.length === 0) {
+      return base;
+    }
+    return `${base} · ${suffixParts.join(' · ')}`;
+  })();
 
   return (
     <div className={groupClassName}>
-      <div className={navigationClassName} role="group" aria-label="Navigate media items">
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={() => onNavigate('first')}
-          disabled={disableFirst}
-          aria-label="Go to first item"
-        >
-          <span aria-hidden="true">⏮</span>
-        </button>
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={() => onNavigate('previous')}
-          disabled={disablePrevious}
-          aria-label="Go to previous item"
-        >
-          <span aria-hidden="true">⏪</span>
-        </button>
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={onTogglePlayback}
-          disabled={disablePlayback}
-          aria-label={playbackLabel}
-          aria-pressed={isPlaying ? 'true' : 'false'}
-        >
-          <span aria-hidden="true">{playbackIcon}</span>
-        </button>
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={() => onNavigate('next')}
-          disabled={disableNext}
-          aria-label="Go to next item"
-        >
-          <span aria-hidden="true">⏩</span>
-        </button>
-        <button
-          type="button"
-          className="player-panel__nav-button"
-          onClick={() => onNavigate('last')}
-          disabled={disableLast}
-          aria-label="Go to last item"
-        >
-          <span aria-hidden="true">⏭</span>
-        </button>
+      <div className="player-panel__navigation-row">
+        <div className={navigationClassName} role="group" aria-label="Navigate media items">
+          <button
+            type="button"
+            className="player-panel__nav-button"
+            onClick={() => onNavigate('first')}
+            disabled={disableFirst}
+            aria-label="Go to first item"
+          >
+            <span aria-hidden="true">⏮</span>
+          </button>
+          <button
+            type="button"
+            className="player-panel__nav-button"
+            onClick={() => onNavigate('previous')}
+            disabled={disablePrevious}
+            aria-label="Go to previous item"
+          >
+            <span aria-hidden="true">⏪</span>
+          </button>
+          <button
+            type="button"
+            className="player-panel__nav-button"
+            onClick={onTogglePlayback}
+            disabled={disablePlayback}
+            aria-label={playbackLabel}
+            aria-pressed={isPlaying ? 'true' : 'false'}
+          >
+            <span aria-hidden="true">{playbackIcon}</span>
+          </button>
+          <button
+            type="button"
+            className="player-panel__nav-button"
+            onClick={() => onNavigate('next')}
+            disabled={disableNext}
+            aria-label="Go to next item"
+          >
+            <span aria-hidden="true">⏩</span>
+          </button>
+          <button
+            type="button"
+            className="player-panel__nav-button"
+            onClick={() => onNavigate('last')}
+            disabled={disableLast}
+            aria-label="Go to last item"
+          >
+            <span aria-hidden="true">⏭</span>
+          </button>
+          {auxiliaryToggleVariant === 'original' ? (
+            <button
+              type="button"
+              className={originalToggleClassName}
+              onClick={onToggleOriginalAudio}
+              disabled={disableOriginalAudioToggle}
+              aria-label="Toggle Original Audio"
+              aria-pressed={originalAudioEnabled}
+              title={originalToggleTitle}
+            >
+              <span aria-hidden="true" className="player-panel__nav-button-icon">
+                {originalAudioEnabled ? '🎧' : '🎵'}
+              </span>
+              <span aria-hidden="true" className="player-panel__nav-button-text">
+                Orig
+              </span>
+            </button>
+          ) : null}
+          {auxiliaryToggleVariant === 'subtitles' ? (
+            <button
+              type="button"
+              className={subtitleToggleClassName}
+              onClick={onToggleSubtitles}
+              disabled={disableSubtitleToggle}
+              aria-label="Toggle Subtitles"
+              aria-pressed={subtitlesEnabled}
+              title={subtitleToggleTitle}
+            >
+              <span aria-hidden="true" className="player-panel__nav-button-icon">
+                {subtitlesEnabled ? '💬' : '🚫'}
+              </span>
+              <span aria-hidden="true" className="player-panel__nav-button-text">
+                Subs
+              </span>
+            </button>
+          ) : null}
+          {showCueLayerToggles ? (
+            <div
+              className="player-panel__subtitle-flags player-panel__subtitle-flags--controls"
+              role="group"
+              aria-label="Subtitle layers"
+            >
+              {[
+                { key: 'original' as const, label: 'Orig' },
+                { key: 'transliteration' as const, label: 'Translit' },
+                { key: 'translation' as const, label: 'Trans' },
+              ].map((entry) => (
+                <button
+                  key={entry.key}
+                  type="button"
+                  className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
+                  aria-pressed={resolvedCueVisibility[entry.key]}
+                  onClick={() => handleToggleCueLayer(entry.key)}
+                  disabled={disableCueLayerToggles || disableSubtitleToggle}
+                >
+                  {entry.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {sentenceNowPlayingText ? (
+            <span
+              className="player-panel__now-playing player-panel__now-playing--sentence"
+              title={sentenceNowPlayingText}
+            >
+              {sentenceNowPlayingText}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className={fullscreenButtonClassName.join(' ')}
+            onClick={onToggleFullscreen}
+            disabled={disableFullscreen}
+            aria-pressed={isFullscreen}
+            aria-label={fullscreenLabel}
+            data-testid={fullscreenTestId}
+          >
+            <span aria-hidden="true">{fullscreenIcon}</span>
+          </button>
+        </div>
         {nowPlayingText ? (
           <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
             {nowPlayingText}
           </span>
         ) : null}
-        {auxiliaryToggleVariant === 'original' ? (
-          <button
-            type="button"
-            className={originalToggleClassName}
-            onClick={onToggleOriginalAudio}
-            disabled={disableOriginalAudioToggle}
-            aria-label="Toggle Original Audio"
-            aria-pressed={originalAudioEnabled}
-            title={originalToggleTitle}
-          >
-            <span aria-hidden="true" className="player-panel__nav-button-icon">
-              {originalAudioEnabled ? '🎧' : '🎵'}
+        {showSentenceJump ? (
+          <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
+            {sentenceJumpError ? (
+              <span id={jumpErrorId} className="visually-hidden">
+                {sentenceJumpError}
+              </span>
+            ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
+              <span id={jumpRangeId} className="visually-hidden">
+                Range {sentenceJumpMin}–{sentenceJumpMax}
+              </span>
+            ) : null}
+            <span className="player-panel__sentence-jump-label" aria-hidden="true">
+              Jump
             </span>
-            <span aria-hidden="true" className="player-panel__nav-button-text">
-              Orig
-            </span>
-          </button>
-        ) : null}
-        {auxiliaryToggleVariant === 'subtitles' ? (
-          <button
-            type="button"
-            className={subtitleToggleClassName}
-            onClick={onToggleSubtitles}
-            disabled={disableSubtitleToggle}
-            aria-label="Toggle Subtitles"
-            aria-pressed={subtitlesEnabled}
-            title={subtitleToggleTitle}
-          >
-            <span aria-hidden="true" className="player-panel__nav-button-icon">
-              {subtitlesEnabled ? '💬' : '🚫'}
-            </span>
-            <span aria-hidden="true" className="player-panel__nav-button-text">
-              Subs
-            </span>
-          </button>
-        ) : null}
-        {showCueLayerToggles ? (
-          <div
-            className="player-panel__subtitle-flags player-panel__subtitle-flags--controls"
-            role="group"
-            aria-label="Subtitle layers"
-          >
-            {[
-              { key: 'original' as const, label: 'Orig' },
-              { key: 'transliteration' as const, label: 'Translit' },
-              { key: 'translation' as const, label: 'Trans' },
-            ].map((entry) => (
-              <button
-                key={entry.key}
-                type="button"
-                className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
-                aria-pressed={resolvedCueVisibility[entry.key]}
-                onClick={() => handleToggleCueLayer(entry.key)}
-                disabled={disableCueLayerToggles || disableSubtitleToggle}
-              >
-                {entry.label}
-              </button>
-            ))}
+            <input
+              id={jumpInputId}
+              className="player-panel__sentence-jump-input"
+              type="number"
+              inputMode="numeric"
+              min={sentenceJumpMin ?? undefined}
+              max={sentenceJumpMax ?? undefined}
+              step={1}
+              list={sentenceJumpListId}
+              value={sentenceJumpValue}
+              onChange={handleSentenceInputChange}
+              onKeyDown={handleSentenceInputKeyDown}
+              placeholder="…"
+              aria-label="Jump to sentence"
+              aria-describedby={describedBy}
+              aria-invalid={sentenceJumpError ? 'true' : undefined}
+              disabled={sentenceJumpDisabled}
+              title={
+                sentenceJumpError ??
+                (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
+              }
+            />
+            <button
+              type="button"
+              className="player-panel__sentence-jump-button"
+              onClick={onSentenceJumpSubmit}
+              disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+            >
+              Go
+            </button>
           </div>
         ) : null}
-        <button
-          type="button"
-          className={fullscreenButtonClassName.join(' ')}
-          onClick={onToggleFullscreen}
-          disabled={disableFullscreen}
-          aria-pressed={isFullscreen}
-          aria-label={fullscreenLabel}
-          data-testid={fullscreenTestId}
-        >
-          <span aria-hidden="true">{fullscreenIcon}</span>
-        </button>
       </div>
       {shouldShowCompactControls ? (
         <div className="player-panel__control-bar" role="group" aria-label="Playback tuning">
@@ -441,6 +547,31 @@ export function NavigationControls({
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedSpeed}
+              </span>
+            </div>
+          ) : null}
+          {showFontScale ? (
+            <div className="player-panel__control" data-testid="player-panel-font-scale">
+              <label className="player-panel__control-label" htmlFor={fontScaleSliderId}>
+                Font
+              </label>
+              <input
+                id={fontScaleSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={fontScaleMin}
+                max={fontScaleMax}
+                step={fontScaleStep}
+                value={Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax)}
+                onChange={handleFontScaleInputChange}
+                aria-label="Font size"
+                aria-valuemin={fontScaleMin}
+                aria-valuemax={fontScaleMax}
+                aria-valuenow={Math.round(fontScalePercent)}
+                aria-valuetext={formattedFontScale}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedFontScale}
               </span>
             </div>
           ) : null}
@@ -576,7 +707,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showSentenceJump ? (
+      {showSentenceJump && controlsLayout !== 'compact' ? (
         <div className="player-panel__nav-jump">
           <label className="player-panel__nav-speed-label" htmlFor={jumpInputId}>
             Jump to sentence
@@ -620,7 +751,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showFontScale ? (
+      {showFontScale && !shouldShowCompactControls ? (
         <div className="player-panel__nav-font">
           <label className="player-panel__nav-font-label" htmlFor={fontScaleSliderId}>
             Font size
@@ -1226,6 +1357,7 @@ const scheduleChunkMetadataAppend = useCallback(
     return Number.isFinite(raw) ? clampFontScalePercent(raw) : 100;
   });
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
+  const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
   const sentenceLookup = useMemo<SentenceLookup>(() => {
     const exact = new Map<number, SentenceLookupEntry>();
     const ranges: SentenceLookupRange[] = [];
@@ -1407,7 +1539,11 @@ const scheduleChunkMetadataAppend = useCallback(
     };
   }, [bookMetadata, bookSentenceCount, chunks.length, jobId]);
 
-  const totalSentencesInBook = bookSentenceCount ?? sentenceLookup.max ?? null;
+  const jobStartSentence = sentenceLookup.min ?? null;
+  const jobEndSentence = sentenceLookup.max ?? null;
+  const handleActiveSentenceChange = useCallback((value: number | null) => {
+    setActiveSentenceNumber(value);
+  }, []);
   const findSentenceTarget = useCallback(
     (sentenceNumber: number) => {
       if (!Number.isFinite(sentenceNumber)) {
@@ -3368,6 +3504,7 @@ const scheduleChunkMetadataAppend = useCallback(
       onNavigate={handleNavigate}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
       onTogglePlayback={handleToggleActiveMedia}
+      controlsLayout="compact"
       disableFirst={isFirstDisabled}
       disablePrevious={isPreviousDisabled}
       disableNext={isNextDisabled}
@@ -3404,6 +3541,10 @@ const scheduleChunkMetadataAppend = useCallback(
       fontScaleMax={FONT_SCALE_MAX}
       fontScaleStep={FONT_SCALE_STEP}
       onFontScaleChange={handleFontScaleChange}
+      activeSentenceNumber={activeSentenceNumber}
+      totalSentencesInBook={jobEndSentence}
+      jobStartSentence={jobStartSentence}
+      bookTotalSentences={bookSentenceCount}
     />
   );
   const fullscreenNavigationGroup = isInteractiveFullscreen ? (
@@ -3412,6 +3553,7 @@ const scheduleChunkMetadataAppend = useCallback(
       onNavigate={handleNavigate}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
       onTogglePlayback={handleToggleActiveMedia}
+      controlsLayout="compact"
       disableFirst={isFirstDisabled}
       disablePrevious={isPreviousDisabled}
       disableNext={isNextDisabled}
@@ -3448,6 +3590,10 @@ const scheduleChunkMetadataAppend = useCallback(
       fontScaleMax={FONT_SCALE_MAX}
       fontScaleStep={FONT_SCALE_STEP}
       onFontScaleChange={handleFontScaleChange}
+      activeSentenceNumber={activeSentenceNumber}
+      totalSentencesInBook={jobEndSentence}
+      jobStartSentence={jobStartSentence}
+      bookTotalSentences={bookSentenceCount}
     />
   ) : null;
 
@@ -3516,10 +3662,14 @@ const scheduleChunkMetadataAppend = useCallback(
                             content={interactiveViewerContent}
                             rawContent={interactiveViewerRaw}
                             chunk={resolvedActiveTextChunk}
-                            totalSentencesInBook={totalSentencesInBook}
+                            totalSentencesInBook={bookSentenceCount}
+                            bookTotalSentences={bookSentenceCount}
+                            jobStartSentence={jobStartSentence}
+                            jobEndSentence={jobEndSentence}
                             activeAudioUrl={inlineAudioSelection}
                             noAudioAvailable={inlineAudioUnavailable}
                             jobId={jobId}
+                            onActiveSentenceChange={handleActiveSentenceChange}
                             onScroll={handleTextScroll}
                             onAudioProgress={handleInlineAudioProgress}
                             getStoredAudioPosition={getInlineAudioPosition}
