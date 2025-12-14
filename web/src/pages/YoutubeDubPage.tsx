@@ -1196,18 +1196,17 @@ export default function YoutubeDubPage({
                         {(video.linked_job_ids?.length ?? 0) === 1 ? '' : 's'}
                       </span>
                     ) : null}
-                  </div>
-                  <div className={styles.subtitleRow} aria-label="Available subtitles">
                     {video.subtitles.length === 0 ? (
-                      <span className={`${styles.pill} ${styles.pillMuted}`}>No subtitles</span>
+                      <span className={`${styles.pill} ${styles.pillMeta} ${styles.pillMuted}`}>No subtitles</span>
                     ) : (
                       video.subtitles.map((sub) => (
                         <span
                           key={sub.path}
-                          className={`${styles.pill} ${
+                          className={`${styles.pill} ${styles.pillMeta} ${
                             sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
                           }`}
                           aria-label={subtitleLabel(sub)}
+                          title={subtitleLabel(sub)}
                         >
                           <span className={styles.pillFlag} aria-hidden="true">
                             {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
@@ -1216,6 +1215,43 @@ export default function YoutubeDubPage({
                         </span>
                       ))
                     )}
+                    <button
+                      type="button"
+                      className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        if (!isActive) {
+                          return;
+                        }
+                        void handleExtractSubtitles();
+                      }}
+                      disabled={
+                        !isActive ||
+                        !canExtractEmbedded ||
+                        isExtractingSubtitles ||
+                        isLoadingStreams ||
+                        Boolean(deletingSubtitlePath)
+                      }
+                      title="Inspect and extract subtitle streams from this video"
+                      aria-label="Inspect and extract subtitle streams from this video"
+                    >
+                      ⬇️
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void handleDeleteVideo(video);
+                      }}
+                      disabled={disableDelete}
+                      title={jobTitle}
+                      aria-label={jobTitle}
+                    >
+                      🗑️
+                    </button>
                   </div>
                   {isActive ? (
                     <div className={styles.nestedSubtitleCard} aria-label="Subtitle selection">
@@ -1360,45 +1396,6 @@ export default function YoutubeDubPage({
                       </div>
                     </div>
                   ) : null}
-                  <div className={styles.videoActions}>
-                    <button
-                      type="button"
-                      className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        if (!isActive) {
-                          return;
-                        }
-                        void handleExtractSubtitles();
-                      }}
-                      disabled={
-                        !isActive ||
-                        !canExtractEmbedded ||
-                        isExtractingSubtitles ||
-                        isLoadingStreams ||
-                        Boolean(deletingSubtitlePath)
-                      }
-                      title="Inspect and extract subtitle streams from this video"
-                      aria-label="Inspect and extract subtitle streams from this video"
-                    >
-                      ⬇️
-                    </button>
-                    <button
-                      type="button"
-                      className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        void handleDeleteVideo(video);
-                      }}
-                      disabled={disableDelete}
-                      title={jobTitle}
-                      aria-label={jobTitle}
-                    >
-                      🗑️
-                    </button>
-                  </div>
                 </div>
               </label>
             );

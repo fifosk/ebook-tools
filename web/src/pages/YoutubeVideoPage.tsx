@@ -576,15 +576,13 @@ export default function YoutubeVideoPage() {
                           {(video.linked_job_ids?.length ?? 0) === 1 ? '' : 's'}
                         </span>
                       ) : null}
-                    </div>
-                    <div className={styles.subtitleRow} aria-label="Subtitles next to video">
                       {video.subtitles.length === 0 ? (
-                        <span className={`${styles.pill} ${styles.pillMuted}`}>No subtitles</span>
+                        <span className={`${styles.pill} ${styles.pillMeta} ${styles.pillMuted}`}>No subtitles</span>
                       ) : (
                         video.subtitles.map((sub) => (
                           <span
                             key={sub.path}
-                            className={`${styles.pill} ${
+                            className={`${styles.pill} ${styles.pillMeta} ${
                               sub.format.toLowerCase() === 'ass' ? styles.pillAss : styles.pillMuted
                             }`}
                             title={sub.path}
@@ -597,19 +595,17 @@ export default function YoutubeVideoPage() {
                           </span>
                         ))
                       )}
+                      <button
+                        type="button"
+                        className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
+                        onClick={() => void handleDeleteVideo(video)}
+                        disabled={disableDelete}
+                        title={jobTitle}
+                        aria-label={jobTitle}
+                      >
+                        🗑️
+                      </button>
                     </div>
-                  </div>
-                  <div className={styles.videoActions}>
-                    <button
-                      type="button"
-                      className={`${styles.pill} ${styles.pillMeta} ${styles.pillAction}`}
-                      onClick={() => void handleDeleteVideo(video)}
-                      disabled={disableDelete}
-                      title={jobTitle}
-                      aria-label={jobTitle}
-                    >
-                      🗑️
-                    </button>
                   </div>
                 </div>
               );

@@ -236,14 +236,6 @@
   flex-wrap: wrap;
 }
 
-.videoActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: var(--space-xs);
-  margin-top: var(--space-sm);
-}
-
 .pill {
   display: inline-flex;
   align-items: center;

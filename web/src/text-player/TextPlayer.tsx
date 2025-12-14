@@ -135,6 +135,8 @@ function renderVariant(
         }}
         data-text-player-token="true"
         data-text-player-variant={variant.baseClass}
+        data-text-player-token-index={index}
+        data-text-player-sentence-index={sentenceIndex}
       >
         {token}
       </span>

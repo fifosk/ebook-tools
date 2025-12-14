@@ -3395,6 +3395,20 @@ button.link-button:focus {
   justify-content: center;
 }
 
+.player-panel__my-linguist-bubble-nav {
+  border: none;
+  background: transparent;
+  color: var(--color-text-muted);
+  font-size: calc(0.95rem * var(--my-linguist-font-scale, 1));
+  line-height: 1;
+  padding: 0.15rem 0.35rem;
+  cursor: pointer;
+  border-radius: 0.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .player-panel__my-linguist-bubble-pin {
   border: none;
   background: transparent;
@@ -3425,6 +3439,11 @@ button.link-button:focus {
   color: var(--color-text);
 }
 
+.player-panel__my-linguist-bubble-nav:hover {
+  background: var(--color-button-secondary-bg);
+  color: var(--color-text);
+}
+
 .player-panel__my-linguist-bubble-pin:hover {
   background: var(--color-button-secondary-bg);
   color: var(--color-text);
@@ -3436,6 +3455,11 @@ button.link-button:focus {
 }
 
 .player-panel__my-linguist-bubble-speak:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.player-panel__my-linguist-bubble-nav:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

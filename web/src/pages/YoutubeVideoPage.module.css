@@ -432,12 +432,6 @@
   margin-top: var(--space-xxs);
 }
 
-.videoActions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-}
-
 .pill {
   display: inline-flex;
   align-items: center;

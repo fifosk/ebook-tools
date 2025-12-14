@@ -257,6 +257,7 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
 
     selected_voice, engine = _resolve_voice(language, requested_voice)
     metadata = _lookup_macos_voice_details(selected_voice) if engine == "macos" else None
+    fallback_from: Optional[str] = None
 
     if engine == "macos":
         if metadata:
@@ -286,7 +287,18 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
 
     try:
         if engine == "macos":
-            _synthesize_with_say(text, selected_voice, speed, mp3_path)
+            try:
+                _synthesize_with_say(text, selected_voice, speed, mp3_path)
+            except HTTPException:
+                fallback_from = "macos"
+                selected_voice, engine = _gtts_identifier(language), "gtts"
+                metadata = None
+                log_mgr.console_warning(
+                    "macOS synthesis failed; falling back to gTTS (%s).",
+                    selected_voice,
+                    logger_obj=logger,
+                )
+                _synthesize_with_gtts(text, selected_voice, mp3_path)
         else:
             _synthesize_with_gtts(text, selected_voice, mp3_path)
     except HTTPException:
@@ -301,6 +313,8 @@ def synthesize_audio(payload: AudioSynthesisRequest):  # noqa: D401 - FastAPI si
         "X-Synthesis-Engine": engine,
         "X-Selected-Voice": selected_voice,
     }
+    if fallback_from:
+        headers["X-Synthesis-Fallback-From"] = fallback_from
     if metadata:
         headers["X-MacOS-Voice-Name"] = metadata["name"]
         headers["X-MacOS-Voice-Lang"] = metadata["lang"]

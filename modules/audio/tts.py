@@ -464,10 +464,14 @@ def normalize_gtts_language_code(language: str) -> str:
     available = _available_gtts_languages()
     have_inventory = bool(available)
 
-    def _is_supported(code: str) -> bool:
+    def _supported_or_base(code: str) -> Optional[str]:
         candidate = code.lower()
         base = candidate.split("-")[0]
-        return candidate in available or base in available
+        if candidate in available:
+            return candidate
+        if base in available:
+            return base
+        return None
 
     def _apply_legacy_hebrew(code: str) -> str:
         base = code.split("-")[0]
@@ -476,16 +480,22 @@ def normalize_gtts_language_code(language: str) -> str:
         return code
 
     normalized = _apply_legacy_hebrew(raw)
-    if have_inventory and _is_supported(normalized):
-        return normalized
+    if have_inventory:
+        supported = _supported_or_base(normalized)
+        if supported:
+            return supported
 
     fallback = _apply_voice_language_fallback(raw)
     fallback = _apply_legacy_hebrew((fallback or "").strip().lower().replace("_", "-"))
-    if fallback and (not have_inventory or _is_supported(fallback)):
-        return fallback
+    if fallback:
+        if not have_inventory:
+            return fallback
+        supported = _supported_or_base(fallback)
+        if supported:
+            return supported
 
     base = normalized.split("-")[0]
-    if have_inventory and _is_supported(base):
+    if have_inventory and base in available:
         return base
 
     if not have_inventory:
