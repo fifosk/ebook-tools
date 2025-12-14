@@ -645,7 +645,7 @@ async def get_job_media(
     file_locator: FileLocator = Depends(get_file_locator),
     request_user: RequestUserContext = Depends(get_request_user),
 ):
-    """Return generated media metadata for a completed or persisted job."""
+    """Return generated media metadata for a job."""
 
     try:
         job = pipeline_service.get_job(
@@ -658,9 +658,17 @@ async def get_job_media(
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
+    generated_payload: Optional[Mapping[str, Any]] = None
+    if job.media_completed and job.generated_files is not None:
+        generated_payload = job.generated_files
+    elif job.tracker is not None:
+        generated_payload = job.tracker.get_generated_files()
+    elif job.generated_files is not None:
+        generated_payload = job.generated_files
+
     media_entries, chunk_entries, complete = _serialize_media_entries(
         job.job_id,
-        job.generated_files,
+        generated_payload,
         file_locator,
         source="completed",
     )

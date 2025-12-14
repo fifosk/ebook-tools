@@ -276,6 +276,7 @@ export default function SubtitlesPage({
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [enableTransliteration, setEnableTransliteration] = useState<boolean>(true);
   const [enableHighlight, setEnableHighlight] = useState<boolean>(true);
+  const [generateAudioBook, setGenerateAudioBook] = useState<boolean>(true);
   const [outputFormat, setOutputFormat] = useState<SubtitleOutputFormat>('ass');
   const [assFontSize, setAssFontSize] = useState<number | ''>(DEFAULT_ASS_FONT_SIZE);
   const [assEmphasis, setAssEmphasis] = useState<number | ''>(DEFAULT_ASS_EMPHASIS);
@@ -713,6 +714,7 @@ export default function SubtitlesPage({
       formData.append('enable_transliteration', String(enableTransliteration));
       formData.append('highlight', String(enableHighlight));
       formData.append('show_original', String(showOriginal));
+      formData.append('generate_audio_book', String(generateAudioBook));
       formData.append('output_format', outputFormat);
       formData.append('mirror_batches_to_source_dir', String(mirrorToSourceDir));
       formData.append('start_time', normalisedStartTime);
@@ -779,6 +781,7 @@ export default function SubtitlesPage({
     [
       enableHighlight,
       enableTransliteration,
+      generateAudioBook,
       showOriginal,
       inputLanguage,
       onJobCreated,
@@ -1128,6 +1131,14 @@ export default function SubtitlesPage({
                   onChange={(event) => setEnableHighlight(event.target.checked)}
                 />
                 Dynamic word highlighting
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={generateAudioBook}
+                  onChange={(event) => setGenerateAudioBook(event.target.checked)}
+                />
+                Generate Interactive Player audio book
               </label>
               <label>
                 <input

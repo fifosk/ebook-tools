@@ -110,6 +110,7 @@ class SubtitleJobOptions:
     show_original: bool = True
     enable_transliteration: bool = False
     highlight: bool = True
+    generate_audio_book: bool = True
     batch_size: Optional[int] = None
     worker_count: Optional[int] = None
     mirror_batches_to_source_dir: bool = True
@@ -134,6 +135,7 @@ class SubtitleJobOptions:
         object.__setattr__(self, "input_language", input_language)
         object.__setattr__(self, "original_language", original_language)
         object.__setattr__(self, "show_original", bool(self.show_original))
+        object.__setattr__(self, "generate_audio_book", bool(self.generate_audio_book))
         object.__setattr__(self, "source_is_youtube", bool(self.source_is_youtube))
         if self.start_time_offset is not None:
             object.__setattr__(self, "start_time_offset", float(self.start_time_offset))
@@ -249,6 +251,18 @@ class SubtitleJobOptions:
             stripped = llm_model_raw.strip()
             if stripped:
                 llm_model = stripped
+        generate_audio_raw = data.get("generate_audio_book")
+        generate_audio_book = True
+        if isinstance(generate_audio_raw, bool):
+            generate_audio_book = generate_audio_raw
+        elif isinstance(generate_audio_raw, str):
+            normalized = generate_audio_raw.strip().lower()
+            if normalized in {"false", "0", "no", "off"}:
+                generate_audio_book = False
+            elif normalized in {"true", "1", "yes", "on"}:
+                generate_audio_book = True
+        elif isinstance(generate_audio_raw, (int, float)):
+            generate_audio_book = bool(generate_audio_raw)
         font_size_raw = data.get("ass_font_size")
         ass_font_size = None
         if isinstance(font_size_raw, (int, float)):
@@ -279,6 +293,7 @@ class SubtitleJobOptions:
             show_original=show_original,
             enable_transliteration=bool(data.get("enable_transliteration")),
             highlight=bool(data.get("highlight", True)),
+            generate_audio_book=generate_audio_book,
             batch_size=int(data["batch_size"]) if data.get("batch_size") else None,
             worker_count=worker_count,
             mirror_batches_to_source_dir=bool(
@@ -302,6 +317,7 @@ class SubtitleJobOptions:
             "show_original": self.show_original,
             "enable_transliteration": self.enable_transliteration,
             "highlight": self.highlight,
+            "generate_audio_book": self.generate_audio_book,
             "mirror_batches_to_source_dir": self.mirror_batches_to_source_dir,
             "output_format": self.output_format,
             "color_palette": self.color_palette.to_dict(),
@@ -332,6 +348,7 @@ class SubtitleProcessingResult:
     cue_count: int
     translated_count: int
     metadata: Dict[str, object] = field(default_factory=dict)
+    transcript_entries: List["SubtitleHtmlEntry"] = field(default_factory=list)
 
 
 @dataclass(slots=True)

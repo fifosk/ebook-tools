@@ -3,29 +3,53 @@
 from __future__ import annotations
 
 import os
+import queue
+import re
 import shutil
 import threading
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
 
+from modules import config_manager as cfg
 from modules import logging_manager as log_mgr
+from modules.core.rendering.constants import LANGUAGE_CODES
+from modules.core.rendering.exporters import BatchExportRequest, build_exporter
+from modules.render.backends import get_audio_synthesizer
+from modules.retry_annotations import is_failure_annotation
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager, PipelineJobStatus
 from modules.services.youtube_dubbing import delete_nas_subtitle
-from modules.subtitles import SubtitleJobOptions
+from modules.subtitles import SubtitleCue, SubtitleJobOptions
 from modules.subtitles.common import ASS_EXTENSION, DEFAULT_OUTPUT_SUFFIX, SRT_EXTENSION
+from modules.subtitles.models import SubtitleHtmlEntry
 from modules.subtitles.processing import (
     SubtitleJobCancelled,
     SubtitleProcessingError,
     load_subtitle_cues,
+    merge_youtube_subtitle_cues,
     process_subtitle_file,
 )
+from pydub import AudioSegment
 
 logger = log_mgr.get_logger().getChild("services.subtitles")
 
 SUPPORTED_EXTENSIONS = {".srt", ".vtt"}
 DISCOVERABLE_EXTENSIONS = SUPPORTED_EXTENSIONS | {".ass"}
+
+_FILENAME_SAFE_PATTERN = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _sanitize_filename_fragment(value: str, fallback: str = "subtitle") -> str:
+    """Return a filesystem-friendly identifier derived from ``value``."""
+
+    if not isinstance(value, str):
+        return fallback
+    trimmed = value.strip()
+    if not trimmed:
+        return fallback
+    candidate = _FILENAME_SAFE_PATTERN.sub("_", trimmed).strip("._-")
+    return candidate or fallback
 
 
 @dataclass(frozen=True)
@@ -155,7 +179,10 @@ class SubtitleService:
                     raise SubtitleProcessingError(
                         f"Failed to parse {target_path.name}: {exc}"
                     ) from exc
-                tracker_local.set_total(len(cues))
+                total_steps = len(cues)
+                if options.generate_audio_book:
+                    total_steps *= 2
+                tracker_local.set_total(total_steps)
 
         def _worker(job):
             tracker_local = job.tracker
@@ -198,6 +225,228 @@ class SubtitleService:
                     if candidate != output_path:
                         mirror_path = candidate
 
+            display_title = Path(source_name or str(source_file)).stem
+            safe_title = _sanitize_filename_fragment(display_title, fallback="Subtitle Job")
+
+            audio_queue: Optional[queue.Queue[Optional[Tuple[int, SubtitleHtmlEntry]]]] = None
+            audio_thread: Optional[threading.Thread] = None
+            audio_shutdown = threading.Event()
+            audio_errors: List[BaseException] = []
+            audio_error_event = threading.Event()
+            on_transcript_batch: Optional[
+                Callable[[Sequence[Tuple[int, SubtitleHtmlEntry]]], None]
+            ] = None
+
+            if options.generate_audio_book:
+
+                def _estimate_sentence_count() -> int:
+                    cues = load_subtitle_cues(input_path)
+                    start_offset = max(0.0, options.start_time_offset or 0.0)
+                    end_offset = options.end_time_offset
+                    if end_offset is not None:
+                        end_offset = max(0.0, float(end_offset))
+                        if end_offset <= start_offset:
+                            return 0
+
+                    if start_offset > 0 or end_offset is not None:
+                        trimmed: List[SubtitleCue] = []
+                        for cue in cues:
+                            if cue.start < start_offset:
+                                continue
+                            if end_offset is not None and cue.start >= end_offset:
+                                continue
+                            clipped_end = cue.end
+                            if end_offset is not None and cue.end > end_offset:
+                                clipped_end = float(end_offset)
+                            if clipped_end <= cue.start:
+                                continue
+                            trimmed.append(
+                                SubtitleCue(
+                                    index=cue.index,
+                                    start=cue.start,
+                                    end=clipped_end,
+                                    lines=list(cue.lines),
+                                )
+                            )
+                        cues = trimmed
+
+                    return len(merge_youtube_subtitle_cues(cues))
+
+                estimated_total_sentences = max(_estimate_sentence_count(), 1)
+                settings = cfg.get_settings()
+                media_root = self._locator.media_root(job.job_id)
+                media_root.mkdir(parents=True, exist_ok=True)
+                synthesizer = get_audio_synthesizer()
+                input_lang = options.original_language or options.input_language
+                selected_voice = getattr(settings, "selected_voice", "gTTS") or "gTTS"
+                tempo = float(getattr(settings, "tempo", 1.0) or 1.0)
+                macos_speed = int(getattr(settings, "macos_reading_speed", 100) or 100)
+                tts_backend = str(getattr(settings, "tts_backend", "") or "").strip() or "auto"
+                tts_executable = getattr(settings, "tts_executable_path", None)
+                sync_ratio = float(getattr(settings, "sync_ratio", 1.0) or 1.0)
+                word_highlighting = bool(getattr(settings, "word_highlighting", True)) and bool(
+                    options.highlight
+                )
+                highlight_granularity = str(
+                    getattr(settings, "highlight_granularity", "word") or "word"
+                )
+                video_backend = str(getattr(settings, "video_backend", "ffmpeg") or "ffmpeg")
+                raw_video_backend_settings = getattr(settings, "video_backend_settings", {}) or {}
+                video_backend_settings: Dict[str, Dict[str, object]] = {}
+                if isinstance(raw_video_backend_settings, Mapping):
+                    for key, value in raw_video_backend_settings.items():
+                        if isinstance(key, str) and isinstance(value, Mapping):
+                            video_backend_settings[key] = dict(value)
+
+                base_name = _sanitize_filename_fragment(
+                    f"{safe_title}_{input_lang}_{options.target_language}",
+                    fallback=safe_title,
+                )
+                exporter = build_exporter(
+                    base_dir=str(media_root),
+                    base_name=base_name,
+                    cover_img=None,
+                    book_author="Subtitles",
+                    book_title=display_title,
+                    global_cumulative_word_counts=[],
+                    total_book_words=0,
+                    macos_reading_speed=float(macos_speed),
+                    input_language=input_lang,
+                    total_sentences=estimated_total_sentences,
+                    tempo=tempo,
+                    sync_ratio=sync_ratio,
+                    word_highlighting=word_highlighting,
+                    highlight_granularity=highlight_granularity,
+                    selected_voice=selected_voice,
+                    primary_target_language=options.target_language,
+                    slide_render_options=None,
+                    template_name=None,
+                    video_backend=video_backend,
+                    video_backend_settings=video_backend_settings,
+                )
+
+                audio_queue = queue.Queue()
+
+                def _audio_worker() -> None:
+                    try:
+                        while True:
+                            if audio_shutdown.is_set():
+                                break
+                            item = audio_queue.get()
+                            if item is None:
+                                break
+                            sentence_number, entry = item
+                            if audio_shutdown.is_set():
+                                break
+                            if stop_event is not None and stop_event.is_set():
+                                break
+
+                            original_text = (entry.original_text or "").strip()
+                            translation_text = (entry.translation_text or "").strip()
+                            transliteration_text = (entry.transliteration_text or "").strip()
+                            if translation_text and is_failure_annotation(translation_text):
+                                translation_text = ""
+
+                            lines = [
+                                line
+                                for line in (original_text, translation_text, transliteration_text)
+                                if line
+                            ]
+                            block_body = "\n".join(lines)
+                            block = f"Subtitle {sentence_number}\n{block_body}".strip()
+
+                            audio_mode = "4"
+                            if not translation_text and original_text:
+                                audio_mode = "5"
+                            elif translation_text and not original_text:
+                                audio_mode = "1"
+                            elif not translation_text and not original_text:
+                                audio_mode = "1"
+
+                            try:
+                                synthesis = synthesizer.synthesize_sentence(
+                                    sentence_number=sentence_number,
+                                    input_sentence=original_text,
+                                    fluent_translation=translation_text,
+                                    input_language=input_lang,
+                                    target_language=options.target_language,
+                                    audio_mode=audio_mode,
+                                    total_sentences=estimated_total_sentences,
+                                    language_codes=LANGUAGE_CODES,
+                                    selected_voice=selected_voice,
+                                    voice_overrides=None,
+                                    tempo=tempo,
+                                    macos_reading_speed=macos_speed,
+                                    tts_backend=tts_backend,
+                                    tts_executable_path=tts_executable,
+                                )
+                                audio_segments = [synthesis.audio]
+                            except Exception:  # pragma: no cover - defensive fallback
+                                logger.warning(
+                                    "Unable to generate TTS audio for subtitle sentence %s",
+                                    sentence_number,
+                                    exc_info=True,
+                                )
+                                audio_segments = [AudioSegment.silent(duration=0)]
+
+                            if tracker_local is not None:
+                                tracker_local.record_step_completion(
+                                    stage="subtitle_audio",
+                                    index=sentence_number,
+                                )
+
+                            request = BatchExportRequest(
+                                start_sentence=sentence_number,
+                                end_sentence=sentence_number,
+                                written_blocks=[block],
+                                target_language=options.target_language,
+                                output_html=False,
+                                output_pdf=False,
+                                generate_audio=True,
+                                audio_segments=audio_segments,
+                                generate_video=False,
+                                video_blocks=[block],
+                            )
+                            export_result = exporter.export(request)
+                            if tracker_local is not None and export_result is not None:
+                                tracker_local.record_generated_chunk(
+                                    chunk_id=export_result.chunk_id,
+                                    range_fragment=export_result.range_fragment,
+                                    start_sentence=export_result.start_sentence,
+                                    end_sentence=export_result.end_sentence,
+                                    files=export_result.artifacts,
+                                    sentences=export_result.sentences,
+                                    audio_tracks=export_result.audio_tracks,
+                                    timing_tracks=export_result.timing_tracks,
+                                )
+                    except BaseException as exc:  # pragma: no cover - surface failures
+                        audio_errors.append(exc)
+                        audio_error_event.set()
+
+                audio_thread = threading.Thread(
+                    target=_audio_worker,
+                    name=f"subtitle-audio-{job.job_id}",
+                )
+                audio_thread.start()
+
+                def _enqueue_transcript_batch(
+                    batch: Sequence[Tuple[int, SubtitleHtmlEntry]],
+                ) -> None:
+                    if audio_error_event.is_set() and audio_errors:
+                        raise audio_errors[0]
+                    if audio_queue is None:
+                        return
+                    for sentence_number, entry in batch:
+                        if stop_event is not None and stop_event.is_set():
+                            raise SubtitleJobCancelled(
+                                "Subtitle job interrupted by cancellation request"
+                            )
+                        if audio_error_event.is_set() and audio_errors:
+                            raise audio_errors[0]
+                        audio_queue.put((sentence_number, entry))
+
+                on_transcript_batch = _enqueue_transcript_batch
+
             try:
                 result = process_subtitle_file(
                     input_path,
@@ -206,18 +455,38 @@ class SubtitleService:
                     mirror_output_path=mirror_path,
                     tracker=tracker_local,
                     stop_event=stop_event,
+                    collect_transcript_entries=False,
+                    on_transcript_batch=on_transcript_batch,
                 )
             except SubtitleJobCancelled:
+                if audio_queue is not None:
+                    audio_shutdown.set()
+                    audio_queue.put(None)
+                    if audio_thread is not None:
+                        audio_thread.join()
                 job.status = PipelineJobStatus.CANCELLED
                 job.error_message = None
                 return
             except Exception as exc:
+                if audio_queue is not None:
+                    audio_shutdown.set()
+                    audio_queue.put(None)
+                    if audio_thread is not None:
+                        audio_thread.join()
                 job.status = PipelineJobStatus.FAILED
                 job.error_message = str(exc)
                 raise
+            else:
+                if audio_queue is not None:
+                    audio_queue.put(None)
+                    if audio_thread is not None:
+                        audio_thread.join()
+                if audio_errors:
+                    exc = audio_errors[0]
+                    job.status = PipelineJobStatus.FAILED
+                    job.error_message = str(exc)
+                    raise exc
 
-            job.status = PipelineJobStatus.COMPLETED
-            job.error_message = None
             relative_path = output_path.relative_to(self._locator.job_root(job.job_id)).as_posix()
             export_path: Optional[Path] = None
             if mirror_path is not None:
@@ -243,46 +512,51 @@ class SubtitleService:
                         mirror_dir,
                         exc_info=True,
                     )
+            subtitle_metadata = {
+                **result.metadata,
+                "download_url": self._locator.resolve_url(job.job_id, relative_path),
+                "generate_audio_book": bool(options.generate_audio_book),
+            }
+            if export_path is not None:
+                subtitle_metadata["export_path"] = export_path.as_posix()
+
+            book_metadata: Dict[str, object] = {
+                "book_title": display_title,
+                "book_author": "Subtitles",
+                "book_genre": "Subtitles",
+                "book_language": options.target_language,
+                "source_file": (input_path.relative_to(self._locator.job_root(job.job_id))).as_posix(),
+                "source_path": (input_path.relative_to(self._locator.job_root(job.job_id))).as_posix(),
+            }
+
             result_payload: Dict[str, object] = {
                 "subtitle": {
                     "output_path": output_path.as_posix(),
                     "relative_path": relative_path,
-                    "metadata": {
-                        **result.metadata,
-                        "download_url": self._locator.resolve_url(job.job_id, relative_path),
-                    },
+                    "metadata": subtitle_metadata,
                     "cues": result.cue_count,
                     "translated": result.translated_count,
-                }
+                },
+                "book_metadata": book_metadata,
             }
-            if export_path is not None:
-                subtitle_section = result_payload.get("subtitle")
-                if isinstance(subtitle_section, dict):
-                    metadata = subtitle_section.get("metadata")
-                    if isinstance(metadata, dict):
-                        metadata["export_path"] = export_path.as_posix()
             job.result_payload = result_payload
-            file_entry = {
-                "type": "subtitle",
-                "name": output_path.name,
-                "relative_path": relative_path,
-                "url": self._locator.resolve_url(job.job_id, relative_path),
-                "path": output_path.as_posix(),
-            }
-            job.generated_files = {
-                "chunks": [
-                    {
-                        "chunk_id": "subtitle",
-                        "range_fragment": None,
-                        "start_sentence": 1,
-                        "end_sentence": result.translated_count,
-                        "files": [file_entry],
-                    }
-                ],
-                "files": [file_entry],
-                "complete": True,
-            }
-            job.media_completed = True
+
+            if tracker_local is not None and not options.generate_audio_book:
+                tracker_local.record_generated_chunk(
+                    chunk_id="subtitle",
+                    range_fragment="subtitle",
+                    start_sentence=1,
+                    end_sentence=max(int(result.translated_count), 1),
+                    files={
+                            "subtitle": relative_path,
+                        },
+                    )
+
+            if tracker_local is not None:
+                job.generated_files = tracker_local.get_generated_files()
+
+            job.status = PipelineJobStatus.COMPLETED
+            job.error_message = None
 
         return self._job_manager.submit_background_job(
             job_type="subtitle",

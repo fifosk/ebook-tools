@@ -5,7 +5,7 @@ from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Callable, List, Optional, Sequence, Tuple
 
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.progress_tracker import ProgressTracker
@@ -23,11 +23,10 @@ from .language import (
     _target_uses_non_latin_script,
 )
 from .merge import (
-    _collapse_redundant_windows,
-    _deduplicate_cues_by_text,
-    _merge_overlapping_lines,
     _merge_redundant_rendered_cues,
     _merge_rendered_timeline,
+    _deduplicate_cues_by_text,
+    _merge_overlapping_lines,
     _should_merge_youtube_cues,
     merge_youtube_subtitle_cues,
 )
@@ -62,6 +61,8 @@ def process_subtitle_file(
     tracker: Optional[ProgressTracker] = None,
     stop_event=None,
     transliterator: Optional[TransliterationService] = None,
+    collect_transcript_entries: bool = False,
+    on_transcript_batch: Optional[Callable[[Sequence[Tuple[int, SubtitleHtmlEntry]]], None]] = None,
 ) -> SubtitleProcessingResult:
     """Process ``source_path`` and persist the translated subtitles."""
 
@@ -96,13 +97,8 @@ def process_subtitle_file(
             )
         cues = trimmed
 
-    apply_youtube_merge = _should_merge_youtube_cues(cues, options, source_path)
-    if apply_youtube_merge:
+    if options.generate_audio_book:
         cues = merge_youtube_subtitle_cues(cues)
-    else:
-        cues = _collapse_redundant_windows(cues)
-        cues = _deduplicate_cues_by_text(cues)
-        cues = _merge_overlapping_lines(cues)
     total_cues = len(cues)
     if not cues:
         if end_offset is not None:
@@ -122,7 +118,10 @@ def process_subtitle_file(
     worker_count = _resolve_worker_count(options.worker_count, batch_size, total_cues)
 
     if tracker is not None:
-        tracker.set_total(total_cues)
+        total_steps = total_cues
+        if options.generate_audio_book:
+            total_steps *= 2
+        tracker.set_total(total_steps)
         tracker.publish_start(
             {
                 "stage": "subtitle",
@@ -131,6 +130,7 @@ def process_subtitle_file(
                 "batch_size": batch_size,
                 "workers": worker_count,
                 "start_time_offset": start_offset,
+                "generate_audio_book": bool(options.generate_audio_book),
             }
         )
 
@@ -146,8 +146,9 @@ def process_subtitle_file(
 
     resolved_ass_font_size = _resolve_ass_font_size(options.ass_font_size)
     resolved_ass_emphasis = _resolve_ass_emphasis_scale(options.ass_emphasis_scale)
-    if not _target_uses_non_latin_script(options.target_language) or _target_uses_cyrillic_script(
-        options.target_language
+    if options.output_format == "ass" and (
+        not _target_uses_non_latin_script(options.target_language)
+        or _target_uses_cyrillic_script(options.target_language)
     ):
         resolved_ass_emphasis = min(resolved_ass_emphasis, _LATIN_ASS_EMPHASIS_CAP)
     temp_output = output_path.with_suffix(output_path.suffix + ".tmp")
@@ -182,6 +183,7 @@ def process_subtitle_file(
     mirror_html_writer: Optional[_HtmlTranscriptWriter] = (
         _HtmlTranscriptWriter(mirror_target) if mirror_target is not None else None
     )
+    transcript_entries: List[SubtitleHtmlEntry] = []
 
     try:
         temp_output.unlink(missing_ok=True)
@@ -207,6 +209,7 @@ def process_subtitle_file(
                 )
 
                 html_entries: List[SubtitleHtmlEntry] = []
+                transcript_batch: List[Tuple[int, SubtitleHtmlEntry]] = []
                 batch_rendered: List[SubtitleCue] = []
                 for offset, rendered_batch in enumerate(processed_batch, start=1):
                     cue_index = batch_start + offset
@@ -225,11 +228,17 @@ def process_subtitle_file(
                     translated_count += 1
                     if rendered_batch.html_entry is not None:
                         html_entries.append(rendered_batch.html_entry)
+                        if on_transcript_batch is not None:
+                            transcript_batch.append((cue_index, rendered_batch.html_entry))
 
                 if html_entries:
                     html_writer.append(html_entries)
                     if mirror_html_writer is not None:
                         mirror_html_writer.append(html_entries)
+                    if collect_transcript_entries:
+                        transcript_entries.extend(html_entries)
+                    if transcript_batch and on_transcript_batch is not None:
+                        on_transcript_batch(transcript_batch)
 
                 # Write incrementally each batch.
                 if options.highlight:
@@ -370,6 +379,7 @@ def process_subtitle_file(
         cue_count=total_cues,
         translated_count=translated_count,
         metadata=metadata,
+        transcript_entries=transcript_entries if collect_transcript_entries else [],
     )
 
 

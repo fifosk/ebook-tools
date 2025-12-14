@@ -427,6 +427,192 @@ def test_process_subtitle_file_respects_end_time(tmp_path: Path, monkeypatch: py
     assert result.metadata["end_time_offset_label"] == "00:05"
 
 
+def test_process_subtitle_file_merges_windows_when_generate_audio_book_enabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    source_path = tmp_path / "multi.srt"
+    source_payload = textwrap.dedent(
+        """\
+        1
+        00:00:00,000 --> 00:00:01,000
+        First line
+
+        2
+        00:00:01,100 --> 00:00:02,000
+        Second line
+
+        3
+        00:00:02,100 --> 00:00:03,000
+        Third line
+        """
+    ).strip() + "\n"
+    source_path.write_text(source_payload, encoding="utf-8")
+
+    output_path = tmp_path / "multi.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+        generate_audio_book=True,
+    )
+    result = process_subtitle_file(
+        source_path,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+    assert result.cue_count == 1
+
+
+def test_process_subtitle_file_streams_transcript_batches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    source_path = tmp_path / "multi.srt"
+    source_payload = textwrap.dedent(
+        """\
+        1
+        00:00:00,000 --> 00:00:01,000
+        First line
+
+        2
+        00:00:01,100 --> 00:00:02,000
+        Second line
+
+        3
+        00:00:02,100 --> 00:00:03,000
+        Third line
+        """
+    ).strip() + "\n"
+    source_path.write_text(source_payload, encoding="utf-8")
+
+    output_path = tmp_path / "multi.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+        generate_audio_book=True,
+    )
+    received: list[tuple[int, object]] = []
+
+    def _capture(batch):
+        received.extend(list(batch))
+
+    result = process_subtitle_file(
+        source_path,
+        output_path,
+        options,
+        mirror_output_path=None,
+        on_transcript_batch=_capture,
+    )
+    assert result.cue_count == 1
+    assert len(received) == 1
+    sentence_number, entry = received[0]
+    assert sentence_number == 1
+    assert "First line" in entry.original_text
+    assert entry.translation_text == "hola mundo"
+
+
+def test_process_subtitle_file_transcript_callback_preserves_indices_without_merge(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    source_path = tmp_path / "multi.srt"
+    source_payload = textwrap.dedent(
+        """\
+        1
+        00:00:00,000 --> 00:00:01,000
+        First line
+
+        2
+        00:00:01,100 --> 00:00:02,000
+        Second line
+
+        3
+        00:00:02,100 --> 00:00:03,000
+        Third line
+        """
+    ).strip() + "\n"
+    source_path.write_text(source_payload, encoding="utf-8")
+
+    output_path = tmp_path / "multi.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+        generate_audio_book=False,
+    )
+    received: list[tuple[int, object]] = []
+
+    def _capture(batch):
+        received.extend(list(batch))
+
+    result = process_subtitle_file(
+        source_path,
+        output_path,
+        options,
+        mirror_output_path=None,
+        on_transcript_batch=_capture,
+    )
+    assert result.cue_count == 3
+    assert [sentence_number for sentence_number, _ in received] == [1, 2, 3]
+
+
+def test_process_subtitle_file_preserves_cues_when_generate_audio_book_disabled(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _stub_translation(monkeypatch, "hola mundo")
+    source_path = tmp_path / "multi.srt"
+    source_payload = textwrap.dedent(
+        """\
+        1
+        00:00:00,000 --> 00:00:01,000
+        First line
+
+        2
+        00:00:01,100 --> 00:00:02,000
+        Second line
+
+        3
+        00:00:02,100 --> 00:00:03,000
+        Third line
+        """
+    ).strip() + "\n"
+    source_path.write_text(source_payload, encoding="utf-8")
+
+    output_path = tmp_path / "multi.es.drt.srt"
+    options = SubtitleJobOptions(
+        input_language="English",
+        target_language="Spanish",
+        enable_transliteration=False,
+        highlight=True,
+        show_original=True,
+        output_format="srt",
+        generate_audio_book=False,
+    )
+    result = process_subtitle_file(
+        source_path,
+        output_path,
+        options,
+        mirror_output_path=None,
+    )
+    assert result.cue_count == 3
+
+
 def test_original_line_sanitises_html_tags(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "modules.subtitles.translation.translate_sentence_simple",
