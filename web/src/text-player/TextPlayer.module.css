@@ -12,6 +12,12 @@
   align-items: stretch;
 }
 
+.footer {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
 .sentence {
   display: flex;
   flex-direction: column;

@@ -69,8 +69,6 @@ let lastHit: Hit | null = null;
 let detachRateListener: (() => void) | null = null;
 const MAX_DRIFT_SECONDS = WORD_SYNC.MAX_LAG_MS / 1000;
 
-type DebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean } };
-
 function buildTimeline(payload?: TimingPayload): TimelineBundle | null {
   if (!payload || payload.segments.length === 0) {
     return null;
@@ -421,48 +419,6 @@ export function enableDebugOverlay(elementId = 'debug-drift'): () => void {
   return () => {
     unsubscribe();
     element.innerText = '';
-  };
-}
-
-export function enableHighlightDebugOverlay(): () => void {
-  if (
-    typeof window === 'undefined' ||
-    typeof document === 'undefined' ||
-    process.env.NODE_ENV === 'production'
-  ) {
-    return () => undefined;
-  }
-  const globalWindow = window as DebugWindow;
-  if (!globalWindow.__HL_DEBUG__?.enabled) {
-    return () => undefined;
-  }
-
-  let overlay: HTMLElement | null = document.getElementById('hl-debug-overlay');
-  let created = false;
-  if (!overlay) {
-    overlay = document.createElement('div');
-    overlay.id = 'hl-debug-overlay';
-    overlay.style.cssText =
-      'position:fixed;bottom:10px;right:10px;background:#0008;color:#0f0;padding:6px 10px;font:12px monospace;z-index:9999;';
-    document.body.appendChild(overlay);
-    created = true;
-  }
-
-  let frame = 0;
-  const unsubscribe = timingStore.subscribe((state) => {
-    frame += 1;
-    const segIndex = state.last?.segIndex ?? -1;
-    const tokIndex = state.last?.tokIndex ?? -1;
-    if (overlay) {
-      overlay.textContent = `frame:${frame} seg:${segIndex} tok:${tokIndex}`;
-    }
-  });
-
-  return () => {
-    unsubscribe();
-    if (overlay && created && overlay.parentNode) {
-      overlay.parentNode.removeChild(overlay);
-    }
   };
 }
 

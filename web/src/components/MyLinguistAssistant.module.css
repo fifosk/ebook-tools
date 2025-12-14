@@ -84,7 +84,86 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: auto 1fr auto;
-  resize: both;
+  resize: none;
+}
+
+.resizeHandles {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.resizeHandle {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 10px;
+}
+
+.resizeHandleNw,
+.resizeHandleNe,
+.resizeHandleSw,
+.resizeHandleSe {
+  width: 18px;
+  height: 18px;
+}
+
+.resizeHandleNw {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.resizeHandleNe {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.resizeHandleSw {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.resizeHandleSe {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+
+.resizeHandleN,
+.resizeHandleS {
+  left: 18px;
+  right: 18px;
+  height: 10px;
+}
+
+.resizeHandleN {
+  top: 0;
+  cursor: ns-resize;
+}
+
+.resizeHandleS {
+  bottom: 0;
+  cursor: ns-resize;
+}
+
+.resizeHandleE,
+.resizeHandleW {
+  top: 18px;
+  bottom: 18px;
+  width: 10px;
+}
+
+.resizeHandleE {
+  right: 0;
+  cursor: ew-resize;
+}
+
+.resizeHandleW {
+  left: 0;
+  cursor: ew-resize;
 }
 
 .header {
@@ -234,6 +313,7 @@
   display: grid;
   gap: 10px;
   align-content: start;
+  font-size: calc(1rem * var(--my-linguist-font-scale, 1));
 }
 
 .message {
@@ -243,10 +323,40 @@
 
 .messageMeta {
   display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+  font-size: calc(11px * var(--my-linguist-font-scale, 1));
+  color: var(--color-text-muted, rgba(231, 232, 239, 0.72));
+}
+
+.messageMetaLeft {
+  display: flex;
   gap: 8px;
   align-items: baseline;
-  font-size: 11px;
-  color: var(--color-text-muted, rgba(231, 232, 239, 0.72));
+  min-width: 0;
+}
+
+.messageSpeakButton {
+  border: 1px solid var(--color-button-secondary-border, rgba(255, 255, 255, 0.14));
+  background: var(--color-button-secondary-bg, rgba(255, 255, 255, 0.06));
+  color: var(--color-button-secondary-text, inherit);
+  border-radius: 10px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: calc(12px * var(--my-linguist-font-scale, 1));
+  line-height: 1;
+  align-self: center;
+}
+
+.messageSpeakButton:hover {
+  background: var(--color-button-secondary-hover-bg, rgba(255, 255, 255, 0.1));
+  border-color: var(--color-button-secondary-hover-border, var(--color-button-secondary-border, rgba(255, 255, 255, 0.14)));
+}
+
+.messageSpeakButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .bubble {
@@ -273,6 +383,7 @@
   background: var(--color-surface-muted, rgba(0, 0, 0, 0.12));
   display: grid;
   gap: 10px;
+  font-size: calc(1rem * var(--my-linguist-font-scale, 1));
 }
 
 .composerRow {

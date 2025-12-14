@@ -4,6 +4,7 @@ import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/use
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { extractTextFromHtml } from '../utils/mediaFormatters';
+import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
   DEFAULT_TRANSLATION_SPEED,
   TRANSLATION_SPEED_MAX,
@@ -15,7 +16,13 @@ import {
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type { AudioTrackMetadata, ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
-import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../api/client';
+import {
+  appendAccessToken,
+  buildStorageUrl,
+  fetchPipelineStatus,
+  resolveJobCoverUrl,
+  resolveLibraryMediaUrl,
+} from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
 import { isAudioFileType } from './player-panel/utils';
@@ -67,9 +74,13 @@ const TAB_DEFINITIONS: TabDefinition[] = [
 
 const DEFAULT_COVER_URL = '/assets/default-cover.png';
 const FONT_SCALE_STORAGE_KEY = 'player-panel.fontScalePercent';
+const INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY = 'player-panel.interactiveText.visibility';
 const FONT_SCALE_MIN = 100;
 const FONT_SCALE_MAX = 300;
 const FONT_SCALE_STEP = 5;
+const MY_LINGUIST_FONT_SCALE_MIN = 80;
+const MY_LINGUIST_FONT_SCALE_MAX = 160;
+const MY_LINGUIST_FONT_SCALE_STEP = 5;
 const clampFontScalePercent = (value: number) =>
   Math.min(Math.max(value, FONT_SCALE_MIN), FONT_SCALE_MAX);
 
@@ -139,6 +150,12 @@ interface NavigationControlsProps {
   fontScaleMax?: number;
   fontScaleStep?: number;
   onFontScaleChange?: (value: number) => void;
+  showMyLinguistFontScale?: boolean;
+  myLinguistFontScalePercent?: number;
+  myLinguistFontScaleMin?: number;
+  myLinguistFontScaleMax?: number;
+  myLinguistFontScaleStep?: number;
+  onMyLinguistFontScaleChange?: (value: number) => void;
   nowPlayingText?: string | null;
   nowPlayingTitle?: string | null;
   activeSentenceNumber?: number | null;
@@ -209,6 +226,12 @@ export function NavigationControls({
   fontScaleMax = FONT_SCALE_MAX,
   fontScaleStep = FONT_SCALE_STEP,
   onFontScaleChange,
+  showMyLinguistFontScale = false,
+  myLinguistFontScalePercent = 100,
+  myLinguistFontScaleMin = MY_LINGUIST_FONT_SCALE_MIN,
+  myLinguistFontScaleMax = MY_LINGUIST_FONT_SCALE_MAX,
+  myLinguistFontScaleStep = MY_LINGUIST_FONT_SCALE_STEP,
+  onMyLinguistFontScaleChange,
   nowPlayingText = null,
   nowPlayingTitle = null,
   activeSentenceNumber = null,
@@ -244,6 +267,7 @@ export function NavigationControls({
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
   const fontScaleSliderId = useId();
+  const myLinguistFontScaleSliderId = useId();
   const jumpRangeId = `${jumpInputId}-range`;
   const jumpErrorId = `${jumpInputId}-error`;
   const describedBy =
@@ -263,7 +287,11 @@ export function NavigationControls({
   )}%`;
   const shouldShowCompactControls =
     controlsLayout === 'compact' &&
-    (showTranslationSpeed || showSubtitleScale || showSubtitleBackgroundOpacity || showFontScale);
+    (showTranslationSpeed ||
+      showSubtitleScale ||
+      showSubtitleBackgroundOpacity ||
+      showFontScale ||
+      showMyLinguistFontScale);
   const resolvedCueVisibility =
     cueVisibility ??
     ({
@@ -297,8 +325,18 @@ export function NavigationControls({
     }
     onFontScaleChange?.(raw);
   };
+  const handleMyLinguistFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const raw = Number.parseFloat(event.target.value);
+    if (!Number.isFinite(raw)) {
+      return;
+    }
+    onMyLinguistFontScaleChange?.(raw);
+  };
   const formattedFontScale = `${Math.round(
     Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax),
+  )}%`;
+  const formattedMyLinguistFontScale = `${Math.round(
+    Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax),
   )}%`;
   const sentenceNowPlayingText = (() => {
     if (activeSentenceNumber === null) {
@@ -575,6 +613,31 @@ export function NavigationControls({
               </span>
             </div>
           ) : null}
+          {showMyLinguistFontScale ? (
+            <div className="player-panel__control" data-testid="player-panel-my-linguist-font-scale">
+              <label className="player-panel__control-label" htmlFor={myLinguistFontScaleSliderId}>
+                Linguist
+              </label>
+              <input
+                id={myLinguistFontScaleSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={myLinguistFontScaleMin}
+                max={myLinguistFontScaleMax}
+                step={myLinguistFontScaleStep}
+                value={Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax)}
+                onChange={handleMyLinguistFontScaleInputChange}
+                aria-label="MyLinguist font size"
+                aria-valuemin={myLinguistFontScaleMin}
+                aria-valuemax={myLinguistFontScaleMax}
+                aria-valuenow={Math.round(myLinguistFontScalePercent)}
+                aria-valuetext={formattedMyLinguistFontScale}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedMyLinguistFontScale}
+              </span>
+            </div>
+          ) : null}
           {showSubtitleScale ? (
             <div className="player-panel__control" data-testid="player-panel-subtitle-scale">
               <label className="player-panel__control-label" htmlFor={subtitleSliderId}>
@@ -774,6 +837,33 @@ export function NavigationControls({
             />
             <span className="player-panel__nav-font-value" aria-live="polite">
               {formattedFontScale}
+            </span>
+          </div>
+        </div>
+      ) : null}
+      {showMyLinguistFontScale && !shouldShowCompactControls ? (
+        <div className="player-panel__nav-font">
+          <label className="player-panel__nav-font-label" htmlFor={myLinguistFontScaleSliderId}>
+            MyLinguist font
+          </label>
+          <div className="player-panel__nav-font-control">
+            <input
+              id={myLinguistFontScaleSliderId}
+              className="player-panel__nav-font-input"
+              type="range"
+              min={myLinguistFontScaleMin}
+              max={myLinguistFontScaleMax}
+              step={myLinguistFontScaleStep}
+              value={Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax)}
+              onChange={handleMyLinguistFontScaleInputChange}
+              aria-valuemin={myLinguistFontScaleMin}
+              aria-valuemax={myLinguistFontScaleMax}
+              aria-valuenow={Math.round(myLinguistFontScalePercent)}
+              aria-valuetext={formattedMyLinguistFontScale}
+              aria-label="Adjust MyLinguist font size"
+            />
+            <span className="player-panel__nav-font-value" aria-live="polite">
+              {formattedMyLinguistFontScale}
             </span>
           </div>
         </div>
@@ -985,6 +1075,31 @@ function extractMetadataText(
     }
   }
 
+  return null;
+}
+
+function extractMetadataFirstString(
+  metadata: Record<string, unknown> | null | undefined,
+  keys: string[],
+): string | null {
+  if (!metadata) {
+    return null;
+  }
+  for (const key of keys) {
+    const raw = metadata[key];
+    if (Array.isArray(raw)) {
+      for (const entry of raw) {
+        const normalised = normaliseMetadataText(entry);
+        if (normalised) {
+          return normalised;
+        }
+      }
+    }
+    const normalised = normaliseMetadataText(raw);
+    if (normalised) {
+      return normalised;
+    }
+  }
   return null;
 }
 
@@ -1233,6 +1348,7 @@ export default function PlayerPanel({
   onOpenLibraryItem,
   selectionRequest = null,
 }: PlayerPanelProps) {
+  const { baseFontScalePercent, setBaseFontScalePercent } = useMyLinguist();
   const interactiveViewerAvailable = chunks.length > 0;
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
     const initial: Record<MediaCategory, string | null> = {
@@ -1263,6 +1379,31 @@ export default function PlayerPanel({
       return true;
     }
     return stored === 'true';
+  });
+  const [interactiveTextVisibility, setInteractiveTextVisibility] = useState<{
+    original: boolean;
+    transliteration: boolean;
+    translation: boolean;
+  }>(() => {
+    const fallback = { original: true, transliteration: true, translation: true };
+    if (typeof window === 'undefined') {
+      return fallback;
+    }
+    const stored = window.localStorage.getItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY);
+    if (!stored) {
+      return fallback;
+    }
+    try {
+      const parsed = JSON.parse(stored) as Record<string, unknown>;
+      return {
+        original: typeof parsed.original === 'boolean' ? parsed.original : fallback.original,
+        transliteration:
+          typeof parsed.transliteration === 'boolean' ? parsed.transliteration : fallback.transliteration,
+        translation: typeof parsed.translation === 'boolean' ? parsed.translation : fallback.translation,
+      };
+    } catch {
+      return fallback;
+    }
   });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
   const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
@@ -1358,6 +1499,53 @@ const scheduleChunkMetadataAppend = useCallback(
   });
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
+  const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
+  const [jobTranslationLanguage, setJobTranslationLanguage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (origin !== 'library') {
+      return;
+    }
+    const original =
+      extractMetadataText(bookMetadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
+    const target =
+      extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ?? null;
+    setJobOriginalLanguage(original);
+    setJobTranslationLanguage(target);
+  }, [bookMetadata, origin]);
+
+  useEffect(() => {
+    if (!jobId || origin === 'library') {
+      return;
+    }
+    let cancelled = false;
+    void fetchPipelineStatus(jobId)
+      .then((status) => {
+        if (cancelled) {
+          return;
+        }
+        const parameters = status.parameters;
+        const original =
+          typeof parameters?.input_language === 'string' && parameters.input_language.trim()
+            ? parameters.input_language.trim()
+            : null;
+        const targetLanguages = Array.isArray(parameters?.target_languages) ? parameters.target_languages : [];
+        const firstTarget =
+          typeof targetLanguages[0] === 'string' && targetLanguages[0].trim() ? targetLanguages[0].trim() : null;
+        setJobOriginalLanguage(original);
+        setJobTranslationLanguage(firstTarget);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setJobOriginalLanguage(null);
+        setJobTranslationLanguage(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, origin]);
   const sentenceLookup = useMemo<SentenceLookup>(() => {
     const exact = new Map<number, SentenceLookupEntry>();
     const ranges: SentenceLookupRange[] = [];
@@ -3456,6 +3644,13 @@ const scheduleChunkMetadataAppend = useCallback(
     if (typeof window === 'undefined') {
       return;
     }
+    window.localStorage.setItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY, JSON.stringify(interactiveTextVisibility));
+  }, [interactiveTextVisibility]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
     window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScalePercent));
   }, [fontScalePercent]);
 
@@ -3498,6 +3693,10 @@ const scheduleChunkMetadataAppend = useCallback(
       </datalist>
     ) : null;
 
+  const handleToggleInteractiveTextLayer = useCallback((key: 'original' | 'transliteration' | 'translation') => {
+    setInteractiveTextVisibility((current) => ({ ...current, [key]: !current[key] }));
+  }, []);
+
   const navigationGroup = (
     <NavigationControls
       context="panel"
@@ -3518,6 +3717,9 @@ const scheduleChunkMetadataAppend = useCallback(
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
       disableOriginalAudioToggle={!hasCombinedAudio}
+      showCueLayerToggles
+      cueVisibility={interactiveTextVisibility}
+      onToggleCueLayer={handleToggleInteractiveTextLayer}
       showTranslationSpeed
       translationSpeed={translationSpeed}
       translationSpeedMin={TRANSLATION_SPEED_MIN}
@@ -3541,6 +3743,12 @@ const scheduleChunkMetadataAppend = useCallback(
       fontScaleMax={FONT_SCALE_MAX}
       fontScaleStep={FONT_SCALE_STEP}
       onFontScaleChange={handleFontScaleChange}
+      showMyLinguistFontScale
+      myLinguistFontScalePercent={baseFontScalePercent}
+      myLinguistFontScaleMin={MY_LINGUIST_FONT_SCALE_MIN}
+      myLinguistFontScaleMax={MY_LINGUIST_FONT_SCALE_MAX}
+      myLinguistFontScaleStep={MY_LINGUIST_FONT_SCALE_STEP}
+      onMyLinguistFontScaleChange={setBaseFontScalePercent}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
       jobStartSentence={jobStartSentence}
@@ -3567,6 +3775,9 @@ const scheduleChunkMetadataAppend = useCallback(
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
       disableOriginalAudioToggle={!hasCombinedAudio}
+      showCueLayerToggles
+      cueVisibility={interactiveTextVisibility}
+      onToggleCueLayer={handleToggleInteractiveTextLayer}
       showTranslationSpeed
       translationSpeed={translationSpeed}
       translationSpeedMin={TRANSLATION_SPEED_MIN}
@@ -3590,6 +3801,12 @@ const scheduleChunkMetadataAppend = useCallback(
       fontScaleMax={FONT_SCALE_MAX}
       fontScaleStep={FONT_SCALE_STEP}
       onFontScaleChange={handleFontScaleChange}
+      showMyLinguistFontScale
+      myLinguistFontScalePercent={baseFontScalePercent}
+      myLinguistFontScaleMin={MY_LINGUIST_FONT_SCALE_MIN}
+      myLinguistFontScaleMax={MY_LINGUIST_FONT_SCALE_MAX}
+      myLinguistFontScaleStep={MY_LINGUIST_FONT_SCALE_STEP}
+      onMyLinguistFontScaleChange={setBaseFontScalePercent}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
       jobStartSentence={jobStartSentence}
@@ -3666,6 +3883,9 @@ const scheduleChunkMetadataAppend = useCallback(
                             bookTotalSentences={bookSentenceCount}
                             jobStartSentence={jobStartSentence}
                             jobEndSentence={jobEndSentence}
+                            jobOriginalLanguage={jobOriginalLanguage}
+                            jobTranslationLanguage={jobTranslationLanguage}
+                            cueVisibility={interactiveTextVisibility}
                             activeAudioUrl={inlineAudioSelection}
                             noAudioAvailable={inlineAudioUnavailable}
                             jobId={jobId}

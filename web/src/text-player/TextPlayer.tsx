@@ -23,6 +23,7 @@ export interface TextPlayerSentence {
 interface TextPlayerProps {
   sentences: TextPlayerSentence[];
   onSeek?: (time: number) => void;
+  footer?: React.ReactNode;
 }
 
 function variantBaseClass(kind: TextPlayerVariantKind): string {
@@ -133,6 +134,7 @@ function renderVariant(
           }
         }}
         data-text-player-token="true"
+        data-text-player-variant={variant.baseClass}
       >
         {token}
       </span>
@@ -165,20 +167,21 @@ function renderVariant(
   })();
 
   return (
-    <div className={styles.lineRow} key={`${variant.baseClass}-row`}>
+    <div className={styles.lineRow} key={`${variant.baseClass}-row`} data-text-player-variant={variant.baseClass}>
       <span className={styles.lineLabel}>{variant.label}</span>
       <div className={contentClassName}>{content}</div>
     </div>
   );
 }
 
-const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek }) => {
+const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek, footer }) => {
   if (!sentences.length) {
     return (
       <div className={styles.frame} data-text-player-frame="true">
         <div className={styles.lineRow}>
           <span className={styles.lineLabel}>Waiting for transcript…</span>
         </div>
+        {footer ? <div className={styles.footer}>{footer}</div> : null}
       </div>
     );
   }
@@ -207,6 +210,7 @@ const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek }) => {
           </div>
         );
       })}
+      {footer ? <div className={styles.footer}>{footer}</div> : null}
     </div>
   );
 };
