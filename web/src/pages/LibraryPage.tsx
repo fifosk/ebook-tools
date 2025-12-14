@@ -25,12 +25,14 @@ const UNKNOWN_CREATOR = 'Unknown Creator';
 const UNKNOWN_GENRE = 'Unknown Genre';
 const UNTITLED_BOOK = 'Untitled Book';
 const UNTITLED_VIDEO = 'Untitled Video';
+const UNTITLED_SUBTITLE = 'Untitled Subtitle';
+const SUBTITLE_AUTHOR = 'Subtitles';
 
 type LibraryPageProps = {
   onPlay?: (item: LibraryOpenInput) => void;
 };
 
-type LibraryItemType = 'book' | 'video';
+type LibraryItemType = 'book' | 'video' | 'narrated_subtitle';
 
 function resolveItemType(item: LibraryItem | null | undefined): LibraryItemType {
   return (item?.itemType ?? 'book') as LibraryItemType;
@@ -41,7 +43,14 @@ function resolveTitle(item: LibraryItem | null | undefined): string {
   if (candidate) {
     return candidate;
   }
-  return resolveItemType(item) === 'video' ? UNTITLED_VIDEO : UNTITLED_BOOK;
+  switch (resolveItemType(item)) {
+    case 'video':
+      return UNTITLED_VIDEO;
+    case 'narrated_subtitle':
+      return UNTITLED_SUBTITLE;
+    default:
+      return UNTITLED_BOOK;
+  }
 }
 
 function resolveAuthor(item: LibraryItem | null | undefined): string {
@@ -49,7 +58,14 @@ function resolveAuthor(item: LibraryItem | null | undefined): string {
   if (candidate) {
     return candidate;
   }
-  return resolveItemType(item) === 'video' ? UNKNOWN_CREATOR : UNKNOWN_AUTHOR;
+  switch (resolveItemType(item)) {
+    case 'video':
+      return UNKNOWN_CREATOR;
+    case 'narrated_subtitle':
+      return SUBTITLE_AUTHOR;
+    default:
+      return UNKNOWN_AUTHOR;
+  }
 }
 
 function resolveGenre(item: LibraryItem | null | undefined): string {
@@ -57,7 +73,14 @@ function resolveGenre(item: LibraryItem | null | undefined): string {
   if (candidate) {
     return candidate;
   }
-  return resolveItemType(item) === 'video' ? 'Video' : UNKNOWN_GENRE;
+  switch (resolveItemType(item)) {
+    case 'video':
+      return 'Video';
+    case 'narrated_subtitle':
+      return 'Subtitles';
+    default:
+      return UNKNOWN_GENRE;
+  }
 }
 
 function LibraryPage({ onPlay }: LibraryPageProps) {
@@ -426,7 +449,20 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
 
   const bookItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'book'), [items]);
   const videoItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'video'), [items]);
-  const activeItems = useMemo(() => (activeTab === 'video' ? videoItems : bookItems), [activeTab, bookItems, videoItems]);
+  const subtitleItems = useMemo(
+    () => items.filter((item) => resolveItemType(item) === 'narrated_subtitle'),
+    [items]
+  );
+  const activeItems = useMemo(() => {
+    switch (activeTab) {
+      case 'video':
+        return videoItems;
+      case 'narrated_subtitle':
+        return subtitleItems;
+      default:
+        return bookItems;
+    }
+  }, [activeTab, bookItems, subtitleItems, videoItems]);
 
   const selectedBookMetadata = useMemo(
     () => extractLibraryBookMetadata(selectedItem),
@@ -480,6 +516,15 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   onClick={() => setActiveTab('book')}
                 >
                   Books <span className={styles.sectionCount}>{bookItems.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={`${styles.tabButton} ${activeTab === 'narrated_subtitle' ? styles.tabButtonActive : ''}`}
+                  aria-selected={activeTab === 'narrated_subtitle'}
+                  onClick={() => setActiveTab('narrated_subtitle')}
+                >
+                  Subtitles <span className={styles.sectionCount}>{subtitleItems.length}</span>
                 </button>
                 <button
                   type="button"
@@ -674,7 +719,12 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   <strong>Job ID:</strong> {selectedItem.jobId}
                 </li>
                 <li className={styles.detailItem}>
-                  <strong>Type:</strong> {selectedItemType === 'video' ? 'Video' : 'Book'}
+                  <strong>Type:</strong>{' '}
+                  {selectedItemType === 'video'
+                    ? 'Video'
+                    : selectedItemType === 'narrated_subtitle'
+                      ? 'Narrated Subtitle'
+                      : 'Book'}
                 </li>
                 <li className={styles.detailItem}>
                   <strong>Job:</strong> {selectedJobGlyph.icon} {selectedJobType ?? '—'}
@@ -683,7 +733,14 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
                 </li>
                 <li className={styles.detailItem}>
-                  <strong>{selectedItemType === 'video' ? 'Source video:' : 'Source file:'}</strong> {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
+                  <strong>
+                    {selectedItemType === 'video'
+                      ? 'Source video:'
+                      : selectedItemType === 'narrated_subtitle'
+                        ? 'Source subtitle:'
+                        : 'Source file:'}
+                  </strong>{' '}
+                  {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
                 </li>
                 <li className={styles.detailItem}>
                   <strong>{selectedItemType === 'video' ? 'Creator:' : 'Author:'}</strong> {selectedAuthor}

@@ -781,7 +781,7 @@ export function App() {
   const handlePlayLibraryItem = useCallback(
     (entry: LibraryOpenInput) => {
       let jobId: string | null = null;
-      let itemType: 'book' | 'video' | null = null;
+      let itemType: 'book' | 'video' | 'narrated_subtitle' | null = null;
       let metadata: Record<string, unknown> | null = null;
       let selection: MediaSelectionRequest | null = null;
 
@@ -1320,6 +1320,7 @@ export function App() {
                     subtitleJobs={subtitleJobStates}
                     onJobCreated={handleSubtitleJobCreated}
                     onSelectJob={handleSubtitleJobSelected}
+                    onMoveToLibrary={handleMoveJobToLibrary}
                     prefillParameters={subtitlePrefillParameters}
                     refreshSignal={subtitleRefreshKey}
                   />

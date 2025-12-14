@@ -167,12 +167,15 @@ def infer_item_type(metadata: Mapping[str, Any]) -> str:
     explicit = metadata.get("item_type")
     if isinstance(explicit, str):
         normalized = explicit.strip().lower()
-        if normalized in {"book", "video"}:
+        if normalized in {"book", "video", "narrated_subtitle"}:
             return normalized
 
     job_type = metadata.get("job_type")
     if isinstance(job_type, str) and job_type.strip().lower() == "youtube_dub":
         return "video"
+
+    if is_narrated_subtitle_job(metadata):
+        return "narrated_subtitle"
 
     if isinstance(metadata.get("youtube_dub"), Mapping):
         return "video"
@@ -183,6 +186,116 @@ def infer_item_type(metadata: Mapping[str, Any]) -> str:
             return "video"
 
     return "book"
+
+
+def is_narrated_subtitle_job(metadata: Mapping[str, Any]) -> bool:
+    """Return ``True`` when metadata represents a narrated subtitle job."""
+
+    job_type = metadata.get("job_type")
+    if not isinstance(job_type, str) or job_type.strip().lower() != "subtitle":
+        return False
+
+    def _extract_flag(payload: Any) -> Optional[bool]:
+        if isinstance(payload, Mapping):
+            value = payload.get("generate_audio_book")
+            if isinstance(value, bool):
+                return value
+            if isinstance(value, str):
+                trimmed = value.strip().lower()
+                if trimmed in {"true", "1", "yes", "on"}:
+                    return True
+                if trimmed in {"false", "0", "no", "off"}:
+                    return False
+        return None
+
+    result_section = metadata.get("result")
+    if isinstance(result_section, Mapping):
+        subtitle_section = result_section.get("subtitle")
+        if isinstance(subtitle_section, Mapping):
+            subtitle_metadata = subtitle_section.get("metadata")
+            flag = _extract_flag(subtitle_metadata)
+            if flag is not None:
+                return flag
+
+    request_section = metadata.get("request")
+    if isinstance(request_section, Mapping):
+        options_section = request_section.get("options")
+        flag = _extract_flag(options_section)
+        if flag is not None:
+            return flag
+
+    return False
+
+
+def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
+    """Populate sensible defaults for narrated subtitle entries."""
+
+    metadata["item_type"] = "narrated_subtitle"
+
+    def _set_if_blank(key: str, value: Optional[str]) -> None:
+        if value is None:
+            return
+        trimmed = str(value).strip()
+        if not trimmed:
+            return
+        current = metadata.get(key)
+        if current is None:
+            metadata[key] = trimmed
+            return
+        if isinstance(current, str) and not current.strip():
+            metadata[key] = trimmed
+
+    result_section = metadata.get("result")
+    book_metadata: Optional[Mapping[str, Any]] = None
+    if isinstance(result_section, Mapping) and isinstance(result_section.get("book_metadata"), Mapping):
+        book_metadata = result_section.get("book_metadata")  # type: ignore[assignment]
+
+    if book_metadata is None and isinstance(metadata.get("book_metadata"), Mapping):
+        book_metadata = metadata.get("book_metadata")  # type: ignore[assignment]
+
+    title_candidate: Optional[str] = None
+    author_candidate: Optional[str] = None
+    genre_candidate: Optional[str] = None
+    language_candidate: Optional[str] = None
+
+    if book_metadata is not None:
+        title_candidate = (
+            str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip() or None
+        )
+        author_candidate = (
+            str(book_metadata.get("book_author") or book_metadata.get("author") or "").strip() or None
+        )
+        genre_candidate = (
+            str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip() or None
+        )
+        language_candidate = (
+            str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
+        )
+
+    request_section = metadata.get("request")
+    if isinstance(request_section, Mapping):
+        original_name = request_section.get("original_name")
+        if title_candidate is None and isinstance(original_name, str) and original_name.strip():
+            try:
+                title_candidate = Path(original_name.strip()).stem or original_name.strip()
+            except Exception:
+                title_candidate = original_name.strip()
+
+        options_section = request_section.get("options")
+        if isinstance(options_section, Mapping):
+            if language_candidate is None:
+                target_language = options_section.get("target_language")
+                if isinstance(target_language, str) and target_language.strip():
+                    language_candidate = target_language.strip()
+
+    _set_if_blank("author", author_candidate or "Subtitles")
+    _set_if_blank("book_title", title_candidate)
+    _set_if_blank("genre", genre_candidate or "Subtitles")
+    _set_if_blank("language", language_candidate)
+
+    source_relative = file_ops.resolve_source_relative(metadata, job_root)
+    if source_relative:
+        apply_source_reference(metadata, source_relative)
 
 
 def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
@@ -252,10 +365,12 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
 
 __all__ = [
     "apply_isbn",
+    "apply_narrated_subtitle_defaults",
     "apply_source_reference",
     "build_entry",
     "extract_isbn",
     "infer_item_type",
+    "is_narrated_subtitle_job",
     "merge_metadata_payloads",
     "apply_video_defaults",
     "normalize_isbn",

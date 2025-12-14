@@ -7,7 +7,12 @@ import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
 
 export type PlayerContext =
   | { type: 'job'; jobId: string; jobType?: string | null }
-  | { type: 'library'; jobId: string; itemType?: 'book' | 'video' | null; bookMetadata: Record<string, unknown> | null };
+  | {
+      type: 'library';
+      jobId: string;
+      itemType?: 'book' | 'video' | 'narrated_subtitle' | null;
+      bookMetadata: Record<string, unknown> | null;
+    };
 
 interface PlayerViewProps {
   context: PlayerContext | null;

@@ -37,6 +37,7 @@ type Props = {
   subtitleJobs: JobState[];
   onJobCreated: (jobId: string) => void;
   onSelectJob: (jobId: string) => void;
+  onMoveToLibrary?: (jobId: string) => void;
   prefillParameters?: JobParameterSnapshot | null;
   refreshSignal?: number;
 };
@@ -213,6 +214,7 @@ export default function SubtitlesPage({
   subtitleJobs,
   onJobCreated,
   onSelectJob,
+  onMoveToLibrary,
   prefillParameters = null,
   refreshSignal = 0
 }: Props) {
@@ -1418,6 +1420,32 @@ export default function SubtitlesPage({
               const updatedAt = job.status.completed_at
                 || job.status.started_at
                 || (event ? new Date(event.timestamp * 1000).toISOString() : null);
+              const subtitleMetadataFromStatus = (() => {
+                const rawResult = job.status.result;
+                if (!rawResult || typeof rawResult !== 'object') {
+                  return null;
+                }
+                const subtitleSection = (rawResult as Record<string, unknown>)['subtitle'];
+                if (!subtitleSection || typeof subtitleSection !== 'object') {
+                  return null;
+                }
+                const metadata = (subtitleSection as Record<string, unknown>)['metadata'];
+                return metadata && typeof metadata === 'object'
+                  ? (metadata as Record<string, unknown>)
+                  : null;
+              })();
+              const audiobookToggleValue =
+                subtitleMetadataFromStatus?.['generate_audio_book'] ?? subtitleMetadata?.['generate_audio_book'];
+              const isNarratedSubtitleJob =
+                typeof audiobookToggleValue === 'boolean'
+                  ? audiobookToggleValue
+                  : typeof audiobookToggleValue === 'string'
+                    ? ['true', '1', 'yes', 'on'].includes(audiobookToggleValue.trim().toLowerCase())
+                    : false;
+              const isLibraryCandidate =
+                job.status.status === 'completed' ||
+                (job.status.status === 'paused' && job.status.media_completed === true);
+              const canMoveToLibrary = Boolean(onMoveToLibrary) && job.canManage && isNarratedSubtitleJob && isLibraryCandidate;
               return (
                 <article key={job.jobId} className="subtitle-job-card">
                   <header>
@@ -1541,6 +1569,15 @@ export default function SubtitlesPage({
                     <button type="button" className="link-button" onClick={() => onSelectJob(job.jobId)}>
                       View job details
                     </button>
+                    {canMoveToLibrary ? (
+                      <button
+                        type="button"
+                        className="link-button"
+                        onClick={() => onMoveToLibrary?.(job.jobId)}
+                      >
+                        Move to library
+                      </button>
+                    ) : null}
                   </footer>
                 </article>
               );

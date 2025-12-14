@@ -58,12 +58,14 @@ function renderLanguageLabel(language: string | null | undefined) {
 }
 const UNTITLED_BOOK = 'Untitled Book';
 const UNTITLED_VIDEO = 'Untitled Video';
+const UNTITLED_SUBTITLE = 'Untitled Subtitle';
 const UNKNOWN_GENRE = 'Unknown Genre';
+const SUBTITLE_AUTHOR = 'Subtitles';
 
 type StatusVariant = 'ready' | 'missing';
 
-function normalizeItemType(item: LibraryItem): 'book' | 'video' {
-  return (item.itemType ?? 'book') as 'book' | 'video';
+function normalizeItemType(item: LibraryItem): 'book' | 'video' | 'narrated_subtitle' {
+  return (item.itemType ?? 'book') as 'book' | 'video' | 'narrated_subtitle';
 }
 
 function resolveJobType(item: LibraryItem): string {
@@ -85,7 +87,14 @@ function resolveTitle(item: LibraryItem): string {
   if (base) {
     return base;
   }
-  return normalizeItemType(item) === 'video' ? UNTITLED_VIDEO : UNTITLED_BOOK;
+  switch (normalizeItemType(item)) {
+    case 'video':
+      return UNTITLED_VIDEO;
+    case 'narrated_subtitle':
+      return UNTITLED_SUBTITLE;
+    default:
+      return UNTITLED_BOOK;
+  }
 }
 
 function resolveAuthor(item: LibraryItem): string {
@@ -93,7 +102,14 @@ function resolveAuthor(item: LibraryItem): string {
   if (base) {
     return base;
   }
-  return normalizeItemType(item) === 'video' ? UNKNOWN_CREATOR : UNKNOWN_AUTHOR;
+  switch (normalizeItemType(item)) {
+    case 'video':
+      return UNKNOWN_CREATOR;
+    case 'narrated_subtitle':
+      return SUBTITLE_AUTHOR;
+    default:
+      return UNKNOWN_AUTHOR;
+  }
 }
 
 function resolveGenre(item: LibraryItem): string {
@@ -101,12 +117,24 @@ function resolveGenre(item: LibraryItem): string {
   if (base) {
     return base;
   }
-  return normalizeItemType(item) === 'video' ? 'Video' : UNKNOWN_GENRE;
+  switch (normalizeItemType(item)) {
+    case 'video':
+      return 'Video';
+    case 'narrated_subtitle':
+      return 'Subtitles';
+    default:
+      return UNKNOWN_GENRE;
+  }
 }
 
 function describeStatus(item: LibraryItem): { label: string; variant?: StatusVariant } {
   const base = item.status === 'finished' ? 'Finished' : 'Paused';
-  const typeLabel = normalizeItemType(item) === 'video' ? 'Video' : 'Book';
+  const typeLabel =
+    normalizeItemType(item) === 'video'
+      ? 'Video'
+      : normalizeItemType(item) === 'narrated_subtitle'
+        ? 'Subtitles'
+        : 'Book';
   if (!item.mediaCompleted) {
     return { label: `${base} · ${typeLabel} · media removed`, variant: 'missing' };
   }

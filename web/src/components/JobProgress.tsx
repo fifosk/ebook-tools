@@ -628,7 +628,25 @@ export function JobProgress({
   const jobType = status?.job_type ?? 'pipeline';
   const isPipelineJob = jobType === 'pipeline';
   const isPipelineLikeJob = isPipelineJob || jobType === 'book';
-  const isLibraryMovableJob = isPipelineLikeJob || jobType === 'youtube_dub';
+  const isNarratedSubtitleJob = useMemo(() => {
+    if (jobType !== 'subtitle') {
+      return false;
+    }
+    const result = status?.result;
+    if (!result || typeof result !== 'object') {
+      return false;
+    }
+    const subtitleSection = (result as Record<string, unknown>)['subtitle'];
+    if (!subtitleSection || typeof subtitleSection !== 'object') {
+      return false;
+    }
+    const subtitleMetadata = (subtitleSection as Record<string, unknown>)['metadata'];
+    if (!subtitleMetadata || typeof subtitleMetadata !== 'object') {
+      return false;
+    }
+    return (subtitleMetadata as Record<string, unknown>)['generate_audio_book'] === true;
+  }, [jobType, status?.result]);
+  const isLibraryMovableJob = isPipelineLikeJob || jobType === 'youtube_dub' || isNarratedSubtitleJob;
   const isTerminal = useMemo(() => {
     if (!status) {
       return false;

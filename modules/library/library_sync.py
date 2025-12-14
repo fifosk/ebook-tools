@@ -227,6 +227,14 @@ class LibrarySync:
 
         with DirectoryLock(source_job_root) as lock:
             metadata = file_ops.load_metadata(source_job_root)
+            if (
+                str(metadata.get("job_type", "")).strip().lower() == "subtitle"
+                and not metadata_utils.is_narrated_subtitle_job(metadata)
+                and not force
+            ):
+                raise LibraryError(
+                    "Only narrated subtitle jobs (Generate Interactive Player audio book enabled) can be moved into the library."
+                )
             normalized_status = utils.normalize_status(
                 status_override or metadata.get("status"),
                 error_cls=LibraryError,
@@ -247,6 +255,8 @@ class LibrarySync:
             metadata["item_type"] = metadata_utils.infer_item_type(metadata)
             if metadata["item_type"] == "video":
                 metadata_utils.apply_video_defaults(metadata, source_job_root)
+            if metadata["item_type"] == "narrated_subtitle":
+                metadata_utils.apply_narrated_subtitle_defaults(metadata, source_job_root)
 
             target_path = file_ops.resolve_library_path(self._library_root, metadata, job_id)
 

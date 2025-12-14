@@ -449,7 +449,7 @@ export interface LibraryItem {
   jobId: string;
   author: string;
   bookTitle: string;
-  itemType: 'book' | 'video';
+  itemType: 'book' | 'video' | 'narrated_subtitle';
   genre?: string | null;
   language: string;
   status: 'finished' | 'paused';
