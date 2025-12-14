@@ -3291,6 +3291,8 @@ button.link-button:focus {
   bottom: auto;
   transform: none;
   margin: 0 auto;
+  width: 100%;
+  max-width: none;
 }
 
 .player-panel__my-linguist-bubble--docked::after {

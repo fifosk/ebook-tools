@@ -3229,13 +3229,30 @@ const scheduleChunkMetadataAppend = useCallback(
         event.preventDefault();
         return;
       }
-      if (key === 'o' && canToggleOriginalAudio) {
-        handleOriginalAudioToggle();
+      if (key === 'f') {
+        handleInteractiveFullscreenToggle();
         event.preventDefault();
         return;
       }
-      if (key === 'f') {
-        handleInteractiveFullscreenToggle();
+      if (key === 'o') {
+        if (event.shiftKey && canToggleOriginalAudio) {
+          handleOriginalAudioToggle();
+        } else {
+          setInteractiveTextVisibility((current) => ({ ...current, original: !current.original }));
+        }
+        event.preventDefault();
+        return;
+      }
+      if (key === 'i') {
+        setInteractiveTextVisibility((current) => ({
+          ...current,
+          transliteration: !current.transliteration,
+        }));
+        event.preventDefault();
+        return;
+      }
+      if (key === 'p') {
+        setInteractiveTextVisibility((current) => ({ ...current, translation: !current.translation }));
         event.preventDefault();
         return;
       }
