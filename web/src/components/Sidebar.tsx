@@ -196,6 +196,11 @@ function resolveBookLabel(job: JobState): string | null {
 }
 
 function resolveSubtitleLabel(job: JobState): string | null {
+  const status = job.status as JobState['status'] & { job_label?: string | null; jobLabel?: string | null };
+  const explicit = normalizeLabel(status.job_label ?? (status as unknown as Record<string, unknown>)['jobLabel']);
+  if (explicit) {
+    return explicit;
+  }
   const metadata = resolveSubtitleMetadata(job.status);
   const metaName =
     normalizeLabel(metadata?.['input_file']) ||

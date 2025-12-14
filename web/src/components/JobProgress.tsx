@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import { formatLanguageWithFlag } from '../utils/languages';
+import { fetchSubtitleTvMetadata, lookupSubtitleTvMetadata } from '../api/client';
 import {
   PipelineJobStatus,
   PipelineResponsePayload,
   PipelineStatusResponse,
-  ProgressEventPayload
+  ProgressEventPayload,
+  SubtitleTvMetadataResponse
 } from '../api/dtos';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
@@ -29,6 +31,8 @@ type Props = {
   isMutating?: boolean;
   canManage: boolean;
 };
+
+type SubtitleJobTab = 'overview' | 'metadata';
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -143,6 +147,28 @@ function formatMetadataValue(key: string, value: unknown): string {
     return '';
   }
   return normalized;
+}
+
+function coerceRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
+}
+
+function normalizeTextValue(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function formatEpisodeCode(season: number | null, episode: number | null): string | null {
+  if (!season || !episode) {
+    return null;
+  }
+  if (!Number.isInteger(season) || !Number.isInteger(episode) || season <= 0 || episode <= 0) {
+    return null;
+  }
+  return `S${season.toString().padStart(2, '0')}E${episode.toString().padStart(2, '0')}`;
 }
 
 type JobParameterEntry = {
@@ -628,6 +654,7 @@ export function JobProgress({
   const jobType = status?.job_type ?? 'pipeline';
   const isPipelineJob = jobType === 'pipeline';
   const isPipelineLikeJob = isPipelineJob || jobType === 'book';
+  const isSubtitleJob = jobType === 'subtitle';
   const isNarratedSubtitleJob = useMemo(() => {
     if (jobType !== 'subtitle') {
       return false;
@@ -660,9 +687,17 @@ export function JobProgress({
     isPipelineLikeJob && status?.result && typeof status.result === 'object'
       ? (status.result as PipelineResponsePayload)
       : null;
+  const subtitleResult =
+    isSubtitleJob && status?.result && typeof status.result === 'object'
+      ? (status.result as Record<string, unknown>)
+      : null;
   const event = latestEvent ?? status?.latest_event ?? undefined;
-  const bookMetadata = pipelineResult?.book_metadata ?? null;
-  const metadata = bookMetadata ?? {};
+  const subtitleBookMetadata =
+    subtitleResult && typeof subtitleResult.book_metadata === 'object'
+      ? (subtitleResult.book_metadata as Record<string, unknown>)
+      : null;
+  const rawMetadata = isPipelineLikeJob ? pipelineResult?.book_metadata ?? null : subtitleBookMetadata;
+  const metadata = rawMetadata ?? {};
   const creationSummaryRaw = metadata['creation_summary'];
   const metadataEntries = Object.entries(metadata).filter(([key, value]) => {
     if (key === 'job_cover_asset' || CREATION_METADATA_KEYS.has(key)) {
@@ -739,12 +774,55 @@ export function JobProgress({
   const showLibraryReadyNotice = canManage && isLibraryCandidate;
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
   const statusGlyph = getStatusGlyph(statusValue);
+  const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
+
+  const [subtitleTab, setSubtitleTab] = useState<SubtitleJobTab>('overview');
+  useEffect(() => {
+    if (!isSubtitleJob) {
+      setSubtitleTab('overview');
+    }
+  }, [isSubtitleJob]);
+
+  const [tvMetadata, setTvMetadata] = useState<SubtitleTvMetadataResponse | null>(null);
+  const [tvMetadataLoading, setTvMetadataLoading] = useState(false);
+  const [tvMetadataMutating, setTvMetadataMutating] = useState(false);
+  const [tvMetadataError, setTvMetadataError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSubtitleJob || subtitleTab !== 'metadata') {
+      return;
+    }
+    let cancelled = false;
+    setTvMetadataLoading(true);
+    setTvMetadataError(null);
+    fetchSubtitleTvMetadata(jobId)
+      .then((payload) => {
+        if (!cancelled) {
+          setTvMetadata(payload);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Unable to load TV metadata.';
+          setTvMetadataError(message);
+          setTvMetadata(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setTvMetadataLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSubtitleJob, jobId, subtitleTab]);
 
   return (
     <div className="job-card" aria-live="polite">
       <div className="job-card__header">
         <div className="job-card__header-title">
-          <h3>Job {jobId}</h3>
+          <h3>{jobLabel ? `Job ${jobId} — ${jobLabel}` : `Job ${jobId}`}</h3>
           <span className="job-card__badge">{jobType}</span>
         </div>
         <div className="job-card__header-actions">
@@ -809,6 +887,28 @@ export function JobProgress({
           </>
         ) : null}
       </p>
+      {isSubtitleJob ? (
+        <div className="job-card__tabs" role="tablist" aria-label="Subtitle job tabs">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subtitleTab === 'overview'}
+            className={`job-card__tab ${subtitleTab === 'overview' ? 'is-active' : ''}`}
+            onClick={() => setSubtitleTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={subtitleTab === 'metadata'}
+            className={`job-card__tab ${subtitleTab === 'metadata' ? 'is-active' : ''}`}
+            onClick={() => setSubtitleTab('metadata')}
+          >
+            Metadata
+          </button>
+        </div>
+      ) : null}
       {jobParameterEntries.length > 0 ? (
         <div className="job-card__section">
           <h4>Job parameters</h4>
@@ -838,7 +938,184 @@ export function JobProgress({
           Some media is still finalizing. Generated files shown below reflect the latest available output.
         </div>
       ) : null}
-      {tuningEntries.length > 0 ? (
+      {isSubtitleJob && subtitleTab === 'metadata' ? (
+        <div className="job-card__section">
+          <h4>TV metadata</h4>
+          {tvMetadataError ? <div className="alert">{tvMetadataError}</div> : null}
+          {tvMetadataLoading ? <p>Loading metadata…</p> : null}
+          {!tvMetadataLoading && tvMetadata ? (
+            (() => {
+              const mediaMetadata = tvMetadata.media_metadata ?? null;
+              const media = coerceRecord(mediaMetadata);
+              const show = media ? coerceRecord(media['show']) : null;
+              const episode = media ? coerceRecord(media['episode']) : null;
+              const errorMessage = normalizeTextValue(media ? media['error'] : null);
+              const showName = normalizeTextValue(show ? show['name'] : null);
+              const episodeName = normalizeTextValue(episode ? episode['name'] : null);
+              const seasonNumber = typeof episode?.season === 'number' ? episode.season : null;
+              const episodeNumber = typeof episode?.number === 'number' ? episode.number : null;
+              const code = formatEpisodeCode(seasonNumber, episodeNumber);
+              const airdate = normalizeTextValue(episode ? episode['airdate'] : null);
+              const network = show ? coerceRecord(show['network']) : null;
+              const networkName = normalizeTextValue(network ? network['name'] : null);
+              const episodeUrl = normalizeTextValue(episode ? episode['url'] : null);
+              const showImage = show ? coerceRecord(show['image']) : null;
+              const showImageMedium = normalizeTextValue(showImage ? showImage['medium'] : null);
+              const showImageOriginal = normalizeTextValue(showImage ? showImage['original'] : null);
+              const showImageUrl = showImageMedium ?? showImageOriginal;
+              const showImageLink = showImageOriginal ?? showImageMedium;
+              const episodeImage = episode ? coerceRecord(episode['image']) : null;
+              const episodeImageMedium = normalizeTextValue(episodeImage ? episodeImage['medium'] : null);
+              const episodeImageOriginal = normalizeTextValue(episodeImage ? episodeImage['original'] : null);
+              const episodeImageUrl = episodeImageMedium ?? episodeImageOriginal;
+              const episodeImageLink = episodeImageOriginal ?? episodeImageMedium;
+
+              const canLookup = canManage && !tvMetadataMutating;
+              const hasLookupResult = Boolean(media && (showName || errorMessage));
+
+              const handleLookup = async (force: boolean) => {
+                setTvMetadataMutating(true);
+                setTvMetadataError(null);
+                try {
+                  const payload = await lookupSubtitleTvMetadata(jobId, { force });
+                  setTvMetadata(payload);
+                  onReload();
+                } catch (error) {
+                  const message = error instanceof Error ? error.message : 'Unable to lookup TV metadata.';
+                  setTvMetadataError(message);
+                } finally {
+                  setTvMetadataMutating(false);
+                }
+              };
+
+              return (
+                <>
+                  {showImageUrl || episodeImageUrl ? (
+                    <div className="tv-metadata-media" aria-label="TV images">
+                      {showImageUrl ? (
+                        <a
+                          href={showImageLink ?? showImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tv-metadata-media__poster"
+                        >
+                          <img
+                            src={showImageUrl}
+                            alt={showName ? `${showName} poster` : 'Show poster'}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ) : null}
+                      {episodeImageUrl ? (
+                        <a
+                          href={episodeImageLink ?? episodeImageUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="tv-metadata-media__still"
+                        >
+                          <img
+                            src={episodeImageUrl}
+                            alt={episodeName ? `${episodeName} still` : 'Episode still'}
+                            loading="lazy"
+                            decoding="async"
+                          />
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <dl className="metadata-grid">
+                    {tvMetadata.source_name ? (
+                      <div className="metadata-grid__row">
+                        <dt>Subtitle</dt>
+                        <dd>{tvMetadata.source_name}</dd>
+                      </div>
+                    ) : null}
+                    {tvMetadata.parsed ? (
+                      <div className="metadata-grid__row">
+                        <dt>Parsed</dt>
+                        <dd>
+                          {tvMetadata.parsed.series} {formatEpisodeCode(tvMetadata.parsed.season, tvMetadata.parsed.episode) ?? ''}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {showName ? (
+                      <div className="metadata-grid__row">
+                        <dt>Show</dt>
+                        <dd>{showName}</dd>
+                      </div>
+                    ) : null}
+                    {code ? (
+                      <div className="metadata-grid__row">
+                        <dt>Episode</dt>
+                        <dd>
+                          {code}
+                          {episodeName ? ` — ${episodeName}` : ''}
+                        </dd>
+                      </div>
+                    ) : episodeName ? (
+                      <div className="metadata-grid__row">
+                        <dt>Episode</dt>
+                        <dd>{episodeName}</dd>
+                      </div>
+                    ) : null}
+                    {airdate ? (
+                      <div className="metadata-grid__row">
+                        <dt>Airdate</dt>
+                        <dd>{airdate}</dd>
+                      </div>
+                    ) : null}
+                    {networkName ? (
+                      <div className="metadata-grid__row">
+                        <dt>Network</dt>
+                        <dd>{networkName}</dd>
+                      </div>
+                    ) : null}
+                    {episodeUrl ? (
+                      <div className="metadata-grid__row">
+                        <dt>TVMaze</dt>
+                        <dd>
+                          <a href={episodeUrl} target="_blank" rel="noopener noreferrer">
+                            Open episode page
+                          </a>
+                        </dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                  {errorMessage ? <div className="notice notice--warning">{errorMessage}</div> : null}
+                  <div className="job-card__tab-actions">
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => handleLookup(false)}
+                      disabled={!canLookup}
+                      aria-busy={tvMetadataMutating}
+                    >
+                      {tvMetadataMutating ? 'Looking up…' : hasLookupResult ? 'Lookup (cached)' : 'Lookup on TVMaze'}
+                    </button>
+                    <button
+                      type="button"
+                      className="link-button"
+                      onClick={() => handleLookup(true)}
+                      disabled={!canLookup}
+                      aria-busy={tvMetadataMutating}
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  {media ? (
+                    <details className="job-card__details">
+                      <summary>Raw payload</summary>
+                      <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(media, null, 2)}</pre>
+                    </details>
+                  ) : null}
+                </>
+              );
+            })()
+          ) : null}
+          {!tvMetadataLoading && !tvMetadata ? <p>Metadata is not available yet.</p> : null}
+        </div>
+      ) : tuningEntries.length > 0 ? (
         <div>
           <h4>Performance tuning</h4>
           <div className="progress-grid">
@@ -923,37 +1200,39 @@ export function JobProgress({
           ) : null}
         </div>
       ) : null}
-      <div className="job-card__section">
-        <h4>Book metadata</h4>
-        {metadataEntries.length > 0 ? (
-          <dl className="metadata-grid">
-            {metadataEntries.map(([key, value]) => {
-              const formatted = formatMetadataValue(key, value);
-              if (!formatted) {
-                return null;
-              }
-              return (
-                <div key={key} className="metadata-grid__row">
-                  <dt>{formatMetadataLabel(key)}</dt>
-                  <dd>{formatted}</dd>
-                </div>
-              );
-            })}
-          </dl>
-        ) : (
-          <p className="job-card__metadata-empty">Metadata is not available yet.</p>
-        )}
-        <button
-          type="button"
-          className="link-button"
-          onClick={onReload}
-          disabled={!canManage || isReloading || isMutating}
-          aria-busy={isReloading || isMutating}
-          data-variant="metadata-action"
-        >
-          {isReloading ? 'Reloading…' : 'Reload metadata'}
-        </button>
-      </div>
+      {isSubtitleJob && subtitleTab === 'metadata' ? null : (
+        <div className="job-card__section">
+          <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
+          {metadataEntries.length > 0 ? (
+            <dl className="metadata-grid">
+              {metadataEntries.map(([key, value]) => {
+                const formatted = formatMetadataValue(key, value);
+                if (!formatted) {
+                  return null;
+                }
+                return (
+                  <div key={key} className="metadata-grid__row">
+                    <dt>{formatMetadataLabel(key)}</dt>
+                    <dd>{formatted}</dd>
+                  </div>
+                );
+              })}
+            </dl>
+          ) : (
+            <p className="job-card__metadata-empty">Metadata is not available yet.</p>
+          )}
+          <button
+            type="button"
+            className="link-button"
+            onClick={onReload}
+            disabled={!canManage || isReloading || isMutating}
+            aria-busy={isReloading || isMutating}
+            data-variant="metadata-action"
+          >
+            {isReloading ? 'Reloading…' : isSubtitleJob ? 'Reload job' : 'Reload metadata'}
+          </button>
+        </div>
+      )}
     </div>
     );
   }

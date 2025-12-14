@@ -35,6 +35,10 @@ import {
   SubtitleSourceEntry,
   SubtitleSourceListResponse,
   SubtitleDeleteResponse,
+  SubtitleTvMetadataLookupRequest,
+  SubtitleTvMetadataPreviewLookupRequest,
+  SubtitleTvMetadataPreviewResponse,
+  SubtitleTvMetadataResponse,
   YoutubeSubtitleDownloadRequest,
   YoutubeSubtitleDownloadResponse,
   YoutubeSubtitleListResponse,
@@ -218,6 +222,34 @@ export async function fetchSubtitleSources(directory?: string): Promise<Subtitle
   const response = await apiFetch(`/api/subtitles/sources${query}`);
   const payload = await handleResponse<SubtitleSourceListResponse>(response);
   return payload.sources;
+}
+
+export async function fetchSubtitleTvMetadata(jobId: string): Promise<SubtitleTvMetadataResponse> {
+  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/tv`);
+  return handleResponse<SubtitleTvMetadataResponse>(response);
+}
+
+export async function lookupSubtitleTvMetadata(
+  jobId: string,
+  payload: SubtitleTvMetadataLookupRequest = {}
+): Promise<SubtitleTvMetadataResponse> {
+  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/tv/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: Boolean(payload.force) })
+  });
+  return handleResponse<SubtitleTvMetadataResponse>(response);
+}
+
+export async function lookupSubtitleTvMetadataPreview(
+  payload: SubtitleTvMetadataPreviewLookupRequest
+): Promise<SubtitleTvMetadataPreviewResponse> {
+  const response = await apiFetch('/api/subtitles/metadata/tv/lookup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_name: payload.source_name, force: Boolean(payload.force) })
+  });
+  return handleResponse<SubtitleTvMetadataPreviewResponse>(response);
 }
 
 export async function deleteSubtitleSource(

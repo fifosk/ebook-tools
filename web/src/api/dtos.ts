@@ -176,6 +176,35 @@ export interface SubtitleSourceListResponse {
   sources: SubtitleSourceEntry[];
 }
 
+export interface SubtitleTvMetadataParse {
+  series: string;
+  season: number;
+  episode: number;
+  pattern: string;
+}
+
+export interface SubtitleTvMetadataResponse {
+  job_id: string;
+  source_name: string | null;
+  parsed: SubtitleTvMetadataParse | null;
+  media_metadata: Record<string, unknown> | null;
+}
+
+export interface SubtitleTvMetadataLookupRequest {
+  force?: boolean;
+}
+
+export interface SubtitleTvMetadataPreviewResponse {
+  source_name: string | null;
+  parsed: SubtitleTvMetadataParse | null;
+  media_metadata: Record<string, unknown> | null;
+}
+
+export interface SubtitleTvMetadataPreviewLookupRequest {
+  source_name: string;
+  force?: boolean;
+}
+
 export interface SubtitleDeleteResponse {
   subtitle_path: string;
   base_dir?: string | null;

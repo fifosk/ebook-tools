@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 import tempfile
 from pathlib import Path
@@ -39,12 +40,14 @@ from modules.services.youtube_dubbing import (
     _find_language_token,
 )
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
+from modules.services.subtitle_metadata_service import SubtitleMetadataService
 
 from ..dependencies import (
     RequestUserContext,
     get_pipeline_job_manager,
     get_request_user,
     get_subtitle_service,
+    get_subtitle_metadata_service,
     get_youtube_dubbing_service,
 )
 from ..schemas import (
@@ -54,6 +57,10 @@ from ..schemas import (
     LLMModelListResponse,
     SubtitleDeleteRequest,
     SubtitleDeleteResponse,
+    SubtitleTvMetadataLookupRequest,
+    SubtitleTvMetadataPreviewLookupRequest,
+    SubtitleTvMetadataPreviewResponse,
+    SubtitleTvMetadataResponse,
     YoutubeSubtitleDownloadRequest,
     YoutubeSubtitleDownloadResponse,
     YoutubeSubtitleListResponse,
@@ -905,6 +912,7 @@ async def submit_subtitle_job(
     start_time: Optional[str] = Form("00:00"),
     end_time: Optional[str] = Form(None),
     source_path: Optional[str] = Form(None),
+    media_metadata_json: Optional[str] = Form(None),
     cleanup_source: Union[str, bool] = Form(False),
     mirror_batches_to_source_dir: Union[str, bool] = Form(True),
     output_format: str = Form("srt"),
@@ -983,6 +991,22 @@ async def submit_subtitle_job(
         ) from exc
     cleanup_flag = _as_bool(cleanup_source, False)
     temp_file: Optional[Path] = None
+    media_metadata: Optional[dict] = None
+
+    if media_metadata_json is not None and str(media_metadata_json).strip():
+        try:
+            candidate = json.loads(str(media_metadata_json))
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="media_metadata_json must be valid JSON",
+            ) from exc
+        if not isinstance(candidate, dict):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="media_metadata_json must be a JSON object",
+            )
+        media_metadata = candidate
 
     try:
         if file is not None:
@@ -1046,6 +1070,7 @@ async def submit_subtitle_job(
         original_name=original_name,
         options=options_model,
         cleanup=cleanup_flag,
+        media_metadata=media_metadata,
     )
 
     try:
@@ -1083,3 +1108,80 @@ def get_subtitle_job_result(
     if job.job_type != "subtitle":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subtitle job not found")
     return job.result_payload or {}
+
+
+@router.get("/jobs/{job_id}/metadata/tv", response_model=SubtitleTvMetadataResponse)
+def get_subtitle_tv_metadata(
+    job_id: str,
+    metadata_service: SubtitleMetadataService = Depends(get_subtitle_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> SubtitleTvMetadataResponse:
+    """Return stored (or inferred) TV metadata for a subtitle job without triggering a lookup."""
+
+    try:
+        payload = metadata_service.get_tv_metadata(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    return SubtitleTvMetadataResponse(**payload)
+
+
+@router.post(
+    "/jobs/{job_id}/metadata/tv/lookup",
+    response_model=SubtitleTvMetadataResponse,
+)
+def lookup_subtitle_tv_metadata(
+    job_id: str,
+    lookup: SubtitleTvMetadataLookupRequest,
+    metadata_service: SubtitleMetadataService = Depends(get_subtitle_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> SubtitleTvMetadataResponse:
+    """Trigger TVMaze metadata enrichment for the subtitle job and persist the result."""
+
+    try:
+        payload = metadata_service.lookup_tv_metadata(
+            job_id,
+            force=bool(lookup.force),
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    return SubtitleTvMetadataResponse(**payload)
+
+
+@router.post(
+    "/metadata/tv/lookup",
+    response_model=SubtitleTvMetadataPreviewResponse,
+)
+def lookup_subtitle_tv_metadata_preview(
+    lookup: SubtitleTvMetadataPreviewLookupRequest,
+    metadata_service: SubtitleMetadataService = Depends(get_subtitle_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> SubtitleTvMetadataPreviewResponse:
+    """Lookup TV metadata for a subtitle filename (used before submitting jobs)."""
+
+    try:
+        payload = metadata_service.lookup_tv_metadata_for_source(
+            lookup.source_name,
+            force=bool(lookup.force),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Unable to lookup TV metadata for subtitle source %s",
+            lookup.source_name,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Unable to lookup TV metadata: {exc}",
+        ) from exc
+
+    return SubtitleTvMetadataPreviewResponse(**payload)

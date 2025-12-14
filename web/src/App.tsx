@@ -482,10 +482,15 @@ export function App() {
     setReloadingJobs((previous) => ({ ...previous, [jobId]: true }));
     try {
       let status: PipelineStatusResponse;
-      try {
-        status = await refreshPipelineMetadata(jobId);
-      } catch (refreshError) {
-        console.warn('Unable to force metadata refresh for job', jobId, refreshError);
+      const jobType = jobs[jobId]?.status?.job_type ?? null;
+      if (jobType === 'pipeline') {
+        try {
+          status = await refreshPipelineMetadata(jobId);
+        } catch (refreshError) {
+          console.warn('Unable to force metadata refresh for job', jobId, refreshError);
+          status = await fetchPipelineStatus(jobId);
+        }
+      } else {
         status = await fetchPipelineStatus(jobId);
       }
       const resolvedCompletion = resolveMediaCompletion(status);
@@ -518,7 +523,7 @@ export function App() {
       });
       void refreshJobs();
     }
-  }, [refreshJobs]);
+  }, [jobs, refreshJobs]);
 
   const performJobAction = useCallback(
     async (jobId: string, action: JobAction) => {

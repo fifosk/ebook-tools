@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Mapping
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
@@ -249,6 +250,45 @@ class SubtitleSourceListResponse(BaseModel):
     """Collection of available subtitle sources."""
 
     sources: List[SubtitleSourceEntry] = Field(default_factory=list)
+
+
+class SubtitleTvMetadataParse(BaseModel):
+    """Parsed TV episode identifier inferred from a subtitle filename."""
+
+    series: str
+    season: int
+    episode: int
+    pattern: str
+
+
+class SubtitleTvMetadataResponse(BaseModel):
+    """Response payload describing subtitle TV metadata enrichment state."""
+
+    job_id: str
+    source_name: Optional[str] = None
+    parsed: Optional[SubtitleTvMetadataParse] = None
+    media_metadata: Optional[Dict[str, Any]] = None
+
+
+class SubtitleTvMetadataLookupRequest(BaseModel):
+    """Request payload to trigger a TV metadata lookup for a subtitle job."""
+
+    force: bool = False
+
+
+class SubtitleTvMetadataPreviewResponse(BaseModel):
+    """Response payload describing TV metadata lookup results for a filename."""
+
+    source_name: Optional[str] = None
+    parsed: Optional[SubtitleTvMetadataParse] = None
+    media_metadata: Optional[Dict[str, Any]] = None
+
+
+class SubtitleTvMetadataPreviewLookupRequest(BaseModel):
+    """Request payload to trigger a TV metadata lookup for a subtitle filename."""
+
+    source_name: str
+    force: bool = False
 
 
 class YoutubeSubtitleTrackPayload(BaseModel):
@@ -728,6 +768,13 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     if not isinstance(options, Mapping):
         return None
 
+    subtitle_path = (
+        _coerce_str(payload.get("original_name"))
+        or _coerce_str(payload.get("source_path"))
+        or _coerce_str(payload.get("source_file"))
+        or _coerce_str(payload.get("submitted_source"))
+    )
+
     target_language = _coerce_str(options.get("target_language"))
     target_languages = [target_language] if target_language else []
     input_language = _coerce_str(options.get("input_language")) or _coerce_str(
@@ -737,6 +784,7 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     return JobParameterSnapshot(
         input_language=input_language,
         target_languages=target_languages,
+        subtitle_path=subtitle_path,
         llm_model=_coerce_str(options.get("llm_model")),
         worker_count=_coerce_int(options.get("worker_count")),
         batch_size=_coerce_int(options.get("batch_size")),
@@ -799,6 +847,74 @@ def _build_job_parameters(job: PipelineJob) -> Optional[JobParameterSnapshot]:
     return _build_pipeline_parameters(payload)
 
 
+def _filename_stem(value: Any) -> Optional[str]:
+    if not isinstance(value, str):
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        return None
+    basename = trimmed.split("/")[-1].split("\\")[-1]
+    try:
+        stem = Path(basename).stem
+    except Exception:
+        return basename
+    return stem or basename
+
+
+def _resolve_job_label(job: PipelineJob) -> Optional[str]:
+    """Return a human-friendly label for ``job`` when possible."""
+
+    request_payload: Optional[Mapping[str, Any]] = None
+    if isinstance(job.request_payload, Mapping):
+        request_payload = job.request_payload
+    elif isinstance(job.resume_context, Mapping):
+        request_payload = job.resume_context
+
+    if job.job_type == "subtitle":
+        if request_payload is not None:
+            media_metadata = request_payload.get("media_metadata")
+            if isinstance(media_metadata, Mapping):
+                label = media_metadata.get("job_label")
+                if isinstance(label, str) and label.strip():
+                    return label.strip()
+            for key in ("original_name", "source_file", "source_path", "submitted_source"):
+                stem = _filename_stem(request_payload.get(key))
+                if stem:
+                    return stem
+
+        if isinstance(job.result_payload, Mapping):
+            subtitle_section = job.result_payload.get("subtitle")
+            if isinstance(subtitle_section, Mapping):
+                metadata = subtitle_section.get("metadata")
+                if isinstance(metadata, Mapping):
+                    label = metadata.get("job_label")
+                    if isinstance(label, str) and label.strip():
+                        return label.strip()
+                    for key in ("input_file", "source", "subtitle_name"):
+                        stem = _filename_stem(metadata.get(key))
+                        if stem:
+                            return stem
+
+        return None
+
+    if request_payload is not None and job.job_type in {"pipeline", "book"}:
+        inputs = request_payload.get("inputs")
+        if isinstance(inputs, Mapping):
+            stem = _filename_stem(inputs.get("base_output_file")) or _filename_stem(
+                inputs.get("input_file")
+            )
+            if stem:
+                return stem
+            book_metadata = inputs.get("book_metadata")
+            if isinstance(book_metadata, Mapping):
+                for key in ("job_label", "title", "book_title", "book_name", "name", "topic"):
+                    candidate = book_metadata.get(key)
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate.strip()
+
+    return None
+
+
 class ProgressSnapshotPayload(BaseModel):
     """Serializable payload for :class:`ProgressSnapshot`."""
 
@@ -852,7 +968,7 @@ class PipelineStatusResponse(BaseModel):
     created_at: datetime
     started_at: Optional[datetime]
     completed_at: Optional[datetime]
-    result: Optional[PipelineResponsePayload | Dict[str, Any]]
+    result: Optional[Dict[str, Any] | PipelineResponsePayload]
     error: Optional[str]
     latest_event: Optional[ProgressEventPayload]
     tuning: Optional[Dict[str, Any]] = None
@@ -862,6 +978,7 @@ class PipelineStatusResponse(BaseModel):
     parameters: Optional[JobParameterSnapshot] = None
     media_completed: Optional[bool] = None
     retry_summary: Optional[Dict[str, Dict[str, int]]] = None
+    job_label: Optional[str] = None
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -899,6 +1016,7 @@ class PipelineStatusResponse(BaseModel):
             parameters=_build_job_parameters(job),
             media_completed=job.media_completed,
             retry_summary=job.tracker.get_retry_counts() if job.tracker else job.retry_summary,
+            job_label=_resolve_job_label(job),
         )
 
 

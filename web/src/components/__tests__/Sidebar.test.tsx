@@ -163,7 +163,7 @@ describe('Sidebar', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: /Narrate Ebook/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Dub Video/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^🎙️ Dub Video$/i }));
     fireEvent.click(screen.getByRole('button', { name: /User management/i }));
     expect(handleSelectView.mock.calls).toContainEqual(['pipeline:source']);
     expect(handleSelectView.mock.calls).toContainEqual(['subtitles:youtube-dub']);
@@ -174,7 +174,7 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Spanish Pending/i }));
     expect(handleSelectJob).toHaveBeenCalledWith('dub-1');
 
-    const playerButton = screen.getByRole('button', { name: /Select a job to open the player/i });
+    const playerButton = screen.getByRole('button', { name: /Player Select a job/i });
     expect(playerButton).toBeDisabled();
     fireEvent.click(playerButton);
     expect(handleOpenPlayer).not.toHaveBeenCalled();

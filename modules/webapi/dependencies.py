@@ -24,6 +24,7 @@ from ..library import (
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
 from ..services.subtitle_service import SubtitleService
+from ..services.subtitle_metadata_service import SubtitleMetadataService
 from ..services.video_service import VideoService
 from ..services.youtube_dubbing import YoutubeDubbingService
 from ..user_management import AuthService, LocalUserStore, SessionManager
@@ -356,6 +357,14 @@ def get_subtitle_service() -> SubtitleService:
     job_manager = get_pipeline_job_manager()
     locator = get_file_locator()
     return SubtitleService(job_manager=job_manager, locator=locator)
+
+
+@lru_cache
+def get_subtitle_metadata_service() -> SubtitleMetadataService:
+    """Return the shared :class:`SubtitleMetadataService` instance."""
+
+    job_manager = get_pipeline_job_manager()
+    return SubtitleMetadataService(job_manager=job_manager)
 
 
 @lru_cache

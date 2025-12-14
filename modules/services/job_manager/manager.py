@@ -382,6 +382,29 @@ class PipelineJobManager:
 
         self._store.update(snapshot)
 
+    def mutate_job(
+        self,
+        job_id: str,
+        mutator: Callable[[PipelineJob], None],
+        *,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> PipelineJob:
+        """Apply ``mutator`` to the persisted job and store the updated snapshot."""
+
+        job = self._get_unchecked(job_id)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+
+        with self._lock:
+            target = self._jobs.get(job_id) or job
+            mutator(target)
+            snapshot = self._persistence.snapshot(target)
+            if job_id in self._jobs:
+                self._jobs[job_id] = target
+
+        self._store.update(snapshot)
+        return target
+
     def _store_event(self, job_id: str, event: ProgressEvent) -> None:
         metadata = dict(event.metadata)
         with self._lock:

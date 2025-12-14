@@ -232,6 +232,26 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
 
     metadata["item_type"] = "narrated_subtitle"
 
+    def _extract_tv_episode_metadata() -> Optional[Mapping[str, Any]]:
+        result_section = metadata.get("result")
+        if isinstance(result_section, Mapping):
+            subtitle_section = result_section.get("subtitle")
+            if isinstance(subtitle_section, Mapping):
+                subtitle_metadata = subtitle_section.get("metadata")
+                if isinstance(subtitle_metadata, Mapping):
+                    media_metadata = subtitle_metadata.get("media_metadata")
+                    if isinstance(media_metadata, Mapping):
+                        return media_metadata
+        request_section = metadata.get("request")
+        if isinstance(request_section, Mapping):
+            media_metadata = request_section.get("media_metadata")
+            if isinstance(media_metadata, Mapping):
+                return media_metadata
+        return None
+
+    def _format_episode_code(season: int, episode: int) -> str:
+        return f"S{season:02d}E{episode:02d}"
+
     def _set_if_blank(key: str, value: Optional[str]) -> None:
         if value is None:
             return
@@ -258,19 +278,57 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
     genre_candidate: Optional[str] = None
     language_candidate: Optional[str] = None
 
+    tv_metadata = _extract_tv_episode_metadata()
+    if isinstance(tv_metadata, Mapping) and str(tv_metadata.get("kind", "")).strip().lower() == "tv_episode":
+        genre_candidate = "TV"
+        show = tv_metadata.get("show")
+        episode = tv_metadata.get("episode")
+        show_name = show.get("name") if isinstance(show, Mapping) else None
+        episode_name = episode.get("name") if isinstance(episode, Mapping) else None
+        season_number = episode.get("season") if isinstance(episode, Mapping) else None
+        episode_number = episode.get("number") if isinstance(episode, Mapping) else None
+        airdate = episode.get("airdate") if isinstance(episode, Mapping) else None
+        genres = show.get("genres") if isinstance(show, Mapping) else None
+
+        if isinstance(show_name, str) and show_name.strip():
+            author_candidate = show_name.strip()
+            metadata.setdefault("series_title", author_candidate)
+        if isinstance(season_number, int) and isinstance(episode_number, int) and season_number > 0 and episode_number > 0:
+            metadata.setdefault("season_number", season_number)
+            metadata.setdefault("episode_number", episode_number)
+            metadata.setdefault("episode_code", _format_episode_code(season_number, episode_number))
+            title_candidate = metadata.get("episode_code")
+        if isinstance(episode_name, str) and episode_name.strip():
+            metadata.setdefault("episode_title", episode_name.strip())
+        if isinstance(airdate, str) and airdate.strip():
+            metadata.setdefault("airdate", airdate.strip())
+        if isinstance(genres, list) and genres:
+            filtered = [entry.strip() for entry in genres if isinstance(entry, str) and entry.strip()]
+            if filtered:
+                metadata.setdefault("series_genres", filtered)
+
+        if isinstance(title_candidate, str) and title_candidate and isinstance(episode_name, str) and episode_name.strip():
+            title_candidate = f"{title_candidate} - {episode_name.strip()}"
+        if title_candidate is None and isinstance(episode_name, str) and episode_name.strip():
+            title_candidate = episode_name.strip()
+
     if book_metadata is not None:
-        title_candidate = (
-            str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip() or None
-        )
-        author_candidate = (
-            str(book_metadata.get("book_author") or book_metadata.get("author") or "").strip() or None
-        )
-        genre_candidate = (
-            str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip() or None
-        )
-        language_candidate = (
-            str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
-        )
+        if title_candidate is None:
+            title_candidate = (
+                str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip() or None
+            )
+        if author_candidate is None:
+            author_candidate = (
+                str(book_metadata.get("book_author") or book_metadata.get("author") or "").strip() or None
+            )
+        if genre_candidate is None:
+            genre_candidate = (
+                str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip() or None
+            )
+        if language_candidate is None:
+            language_candidate = (
+                str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
+            )
 
     request_section = metadata.get("request")
     if isinstance(request_section, Mapping):

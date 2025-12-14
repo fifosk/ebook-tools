@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import os
 import queue
 import re
@@ -52,6 +53,10 @@ def _sanitize_filename_fragment(value: str, fallback: str = "subtitle") -> str:
     return candidate or fallback
 
 
+def _format_episode_code(season: int, episode: int) -> str:
+    return f"S{season:02d}E{episode:02d}"
+
+
 @dataclass(frozen=True)
 class SubtitleSubmission:
     """Description of a subtitle submission request."""
@@ -60,6 +65,7 @@ class SubtitleSubmission:
     original_name: str
     options: SubtitleJobOptions
     cleanup: bool = False
+    media_metadata: Optional[Dict[str, Any]] = None
 
 
 class SubtitleService:
@@ -171,6 +177,8 @@ class SubtitleService:
                 "original_name": source_name,
                 "cleanup": submission.cleanup,
             }
+            if submission.media_metadata:
+                job.request_payload["media_metadata"] = copy.deepcopy(submission.media_metadata)
             tracker_local = job.tracker
             if tracker_local is not None:
                 try:
@@ -517,6 +525,13 @@ class SubtitleService:
                 "download_url": self._locator.resolve_url(job.job_id, relative_path),
                 "generate_audio_book": bool(options.generate_audio_book),
             }
+            request_payload = job.request_payload if isinstance(job.request_payload, Mapping) else {}
+            media_metadata = request_payload.get("media_metadata") if isinstance(request_payload, Mapping) else None
+            if isinstance(media_metadata, Mapping) and media_metadata:
+                subtitle_metadata["media_metadata"] = copy.deepcopy(dict(media_metadata))
+                job_label = media_metadata.get("job_label")
+                if isinstance(job_label, str) and job_label.strip():
+                    subtitle_metadata["job_label"] = job_label.strip()
             if export_path is not None:
                 subtitle_metadata["export_path"] = export_path.as_posix()
 
@@ -528,6 +543,51 @@ class SubtitleService:
                 "source_file": (input_path.relative_to(self._locator.job_root(job.job_id))).as_posix(),
                 "source_path": (input_path.relative_to(self._locator.job_root(job.job_id))).as_posix(),
             }
+            if isinstance(media_metadata, Mapping) and str(media_metadata.get("kind", "")).strip().lower() == "tv_episode":
+                show = media_metadata.get("show")
+                episode = media_metadata.get("episode")
+                show_name = show.get("name") if isinstance(show, Mapping) else None
+                episode_name = episode.get("name") if isinstance(episode, Mapping) else None
+                season_number = episode.get("season") if isinstance(episode, Mapping) else None
+                episode_number = episode.get("number") if isinstance(episode, Mapping) else None
+                airdate = episode.get("airdate") if isinstance(episode, Mapping) else None
+                genres = show.get("genres") if isinstance(show, Mapping) else None
+
+                if isinstance(show_name, str) and show_name.strip():
+                    book_metadata["book_author"] = show_name.strip()
+                    book_metadata["series_title"] = show_name.strip()
+                if isinstance(season_number, int) and isinstance(episode_number, int) and season_number > 0 and episode_number > 0:
+                    book_metadata["season_number"] = season_number
+                    book_metadata["episode_number"] = episode_number
+                    book_metadata["episode_code"] = _format_episode_code(season_number, episode_number)
+                if isinstance(episode_name, str) and episode_name.strip():
+                    book_metadata["episode_title"] = episode_name.strip()
+                if isinstance(airdate, str) and airdate.strip():
+                    book_metadata["airdate"] = airdate.strip()
+                if isinstance(genres, list) and genres:
+                    filtered = [entry.strip() for entry in genres if isinstance(entry, str) and entry.strip()]
+                    if filtered:
+                        book_metadata["book_genre"] = "TV"
+                        book_metadata["series_genres"] = filtered
+                provider = media_metadata.get("provider")
+                if isinstance(provider, str) and provider.strip():
+                    book_metadata["tv_metadata_provider"] = provider.strip()
+                tvmaze = media_metadata.get("tvmaze")
+                if isinstance(tvmaze, Mapping):
+                    show_id = tvmaze.get("show_id")
+                    episode_id = tvmaze.get("episode_id")
+                    if isinstance(show_id, int):
+                        book_metadata["tvmaze_show_id"] = show_id
+                    if isinstance(episode_id, int):
+                        book_metadata["tvmaze_episode_id"] = episode_id
+                job_label = media_metadata.get("job_label")
+                if isinstance(job_label, str) and job_label.strip():
+                    book_metadata["job_label"] = job_label.strip()
+                    code = book_metadata.get("episode_code")
+                    if isinstance(code, str) and code.strip() and isinstance(episode_name, str) and episode_name.strip():
+                        book_metadata["book_title"] = f"{code.strip()} - {episode_name.strip()}"
+                    elif isinstance(code, str) and code.strip():
+                        book_metadata["book_title"] = code.strip()
 
             result_payload: Dict[str, object] = {
                 "subtitle": {
@@ -565,6 +625,9 @@ class SubtitleService:
                 "source_path": str(resolved_source),
                 "original_name": source_name,
                 "options": options.to_dict(),
+                "media_metadata": copy.deepcopy(submission.media_metadata)
+                if submission.media_metadata
+                else None,
             },
             user_id=user_id,
             user_role=user_role,
