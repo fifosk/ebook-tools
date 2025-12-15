@@ -11,6 +11,7 @@ import {
   fetchPipelineFiles,
   fetchLlmModels,
   fetchVoiceInventory,
+  lookupBookOpenLibraryMetadataPreview,
   synthesizeVoicePreview,
   uploadEpubFile
 } from '../../api/client';
@@ -22,6 +23,7 @@ vi.mock('../../api/client', () => ({
   fetchPipelineDefaults: vi.fn(),
   fetchLlmModels: vi.fn(),
   fetchVoiceInventory: vi.fn(),
+  lookupBookOpenLibraryMetadataPreview: vi.fn(),
   synthesizeVoicePreview: vi.fn(),
   uploadEpubFile: vi.fn()
 }));
@@ -71,6 +73,11 @@ beforeEach(() => {
   );
   vi.mocked(fetchLlmModels).mockResolvedValue([]);
   vi.mocked(fetchVoiceInventory).mockResolvedValue({ macos: [], gtts: [] });
+  vi.mocked(lookupBookOpenLibraryMetadataPreview).mockResolvedValue({
+    source_name: null,
+    query: null,
+    book_metadata_lookup: null
+  });
   vi.mocked(synthesizeVoicePreview).mockResolvedValue(new Blob());
 });
 

@@ -51,6 +51,7 @@ type JobAction = 'pause' | 'resume' | 'cancel' | 'delete' | 'restart';
 
 export type PipelineMenuView =
   | 'pipeline:source'
+  | 'pipeline:metadata'
   | 'pipeline:language'
   | 'pipeline:output'
   | 'pipeline:performance'
@@ -79,6 +80,7 @@ export type SelectedView =
 
 const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:source': 'source',
+  'pipeline:metadata': 'metadata',
   'pipeline:language': 'language',
   'pipeline:output': 'output',
   'pipeline:performance': 'performance',
@@ -87,6 +89,7 @@ const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
 
 const PIPELINE_SECTION_TO_VIEW: Record<PipelineFormSection, PipelineMenuView> = {
   source: 'pipeline:source',
+  metadata: 'pipeline:metadata',
   language: 'pipeline:language',
   output: 'pipeline:output',
   performance: 'pipeline:performance',

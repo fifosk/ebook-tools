@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import { formatLanguageWithFlag } from '../utils/languages';
-import { fetchSubtitleTvMetadata, lookupSubtitleTvMetadata } from '../api/client';
+import { appendAccessToken, fetchSubtitleTvMetadata, lookupSubtitleTvMetadata, resolveJobCoverUrl } from '../api/client';
 import {
   PipelineJobStatus,
   PipelineResponsePayload,
@@ -698,9 +698,54 @@ export function JobProgress({
       : null;
   const rawMetadata = isPipelineLikeJob ? pipelineResult?.book_metadata ?? null : subtitleBookMetadata;
   const metadata = rawMetadata ?? {};
+  const bookTitle = useMemo(() => normalizeTextValue(metadata['book_title']) ?? null, [metadata]);
+  const bookAuthor = useMemo(() => normalizeTextValue(metadata['book_author']) ?? null, [metadata]);
+  const openlibraryWorkUrl = useMemo(
+    () => normalizeTextValue(metadata['openlibrary_work_url']) ?? null,
+    [metadata]
+  );
+  const openlibraryBookUrl = useMemo(
+    () => normalizeTextValue(metadata['openlibrary_book_url']) ?? null,
+    [metadata]
+  );
+  const openlibraryLink = openlibraryBookUrl ?? openlibraryWorkUrl;
+  const shouldShowCoverPreview = useMemo(() => {
+    if (!isPipelineLikeJob) {
+      return false;
+    }
+    return Boolean(
+      normalizeTextValue(metadata['job_cover_asset']) ||
+        normalizeTextValue(metadata['book_cover_file']) ||
+        normalizeTextValue(metadata['cover_url']) ||
+        normalizeTextValue(metadata['job_cover_asset_url'])
+    );
+  }, [isPipelineLikeJob, metadata]);
+  const coverUrl = useMemo(() => {
+    if (!shouldShowCoverPreview) {
+      return null;
+    }
+    const url = resolveJobCoverUrl(jobId);
+    return url ? appendAccessToken(url) : null;
+  }, [jobId, shouldShowCoverPreview]);
+  const [coverFailed, setCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [coverUrl]);
+  const coverAltText = useMemo(() => {
+    if (bookTitle && bookAuthor) {
+      return `Cover of ${bookTitle} by ${bookAuthor}`;
+    }
+    if (bookTitle) {
+      return `Cover of ${bookTitle}`;
+    }
+    return 'Book cover';
+  }, [bookAuthor, bookTitle]);
   const creationSummaryRaw = metadata['creation_summary'];
   const metadataEntries = Object.entries(metadata).filter(([key, value]) => {
-    if (key === 'job_cover_asset' || CREATION_METADATA_KEYS.has(key)) {
+    if (key === 'job_cover_asset' || key === 'book_metadata_lookup' || CREATION_METADATA_KEYS.has(key)) {
+      return false;
+    }
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
       return false;
     }
     const normalized = normalizeMetadataValue(value);
@@ -1203,6 +1248,29 @@ export function JobProgress({
       {isSubtitleJob && subtitleTab === 'metadata' ? null : (
         <div className="job-card__section">
           <h4>{isSubtitleJob ? 'Subtitle metadata' : 'Book metadata'}</h4>
+          {shouldShowCoverPreview && coverUrl && !coverFailed ? (
+            <div className="book-metadata-cover" aria-label="Book cover">
+              {openlibraryLink ? (
+                <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
+                  <img
+                    src={coverUrl}
+                    alt={coverAltText}
+                    loading="lazy"
+                    decoding="async"
+                    onError={() => setCoverFailed(true)}
+                  />
+                </a>
+              ) : (
+                <img
+                  src={coverUrl}
+                  alt={coverAltText}
+                  loading="lazy"
+                  decoding="async"
+                  onError={() => setCoverFailed(true)}
+                />
+              )}
+            </div>
+          ) : null}
           {metadataEntries.length > 0 ? (
             <dl className="metadata-grid">
               {metadataEntries.map(([key, value]) => {

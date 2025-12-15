@@ -41,6 +41,7 @@ import { WORD_SYNC, normaliseTranslationSpeed } from './player-panel/constants';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import { speakText } from '../utils/ttsPlayback';
 import { buildMyLinguistSystemPrompt } from '../utils/myLinguistPrompt';
+import type { InteractiveTextTheme } from '../types/interactiveTextTheme';
 
 type HighlightDebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean; overlay?: boolean } };
 
@@ -824,6 +825,7 @@ interface InteractiveTextViewerProps {
   originalAudioEnabled?: boolean;
   translationSpeed?: number;
   fontScale?: number;
+  theme?: InteractiveTextTheme | null;
   bookTitle?: string | null;
   bookCoverUrl?: string | null;
   bookCoverAltText?: string | null;
@@ -843,6 +845,30 @@ const segmenterCtor =
     ? (Intl as typeof Intl & { Segmenter?: SegmenterConstructor }).Segmenter ?? null
     : null;
 const hasIntlSegmenter = typeof segmenterCtor === 'function';
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  const match = hex.trim().match(/^#([0-9a-fA-F]{6})$/);
+  if (!match) {
+    return null;
+  }
+  const digits = match[1];
+  const r = Number.parseInt(digits.slice(0, 2), 16);
+  const g = Number.parseInt(digits.slice(2, 4), 16);
+  const b = Number.parseInt(digits.slice(4, 6), 16);
+  if (!Number.isFinite(r) || !Number.isFinite(g) || !Number.isFinite(b)) {
+    return null;
+  }
+  return { r, g, b };
+}
+
+function rgbaFromHex(hex: string, alpha: number): string | null {
+  const rgb = hexToRgb(hex);
+  if (!rgb) {
+    return null;
+  }
+  const safeAlpha = Number.isFinite(alpha) ? Math.min(Math.max(alpha, 0), 1) : 1;
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${safeAlpha})`;
+}
 
 function segmentParagraph(paragraph: string): string[] {
   if (!paragraph) {
@@ -1026,6 +1052,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     originalAudioEnabled = false,
     translationSpeed = 1,
     fontScale = 1,
+    theme = null,
     bookTitle = null,
     bookCoverUrl = null,
     bookCoverAltText = null,
@@ -1103,12 +1130,55 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const bodyStyle = useMemo<CSSProperties>(() => {
     const baseSentenceFont = (isFullscreen ? 1.32 : 1.08) * safeFontScale;
     const activeSentenceFont = (isFullscreen ? 1.56 : 1.28) * safeFontScale;
-    return {
+    const style: Record<string, string | number> = {
       '--interactive-font-scale': safeFontScale,
       '--tp-sentence-font-size': formatRem(baseSentenceFont),
       '--tp-sentence-active-font-size': formatRem(activeSentenceFont),
-    } as CSSProperties;
-  }, [formatRem, isFullscreen, safeFontScale]);
+    };
+
+    if (theme) {
+      style['--interactive-bg'] = theme.background;
+      style['--interactive-color-original'] = theme.original;
+      style['--interactive-color-original-active'] = theme.originalActive;
+      style['--interactive-color-translation'] = theme.translation;
+      style['--interactive-color-transliteration'] = theme.transliteration;
+
+      const originalMuted = rgbaFromHex(theme.original, 0.75);
+      if (originalMuted) {
+        style['--interactive-color-original-muted'] = originalMuted;
+      }
+
+      const highlightStrong = rgbaFromHex(theme.highlight, 0.85);
+      const highlightSoft = rgbaFromHex(theme.highlight, 0.3);
+      const highlightVerySoft = rgbaFromHex(theme.highlight, 0.2);
+      const highlightSentenceBg = rgbaFromHex(theme.highlight, 0.45);
+      const highlightOutline = rgbaFromHex(theme.highlight, 0.35);
+
+      if (highlightStrong) {
+        style['--interactive-highlight-strong'] = highlightStrong;
+      }
+      if (highlightSoft) {
+        style['--interactive-highlight-soft'] = highlightSoft;
+      }
+      if (highlightVerySoft) {
+        style['--interactive-highlight-very-soft'] = highlightVerySoft;
+      }
+      if (highlightSentenceBg) {
+        style['--interactive-highlight-sentence-bg'] = highlightSentenceBg;
+      }
+      if (highlightOutline) {
+        style['--interactive-highlight-outline'] = highlightOutline;
+      }
+
+      style['--tp-bg'] = theme.background;
+      style['--tp-original'] = theme.original;
+      style['--tp-translit'] = theme.transliteration;
+      style['--tp-translation'] = theme.translation;
+      style['--tp-progress'] = theme.highlight;
+    }
+
+    return style as CSSProperties;
+  }, [formatRem, isFullscreen, safeFontScale, theme]);
   const [viewportCoverFailed, setViewportCoverFailed] = useState(false);
   useEffect(() => {
     setViewportCoverFailed(false);

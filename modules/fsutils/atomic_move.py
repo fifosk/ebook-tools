@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import shutil
+import unicodedata
 from pathlib import Path
 from typing import Iterable, Tuple
 from uuid import uuid4
@@ -30,7 +31,7 @@ def _iter_files(root: Path) -> Iterable[Tuple[Path, Path]]:
         return
 
     for path in sorted(root.rglob("*")):
-        if path.is_file() and path.name not in _IGNORED_NAMES:
+        if path.is_file() and path.name not in _IGNORED_NAMES and not path.name.startswith("._"):
             yield path.relative_to(root), path
 
 
@@ -42,18 +43,44 @@ def _compute_checksum(path: Path, algorithm: str) -> str:
     return hasher.hexdigest()
 
 
+def _normalized_rel_path(rel_path: Path) -> str:
+    rel_string = rel_path.as_posix()
+    if rel_string == "./":
+        rel_string = "."
+    return unicodedata.normalize("NFC", rel_string)
+
+
 def _verify_copy(src: Path, dst: Path, algorithm: str) -> None:
-    src_files = list(_iter_files(src))
-    dst_files = list(_iter_files(dst))
+    src_index: dict[str, tuple[Path, Path]] = {}
+    for rel_path, file_path in _iter_files(src):
+        key = _normalized_rel_path(rel_path)
+        if key in src_index:
+            raise ChecksumMismatchError(f"Duplicate source file path after normalization: {rel_path}")
+        src_index[key] = (rel_path, file_path)
 
-    if len(src_files) != len(dst_files):
-        raise ChecksumMismatchError("Source and destination contain a different number of files")
-
-    for (src_rel, src_file), (dst_rel, dst_file) in zip(src_files, dst_files):
-        if src_rel != dst_rel:
+    dst_index: dict[str, tuple[Path, Path]] = {}
+    for rel_path, file_path in _iter_files(dst):
+        key = _normalized_rel_path(rel_path)
+        if key in dst_index:
             raise ChecksumMismatchError(
-                f"Mismatch in copied file paths: {src_rel} vs {dst_rel}"
+                f"Duplicate destination file path after normalization: {rel_path}"
             )
+        dst_index[key] = (rel_path, file_path)
+
+    missing = sorted(set(src_index) - set(dst_index))
+    extra = sorted(set(dst_index) - set(src_index))
+    if missing or extra:
+        summary_parts = []
+        if missing:
+            summary_parts.append(f"missing={missing[:5]}")
+        if extra:
+            summary_parts.append(f"extra={extra[:5]}")
+        summary = ", ".join(summary_parts) if summary_parts else "unknown"
+        raise ChecksumMismatchError(f"Source and destination contain different files ({summary})")
+
+    for key in sorted(src_index):
+        src_rel, src_file = src_index[key]
+        _, dst_file = dst_index[key]
         if _compute_checksum(src_file, algorithm) != _compute_checksum(dst_file, algorithm):
             raise ChecksumMismatchError(f"Checksum mismatch for {src_rel}")
 

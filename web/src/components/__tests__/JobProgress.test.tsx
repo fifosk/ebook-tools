@@ -156,8 +156,8 @@ describe('JobProgress', () => {
     expect(screen.getByText('Example Title')).toBeInTheDocument();
     expect(screen.getByText('Author Name')).toBeInTheDocument();
     expect(screen.getByText('runtime/example-cover.jpg')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Cover of Example Title by Author Name' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /reload metadata/i })).toBeEnabled();
-    expect(screen.queryByText(/Cover preview/i)).not.toBeInTheDocument();
   });
 
   it('renders tuning metrics when provided', () => {

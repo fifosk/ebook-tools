@@ -1,5 +1,5 @@
 .frame {
-  background: #000000;
+  background: var(--tp-bg, #000000);
   padding: 1.25rem 1.5rem;
   border-radius: 1rem;
   overflow-y: visible;

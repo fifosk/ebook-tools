@@ -205,6 +205,34 @@ export interface SubtitleTvMetadataPreviewLookupRequest {
   force?: boolean;
 }
 
+export interface BookOpenLibraryQuery {
+  title?: string | null;
+  author?: string | null;
+  isbn?: string | null;
+}
+
+export interface BookOpenLibraryMetadataResponse {
+  job_id: string;
+  source_name: string | null;
+  query: BookOpenLibraryQuery | null;
+  book_metadata_lookup: Record<string, unknown> | null;
+}
+
+export interface BookOpenLibraryMetadataLookupRequest {
+  force?: boolean;
+}
+
+export interface BookOpenLibraryMetadataPreviewResponse {
+  source_name: string | null;
+  query: BookOpenLibraryQuery | null;
+  book_metadata_lookup: Record<string, unknown> | null;
+}
+
+export interface BookOpenLibraryMetadataPreviewLookupRequest {
+  query: string;
+  force?: boolean;
+}
+
 export interface SubtitleDeleteResponse {
   subtitle_path: string;
   base_dir?: string | null;

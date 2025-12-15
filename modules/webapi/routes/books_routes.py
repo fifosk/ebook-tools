@@ -3,14 +3,18 @@
 from __future__ import annotations
 
 import mimetypes
+import io
+import re
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse, Response
+from PIL import Image, ImageOps
 
 from modules.library import LibraryNotFoundError, LibrarySync
 
+from ... import config_manager as cfg
 from ..dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
@@ -29,6 +33,12 @@ from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
 
 router = APIRouter()
+
+
+_COVER_TARGET_SIZE = (600, 900)
+_COVER_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
+_COVER_ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+
 
 def _format_relative_path(path: Path, root: Path) -> str:
     """Return ``path`` relative to ``root`` using POSIX separators when possible."""
@@ -80,6 +90,13 @@ def _normalise_epub_name(filename: str | None) -> str:
     if raw_name.lower().endswith(".epub"):
         return raw_name
     return f"{raw_name}.epub"
+
+
+def _normalise_cover_name(filename: str | None) -> str:
+    raw_name = Path(filename or "cover.jpg").name or "cover.jpg"
+    stem = Path(raw_name).stem
+    safe_stem = re.sub(r"[^0-9A-Za-z._-]", "_", stem) or "cover"
+    return f"{safe_stem}.jpg"
 
 
 def _reserve_destination_path(directory: Path, filename: str) -> Path:
@@ -167,6 +184,78 @@ async def upload_pipeline_ebook(
     return PipelineFileEntry(
         name=destination.name,
         path=_format_relative_path(destination, destination_dir),
+        type="file",
+    )
+
+
+@router.post("/covers/upload", response_model=PipelineFileEntry, status_code=status.HTTP_201_CREATED)
+async def upload_cover_file(
+    file: UploadFile = File(...),
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Persist an uploaded cover image into the configured covers directory."""
+
+    content_type = (file.content_type or "").lower()
+    raw_suffix = Path(file.filename or "").suffix.lower()
+    if raw_suffix == ".jpeg":
+        raw_suffix = ".jpg"
+
+    if content_type not in _COVER_ALLOWED_CONTENT_TYPES and raw_suffix not in _COVER_ALLOWED_SUFFIXES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only JPEG, PNG, or WebP cover images are supported",
+        )
+
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename required")
+
+    normalised_name = _normalise_cover_name(file.filename)
+
+    with context_provider.activation({}, {}):
+        destination_dir = cfg.resolve_directory(None, cfg.DEFAULT_COVERS_RELATIVE)
+        destination_dir.mkdir(parents=True, exist_ok=True)
+        destination = _reserve_destination_path(destination_dir, normalised_name)
+
+        try:
+            raw = await file.read()
+            try:
+                with Image.open(io.BytesIO(raw)) as img:
+                    normalized = ImageOps.exif_transpose(img)
+                    if normalized.mode in ("RGBA", "LA") or (
+                        normalized.mode == "P" and "transparency" in normalized.info
+                    ):
+                        rgba = normalized.convert("RGBA")
+                        background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+                        background.alpha_composite(rgba)
+                        normalized_rgb = background.convert("RGB")
+                    else:
+                        normalized_rgb = normalized.convert("RGB")
+
+                    target_width, target_height = _COVER_TARGET_SIZE
+                    width, height = normalized_rgb.size
+                    if width <= 0 or height <= 0:
+                        raise ValueError("Invalid image size")
+                    scale = min(target_width / width, target_height / height)
+                    next_width = max(1, round(width * scale))
+                    next_height = max(1, round(height * scale))
+                    resample = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.LANCZOS)
+                    resized = normalized_rgb.resize((next_width, next_height), resample=resample)
+
+                    canvas = Image.new("RGB", (target_width, target_height), (255, 255, 255))
+                    offset = ((target_width - next_width) // 2, (target_height - next_height) // 2)
+                    canvas.paste(resized, offset)
+                    canvas.save(destination, format="JPEG", quality=88, optimize=True, progressive=True)
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    detail=f"Unable to process cover image: {exc}",
+                ) from exc
+        finally:
+            await file.close()
+
+    return PipelineFileEntry(
+        name=destination.name,
+        path=f"storage/covers/{destination.name}",
         type="file",
     )
 

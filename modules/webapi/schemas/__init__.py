@@ -291,6 +291,44 @@ class SubtitleTvMetadataPreviewLookupRequest(BaseModel):
     force: bool = False
 
 
+class BookOpenLibraryQuery(BaseModel):
+    """Parsed Open Library query inferred from a filename/title/ISBN."""
+
+    title: Optional[str] = None
+    author: Optional[str] = None
+    isbn: Optional[str] = None
+
+
+class BookOpenLibraryMetadataResponse(BaseModel):
+    """Response payload describing Open Library enrichment for a book-like job."""
+
+    job_id: str
+    source_name: Optional[str] = None
+    query: Optional[BookOpenLibraryQuery] = None
+    book_metadata_lookup: Optional[Dict[str, Any]] = None
+
+
+class BookOpenLibraryMetadataLookupRequest(BaseModel):
+    """Request payload to trigger an Open Library lookup for a book-like job."""
+
+    force: bool = False
+
+
+class BookOpenLibraryMetadataPreviewResponse(BaseModel):
+    """Response payload describing Open Library lookup results for a filename/title/ISBN."""
+
+    source_name: Optional[str] = None
+    query: Optional[BookOpenLibraryQuery] = None
+    book_metadata_lookup: Optional[Dict[str, Any]] = None
+
+
+class BookOpenLibraryMetadataPreviewLookupRequest(BaseModel):
+    """Request payload to trigger an Open Library lookup for a filename/title/ISBN."""
+
+    query: str
+    force: bool = False
+
+
 class YoutubeSubtitleTrackPayload(BaseModel):
     """Description of an available YouTube subtitle track."""
 
@@ -900,17 +938,21 @@ def _resolve_job_label(job: PipelineJob) -> Optional[str]:
     if request_payload is not None and job.job_type in {"pipeline", "book"}:
         inputs = request_payload.get("inputs")
         if isinstance(inputs, Mapping):
-            stem = _filename_stem(inputs.get("base_output_file")) or _filename_stem(
-                inputs.get("input_file")
-            )
-            if stem:
-                return stem
+            for key in ("job_label", "title", "name", "topic"):
+                candidate = inputs.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
             book_metadata = inputs.get("book_metadata")
             if isinstance(book_metadata, Mapping):
                 for key in ("job_label", "title", "book_title", "book_name", "name", "topic"):
                     candidate = book_metadata.get(key)
                     if isinstance(candidate, str) and candidate.strip():
                         return candidate.strip()
+            stem = _filename_stem(inputs.get("input_file")) or _filename_stem(
+                inputs.get("base_output_file")
+            )
+            if stem:
+                return stem
 
     return None
 

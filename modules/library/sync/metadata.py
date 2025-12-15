@@ -356,6 +356,73 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
         apply_source_reference(metadata, source_relative)
 
 
+def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
+    """Populate sensible defaults for book entries."""
+
+    metadata["item_type"] = "book"
+
+    result_section = metadata.get("result")
+    request_section = metadata.get("request")
+
+    book_metadata: Optional[Mapping[str, Any]] = None
+    direct_book_metadata = metadata.get("book_metadata")
+    if isinstance(direct_book_metadata, Mapping):
+        book_metadata = direct_book_metadata
+    if book_metadata is None and isinstance(result_section, Mapping):
+        candidate = result_section.get("book_metadata")
+        if isinstance(candidate, Mapping):
+            book_metadata = candidate
+            metadata["book_metadata"] = dict(candidate)
+    if book_metadata is None and isinstance(request_section, Mapping):
+        inputs = request_section.get("inputs")
+        if isinstance(inputs, Mapping):
+            candidate = inputs.get("book_metadata")
+            if isinstance(candidate, Mapping):
+                book_metadata = candidate
+                metadata["book_metadata"] = dict(candidate)
+
+    title_candidate: Optional[str] = None
+    author_candidate: Optional[str] = None
+    genre_candidate: Optional[str] = None
+    language_candidate: Optional[str] = None
+
+    if book_metadata is not None:
+        title_candidate = (
+            str(book_metadata.get("book_title") or book_metadata.get("title") or "").strip() or None
+        )
+        author_candidate = (
+            str(book_metadata.get("book_author") or book_metadata.get("author") or "").strip() or None
+        )
+        genre_candidate = (
+            str(book_metadata.get("book_genre") or book_metadata.get("genre") or "").strip() or None
+        )
+        language_candidate = (
+            str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
+        )
+
+    def _set_if_blank(key: str, value: Optional[str]) -> None:
+        if value is None:
+            return
+        trimmed = value.strip()
+        if not trimmed:
+            return
+        current = metadata.get(key)
+        if current is None:
+            metadata[key] = trimmed
+            return
+        if isinstance(current, str) and not current.strip():
+            metadata[key] = trimmed
+
+    _set_if_blank("book_title", title_candidate)
+    _set_if_blank("author", author_candidate)
+    _set_if_blank("genre", genre_candidate)
+    _set_if_blank("language", language_candidate or UNKNOWN_LANGUAGE)
+
+    source_relative = file_ops.resolve_source_relative(metadata, job_root)
+    if source_relative:
+        apply_source_reference(metadata, source_relative)
+
+
 def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     """Populate sensible defaults for dubbed video entries."""
 

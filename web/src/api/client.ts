@@ -39,6 +39,10 @@ import {
   SubtitleTvMetadataPreviewLookupRequest,
   SubtitleTvMetadataPreviewResponse,
   SubtitleTvMetadataResponse,
+  BookOpenLibraryMetadataLookupRequest,
+  BookOpenLibraryMetadataPreviewLookupRequest,
+  BookOpenLibraryMetadataPreviewResponse,
+  BookOpenLibraryMetadataResponse,
   YoutubeSubtitleDownloadRequest,
   YoutubeSubtitleDownloadResponse,
   YoutubeSubtitleListResponse,
@@ -250,6 +254,34 @@ export async function lookupSubtitleTvMetadataPreview(
     body: JSON.stringify({ source_name: payload.source_name, force: Boolean(payload.force) })
   });
   return handleResponse<SubtitleTvMetadataPreviewResponse>(response);
+}
+
+export async function fetchBookOpenLibraryMetadata(jobId: string): Promise<BookOpenLibraryMetadataResponse> {
+  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/book`);
+  return handleResponse<BookOpenLibraryMetadataResponse>(response);
+}
+
+export async function lookupBookOpenLibraryMetadata(
+  jobId: string,
+  payload: BookOpenLibraryMetadataLookupRequest = {}
+): Promise<BookOpenLibraryMetadataResponse> {
+  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/metadata/book/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: Boolean(payload.force) })
+  });
+  return handleResponse<BookOpenLibraryMetadataResponse>(response);
+}
+
+export async function lookupBookOpenLibraryMetadataPreview(
+  payload: BookOpenLibraryMetadataPreviewLookupRequest
+): Promise<BookOpenLibraryMetadataPreviewResponse> {
+  const response = await apiFetch('/api/pipelines/metadata/book/lookup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: payload.query, force: Boolean(payload.force) })
+  });
+  return handleResponse<BookOpenLibraryMetadataPreviewResponse>(response);
 }
 
 export async function deleteSubtitleSource(
@@ -780,6 +812,18 @@ export async function uploadEpubFile(file: File): Promise<PipelineFileEntry> {
   formData.append('file', file, file.name);
 
   const response = await apiFetch('/api/pipelines/files/upload', {
+    method: 'POST',
+    body: formData
+  });
+
+  return handleResponse<PipelineFileEntry>(response);
+}
+
+export async function uploadCoverFile(file: File): Promise<PipelineFileEntry> {
+  const formData = new FormData();
+  formData.append('file', file, file.name);
+
+  const response = await apiFetch('/api/pipelines/covers/upload', {
     method: 'POST',
     body: formData
   });

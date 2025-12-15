@@ -23,6 +23,7 @@ from ..library import (
 )
 from ..services.file_locator import FileLocator
 from ..services.pipeline_service import PipelineService
+from ..services.book_metadata_service import BookMetadataService
 from ..services.subtitle_service import SubtitleService
 from ..services.subtitle_metadata_service import SubtitleMetadataService
 from ..services.video_service import VideoService
@@ -365,6 +366,14 @@ def get_subtitle_metadata_service() -> SubtitleMetadataService:
 
     job_manager = get_pipeline_job_manager()
     return SubtitleMetadataService(job_manager=job_manager)
+
+
+@lru_cache
+def get_book_metadata_service() -> BookMetadataService:
+    """Return the shared :class:`BookMetadataService` instance."""
+
+    job_manager = get_pipeline_job_manager()
+    return BookMetadataService(job_manager=job_manager)
 
 
 @lru_cache

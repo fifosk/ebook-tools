@@ -15,7 +15,8 @@ import {
   PipelineRequestPayload,
   PipelineStatusResponse,
   JobParameterSnapshot,
-  VoiceInventoryResponse
+  VoiceInventoryResponse,
+  BookOpenLibraryMetadataPreviewResponse
 } from '../api/dtos';
 import {
   fetchPipelineDefaults,
@@ -24,7 +25,10 @@ import {
   fetchLlmModels,
   deletePipelineEbook,
   synthesizeVoicePreview,
-  uploadEpubFile
+  uploadEpubFile,
+  uploadCoverFile,
+  lookupBookOpenLibraryMetadataPreview,
+  withBase
 } from '../api/client';
 import {
   AUDIO_MODE_OPTIONS,
@@ -51,6 +55,17 @@ function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function normalizeIsbnCandidate(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const cleaned = value.replace(/[^0-9Xx]/g, '').toUpperCase();
+  if (cleaned.length === 10 || cleaned.length === 13) {
+    return cleaned;
+  }
+  return null;
+}
+
 function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
   const quality = voice.quality ? voice.quality : 'Default';
   const genderSuffix = voice.gender ? ` - ${capitalize(voice.gender)}` : '';
@@ -70,6 +85,7 @@ function formatMacOSVoiceLabel(voice: MacOSVoice): string {
 }
 export type PipelineFormSection =
   | 'source'
+  | 'metadata'
   | 'language'
   | 'output'
   | 'performance'
@@ -165,18 +181,23 @@ const DEFAULT_FORM_STATE: FormState = {
 
 const SECTION_ORDER: PipelineFormSection[] = [
   'source',
+  'metadata',
   'language',
   'output',
   'performance',
   'submit'
 ];
 
-const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = ['source', 'language', 'output', 'performance'];
+const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = ['source', 'metadata', 'language', 'output', 'performance'];
 
 export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
   source: {
     title: 'Source material',
     description: 'Select the EPUB to ingest and where generated files should be written.'
+  },
+  metadata: {
+    title: 'Metadata',
+    description: 'Load book metadata from Open Library (no API key) and edit it before submitting the job.'
   },
   language: {
     title: 'Language & translation',
@@ -210,6 +231,54 @@ function areLanguageArraysEqual(left: string[], right: string[]): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function coerceRecord(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
+}
+
+function normalizeTextValue(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function basenameFromPath(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return '';
+  }
+  const parts = trimmed.split(/[/\\]/);
+  return parts[parts.length - 1] || trimmed;
+}
+
+function resolveCoverPreviewUrlFromCoverFile(coverFile: string | null): string | null {
+  const trimmed = coverFile?.trim() ?? '';
+  if (!trimmed) {
+    return null;
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const normalised = trimmed.replace(/\\/g, '/');
+  const storagePrefix = '/storage/covers/';
+  const storageIndex = normalised.lastIndexOf(storagePrefix);
+  if (storageIndex >= 0) {
+    return withBase(normalised.slice(storageIndex));
+  }
+  const storageRelativeIndex = normalised.lastIndexOf('storage/covers/');
+  if (storageRelativeIndex >= 0) {
+    return withBase(`/${normalised.slice(storageRelativeIndex)}`);
+  }
+
+  const filename = basenameFromPath(normalised);
+  if (!filename) {
+    return null;
+  }
+  return withBase(`/storage/covers/${encodeURIComponent(filename)}`);
 }
 
 function coerceNumber(value: unknown): number | undefined {
@@ -564,6 +633,12 @@ export function PipelineSubmissionForm({
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recentUploadName, setRecentUploadName] = useState<string | null>(null);
+  const coverUploadInputRef = useRef<HTMLInputElement | null>(null);
+  const [coverUploadCandidate, setCoverUploadCandidate] = useState<File | null>(null);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
+  const [isCoverDragActive, setIsCoverDragActive] = useState(false);
+  const [coverPreviewRefreshKey, setCoverPreviewRefreshKey] = useState(0);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
   const [isLoadingVoiceInventory, setIsLoadingVoiceInventory] = useState<boolean>(false);
@@ -580,6 +655,22 @@ export function PipelineSubmissionForm({
   const userEditedInputRef = useRef<boolean>(false);
   const userEditedEndRef = useRef<boolean>(false);
   const lastAutoEndSentenceRef = useRef<string | null>(null);
+
+  const metadataSourceName = useMemo(() => {
+    if (isGeneratedSource) {
+      return '';
+    }
+    if (!formState.input_file.trim()) {
+      return '';
+    }
+    return basenameFromPath(formState.input_file);
+  }, [formState.input_file, isGeneratedSource]);
+  const [metadataLookupQuery, setMetadataLookupQuery] = useState<string>('');
+  const [metadataPreview, setMetadataPreview] = useState<BookOpenLibraryMetadataPreviewResponse | null>(null);
+  const [metadataLoading, setMetadataLoading] = useState<boolean>(false);
+  const [metadataError, setMetadataError] = useState<string | null>(null);
+  const metadataLookupIdRef = useRef<number>(0);
+  const metadataAutoLookupRef = useRef<string | null>(null);
 
   const sectionMeta = useMemo(() => {
     const base: Record<PipelineFormSection, { title: string; description: string }> = {
@@ -655,6 +746,133 @@ export function PipelineSubmissionForm({
       return Math.max(1, latest.anchor - 5);
     },
     [normalizePath]
+  );
+
+  const applyMetadataLookupToDraft = useCallback(
+    (payload: BookOpenLibraryMetadataPreviewResponse) => {
+      const lookup = coerceRecord(payload.book_metadata_lookup);
+      const query = coerceRecord(payload.query);
+      const book = lookup ? coerceRecord(lookup['book']) : null;
+
+      const jobLabel =
+        normalizeTextValue(lookup?.['job_label']) ||
+        normalizeTextValue(book?.['title']) ||
+        normalizeTextValue(query?.['title']) ||
+        (payload.source_name ? basenameFromPath(payload.source_name) : null);
+      const bookTitle = normalizeTextValue(book?.['title']) || normalizeTextValue(query?.['title']);
+      const bookAuthor = normalizeTextValue(book?.['author']) || normalizeTextValue(query?.['author']);
+      const bookYear = normalizeTextValue(book?.['year']);
+      const isbn =
+        normalizeTextValue(book?.['isbn']) || normalizeTextValue(query?.['isbn']) || normalizeTextValue(lookup?.['isbn']);
+      const summary = normalizeTextValue(book?.['summary']);
+      const coverUrl = normalizeTextValue(book?.['cover_url']);
+      const coverFile = normalizeTextValue(book?.['cover_file']);
+      const openlibraryWorkKey = normalizeTextValue(book?.['openlibrary_work_key']);
+      const openlibraryWorkUrl = normalizeTextValue(book?.['openlibrary_work_url']);
+      const openlibraryBookKey = normalizeTextValue(book?.['openlibrary_book_key']);
+      const openlibraryBookUrl = normalizeTextValue(book?.['openlibrary_book_url']);
+
+      setFormState((previous) => {
+        let draft: Record<string, unknown> = {};
+        try {
+          const parsed = parseJsonField('book_metadata', previous.book_metadata);
+          draft = { ...parsed };
+        } catch {
+          draft = {};
+        }
+
+        if (jobLabel) {
+          draft['job_label'] = jobLabel;
+        }
+        if (bookTitle) {
+          draft['book_title'] = bookTitle;
+        }
+        if (bookAuthor) {
+          draft['book_author'] = bookAuthor;
+        }
+        if (bookYear) {
+          draft['book_year'] = bookYear;
+        }
+        if (isbn) {
+          draft['isbn'] = isbn;
+          draft['book_isbn'] = isbn;
+        }
+        if (summary) {
+          draft['book_summary'] = summary;
+        }
+        if (coverUrl) {
+          draft['cover_url'] = coverUrl;
+        }
+        if (coverFile) {
+          draft['book_cover_file'] = coverFile;
+        }
+        if (openlibraryWorkKey) {
+          draft['openlibrary_work_key'] = openlibraryWorkKey;
+        }
+        if (openlibraryWorkUrl) {
+          draft['openlibrary_work_url'] = openlibraryWorkUrl;
+        }
+        if (openlibraryBookKey) {
+          draft['openlibrary_book_key'] = openlibraryBookKey;
+        }
+        if (openlibraryBookUrl) {
+          draft['openlibrary_book_url'] = openlibraryBookUrl;
+        }
+        const queriedAt = normalizeTextValue(lookup?.['queried_at']);
+        if (queriedAt) {
+          draft['openlibrary_queried_at'] = queriedAt;
+        }
+        if (lookup) {
+          draft['book_metadata_lookup'] = lookup;
+        } else if ('book_metadata_lookup' in draft) {
+          delete draft['book_metadata_lookup'];
+        }
+
+        const nextJson = JSON.stringify(draft, null, 2);
+        if (previous.book_metadata === nextJson) {
+          return previous;
+        }
+        return { ...previous, book_metadata: nextJson };
+      });
+    },
+    []
+  );
+
+  const performMetadataLookup = useCallback(
+    async (query: string, force: boolean) => {
+      const normalized = query.trim();
+      if (!normalized) {
+        setMetadataPreview(null);
+        setMetadataError(null);
+        setMetadataLoading(false);
+        return;
+      }
+
+      const requestId = metadataLookupIdRef.current + 1;
+      metadataLookupIdRef.current = requestId;
+      setMetadataLoading(true);
+      setMetadataError(null);
+      try {
+        const payload = await lookupBookOpenLibraryMetadataPreview({ query: normalized, force });
+        if (metadataLookupIdRef.current !== requestId) {
+          return;
+        }
+        setMetadataPreview(payload);
+        applyMetadataLookupToDraft(payload);
+      } catch (error) {
+        if (metadataLookupIdRef.current !== requestId) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Unable to lookup book metadata.';
+        setMetadataError(message);
+        setMetadataPreview(null);
+      } finally {
+        if (metadataLookupIdRef.current === requestId) {
+          setMetadataLoading(false);
+        }
+      }
+    },
+    [applyMetadataLookupToDraft]
   );
 
   const resolveLatestJobSelection = useCallback((): { input?: string | null; base?: string | null } | null => {
@@ -762,6 +980,30 @@ export function PipelineSubmissionForm({
     });
     prefillAppliedRef.current = normalizedPrefill;
   }, [prefillInputFile, resolveStartFromHistory, forcedBaseOutputFile]);
+
+  useEffect(() => {
+    const normalized = metadataSourceName.trim();
+    setMetadataLookupQuery(normalized);
+    setMetadataPreview(null);
+    setMetadataError(null);
+    setMetadataLoading(false);
+    metadataAutoLookupRef.current = null;
+  }, [metadataSourceName]);
+
+  useEffect(() => {
+    if (activeTab !== 'metadata') {
+      return;
+    }
+    const normalized = metadataSourceName.trim();
+    if (!normalized) {
+      return;
+    }
+    if (metadataAutoLookupRef.current === normalized) {
+      return;
+    }
+    metadataAutoLookupRef.current = normalized;
+    void performMetadataLookup(normalized, false);
+  }, [activeTab, metadataSourceName, performMetadataLookup]);
 
   useEffect(() => {
     if (!prefillParameters) {
@@ -1716,6 +1958,505 @@ export function PipelineSubmissionForm({
             />
           )
         );
+      case 'metadata': {
+        let parsedMetadata: Record<string, unknown> | null = null;
+        let parsedError: string | null = null;
+        try {
+          parsedMetadata = parseJsonField('book_metadata', formState.book_metadata);
+        } catch (error) {
+          parsedMetadata = null;
+          parsedError = error instanceof Error ? error.message : String(error);
+        }
+
+        const jobLabel = normalizeTextValue(parsedMetadata?.['job_label']);
+        const bookTitle = normalizeTextValue(parsedMetadata?.['book_title']);
+        const bookAuthor = normalizeTextValue(parsedMetadata?.['book_author']);
+        const bookYear = normalizeTextValue(parsedMetadata?.['book_year']);
+        const isbn =
+          normalizeTextValue(parsedMetadata?.['isbn']) || normalizeTextValue(parsedMetadata?.['book_isbn']);
+        const summary = normalizeTextValue(parsedMetadata?.['book_summary']);
+        const coverUrl = normalizeTextValue(parsedMetadata?.['cover_url']);
+        const coverFile = normalizeTextValue(parsedMetadata?.['book_cover_file']);
+        const openlibraryWorkUrl = normalizeTextValue(parsedMetadata?.['openlibrary_work_url']);
+        const openlibraryBookUrl = normalizeTextValue(parsedMetadata?.['openlibrary_book_url']);
+        const openlibraryLink = openlibraryBookUrl || openlibraryWorkUrl;
+        const isbnQuery = normalizeIsbnCandidate(isbn);
+        const resolvedLookupQuery = (isbnQuery ?? metadataLookupQuery).trim();
+
+        const lookup = metadataPreview ? coerceRecord(metadataPreview.book_metadata_lookup) : null;
+        const storedLookup = parsedMetadata ? coerceRecord(parsedMetadata['book_metadata_lookup']) : null;
+        const rawPayload = lookup ?? storedLookup;
+        const lookupBook = lookup ? coerceRecord(lookup['book']) : null;
+        const lookupError = normalizeTextValue(lookup?.['error']);
+        const lookupCoverUrl =
+          normalizeTextValue(lookupBook?.['cover_url']) || normalizeTextValue(lookup?.['cover_url']);
+        const lookupCoverFile =
+          normalizeTextValue(lookupBook?.['cover_file']) || normalizeTextValue(lookup?.['cover_file']);
+        const coverPreviewUrl =
+          resolveCoverPreviewUrlFromCoverFile(coverFile) ||
+          resolveCoverPreviewUrlFromCoverFile(lookupCoverFile) ||
+          lookupCoverUrl ||
+          coverUrl;
+        const coverPreviewUrlWithRefresh =
+          coverPreviewUrl && coverPreviewUrl.includes('/storage/covers/')
+            ? `${coverPreviewUrl}${coverPreviewUrl.includes('?') ? '&' : '?'}v=${coverPreviewRefreshKey}`
+            : coverPreviewUrl;
+        const coverDropzoneClassName = [
+          'file-dropzone',
+          'cover-dropzone',
+          isCoverDragActive ? 'file-dropzone--dragging' : '',
+          isUploadingCover ? 'file-dropzone--uploading' : ''
+        ]
+          .filter(Boolean)
+          .join(' ');
+
+        const updateBookMetadata = (updater: (draft: Record<string, unknown>) => void) => {
+          setFormState((previous) => {
+            let draft: Record<string, unknown> = {};
+            try {
+              draft = parseJsonField('book_metadata', previous.book_metadata);
+            } catch {
+              draft = {};
+            }
+            const next = { ...draft };
+            updater(next);
+            const nextJson = JSON.stringify(next, null, 2);
+            if (nextJson === previous.book_metadata) {
+              return previous;
+            }
+            return { ...previous, book_metadata: nextJson };
+          });
+        };
+
+        const performCoverUpload = async (candidate: File | null) => {
+          if (!candidate || isUploadingCover) {
+            return;
+          }
+          setCoverUploadCandidate(candidate);
+          setIsUploadingCover(true);
+          setCoverUploadError(null);
+          try {
+            const entry = await uploadCoverFile(candidate);
+            updateBookMetadata((draft) => {
+              draft['book_cover_file'] = entry.path;
+            });
+            setCoverPreviewRefreshKey((previous) => previous + 1);
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unable to upload cover image.';
+            setCoverUploadError(message);
+          } finally {
+            setIsUploadingCover(false);
+            setCoverUploadCandidate(null);
+            setIsCoverDragActive(false);
+            if (coverUploadInputRef.current) {
+              coverUploadInputRef.current.value = '';
+            }
+          }
+        };
+
+        return (
+          <section className="pipeline-card" aria-labelledby="pipeline-card-metadata">
+            <header className="pipeline-card__header">
+              <h3 id="pipeline-card-metadata">{sectionMeta.metadata.title}</h3>
+              <p>{sectionMeta.metadata.description}</p>
+            </header>
+
+            {metadataError ? (
+              <div className="alert" role="alert">
+                {metadataError}
+              </div>
+            ) : null}
+
+            <div className="metadata-loader-row">
+              <label style={{ marginBottom: 0 }}>
+                Lookup query
+                <input
+                  type="text"
+                  value={metadataLookupQuery}
+                  onChange={(event) => setMetadataLookupQuery(event.target.value)}
+                  placeholder={
+                    metadataSourceName ? metadataSourceName : 'Title, ISBN, or filename (ISBN field preferred)'
+                  }
+                />
+              </label>
+              <div className="metadata-loader-actions">
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => void performMetadataLookup(resolvedLookupQuery, false)}
+                  disabled={!resolvedLookupQuery || metadataLoading}
+                  aria-busy={metadataLoading}
+                >
+                  {metadataLoading ? 'Looking up…' : 'Lookup'}
+                </button>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => void performMetadataLookup(resolvedLookupQuery, true)}
+                  disabled={!resolvedLookupQuery || metadataLoading}
+                  aria-busy={metadataLoading}
+                >
+                  Refresh
+                </button>
+                <button
+                  type="button"
+                  className="link-button"
+                  onClick={() => {
+                    setMetadataPreview(null);
+                    setMetadataError(null);
+                    setMetadataLoading(false);
+                    setFormState((previous) => ({ ...previous, book_metadata: '{}' }));
+                  }}
+                  disabled={metadataLoading}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+
+            {!metadataSourceName && !metadataLookupQuery.trim() ? (
+              <p className="form-help-text" role="status">
+                Select an EPUB file in the Source tab to load metadata.
+              </p>
+            ) : null}
+
+            {metadataLoading ? (
+              <p className="form-help-text" role="status">
+                Loading metadata…
+              </p>
+            ) : null}
+
+            <div className="book-metadata-cover" aria-label="Book cover">
+              {coverPreviewUrl ? (
+                openlibraryLink ? (
+                  <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={coverPreviewUrlWithRefresh ?? undefined}
+                      alt={bookTitle ? `Cover for ${bookTitle}` : 'Book cover'}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </a>
+                ) : (
+                  <img
+                    src={coverPreviewUrlWithRefresh ?? undefined}
+                    alt={bookTitle ? `Cover for ${bookTitle}` : 'Book cover'}
+                    loading="lazy"
+                    decoding="async"
+                  />
+                )
+              ) : (
+                <div className="book-metadata-cover__placeholder" aria-hidden="true">
+                  No cover
+                </div>
+              )}
+              <div
+                className={coverDropzoneClassName}
+                onDragOver={(event) => {
+                  if (isUploadingCover) {
+                    return;
+                  }
+                  event.preventDefault();
+                  setIsCoverDragActive(true);
+                }}
+                onDragLeave={() => setIsCoverDragActive(false)}
+                onDrop={(event) => {
+                  if (isUploadingCover) {
+                    return;
+                  }
+                  event.preventDefault();
+                  setIsCoverDragActive(false);
+                  const file = event.dataTransfer.files?.[0] ?? null;
+                  void performCoverUpload(file);
+                }}
+                aria-busy={isUploadingCover}
+              >
+                <label>
+                  <strong>Upload cover</strong>
+                  <span>
+                    {isUploadingCover
+                      ? 'Uploading…'
+                      : coverUploadCandidate
+                        ? coverUploadCandidate.name
+                        : 'Drop image here or click to browse (saved as 600×900 JPG)'}
+                  </span>
+                </label>
+                <input
+                  ref={coverUploadInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] ?? null;
+                    setCoverUploadError(null);
+                    void performCoverUpload(file);
+                  }}
+                  disabled={isUploadingCover}
+                />
+              </div>
+            </div>
+
+            {coverUploadError ? (
+              <p className="form-help-text form-help-text--error" role="alert">
+                Cover upload failed: {coverUploadError}
+              </p>
+            ) : null}
+
+            {bookTitle || bookAuthor || bookYear || isbn || openlibraryLink || coverUrl || coverFile ? (
+              <dl className="metadata-grid">
+                {jobLabel ? (
+                  <div className="metadata-grid__row">
+                    <dt>Label</dt>
+                    <dd>{jobLabel}</dd>
+                  </div>
+                ) : null}
+                {bookTitle ? (
+                  <div className="metadata-grid__row">
+                    <dt>Title</dt>
+                    <dd>{bookTitle}</dd>
+                  </div>
+                ) : null}
+                {bookAuthor ? (
+                  <div className="metadata-grid__row">
+                    <dt>Author</dt>
+                    <dd>{bookAuthor}</dd>
+                  </div>
+                ) : null}
+                {bookYear ? (
+                  <div className="metadata-grid__row">
+                    <dt>Year</dt>
+                    <dd>{bookYear}</dd>
+                  </div>
+                ) : null}
+                {isbn ? (
+                  <div className="metadata-grid__row">
+                    <dt>ISBN</dt>
+                    <dd>{isbn}</dd>
+                  </div>
+                ) : null}
+                {openlibraryLink ? (
+                  <div className="metadata-grid__row">
+                    <dt>Open Library</dt>
+                    <dd>
+                      <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
+                        {openlibraryLink}
+                      </a>
+                    </dd>
+                  </div>
+                ) : null}
+                {coverUrl ? (
+                  <div className="metadata-grid__row">
+                    <dt>Cover URL</dt>
+                    <dd>{coverUrl}</dd>
+                  </div>
+                ) : null}
+                {coverFile ? (
+                  <div className="metadata-grid__row">
+                    <dt>Cover file</dt>
+                    <dd>{coverFile}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
+
+            {metadataPreview ? (
+              <dl className="metadata-grid">
+                {metadataPreview.source_name ? (
+                  <div className="metadata-grid__row">
+                    <dt>Source</dt>
+                    <dd>{metadataPreview.source_name}</dd>
+                  </div>
+                ) : null}
+                {metadataPreview.query?.title ? (
+                  <div className="metadata-grid__row">
+                    <dt>Query</dt>
+                    <dd>
+                      {[metadataPreview.query.title, metadataPreview.query.author, metadataPreview.query.isbn]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </dd>
+                  </div>
+                ) : metadataPreview.query?.isbn ? (
+                  <div className="metadata-grid__row">
+                    <dt>Query</dt>
+                    <dd>{metadataPreview.query.isbn}</dd>
+                  </div>
+                ) : null}
+                {lookupError ? (
+                  <div className="metadata-grid__row">
+                    <dt>Status</dt>
+                    <dd>{lookupError}</dd>
+                  </div>
+                ) : null}
+              </dl>
+            ) : null}
+
+            {rawPayload ? (
+              <details>
+                <summary>Raw payload</summary>
+                <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(rawPayload, null, 2)}</pre>
+              </details>
+            ) : null}
+
+            <fieldset>
+              <legend>Edit metadata</legend>
+              {parsedError ? (
+                <div className="notice notice--warning" role="alert">
+                  Book metadata JSON is invalid: {parsedError}
+                </div>
+              ) : null}
+              <div className="field-grid">
+                <label>
+                  Job label
+                  <input
+                    type="text"
+                    value={jobLabel ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['job_label'] = trimmed;
+                        } else {
+                          delete draft['job_label'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label>
+                  Title
+                  <input
+                    type="text"
+                    value={bookTitle ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['book_title'] = trimmed;
+                        } else {
+                          delete draft['book_title'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label>
+                  Author
+                  <input
+                    type="text"
+                    value={bookAuthor ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['book_author'] = trimmed;
+                        } else {
+                          delete draft['book_author'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label>
+                  Year
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={bookYear ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['book_year'] = trimmed;
+                        } else {
+                          delete draft['book_year'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label>
+                  ISBN
+                  <input
+                    type="text"
+                    value={isbn ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['isbn'] = trimmed;
+                          draft['book_isbn'] = trimmed;
+                        } else {
+                          delete draft['isbn'];
+                          delete draft['book_isbn'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label style={{ gridColumn: '1 / -1' }}>
+                  Summary
+                  <textarea
+                    rows={4}
+                    value={summary ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['book_summary'] = trimmed;
+                        } else {
+                          delete draft['book_summary'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label style={{ gridColumn: '1 / -1' }}>
+                  Cover URL
+                  <input
+                    type="text"
+                    value={coverUrl ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['cover_url'] = trimmed;
+                        } else {
+                          delete draft['cover_url'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+                <label style={{ gridColumn: '1 / -1' }}>
+                  Cover file (local)
+                  <input
+                    type="text"
+                    value={coverFile ?? ''}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      updateBookMetadata((draft) => {
+                        const trimmed = value.trim();
+                        if (trimmed) {
+                          draft['book_cover_file'] = trimmed;
+                        } else {
+                          delete draft['book_cover_file'];
+                        }
+                      });
+                    }}
+                  />
+                </label>
+              </div>
+            </fieldset>
+          </section>
+        );
+      }
       case 'language':
         return (
           <PipelineLanguageSection

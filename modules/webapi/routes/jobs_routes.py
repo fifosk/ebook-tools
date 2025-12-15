@@ -3,16 +3,19 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import logging
 from typing import AsyncIterator, Callable
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 
+from ...services.book_metadata_service import BookMetadataService
 from ... import config_manager as cfg
 from ...services.pipeline_service import PipelineService
 from ..dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
+    get_book_metadata_service,
     get_pipeline_service,
     get_request_user,
     get_runtime_context_provider,
@@ -25,9 +28,14 @@ from ..schemas import (
     PipelineStatusResponse,
     PipelineSubmissionResponse,
     ProgressEventPayload,
+    BookOpenLibraryMetadataLookupRequest,
+    BookOpenLibraryMetadataPreviewLookupRequest,
+    BookOpenLibraryMetadataPreviewResponse,
+    BookOpenLibraryMetadataResponse,
 )
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 def _build_action_response(
     job: PipelineJob, *, error: str | None = None
@@ -157,6 +165,83 @@ async def refresh_pipeline_metadata(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
 
     return PipelineStatusResponse.from_job(job)
+
+
+@router.get("/{job_id}/metadata/book", response_model=BookOpenLibraryMetadataResponse)
+async def get_book_openlibrary_metadata(
+    job_id: str,
+    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> BookOpenLibraryMetadataResponse:
+    """Return stored (or inferred) Open Library metadata for a book-like job without triggering a lookup."""
+
+    try:
+        payload = metadata_service.get_openlibrary_metadata(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    return BookOpenLibraryMetadataResponse(**payload)
+
+
+@router.post(
+    "/{job_id}/metadata/book/lookup",
+    response_model=BookOpenLibraryMetadataResponse,
+)
+async def lookup_book_openlibrary_metadata(
+    job_id: str,
+    lookup: BookOpenLibraryMetadataLookupRequest,
+    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> BookOpenLibraryMetadataResponse:
+    """Trigger Open Library metadata enrichment for the job and persist the result."""
+
+    try:
+        payload = metadata_service.lookup_openlibrary_metadata(
+            job_id,
+            force=bool(lookup.force),
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    return BookOpenLibraryMetadataResponse(**payload)
+
+
+@router.post(
+    "/metadata/book/lookup",
+    response_model=BookOpenLibraryMetadataPreviewResponse,
+)
+async def lookup_book_openlibrary_metadata_preview(
+    lookup: BookOpenLibraryMetadataPreviewLookupRequest,
+    metadata_service: BookMetadataService = Depends(get_book_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> BookOpenLibraryMetadataPreviewResponse:
+    """Lookup Open Library metadata for a filename/title/ISBN (used before submitting jobs)."""
+
+    try:
+        payload = metadata_service.lookup_openlibrary_metadata_for_query(
+            lookup.query,
+            force=bool(lookup.force),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Unable to lookup Open Library metadata for query %s",
+            lookup.query,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Unable to lookup Open Library metadata: {exc}",
+        ) from exc
+
+    return BookOpenLibraryMetadataPreviewResponse(**payload)
 
 
 @router.get("/{job_id}", response_model=PipelineStatusResponse)

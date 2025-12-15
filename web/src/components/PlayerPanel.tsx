@@ -28,6 +28,12 @@ import { resolve as resolveStoragePath } from '../utils/storageResolver';
 import { isAudioFileType } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
+import {
+  DEFAULT_INTERACTIVE_TEXT_THEME,
+  loadInteractiveTextTheme,
+  normalizeHexColor,
+  type InteractiveTextTheme,
+} from '../types/interactiveTextTheme';
 
 const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
 type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
@@ -75,6 +81,7 @@ const TAB_DEFINITIONS: TabDefinition[] = [
 const DEFAULT_COVER_URL = '/assets/default-cover.png';
 const FONT_SCALE_STORAGE_KEY = 'player-panel.fontScalePercent';
 const INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY = 'player-panel.interactiveText.visibility';
+const INTERACTIVE_TEXT_THEME_STORAGE_KEY = 'player-panel.interactiveText.theme';
 const FONT_SCALE_MIN = 100;
 const FONT_SCALE_MAX = 300;
 const FONT_SCALE_STEP = 5;
@@ -162,6 +169,11 @@ interface NavigationControlsProps {
   totalSentencesInBook?: number | null;
   jobStartSentence?: number | null;
   bookTotalSentences?: number | null;
+
+  showInteractiveThemeControls?: boolean;
+  interactiveTheme?: InteractiveTextTheme | null;
+  onInteractiveThemeChange?: (next: InteractiveTextTheme) => void;
+  onResetLayout?: () => void;
 }
 
 export function NavigationControls({
@@ -238,6 +250,10 @@ export function NavigationControls({
   totalSentencesInBook = null,
   jobStartSentence = null,
   bookTotalSentences = null,
+  showInteractiveThemeControls = false,
+  interactiveTheme = null,
+  onInteractiveThemeChange,
+  onResetLayout,
 }: NavigationControlsProps) {
   const groupClassName = [
     context === 'fullscreen'
@@ -338,13 +354,25 @@ export function NavigationControls({
   const formattedMyLinguistFontScale = `${Math.round(
     Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax),
   )}%`;
-  const sentenceNowPlayingText = (() => {
+
+  const bgColorInputRef = useRef<HTMLInputElement | null>(null);
+  const originalColorInputRef = useRef<HTMLInputElement | null>(null);
+  const translationColorInputRef = useRef<HTMLInputElement | null>(null);
+  const transliterationColorInputRef = useRef<HTMLInputElement | null>(null);
+  const highlightColorInputRef = useRef<HTMLInputElement | null>(null);
+
+  const openColorPicker = (ref: { current: HTMLInputElement | null }) => {
+    ref.current?.click();
+  };
+  const sentenceNowPlaying = (() => {
     if (activeSentenceNumber === null) {
       return null;
     }
     const jobTotal = totalSentencesInBook;
-    const base =
-      jobTotal !== null ? `Playing sentence ${activeSentenceNumber} of ${jobTotal}` : `Playing sentence ${activeSentenceNumber}`;
+    const title =
+      jobTotal !== null
+        ? `Playing sentence ${activeSentenceNumber} of ${jobTotal}`
+        : `Playing sentence ${activeSentenceNumber}`;
 
     const jobPercent = (() => {
       if (jobStartSentence === null || jobTotal === null) {
@@ -377,9 +405,18 @@ export function NavigationControls({
       suffixParts.push(`Book ${bookPercent}%`);
     }
     if (suffixParts.length === 0) {
-      return base;
+      return {
+        label: `S${activeSentenceNumber}`,
+        title,
+      };
     }
-    return `${base} · ${suffixParts.join(' · ')}`;
+    const compactSuffix = suffixParts
+      .map((entry) => entry.replace(/^Job\s+/i, 'J').replace(/^Book\s+/i, 'B'))
+      .join(' · ');
+    return {
+      label: `S${activeSentenceNumber} · ${compactSuffix}`,
+      title: `${title} · ${suffixParts.join(' · ')}`,
+    };
   })();
 
   return (
@@ -492,12 +529,12 @@ export function NavigationControls({
               ))}
             </div>
           ) : null}
-          {sentenceNowPlayingText ? (
+          {sentenceNowPlaying ? (
             <span
               className="player-panel__now-playing player-panel__now-playing--sentence"
-              title={sentenceNowPlayingText}
+              title={sentenceNowPlaying.title}
             >
-              {sentenceNowPlayingText}
+              {sentenceNowPlaying.label}
             </span>
           ) : null}
           <button
@@ -681,6 +718,167 @@ export function NavigationControls({
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedSubtitleBackgroundOpacity}
               </span>
+            </div>
+          ) : null}
+          {showInteractiveThemeControls && interactiveTheme ? (
+            <div className="player-panel__control-theme" role="group" aria-label="Interactive theme colors">
+              <button
+                type="button"
+                className="player-panel__control-color-pill"
+                onClick={() => openColorPicker(bgColorInputRef)}
+                title="Background color"
+                aria-label="Pick background color"
+              >
+                <span className="player-panel__control-color-pill-label">BG</span>
+                <span
+                  className="player-panel__control-color-pill-swatch"
+                  style={{ backgroundColor: interactiveTheme.background }}
+                  aria-hidden="true"
+                />
+              </button>
+              <input
+                ref={bgColorInputRef}
+                className="player-panel__control-color-input"
+                type="color"
+                value={interactiveTheme.background}
+                onChange={(event) =>
+                  onInteractiveThemeChange?.({
+                    ...interactiveTheme,
+                    background: normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.background),
+                  })
+                }
+                aria-label="Background color"
+              />
+
+              <button
+                type="button"
+                className="player-panel__control-color-pill"
+                onClick={() => openColorPicker(originalColorInputRef)}
+                title="Original text color"
+                aria-label="Pick original text color"
+              >
+                <span className="player-panel__control-color-pill-label">OR</span>
+                <span
+                  className="player-panel__control-color-pill-swatch"
+                  style={{ backgroundColor: interactiveTheme.original }}
+                  aria-hidden="true"
+                />
+              </button>
+              <input
+                ref={originalColorInputRef}
+                className="player-panel__control-color-input"
+                type="color"
+                value={interactiveTheme.original}
+                onChange={(event) => {
+                  const next = normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.original);
+                  onInteractiveThemeChange?.({
+                    ...interactiveTheme,
+                    original: next,
+                    originalActive: next,
+                  });
+                }}
+                aria-label="Original text color"
+              />
+
+              <button
+                type="button"
+                className="player-panel__control-color-pill"
+                onClick={() => openColorPicker(translationColorInputRef)}
+                title="Translation text color"
+                aria-label="Pick translation text color"
+              >
+                <span className="player-panel__control-color-pill-label">TR</span>
+                <span
+                  className="player-panel__control-color-pill-swatch"
+                  style={{ backgroundColor: interactiveTheme.translation }}
+                  aria-hidden="true"
+                />
+              </button>
+              <input
+                ref={translationColorInputRef}
+                className="player-panel__control-color-input"
+                type="color"
+                value={interactiveTheme.translation}
+                onChange={(event) => {
+                  const next = normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.translation);
+                  onInteractiveThemeChange?.({
+                    ...interactiveTheme,
+                    translation: next,
+                  });
+                }}
+                aria-label="Translation text color"
+              />
+
+              <button
+                type="button"
+                className="player-panel__control-color-pill"
+                onClick={() => openColorPicker(transliterationColorInputRef)}
+                title="Transliteration text color"
+                aria-label="Pick transliteration text color"
+              >
+                <span className="player-panel__control-color-pill-label">TL</span>
+                <span
+                  className="player-panel__control-color-pill-swatch"
+                  style={{ backgroundColor: interactiveTheme.transliteration }}
+                  aria-hidden="true"
+                />
+              </button>
+              <input
+                ref={transliterationColorInputRef}
+                className="player-panel__control-color-input"
+                type="color"
+                value={interactiveTheme.transliteration}
+                onChange={(event) => {
+                  const next = normalizeHexColor(
+                    event.target.value,
+                    DEFAULT_INTERACTIVE_TEXT_THEME.transliteration,
+                  );
+                  onInteractiveThemeChange?.({
+                    ...interactiveTheme,
+                    transliteration: next,
+                  });
+                }}
+                aria-label="Transliteration text color"
+              />
+
+              <button
+                type="button"
+                className="player-panel__control-color-pill"
+                onClick={() => openColorPicker(highlightColorInputRef)}
+                title="Highlight color"
+                aria-label="Pick highlight color"
+              >
+                <span className="player-panel__control-color-pill-label">HL</span>
+                <span
+                  className="player-panel__control-color-pill-swatch"
+                  style={{ backgroundColor: interactiveTheme.highlight }}
+                  aria-hidden="true"
+                />
+              </button>
+              <input
+                ref={highlightColorInputRef}
+                className="player-panel__control-color-input"
+                type="color"
+                value={interactiveTheme.highlight}
+                onChange={(event) => {
+                  const next = normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.highlight);
+                  onInteractiveThemeChange?.({
+                    ...interactiveTheme,
+                    highlight: next,
+                  });
+                }}
+                aria-label="Highlight color"
+              />
+
+              <button
+                type="button"
+                className="player-panel__control-reset-layout"
+                onClick={() => onResetLayout?.()}
+                title="Reset layout to defaults"
+                aria-label="Reset layout to defaults"
+              >
+                ↺
+              </button>
             </div>
           ) : null}
         </div>
@@ -1497,6 +1695,9 @@ const scheduleChunkMetadataAppend = useCallback(
     const raw = Number.parseFloat(window.localStorage.getItem(FONT_SCALE_STORAGE_KEY) ?? '');
     return Number.isFinite(raw) ? clampFontScalePercent(raw) : 100;
   });
+  const [interactiveTextTheme, setInteractiveTextTheme] = useState<InteractiveTextTheme>(() =>
+    loadInteractiveTextTheme(INTERACTIVE_TEXT_THEME_STORAGE_KEY),
+  );
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
@@ -3866,6 +4067,20 @@ const scheduleChunkMetadataAppend = useCallback(
     window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScalePercent));
   }, [fontScalePercent]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(INTERACTIVE_TEXT_THEME_STORAGE_KEY, JSON.stringify(interactiveTextTheme));
+  }, [interactiveTextTheme]);
+
+  const handleResetInteractiveLayout = useCallback(() => {
+    setTranslationSpeed(DEFAULT_TRANSLATION_SPEED);
+    setFontScalePercent(100);
+    setBaseFontScalePercent(100);
+    setInteractiveTextTheme(DEFAULT_INTERACTIVE_TEXT_THEME);
+  }, [setBaseFontScalePercent]);
+
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
   const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
@@ -3961,6 +4176,10 @@ const scheduleChunkMetadataAppend = useCallback(
       myLinguistFontScaleMax={MY_LINGUIST_FONT_SCALE_MAX}
       myLinguistFontScaleStep={MY_LINGUIST_FONT_SCALE_STEP}
       onMyLinguistFontScaleChange={setBaseFontScalePercent}
+      showInteractiveThemeControls
+      interactiveTheme={interactiveTextTheme}
+      onInteractiveThemeChange={setInteractiveTextTheme}
+      onResetLayout={handleResetInteractiveLayout}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
       jobStartSentence={jobStartSentence}
@@ -4019,6 +4238,10 @@ const scheduleChunkMetadataAppend = useCallback(
       myLinguistFontScaleMax={MY_LINGUIST_FONT_SCALE_MAX}
       myLinguistFontScaleStep={MY_LINGUIST_FONT_SCALE_STEP}
       onMyLinguistFontScaleChange={setBaseFontScalePercent}
+      showInteractiveThemeControls
+      interactiveTheme={interactiveTextTheme}
+      onInteractiveThemeChange={setInteractiveTextTheme}
+      onResetLayout={handleResetInteractiveLayout}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
       jobStartSentence={jobStartSentence}
@@ -4117,6 +4340,7 @@ const scheduleChunkMetadataAppend = useCallback(
                             activeTimingTrack={activeTimingTrack}
                             originalAudioEnabled={effectiveOriginalAudioEnabled}
                             fontScale={interactiveFontScale}
+                            theme={interactiveTextTheme}
                             bookTitle={bookTitle ?? headingLabel}
                             bookCoverUrl={shouldShowCoverImage ? displayCoverUrl : null}
                             bookCoverAltText={coverAltText}

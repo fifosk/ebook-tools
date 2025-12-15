@@ -257,6 +257,8 @@ class LibrarySync:
                 metadata_utils.apply_video_defaults(metadata, source_job_root)
             if metadata["item_type"] == "narrated_subtitle":
                 metadata_utils.apply_narrated_subtitle_defaults(metadata, source_job_root)
+            if metadata["item_type"] == "book":
+                metadata_utils.apply_book_defaults(metadata, source_job_root)
 
             target_path = file_ops.resolve_library_path(self._library_root, metadata, job_id)
 

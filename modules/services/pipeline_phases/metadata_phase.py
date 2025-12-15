@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from ... import metadata_manager
 from ... import logging_manager as log_mgr
@@ -32,10 +32,22 @@ def prepare_metadata(
         except Exception:  # pragma: no cover - defensive resolution
             input_path = None
         if input_path:
+            existing_metadata: dict[str, Optional[str]] = {}
+            for key, value in metadata.as_dict().items():
+                if value is None:
+                    existing_metadata[key] = None
+                elif isinstance(value, str):
+                    existing_metadata[key] = value
+                elif isinstance(value, bool):
+                    continue
+                elif isinstance(value, (int, float)):
+                    existing_metadata[key] = str(value)
+                else:
+                    continue
             try:
                 inferred = metadata_manager.infer_metadata(
                     str(input_path),
-                    existing_metadata=metadata.as_dict(),
+                    existing_metadata=existing_metadata,
                     force_refresh=bool(
                         request.pipeline_overrides.get("force_metadata_refresh")
                         or request.pipeline_overrides.get("refresh_metadata")
