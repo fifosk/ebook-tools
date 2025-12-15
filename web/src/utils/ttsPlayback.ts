@@ -6,6 +6,7 @@ type TtsRequest = {
   language: string;
   voice?: string | null;
   speed?: number | null;
+  playbackRate?: number | null;
 };
 
 type CacheEntry = {
@@ -123,7 +124,10 @@ export async function getCachedTtsUrl(request: TtsRequest): Promise<{ url: strin
   }
 }
 
-export async function playAudioUrl(url: string): Promise<void> {
+export async function playAudioUrl(
+  url: string,
+  options: { playbackRate?: number | null } = {},
+): Promise<void> {
   if (typeof window === 'undefined') {
     return;
   }
@@ -135,12 +139,18 @@ export async function playAudioUrl(url: string): Promise<void> {
   if (sharedAudio.src !== url) {
     sharedAudio.src = url;
   }
+  const playbackRate = options.playbackRate;
+  if (typeof playbackRate === 'number' && Number.isFinite(playbackRate) && playbackRate > 0) {
+    sharedAudio.playbackRate = Math.max(0.25, Math.min(4, playbackRate));
+  } else {
+    sharedAudio.playbackRate = 1;
+  }
   sharedAudio.currentTime = 0;
   await sharedAudio.play();
 }
 
 export async function speakText(request: TtsRequest): Promise<{ url: string; cached: boolean }> {
   const result = await getCachedTtsUrl(request);
-  await playAudioUrl(result.url);
+  await playAudioUrl(result.url, { playbackRate: request.playbackRate });
   return result;
 }

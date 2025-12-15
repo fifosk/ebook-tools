@@ -475,7 +475,7 @@ export default function MyLinguistAssistant() {
   ]);
 
   const handleSpeakMessage = useCallback(
-    async (message: ChatMessage) => {
+    async (message: ChatMessage, playbackRate?: number) => {
       const text = message.content.trim();
       if (!text) {
         return;
@@ -491,7 +491,8 @@ export default function MyLinguistAssistant() {
         await speakText({
           text,
           language,
-          voice: voice ? voice : null
+          voice: voice ? voice : null,
+          playbackRate: typeof playbackRate === 'number' ? playbackRate : null,
         });
       } catch (error) {
         setTtsError(error instanceof Error ? error.message : 'Unable to speak text.');
@@ -730,16 +731,32 @@ export default function MyLinguistAssistant() {
                       <span>{message.role === 'user' ? 'You' : 'MyLinguist'}</span>
                       <span>{new Date(message.createdAt).toLocaleTimeString()}</span>
                     </div>
-                    <button
-                      type="button"
-                      className={styles.messageSpeakButton}
-                      onClick={() => void handleSpeakMessage(message)}
-                      disabled={!message.content.trim() || speakingMessageId === message.id}
-                      aria-label={message.role === 'user' ? 'Speak your message aloud' : 'Speak MyLinguist reply aloud'}
-                      title={message.role === 'user' ? 'Speak message' : 'Speak reply'}
-                    >
-                      <span aria-hidden="true">{speakingMessageId === message.id ? '…' : '🔊'}</span>
-                    </button>
+                    <div className={styles.messageMetaRight}>
+                      <button
+                        type="button"
+                        className={styles.messageSpeakButton}
+                        onClick={() => void handleSpeakMessage(message)}
+                        disabled={!message.content.trim() || speakingMessageId === message.id}
+                        aria-label={message.role === 'user' ? 'Speak your message aloud' : 'Speak MyLinguist reply aloud'}
+                        title={message.role === 'user' ? 'Speak message' : 'Speak reply'}
+                      >
+                        <span aria-hidden="true">{speakingMessageId === message.id ? '…' : '🔊'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.messageSpeakButton}
+                        onClick={() => void handleSpeakMessage(message, 0.5)}
+                        disabled={!message.content.trim() || speakingMessageId === message.id}
+                        aria-label={
+                          message.role === 'user'
+                            ? 'Speak your message slowly'
+                            : 'Speak MyLinguist reply slowly'
+                        }
+                        title={message.role === 'user' ? 'Speak slowly (0.5×)' : 'Speak reply slowly (0.5×)'}
+                      >
+                        <span aria-hidden="true">{speakingMessageId === message.id ? '…' : '🐢'}</span>
+                      </button>
+                    </div>
                   </div>
                   <div
                     className={[

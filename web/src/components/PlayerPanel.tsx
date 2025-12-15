@@ -1348,7 +1348,7 @@ export default function PlayerPanel({
   onOpenLibraryItem,
   selectionRequest = null,
 }: PlayerPanelProps) {
-  const { baseFontScalePercent, setBaseFontScalePercent } = useMyLinguist();
+  const { baseFontScalePercent, setBaseFontScalePercent, toggle: toggleMyLinguist } = useMyLinguist();
   const interactiveViewerAvailable = chunks.length > 0;
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
     const initial: Record<MediaCategory, string | null> = {
@@ -3184,6 +3184,80 @@ const scheduleChunkMetadataAppend = useCallback(
     }
   }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
 
+  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
+  const shortcutHelpCardRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!showShortcutHelp) {
+      return;
+    }
+    shortcutHelpCardRef.current?.focus();
+  }, [showShortcutHelp]);
+  useEffect(() => {
+    if (!showShortcutHelp) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) {
+        return;
+      }
+      if (event.key === 'Escape' || event.key === 'Esc') {
+        event.preventDefault();
+        event.stopPropagation();
+        setShowShortcutHelp(false);
+        return;
+      }
+      if (event.altKey || event.metaKey || event.ctrlKey) {
+        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        return;
+      }
+      if (event.shiftKey) {
+        return;
+      }
+      if (event.key?.toLowerCase() === 'h') {
+        event.preventDefault();
+        event.stopPropagation();
+        setShowShortcutHelp(false);
+        return;
+      }
+      if (event.key === 'Tab') {
+        return;
+      }
+      event.stopPropagation();
+      const key = event.key?.toLowerCase();
+      if (
+        event.code === 'Space' ||
+        event.key === ' ' ||
+        event.key === 'ArrowLeft' ||
+        event.key === 'ArrowRight' ||
+        event.key === 'ArrowUp' ||
+        event.key === 'ArrowDown' ||
+        key === 'f' ||
+        key === 'l' ||
+        key === 'o' ||
+        key === 'i' ||
+        key === 'p' ||
+        key === 'g' ||
+        key === 'd' ||
+        key === '+' ||
+        key === '=' ||
+        key === '-' ||
+        key === '_'
+      ) {
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [showShortcutHelp]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return undefined;
@@ -3226,6 +3300,16 @@ const scheduleChunkMetadataAppend = useCallback(
       }
       if (isArrowLeft) {
         handleNavigate('previous');
+        event.preventDefault();
+        return;
+      }
+      if (key === 'h' && !event.shiftKey) {
+        setShowShortcutHelp((value) => !value);
+        event.preventDefault();
+        return;
+      }
+      if (key === 'l' && !event.shiftKey) {
+        toggleMyLinguist();
         event.preventDefault();
         return;
       }
@@ -3301,7 +3385,118 @@ const scheduleChunkMetadataAppend = useCallback(
     handleNavigate,
     handleOriginalAudioToggle,
     handleToggleActiveMedia,
+    toggleMyLinguist,
   ]);
+
+  const shortcutHelpOverlay = showShortcutHelp ? (
+    <div
+      className="player-panel__shortcut-help-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Keyboard shortcuts"
+    >
+      <div
+        className="player-panel__shortcut-help-backdrop"
+        onPointerDown={() => setShowShortcutHelp(false)}
+      />
+      <div
+        className="player-panel__shortcut-help-card"
+        ref={shortcutHelpCardRef}
+        tabIndex={-1}
+      >
+        <header className="player-panel__shortcut-help-header">
+          <h2 className="player-panel__shortcut-help-title">Keyboard shortcuts</h2>
+          <button
+            type="button"
+            className="player-panel__shortcut-help-close"
+            onClick={() => setShowShortcutHelp(false)}
+          >
+            Close
+          </button>
+        </header>
+        <div className="player-panel__shortcut-help-body">
+          <section className="player-panel__shortcut-help-section" aria-label="Playback and navigation">
+            <h3>Playback &amp; navigation</h3>
+            <ul>
+              <li>
+                <kbd>Space</kbd> Play/pause active track
+              </li>
+              <li>
+                <kbd>←</kbd>/<kbd>→</kbd> Previous/next chunk
+              </li>
+              <li>
+                <kbd>F</kbd> Toggle fullscreen
+              </li>
+            </ul>
+          </section>
+          <section className="player-panel__shortcut-help-section" aria-label="Text display">
+            <h3>Text display</h3>
+            <ul>
+              <li>
+                <kbd>O</kbd> Toggle original line
+              </li>
+              {canToggleOriginalAudio ? (
+                <li>
+                  <kbd>Shift</kbd>+<kbd>O</kbd> Toggle original audio
+                </li>
+              ) : null}
+              <li>
+                <kbd>I</kbd> Toggle transliteration line
+              </li>
+              <li>
+                <kbd>P</kbd> Toggle translation line
+              </li>
+              <li>
+                <kbd>+</kbd>/<kbd>-</kbd> Increase/decrease font size
+              </li>
+              <li>
+                <kbd>↑</kbd>/<kbd>↓</kbd> Translation speed up/down
+              </li>
+            </ul>
+          </section>
+          <section className="player-panel__shortcut-help-section" aria-label="MyLinguist">
+            <h3>MyLinguist</h3>
+            <ul>
+              <li>
+                <kbd>L</kbd> Toggle MyLinguist chat window
+              </li>
+              <li>
+                <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>Alt</kbd>+<kbd>→</kbd> Previous/next word (stays on current lane)
+              </li>
+              <li>
+                <kbd>Esc</kbd> Close the bubble
+              </li>
+              <li>
+                <kbd>Enter</kbd> or <kbd>Space</kbd> (on focused word) Seek to that word
+              </li>
+            </ul>
+          </section>
+          <section className="player-panel__shortcut-help-section" aria-label="Fullscreen controls">
+            <h3>Fullscreen</h3>
+            <ul>
+              <li>
+                <kbd>Shift</kbd>+<kbd>H</kbd> Collapse/expand fullscreen controls
+              </li>
+            </ul>
+          </section>
+          <section className="player-panel__shortcut-help-section" aria-label="Help and debug">
+            <h3>Help &amp; debug</h3>
+            <ul>
+              <li>
+                <kbd>H</kbd> Toggle this help overlay
+              </li>
+              <li>
+                <kbd>Esc</kbd> Close dialogs/overlays
+              </li>
+              <li>
+                <kbd>G</kbd>/<kbd>P</kbd>/<kbd>D</kbd> Toggle word-sync debug overlays (dev)
+              </li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  ) : null;
 
   const handleTextScroll = useCallback(
     (event: UIEvent<HTMLElement>) => {
@@ -3850,6 +4045,7 @@ const scheduleChunkMetadataAppend = useCallback(
   return (
     <div className={panelClassName} role="region" aria-label={sectionLabel}>
       {sentenceJumpDatalist}
+      {shortcutHelpOverlay}
       {!hasJobId ? (
         <div className="player-panel__empty" role="status">
           <p>No job selected.</p>

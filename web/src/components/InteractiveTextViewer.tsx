@@ -1084,6 +1084,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const linguistAnchorRectRef = useRef<DOMRect | null>(null);
   const linguistAnchorElementRef = useRef<HTMLElement | null>(null);
   const linguistNavigationPendingRef = useRef<LinguistBubbleNavigation | null>(null);
+  const linguistChunkAdvancePendingRef = useRef<{ variantKind: TextPlayerVariantKind } | null>(null);
   const linguistSelectionArmedRef = useRef(false);
   const linguistSelectionLookupPendingRef = useRef(false);
   const linguistRequestCounterRef = useRef(0);
@@ -1388,6 +1389,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     linguistAnchorRectRef.current = null;
     linguistAnchorElementRef.current = null;
     linguistNavigationPendingRef.current = null;
+    linguistChunkAdvancePendingRef.current = null;
     setLinguistBubble(null);
     setLinguistBubbleFloatingPosition(null);
   }, []);
@@ -1588,6 +1590,47 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       return { ...previous, ttsStatus: 'loading' };
     });
     void speakText({ text, language: bubble.ttsLanguage })
+      .then(() => {
+        if (linguistRequestCounterRef.current !== requestId) {
+          return;
+        }
+        setLinguistBubble((previous) => {
+          if (!previous) {
+            return previous;
+          }
+          return { ...previous, ttsStatus: 'ready' };
+        });
+      })
+      .catch(() => {
+        if (linguistRequestCounterRef.current !== requestId) {
+          return;
+        }
+        setLinguistBubble((previous) => {
+          if (!previous) {
+            return previous;
+          }
+          return { ...previous, ttsStatus: 'error' };
+        });
+      });
+  }, [linguistBubble]);
+
+  const handleLinguistSpeakSlow = useCallback(() => {
+    const bubble = linguistBubble;
+    if (!bubble) {
+      return;
+    }
+    const text = bubble.fullQuery.trim();
+    if (!text || bubble.ttsStatus === 'loading') {
+      return;
+    }
+    const requestId = linguistRequestCounterRef.current;
+    setLinguistBubble((previous) => {
+      if (!previous) {
+        return previous;
+      }
+      return { ...previous, ttsStatus: 'loading' };
+    });
+    void speakText({ text, language: bubble.ttsLanguage, playbackRate: 0.5 })
       .then(() => {
         if (linguistRequestCounterRef.current !== requestId) {
           return;
@@ -2519,17 +2562,46 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         .sort((a, b) => a.index - b.index),
     [paragraphs],
   );
-  const rawSentencePositionByIndex = useMemo(() => {
+  const linguistSentenceOrder = useMemo(() => {
+    if (timelineDisplay?.sentences && timelineDisplay.sentences.length > 0) {
+      return timelineDisplay.sentences.map((sentence) => sentence.index);
+    }
+    if (chunk?.sentences && chunk.sentences.length > 0) {
+      return chunk.sentences.map((_sentence, index) => index);
+    }
+    return rawSentences.map((sentence) => sentence.index);
+  }, [chunk?.sentences, rawSentences, timelineDisplay?.sentences]);
+  const linguistSentencePositionByIndex = useMemo(() => {
     const map = new Map<number, number>();
-    rawSentences.forEach((sentence, index) => {
-      map.set(sentence.index, index);
+    linguistSentenceOrder.forEach((sentenceIndex, position) => {
+      map.set(sentenceIndex, position);
     });
     return map;
-  }, [rawSentences]);
+  }, [linguistSentenceOrder]);
 
   const tokensForSentence = useCallback(
     (sentenceIndex: number, variantKind: TextPlayerVariantKind): string[] => {
-      const position = rawSentencePositionByIndex.get(sentenceIndex);
+      if (timelineDisplay?.sentences && timelineDisplay.sentences.length > 0) {
+        const sentence = timelineDisplay.sentences.find((entry) => entry.index === sentenceIndex);
+        const variant = sentence?.variants?.find((candidate) => candidate.baseClass === variantKind) ?? null;
+        return variant?.tokens ?? [];
+      }
+
+      if (chunk?.sentences && chunk.sentences.length > 0) {
+        const sentence = chunk.sentences[sentenceIndex];
+        if (!sentence) {
+          return [];
+        }
+        if (variantKind === 'translation') {
+          return tokenizeSentenceText(sentence.translation?.text ?? null);
+        }
+        if (variantKind === 'translit') {
+          return tokenizeSentenceText(sentence.transliteration?.text ?? null);
+        }
+        return tokenizeSentenceText(sentence.original?.text ?? null);
+      }
+
+      const position = linguistSentencePositionByIndex.get(sentenceIndex);
       if (position === undefined) {
         return [];
       }
@@ -2542,12 +2614,49 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       }
       return tokenizeSentenceText(sentence.text);
     },
-    [rawSentencePositionByIndex, rawSentences],
+    [chunk?.sentences, linguistSentencePositionByIndex, rawSentences, timelineDisplay?.sentences],
   );
+
+  const seekTimeForNavigation = useCallback(
+    (navigation: LinguistBubbleNavigation): number | null => {
+      if (!timelineDisplay?.sentences || timelineDisplay.sentences.length === 0) {
+        return null;
+      }
+      const sentence = timelineDisplay.sentences.find((entry) => entry.index === navigation.sentenceIndex);
+      const variant = sentence?.variants?.find((candidate) => candidate.baseClass === navigation.variantKind) ?? null;
+      const times = variant?.seekTimes ?? null;
+      if (!times || navigation.tokenIndex < 0 || navigation.tokenIndex >= times.length) {
+        return null;
+      }
+      const time = times[navigation.tokenIndex];
+      return typeof time === 'number' && Number.isFinite(time) ? time : null;
+    },
+    [timelineDisplay?.sentences],
+  );
+
+  const seekInlineAudioToTime = useCallback((time: number) => {
+    if (dictionarySuppressSeekRef.current) {
+      return;
+    }
+    const element = audioRef.current;
+    if (!element || !Number.isFinite(time)) {
+      return;
+    }
+    try {
+      wordSyncControllerRef.current?.handleSeeking();
+      const target = Math.max(0, Math.min(time, Number.isFinite(element.duration) ? element.duration : time));
+      element.currentTime = target;
+      setChunkTime(target);
+      // Keep playback paused while stepping between words.
+      wordSyncControllerRef.current?.snap();
+    } catch {
+      // Ignore seek/play failures.
+    }
+  }, [setChunkTime]);
 
   const resolveRelativeLinguistNavigation = useCallback(
     (current: LinguistBubbleNavigation, delta: -1 | 1): LinguistBubbleNavigation | null => {
-      const startPosition = rawSentencePositionByIndex.get(current.sentenceIndex);
+      const startPosition = linguistSentencePositionByIndex.get(current.sentenceIndex);
       if (startPosition === undefined) {
         return null;
       }
@@ -2563,7 +2672,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       if (tokenIndex < 0) {
         sentencePosition -= 1;
         while (sentencePosition >= 0) {
-          const nextSentenceIndex = rawSentences[sentencePosition].index;
+          const nextSentenceIndex = linguistSentenceOrder[sentencePosition];
           const tokens = tokensForSentence(nextSentenceIndex, variantKind);
           if (tokens.length > 0) {
             tokenIndex = tokens.length - 1;
@@ -2576,8 +2685,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
       if (tokenIndex >= currentTokens.length) {
         sentencePosition += 1;
-        while (sentencePosition < rawSentences.length) {
-          const nextSentenceIndex = rawSentences[sentencePosition].index;
+        while (sentencePosition < linguistSentenceOrder.length) {
+          const nextSentenceIndex = linguistSentenceOrder[sentencePosition];
           const tokens = tokensForSentence(nextSentenceIndex, variantKind);
           if (tokens.length > 0) {
             tokenIndex = 0;
@@ -2594,7 +2703,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         variantKind,
       };
     },
-    [rawSentencePositionByIndex, rawSentences, tokensForSentence],
+    [linguistSentenceOrder, linguistSentencePositionByIndex, tokensForSentence],
   );
 
   const findTextPlayerTokenElement = useCallback((navigation: LinguistBubbleNavigation): HTMLElement | null => {
@@ -2618,6 +2727,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       }
       const target = resolveRelativeLinguistNavigation(current, delta);
       if (!target) {
+        if (delta === 1 && onRequestAdvanceChunk) {
+          linguistChunkAdvancePendingRef.current = { variantKind: current.variantKind };
+          onRequestAdvanceChunk();
+        }
         return;
       }
 
@@ -2626,6 +2739,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       if (!rawWord.trim()) {
         return;
       }
+
+      const seekTime = seekTimeForNavigation(target);
 
       const tokenEl = findTextPlayerTokenElement(target);
       if (tokenEl) {
@@ -2636,6 +2751,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
           target.variantKind,
           tokenEl,
         );
+        if (seekTime !== null) {
+          seekInlineAudioToTime(seekTime);
+        }
         return;
       }
 
@@ -2647,6 +2765,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
       // Kick off the lookup now, then move the text player if needed. We'll re-anchor to the token once rendered.
       openLinguistBubbleForRect(rawWord, fallbackRect, 'click', target.variantKind, null, target);
+      if (seekTime !== null) {
+        seekInlineAudioToTime(seekTime);
+      }
       if (target.sentenceIndex !== activeSentenceIndex) {
         linguistNavigationPendingRef.current = target;
         setActiveSentenceIndex(target.sentenceIndex);
@@ -2658,7 +2779,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       linguistBubble,
       openLinguistBubbleForRect,
       resolveRelativeLinguistNavigation,
+      seekInlineAudioToTime,
+      seekTimeForNavigation,
       tokensForSentence,
+      onRequestAdvanceChunk,
     ],
   );
 
@@ -2696,6 +2820,68 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     linguistBubble,
     linguistBubblePinned,
     requestLinguistBubblePositionUpdate,
+  ]);
+
+  useEffect(() => {
+    const pendingAdvance = linguistChunkAdvancePendingRef.current;
+    if (!pendingAdvance || !linguistBubble) {
+      return;
+    }
+
+    const variantKind = pendingAdvance.variantKind;
+    let sentenceIndex: number | null = null;
+    for (const candidate of linguistSentenceOrder) {
+      const tokens = tokensForSentence(candidate, variantKind);
+      if (tokens.length > 0) {
+        sentenceIndex = candidate;
+        break;
+      }
+    }
+
+    linguistChunkAdvancePendingRef.current = null;
+    if (sentenceIndex === null) {
+      return;
+    }
+
+    const tokens = tokensForSentence(sentenceIndex, variantKind);
+    const rawWord = tokens[0] ?? '';
+    if (!rawWord.trim()) {
+      return;
+    }
+
+    const navigation: LinguistBubbleNavigation = {
+      sentenceIndex,
+      tokenIndex: 0,
+      variantKind,
+    };
+
+    const seekTime = seekTimeForNavigation(navigation);
+    if (seekTime !== null) {
+      seekInlineAudioToTime(seekTime);
+    }
+
+    const container = containerRef.current;
+    const fallbackRect = container?.getBoundingClientRect() ?? linguistAnchorRectRef.current;
+    if (!fallbackRect) {
+      return;
+    }
+
+    openLinguistBubbleForRect(rawWord, fallbackRect, 'click', variantKind, null, navigation);
+    if (sentenceIndex !== activeSentenceIndex) {
+      setActiveSentenceIndex(sentenceIndex);
+      if (!linguistBubblePinned) {
+        linguistNavigationPendingRef.current = navigation;
+      }
+    }
+  }, [
+    activeSentenceIndex,
+    linguistBubble,
+    linguistBubblePinned,
+    linguistSentenceOrder,
+    openLinguistBubbleForRect,
+    seekInlineAudioToTime,
+    seekTimeForNavigation,
+    tokensForSentence,
   ]);
 
   useEffect(() => {
@@ -3861,7 +4047,7 @@ const handleAudioSeeked = useCallback(() => {
       ) {
         return;
       }
-      if (event.key?.toLowerCase() === 'h') {
+      if (event.shiftKey && event.key?.toLowerCase() === 'h') {
         setFullscreenControlsCollapsed((value) => !value);
         event.preventDefault();
       }
@@ -3988,6 +4174,16 @@ const handleAudioSeeked = useCallback(() => {
               disabled={linguistBubble.ttsStatus === 'loading'}
             >
               {linguistBubble.ttsStatus === 'loading' ? '…' : '🔊'}
+            </button>
+            <button
+              type="button"
+              className="player-panel__my-linguist-bubble-speak"
+              onClick={handleLinguistSpeakSlow}
+              aria-label="Speak selection slowly"
+              title="Speak slowly (0.5×)"
+              disabled={linguistBubble.ttsStatus === 'loading'}
+            >
+              {linguistBubble.ttsStatus === 'loading' ? '…' : '🐢'}
             </button>
             <button
               type="button"
@@ -4349,21 +4545,31 @@ const handleAudioSeeked = useCallback(() => {
                   >
                     →
                   </button>
-                  <button
-                    type="button"
-                    className="player-panel__my-linguist-bubble-speak"
-                    onClick={handleLinguistSpeak}
-                    aria-label="Speak selection aloud"
-                    title="Speak selection aloud"
-                    disabled={linguistBubble.ttsStatus === 'loading'}
-                  >
-                    {linguistBubble.ttsStatus === 'loading' ? '…' : '🔊'}
-                  </button>
-                  <button
-                    type="button"
-                    className="player-panel__my-linguist-bubble-close"
-                    onClick={closeLinguistBubble}
-                    aria-label="Close MyLinguist lookup"
+                    <button
+                      type="button"
+                      className="player-panel__my-linguist-bubble-speak"
+                      onClick={handleLinguistSpeak}
+                      aria-label="Speak selection aloud"
+                      title="Speak selection aloud"
+                      disabled={linguistBubble.ttsStatus === 'loading'}
+                    >
+                      {linguistBubble.ttsStatus === 'loading' ? '…' : '🔊'}
+                    </button>
+                    <button
+                      type="button"
+                      className="player-panel__my-linguist-bubble-speak"
+                      onClick={handleLinguistSpeakSlow}
+                      aria-label="Speak selection slowly"
+                      title="Speak slowly (0.5×)"
+                      disabled={linguistBubble.ttsStatus === 'loading'}
+                    >
+                      {linguistBubble.ttsStatus === 'loading' ? '…' : '🐢'}
+                    </button>
+                    <button
+                      type="button"
+                      className="player-panel__my-linguist-bubble-close"
+                      onClick={closeLinguistBubble}
+                      aria-label="Close MyLinguist lookup"
                   >
                     ✕
                   </button>

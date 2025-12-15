@@ -337,6 +337,12 @@
   min-width: 0;
 }
 
+.messageMetaRight {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
 .messageSpeakButton {
   border: 1px solid var(--color-button-secondary-border, rgba(255, 255, 255, 0.14));
   background: var(--color-button-secondary-bg, rgba(255, 255, 255, 0.06));
