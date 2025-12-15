@@ -21,6 +21,7 @@ interface PlayerViewProps {
   onPlaybackStateChange?: (isPlaying: boolean) => void;
   onFullscreenChange?: (isFullscreen: boolean) => void;
   onOpenLibraryItem?: (item: LibraryOpenInput) => void;
+  onBackToLibrary?: (payload: { jobId: string; itemType: 'book' | 'video' | 'narrated_subtitle' | null }) => void;
   selectionRequest?: MediaSelectionRequest | null;
 }
 
@@ -31,6 +32,7 @@ export default function PlayerView({
   onPlaybackStateChange,
   onFullscreenChange,
   onOpenLibraryItem,
+  onBackToLibrary,
   selectionRequest = null
 }: PlayerViewProps) {
   if (!context) {
@@ -94,6 +96,14 @@ export default function PlayerView({
           onPlaybackStateChange={onPlaybackStateChange}
           onVideoPlaybackStateChange={onVideoPlaybackStateChange}
           onFullscreenChange={onFullscreenChange}
+          showBackToLibrary
+          onBackToLibrary={
+            onBackToLibrary
+              ? () => {
+                  onBackToLibrary({ jobId: context.jobId, itemType: context.itemType ?? null });
+                }
+              : undefined
+          }
         />
       ) : (
         <PlayerPanel
@@ -108,6 +118,14 @@ export default function PlayerView({
           onPlaybackStateChange={onPlaybackStateChange}
           onFullscreenChange={onFullscreenChange}
           origin="library"
+          showBackToLibrary
+          onBackToLibrary={
+            onBackToLibrary
+              ? () => {
+                  onBackToLibrary({ jobId: context.jobId, itemType: context.itemType ?? null });
+                }
+              : undefined
+          }
           onOpenLibraryItem={onOpenLibraryItem}
           selectionRequest={selectionRequest}
         />

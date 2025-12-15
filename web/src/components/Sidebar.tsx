@@ -422,7 +422,7 @@ export function Sidebar({
               className={`sidebar__link ${isAddBookActive ? 'is-active' : ''}`}
               onClick={() => onSelectView('pipeline:source')}
             >
-              🎙️ Narrate Ebook
+              📚 Book Page
             </button>
           </li>
           <li>

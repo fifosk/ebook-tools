@@ -205,6 +205,33 @@ export interface SubtitleTvMetadataPreviewLookupRequest {
   force?: boolean;
 }
 
+export interface YoutubeVideoMetadataParse {
+  video_id: string;
+  pattern: string;
+}
+
+export interface YoutubeVideoMetadataResponse {
+  job_id: string;
+  source_name: string | null;
+  parsed: YoutubeVideoMetadataParse | null;
+  youtube_metadata: Record<string, unknown> | null;
+}
+
+export interface YoutubeVideoMetadataLookupRequest {
+  force?: boolean;
+}
+
+export interface YoutubeVideoMetadataPreviewResponse {
+  source_name: string | null;
+  parsed: YoutubeVideoMetadataParse | null;
+  youtube_metadata: Record<string, unknown> | null;
+}
+
+export interface YoutubeVideoMetadataPreviewLookupRequest {
+  source_name: string;
+  force?: boolean;
+}
+
 export interface BookOpenLibraryQuery {
   title?: string | null;
   author?: string | null;
@@ -354,6 +381,7 @@ export interface YoutubeVideoDeleteResponse {
 export interface YoutubeDubRequest {
   video_path: string;
   subtitle_path: string;
+  media_metadata?: Record<string, unknown> | null;
   target_language?: string | null;
   voice?: string | null;
   tempo?: number | null;

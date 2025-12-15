@@ -192,7 +192,7 @@ const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = ['source', 'metadata', 'lan
 
 export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
   source: {
-    title: 'Source material',
+    title: 'Source',
     description: 'Select the EPUB to ingest and where generated files should be written.'
   },
   metadata: {
@@ -212,8 +212,8 @@ export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string;
     description: 'Adjust concurrency and orchestration parameters to fit your environment.'
   },
   submit: {
-    title: 'Submit pipeline job',
-    description: 'Review the configured settings and enqueue the job for processing.'
+    title: 'Submit book job',
+    description: 'Review the configured settings and enqueue the book job for processing.'
   }
 };
 
@@ -227,6 +227,19 @@ function areLanguageArraysEqual(left: string[], right: string[]): boolean {
     }
   }
   return true;
+}
+
+function normalizeSingleTargetLanguages(languages: string[]): string[] {
+  for (const entry of languages) {
+    if (typeof entry !== 'string') {
+      continue;
+    }
+    const trimmed = entry.trim();
+    if (trimmed) {
+      return [trimmed];
+    }
+  }
+  return [];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -361,7 +374,7 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
           .filter((language) => language.length > 0)
       )
     );
-    next.target_languages = normalized;
+    next.target_languages = normalizeSingleTargetLanguages(normalized);
   }
 
   const sentencesPerOutput = coerceNumber(config['sentences_per_output_file']);
@@ -621,7 +634,7 @@ export function PipelineSubmissionForm({
     input_language: sharedInputLanguage ?? DEFAULT_FORM_STATE.input_language,
     target_languages:
       sharedTargetLanguages.length > 0
-        ? [...sharedTargetLanguages]
+        ? normalizeSingleTargetLanguages(sharedTargetLanguages)
         : [...DEFAULT_FORM_STATE.target_languages]
   }));
   const [error, setError] = useState<string | null>(null);
@@ -1023,6 +1036,7 @@ export function PipelineSubmissionForm({
               .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
               .filter((entry) => entry.length > 0)
           : previous.target_languages;
+      const normalizedTargetLanguages = normalizeSingleTargetLanguages(targetLanguages);
       const startSentence =
         typeof prefillParameters.start_sentence === 'number' && Number.isFinite(prefillParameters.start_sentence)
           ? prefillParameters.start_sentence
@@ -1074,7 +1088,7 @@ export function PipelineSubmissionForm({
         input_file: inputFile,
         base_output_file: forcedBaseOutputFile ?? baseOutputFile,
         input_language: inputLanguage,
-        target_languages: targetLanguages,
+        target_languages: normalizedTargetLanguages.length ? normalizedTargetLanguages : previous.target_languages,
         custom_target_languages: '',
         start_sentence: startSentence,
         end_sentence: endSentence,
@@ -1125,7 +1139,7 @@ export function PipelineSubmissionForm({
             )
           : [];
         if (targetLanguages.length > 0) {
-          setSharedTargetLanguages(targetLanguages);
+          setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
         }
       } catch (defaultsError) {
         console.warn('Unable to load pipeline defaults', defaultsError);
@@ -1317,8 +1331,9 @@ export function PipelineSubmissionForm({
       setSharedInputLanguage(value);
     } else if (key === 'target_languages' && Array.isArray(value)) {
       const nextLanguages = value as string[];
-      if (!areLanguageArraysEqual(sharedTargetLanguages, nextLanguages)) {
-        setSharedTargetLanguages(nextLanguages);
+      const normalized = normalizeSingleTargetLanguages(nextLanguages);
+      if (!areLanguageArraysEqual(sharedTargetLanguages, normalized)) {
+        setSharedTargetLanguages(normalized);
       }
     }
   };
@@ -1389,7 +1404,7 @@ export function PipelineSubmissionForm({
       .split(',')
       .map((language) => language.trim())
       .filter(Boolean);
-    return Array.from(new Set([...formState.target_languages, ...manualTargets]));
+    return normalizeSingleTargetLanguages([...formState.target_languages, ...manualTargets]);
   }, [formState.custom_target_languages, formState.target_languages]);
 
   const languagesForOverride = useMemo(() => {
@@ -1902,7 +1917,7 @@ export function PipelineSubmissionForm({
     }
   };
 
-  const headerTitle = sectionMeta[activeTab]?.title ?? 'Submit a Pipeline Job';
+  const headerTitle = sectionMeta[activeTab]?.title ?? 'Submit a book job';
   const headerDescription =
     sectionMeta[activeTab]?.description ??
     'Provide the input file, target languages, and any overrides to enqueue a new ebook processing job.';

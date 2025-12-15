@@ -257,6 +257,7 @@ class PipelineJobManager:
         request_payload = serialize_pipeline_request(request)
         job = PipelineJob(
             job_id=job_id,
+            job_type="book",
             status=PipelineJobStatus.PENDING,
             created_at=datetime.now(timezone.utc),
             request=request,
@@ -284,7 +285,7 @@ class PipelineJobManager:
             logger.info(
                 "Pipeline job submitted",
                 extra={
-                    "event": "pipeline.job.submitted",
+                    "event": f"{job.job_type}.job.submitted",
                     "status": PipelineJobStatus.PENDING.value,
                     "attributes": {
                         "input_file": request.inputs.input_file,
@@ -441,7 +442,7 @@ class PipelineJobManager:
         if worker is not None:
             self._job_handlers[job_id] = lambda current_id=job_id, fn=worker: self._execute_custom(current_id, fn)
             return
-        if job.job_type == "pipeline":
+        if job.job_type in {"pipeline", "book"}:
             self._job_handlers[job_id] = self._execute_pipeline
         else:
             self._job_handlers[job_id] = lambda current_id=job_id: self._execute_orphaned(current_id)
@@ -777,7 +778,7 @@ class PipelineJobManager:
         job = self._get_unchecked(job_id)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
 
-        if job.job_type != "pipeline":
+        if job.job_type not in {"pipeline", "book"}:
             raise ValueError(f"Restart is not supported for job type '{job.job_type}'")
         if job.status in (PipelineJobStatus.RUNNING, PipelineJobStatus.PENDING):
             raise ValueError(f"Cannot restart job {job_id} while it is {job.status.value}")
@@ -949,7 +950,7 @@ class PipelineJobManager:
             job = self._persistence.build_job(stored_metadata)
         self._assert_job_access(job, user_id=user_id, user_role=user_role)
 
-        if job.job_type != "pipeline":
+        if job.job_type not in {"pipeline", "book"}:
             raise ValueError(f"Metadata refresh is not available for job type '{job.job_type}'")
 
         self._metadata_refresher.refresh(job)

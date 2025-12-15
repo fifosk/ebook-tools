@@ -524,6 +524,25 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     resume_context = metadata.get("resume_context")
     request_section = metadata.get("request")
 
+    def _extract_tv_episode_metadata() -> Optional[Mapping[str, Any]]:
+        if isinstance(request_section, Mapping):
+            candidate = request_section.get("media_metadata")
+            if isinstance(candidate, Mapping):
+                return candidate
+        direct = metadata.get("media_metadata")
+        if isinstance(direct, Mapping):
+            return direct
+        return None
+
+    def _extract_youtube_metadata(media_metadata: Optional[Mapping[str, Any]]) -> Optional[Mapping[str, Any]]:
+        if not isinstance(media_metadata, Mapping):
+            return None
+        candidate = media_metadata.get("youtube")
+        return candidate if isinstance(candidate, Mapping) else None
+
+    def _format_episode_code(season: int, episode: int) -> str:
+        return f"S{season:02d}E{episode:02d}"
+
     language = None
     if isinstance(dub_section, Mapping):
         language = dub_section.get("language")
@@ -548,22 +567,71 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
         if isinstance(candidate, str) and candidate.strip():
             video_path = candidate.strip()
 
-    title_candidate = None
-    author_candidate = None
+    title_candidate: Optional[str] = None
+    author_candidate: Optional[str] = None
+    genre_candidate: Optional[str] = None
+
+    tv_metadata = _extract_tv_episode_metadata()
+    youtube_metadata = _extract_youtube_metadata(tv_metadata)
+    if isinstance(tv_metadata, Mapping) and str(tv_metadata.get("kind", "")).strip().lower() == "tv_episode":
+        genre_candidate = "TV"
+        show = tv_metadata.get("show")
+        episode = tv_metadata.get("episode")
+        show_name = show.get("name") if isinstance(show, Mapping) else None
+        episode_name = episode.get("name") if isinstance(episode, Mapping) else None
+        season_number = episode.get("season") if isinstance(episode, Mapping) else None
+        episode_number = episode.get("number") if isinstance(episode, Mapping) else None
+        airdate = episode.get("airdate") if isinstance(episode, Mapping) else None
+        genres = show.get("genres") if isinstance(show, Mapping) else None
+
+        if isinstance(show_name, str) and show_name.strip():
+            author_candidate = show_name.strip()
+            metadata.setdefault("series_title", author_candidate)
+        if isinstance(season_number, int) and isinstance(episode_number, int) and season_number > 0 and episode_number > 0:
+            metadata.setdefault("season_number", season_number)
+            metadata.setdefault("episode_number", episode_number)
+            metadata.setdefault("episode_code", _format_episode_code(season_number, episode_number))
+            title_candidate = metadata.get("episode_code")
+        if isinstance(episode_name, str) and episode_name.strip():
+            metadata.setdefault("episode_title", episode_name.strip())
+        if isinstance(airdate, str) and airdate.strip():
+            metadata.setdefault("airdate", airdate.strip())
+        if isinstance(genres, list) and genres:
+            filtered = [entry.strip() for entry in genres if isinstance(entry, str) and entry.strip()]
+            if filtered:
+                metadata.setdefault("series_genres", filtered)
+
+        if isinstance(title_candidate, str) and title_candidate and isinstance(episode_name, str) and episode_name.strip():
+            title_candidate = f"{title_candidate} - {episode_name.strip()}"
+        if title_candidate is None and isinstance(episode_name, str) and episode_name.strip():
+            title_candidate = episode_name.strip()
+
+    if title_candidate is None and isinstance(youtube_metadata, Mapping):
+        genre_candidate = genre_candidate or "YouTube"
+        youtube_title = youtube_metadata.get("title") or youtube_metadata.get("job_label")
+        if isinstance(youtube_title, str) and youtube_title.strip():
+            title_candidate = youtube_title.strip()
+        youtube_channel = youtube_metadata.get("channel") or youtube_metadata.get("uploader")
+        if isinstance(youtube_channel, str) and youtube_channel.strip():
+            author_candidate = author_candidate or youtube_channel.strip()
+
     if video_path:
         try:
             path_obj = Path(video_path)
-            title_candidate = path_obj.stem or path_obj.name
-            author_candidate = path_obj.parent.name or None
+            if title_candidate is None:
+                title_candidate = path_obj.stem or path_obj.name
+            if author_candidate is None:
+                author_candidate = path_obj.parent.name or None
         except Exception:
-            title_candidate = video_path.rsplit("/", 1)[-1]
+            if title_candidate is None:
+                title_candidate = video_path.rsplit("/", 1)[-1]
 
     if title_candidate:
         metadata.setdefault("book_title", title_candidate)
     if author_candidate:
         metadata.setdefault("author", author_candidate)
 
-    metadata.setdefault("genre", "Video")
+    metadata.setdefault("genre", genre_candidate or "Video")
 
     source_reference = file_ops.resolve_source_relative(metadata, job_root)
     if source_reference:

@@ -331,7 +331,7 @@ export default function YoutubeVideoPage() {
             aria-selected={activeTab === 'video'}
             onClick={() => setActiveTab('video')}
           >
-            Video
+            Source
           </button>
           <button
             type="button"

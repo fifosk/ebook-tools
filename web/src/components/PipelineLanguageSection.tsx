@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { buildLanguageOptions, sortLanguageLabelsByName } from '../utils/languages';
 import LanguageSelect from './LanguageSelect';
-import LanguageSelector from './LanguageSelector';
 
 type LanguageSectionProps = {
   headingId: string;
@@ -65,6 +64,17 @@ const PipelineLanguageSection = ({
       ),
     [inputLanguage]
   );
+  const targetLanguage = targetLanguages[0] ?? '';
+  const targetLanguageOptions = useMemo(
+    () =>
+      sortLanguageLabelsByName(
+        buildLanguageOptions({
+          preferredLanguages: [targetLanguage, inputLanguage],
+          fallback: targetLanguage || 'Arabic'
+        })
+      ),
+    [inputLanguage, targetLanguage]
+  );
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
@@ -79,11 +89,12 @@ const PipelineLanguageSection = ({
           options={inputLanguageOptions}
           onChange={onInputLanguageChange}
         />
-        <label htmlFor="target_languages">Target languages</label>
-        <LanguageSelector
+        <label htmlFor="target_languages">Target language</label>
+        <LanguageSelect
           id="target_languages"
-          value={targetLanguages}
-          onChange={onTargetLanguagesChange}
+          value={targetLanguage}
+          options={targetLanguageOptions}
+          onChange={(value) => onTargetLanguagesChange(value ? [value] : [])}
         />
         <label htmlFor="ollama_model">LLM model (optional)</label>
         <select

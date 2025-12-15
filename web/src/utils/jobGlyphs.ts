@@ -26,9 +26,8 @@ export function getJobTypeGlyph(jobType: string | null | undefined): JobTypeGlyp
   const normalized = normalizeJobType(jobType);
   switch (normalized) {
     case 'pipeline':
-      return { icon: '🎙️', label: 'Narration job' };
     case 'book':
-      return { icon: '📝', label: 'Create audiobook job' };
+      return { icon: '📚', label: 'Book job' };
     case 'subtitle':
       return { icon: '🎞️', label: 'Subtitle job' };
     case 'youtube_dub':
@@ -37,4 +36,3 @@ export function getJobTypeGlyph(jobType: string | null | undefined): JobTypeGlyp
       return { icon: '📦', label: normalized ? `${normalized} job` : 'Job' };
   }
 }
-

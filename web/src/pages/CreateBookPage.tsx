@@ -211,7 +211,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         showInfoHeader={false}
         sectionOverrides={{
           source: {
-            title: 'Book prompt',
+            title: 'Source',
             description: 'Use this prompt as the source material for the generated EPUB.'
           }
         }}

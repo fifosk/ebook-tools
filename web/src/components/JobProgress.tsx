@@ -1,13 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import { formatLanguageWithFlag } from '../utils/languages';
-import { appendAccessToken, fetchSubtitleTvMetadata, lookupSubtitleTvMetadata, resolveJobCoverUrl } from '../api/client';
+import {
+  appendAccessToken,
+  fetchSubtitleTvMetadata,
+  lookupSubtitleTvMetadata,
+  fetchYoutubeVideoMetadata,
+  lookupYoutubeVideoMetadata,
+  resolveJobCoverUrl
+} from '../api/client';
 import {
   PipelineJobStatus,
   PipelineResponsePayload,
   PipelineStatusResponse,
   ProgressEventPayload,
-  SubtitleTvMetadataResponse
+  SubtitleTvMetadataResponse,
+  YoutubeVideoMetadataResponse
 } from '../api/dtos';
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
@@ -64,7 +72,7 @@ const TUNING_LABELS: Record<string, string> = {
   hardware_profile: 'Hardware profile',
   detected_cpu_cores: 'Detected CPU cores',
   detected_memory_gib: 'Detected memory (GiB)',
-  pipeline_mode: 'Pipeline mode enabled',
+  pipeline_mode: 'Book mode enabled',
   thread_count: 'Translation threads',
   translation_pool_workers: 'Translation pool workers',
   translation_pool_mode: 'Worker pool mode',
@@ -652,9 +660,11 @@ export function JobProgress({
 }: Props) {
   const statusValue = status?.status ?? 'pending';
   const jobType = status?.job_type ?? 'pipeline';
-  const isPipelineJob = jobType === 'pipeline';
-  const isPipelineLikeJob = isPipelineJob || jobType === 'book';
+  const isBookJob = jobType === 'pipeline' || jobType === 'book';
+  const isPipelineLikeJob = isBookJob;
   const isSubtitleJob = jobType === 'subtitle';
+  const supportsTvMetadata = isSubtitleJob || jobType === 'youtube_dub';
+  const supportsYoutubeMetadata = jobType === 'youtube_dub';
   const isNarratedSubtitleJob = useMemo(() => {
     if (jobType !== 'subtitle') {
       return false;
@@ -796,12 +806,12 @@ export function JobProgress({
     : false;
 
   const canPause =
-    isPipelineJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
-  const canResume = isPipelineJob && canManage && statusValue === 'paused';
+    isBookJob && canManage && !isTerminal && statusValue !== 'paused' && statusValue !== 'pausing';
+  const canResume = isBookJob && canManage && statusValue === 'paused';
   const canCancel = canManage && !isTerminal;
   const canDelete = canManage && isTerminal;
   const canRestart =
-    isPipelineJob &&
+    isBookJob &&
     canManage &&
     statusValue !== 'running' &&
     statusValue !== 'pending' &&
@@ -823,18 +833,22 @@ export function JobProgress({
 
   const [subtitleTab, setSubtitleTab] = useState<SubtitleJobTab>('overview');
   useEffect(() => {
-    if (!isSubtitleJob) {
+    if (!supportsTvMetadata) {
       setSubtitleTab('overview');
     }
-  }, [isSubtitleJob]);
+  }, [supportsTvMetadata]);
 
   const [tvMetadata, setTvMetadata] = useState<SubtitleTvMetadataResponse | null>(null);
   const [tvMetadataLoading, setTvMetadataLoading] = useState(false);
   const [tvMetadataMutating, setTvMetadataMutating] = useState(false);
   const [tvMetadataError, setTvMetadataError] = useState<string | null>(null);
+  const [youtubeMetadata, setYoutubeMetadata] = useState<YoutubeVideoMetadataResponse | null>(null);
+  const [youtubeMetadataLoading, setYoutubeMetadataLoading] = useState(false);
+  const [youtubeMetadataMutating, setYoutubeMetadataMutating] = useState(false);
+  const [youtubeMetadataError, setYoutubeMetadataError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isSubtitleJob || subtitleTab !== 'metadata') {
+    if (!supportsTvMetadata || subtitleTab !== 'metadata') {
       return;
     }
     let cancelled = false;
@@ -861,7 +875,37 @@ export function JobProgress({
     return () => {
       cancelled = true;
     };
-  }, [isSubtitleJob, jobId, subtitleTab]);
+  }, [supportsTvMetadata, jobId, subtitleTab]);
+
+  useEffect(() => {
+    if (!supportsYoutubeMetadata || subtitleTab !== 'metadata') {
+      return;
+    }
+    let cancelled = false;
+    setYoutubeMetadataLoading(true);
+    setYoutubeMetadataError(null);
+    fetchYoutubeVideoMetadata(jobId)
+      .then((payload) => {
+        if (!cancelled) {
+          setYoutubeMetadata(payload);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          const message = error instanceof Error ? error.message : 'Unable to load YouTube metadata.';
+          setYoutubeMetadataError(message);
+          setYoutubeMetadata(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setYoutubeMetadataLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [supportsYoutubeMetadata, jobId, subtitleTab]);
 
   return (
     <div className="job-card" aria-live="polite">
@@ -932,8 +976,8 @@ export function JobProgress({
           </>
         ) : null}
       </p>
-      {isSubtitleJob ? (
-        <div className="job-card__tabs" role="tablist" aria-label="Subtitle job tabs">
+      {supportsTvMetadata ? (
+        <div className="job-card__tabs" role="tablist" aria-label="Media job tabs">
           <button
             type="button"
             role="tab"
@@ -983,7 +1027,7 @@ export function JobProgress({
           Some media is still finalizing. Generated files shown below reflect the latest available output.
         </div>
       ) : null}
-      {isSubtitleJob && subtitleTab === 'metadata' ? (
+      {supportsTvMetadata && subtitleTab === 'metadata' ? (
         <div className="job-card__section">
           <h4>TV metadata</h4>
           {tvMetadataError ? <div className="alert">{tvMetadataError}</div> : null}
@@ -1072,7 +1116,7 @@ export function JobProgress({
                   <dl className="metadata-grid">
                     {tvMetadata.source_name ? (
                       <div className="metadata-grid__row">
-                        <dt>Subtitle</dt>
+                        <dt>Source</dt>
                         <dd>{tvMetadata.source_name}</dd>
                       </div>
                     ) : null}
@@ -1159,6 +1203,132 @@ export function JobProgress({
             })()
           ) : null}
           {!tvMetadataLoading && !tvMetadata ? <p>Metadata is not available yet.</p> : null}
+
+          {supportsYoutubeMetadata ? (
+            <div style={{ marginTop: '1.5rem' }}>
+              <h4>YouTube metadata</h4>
+              {youtubeMetadataError ? <div className="alert">{youtubeMetadataError}</div> : null}
+              {youtubeMetadataLoading ? <p>Loading metadata…</p> : null}
+              {!youtubeMetadataLoading && youtubeMetadata ? (
+                (() => {
+                  const youtube = coerceRecord(youtubeMetadata.youtube_metadata ?? null);
+                  const title = normalizeTextValue(youtube ? youtube['title'] : null);
+                  const channel =
+                    normalizeTextValue(youtube ? youtube['channel'] : null) ??
+                    normalizeTextValue(youtube ? youtube['uploader'] : null);
+                  const webpageUrl = normalizeTextValue(youtube ? youtube['webpage_url'] : null);
+                  const thumbnailUrl = normalizeTextValue(youtube ? youtube['thumbnail'] : null);
+                  const summary = normalizeTextValue(youtube ? youtube['summary'] : null);
+                  const errorMessage = normalizeTextValue(youtube ? youtube['error'] : null);
+                  const rawPayload = youtube ? youtube['raw_payload'] : null;
+
+                  const canLookup = canManage && !youtubeMetadataMutating;
+
+                  const handleLookup = async (force: boolean) => {
+                    setYoutubeMetadataMutating(true);
+                    setYoutubeMetadataError(null);
+                    try {
+                      const payload = await lookupYoutubeVideoMetadata(jobId, { force });
+                      setYoutubeMetadata(payload);
+                      onReload();
+                    } catch (error) {
+                      const message = error instanceof Error ? error.message : 'Unable to lookup YouTube metadata.';
+                      setYoutubeMetadataError(message);
+                    } finally {
+                      setYoutubeMetadataMutating(false);
+                    }
+                  };
+
+                  return (
+                    <>
+                      {thumbnailUrl ? (
+                        <div className="tv-metadata-media" aria-label="YouTube thumbnail">
+                          <a
+                            href={webpageUrl ?? thumbnailUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="tv-metadata-media__still"
+                          >
+                            <img
+                              src={thumbnailUrl}
+                              alt={title ? `${title} thumbnail` : 'YouTube thumbnail'}
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </a>
+                        </div>
+                      ) : null}
+                      <dl className="metadata-grid">
+                        {youtubeMetadata.source_name ? (
+                          <div className="metadata-grid__row">
+                            <dt>Source</dt>
+                            <dd>{youtubeMetadata.source_name}</dd>
+                          </div>
+                        ) : null}
+                        {youtubeMetadata.parsed ? (
+                          <div className="metadata-grid__row">
+                            <dt>Video id</dt>
+                            <dd>{youtubeMetadata.parsed.video_id}</dd>
+                          </div>
+                        ) : null}
+                        {title ? (
+                          <div className="metadata-grid__row">
+                            <dt>Title</dt>
+                            <dd>{title}</dd>
+                          </div>
+                        ) : null}
+                        {channel ? (
+                          <div className="metadata-grid__row">
+                            <dt>Channel</dt>
+                            <dd>{channel}</dd>
+                          </div>
+                        ) : null}
+                        {webpageUrl ? (
+                          <div className="metadata-grid__row">
+                            <dt>Link</dt>
+                            <dd>
+                              <a href={webpageUrl} target="_blank" rel="noopener noreferrer">
+                                Open on YouTube
+                              </a>
+                            </dd>
+                          </div>
+                        ) : null}
+                      </dl>
+                      {summary ? <p>{summary}</p> : null}
+                      {errorMessage ? <div className="notice notice--warning">{errorMessage}</div> : null}
+                      <div className="job-card__tab-actions">
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={() => handleLookup(false)}
+                          disabled={!canLookup}
+                          aria-busy={youtubeMetadataMutating}
+                        >
+                          {youtubeMetadataMutating ? 'Looking up…' : youtube ? 'Lookup (cached)' : 'Lookup via yt-dlp'}
+                        </button>
+                        <button
+                          type="button"
+                          className="link-button"
+                          onClick={() => handleLookup(true)}
+                          disabled={!canLookup}
+                          aria-busy={youtubeMetadataMutating}
+                        >
+                          Refresh
+                        </button>
+                      </div>
+                      {rawPayload ? (
+                        <details className="job-card__details">
+                          <summary>Raw payload</summary>
+                          <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(rawPayload, null, 2)}</pre>
+                        </details>
+                      ) : null}
+                    </>
+                  );
+                })()
+              ) : null}
+              {!youtubeMetadataLoading && !youtubeMetadata ? <p>Metadata is not available yet.</p> : null}
+            </div>
+          ) : null}
         </div>
       ) : tuningEntries.length > 0 ? (
         <div>

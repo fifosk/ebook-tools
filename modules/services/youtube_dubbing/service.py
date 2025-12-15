@@ -3,7 +3,7 @@ from __future__ import annotations
 import shutil
 import threading
 from pathlib import Path
-from typing import List, Optional, Sequence
+from typing import Any, List, Mapping, Optional, Sequence
 
 from modules.progress_tracker import ProgressTracker
 from modules.services.file_locator import FileLocator
@@ -646,6 +646,7 @@ class YoutubeDubbingService:
         output_dir: Optional[Path],
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
+        media_metadata: Optional[Mapping[str, Any]] = None,
         start_time_offset: Optional[float] = None,
         end_time_offset: Optional[float] = None,
         original_mix_percent: Optional[float] = None,
@@ -704,6 +705,8 @@ class YoutubeDubbingService:
             "target_height": resolved_target_height,
             "preserve_aspect_ratio": preserve_aspect_ratio_resolved,
         }
+        if media_metadata:
+            payload["media_metadata"] = dict(media_metadata)
 
         def _worker(job: PipelineJob) -> None:
             _run_dub_job(

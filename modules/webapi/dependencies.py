@@ -26,6 +26,7 @@ from ..services.pipeline_service import PipelineService
 from ..services.book_metadata_service import BookMetadataService
 from ..services.subtitle_service import SubtitleService
 from ..services.subtitle_metadata_service import SubtitleMetadataService
+from ..services.youtube_video_metadata_service import YoutubeVideoMetadataService
 from ..services.video_service import VideoService
 from ..services.youtube_dubbing import YoutubeDubbingService
 from ..user_management import AuthService, LocalUserStore, SessionManager
@@ -374,6 +375,14 @@ def get_book_metadata_service() -> BookMetadataService:
 
     job_manager = get_pipeline_job_manager()
     return BookMetadataService(job_manager=job_manager)
+
+
+@lru_cache
+def get_youtube_video_metadata_service() -> YoutubeVideoMetadataService:
+    """Return the shared :class:`YoutubeVideoMetadataService` instance."""
+
+    job_manager = get_pipeline_job_manager()
+    return YoutubeVideoMetadataService(job_manager=job_manager)
 
 
 @lru_cache

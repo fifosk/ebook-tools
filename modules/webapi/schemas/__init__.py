@@ -291,6 +291,43 @@ class SubtitleTvMetadataPreviewLookupRequest(BaseModel):
     force: bool = False
 
 
+class YoutubeVideoMetadataParse(BaseModel):
+    """Parsed YouTube video identifier inferred from a filename/URL."""
+
+    video_id: str
+    pattern: str
+
+
+class YoutubeVideoMetadataResponse(BaseModel):
+    """Response payload describing YouTube metadata enrichment state for a job."""
+
+    job_id: str
+    source_name: Optional[str] = None
+    parsed: Optional[YoutubeVideoMetadataParse] = None
+    youtube_metadata: Optional[Dict[str, Any]] = None
+
+
+class YoutubeVideoMetadataLookupRequest(BaseModel):
+    """Request payload to trigger a YouTube metadata lookup for a job."""
+
+    force: bool = False
+
+
+class YoutubeVideoMetadataPreviewResponse(BaseModel):
+    """Response payload describing YouTube metadata lookup results for a filename/URL."""
+
+    source_name: Optional[str] = None
+    parsed: Optional[YoutubeVideoMetadataParse] = None
+    youtube_metadata: Optional[Dict[str, Any]] = None
+
+
+class YoutubeVideoMetadataPreviewLookupRequest(BaseModel):
+    """Request payload to trigger a YouTube metadata lookup for a filename/URL."""
+
+    source_name: str
+    force: bool = False
+
+
 class BookOpenLibraryQuery(BaseModel):
     """Parsed Open Library query inferred from a filename/title/ISBN."""
 
@@ -489,6 +526,7 @@ class YoutubeDubRequest(BaseModel):
 
     video_path: str
     subtitle_path: str
+    media_metadata: Optional[Dict[str, Any]] = None
     target_language: Optional[str] = None
     voice: Optional[str] = None
     tempo: Optional[float] = None
@@ -935,6 +973,28 @@ def _resolve_job_label(job: PipelineJob) -> Optional[str]:
 
         return None
 
+    if job.job_type == "youtube_dub":
+        if request_payload is not None:
+            media_metadata = request_payload.get("media_metadata")
+            if isinstance(media_metadata, Mapping):
+                label = media_metadata.get("job_label")
+                if isinstance(label, str) and label.strip():
+                    return label.strip()
+            for key in ("video_path", "subtitle_path"):
+                stem = _filename_stem(request_payload.get(key))
+                if stem:
+                    return stem
+
+        if isinstance(job.result_payload, Mapping):
+            dub_section = job.result_payload.get("youtube_dub")
+            if isinstance(dub_section, Mapping):
+                for key in ("video_path", "output_path", "subtitle_path"):
+                    stem = _filename_stem(dub_section.get(key))
+                    if stem:
+                        return stem
+
+        return None
+
     if request_payload is not None and job.job_type in {"pipeline", "book"}:
         inputs = request_payload.get("inputs")
         if isinstance(inputs, Mapping):
@@ -1025,7 +1085,7 @@ class PipelineStatusResponse(BaseModel):
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
         result_payload: Optional[PipelineResponsePayload | Dict[str, Any]] = None
-        if job.job_type == "pipeline":
+        if job.job_type in {"pipeline", "book"}:
             if job.result is not None:
                 result_payload = PipelineResponsePayload.from_response(job.result)
             elif job.result_payload is not None:

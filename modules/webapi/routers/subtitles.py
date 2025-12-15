@@ -41,6 +41,7 @@ from modules.services.youtube_dubbing import (
 )
 from modules.subtitles import SubtitleColorPalette, SubtitleJobOptions
 from modules.services.subtitle_metadata_service import SubtitleMetadataService
+from modules.services.youtube_video_metadata_service import YoutubeVideoMetadataService
 
 from ..dependencies import (
     RequestUserContext,
@@ -48,6 +49,7 @@ from ..dependencies import (
     get_request_user,
     get_subtitle_service,
     get_subtitle_metadata_service,
+    get_youtube_video_metadata_service,
     get_youtube_dubbing_service,
 )
 from ..schemas import (
@@ -61,6 +63,10 @@ from ..schemas import (
     SubtitleTvMetadataPreviewLookupRequest,
     SubtitleTvMetadataPreviewResponse,
     SubtitleTvMetadataResponse,
+    YoutubeVideoMetadataLookupRequest,
+    YoutubeVideoMetadataPreviewLookupRequest,
+    YoutubeVideoMetadataPreviewResponse,
+    YoutubeVideoMetadataResponse,
     YoutubeSubtitleDownloadRequest,
     YoutubeSubtitleDownloadResponse,
     YoutubeSubtitleListResponse,
@@ -844,6 +850,7 @@ def generate_youtube_dub(
             output_dir=output_dir,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
+            media_metadata=payload.media_metadata,
             start_time_offset=start_offset,
             end_time_offset=end_offset,
             original_mix_percent=mix_percent,
@@ -1185,3 +1192,80 @@ def lookup_subtitle_tv_metadata_preview(
         ) from exc
 
     return SubtitleTvMetadataPreviewResponse(**payload)
+
+
+@router.get("/jobs/{job_id}/metadata/youtube", response_model=YoutubeVideoMetadataResponse)
+def get_youtube_video_metadata(
+    job_id: str,
+    metadata_service: YoutubeVideoMetadataService = Depends(get_youtube_video_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeVideoMetadataResponse:
+    """Return stored YouTube metadata for a youtube_dub job without triggering a lookup."""
+
+    try:
+        payload = metadata_service.get_youtube_metadata(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    return YoutubeVideoMetadataResponse(**payload)
+
+
+@router.post(
+    "/jobs/{job_id}/metadata/youtube/lookup",
+    response_model=YoutubeVideoMetadataResponse,
+)
+def lookup_youtube_video_metadata(
+    job_id: str,
+    lookup: YoutubeVideoMetadataLookupRequest,
+    metadata_service: YoutubeVideoMetadataService = Depends(get_youtube_video_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeVideoMetadataResponse:
+    """Trigger yt-dlp metadata enrichment for the YouTube dubbing job and persist the result."""
+
+    try:
+        payload = metadata_service.lookup_youtube_metadata(
+            job_id,
+            force=bool(lookup.force),
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    return YoutubeVideoMetadataResponse(**payload)
+
+
+@router.post(
+    "/metadata/youtube/lookup",
+    response_model=YoutubeVideoMetadataPreviewResponse,
+)
+def lookup_youtube_video_metadata_preview(
+    lookup: YoutubeVideoMetadataPreviewLookupRequest,
+    metadata_service: YoutubeVideoMetadataService = Depends(get_youtube_video_metadata_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeVideoMetadataPreviewResponse:
+    """Lookup YouTube metadata for a filename/URL (used before submitting jobs)."""
+
+    try:
+        payload = metadata_service.lookup_youtube_metadata_for_source(
+            lookup.source_name,
+            force=bool(lookup.force),
+        )
+    except Exception as exc:
+        logger.warning(
+            "Unable to lookup YouTube metadata for source %s",
+            lookup.source_name,
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Unable to lookup YouTube metadata: {exc}",
+        ) from exc
+
+    return YoutubeVideoMetadataPreviewResponse(**payload)

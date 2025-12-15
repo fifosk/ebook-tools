@@ -6,6 +6,7 @@ import {
   lookupLibraryIsbnMetadata,
   removeLibraryEntry,
   reindexLibrary,
+  resolveLibraryMediaUrl,
   searchLibrary,
   updateLibraryMetadata,
   uploadLibrarySource,
@@ -30,12 +31,141 @@ const SUBTITLE_AUTHOR = 'Subtitles';
 
 type LibraryPageProps = {
   onPlay?: (item: LibraryOpenInput) => void;
+  focusRequest?: { jobId: string; itemType: LibraryItemType; token: number } | null;
+  onConsumeFocusRequest?: () => void;
 };
 
 type LibraryItemType = 'book' | 'video' | 'narrated_subtitle';
 
 function resolveItemType(item: LibraryItem | null | undefined): LibraryItemType {
   return (item?.itemType ?? 'book') as LibraryItemType;
+}
+
+function readNestedValue(source: unknown, path: string[]): unknown {
+  let current: unknown = source;
+  for (const key of path) {
+    if (!current || typeof current !== 'object') {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+function resolveLibraryAssetUrl(jobId: string, value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/api/')) {
+    return appendAccessToken(trimmed);
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return resolveLibraryMediaUrl(jobId, trimmed);
+}
+
+function extractTvMediaMetadata(item: LibraryItem | null | undefined): Record<string, unknown> | null {
+  const payload = item?.metadata ?? null;
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const candidate =
+    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
+    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+    readNestedValue(payload, ['request', 'media_metadata']) ??
+    readNestedValue(payload, ['media_metadata']) ??
+    null;
+  return candidate && typeof candidate === 'object' ? (candidate as Record<string, unknown>) : null;
+}
+
+function extractYoutubeVideoMetadata(mediaMetadata: Record<string, unknown> | null): Record<string, unknown> | null {
+  const youtube = mediaMetadata?.['youtube'];
+  return youtube && typeof youtube === 'object' && !Array.isArray(youtube) ? (youtube as Record<string, unknown>) : null;
+}
+
+function resolveTvImage(
+  jobId: string,
+  tvMetadata: Record<string, unknown> | null,
+  path: 'show' | 'episode',
+): { src: string; link: string } | null {
+  const section = tvMetadata?.[path];
+  if (!section || typeof section !== 'object') {
+    return null;
+  }
+  const image = (section as Record<string, unknown>)['image'];
+  if (!image) {
+    return null;
+  }
+  if (typeof image === 'string') {
+    const url = resolveLibraryAssetUrl(jobId, image);
+    return url ? { src: url, link: url } : null;
+  }
+  if (typeof image === 'object') {
+    const record = image as Record<string, unknown>;
+    const src =
+      resolveLibraryAssetUrl(jobId, record['medium']) ??
+      resolveLibraryAssetUrl(jobId, record['original']) ??
+      null;
+    const link =
+      resolveLibraryAssetUrl(jobId, record['original']) ??
+      resolveLibraryAssetUrl(jobId, record['medium']) ??
+      null;
+    if (src && link) {
+      return { src, link };
+    }
+    if (src) {
+      return { src, link: src };
+    }
+  }
+  return null;
+}
+
+function resolveYoutubeThumbnail(
+  jobId: string,
+  youtubeMetadata: Record<string, unknown> | null,
+): { src: string; link: string } | null {
+  if (!youtubeMetadata) {
+    return null;
+  }
+  const thumbnail = resolveLibraryAssetUrl(jobId, youtubeMetadata['thumbnail']);
+  if (!thumbnail) {
+    return null;
+  }
+  const link = resolveLibraryAssetUrl(jobId, youtubeMetadata['webpage_url']) ?? thumbnail;
+  return { src: thumbnail, link };
+}
+
+function formatCount(value: unknown): string | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return null;
+  }
+  try {
+    return new Intl.NumberFormat().format(Math.trunc(value));
+  } catch {
+    return `${Math.trunc(value)}`;
+  }
+}
+
+function formatYoutubeUploadDate(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^\d{8}$/.test(trimmed)) {
+    return `${trimmed.slice(0, 4)}-${trimmed.slice(4, 6)}-${trimmed.slice(6, 8)}`;
+  }
+  return trimmed;
 }
 
 function resolveTitle(item: LibraryItem | null | undefined): string {
@@ -83,7 +213,7 @@ function resolveGenre(item: LibraryItem | null | undefined): string {
   }
 }
 
-function LibraryPage({ onPlay }: LibraryPageProps) {
+function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: LibraryPageProps) {
   const [query, setQuery] = useState('');
   const [effectiveQuery, setEffectiveQuery] = useState('');
   const [view, setView] = useState<LibraryViewMode>('flat');
@@ -114,11 +244,46 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
   const [previewCoverUrl, setPreviewCoverUrl] = useState<string | null>(null);
   const [isbnFetchError, setIsbnFetchError] = useState<string | null>(null);
   const [isFetchingIsbn, setIsFetchingIsbn] = useState(false);
+  const [pendingFocus, setPendingFocus] = useState<{ jobId: string; itemType: LibraryItemType; token: number } | null>(null);
+
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (pendingFocus && value.trim() !== pendingFocus.jobId) {
+        setPendingFocus(null);
+      }
+    },
+    [pendingFocus]
+  );
 
   useEffect(() => {
     const handle = window.setTimeout(() => setEffectiveQuery(query), 250);
     return () => window.clearTimeout(handle);
   }, [query]);
+
+  useEffect(() => {
+    if (!focusRequest) {
+      return;
+    }
+    setPendingFocus((current) => {
+      if (current && current.token === focusRequest.token) {
+        return current;
+      }
+      return focusRequest;
+    });
+    onConsumeFocusRequest?.();
+  }, [focusRequest, onConsumeFocusRequest]);
+
+  useEffect(() => {
+    if (!pendingFocus) {
+      return;
+    }
+    setQuery(pendingFocus.jobId);
+    setEffectiveQuery(pendingFocus.jobId);
+    setView('flat');
+    setPage(1);
+    setActiveTab(pendingFocus.itemType);
+  }, [pendingFocus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -199,6 +364,17 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     setActiveTab(resolveItemType(item));
     setSelectedItem(item);
   }, []);
+
+  useEffect(() => {
+    if (!pendingFocus) {
+      return;
+    }
+    const match = items.find((item) => item.jobId === pendingFocus.jobId) ?? null;
+    if (match) {
+      selectLibraryItem(match);
+      setPendingFocus(null);
+    }
+  }, [pendingFocus, items, selectLibraryItem]);
 
   const openLibraryItem = useCallback(
     (item: LibraryItem) => {
@@ -476,6 +652,27 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
     return resolveLibraryCoverUrl(selectedItem, selectedBookMetadata);
   }, [selectedBookMetadata, selectedItem]);
 
+  const tvMetadata = useMemo(() => extractTvMediaMetadata(selectedItem), [selectedItem]);
+  const youtubeMetadata = useMemo(() => extractYoutubeVideoMetadata(tvMetadata), [tvMetadata]);
+  const tvPoster = useMemo(() => {
+    if (!selectedItem) {
+      return null;
+    }
+    return resolveTvImage(selectedItem.jobId, tvMetadata, 'show');
+  }, [selectedItem, tvMetadata]);
+  const tvStill = useMemo(() => {
+    if (!selectedItem) {
+      return null;
+    }
+    return resolveTvImage(selectedItem.jobId, tvMetadata, 'episode');
+  }, [selectedItem, tvMetadata]);
+  const youtubeThumbnail = useMemo(() => {
+    if (!selectedItem) {
+      return null;
+    }
+    return resolveYoutubeThumbnail(selectedItem.jobId, youtubeMetadata);
+  }, [selectedItem, youtubeMetadata]);
+
   const displayedCoverUrl = useMemo(() => {
     if (isEditing && previewCoverUrl) {
       return previewCoverUrl;
@@ -495,7 +692,7 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
       {error ? <div className={styles.errorBanner}>{error}</div> : null}
       <LibraryToolbar
         query={query}
-        onQueryChange={setQuery}
+        onQueryChange={handleQueryChange}
         view={view}
         onViewChange={(nextView) => setView(nextView)}
         isLoading={isLoading}
@@ -572,6 +769,57 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                 </span>
                 {selectedTitle}
               </h2>
+              {selectedItemType !== 'book' && (tvPoster || tvStill) ? (
+                <div className="tv-metadata-media" aria-label="TV images">
+                  {tvPoster ? (
+                    <a
+                      href={tvPoster.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tv-metadata-media__poster"
+                    >
+                      <img
+                        src={tvPoster.src}
+                        alt="Show poster"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </a>
+                  ) : null}
+                  {tvStill ? (
+                    <a
+                      href={tvStill.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="tv-metadata-media__still"
+                    >
+                      <img
+                        src={tvStill.src}
+                        alt="Episode still"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
+              {selectedItemType === 'video' && !(tvPoster || tvStill) && youtubeThumbnail ? (
+                <div className="tv-metadata-media" aria-label="YouTube thumbnail">
+                  <a
+                    href={youtubeThumbnail.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tv-metadata-media__still"
+                  >
+                    <img
+                      src={youtubeThumbnail.src}
+                      alt="YouTube thumbnail"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </a>
+                </div>
+              ) : null}
               {displayedCoverUrl ? (
                 <div className={styles.coverWrapper}>
                   <img
@@ -742,6 +990,41 @@ function LibraryPage({ onPlay }: LibraryPageProps) {
                   </strong>{' '}
                   {selectedItem.sourcePath ? selectedItem.sourcePath : '—'}
                 </li>
+                {selectedItemType === 'video' && youtubeMetadata ? (
+                  <>
+                    <li className={styles.detailItem}>
+                      <strong>YouTube channel:</strong>{' '}
+                      {typeof youtubeMetadata.channel === 'string' && youtubeMetadata.channel.trim()
+                        ? youtubeMetadata.channel.trim()
+                        : typeof youtubeMetadata.uploader === 'string' && youtubeMetadata.uploader.trim()
+                          ? youtubeMetadata.uploader.trim()
+                          : '—'}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>YouTube views:</strong> {formatCount(youtubeMetadata.view_count) ?? '—'}
+                      {formatCount(youtubeMetadata.like_count) ? ` · 👍 ${formatCount(youtubeMetadata.like_count)}` : ''}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>YouTube uploaded:</strong> {formatYoutubeUploadDate(youtubeMetadata.upload_date) ?? '—'}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>YouTube duration:</strong>{' '}
+                      {typeof youtubeMetadata.duration_seconds === 'number'
+                        ? `${Math.trunc(youtubeMetadata.duration_seconds)}s`
+                        : '—'}
+                    </li>
+                    <li className={styles.detailItem}>
+                      <strong>YouTube link:</strong>{' '}
+                      {typeof youtubeMetadata.webpage_url === 'string' && youtubeMetadata.webpage_url.trim() ? (
+                        <a href={youtubeMetadata.webpage_url.trim()} target="_blank" rel="noopener noreferrer">
+                          Open
+                        </a>
+                      ) : (
+                        '—'
+                      )}
+                    </li>
+                  </>
+                ) : null}
                 <li className={styles.detailItem}>
                   <strong>{selectedItemType === 'video' ? 'Creator:' : 'Author:'}</strong> {selectedAuthor}
                 </li>

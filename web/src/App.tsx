@@ -115,6 +115,11 @@ export function App() {
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [playerContext, setPlayerContext] = useState<PlayerContext | null>(null);
   const [playerSelection, setPlayerSelection] = useState<MediaSelectionRequest | null>(null);
+  const [libraryFocusRequest, setLibraryFocusRequest] = useState<{
+    jobId: string;
+    itemType: 'book' | 'video' | 'narrated_subtitle';
+    token: number;
+  } | null>(null);
   const [pendingInputFile, setPendingInputFile] = useState<string | null>(null);
   const [copiedJobParameters, setCopiedJobParameters] = useState<JobParameterSnapshot | null>(null);
   const [subtitlePrefillParameters, setSubtitlePrefillParameters] = useState<JobParameterSnapshot | null>(null);
@@ -434,7 +439,7 @@ export function App() {
       setPendingInputFile(null);
       void refreshJobs();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Failed to submit pipeline job';
+      const message = error instanceof Error ? error.message : 'Failed to submit book job';
       setSubmitError(message);
     } finally {
       setIsSubmitting(false);
@@ -486,7 +491,7 @@ export function App() {
     try {
       let status: PipelineStatusResponse;
       const jobType = jobs[jobId]?.status?.job_type ?? null;
-      if (jobType === 'pipeline') {
+      if (jobType === 'pipeline' || jobType === 'book') {
         try {
           status = await refreshPipelineMetadata(jobId);
         } catch (refreshError) {
@@ -836,6 +841,24 @@ export function App() {
     },
     []
   );
+
+  const handleBackToLibraryFromPlayer = useCallback(
+    (payload: { jobId: string; itemType: 'book' | 'video' | 'narrated_subtitle' | null }) => {
+      const jobId = payload.jobId;
+      if (!jobId) {
+        return;
+      }
+      const itemType = payload.itemType ?? 'book';
+      setLibraryFocusRequest({ jobId, itemType, token: Date.now() });
+      setSelectedView(LIBRARY_VIEW);
+      setIsImmersiveMode(false);
+    },
+    []
+  );
+
+  const handleConsumeLibraryFocusRequest = useCallback(() => {
+    setLibraryFocusRequest(null);
+  }, []);
 
   const handleSelectSidebarJob = useCallback(
     (jobId: string) => {
@@ -1292,7 +1315,11 @@ export function App() {
 	              <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
 	            </section>
 	          ) : isLibraryView ? (
-	            <LibraryPage onPlay={handlePlayLibraryItem} />
+	            <LibraryPage
+                onPlay={handlePlayLibraryItem}
+                focusRequest={libraryFocusRequest}
+                onConsumeFocusRequest={handleConsumeLibraryFocusRequest}
+              />
 	          ) : isCreateBookView ? (
             <section>
               <CreateBookPage
@@ -1386,6 +1413,7 @@ export function App() {
                     onVideoPlaybackStateChange={handleVideoPlaybackStateChange}
                     onFullscreenChange={handlePlayerFullscreenChange}
                     onOpenLibraryItem={handlePlayLibraryItem}
+                    onBackToLibrary={handleBackToLibraryFromPlayer}
                     selectionRequest={playerSelection}
                   />
                 </div>

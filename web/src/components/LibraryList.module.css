@@ -15,6 +15,21 @@
   );
 }
 
+.listContainer[data-layout='books'] {
+  --library-list-row-height: 4.6rem;
+  --library-list-visible-rows: 5;
+}
+
+.listContainer[data-layout='subtitles'] {
+  --library-list-row-height: 5.3rem;
+  --library-list-visible-rows: 5;
+}
+
+.listContainer[data-layout='videos'] {
+  --library-list-row-height: 5.2rem;
+  --library-list-visible-rows: 5;
+}
+
 .listContainerEmbedded {
   background: transparent;
   border: none;
@@ -56,9 +71,29 @@
   height: var(--library-list-row-height);
 }
 
+.bookTable tbody tr {
+  height: auto;
+}
+
+.subtitleTable tbody tr {
+  height: auto;
+}
+
+.videoTable tbody tr {
+  height: auto;
+}
+
 .table tbody td {
   padding: 0.6rem 0.75rem;
   vertical-align: middle;
+}
+
+.bookTable tbody td {
+  vertical-align: top;
+}
+
+.subtitleTable tbody td {
+  vertical-align: top;
 }
 
 .cellTitle,
@@ -100,12 +135,20 @@
 .statusBadge {
   display: inline-flex;
   align-items: center;
+  gap: 0.35rem;
   padding: 0.15rem 0.6rem;
   border-radius: 999px;
   font-size: 0.75rem;
   text-transform: capitalize;
   background: var(--color-sidebar-link-active-bg, #eef4ff);
   color: var(--color-sidebar-link-active-text, #1d4ed8);
+}
+
+.statusIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .statusBadge[data-variant='ready'] {
@@ -121,7 +164,413 @@
 .actions {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.4rem;
+  gap: 0.25rem;
+}
+
+.mediaOpenButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mediaOpenButton:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.actionIconButton {
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 0.55rem;
+  border: 1px solid var(--color-button-secondary-border, #d0d5dd);
+  background: var(--color-button-secondary-bg, #ffffff);
+  color: var(--color-button-secondary-text, #1f2937);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.actionIconButton:hover {
+  background: var(--color-button-secondary-hover-bg, #f3f4f6);
+  border-color: var(--color-button-secondary-hover-border, #cbd5f5);
+}
+
+.actionIconButton[data-variant='danger'] {
+  color: var(--color-status-error-text, #b42318);
+}
+
+.actionIconButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.cellBook {
+  max-width: 34rem;
+  min-width: 22rem;
+}
+
+.bookCell {
+  display: grid;
+  grid-template-columns: 2.6rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.bookCover,
+.bookCoverPlaceholder {
+  width: 2.6rem;
+  height: 3.6rem;
+  border-radius: 0.35rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-alt, #f9fafb);
+  flex-shrink: 0;
+}
+
+.bookCover {
+  object-fit: cover;
+}
+
+.bookCoverPlaceholder {
+  display: block;
+}
+
+.bookText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.bookTitleRow {
+  font-weight: 600;
+  color: var(--color-text-primary, #101828);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bookMetaRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+  color: var(--color-text-muted, #475467);
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.bookAuthor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 18rem;
+}
+
+.genrePill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-bg, #ffffff);
+  color: var(--color-text-muted, #475467);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.pillMeta {
+  padding: 0.12rem 0.45rem;
+  font-size: 0.75rem;
+  gap: 0.25rem;
+}
+
+.pillSource {
+  background: rgba(16, 185, 129, 0.14);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+}
+
+.pillMuted {
+  background: rgba(148, 163, 184, 0.18);
+  color: var(--color-text-muted, #475467);
+}
+
+.pillDub {
+  background: rgba(59, 130, 246, 0.12);
+  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.35);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-weight: 700;
+}
+
+.bookSummary {
+  color: var(--color-text-muted, #475467);
+  font-size: 0.78rem;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 30rem;
+}
+
+.cellSubtitle {
+  max-width: 40rem;
+  min-width: 24rem;
+}
+
+.cellVideo {
+  max-width: 42rem;
+  min-width: 26rem;
+}
+
+.subtitleCell {
+  display: grid;
+  grid-template-columns: 4.4rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.subtitleArt {
+  position: relative;
+  width: 4.4rem;
+  height: 2.5rem;
+}
+
+.subtitleEpisodeImage,
+.subtitleEpisodePlaceholder {
+  width: 4.4rem;
+  height: 2.5rem;
+  border-radius: 0.45rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-alt, #f9fafb);
+}
+
+.subtitleEpisodeImage {
+  object-fit: cover;
+}
+
+.subtitleEpisodePlaceholder {
+  display: block;
+}
+
+.subtitleShowImage {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  width: 1.55rem;
+  height: 2.2rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-bg, #ffffff);
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.18);
+}
+
+.subtitleText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.subtitleShowRow {
+  font-weight: 650;
+  color: var(--color-text-primary, #101828);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtitleEpisodeRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: baseline;
+  color: var(--color-text-muted, #475467);
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.subtitleEpisodeCode {
+  font-weight: 650;
+  color: var(--color-text-primary, #101828);
+}
+
+.subtitleEpisodeTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 18rem;
+}
+
+.subtitleAirdate {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.subtitleGenres {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.subtitleSummary {
+  color: var(--color-text-muted, #475467);
+  font-size: 0.78rem;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 34rem;
+}
+
+.videoCell {
+  display: grid;
+  grid-template-columns: 5.4rem 1fr;
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.videoArt {
+  position: relative;
+  width: 5.4rem;
+  height: 3.05rem;
+}
+
+.videoThumbnail,
+.videoThumbnailPlaceholder {
+  width: 5.4rem;
+  height: 3.05rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-alt, #f9fafb);
+}
+
+.videoThumbnail {
+  object-fit: cover;
+}
+
+.videoThumbnailPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted, #475467);
+  font-size: 1.15rem;
+}
+
+.videoShowImage {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  width: 1.55rem;
+  height: 2.2rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-bg, #ffffff);
+  object-fit: cover;
+  box-shadow: 0 4px 10px rgba(16, 24, 40, 0.18);
+}
+
+.videoText {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.videoTitleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.videoTitleText {
+  font-weight: 650;
+  color: var(--color-text-primary, #101828);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.videoTitleMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.videoMetaRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: baseline;
+  color: var(--color-text-muted, #475467);
+  font-size: 0.82rem;
+  line-height: 1.1;
+}
+
+.videoEpisodeCode {
+  font-weight: 650;
+  color: var(--color-text-primary, #101828);
+}
+
+.videoEpisodeTitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 18rem;
+}
+
+.videoAirdate {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.videoGenres {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.videoSummary {
+  color: var(--color-text-muted, #475467);
+  font-size: 0.78rem;
+  line-height: 1.15;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  max-width: 34rem;
 }
 
 .actionButton {

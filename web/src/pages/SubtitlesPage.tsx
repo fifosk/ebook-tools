@@ -950,17 +950,8 @@ export default function SubtitlesPage({
             className={`${styles.tabButton} ${activeTab === 'subtitles' ? styles.tabButtonActive : ''}`}
             onClick={() => setActiveTab('subtitles')}
           >
-            <span>Subtitles</span>
+            <span>Source</span>
             <span className={styles.sectionCount}>{sources.length}</span>
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={activeTab === 'options'}
-            className={`${styles.tabButton} ${activeTab === 'options' ? styles.tabButtonActive : ''}`}
-            onClick={() => setActiveTab('options')}
-          >
-            Options
           </button>
           <button
             type="button"
@@ -970,6 +961,15 @@ export default function SubtitlesPage({
             onClick={() => setActiveTab('metadata')}
           >
             Metadata
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'options'}
+            className={`${styles.tabButton} ${activeTab === 'options' ? styles.tabButtonActive : ''}`}
+            onClick={() => setActiveTab('options')}
+          >
+            Options
           </button>
           <button
             type="button"

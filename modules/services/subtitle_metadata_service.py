@@ -262,7 +262,14 @@ def _extract_existing_media_metadata(job: PipelineJob) -> Optional[Mapping[str, 
 def _resolve_source_name(job: PipelineJob) -> Optional[str]:
     request_payload = job.request_payload
     if isinstance(request_payload, Mapping):
-        for key in ("original_name", "source_file", "source_path", "submitted_source"):
+        for key in (
+            "original_name",
+            "source_file",
+            "source_path",
+            "submitted_source",
+            "subtitle_path",
+            "video_path",
+        ):
             candidate = request_payload.get(key)
             if isinstance(candidate, str) and candidate.strip():
                 return _basename(candidate.strip())
@@ -299,8 +306,8 @@ class SubtitleMetadataService:
         user_role: Optional[str] = None,
     ) -> Dict[str, Any]:
         job = self._job_manager.get(job_id, user_id=user_id, user_role=user_role)
-        if job.job_type != "subtitle":
-            raise KeyError("Subtitle job not found")
+        if job.job_type not in {"subtitle", "youtube_dub"}:
+            raise KeyError("Job not found")
 
         source_name = _resolve_source_name(job)
         parsed = parse_tv_episode_query(source_name or "") if source_name else None
@@ -347,8 +354,8 @@ class SubtitleMetadataService:
         user_role: Optional[str] = None,
     ) -> Dict[str, Any]:
         job = self._job_manager.get(job_id, user_id=user_id, user_role=user_role)
-        if job.job_type != "subtitle":
-            raise KeyError("Subtitle job not found")
+        if job.job_type not in {"subtitle", "youtube_dub"}:
+            raise KeyError("Job not found")
 
         existing = _extract_existing_media_metadata(job)
         if existing is not None and not force:
@@ -503,24 +510,53 @@ class SubtitleMetadataService:
     ) -> None:
         def _mutate(job: PipelineJob) -> None:
             request_payload = dict(job.request_payload) if isinstance(job.request_payload, Mapping) else {}
-            request_payload["media_metadata"] = dict(payload)
+            existing_media = request_payload.get("media_metadata")
+            existing_youtube = None
+            if isinstance(existing_media, Mapping):
+                existing_youtube = existing_media.get("youtube")
+
+            merged_payload = dict(payload)
+            if existing_youtube is not None and "youtube" not in merged_payload:
+                merged_payload["youtube"] = (
+                    dict(existing_youtube) if isinstance(existing_youtube, Mapping) else existing_youtube
+                )
+
+            request_payload["media_metadata"] = merged_payload
             job.request_payload = request_payload
 
             if isinstance(job.result_payload, Mapping):
                 result_payload = dict(job.result_payload)
-                subtitle_section = result_payload.get("subtitle")
-                if not isinstance(subtitle_section, Mapping):
-                    subtitle_section = {}
-                subtitle_section = dict(subtitle_section)
-                metadata = subtitle_section.get("metadata")
-                if not isinstance(metadata, Mapping):
-                    metadata = {}
-                metadata = dict(metadata)
-                metadata["media_metadata"] = dict(payload)
-                if isinstance(payload.get("job_label"), str) and payload.get("job_label"):
-                    metadata["job_label"] = str(payload["job_label"])
-                subtitle_section["metadata"] = metadata
-                result_payload["subtitle"] = subtitle_section
+                if job.job_type == "subtitle":
+                    subtitle_section = result_payload.get("subtitle")
+                    if not isinstance(subtitle_section, Mapping):
+                        subtitle_section = {}
+                    subtitle_section = dict(subtitle_section)
+                    metadata = subtitle_section.get("metadata")
+                    if not isinstance(metadata, Mapping):
+                        metadata = {}
+                    metadata = dict(metadata)
+                    metadata["media_metadata"] = dict(merged_payload)
+                    if isinstance(payload.get("job_label"), str) and payload.get("job_label"):
+                        metadata["job_label"] = str(payload["job_label"])
+                    subtitle_section["metadata"] = metadata
+                    result_payload["subtitle"] = subtitle_section
+                elif job.job_type == "youtube_dub":
+                    dub_section = result_payload.get("youtube_dub")
+                    if isinstance(dub_section, Mapping):
+                        dub_payload = dict(dub_section)
+                        existing_dub_media = dub_payload.get("media_metadata")
+                        existing_dub_youtube = None
+                        if isinstance(existing_dub_media, Mapping):
+                            existing_dub_youtube = existing_dub_media.get("youtube")
+                        merged_dub_media = dict(payload)
+                        if existing_dub_youtube is not None and "youtube" not in merged_dub_media:
+                            merged_dub_media["youtube"] = (
+                                dict(existing_dub_youtube)
+                                if isinstance(existing_dub_youtube, Mapping)
+                                else existing_dub_youtube
+                            )
+                        dub_payload["media_metadata"] = merged_dub_media
+                        result_payload["youtube_dub"] = dub_payload
 
                 book_metadata = result_payload.get("book_metadata")
                 if isinstance(book_metadata, Mapping):

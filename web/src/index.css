@@ -3601,6 +3601,10 @@ button.link-button:focus {
   min-height: 0;
 }
 
+.player-panel__interactive-body[data-has-badge='true'] {
+  padding-top: 3.25rem;
+}
+
 .player-panel__my-linguist-dock {
   display: flex;
   justify-content: center;
@@ -3887,6 +3891,23 @@ button.link-button:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 12rem;
+}
+
+.player-panel__interactive-book-badge-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.player-panel__interactive-book-badge-meta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 16rem;
 }
 
 .player-panel__interactive-slide-indicator {

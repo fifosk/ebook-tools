@@ -25,6 +25,8 @@ interface YoutubeDubPlayerProps {
   onFullscreenChange?: (isFullscreen: boolean) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
+  showBackToLibrary?: boolean;
+  onBackToLibrary?: () => void;
 }
 
 export default function YoutubeDubPlayer({
@@ -36,6 +38,8 @@ export default function YoutubeDubPlayer({
   onFullscreenChange,
   onPlaybackStateChange,
   onVideoPlaybackStateChange,
+  showBackToLibrary = false,
+  onBackToLibrary,
 }: YoutubeDubPlayerProps) {
   const videoLookup = useMemo(() => {
     const map = new Map<string, LiveMediaItem>();
@@ -740,6 +744,8 @@ export default function YoutubeDubPlayer({
                   subtitleBackgroundOpacityMax={100}
                   subtitleBackgroundOpacityStep={10}
                   onSubtitleBackgroundOpacityChange={handleSubtitleBackgroundOpacityChange}
+                  showBackToLibrary={showBackToLibrary}
+                  onBackToLibrary={onBackToLibrary}
                 />
               </div>
             </header>

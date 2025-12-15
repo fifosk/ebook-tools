@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -13,6 +14,14 @@ from modules.library.sync import metadata as metadata_utils
 from .library_models import LibraryEntry, MetadataSnapshot
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent / "migrations"
+UUID_PATTERN = re.compile(
+    r"^[0-9a-fA-F]{8}-"
+    r"[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{4}-"
+    r"[0-9a-fA-F]{12}$"
+)
+FTS_TOKEN_PATTERN = re.compile(r"[\w]+(?:\*)?", flags=re.UNICODE)
 
 
 class LibraryRepositoryError(RuntimeError):
@@ -273,13 +282,18 @@ class LibraryRepository:
         where_clauses: List[str] = []
         params: Dict[str, Any] = {}
 
-        normalized_query = _build_fts_query(query or "")
-        if normalized_query:
-            joins.append(
-                "JOIN library_items_fts ON library_items.rowid = library_items_fts.rowid"
-            )
-            params["fts_query"] = normalized_query
-            where_clauses.append("library_items_fts MATCH :fts_query")
+        trimmed_query = (query or "").strip()
+        if trimmed_query and UUID_PATTERN.match(trimmed_query):
+            params["exact_id"] = trimmed_query
+            where_clauses.append("library_items.id = :exact_id")
+        else:
+            normalized_query = _build_fts_query(trimmed_query)
+            if normalized_query:
+                joins.append(
+                    "JOIN library_items_fts ON library_items.rowid = library_items_fts.rowid"
+                )
+                params["fts_query"] = normalized_query
+                where_clauses.append("library_items_fts MATCH :fts_query")
 
         for field in ("author", "book_title", "genre", "language", "status", "item_type"):
             value = filters.get(field)
@@ -441,13 +455,17 @@ def _build_fts_query(raw: str) -> str:
     tokens = [token.strip() for token in raw.split() if token.strip()]
     if not tokens:
         return ""
-    normalized = []
+    normalized: list[str] = []
     for token in tokens:
-        if token.endswith("*"):
-            normalized.append(token)
-        else:
-            normalized.append(f"{token}*")
-    return " ".join(normalized)
+        candidates = FTS_TOKEN_PATTERN.findall(token)
+        for candidate in candidates:
+            if not candidate:
+                continue
+            if candidate.endswith("*"):
+                normalized.append(candidate)
+            else:
+                normalized.append(f"{candidate}*")
+    return " ".join(normalized).strip()
 
 
 __all__ = ["LibraryRepository", "LibraryRepositoryError"]

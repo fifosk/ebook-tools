@@ -66,6 +66,8 @@ interface PlayerPanelProps {
   origin?: 'job' | 'library';
   onOpenLibraryItem?: (item: LibraryOpenInput) => void;
   selectionRequest?: MediaSelectionRequest | null;
+  showBackToLibrary?: boolean;
+  onBackToLibrary?: () => void;
 }
 
 interface TabDefinition {
@@ -82,6 +84,8 @@ const DEFAULT_COVER_URL = '/assets/default-cover.png';
 const FONT_SCALE_STORAGE_KEY = 'player-panel.fontScalePercent';
 const INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY = 'player-panel.interactiveText.visibility';
 const INTERACTIVE_TEXT_THEME_STORAGE_KEY = 'player-panel.interactiveText.theme';
+const INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY = 'player-panel.interactiveText.backgroundOpacityPercent';
+const DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT = 65;
 const FONT_SCALE_MIN = 100;
 const FONT_SCALE_MAX = 300;
 const FONT_SCALE_STEP = 5;
@@ -173,7 +177,16 @@ interface NavigationControlsProps {
   showInteractiveThemeControls?: boolean;
   interactiveTheme?: InteractiveTextTheme | null;
   onInteractiveThemeChange?: (next: InteractiveTextTheme) => void;
+  showInteractiveBackgroundOpacity?: boolean;
+  interactiveBackgroundOpacityPercent?: number;
+  interactiveBackgroundOpacityMin?: number;
+  interactiveBackgroundOpacityMax?: number;
+  interactiveBackgroundOpacityStep?: number;
+  onInteractiveBackgroundOpacityChange?: (value: number) => void;
   onResetLayout?: () => void;
+
+  showBackToLibrary?: boolean;
+  onBackToLibrary?: () => void;
 }
 
 export function NavigationControls({
@@ -253,7 +266,15 @@ export function NavigationControls({
   showInteractiveThemeControls = false,
   interactiveTheme = null,
   onInteractiveThemeChange,
+  showInteractiveBackgroundOpacity = false,
+  interactiveBackgroundOpacityPercent = DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT,
+  interactiveBackgroundOpacityMin = 0,
+  interactiveBackgroundOpacityMax = 100,
+  interactiveBackgroundOpacityStep = 5,
+  onInteractiveBackgroundOpacityChange,
   onResetLayout,
+  showBackToLibrary = false,
+  onBackToLibrary,
 }: NavigationControlsProps) {
   const groupClassName = [
     context === 'fullscreen'
@@ -280,6 +301,7 @@ export function NavigationControls({
   const sliderId = useId();
   const subtitleSliderId = useId();
   const subtitleBackgroundSliderId = useId();
+  const interactiveBackgroundSliderId = useId();
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
   const fontScaleSliderId = useId();
@@ -301,13 +323,18 @@ export function NavigationControls({
   const formattedSubtitleBackgroundOpacity = `${Math.round(
     Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax),
   )}%`;
+  const formattedInteractiveBackgroundOpacity = `${Math.round(
+    Math.min(Math.max(interactiveBackgroundOpacityPercent, interactiveBackgroundOpacityMin), interactiveBackgroundOpacityMax),
+  )}%`;
   const shouldShowCompactControls =
     controlsLayout === 'compact' &&
     (showTranslationSpeed ||
       showSubtitleScale ||
       showSubtitleBackgroundOpacity ||
       showFontScale ||
-      showMyLinguistFontScale);
+      showMyLinguistFontScale ||
+      showInteractiveBackgroundOpacity ||
+      showInteractiveThemeControls);
   const resolvedCueVisibility =
     cueVisibility ??
     ({
@@ -537,6 +564,18 @@ export function NavigationControls({
               {sentenceNowPlaying.label}
             </span>
           ) : null}
+          {showBackToLibrary ? (
+            <button
+              type="button"
+              className="player-panel__nav-button"
+              onClick={onBackToLibrary}
+              aria-label="Back to library"
+              title="Back to Library"
+              disabled={!onBackToLibrary}
+            >
+              <span aria-hidden="true">📚</span>
+            </button>
+          ) : null}
           <button
             type="button"
             className={fullscreenButtonClassName.join(' ')}
@@ -717,6 +756,28 @@ export function NavigationControls({
               />
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedSubtitleBackgroundOpacity}
+              </span>
+            </div>
+          ) : null}
+          {showInteractiveBackgroundOpacity ? (
+            <div className="player-panel__control" data-testid="player-panel-interactive-background">
+              <label className="player-panel__control-label" htmlFor={interactiveBackgroundSliderId}>
+                BG
+              </label>
+              <input
+                id={interactiveBackgroundSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={interactiveBackgroundOpacityMin}
+                max={interactiveBackgroundOpacityMax}
+                step={interactiveBackgroundOpacityStep}
+                value={interactiveBackgroundOpacityPercent}
+                onChange={(event) => onInteractiveBackgroundOpacityChange?.(Number(event.target.value))}
+                aria-label="Interactive reader background opacity"
+                aria-valuetext={formattedInteractiveBackgroundOpacity}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedInteractiveBackgroundOpacity}
               </span>
             </div>
           ) : null}
@@ -1545,6 +1606,8 @@ export default function PlayerPanel({
   origin = 'job',
   onOpenLibraryItem,
   selectionRequest = null,
+  showBackToLibrary = false,
+  onBackToLibrary,
 }: PlayerPanelProps) {
   const { baseFontScalePercent, setBaseFontScalePercent, toggle: toggleMyLinguist } = useMyLinguist();
   const interactiveViewerAvailable = chunks.length > 0;
@@ -1698,6 +1761,16 @@ const scheduleChunkMetadataAppend = useCallback(
   const [interactiveTextTheme, setInteractiveTextTheme] = useState<InteractiveTextTheme>(() =>
     loadInteractiveTextTheme(INTERACTIVE_TEXT_THEME_STORAGE_KEY),
   );
+  const [interactiveBackgroundOpacityPercent, setInteractiveBackgroundOpacityPercent] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT;
+    }
+    const raw = Number.parseFloat(window.localStorage.getItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY) ?? '');
+    if (!Number.isFinite(raw)) {
+      return DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT;
+    }
+    return Math.round(Math.min(Math.max(raw, 0), 100));
+  });
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
@@ -4074,15 +4147,25 @@ const scheduleChunkMetadataAppend = useCallback(
     window.localStorage.setItem(INTERACTIVE_TEXT_THEME_STORAGE_KEY, JSON.stringify(interactiveTextTheme));
   }, [interactiveTextTheme]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY, String(interactiveBackgroundOpacityPercent));
+  }, [interactiveBackgroundOpacityPercent]);
+
   const handleResetInteractiveLayout = useCallback(() => {
     setTranslationSpeed(DEFAULT_TRANSLATION_SPEED);
     setFontScalePercent(100);
     setBaseFontScalePercent(100);
     setInteractiveTextTheme(DEFAULT_INTERACTIVE_TEXT_THEME);
+    setInteractiveBackgroundOpacityPercent(DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT);
   }, [setBaseFontScalePercent]);
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
+  const bookYear = extractMetadataText(bookMetadata, ['book_year', 'year', 'publication_year', 'published_year', 'first_publish_year']);
+  const bookGenre = extractMetadataFirstString(bookMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
   const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
   const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
   const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
@@ -4124,6 +4207,8 @@ const scheduleChunkMetadataAppend = useCallback(
     setInteractiveTextVisibility((current) => ({ ...current, [key]: !current[key] }));
   }, []);
 
+  const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
+
   const navigationGroup = (
     <NavigationControls
       context="panel"
@@ -4140,6 +4225,8 @@ const scheduleChunkMetadataAppend = useCallback(
       isFullscreen={isInteractiveFullscreen}
       isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
+      showBackToLibrary={shouldShowBackToLibrary}
+      onBackToLibrary={onBackToLibrary}
       showOriginalAudioToggle={canToggleOriginalAudio}
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
@@ -4179,6 +4266,14 @@ const scheduleChunkMetadataAppend = useCallback(
       showInteractiveThemeControls
       interactiveTheme={interactiveTextTheme}
       onInteractiveThemeChange={setInteractiveTextTheme}
+      showInteractiveBackgroundOpacity
+      interactiveBackgroundOpacityPercent={interactiveBackgroundOpacityPercent}
+      interactiveBackgroundOpacityMin={0}
+      interactiveBackgroundOpacityMax={100}
+      interactiveBackgroundOpacityStep={5}
+      onInteractiveBackgroundOpacityChange={(value) =>
+        setInteractiveBackgroundOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
+      }
       onResetLayout={handleResetInteractiveLayout}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
@@ -4202,6 +4297,8 @@ const scheduleChunkMetadataAppend = useCallback(
       isFullscreen={isInteractiveFullscreen}
       isPlaying={isActiveMediaPlaying}
       fullscreenLabel={interactiveFullscreenLabel}
+      showBackToLibrary={shouldShowBackToLibrary}
+      onBackToLibrary={onBackToLibrary}
       showOriginalAudioToggle={canToggleOriginalAudio}
       onToggleOriginalAudio={handleOriginalAudioToggle}
       originalAudioEnabled={effectiveOriginalAudioEnabled}
@@ -4241,6 +4338,14 @@ const scheduleChunkMetadataAppend = useCallback(
       showInteractiveThemeControls
       interactiveTheme={interactiveTextTheme}
       onInteractiveThemeChange={setInteractiveTextTheme}
+      showInteractiveBackgroundOpacity
+      interactiveBackgroundOpacityPercent={interactiveBackgroundOpacityPercent}
+      interactiveBackgroundOpacityMin={0}
+      interactiveBackgroundOpacityMax={100}
+      interactiveBackgroundOpacityStep={5}
+      onInteractiveBackgroundOpacityChange={(value) =>
+        setInteractiveBackgroundOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
+      }
       onResetLayout={handleResetInteractiveLayout}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
@@ -4341,7 +4446,11 @@ const scheduleChunkMetadataAppend = useCallback(
                             originalAudioEnabled={effectiveOriginalAudioEnabled}
                             fontScale={interactiveFontScale}
                             theme={interactiveTextTheme}
+                            backgroundOpacityPercent={interactiveBackgroundOpacityPercent}
                             bookTitle={bookTitle ?? headingLabel}
+                            bookAuthor={bookAuthor}
+                            bookYear={bookYear}
+                            bookGenre={bookGenre}
                             bookCoverUrl={shouldShowCoverImage ? displayCoverUrl : null}
                             bookCoverAltText={coverAltText}
                           />

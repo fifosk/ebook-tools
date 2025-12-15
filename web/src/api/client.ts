@@ -39,6 +39,10 @@ import {
   SubtitleTvMetadataPreviewLookupRequest,
   SubtitleTvMetadataPreviewResponse,
   SubtitleTvMetadataResponse,
+  YoutubeVideoMetadataLookupRequest,
+  YoutubeVideoMetadataPreviewLookupRequest,
+  YoutubeVideoMetadataPreviewResponse,
+  YoutubeVideoMetadataResponse,
   BookOpenLibraryMetadataLookupRequest,
   BookOpenLibraryMetadataPreviewLookupRequest,
   BookOpenLibraryMetadataPreviewResponse,
@@ -254,6 +258,34 @@ export async function lookupSubtitleTvMetadataPreview(
     body: JSON.stringify({ source_name: payload.source_name, force: Boolean(payload.force) })
   });
   return handleResponse<SubtitleTvMetadataPreviewResponse>(response);
+}
+
+export async function fetchYoutubeVideoMetadata(jobId: string): Promise<YoutubeVideoMetadataResponse> {
+  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/youtube`);
+  return handleResponse<YoutubeVideoMetadataResponse>(response);
+}
+
+export async function lookupYoutubeVideoMetadata(
+  jobId: string,
+  payload: YoutubeVideoMetadataLookupRequest = {}
+): Promise<YoutubeVideoMetadataResponse> {
+  const response = await apiFetch(`/api/subtitles/jobs/${encodeURIComponent(jobId)}/metadata/youtube/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: Boolean(payload.force) })
+  });
+  return handleResponse<YoutubeVideoMetadataResponse>(response);
+}
+
+export async function lookupYoutubeVideoMetadataPreview(
+  payload: YoutubeVideoMetadataPreviewLookupRequest
+): Promise<YoutubeVideoMetadataPreviewResponse> {
+  const response = await apiFetch('/api/subtitles/metadata/youtube/lookup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ source_name: payload.source_name, force: Boolean(payload.force) })
+  });
+  return handleResponse<YoutubeVideoMetadataPreviewResponse>(response);
 }
 
 export async function fetchBookOpenLibraryMetadata(jobId: string): Promise<BookOpenLibraryMetadataResponse> {

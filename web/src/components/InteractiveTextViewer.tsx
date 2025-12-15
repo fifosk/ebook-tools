@@ -827,6 +827,10 @@ interface InteractiveTextViewerProps {
   fontScale?: number;
   theme?: InteractiveTextTheme | null;
   bookTitle?: string | null;
+  bookAuthor?: string | null;
+  bookYear?: string | null;
+  bookGenre?: string | null;
+  backgroundOpacityPercent?: number;
   bookCoverUrl?: string | null;
   bookCoverAltText?: string | null;
 }
@@ -1054,6 +1058,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     fontScale = 1,
     theme = null,
     bookTitle = null,
+    bookAuthor = null,
+    bookYear = null,
+    bookGenre = null,
+    backgroundOpacityPercent = 65,
     bookCoverUrl = null,
     bookCoverAltText = null,
     onActiveSentenceChange,
@@ -1098,6 +1106,19 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     [translationSpeed],
   );
   const safeBookTitle = typeof bookTitle === 'string' ? bookTitle.trim() : '';
+  const safeBookMeta = useMemo(() => {
+    const parts: string[] = [];
+    if (typeof bookAuthor === 'string' && bookAuthor.trim()) {
+      parts.push(bookAuthor.trim());
+    }
+    if (typeof bookYear === 'string' && bookYear.trim()) {
+      parts.push(bookYear.trim());
+    }
+    if (typeof bookGenre === 'string' && bookGenre.trim()) {
+      parts.push(bookGenre.trim());
+    }
+    return parts.join(' · ');
+  }, [bookAuthor, bookGenre, bookYear]);
   const safeFontScale = useMemo(() => {
     if (!Number.isFinite(fontScale) || fontScale <= 0) {
       return 1;
@@ -1127,6 +1148,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   } | null>(null);
   const linguistBubblePositionRafRef = useRef<number | null>(null);
   const formatRem = useCallback((value: number) => `${Math.round(value * 1000) / 1000}rem`, []);
+  const safeBackgroundOpacity = useMemo(() => {
+    const raw = Number(backgroundOpacityPercent);
+    if (!Number.isFinite(raw)) {
+      return 100;
+    }
+    return Math.round(Math.min(Math.max(raw, 0), 100));
+  }, [backgroundOpacityPercent]);
   const bodyStyle = useMemo<CSSProperties>(() => {
     const baseSentenceFont = (isFullscreen ? 1.32 : 1.08) * safeFontScale;
     const activeSentenceFont = (isFullscreen ? 1.56 : 1.28) * safeFontScale;
@@ -1137,7 +1165,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     };
 
     if (theme) {
-      style['--interactive-bg'] = theme.background;
+      const alpha = safeBackgroundOpacity / 100;
+      const resolvedBackground = rgbaFromHex(theme.background, alpha) ?? theme.background;
+      style['--interactive-bg'] = resolvedBackground;
       style['--interactive-color-original'] = theme.original;
       style['--interactive-color-original-active'] = theme.originalActive;
       style['--interactive-color-translation'] = theme.translation;
@@ -1170,7 +1200,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         style['--interactive-highlight-outline'] = highlightOutline;
       }
 
-      style['--tp-bg'] = theme.background;
+      style['--tp-bg'] = resolvedBackground;
       style['--tp-original'] = theme.original;
       style['--tp-translit'] = theme.transliteration;
       style['--tp-translation'] = theme.translation;
@@ -1178,13 +1208,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
 
     return style as CSSProperties;
-  }, [formatRem, isFullscreen, safeFontScale, theme]);
+  }, [formatRem, isFullscreen, safeBackgroundOpacity, safeFontScale, theme]);
   const [viewportCoverFailed, setViewportCoverFailed] = useState(false);
   useEffect(() => {
     setViewportCoverFailed(false);
   }, [bookCoverUrl]);
   const resolvedBookCoverUrl = viewportCoverFailed ? null : bookCoverUrl;
-  const showBookBadge = Boolean(safeBookTitle || resolvedBookCoverUrl);
+  const showBookBadge = Boolean(safeBookTitle || safeBookMeta || resolvedBookCoverUrl);
   const bookBadgeAltText =
     bookCoverAltText ?? (safeBookTitle ? `Cover of ${safeBookTitle}` : 'Book cover preview');
   const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -4505,6 +4535,7 @@ const handleAudioSeeked = useCallback(() => {
         <div
           ref={containerRef}
           className="player-panel__interactive-body"
+          data-has-badge={showBookBadge ? 'true' : undefined}
           data-testid="player-panel-document"
           onScroll={handleScroll}
           onClickCapture={handleLinguistTokenClickCapture}
@@ -4524,9 +4555,14 @@ const handleAudioSeeked = useCallback(() => {
                   loading="lazy"
                 />
               ) : null}
-              {safeBookTitle ? (
-                <span className="player-panel__interactive-book-badge-title">{safeBookTitle}</span>
-              ) : null}
+              <div className="player-panel__interactive-book-badge-text">
+                {safeBookTitle ? (
+                  <span className="player-panel__interactive-book-badge-title">{safeBookTitle}</span>
+                ) : null}
+                {safeBookMeta ? (
+                  <span className="player-panel__interactive-book-badge-meta">{safeBookMeta}</span>
+                ) : null}
+              </div>
             </div>
           ) : null}
           {slideIndicator ? (
