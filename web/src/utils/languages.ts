@@ -2,6 +2,7 @@ import { TOP_LANGUAGES } from '../constants/menuOptions';
 import {
   DEFAULT_LANGUAGE_FLAG,
   LANGUAGE_CODES,
+  resolveLanguageCode as resolveCanonicalLanguageCode,
   resolveLanguageFlag,
   resolveLanguageName
 } from '../constants/languageCodes';
@@ -36,13 +37,17 @@ export function resolveLanguageCode(value?: string | null): string {
   if (!trimmed) {
     return '';
   }
+  const canonical = resolveCanonicalLanguageCode(trimmed);
+  if (canonical) {
+    return canonical;
+  }
   for (const [name, code] of Object.entries(LANGUAGE_CODES)) {
     if (name.toLowerCase() === trimmed.toLowerCase()) {
       return code;
     }
   }
   if (looksLikeLanguageCode(trimmed)) {
-    return trimmed.toLowerCase();
+    return trimmed.replace(/_/g, '-');
   }
   return trimmed;
 }

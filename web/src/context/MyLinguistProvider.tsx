@@ -29,7 +29,7 @@ type Props = {
 };
 
 const BASE_FONT_SCALE_STORAGE_KEY = 'ebookTools.myLinguist.baseFontScalePercent';
-const BASE_FONT_SCALE_DEFAULT = 100;
+const BASE_FONT_SCALE_DEFAULT = 120;
 const BASE_FONT_SCALE_MIN = 80;
 const BASE_FONT_SCALE_MAX = 160;
 

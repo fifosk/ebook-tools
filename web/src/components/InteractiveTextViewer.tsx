@@ -42,6 +42,7 @@ import { useLanguagePreferences } from '../context/LanguageProvider';
 import { speakText } from '../utils/ttsPlayback';
 import { buildMyLinguistSystemPrompt } from '../utils/myLinguistPrompt';
 import type { InteractiveTextTheme } from '../types/interactiveTextTheme';
+import PlayerChannelBug from './PlayerChannelBug';
 
 type HighlightDebugWindow = Window & { __HL_DEBUG__?: { enabled?: boolean; overlay?: boolean } };
 
@@ -831,6 +832,15 @@ interface InteractiveTextViewerProps {
   bookYear?: string | null;
   bookGenre?: string | null;
   backgroundOpacityPercent?: number;
+  sentenceCardOpacityPercent?: number;
+  infoGlyph?: string | null;
+  infoGlyphLabel?: string | null;
+  infoTitle?: string | null;
+  infoMeta?: string | null;
+  infoCoverUrl?: string | null;
+  infoCoverSecondaryUrl?: string | null;
+  infoCoverAltText?: string | null;
+  infoCoverVariant?: 'book' | 'subtitles' | 'video' | 'youtube' | 'nas' | 'dub' | 'job' | null;
   bookCoverUrl?: string | null;
   bookCoverAltText?: string | null;
 }
@@ -1062,6 +1072,15 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     bookYear = null,
     bookGenre = null,
     backgroundOpacityPercent = 65,
+    sentenceCardOpacityPercent = 100,
+    infoGlyph = null,
+    infoGlyphLabel = null,
+    infoTitle = null,
+    infoMeta = null,
+    infoCoverUrl = null,
+    infoCoverSecondaryUrl = null,
+    infoCoverAltText = null,
+    infoCoverVariant = null,
     bookCoverUrl = null,
     bookCoverAltText = null,
     onActiveSentenceChange,
@@ -1119,6 +1138,20 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     return parts.join(' · ');
   }, [bookAuthor, bookGenre, bookYear]);
+  const safeInfoTitle = useMemo(() => {
+    const trimmed = typeof infoTitle === 'string' ? infoTitle.trim() : '';
+    if (trimmed) {
+      return trimmed;
+    }
+    return safeBookTitle;
+  }, [infoTitle, safeBookTitle]);
+  const safeInfoMeta = useMemo(() => {
+    const trimmed = typeof infoMeta === 'string' ? infoMeta.trim() : '';
+    if (trimmed) {
+      return trimmed;
+    }
+    return safeBookMeta;
+  }, [infoMeta, safeBookMeta]);
   const safeFontScale = useMemo(() => {
     if (!Number.isFinite(fontScale) || fontScale <= 0) {
       return 1;
@@ -1155,6 +1188,13 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     return Math.round(Math.min(Math.max(raw, 0), 100));
   }, [backgroundOpacityPercent]);
+  const safeSentenceCardOpacity = useMemo(() => {
+    const raw = Number(sentenceCardOpacityPercent);
+    if (!Number.isFinite(raw)) {
+      return 100;
+    }
+    return Math.round(Math.min(Math.max(raw, 0), 100));
+  }, [sentenceCardOpacityPercent]);
   const bodyStyle = useMemo<CSSProperties>(() => {
     const baseSentenceFont = (isFullscreen ? 1.32 : 1.08) * safeFontScale;
     const activeSentenceFont = (isFullscreen ? 1.56 : 1.28) * safeFontScale;
@@ -1205,18 +1245,102 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       style['--tp-translit'] = theme.transliteration;
       style['--tp-translation'] = theme.translation;
       style['--tp-progress'] = theme.highlight;
+
+      const cardScale = safeSentenceCardOpacity / 100;
+      const sentenceBg = rgbaFromHex(theme.highlight, 0.06 * cardScale);
+      const sentenceActiveBg = rgbaFromHex(theme.highlight, 0.16 * cardScale);
+      const sentenceShadowColor = rgbaFromHex(theme.highlight, 0.22 * cardScale);
+      if (sentenceBg) {
+        style['--tp-sentence-bg'] = sentenceBg;
+      }
+      if (sentenceActiveBg) {
+        style['--tp-sentence-active-bg'] = sentenceActiveBg;
+      }
+      if (sentenceShadowColor) {
+        style['--tp-sentence-active-shadow'] = `0 6px 26px ${sentenceShadowColor}`;
+      } else if (cardScale <= 0.01) {
+        style['--tp-sentence-active-shadow'] = 'none';
+      }
     }
 
     return style as CSSProperties;
-  }, [formatRem, isFullscreen, safeBackgroundOpacity, safeFontScale, theme]);
+  }, [formatRem, isFullscreen, safeBackgroundOpacity, safeFontScale, safeSentenceCardOpacity, theme]);
+  const safeInfoGlyph = useMemo(() => {
+    if (typeof infoGlyph !== 'string') {
+      return 'JOB';
+    }
+    const trimmed = infoGlyph.trim();
+    return trimmed ? trimmed : 'JOB';
+  }, [infoGlyph]);
+  const hasChannelBug = typeof infoGlyph === 'string' && infoGlyph.trim().length > 0;
+  const resolvedCoverUrlFromProps = useMemo(() => {
+    const primary = typeof infoCoverUrl === 'string' ? infoCoverUrl.trim() : '';
+    if (primary) {
+      return primary;
+    }
+    const legacy = typeof bookCoverUrl === 'string' ? bookCoverUrl.trim() : '';
+    return legacy || null;
+  }, [bookCoverUrl, infoCoverUrl]);
+  const resolvedSecondaryCoverUrlFromProps = useMemo(() => {
+    const secondary = typeof infoCoverSecondaryUrl === 'string' ? infoCoverSecondaryUrl.trim() : '';
+    return secondary || null;
+  }, [infoCoverSecondaryUrl]);
   const [viewportCoverFailed, setViewportCoverFailed] = useState(false);
+  const [viewportSecondaryCoverFailed, setViewportSecondaryCoverFailed] = useState(false);
   useEffect(() => {
     setViewportCoverFailed(false);
-  }, [bookCoverUrl]);
-  const resolvedBookCoverUrl = viewportCoverFailed ? null : bookCoverUrl;
-  const showBookBadge = Boolean(safeBookTitle || safeBookMeta || resolvedBookCoverUrl);
-  const bookBadgeAltText =
-    bookCoverAltText ?? (safeBookTitle ? `Cover of ${safeBookTitle}` : 'Book cover preview');
+  }, [resolvedCoverUrlFromProps]);
+  useEffect(() => {
+    setViewportSecondaryCoverFailed(false);
+  }, [resolvedSecondaryCoverUrlFromProps]);
+  const resolvedCoverUrl = viewportCoverFailed ? null : resolvedCoverUrlFromProps;
+  const resolvedSecondaryCoverUrl = viewportSecondaryCoverFailed ? null : resolvedSecondaryCoverUrlFromProps;
+  const showSecondaryCover =
+    Boolean(resolvedCoverUrl) && Boolean(resolvedSecondaryCoverUrl) && resolvedSecondaryCoverUrl !== resolvedCoverUrl;
+  const showCoverArt = Boolean(resolvedCoverUrl);
+  const showTextBadge = Boolean(safeInfoTitle || safeInfoMeta);
+  const showInfoHeader = hasChannelBug || showCoverArt || showTextBadge;
+
+  const resolvedInfoCoverVariant = useMemo(() => {
+    const candidate = typeof infoCoverVariant === 'string' ? infoCoverVariant.trim().toLowerCase() : '';
+    if (
+      candidate === 'book' ||
+      candidate === 'subtitles' ||
+      candidate === 'video' ||
+      candidate === 'youtube' ||
+      candidate === 'nas' ||
+      candidate === 'dub' ||
+      candidate === 'job'
+    ) {
+      return candidate;
+    }
+
+    const glyph = safeInfoGlyph.trim().toLowerCase();
+    if (glyph === 'bk' || glyph === 'book') {
+      return 'book';
+    }
+    if (glyph === 'sub' || glyph === 'subtitle' || glyph === 'subtitles' || glyph === 'cc') {
+      return 'subtitles';
+    }
+    if (glyph === 'yt' || glyph === 'youtube') {
+      return 'youtube';
+    }
+    if (glyph === 'nas') {
+      return 'nas';
+    }
+    if (glyph === 'dub') {
+      return 'dub';
+    }
+    if (glyph === 'tv' || glyph === 'vid' || glyph === 'video') {
+      return 'video';
+    }
+    return 'job';
+  }, [infoCoverVariant, safeInfoGlyph]);
+
+  const coverAltText =
+    (typeof infoCoverAltText === 'string' && infoCoverAltText.trim() ? infoCoverAltText.trim() : null) ??
+    (typeof bookCoverAltText === 'string' && bookCoverAltText.trim() ? bookCoverAltText.trim() : null) ??
+    (safeInfoTitle ? `Cover for ${safeInfoTitle}` : 'Cover');
   const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dictionaryPointerIdRef = useRef<number | null>(null);
   const dictionaryAwaitingResumeRef = useRef(false);
@@ -3804,22 +3928,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     };
   }, [isFullscreen, onRequestExitFullscreen, requestFullscreenIfNeeded]);
 
-  useEffect(() => {
-    if (!resolvedAudioUrl) {
-      return;
-    }
-    const element = audioRef.current;
-    if (!element) {
-      return;
-    }
-    const attempt = element.play();
-    if (attempt && typeof attempt.catch === 'function') {
-      attempt.catch(() => {
-        /* Ignore autoplay restrictions */
-      });
-    }
-  }, [resolvedAudioUrl]);
-
   const emitAudioProgress = useCallback(
     (position: number) => {
       if (!effectiveAudioUrl || !onAudioProgress) {
@@ -4337,7 +4445,6 @@ const handleAudioSeeked = useCallback(() => {
               id="main-audio"
               controls
               preload="metadata"
-              autoPlay
               onPlay={handleInlineAudioPlay}
               onPause={handleInlineAudioPause}
               onLoadedMetadata={handleLoadedMetadata}
@@ -4532,10 +4639,48 @@ const handleAudioSeeked = useCallback(() => {
         className="player-panel__document-body player-panel__interactive-frame"
         style={bodyStyle}
       >
+        {showInfoHeader ? (
+          <div className="player-panel__player-info-header" aria-hidden="true">
+            {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
+            {showCoverArt ? (
+              <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
+                <img
+                  className="player-panel__player-info-art-main"
+                  src={resolvedCoverUrl ?? undefined}
+                  alt={coverAltText}
+                  onError={() => setViewportCoverFailed(true)}
+                  loading="lazy"
+                />
+                {showSecondaryCover ? (
+                  <img
+                    className="player-panel__player-info-art-secondary"
+                    src={resolvedSecondaryCoverUrl ?? undefined}
+                    alt=""
+                    aria-hidden="true"
+                    onError={() => setViewportSecondaryCoverFailed(true)}
+                    loading="lazy"
+                  />
+                ) : null}
+              </div>
+            ) : null}
+            {showTextBadge ? (
+              <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
+                <div className="player-panel__interactive-book-badge-text">
+                  {safeInfoTitle ? (
+                    <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
+                  ) : null}
+                  {safeInfoMeta ? (
+                    <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div
           ref={containerRef}
           className="player-panel__interactive-body"
-          data-has-badge={showBookBadge ? 'true' : undefined}
+          data-has-badge={showInfoHeader ? 'true' : undefined}
           data-testid="player-panel-document"
           onScroll={handleScroll}
           onClickCapture={handleLinguistTokenClickCapture}
@@ -4545,26 +4690,6 @@ const handleAudioSeeked = useCallback(() => {
           onPointerUpCapture={handlePointerUpCaptureWithSelection}
           onPointerCancelCapture={handlePointerCancelCapture}
         >
-          {showBookBadge ? (
-            <div className="player-panel__interactive-book-badge">
-              {resolvedBookCoverUrl ? (
-                <img
-                  src={resolvedBookCoverUrl}
-                  alt={bookBadgeAltText}
-                  onError={() => setViewportCoverFailed(true)}
-                  loading="lazy"
-                />
-              ) : null}
-              <div className="player-panel__interactive-book-badge-text">
-                {safeBookTitle ? (
-                  <span className="player-panel__interactive-book-badge-title">{safeBookTitle}</span>
-                ) : null}
-                {safeBookMeta ? (
-                  <span className="player-panel__interactive-book-badge-meta">{safeBookMeta}</span>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
           {slideIndicator ? (
             <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
               {slideIndicator.label}

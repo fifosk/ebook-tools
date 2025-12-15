@@ -3,6 +3,7 @@ import PlayerPanel from '../components/PlayerPanel';
 import YoutubeDubPlayer from '../components/YoutubeDubPlayer';
 import { useLibraryMedia } from '../hooks/useLibraryMedia';
 import JobDetail from './JobDetail';
+import type { LibraryItem } from '../api/dtos';
 import type { LibraryOpenInput, MediaSelectionRequest } from '../types/player';
 
 export type PlayerContext =
@@ -12,6 +13,7 @@ export type PlayerContext =
       jobId: string;
       itemType?: 'book' | 'video' | 'narrated_subtitle' | null;
       bookMetadata: Record<string, unknown> | null;
+      item?: LibraryItem | null;
     };
 
 interface PlayerViewProps {
@@ -97,6 +99,7 @@ export default function PlayerView({
           onVideoPlaybackStateChange={onVideoPlaybackStateChange}
           onFullscreenChange={onFullscreenChange}
           showBackToLibrary
+          libraryItem={context.item ?? null}
           onBackToLibrary={
             onBackToLibrary
               ? () => {
@@ -108,6 +111,8 @@ export default function PlayerView({
       ) : (
         <PlayerPanel
           jobId={context.jobId}
+          itemType={context.itemType ?? null}
+          libraryItem={context.item ?? null}
           media={media}
           chunks={chunks}
           mediaComplete={isComplete}

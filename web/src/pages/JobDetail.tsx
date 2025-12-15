@@ -70,6 +70,7 @@ export default function JobDetail({
       ) : (
         <PlayerPanel
           jobId={normalisedJobId}
+          jobType={jobType}
           media={media}
           chunks={chunks}
           mediaComplete={isComplete}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, UIEvent } from 'react';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
+import { useReadingBed } from '../hooks/useReadingBed';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { extractTextFromHtml } from '../utils/mediaFormatters';
 import { useMyLinguist } from '../context/MyLinguistProvider';
@@ -15,13 +16,24 @@ import {
   type TranslationSpeed,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
-import type { AudioTrackMetadata, ChunkSentenceMetadata, MediaSearchResult } from '../api/dtos';
+import type {
+  AudioTrackMetadata,
+  ChunkSentenceMetadata,
+  LibraryItem,
+  MediaSearchResult,
+  ReadingBedEntry,
+  ReadingBedListResponse,
+  SubtitleTvMetadataResponse,
+} from '../api/dtos';
 import {
   appendAccessToken,
   buildStorageUrl,
+  fetchReadingBeds,
   fetchPipelineStatus,
+  fetchSubtitleTvMetadata,
   resolveJobCoverUrl,
   resolveLibraryMediaUrl,
+  withBase,
 } from '../api/client';
 import InteractiveTextViewer from './InteractiveTextViewer';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
@@ -54,6 +66,9 @@ type InlineAudioOption = {
 
 interface PlayerPanelProps {
   jobId: string;
+  jobType?: string | null;
+  itemType?: 'book' | 'video' | 'narrated_subtitle' | null;
+  libraryItem?: LibraryItem | null;
   media: LiveMediaState;
   chunks: LiveMediaChunk[];
   mediaComplete: boolean;
@@ -86,12 +101,21 @@ const INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY = 'player-panel.interactiveText.vi
 const INTERACTIVE_TEXT_THEME_STORAGE_KEY = 'player-panel.interactiveText.theme';
 const INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY = 'player-panel.interactiveText.backgroundOpacityPercent';
 const DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT = 65;
+const INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY = 'player-panel.interactiveText.sentenceCardOpacityPercent';
+const DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT = 100;
+const READING_BED_ENABLED_STORAGE_KEY = 'player-panel.readingBed.enabled';
+const READING_BED_VOLUME_STORAGE_KEY = 'player-panel.readingBed.volumePercent';
+const READING_BED_TRACK_STORAGE_KEY = 'player-panel.readingBed.track';
+const DEFAULT_READING_BED_VOLUME_PERCENT = 10;
+const DEFAULT_READING_BED_TRACK_ID = 'lost-in-the-pages';
 const FONT_SCALE_MIN = 100;
 const FONT_SCALE_MAX = 300;
 const FONT_SCALE_STEP = 5;
 const MY_LINGUIST_FONT_SCALE_MIN = 80;
 const MY_LINGUIST_FONT_SCALE_MAX = 160;
 const MY_LINGUIST_FONT_SCALE_STEP = 5;
+const DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT = 150;
+const DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT = 120;
 const clampFontScalePercent = (value: number) =>
   Math.min(Math.max(value, FONT_SCALE_MIN), FONT_SCALE_MAX);
 
@@ -183,7 +207,28 @@ interface NavigationControlsProps {
   interactiveBackgroundOpacityMax?: number;
   interactiveBackgroundOpacityStep?: number;
   onInteractiveBackgroundOpacityChange?: (value: number) => void;
+  showInteractiveSentenceCardOpacity?: boolean;
+  interactiveSentenceCardOpacityPercent?: number;
+  interactiveSentenceCardOpacityMin?: number;
+  interactiveSentenceCardOpacityMax?: number;
+  interactiveSentenceCardOpacityStep?: number;
+  onInteractiveSentenceCardOpacityChange?: (value: number) => void;
   onResetLayout?: () => void;
+
+  showReadingBedToggle?: boolean;
+  readingBedEnabled?: boolean;
+  disableReadingBedToggle?: boolean;
+  onToggleReadingBed?: () => void;
+  showReadingBedVolume?: boolean;
+  readingBedVolumePercent?: number;
+  readingBedVolumeMin?: number;
+  readingBedVolumeMax?: number;
+  readingBedVolumeStep?: number;
+  onReadingBedVolumeChange?: (value: number) => void;
+  showReadingBedTrack?: boolean;
+  readingBedTrack?: string;
+  readingBedTrackOptions?: { value: string; label: string }[];
+  onReadingBedTrackChange?: (value: string) => void;
 
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
@@ -272,9 +317,29 @@ export function NavigationControls({
   interactiveBackgroundOpacityMax = 100,
   interactiveBackgroundOpacityStep = 5,
   onInteractiveBackgroundOpacityChange,
+  showInteractiveSentenceCardOpacity = false,
+  interactiveSentenceCardOpacityPercent = DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT,
+  interactiveSentenceCardOpacityMin = 0,
+  interactiveSentenceCardOpacityMax = 100,
+  interactiveSentenceCardOpacityStep = 5,
+  onInteractiveSentenceCardOpacityChange,
   onResetLayout,
-  showBackToLibrary = false,
-  onBackToLibrary,
+  showReadingBedToggle = false,
+  readingBedEnabled = false,
+  disableReadingBedToggle = false,
+  onToggleReadingBed,
+  showReadingBedVolume = false,
+  readingBedVolumePercent = DEFAULT_READING_BED_VOLUME_PERCENT,
+  readingBedVolumeMin = 0,
+  readingBedVolumeMax = 100,
+  readingBedVolumeStep = 5,
+	  onReadingBedVolumeChange,
+	  showReadingBedTrack = false,
+	  readingBedTrack = '',
+	  readingBedTrackOptions = [],
+	  onReadingBedTrackChange,
+	  showBackToLibrary = false,
+	  onBackToLibrary,
 }: NavigationControlsProps) {
   const groupClassName = [
     context === 'fullscreen'
@@ -298,10 +363,18 @@ export function NavigationControls({
     : 'Toggle Original Audio';
   const subtitleToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', subtitlesEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
   const subtitleToggleTitle = disableSubtitleToggle ? 'Subtitles will appear after media finalizes' : 'Toggle Subtitles';
+  const readingBedToggleClassName = [
+    'player-panel__nav-button',
+    'player-panel__nav-button--audio',
+    readingBedEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off',
+  ].join(' ');
+  const readingBedToggleTitle = disableReadingBedToggle ? 'Reading music is not available' : 'Toggle Reading Music';
   const sliderId = useId();
   const subtitleSliderId = useId();
   const subtitleBackgroundSliderId = useId();
   const interactiveBackgroundSliderId = useId();
+  const interactiveSentenceCardSliderId = useId();
+  const readingBedSliderId = useId();
   const jumpInputFallbackId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
   const fontScaleSliderId = useId();
@@ -326,6 +399,15 @@ export function NavigationControls({
   const formattedInteractiveBackgroundOpacity = `${Math.round(
     Math.min(Math.max(interactiveBackgroundOpacityPercent, interactiveBackgroundOpacityMin), interactiveBackgroundOpacityMax),
   )}%`;
+  const formattedInteractiveSentenceCardOpacity = `${Math.round(
+    Math.min(
+      Math.max(interactiveSentenceCardOpacityPercent, interactiveSentenceCardOpacityMin),
+      interactiveSentenceCardOpacityMax,
+    ),
+  )}%`;
+  const formattedReadingBedVolume = `${Math.round(
+    Math.min(Math.max(readingBedVolumePercent, readingBedVolumeMin), readingBedVolumeMax),
+  )}%`;
   const shouldShowCompactControls =
     controlsLayout === 'compact' &&
     (showTranslationSpeed ||
@@ -334,7 +416,10 @@ export function NavigationControls({
       showFontScale ||
       showMyLinguistFontScale ||
       showInteractiveBackgroundOpacity ||
-      showInteractiveThemeControls);
+      showInteractiveSentenceCardOpacity ||
+      showInteractiveThemeControls ||
+      showReadingBedVolume ||
+      showReadingBedTrack);
   const resolvedCueVisibility =
     cueVisibility ??
     ({
@@ -374,6 +459,9 @@ export function NavigationControls({
       return;
     }
     onMyLinguistFontScaleChange?.(raw);
+  };
+  const handleReadingBedTrackChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    onReadingBedTrackChange?.(event.target.value);
   };
   const formattedFontScale = `${Math.round(
     Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax),
@@ -529,6 +617,24 @@ export function NavigationControls({
               </span>
               <span aria-hidden="true" className="player-panel__nav-button-text">
                 Subs
+              </span>
+            </button>
+          ) : null}
+          {showReadingBedToggle ? (
+            <button
+              type="button"
+              className={readingBedToggleClassName}
+              onClick={onToggleReadingBed}
+              disabled={disableReadingBedToggle}
+              aria-label="Toggle reading music"
+              aria-pressed={readingBedEnabled}
+              title={readingBedToggleTitle}
+            >
+              <span aria-hidden="true" className="player-panel__nav-button-icon">
+                {readingBedEnabled ? '🎶' : '♪'}
+              </span>
+              <span aria-hidden="true" className="player-panel__nav-button-text">
+                Music
               </span>
             </button>
           ) : null}
@@ -779,6 +885,76 @@ export function NavigationControls({
               <span className="player-panel__control-value" aria-live="polite">
                 {formattedInteractiveBackgroundOpacity}
               </span>
+            </div>
+          ) : null}
+          {showInteractiveSentenceCardOpacity ? (
+            <div className="player-panel__control" data-testid="player-panel-interactive-cards">
+              <label className="player-panel__control-label" htmlFor={interactiveSentenceCardSliderId}>
+                Cards
+              </label>
+              <input
+                id={interactiveSentenceCardSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={interactiveSentenceCardOpacityMin}
+                max={interactiveSentenceCardOpacityMax}
+                step={interactiveSentenceCardOpacityStep}
+                value={interactiveSentenceCardOpacityPercent}
+                onChange={(event) => onInteractiveSentenceCardOpacityChange?.(Number(event.target.value))}
+                aria-label="Sentence card background opacity"
+                aria-valuetext={formattedInteractiveSentenceCardOpacity}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedInteractiveSentenceCardOpacity}
+              </span>
+            </div>
+          ) : null}
+          {showReadingBedVolume ? (
+            <div className="player-panel__control" data-testid="player-panel-reading-music">
+              <label className="player-panel__control-label" htmlFor={readingBedSliderId}>
+                Music
+              </label>
+              <input
+                id={readingBedSliderId}
+                type="range"
+                className="player-panel__control-slider"
+                min={readingBedVolumeMin}
+                max={readingBedVolumeMax}
+                step={readingBedVolumeStep}
+                value={Math.min(Math.max(readingBedVolumePercent, readingBedVolumeMin), readingBedVolumeMax)}
+                onChange={(event) => onReadingBedVolumeChange?.(Number(event.target.value))}
+                disabled={disableReadingBedToggle || !readingBedEnabled}
+                aria-label="Reading music mix volume"
+                aria-valuemin={readingBedVolumeMin}
+                aria-valuemax={readingBedVolumeMax}
+                aria-valuenow={Math.round(readingBedVolumePercent)}
+                aria-valuetext={formattedReadingBedVolume}
+              />
+              <span className="player-panel__control-value" aria-live="polite">
+                {formattedReadingBedVolume}
+              </span>
+            </div>
+          ) : null}
+          {showReadingBedTrack ? (
+            <div
+              className="player-panel__inline-audio"
+              role="group"
+              aria-label="Reading music track"
+              data-testid="player-panel-reading-music-track"
+            >
+              <span className="player-panel__inline-audio-label">Bed</span>
+              <select
+                value={readingBedTrack}
+                onChange={handleReadingBedTrackChange}
+                disabled={disableReadingBedToggle || !readingBedEnabled}
+                aria-label="Reading music track"
+              >
+                {readingBedTrackOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
             </div>
           ) : null}
           {showInteractiveThemeControls && interactiveTheme ? (
@@ -1362,6 +1538,107 @@ function extractMetadataFirstString(
   return null;
 }
 
+function readNestedValue(source: unknown, path: string[]): unknown {
+  let current: unknown = source;
+  for (const key of path) {
+    if (!current || typeof current !== 'object') {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+function coerceRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function extractTvMediaMetadataFromLibrary(item: LibraryItem | null | undefined): Record<string, unknown> | null {
+  const payload = item?.metadata ?? null;
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const candidate =
+    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
+    readNestedValue(payload, ['request', 'media_metadata']) ??
+    readNestedValue(payload, ['media_metadata']) ??
+    null;
+  return coerceRecord(candidate);
+}
+
+function resolveLibraryAssetUrl(jobId: string, value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/api/')) {
+    return appendAccessToken(trimmed);
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return resolveLibraryMediaUrl(jobId, trimmed);
+}
+
+function resolveJobAssetUrl(jobId: string, value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/api/')) {
+    return appendAccessToken(trimmed);
+  }
+  if (trimmed.startsWith('/')) {
+    return appendAccessToken(trimmed);
+  }
+  try {
+    return buildStorageUrl(trimmed, jobId);
+  } catch (error) {
+    console.warn('Unable to resolve job asset url', error);
+    return `/${trimmed.replace(/^\/+/, '')}`;
+  }
+}
+
+function resolveTvMetadataImage(
+  jobId: string,
+  tvMetadata: Record<string, unknown> | null,
+  path: 'show' | 'episode',
+  resolver: (jobId: string, value: unknown) => string | null,
+): string | null {
+  const section = coerceRecord(tvMetadata?.[path]);
+  if (!section) {
+    return null;
+  }
+  const image = section['image'];
+  if (!image) {
+    return null;
+  }
+  if (typeof image === 'string') {
+    return resolver(jobId, image);
+  }
+  const record = coerceRecord(image);
+  if (!record) {
+    return null;
+  }
+  return resolver(jobId, record['medium']) ?? resolver(jobId, record['original']);
+}
+
 function formatSentenceRange(start: number | null | undefined, end: number | null | undefined): string {
   if (typeof start === 'number' && typeof end === 'number') {
     return start === end ? `${start}` : `${start}–${end}`;
@@ -1594,6 +1871,9 @@ async function requestChunkMetadata(
 
 export default function PlayerPanel({
   jobId,
+  jobType = null,
+  itemType = null,
+  libraryItem = null,
   media,
   chunks,
   mediaComplete,
@@ -1746,17 +2026,22 @@ const scheduleChunkMetadataAppend = useCallback(
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
   const textScrollRef = useRef<HTMLDivElement | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
+  const inlineAudioPlayingRef = useRef(false);
   const hasSkippedInitialRememberRef = useRef(false);
   const inlineAudioBaseRef = useRef<string | null>(null);
+  const updateInlineAudioPlaying = useCallback((next: boolean) => {
+    inlineAudioPlayingRef.current = next;
+    setIsInlineAudioPlaying(next);
+  }, []);
   const pendingAutoPlayRef = useRef(false);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
   const [translationSpeed, setTranslationSpeed] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
   const [fontScalePercent, setFontScalePercent] = useState<number>(() => {
     if (typeof window === 'undefined') {
-      return 100;
+      return DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT;
     }
     const raw = Number.parseFloat(window.localStorage.getItem(FONT_SCALE_STORAGE_KEY) ?? '');
-    return Number.isFinite(raw) ? clampFontScalePercent(raw) : 100;
+    return Number.isFinite(raw) ? clampFontScalePercent(raw) : DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT;
   });
   const [interactiveTextTheme, setInteractiveTextTheme] = useState<InteractiveTextTheme>(() =>
     loadInteractiveTextTheme(INTERACTIVE_TEXT_THEME_STORAGE_KEY),
@@ -1771,6 +2056,113 @@ const scheduleChunkMetadataAppend = useCallback(
     }
     return Math.round(Math.min(Math.max(raw, 0), 100));
   });
+  const [interactiveSentenceCardOpacityPercent, setInteractiveSentenceCardOpacityPercent] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT;
+    }
+    const raw = Number.parseFloat(window.localStorage.getItem(INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY) ?? '');
+    if (!Number.isFinite(raw)) {
+      return DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT;
+    }
+    return Math.round(Math.min(Math.max(raw, 0), 100));
+  });
+  const readingBed = useReadingBed();
+  const [readingBedEnabled, setReadingBedEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    const stored = window.localStorage.getItem(READING_BED_ENABLED_STORAGE_KEY);
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
+  });
+  const [readingBedVolumePercent, setReadingBedVolumePercent] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return DEFAULT_READING_BED_VOLUME_PERCENT;
+    }
+    const raw = Number.parseFloat(window.localStorage.getItem(READING_BED_VOLUME_STORAGE_KEY) ?? '');
+    if (!Number.isFinite(raw)) {
+      return DEFAULT_READING_BED_VOLUME_PERCENT;
+    }
+    return Math.round(Math.min(Math.max(raw, 0), 100));
+  });
+  const fallbackReadingBeds = useMemo(
+    () =>
+      [
+        {
+          id: DEFAULT_READING_BED_TRACK_ID,
+          label: 'Lost in the Pages',
+          url: '/assets/reading-beds/lost-in-the-pages.mp3',
+          kind: 'bundled',
+        },
+      ] as ReadingBedEntry[],
+    [],
+  );
+  const [readingBedCatalog, setReadingBedCatalog] = useState<ReadingBedListResponse | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const catalog = await fetchReadingBeds(controller.signal);
+        setReadingBedCatalog(catalog);
+      } catch {
+        setReadingBedCatalog(null);
+      }
+    })();
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  const resolvedReadingBeds =
+    (readingBedCatalog?.beds?.length ?? 0) > 0 ? readingBedCatalog!.beds : fallbackReadingBeds;
+  const resolvedReadingBedDefaultId =
+    (typeof readingBedCatalog?.default_id === 'string' && readingBedCatalog.default_id.trim()
+      ? readingBedCatalog.default_id.trim()
+      : null) ?? resolvedReadingBeds[0]?.id ?? DEFAULT_READING_BED_TRACK_ID;
+  const readingBedTrackSrcById = useMemo(() => {
+    const entries = resolvedReadingBeds.map((bed) => {
+      const url = bed.url.startsWith('/api/') ? withBase(bed.url) : bed.url;
+      return [bed.id, url] as const;
+    });
+    return Object.fromEntries(entries) as Record<string, string>;
+  }, [resolvedReadingBeds]);
+
+  const [readingBedTrackSelection, setReadingBedTrackSelection] = useState<string | null>(() => {
+    if (typeof window === 'undefined') {
+      return null;
+    }
+    const raw = window.localStorage.getItem(READING_BED_TRACK_STORAGE_KEY) ?? '';
+    return raw.trim() ? raw.trim() : null;
+  });
+
+  useEffect(() => {
+    if (!readingBedTrackSelection) {
+      return;
+    }
+    if (readingBedTrackSrcById[readingBedTrackSelection]) {
+      return;
+    }
+    setReadingBedTrackSelection(null);
+  }, [readingBedTrackSelection, readingBedTrackSrcById]);
+
+  const resolvedReadingBedTrackId = useMemo(() => {
+    if (readingBedTrackSelection && readingBedTrackSrcById[readingBedTrackSelection]) {
+      return readingBedTrackSelection;
+    }
+    if (readingBedTrackSrcById[resolvedReadingBedDefaultId]) {
+      return resolvedReadingBedDefaultId;
+    }
+    return resolvedReadingBeds[0]?.id ?? DEFAULT_READING_BED_TRACK_ID;
+  }, [readingBedTrackSelection, readingBedTrackSrcById, resolvedReadingBedDefaultId, resolvedReadingBeds]);
+
+  const readingBedTrackOptions = useMemo(() => {
+    return [
+      { value: '', label: 'Default' },
+      ...resolvedReadingBeds.map((bed) => ({ value: bed.id, label: bed.label })),
+    ] satisfies { value: string; label: string }[];
+  }, [resolvedReadingBeds]);
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
@@ -2288,6 +2680,105 @@ const scheduleChunkMetadataAppend = useCallback(
   const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
   const shouldShowCoverImage = origin === 'library' || mediaComplete;
   const coverErrorHandler = shouldShowCoverImage && shouldHandleCoverError ? handleCoverError : undefined;
+
+  const isSubtitleContext = useMemo(() => {
+    if (itemType === 'narrated_subtitle') {
+      return true;
+    }
+    const normalized = (jobType ?? '').trim().toLowerCase();
+    return normalized === 'subtitle' || normalized.includes('subtitle');
+  }, [itemType, jobType]);
+
+  const libraryTvMediaMetadata = useMemo(() => {
+    if (!isSubtitleContext || origin !== 'library') {
+      return null;
+    }
+    return extractTvMediaMetadataFromLibrary(libraryItem);
+  }, [isSubtitleContext, libraryItem, origin]);
+
+  const [subtitleTvMetadata, setSubtitleTvMetadata] = useState<SubtitleTvMetadataResponse | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!isSubtitleContext) {
+      setSubtitleTvMetadata(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (origin === 'library' && libraryTvMediaMetadata) {
+      return () => {
+        cancelled = true;
+      };
+    }
+    void fetchSubtitleTvMetadata(normalisedJobId)
+      .then((payload) => {
+        if (!cancelled) {
+          setSubtitleTvMetadata(payload);
+        }
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          console.warn('Unable to load subtitle TV metadata for player', error);
+          setSubtitleTvMetadata(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isSubtitleContext, libraryTvMediaMetadata, normalisedJobId, origin]);
+
+  const subtitleMediaMetadata = useMemo<Record<string, unknown> | null>(() => {
+    if (!isSubtitleContext) {
+      return null;
+    }
+    if (libraryTvMediaMetadata) {
+      return libraryTvMediaMetadata;
+    }
+    const candidate = subtitleTvMetadata?.media_metadata ?? null;
+    return candidate && typeof candidate === 'object' ? (candidate as Record<string, unknown>) : null;
+  }, [isSubtitleContext, libraryTvMediaMetadata, subtitleTvMetadata]);
+
+  const subtitleInfo = useMemo(() => {
+    if (!isSubtitleContext) {
+      return {
+        title: null as string | null,
+        meta: null as string | null,
+        coverUrl: null as string | null,
+        coverSecondaryUrl: null as string | null,
+        coverAltText: null as string | null,
+      };
+    }
+
+    const jobIdValue = normalisedJobId;
+    const resolver = origin === 'library' ? resolveLibraryAssetUrl : resolveJobAssetUrl;
+    const episodeCoverUrl = resolveTvMetadataImage(jobIdValue, subtitleMediaMetadata, 'episode', resolver);
+    const showCoverUrl = resolveTvMetadataImage(jobIdValue, subtitleMediaMetadata, 'show', resolver);
+    const coverUrl = episodeCoverUrl ?? showCoverUrl ?? null;
+    const coverSecondaryUrl =
+      showCoverUrl && coverUrl && coverUrl !== showCoverUrl ? showCoverUrl : null;
+
+    const show = coerceRecord(subtitleMediaMetadata?.['show']);
+    const episode = coerceRecord(subtitleMediaMetadata?.['episode']);
+    const showName = normaliseMetadataText(show?.['name']);
+    const parsedSeries = subtitleTvMetadata?.parsed ? normaliseMetadataText(subtitleTvMetadata.parsed.series) : null;
+    const sourceName = subtitleTvMetadata ? normaliseMetadataText(subtitleTvMetadata.source_name) : null;
+    const title = showName ?? parsedSeries ?? sourceName ?? null;
+
+    const seasonNumber = typeof episode?.['season'] === 'number' ? (episode['season'] as number) : null;
+    const episodeNumber = typeof episode?.['number'] === 'number' ? (episode['number'] as number) : null;
+    const code =
+      seasonNumber && episodeNumber && seasonNumber > 0 && episodeNumber > 0
+        ? `S${seasonNumber.toString().padStart(2, '0')}E${episodeNumber.toString().padStart(2, '0')}`
+        : null;
+    const episodeTitle = normaliseMetadataText(episode?.['name']);
+    const airdate = normaliseMetadataText(episode?.['airdate']);
+    const metaParts = [code, episodeTitle, airdate].filter((value): value is string => Boolean(value));
+    const meta = metaParts.length > 0 ? metaParts.join(' · ') : null;
+
+    const coverAltText = title ? `Cover for ${title}` : null;
+
+    return { title, meta, coverUrl, coverSecondaryUrl, coverAltText };
+  }, [isSubtitleContext, normalisedJobId, origin, subtitleMediaMetadata, subtitleTvMetadata]);
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: SearchCategory) => {
@@ -3349,20 +3840,24 @@ const scheduleChunkMetadataAppend = useCallback(
     [syncInteractiveSelection],
   );
 
-  const handleInlineAudioPlaybackStateChange = useCallback((state: 'playing' | 'paused') => {
-    setIsInlineAudioPlaying(state === 'playing');
-  }, []);
+  const handleInlineAudioPlaybackStateChange = useCallback(
+    (state: 'playing' | 'paused') => {
+      updateInlineAudioPlaying(state === 'playing');
+    },
+    [updateInlineAudioPlaying],
+  );
 
   const handleInlineAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
     inlineAudioControlsRef.current = controls;
     setHasInlineAudioControls(Boolean(controls));
     if (!controls) {
-      setIsInlineAudioPlaying(false);
+      updateInlineAudioPlaying(false);
     }
-  }, []);
+  }, [updateInlineAudioPlaying]);
 
   const handleNavigate = useCallback(
-    (intent: NavigationIntent) => {
+    (intent: NavigationIntent, options?: { autoPlay?: boolean }) => {
+      const autoPlay = options?.autoPlay ?? true;
       if (navigableItems.length > 0) {
         const currentId = selectedItemIds.text;
         const currentIndex = currentId
@@ -3393,7 +3888,7 @@ const scheduleChunkMetadataAppend = useCallback(
         if (!nextItem) {
           return;
         }
-        activateTextItem(nextItem, { autoPlay: true, scrollRatio: 0 });
+        activateTextItem(nextItem, { autoPlay, scrollRatio: 0 });
         return;
       }
 
@@ -3424,7 +3919,7 @@ const scheduleChunkMetadataAppend = useCallback(
         if (!targetChunk) {
           return;
         }
-        activateChunk(targetChunk, { autoPlay: true, scrollRatio: 0 });
+        activateChunk(targetChunk, { autoPlay, scrollRatio: 0 });
         return;
       }
 
@@ -3433,15 +3928,25 @@ const scheduleChunkMetadataAppend = useCallback(
     [activateChunk, activateTextItem, activeTextChunkIndex, chunks, navigableItems, selectedItemIds.text, updateSelection],
   );
 
+  const handleNavigatePreservingPlayback = useCallback(
+    (intent: NavigationIntent) => {
+      handleNavigate(intent, { autoPlay: inlineAudioPlayingRef.current });
+    },
+    [handleNavigate],
+  );
+
   const handlePauseActiveMedia = useCallback(() => {
     inlineAudioControlsRef.current?.pause();
-    setIsInlineAudioPlaying(false);
-  }, []);
+    updateInlineAudioPlaying(false);
+  }, [updateInlineAudioPlaying]);
 
   const handlePlayActiveMedia = useCallback(() => {
+    if (readingBedEnabled) {
+      void readingBed.play();
+    }
     inlineAudioControlsRef.current?.play();
-    setIsInlineAudioPlaying(true);
-  }, []);
+    updateInlineAudioPlaying(true);
+  }, [readingBed, readingBedEnabled, updateInlineAudioPlaying]);
 
   const adjustTranslationSpeed = useCallback((direction: 'faster' | 'slower') => {
     setTranslationSpeed((current) => {
@@ -3512,6 +4017,7 @@ const scheduleChunkMetadataAppend = useCallback(
         event.key === 'ArrowUp' ||
         event.key === 'ArrowDown' ||
         key === 'f' ||
+        key === 'm' ||
         key === 'l' ||
         key === 'o' ||
         key === 'i' ||
@@ -3568,12 +4074,12 @@ const scheduleChunkMetadataAppend = useCallback(
       const isArrowLeft =
         code === 'ArrowLeft' || key === 'arrowleft' || event.key === 'ArrowLeft';
       if (isArrowRight) {
-        handleNavigate('next');
+        handleNavigatePreservingPlayback('next');
         event.preventDefault();
         return;
       }
       if (isArrowLeft) {
-        handleNavigate('previous');
+        handleNavigatePreservingPlayback('previous');
         event.preventDefault();
         return;
       }
@@ -3584,6 +4090,11 @@ const scheduleChunkMetadataAppend = useCallback(
       }
       if (key === 'l' && !event.shiftKey) {
         toggleMyLinguist();
+        event.preventDefault();
+        return;
+      }
+      if (key === 'm' && !event.shiftKey) {
+        handleToggleReadingBed();
         event.preventDefault();
         return;
       }
@@ -3696,7 +4207,10 @@ const scheduleChunkMetadataAppend = useCallback(
                 <kbd>Space</kbd> Play/pause active track
               </li>
               <li>
-                <kbd>←</kbd>/<kbd>→</kbd> Previous/next chunk
+                <kbd>←</kbd>/<kbd>→</kbd> Previous/next chunk (keeps play state)
+              </li>
+              <li>
+                <kbd>M</kbd> Toggle background music
               </li>
               <li>
                 <kbd>F</kbd> Toggle fullscreen
@@ -3804,7 +4318,7 @@ const scheduleChunkMetadataAppend = useCallback(
     [getPosition],
   );
 
-  const advanceInteractiveChunk = useCallback(() => {
+  const advanceInteractiveChunk = useCallback((options?: { autoPlay?: boolean }) => {
     if (chunks.length === 0) {
       return false;
     }
@@ -3820,32 +4334,21 @@ const scheduleChunkMetadataAppend = useCallback(
       return false;
     }
     const nextChunk = chunks[nextIndex];
-    const nextAudio = nextChunk.files.find((file) => isAudioFileType(file.type) && file.url);
-    if (nextAudio?.url) {
-      setInlineAudioSelection(nextAudio.url);
-      syncInteractiveSelection(nextAudio.url);
-    } else {
-      const nextText = nextChunk.files.find((file) => file.type === 'text' && file.url);
-      if (nextText?.url) {
-        setSelectedItemIds((current) =>
-          current.text === nextText.url ? current : { ...current, text: nextText.url },
-        );
-      }
-    }
-    setPendingTextScrollRatio(0);
+    activateChunk(nextChunk, {
+      scrollRatio: 0,
+      autoPlay: options?.autoPlay ?? false,
+    });
     return true;
   }, [
     activeTextChunkIndex,
     audioChunkIndexMap,
+    activateChunk,
     chunks,
     inlineAudioSelection,
-    setPendingTextScrollRatio,
-    setSelectedItemIds,
-    syncInteractiveSelection,
   ]);
 
   const handleInlineAudioEnded = useCallback(() => {
-    const advanced = advanceInteractiveChunk();
+    const advanced = advanceInteractiveChunk({ autoPlay: true });
     if (!advanced) {
       updateSelection('text', 'next');
     }
@@ -3985,7 +4488,7 @@ const scheduleChunkMetadataAppend = useCallback(
     pendingAutoPlayRef.current = false;
     controls.pause();
     controls.play();
-  }, [inlineAudioSelection]);
+  }, [hasInlineAudioControls, inlineAudioSelection]);
 
   useEffect(() => {
     const mediaId = selectedItemIds.text;
@@ -4154,18 +4657,133 @@ const scheduleChunkMetadataAppend = useCallback(
     window.localStorage.setItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY, String(interactiveBackgroundOpacityPercent));
   }, [interactiveBackgroundOpacityPercent]);
 
-  const handleResetInteractiveLayout = useCallback(() => {
-    setTranslationSpeed(DEFAULT_TRANSLATION_SPEED);
-    setFontScalePercent(100);
-    setBaseFontScalePercent(100);
-    setInteractiveTextTheme(DEFAULT_INTERACTIVE_TEXT_THEME);
-    setInteractiveBackgroundOpacityPercent(DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT);
-  }, [setBaseFontScalePercent]);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(
+      INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY,
+      String(interactiveSentenceCardOpacityPercent),
+    );
+  }, [interactiveSentenceCardOpacityPercent]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(READING_BED_ENABLED_STORAGE_KEY, readingBedEnabled ? 'true' : 'false');
+  }, [readingBedEnabled]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem(READING_BED_VOLUME_STORAGE_KEY, String(readingBedVolumePercent));
+  }, [readingBedVolumePercent]);
+
+	  useEffect(() => {
+	    if (typeof window === 'undefined') {
+	      return;
+	    }
+	    if (!readingBedTrackSelection) {
+	      window.localStorage.removeItem(READING_BED_TRACK_STORAGE_KEY);
+	      return;
+	    }
+	    window.localStorage.setItem(READING_BED_TRACK_STORAGE_KEY, String(readingBedTrackSelection));
+	  }, [readingBedTrackSelection]);
+
+  useEffect(() => {
+    readingBed.setVolume((Math.min(Math.max(readingBedVolumePercent, 0), 100) / 100) * 0.8);
+  }, [readingBed, readingBedVolumePercent]);
+
+	  useEffect(() => {
+	    const src =
+	      readingBedTrackSrcById[resolvedReadingBedTrackId] ?? readingBedTrackSrcById[DEFAULT_READING_BED_TRACK_ID];
+	    readingBed.setSource(src);
+	  }, [readingBed, readingBedTrackSrcById, resolvedReadingBedTrackId]);
+
+  useEffect(() => {
+    if (!readingBedEnabled) {
+      void readingBed.pause();
+      return;
+    }
+    void readingBed.play();
+  }, [readingBed, readingBedEnabled]);
+
+	  const handleResetInteractiveLayout = useCallback(() => {
+	    setTranslationSpeed(DEFAULT_TRANSLATION_SPEED);
+	    setFontScalePercent(DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT);
+	    setBaseFontScalePercent(DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT);
+	    setInteractiveTextTheme(DEFAULT_INTERACTIVE_TEXT_THEME);
+	    setInteractiveBackgroundOpacityPercent(DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT);
+	    setInteractiveSentenceCardOpacityPercent(DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT);
+	    setReadingBedEnabled(true);
+	    setReadingBedVolumePercent(DEFAULT_READING_BED_VOLUME_PERCENT);
+	    setReadingBedTrackSelection(null);
+	    void readingBed.pause();
+	  }, [readingBed, setBaseFontScalePercent]);
+
+  const handleToggleReadingBed = useCallback(() => {
+    setReadingBedEnabled((current) => {
+      const next = !current;
+      if (next) {
+        void readingBed.play();
+      } else {
+        void readingBed.pause();
+      }
+      return next;
+    });
+  }, [readingBed]);
+
+  const handleReadingBedVolumeChange = useCallback(
+    (value: number) => {
+      const clamped = Math.round(Math.min(Math.max(value, 0), 100));
+      setReadingBedVolumePercent(clamped);
+      if (readingBedEnabled) {
+        void readingBed.play();
+      }
+    },
+    [readingBed, readingBedEnabled],
+  );
+
+	  const handleReadingBedTrackChange = useCallback(
+	    (value: string) => {
+	      const nextSelection = value.trim() ? value.trim() : null;
+	      setReadingBedTrackSelection(nextSelection);
+	      const resolvedId =
+	        (nextSelection && readingBedTrackSrcById[nextSelection] ? nextSelection : null) ?? resolvedReadingBedDefaultId;
+	      const src = readingBedTrackSrcById[resolvedId] ?? readingBedTrackSrcById[DEFAULT_READING_BED_TRACK_ID];
+	      readingBed.setSource(src);
+	      if (readingBedEnabled) {
+	        void readingBed.play();
+	      }
+	    },
+	    [readingBed, readingBedEnabled, readingBedTrackSrcById, resolvedReadingBedDefaultId],
+	  );
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
   const bookYear = extractMetadataText(bookMetadata, ['book_year', 'year', 'publication_year', 'published_year', 'first_publish_year']);
   const bookGenre = extractMetadataFirstString(bookMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
+  const channelBug = useMemo(() => {
+    const normalisedJobType = (jobType ?? '').trim().toLowerCase();
+    if (itemType === 'book') {
+      return { glyph: 'BK', label: 'Book' };
+    }
+    if (itemType === 'narrated_subtitle') {
+      return { glyph: 'SUB', label: 'Subtitles' };
+    }
+    if (itemType === 'video') {
+      return { glyph: 'TV', label: 'Video' };
+    }
+    if (normalisedJobType.includes('subtitle')) {
+      return { glyph: 'SUB', label: 'Subtitles' };
+    }
+    if (normalisedJobType.includes('book') || Boolean(bookTitle || bookAuthor)) {
+      return { glyph: 'BK', label: 'Book' };
+    }
+    return { glyph: 'JOB', label: 'Job' };
+  }, [bookAuthor, bookTitle, itemType, jobType]);
   const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
   const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
   const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
@@ -4212,7 +4830,7 @@ const scheduleChunkMetadataAppend = useCallback(
   const navigationGroup = (
     <NavigationControls
       context="panel"
-      onNavigate={handleNavigate}
+      onNavigate={handleNavigatePreservingPlayback}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
       onTogglePlayback={handleToggleActiveMedia}
       controlsLayout="compact"
@@ -4274,17 +4892,39 @@ const scheduleChunkMetadataAppend = useCallback(
       onInteractiveBackgroundOpacityChange={(value) =>
         setInteractiveBackgroundOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
       }
+      showInteractiveSentenceCardOpacity
+      interactiveSentenceCardOpacityPercent={interactiveSentenceCardOpacityPercent}
+      interactiveSentenceCardOpacityMin={0}
+      interactiveSentenceCardOpacityMax={100}
+      interactiveSentenceCardOpacityStep={5}
+      onInteractiveSentenceCardOpacityChange={(value) =>
+        setInteractiveSentenceCardOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
+      }
       onResetLayout={handleResetInteractiveLayout}
+      showReadingBedToggle
+      readingBedEnabled={readingBedEnabled}
+      disableReadingBedToggle={!readingBed.supported}
+      onToggleReadingBed={handleToggleReadingBed}
+      showReadingBedVolume
+      readingBedVolumePercent={readingBedVolumePercent}
+      readingBedVolumeMin={0}
+      readingBedVolumeMax={100}
+      readingBedVolumeStep={5}
+	      onReadingBedVolumeChange={handleReadingBedVolumeChange}
+	      showReadingBedTrack
+	      readingBedTrack={readingBedTrackSelection ?? ''}
+	      readingBedTrackOptions={readingBedTrackOptions}
+	      onReadingBedTrackChange={handleReadingBedTrackChange}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
       jobStartSentence={jobStartSentence}
       bookTotalSentences={bookSentenceCount}
     />
   );
-  const fullscreenNavigationGroup = isInteractiveFullscreen ? (
-    <NavigationControls
+	  const fullscreenNavigationGroup = isInteractiveFullscreen ? (
+	    <NavigationControls
       context="fullscreen"
-      onNavigate={handleNavigate}
+      onNavigate={handleNavigatePreservingPlayback}
       onToggleFullscreen={handleInteractiveFullscreenToggle}
       onTogglePlayback={handleToggleActiveMedia}
       controlsLayout="compact"
@@ -4346,7 +4986,29 @@ const scheduleChunkMetadataAppend = useCallback(
       onInteractiveBackgroundOpacityChange={(value) =>
         setInteractiveBackgroundOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
       }
+      showInteractiveSentenceCardOpacity
+      interactiveSentenceCardOpacityPercent={interactiveSentenceCardOpacityPercent}
+      interactiveSentenceCardOpacityMin={0}
+      interactiveSentenceCardOpacityMax={100}
+      interactiveSentenceCardOpacityStep={5}
+      onInteractiveSentenceCardOpacityChange={(value) =>
+        setInteractiveSentenceCardOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
+      }
       onResetLayout={handleResetInteractiveLayout}
+      showReadingBedToggle
+      readingBedEnabled={readingBedEnabled}
+      disableReadingBedToggle={!readingBed.supported}
+      onToggleReadingBed={handleToggleReadingBed}
+      showReadingBedVolume
+      readingBedVolumePercent={readingBedVolumePercent}
+      readingBedVolumeMin={0}
+      readingBedVolumeMax={100}
+      readingBedVolumeStep={5}
+	      onReadingBedVolumeChange={handleReadingBedVolumeChange}
+	      showReadingBedTrack
+	      readingBedTrack={readingBedTrackSelection ?? ''}
+	      readingBedTrackOptions={readingBedTrackOptions}
+	      onReadingBedTrackChange={handleReadingBedTrackChange}
       activeSentenceNumber={activeSentenceNumber}
       totalSentencesInBook={jobEndSentence}
       jobStartSentence={jobStartSentence}
@@ -4447,6 +5109,15 @@ const scheduleChunkMetadataAppend = useCallback(
                             fontScale={interactiveFontScale}
                             theme={interactiveTextTheme}
                             backgroundOpacityPercent={interactiveBackgroundOpacityPercent}
+                            sentenceCardOpacityPercent={interactiveSentenceCardOpacityPercent}
+                            infoGlyph={channelBug.glyph}
+                            infoGlyphLabel={channelBug.label}
+                            infoTitle={isSubtitleContext ? subtitleInfo.title : null}
+                            infoMeta={isSubtitleContext ? subtitleInfo.meta : null}
+                            infoCoverUrl={isSubtitleContext ? subtitleInfo.coverUrl : null}
+                            infoCoverSecondaryUrl={isSubtitleContext ? subtitleInfo.coverSecondaryUrl : null}
+                            infoCoverAltText={isSubtitleContext ? subtitleInfo.coverAltText : null}
+                            infoCoverVariant={isSubtitleContext ? 'subtitles' : null}
                             bookTitle={bookTitle ?? headingLabel}
                             bookAuthor={bookAuthor}
                             bookYear={bookYear}

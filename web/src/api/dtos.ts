@@ -820,3 +820,29 @@ export interface MediaSearchResponse {
   count: number;
   results: MediaSearchResult[];
 }
+
+export type ReadingBedKind = 'bundled' | 'uploaded';
+
+export interface ReadingBedEntry {
+  id: string;
+  label: string;
+  url: string;
+  kind: ReadingBedKind;
+  content_type?: string | null;
+  is_default?: boolean;
+}
+
+export interface ReadingBedListResponse {
+  default_id?: string | null;
+  beds: ReadingBedEntry[];
+}
+
+export interface ReadingBedUpdateRequestPayload {
+  label?: string | null;
+  set_default?: boolean | null;
+}
+
+export interface ReadingBedDeleteResponse {
+  deleted: boolean;
+  default_id?: string | null;
+}

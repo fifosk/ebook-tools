@@ -61,7 +61,11 @@ import {
   YoutubeDubRequest,
   YoutubeDubResponse,
   AssistantLookupRequest,
-  AssistantLookupResponse
+  AssistantLookupResponse,
+  ReadingBedDeleteResponse,
+  ReadingBedEntry,
+  ReadingBedListResponse,
+  ReadingBedUpdateRequestPayload
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -513,13 +517,13 @@ export async function fetchJobs(): Promise<PipelineStatusResponse[]> {
 }
 
 export async function listUsers(): Promise<ManagedUser[]> {
-  const response = await apiFetch('/admin/users');
+  const response = await apiFetch('/api/admin/users');
   const payload = await handleResponse<UserListResponse>(response);
   return payload.users;
 }
 
 export async function createUser(payload: UserCreateRequestPayload): Promise<ManagedUser> {
-  const response = await apiFetch('/admin/users', {
+  const response = await apiFetch('/api/admin/users', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -534,7 +538,7 @@ export async function updateUserProfile(
   username: string,
   payload: UserUpdateRequestPayload
 ): Promise<ManagedUser> {
-  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}`, {
+  const response = await apiFetch(`/api/admin/users/${encodeURIComponent(username)}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json'
@@ -546,14 +550,14 @@ export async function updateUserProfile(
 }
 
 export async function deleteUserAccount(username: string): Promise<void> {
-  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}`, {
+  const response = await apiFetch(`/api/admin/users/${encodeURIComponent(username)}`, {
     method: 'DELETE'
   });
   await handleResponse<unknown>(response);
 }
 
 export async function suspendUserAccount(username: string): Promise<ManagedUser> {
-  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}/suspend`, {
+  const response = await apiFetch(`/api/admin/users/${encodeURIComponent(username)}/suspend`, {
     method: 'POST'
   });
   const body = await handleResponse<UserAccountResponse>(response);
@@ -561,7 +565,7 @@ export async function suspendUserAccount(username: string): Promise<ManagedUser>
 }
 
 export async function activateUserAccount(username: string): Promise<ManagedUser> {
-  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}/activate`, {
+  const response = await apiFetch(`/api/admin/users/${encodeURIComponent(username)}/activate`, {
     method: 'POST'
   });
   const body = await handleResponse<UserAccountResponse>(response);
@@ -572,7 +576,7 @@ export async function resetUserPassword(
   username: string,
   payload: UserPasswordResetRequestPayload
 ): Promise<void> {
-  const response = await apiFetch(`/admin/users/${encodeURIComponent(username)}/password`, {
+  const response = await apiFetch(`/api/admin/users/${encodeURIComponent(username)}/password`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -625,6 +629,42 @@ export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promi
     return null;
   }
   return handleResponse<JobTimingResponse>(response);
+}
+
+export async function fetchReadingBeds(signal?: AbortSignal): Promise<ReadingBedListResponse> {
+  const response = await apiFetch('/api/reading-beds', { signal });
+  return handleResponse<ReadingBedListResponse>(response);
+}
+
+export async function uploadReadingBed(file: File, label?: string): Promise<ReadingBedEntry> {
+  const form = new FormData();
+  form.append('file', file);
+  if (label && label.trim()) {
+    form.append('label', label.trim());
+  }
+  const response = await apiFetch('/api/admin/reading-beds', {
+    method: 'POST',
+    body: form
+  });
+  return handleResponse<ReadingBedEntry>(response);
+}
+
+export async function updateReadingBed(bedId: string, payload: ReadingBedUpdateRequestPayload): Promise<ReadingBedEntry> {
+  const response = await apiFetch(`/api/admin/reading-beds/${encodeURIComponent(bedId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<ReadingBedEntry>(response);
+}
+
+export async function deleteReadingBed(bedId: string): Promise<ReadingBedDeleteResponse> {
+  const response = await apiFetch(`/api/admin/reading-beds/${encodeURIComponent(bedId)}`, {
+    method: 'DELETE'
+  });
+  return handleResponse<ReadingBedDeleteResponse>(response);
 }
 
 export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {

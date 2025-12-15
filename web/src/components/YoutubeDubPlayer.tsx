@@ -3,7 +3,7 @@ import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
 import { NavigationControls } from './PlayerPanel';
-import { appendAccessToken } from '../api/client';
+import { appendAccessToken, fetchSubtitleTvMetadata, fetchYoutubeVideoMetadata, resolveLibraryMediaUrl } from '../api/client';
 import {
   DEFAULT_TRANSLATION_SPEED,
   TRANSLATION_SPEED_MAX,
@@ -13,6 +13,7 @@ import {
 } from './player-panel/constants';
 import { buildMediaFileId, toVideoFiles } from './player-panel/utils';
 import type { NavigationIntent } from './player-panel/constants';
+import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../api/dtos';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void };
 
@@ -27,6 +28,136 @@ interface YoutubeDubPlayerProps {
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
+  libraryItem?: LibraryItem | null;
+}
+
+function readNestedValue(source: unknown, path: string[]): unknown {
+  let current: unknown = source;
+  for (const key of path) {
+    if (!current || typeof current !== 'object') {
+      return null;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+function coerceRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function resolveLibraryAssetUrl(jobId: string, value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  if (trimmed.startsWith('/api/')) {
+    return appendAccessToken(trimmed);
+  }
+  if (trimmed.startsWith('/')) {
+    return trimmed;
+  }
+  return resolveLibraryMediaUrl(jobId, trimmed);
+}
+
+function extractTvMediaMetadataFromLibrary(item: LibraryItem | null | undefined): Record<string, unknown> | null {
+  const payload = item?.metadata ?? null;
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const candidate =
+    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
+    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+    readNestedValue(payload, ['request', 'media_metadata']) ??
+    readNestedValue(payload, ['media_metadata']) ??
+    null;
+  return coerceRecord(candidate);
+}
+
+function resolveTvImage(
+  jobId: string,
+  tvMetadata: Record<string, unknown> | null,
+  path: 'show' | 'episode',
+  resolver: (jobId: string, value: unknown) => string | null,
+): string | null {
+  const section = coerceRecord(tvMetadata?.[path]);
+  if (!section) {
+    return null;
+  }
+  const image = section['image'];
+  if (!image) {
+    return null;
+  }
+  if (typeof image === 'string') {
+    return resolver(jobId, image);
+  }
+  const record = coerceRecord(image);
+  if (!record) {
+    return null;
+  }
+  return resolver(jobId, record['medium']) ?? resolver(jobId, record['original']);
+}
+
+function extractYoutubeVideoMetadataFromTv(tvMetadata: Record<string, unknown> | null): Record<string, unknown> | null {
+  return coerceRecord(tvMetadata?.['youtube']);
+}
+
+function resolveYoutubeThumbnail(
+  jobId: string,
+  youtubeMetadata: Record<string, unknown> | null,
+  resolver: (jobId: string, value: unknown) => string | null,
+): string | null {
+  if (!youtubeMetadata) {
+    return null;
+  }
+  return resolver(jobId, youtubeMetadata['thumbnail']);
+}
+
+function resolveYoutubeTitle(youtubeMetadata: Record<string, unknown> | null): string | null {
+  const title = youtubeMetadata?.['title'];
+  return typeof title === 'string' && title.trim() ? title.trim() : null;
+}
+
+function resolveYoutubeChannel(youtubeMetadata: Record<string, unknown> | null): string | null {
+  const channel = youtubeMetadata?.['channel'];
+  if (typeof channel === 'string' && channel.trim()) {
+    return channel.trim();
+  }
+  const uploader = youtubeMetadata?.['uploader'];
+  return typeof uploader === 'string' && uploader.trim() ? uploader.trim() : null;
+}
+
+function formatTvEpisodeLabel(tvMetadata: Record<string, unknown> | null): string | null {
+  const kind = typeof tvMetadata?.['kind'] === 'string' ? (tvMetadata?.['kind'] as string).trim().toLowerCase() : '';
+  if (kind !== 'tv_episode') {
+    return null;
+  }
+  const episode = coerceRecord(tvMetadata?.['episode']);
+  const season = episode?.['season'];
+  const number = episode?.['number'];
+  const episodeName = typeof episode?.['name'] === 'string' && episode.name.trim() ? episode.name.trim() : null;
+  const code =
+    typeof season === 'number' &&
+    typeof number === 'number' &&
+    Number.isFinite(season) &&
+    Number.isFinite(number) &&
+    season > 0 &&
+    number > 0
+      ? `S${Math.trunc(season).toString().padStart(2, '0')}E${Math.trunc(number).toString().padStart(2, '0')}`
+      : null;
+  if (code && episodeName) {
+    return `${code} - ${episodeName}`;
+  }
+  return episodeName ?? code;
 }
 
 export default function YoutubeDubPlayer({
@@ -40,6 +171,7 @@ export default function YoutubeDubPlayer({
   onVideoPlaybackStateChange,
   showBackToLibrary = false,
   onBackToLibrary,
+  libraryItem = null,
 }: YoutubeDubPlayerProps) {
   const videoLookup = useMemo(() => {
     const map = new Map<string, LiveMediaItem>();
@@ -66,6 +198,44 @@ export default function YoutubeDubPlayer({
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, deriveBaseId } = useMediaMemory({
     jobId,
   });
+  const [jobTvMetadata, setJobTvMetadata] = useState<Record<string, unknown> | null>(null);
+  const [jobYoutubeMetadata, setJobYoutubeMetadata] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    if (libraryItem) {
+      setJobTvMetadata(null);
+      setJobYoutubeMetadata(null);
+      return;
+    }
+    let cancelled = false;
+    void fetchSubtitleTvMetadata(jobId)
+      .then((payload: SubtitleTvMetadataResponse) => {
+        if (cancelled) {
+          return;
+        }
+        setJobTvMetadata(payload.media_metadata ? { ...payload.media_metadata } : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setJobTvMetadata(null);
+        }
+      });
+    void fetchYoutubeVideoMetadata(jobId)
+      .then((payload: YoutubeVideoMetadataResponse) => {
+        if (cancelled) {
+          return;
+        }
+        setJobYoutubeMetadata(payload.youtube_metadata ? { ...payload.youtube_metadata } : null);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setJobYoutubeMetadata(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId, libraryItem]);
   const subtitleMap = useMemo(() => {
     const priorities = ['vtt', 'srt', 'ass', 'text'];
     const resolveSuffix = (value: string | null | undefined) => {
@@ -247,6 +417,117 @@ export default function YoutubeDubPlayer({
     const fallback = subtitleMap.get('__fallback__') ?? [];
     return fallback;
   }, [activeVideoId, buildSiblingSubtitleTracks, subtitleMap, videoFiles]);
+
+  const infoBadge = useMemo(() => {
+    const isLibrary = Boolean(libraryItem);
+    const resolver = isLibrary ? resolveLibraryAssetUrl : (jobIdValue: string, value: unknown) => {
+      if (typeof value !== 'string') {
+        return null;
+      }
+      const trimmed = value.trim();
+      if (!trimmed) {
+        return null;
+      }
+      if (trimmed.startsWith('/api/')) {
+        return appendAccessToken(trimmed);
+      }
+      if (trimmed.startsWith('/')) {
+        return appendAccessToken(trimmed);
+      }
+      if (/^[a-z]+:\/\//i.test(trimmed)) {
+        return trimmed;
+      }
+      return trimmed;
+    };
+
+    const tvMetadata = isLibrary ? extractTvMediaMetadataFromLibrary(libraryItem) : jobTvMetadata;
+    const kind = typeof tvMetadata?.['kind'] === 'string' ? (tvMetadata.kind as string).trim().toLowerCase() : '';
+    const youtubeFromTv = extractYoutubeVideoMetadataFromTv(tvMetadata);
+    const youtubeMetadata = isLibrary ? youtubeFromTv : jobYoutubeMetadata ?? youtubeFromTv;
+
+    const episodeCoverUrl = resolveTvImage(jobId, tvMetadata, 'episode', resolver);
+    const showCoverUrl = resolveTvImage(jobId, tvMetadata, 'show', resolver);
+    const youtubeThumbnailUrl = resolveYoutubeThumbnail(jobId, youtubeMetadata, resolver);
+
+    const coverFromLibrary =
+      isLibrary && libraryItem?.coverPath ? resolver(jobId, libraryItem.coverPath) : null;
+    const coverUrl =
+      coverFromLibrary ??
+      episodeCoverUrl ??
+      showCoverUrl ??
+      youtubeThumbnailUrl ??
+      null;
+    const coverSecondaryUrl =
+      kind === 'tv_episode' && showCoverUrl && coverUrl && coverUrl !== showCoverUrl ? showCoverUrl : null;
+
+    const titleFromLibrary =
+      typeof libraryItem?.bookTitle === 'string' && libraryItem.bookTitle.trim() ? libraryItem.bookTitle.trim() : null;
+    const title =
+      titleFromLibrary ??
+      resolveYoutubeTitle(youtubeMetadata) ??
+      formatTvEpisodeLabel(tvMetadata) ??
+      (() => {
+        const active = activeVideoId ? videoFiles.find((file) => file.id === activeVideoId) ?? null : null;
+        const fallback = active ?? videoFiles[0] ?? null;
+        return fallback?.name ?? null;
+      })() ??
+      null;
+
+    const glyph = !isLibrary
+      ? 'DUB'
+      : kind === 'tv_episode'
+        ? 'TV'
+        : youtubeMetadata
+          ? 'YT'
+          : 'NAS';
+    const glyphLabel = !isLibrary
+      ? 'Dubbed video'
+      : kind === 'tv_episode'
+        ? 'TV episode'
+        : youtubeMetadata
+          ? 'YouTube video'
+          : 'NAS video';
+
+    const metaParts: string[] = [];
+    const authorFromLibrary =
+      typeof libraryItem?.author === 'string' && libraryItem.author.trim() ? libraryItem.author.trim() : null;
+    const genreFromLibrary =
+      typeof libraryItem?.genre === 'string' && libraryItem.genre.trim() ? libraryItem.genre.trim() : null;
+    if (authorFromLibrary) {
+      metaParts.push(authorFromLibrary);
+    } else {
+      const channel = resolveYoutubeChannel(youtubeMetadata);
+      if (channel) {
+        metaParts.push(channel);
+      } else {
+        const show = coerceRecord(tvMetadata?.['show']);
+        const showName = typeof show?.['name'] === 'string' && show.name.trim() ? show.name.trim() : null;
+        if (showName) {
+          metaParts.push(showName);
+        }
+      }
+    }
+    if (genreFromLibrary) {
+      metaParts.push(genreFromLibrary);
+    } else {
+      if (kind === 'tv_episode') {
+        metaParts.push('TV');
+      } else if (youtubeMetadata) {
+        metaParts.push('YouTube');
+      }
+    }
+    const meta = metaParts.filter(Boolean).join(' · ') || null;
+
+    return {
+      title,
+      meta,
+      coverUrl,
+      coverAltText: title ? `Cover for ${title}` : 'Cover',
+      coverSecondaryUrl,
+      glyph,
+      glyphLabel,
+    };
+  }, [activeVideoId, jobId, jobTvMetadata, jobYoutubeMetadata, libraryItem, videoFiles]);
 
   useEffect(() => {
     if (activeSubtitleTracks.length > 0 || media.text.length > 0) {
@@ -768,23 +1049,24 @@ export default function YoutubeDubPlayer({
                       resetPlaybackPosition(id);
                       setActiveVideoId(id);
                     }}
+                    infoBadge={infoBadge}
                     autoPlay
-                  onPlaybackEnded={handlePlaybackEnded}
-                  playbackPosition={playbackPosition}
-                  onPlaybackPositionChange={handlePlaybackPositionChange}
-                  onPlaybackStateChange={handlePlaybackStateChange}
-                  playbackRate={playbackSpeed}
-                  onPlaybackRateChange={handlePlaybackRateChange}
-                  isTheaterMode={isFullscreen}
-                  onExitTheaterMode={handleExitFullscreen}
-                  onRegisterControls={handleRegisterControls}
-                  subtitlesEnabled={subtitlesEnabled}
-                  tracks={activeSubtitleTracks}
-                  cueVisibility={cueVisibility}
-                  subtitleScale={subtitleScale}
-                  subtitleBackgroundOpacity={subtitleBackgroundOpacityPercent / 100}
-                />
-              </>
+                    onPlaybackEnded={handlePlaybackEnded}
+                    playbackPosition={playbackPosition}
+                    onPlaybackPositionChange={handlePlaybackPositionChange}
+                    onPlaybackStateChange={handlePlaybackStateChange}
+                    playbackRate={playbackSpeed}
+                    onPlaybackRateChange={handlePlaybackRateChange}
+                    isTheaterMode={isFullscreen}
+                    onExitTheaterMode={handleExitFullscreen}
+                    onRegisterControls={handleRegisterControls}
+                    subtitlesEnabled={subtitlesEnabled}
+                    tracks={activeSubtitleTracks}
+                    cueVisibility={cueVisibility}
+                    subtitleScale={subtitleScale}
+                    subtitleBackgroundOpacity={subtitleBackgroundOpacityPercent / 100}
+                  />
+                </>
               )}
             </div>
           </div>

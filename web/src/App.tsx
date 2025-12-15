@@ -37,6 +37,7 @@ import { useAuth } from './components/AuthProvider';
 import LoginForm from './components/LoginForm';
 import ChangePasswordForm from './components/ChangePasswordForm';
 import UserManagementPanel from './components/admin/UserManagementPanel';
+import ReadingBedsPanel from './components/admin/ReadingBedsPanel';
 import { resolveMediaCompletion } from './utils/mediaFormatters';
 import { buildLibraryBookMetadata } from './utils/libraryMetadata';
 import type { LibraryOpenInput, MediaSelectionRequest } from './types/player';
@@ -58,6 +59,7 @@ export type PipelineMenuView =
   | 'pipeline:submit';
 
 const ADMIN_USER_MANAGEMENT_VIEW = 'admin:users' as const;
+const ADMIN_READING_BEDS_VIEW = 'admin:reading-beds' as const;
 
 const JOB_PROGRESS_VIEW = 'job:progress' as const;
 const JOB_MEDIA_VIEW = 'job:media' as const;
@@ -70,6 +72,7 @@ const YOUTUBE_DUB_VIEW = 'subtitles:youtube-dub' as const;
 export type SelectedView =
   | PipelineMenuView
   | typeof ADMIN_USER_MANAGEMENT_VIEW
+  | typeof ADMIN_READING_BEDS_VIEW
   | typeof JOB_PROGRESS_VIEW
   | typeof JOB_MEDIA_VIEW
   | typeof LIBRARY_VIEW
@@ -314,7 +317,7 @@ export function App() {
     if (typeof selectedView === 'string' && selectedView.startsWith('pipeline:')) {
       return;
     }
-    if (selectedView === ADMIN_USER_MANAGEMENT_VIEW) {
+    if (selectedView === ADMIN_USER_MANAGEMENT_VIEW || selectedView === ADMIN_READING_BEDS_VIEW) {
       return;
     }
     if (selectedView === JOB_PROGRESS_VIEW) {
@@ -796,6 +799,7 @@ export function App() {
       let jobId: string | null = null;
       let itemType: 'book' | 'video' | 'narrated_subtitle' | null = null;
       let metadata: Record<string, unknown> | null = null;
+      let libraryItem: LibraryItem | null = null;
       let selection: MediaSelectionRequest | null = null;
 
       if (typeof entry === 'string') {
@@ -804,14 +808,16 @@ export function App() {
         jobId = entry.jobId;
         selection = entry.selection ?? null;
         if (entry.item) {
+          libraryItem = entry.item;
           metadata = buildLibraryBookMetadata(entry.item);
           itemType = entry.item.itemType ?? null;
         }
       } else {
-        const item = entry as LibraryItem;
-        jobId = item.jobId;
-        itemType = item.itemType ?? null;
-        metadata = buildLibraryBookMetadata(item);
+        const resolvedItem = entry as LibraryItem;
+        libraryItem = resolvedItem;
+        jobId = resolvedItem.jobId;
+        itemType = resolvedItem.itemType ?? null;
+        metadata = buildLibraryBookMetadata(resolvedItem);
       }
 
       if (!jobId) {
@@ -822,7 +828,8 @@ export function App() {
         type: 'library',
         jobId,
         itemType,
-        bookMetadata: metadata
+        bookMetadata: metadata,
+        item: libraryItem,
       });
       setPlayerSelection(
         selection
@@ -975,7 +982,9 @@ export function App() {
   }, [sortedJobs]);
 
   const isPipelineView = typeof selectedView === 'string' && selectedView.startsWith('pipeline:');
-  const isAdminView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
+  const isAdminUsersView = selectedView === ADMIN_USER_MANAGEMENT_VIEW;
+  const isAdminReadingBedsView = selectedView === ADMIN_READING_BEDS_VIEW;
+  const isAdminView = isAdminUsersView || isAdminReadingBedsView;
   const isLibraryView = selectedView === LIBRARY_VIEW;
   const isCreateBookView = selectedView === CREATE_BOOK_VIEW;
   const isSubtitlesView = selectedView === SUBTITLES_VIEW;
@@ -1178,7 +1187,8 @@ export function App() {
           youtubeSubtitlesView={YOUTUBE_SUBTITLES_VIEW}
           youtubeDubView={YOUTUBE_DUB_VIEW}
           jobMediaView={JOB_MEDIA_VIEW}
-          adminView={ADMIN_USER_MANAGEMENT_VIEW}
+          adminUserManagementView={ADMIN_USER_MANAGEMENT_VIEW}
+          adminReadingBedsView={ADMIN_READING_BEDS_VIEW}
         />
         <div className="sidebar__account">
           <div
@@ -1304,23 +1314,32 @@ export function App() {
               />
             </section>
           ) : null}
-	          {isAdminView ? (
-	            <header className="dashboard__header">
-	              <h1>User management</h1>
-	              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
-	            </header>
-	          ) : null}
-	          {isAdminView ? (
-	            <section>
-	              <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
-	            </section>
-	          ) : isLibraryView ? (
-	            <LibraryPage
-                onPlay={handlePlayLibraryItem}
-                focusRequest={libraryFocusRequest}
-                onConsumeFocusRequest={handleConsumeLibraryFocusRequest}
-              />
-	          ) : isCreateBookView ? (
+          {isAdminUsersView ? (
+            <header className="dashboard__header">
+              <h1>User management</h1>
+              <p>Administer dashboard accounts, reset passwords, and control access for operators.</p>
+            </header>
+          ) : isAdminReadingBedsView ? (
+            <header className="dashboard__header">
+              <h1>Reading music</h1>
+              <p>Manage background music tracks shown in the interactive player.</p>
+            </header>
+          ) : null}
+          {isAdminUsersView ? (
+            <section>
+              <UserManagementPanel currentUser={sessionUser?.username ?? ''} />
+            </section>
+          ) : isAdminReadingBedsView ? (
+            <section>
+              <ReadingBedsPanel />
+            </section>
+          ) : isLibraryView ? (
+            <LibraryPage
+              onPlay={handlePlayLibraryItem}
+              focusRequest={libraryFocusRequest}
+              onConsumeFocusRequest={handleConsumeLibraryFocusRequest}
+            />
+          ) : isCreateBookView ? (
             <section>
               <CreateBookPage
                 onJobSubmitted={(jobId) => {
@@ -1335,20 +1354,20 @@ export function App() {
             </section>
           ) : (
             <>
-	              {isAddBookView ? (
-	                <section>
-	                  <NewImmersiveBookPage
-	                    activeSection={activePipelineSection ?? 'source'}
-	                    onSectionChange={handleImmersiveSectionChange}
-	                    onSubmit={handleSubmit}
-	                    isSubmitting={isSubmitting}
-	                    prefillInputFile={pendingInputFile}
-	                    prefillParameters={copiedJobParameters}
-	                    submitError={submitError}
-	                    recentJobs={recentPipelineJobs}
-	                  />
-	                </section>
-	              ) : null}
+              {isAddBookView ? (
+                <section>
+                  <NewImmersiveBookPage
+                    activeSection={activePipelineSection ?? 'source'}
+                    onSectionChange={handleImmersiveSectionChange}
+                    onSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                    prefillInputFile={pendingInputFile}
+                    prefillParameters={copiedJobParameters}
+                    submitError={submitError}
+                    recentJobs={recentPipelineJobs}
+                  />
+                </section>
+              ) : null}
               {isSubtitlesView ? (
                 <section>
                   <SubtitlesPage

@@ -24,14 +24,14 @@
   gap: 0.5rem;
   padding: 0.75rem 0.95rem;
   border-radius: 0.75rem;
-  background: rgba(255, 224, 133, 0.04);
+  background: var(--tp-sentence-bg, rgba(255, 224, 133, 0.04));
   transition: background-color 140ms ease, box-shadow 140ms ease, opacity 160ms ease;
   width: 100%;
 }
 
 .sentenceActive {
-  background: rgba(255, 165, 0, 0.16);
-  box-shadow: 0 6px 26px rgba(255, 140, 0, 0.18);
+  background: var(--tp-sentence-active-bg, rgba(255, 165, 0, 0.16));
+  box-shadow: var(--tp-sentence-active-shadow, 0 6px 26px rgba(255, 140, 0, 0.18));
 }
 
 .sentencePast {

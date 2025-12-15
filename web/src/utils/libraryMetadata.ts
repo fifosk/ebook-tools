@@ -51,27 +51,72 @@ function extractLibraryJobLanguages(item: LibraryItem): {
     return { inputLanguage: null, originalLanguage: null, targetLanguages: [], targetLanguage: null };
   }
 
+  const requestCandidates = [
+    ['request', 'config'],
+    ['request', 'inputs'],
+    ['request', 'options'],
+    ['resume_context', 'config'],
+    ['resume_context', 'inputs'],
+    ['resume_context', 'options'],
+    ['request_payload', 'config'],
+    ['request_payload', 'inputs'],
+    ['request_payload', 'options'],
+    ['parameters'],
+  ] as const;
+
+  const readAny = (key: string): unknown => {
+    const direct = readNestedValue(metadata, [key]);
+    if (direct != null) {
+      return direct;
+    }
+    const camel = readNestedValue(metadata, [key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase())]);
+    if (camel != null) {
+      return camel;
+    }
+    return null;
+  };
+
+  const readAnyNested = (path: readonly string[], key: string): unknown => {
+    const direct = readNestedValue(metadata, [...path, key]);
+    if (direct != null) {
+      return direct;
+    }
+    const camelKey = key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
+    const camel = readNestedValue(metadata, [...path, camelKey]);
+    if (camel != null) {
+      return camel;
+    }
+    return null;
+  };
+
   const inputLanguage =
-    extractFirstString(readNestedValue(metadata, ['input_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['original_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['request', 'config', 'input_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['request', 'inputs', 'input_language'])) ??
+    extractFirstString(readAny('input_language')) ??
+    extractFirstString(readAny('original_language')) ??
+    requestCandidates
+      .map((path) => extractFirstString(readAnyNested(path, 'input_language')))
+      .find((value) => Boolean(value)) ??
     null;
 
   const originalLanguage =
-    extractFirstString(readNestedValue(metadata, ['original_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['request', 'config', 'original_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['request', 'inputs', 'original_language'])) ??
+    extractFirstString(readAny('original_language')) ??
+    requestCandidates
+      .map((path) => extractFirstString(readAnyNested(path, 'original_language')))
+      .find((value) => Boolean(value)) ??
     inputLanguage ??
     null;
 
   const rawTargets =
-    readNestedValue(metadata, ['target_languages']) ??
-    readNestedValue(metadata, ['translation_languages']) ??
-    readNestedValue(metadata, ['request', 'config', 'target_languages']) ??
-    readNestedValue(metadata, ['request', 'inputs', 'target_languages']) ??
-    readNestedValue(metadata, ['request', 'config', 'target_language']) ??
-    readNestedValue(metadata, ['request', 'inputs', 'target_language']) ??
+    readAny('target_languages') ??
+    readAny('translation_languages') ??
+    requestCandidates
+      .map((path) => readAnyNested(path, 'target_languages'))
+      .find((value) => value != null) ??
+    requestCandidates
+      .map((path) => readAnyNested(path, 'target_language'))
+      .find((value) => value != null) ??
+    requestCandidates
+      .map((path) => readAnyNested(path, 'translation_language'))
+      .find((value) => value != null) ??
     null;
 
   const targetLanguages: string[] = [];
@@ -90,12 +135,18 @@ function extractLibraryJobLanguages(item: LibraryItem): {
   }
 
   const targetLanguage =
-    extractFirstString(readNestedValue(metadata, ['target_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['translation_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['request', 'config', 'target_language'])) ??
-    extractFirstString(readNestedValue(metadata, ['request', 'inputs', 'target_language'])) ??
+    extractFirstString(readAny('target_language')) ??
+    extractFirstString(readAny('translation_language')) ??
+    requestCandidates
+      .map((path) => extractFirstString(readAnyNested(path, 'target_language')))
+      .find((value) => Boolean(value)) ??
+    requestCandidates
+      .map((path) => extractFirstString(readAnyNested(path, 'translation_language')))
+      .find((value) => Boolean(value)) ??
     targetLanguages[0] ??
-    null;
+    (normaliseMetadataText(item.language) && item.language.trim().toLowerCase() !== 'unknown'
+      ? item.language.trim()
+      : null);
 
   return { inputLanguage, originalLanguage, targetLanguages, targetLanguage };
 }

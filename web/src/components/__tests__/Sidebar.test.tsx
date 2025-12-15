@@ -95,12 +95,13 @@ describe('Sidebar', () => {
         createBookView="books:create"
         libraryView="library:list"
         subtitlesView="subtitles:home"
-        youtubeSubtitlesView="subtitles:youtube"
-        youtubeDubView="subtitles:youtube-dub"
-        jobMediaView="job:media"
-        adminView="admin:users"
-      />
-    );
+	        youtubeSubtitlesView="subtitles:youtube"
+	        youtubeDubView="subtitles:youtube-dub"
+	        jobMediaView="job:media"
+	        adminUserManagementView="admin:users"
+	        adminReadingBedsView="admin:reading-beds"
+	      />
+	    );
 
     const narrateButton = screen.getByRole('button', { name: /Narrate Ebook/i });
     expect(narrateButton).toBeInTheDocument();
@@ -127,12 +128,13 @@ describe('Sidebar', () => {
         createBookView="books:create"
         libraryView="library:list"
         subtitlesView="subtitles:home"
-        youtubeSubtitlesView="subtitles:youtube"
-        youtubeDubView="subtitles:youtube-dub"
-        jobMediaView="job:media"
-        adminView="admin:users"
-      />
-    );
+	        youtubeSubtitlesView="subtitles:youtube"
+	        youtubeDubView="subtitles:youtube-dub"
+	        jobMediaView="job:media"
+	        adminUserManagementView="admin:users"
+	        adminReadingBedsView="admin:reading-beds"
+	      />
+	    );
 
     expect(screen.getByText('50%')).toBeInTheDocument();
     expect(screen.getByLabelText('Running')).toBeInTheDocument();
@@ -155,12 +157,13 @@ describe('Sidebar', () => {
         createBookView="books:create"
         libraryView="library:list"
         subtitlesView="subtitles:home"
-        youtubeSubtitlesView="subtitles:youtube"
-        youtubeDubView="subtitles:youtube-dub"
-        jobMediaView="job:media"
-        adminView="admin:users"
-      />
-    );
+	        youtubeSubtitlesView="subtitles:youtube"
+	        youtubeDubView="subtitles:youtube-dub"
+	        jobMediaView="job:media"
+	        adminUserManagementView="admin:users"
+	        adminReadingBedsView="admin:reading-beds"
+	      />
+	    );
 
     fireEvent.click(screen.getByRole('button', { name: /Narrate Ebook/i }));
     fireEvent.click(screen.getByRole('button', { name: /^🎙️ Dub Video$/i }));

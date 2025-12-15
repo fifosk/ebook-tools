@@ -2746,7 +2746,7 @@ button.link-button:focus {
 }
 
 .player-panel__control-slider {
-  width: clamp(5.75rem, 12vw, 8.75rem);
+  width: clamp(3.85rem, 8vw, 5.85rem);
   accent-color: var(--color-accent);
   appearance: none;
   -webkit-appearance: none;
@@ -3360,6 +3360,7 @@ button.link-button:focus {
   flex-direction: column;
   min-height: 0;
   background: var(--interactive-bg, rgba(15, 23, 42, 0.65));
+  position: relative;
 }
 
 .player-panel__document-text {
@@ -3602,7 +3603,13 @@ button.link-button:focus {
 }
 
 .player-panel__interactive-body[data-has-badge='true'] {
-  padding-top: 3.25rem;
+  padding-top: calc(4.4rem + env(safe-area-inset-top, 0px));
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-body[data-has-badge='true'],
+.player-panel__interactive:fullscreen .player-panel__interactive-body[data-has-badge='true'],
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-body[data-has-badge='true'] {
+  padding-top: calc(9.5rem + env(safe-area-inset-top, 0px));
 }
 
 .player-panel__my-linguist-dock {
@@ -3854,6 +3861,358 @@ button.link-button:focus {
   color: var(--color-danger);
 }
 
+.player-panel__player-info-header {
+  position: absolute;
+  top: calc(0.4rem + env(safe-area-inset-top, 0px));
+  left: calc(0.75rem + env(safe-area-inset-left, 0px));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  z-index: 6;
+  pointer-events: none;
+  max-width: calc(100% - 1.5rem);
+}
+
+.player-panel__player-info-header .player-panel__interactive-book-badge {
+  position: static;
+  top: auto;
+  left: auto;
+}
+
+.player-panel__channel-bug {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.18rem;
+  color: #fff;
+  line-height: 1.1;
+  filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.35));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.player-panel__channel-logo {
+  display: grid;
+  place-items: center;
+  width: 2.7rem;
+  height: 2.7rem;
+  border-radius: 0.95rem;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.95), rgba(71, 85, 105, 0.95));
+  backdrop-filter: blur(8px);
+}
+
+.player-panel__channel-logo[data-variant='book'] {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.95), rgba(249, 115, 22, 0.95));
+}
+
+.player-panel__channel-logo[data-variant='subtitles'] {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(56, 189, 248, 0.95));
+}
+
+.player-panel__channel-logo[data-variant='video'] {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.95), rgba(20, 184, 166, 0.95));
+}
+
+.player-panel__channel-logo[data-variant='youtube'] {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(220, 38, 38, 0.95));
+}
+
+.player-panel__channel-logo[data-variant='nas'] {
+  background: linear-gradient(135deg, rgba(100, 116, 139, 0.95), rgba(51, 65, 85, 0.95));
+}
+
+.player-panel__channel-logo[data-variant='dub'] {
+  background: linear-gradient(135deg, rgba(244, 63, 94, 0.95), rgba(168, 85, 247, 0.95));
+}
+
+.player-panel__channel-logo-icon {
+  width: 1.7rem;
+  height: 1.7rem;
+  display: block;
+}
+
+.player-panel__channel-clock {
+  display: inline-flex;
+  align-items: baseline;
+  padding: 0.14rem 0.5rem;
+  border-radius: 0.65rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.player-panel__interactive--fullscreen .player-panel__channel-bug,
+.player-panel__interactive:fullscreen .player-panel__channel-bug,
+.player-panel__interactive:-webkit-full-screen .player-panel__channel-bug,
+.video-player__stage:fullscreen .player-panel__channel-bug,
+.video-player__stage:-webkit-full-screen .player-panel__channel-bug {
+  gap: 0.36rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__channel-logo,
+.player-panel__interactive:fullscreen .player-panel__channel-logo,
+.player-panel__interactive:-webkit-full-screen .player-panel__channel-logo,
+.video-player__stage:fullscreen .player-panel__channel-logo,
+.video-player__stage:-webkit-full-screen .player-panel__channel-logo {
+  width: 5.4rem;
+  height: 5.4rem;
+  border-radius: 1.9rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__channel-logo-icon,
+.player-panel__interactive:fullscreen .player-panel__channel-logo-icon,
+.player-panel__interactive:-webkit-full-screen .player-panel__channel-logo-icon,
+.video-player__stage:fullscreen .player-panel__channel-logo-icon,
+.video-player__stage:-webkit-full-screen .player-panel__channel-logo-icon {
+  width: 3.4rem;
+  height: 3.4rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__channel-clock,
+.player-panel__interactive:fullscreen .player-panel__channel-clock,
+.player-panel__interactive:-webkit-full-screen .player-panel__channel-clock,
+.video-player__stage:fullscreen .player-panel__channel-clock,
+.video-player__stage:-webkit-full-screen .player-panel__channel-clock {
+  padding: 0.28rem 1rem;
+  border-radius: 1.3rem;
+  font-size: 1.48rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-header,
+.player-panel__interactive:fullscreen .player-panel__player-info-header,
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-header,
+.video-player__stage:fullscreen .player-panel__player-info-header,
+.video-player__stage:-webkit-full-screen .player-panel__player-info-header {
+  gap: 1.1rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-art-secondary,
+.player-panel__interactive:fullscreen .player-panel__player-info-art-secondary,
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art-secondary,
+.video-player__stage:fullscreen .player-panel__player-info-art-secondary,
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art-secondary {
+  right: -0.7rem;
+  bottom: -0.7rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='book'],
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='book'],
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art[data-variant='book'],
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='book'],
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art[data-variant='book'] {
+  width: 5.2rem;
+  height: 7.2rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='subtitles'],
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='subtitles'],
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art[data-variant='subtitles'],
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='subtitles'],
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art[data-variant='subtitles'] {
+  width: 8.8rem;
+  height: 5rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='subtitles'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='subtitles'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='subtitles']
+  .player-panel__player-info-art-secondary,
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='subtitles'] .player-panel__player-info-art-secondary,
+.video-player__stage:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='subtitles']
+  .player-panel__player-info-art-secondary {
+  width: 3.1rem;
+  height: 4.4rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='video'],
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='youtube'],
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='nas'],
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='dub'],
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='video'],
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='youtube'],
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='nas'],
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='dub'],
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art[data-variant='video'],
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art[data-variant='youtube'],
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art[data-variant='nas'],
+.player-panel__interactive:-webkit-full-screen .player-panel__player-info-art[data-variant='dub'],
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='video'],
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='youtube'],
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='nas'],
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='dub'],
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art[data-variant='video'],
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art[data-variant='youtube'],
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art[data-variant='nas'],
+.video-player__stage:-webkit-full-screen .player-panel__player-info-art[data-variant='dub'] {
+  width: 10.8rem;
+  height: 6.1rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='video'] .player-panel__player-info-art-secondary,
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='youtube'] .player-panel__player-info-art-secondary,
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='nas'] .player-panel__player-info-art-secondary,
+.player-panel__interactive--fullscreen .player-panel__player-info-art[data-variant='dub'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='video'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='youtube'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='nas'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:fullscreen .player-panel__player-info-art[data-variant='dub'] .player-panel__player-info-art-secondary,
+.player-panel__interactive:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='video']
+  .player-panel__player-info-art-secondary,
+.player-panel__interactive:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='youtube']
+  .player-panel__player-info-art-secondary,
+.player-panel__interactive:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='nas']
+  .player-panel__player-info-art-secondary,
+.player-panel__interactive:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='dub']
+  .player-panel__player-info-art-secondary,
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='video'] .player-panel__player-info-art-secondary,
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='youtube'] .player-panel__player-info-art-secondary,
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='nas'] .player-panel__player-info-art-secondary,
+.video-player__stage:fullscreen .player-panel__player-info-art[data-variant='dub'] .player-panel__player-info-art-secondary,
+.video-player__stage:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='video']
+  .player-panel__player-info-art-secondary,
+.video-player__stage:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='youtube']
+  .player-panel__player-info-art-secondary,
+.video-player__stage:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='nas']
+  .player-panel__player-info-art-secondary,
+.video-player__stage:-webkit-full-screen
+  .player-panel__player-info-art[data-variant='dub']
+  .player-panel__player-info-art-secondary {
+  width: 3.1rem;
+  height: 4.4rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-book-badge,
+.player-panel__interactive:fullscreen .player-panel__interactive-book-badge,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-book-badge,
+.video-player__stage:fullscreen .player-panel__interactive-book-badge,
+.video-player__stage:-webkit-full-screen .player-panel__interactive-book-badge {
+  gap: 1.1rem;
+  padding: 0.5rem 1.3rem;
+  font-size: 1.64rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-book-badge-title,
+.player-panel__interactive:fullscreen .player-panel__interactive-book-badge-title,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-book-badge-title,
+.video-player__stage:fullscreen .player-panel__interactive-book-badge-title,
+.video-player__stage:-webkit-full-screen .player-panel__interactive-book-badge-title {
+  max-width: 24rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-book-badge-meta,
+.player-panel__interactive:fullscreen .player-panel__interactive-book-badge-meta,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-book-badge-meta,
+.video-player__stage:fullscreen .player-panel__interactive-book-badge-meta,
+.video-player__stage:-webkit-full-screen .player-panel__interactive-book-badge-meta {
+  font-size: 1.44rem;
+  max-width: 32rem;
+}
+
+.player-panel__player-info-art {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.player-panel__player-info-art-main {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.player-panel__player-info-art-secondary {
+  position: absolute;
+  right: -0.35rem;
+  bottom: -0.35rem;
+  display: block;
+  background: rgba(15, 23, 42, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  box-shadow: 0 4px 10px rgba(2, 6, 23, 0.55);
+  object-fit: cover;
+}
+
+.player-panel__player-info-art[data-variant='book'] {
+  width: 2.6rem;
+  height: 3.6rem;
+}
+
+.player-panel__player-info-art[data-variant='book'] .player-panel__player-info-art-main {
+  border-radius: 0.35rem;
+  object-fit: cover;
+}
+
+.player-panel__player-info-art[data-variant='subtitles'] {
+  width: 4.4rem;
+  height: 2.5rem;
+}
+
+.player-panel__player-info-art[data-variant='subtitles'] .player-panel__player-info-art-main {
+  border-radius: 0.45rem;
+  object-fit: cover;
+}
+
+.player-panel__player-info-art[data-variant='subtitles'] .player-panel__player-info-art-secondary {
+  width: 1.55rem;
+  height: 2.2rem;
+  border-radius: 0.4rem;
+}
+
+.player-panel__player-info-art[data-variant='video'],
+.player-panel__player-info-art[data-variant='youtube'],
+.player-panel__player-info-art[data-variant='nas'],
+.player-panel__player-info-art[data-variant='dub'] {
+  width: 5.4rem;
+  height: 3.05rem;
+}
+
+.player-panel__player-info-art[data-variant='video'] .player-panel__player-info-art-main,
+.player-panel__player-info-art[data-variant='youtube'] .player-panel__player-info-art-main,
+.player-panel__player-info-art[data-variant='nas'] .player-panel__player-info-art-main,
+.player-panel__player-info-art[data-variant='dub'] .player-panel__player-info-art-main {
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.player-panel__player-info-art[data-variant='video'] .player-panel__player-info-art-secondary,
+.player-panel__player-info-art[data-variant='youtube'] .player-panel__player-info-art-secondary,
+.player-panel__player-info-art[data-variant='nas'] .player-panel__player-info-art-secondary,
+.player-panel__player-info-art[data-variant='dub'] .player-panel__player-info-art-secondary {
+  width: 1.55rem;
+  height: 2.2rem;
+  border-radius: 0.4rem;
+}
+
+.player-panel__channel-clock-colon {
+  display: inline-block;
+  width: 0.55ch;
+  text-align: center;
+  animation: player-panel-clock-blink 1s step-end infinite;
+}
+
+@keyframes player-panel-clock-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .player-panel__interactive-book-badge {
   position: absolute;
   top: 0.4rem;
@@ -3861,7 +4220,7 @@ button.link-button:focus {
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  padding: 0.25rem 0.65rem 0.25rem 0.3rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.85);
   color: #fff;
@@ -3875,11 +4234,12 @@ button.link-button:focus {
 }
 
 .player-panel__interactive-book-badge img {
-  width: 2rem;
-  height: 2rem;
+  width: 2.4rem;
+  height: 3.2rem;
   border-radius: 0.45rem;
-  object-fit: cover;
+  object-fit: contain;
   flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.45);
 }

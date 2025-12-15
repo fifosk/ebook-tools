@@ -1,0 +1,60 @@
+.actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.actionIconButton {
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 0.55rem;
+  border: 1px solid var(--color-button-secondary-border, #d0d5dd);
+  background: var(--color-button-secondary-bg, #ffffff);
+  color: var(--color-button-secondary-text, #1f2937);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.actionIconButton:hover {
+  background: var(--color-button-secondary-hover-bg, #f3f4f6);
+  border-color: var(--color-button-secondary-hover-border, #cbd5f5);
+}
+
+.actionIconButton[data-variant='danger'] {
+  color: var(--color-status-error-text, #b42318);
+}
+
+.actionIconButton:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.bedNameCell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.bedIdLine {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+}
+
+.defaultBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(245, 158, 11, 0.15);
+  color: rgba(245, 158, 11, 0.95);
+}
+

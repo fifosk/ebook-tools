@@ -27,6 +27,8 @@ from .routers.library import router as library_router
 from .routers.subtitles import router as subtitles_router
 from .routers.assistant import router as assistant_router
 from .auth_routes import router as auth_router
+from .routers.reading_beds import admin_router as reading_beds_admin_router
+from .routers.reading_beds import router as reading_beds_router
 from modules.audio.config import load_media_config
 
 from .dependencies import configure_media_services, get_runtime_context_provider
@@ -368,6 +370,8 @@ def create_app() -> FastAPI:
     app.include_router(jobs_timing_router)
     app.include_router(video_router, prefix="/api/video", tags=["video"])
     app.include_router(subtitles_router)
+    app.include_router(reading_beds_router)
+    app.include_router(reading_beds_admin_router)
     app.include_router(assistant_router)
     app.include_router(router, prefix="/api/pipelines", tags=["pipelines"])
     app.include_router(router, prefix="/pipelines", tags=["pipelines"], include_in_schema=False)

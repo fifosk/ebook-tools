@@ -108,12 +108,13 @@ describe('Magenta theme contrast', () => {
         createBookView={'books:create' as SelectedView}
         libraryView={'library:list' as SelectedView}
         subtitlesView={'subtitles:home' as SelectedView}
-        youtubeSubtitlesView={'subtitles:youtube' as SelectedView}
-        youtubeDubView={'subtitles:youtube-dub' as SelectedView}
-        jobMediaView={'job:media' as SelectedView}
-        adminView={'admin:users' as SelectedView}
-      />
-    );
+	        youtubeSubtitlesView={'subtitles:youtube' as SelectedView}
+	        youtubeDubView={'subtitles:youtube-dub' as SelectedView}
+	        jobMediaView={'job:media' as SelectedView}
+	        adminUserManagementView={'admin:users' as SelectedView}
+	        adminReadingBedsView={'admin:reading-beds' as SelectedView}
+	      />
+	    );
 
     const bodyColor = resolveColor(getComputedStyle(document.body).backgroundColor, [1, 1, 1]);
     const links = Array.from(container.querySelectorAll<HTMLButtonElement>('.sidebar__link'));

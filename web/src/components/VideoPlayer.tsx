@@ -16,6 +16,15 @@ interface VideoPlayerProps {
   files: VideoFile[];
   activeId: string | null;
   onSelectFile: (fileId: string) => void;
+  infoBadge?: {
+    title?: string | null;
+    meta?: string | null;
+    coverUrl?: string | null;
+    coverSecondaryUrl?: string | null;
+    coverAltText?: string | null;
+    glyph?: string | null;
+    glyphLabel?: string | null;
+  } | null;
   autoPlay?: boolean;
   onPlaybackEnded?: () => void;
   playbackPosition?: number | null;
@@ -48,6 +57,7 @@ interface VideoPlayerProps {
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { formatMediaDropdownLabel } from '../utils/mediaLabels';
+import PlayerChannelBug from './PlayerChannelBug';
 
 const DEFAULT_PLAYBACK_RATE = 1;
 
@@ -165,6 +175,7 @@ export default function VideoPlayer({
   files,
   activeId,
   onSelectFile,
+  infoBadge = null,
   autoPlay = false,
   onPlaybackEnded,
   playbackPosition = null,
@@ -213,6 +224,33 @@ export default function VideoPlayer({
     [subtitleBackgroundOpacity],
   );
   const [processedSubtitleUrl, setProcessedSubtitleUrl] = useState<string>(EMPTY_VTT_DATA_URL);
+  const [coverFailed, setCoverFailed] = useState(false);
+  const [secondaryCoverFailed, setSecondaryCoverFailed] = useState(false);
+  useEffect(() => {
+    setCoverFailed(false);
+  }, [infoBadge?.coverUrl]);
+  useEffect(() => {
+    setSecondaryCoverFailed(false);
+  }, [infoBadge?.coverSecondaryUrl]);
+  const artVariant = useMemo(() => {
+    const glyph = (infoBadge?.glyph ?? '').trim().toLowerCase();
+    if (glyph === 'bk' || glyph === 'book') {
+      return 'book';
+    }
+    if (glyph === 'sub' || glyph === 'subtitle' || glyph === 'subtitles' || glyph === 'cc') {
+      return 'subtitles';
+    }
+    if (glyph === 'yt' || glyph === 'youtube') {
+      return 'youtube';
+    }
+    if (glyph === 'nas') {
+      return 'nas';
+    }
+    if (glyph === 'dub') {
+      return 'dub';
+    }
+    return 'video';
+  }, [infoBadge?.glyph]);
   const videoStyle = useMemo(() => {
     return { '--subtitle-scale': subtitleScale } as CSSProperties;
   }, [subtitleScale]);
@@ -379,23 +417,6 @@ export default function VideoPlayer({
       return;
     }
 
-    const presentationVideo = videoElement as unknown as
-      | { webkitSetPresentationMode?: (mode: string) => void; webkitPresentationMode?: string }
-      | null;
-    if (presentationVideo && typeof presentationVideo.webkitSetPresentationMode === 'function') {
-      try {
-        if (presentationVideo.webkitPresentationMode !== 'fullscreen') {
-          presentationVideo.webkitSetPresentationMode('fullscreen');
-        }
-        fullscreenRequestedRef.current = true;
-        fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
-        sourceChangedWhileFullscreenRef.current = false;
-        return;
-      } catch (error) {
-        void error;
-      }
-    }
-
     const fullscreenElement =
       document.fullscreenElement ??
       (document as Document & { webkitFullscreenElement?: Element | null }).webkitFullscreenElement ??
@@ -416,12 +437,16 @@ export default function VideoPlayer({
         });
       }
       fullscreenRequestedRef.current = true;
+      fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
+      sourceChangedWhileFullscreenRef.current = false;
       return;
     }
     if (typeof anyTarget.webkitRequestFullscreen === 'function') {
       try {
         anyTarget.webkitRequestFullscreen();
         fullscreenRequestedRef.current = true;
+        fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
+        sourceChangedWhileFullscreenRef.current = false;
         return;
       } catch (error) {
         // Ignore failures caused by user gesture requirements.
@@ -431,9 +456,28 @@ export default function VideoPlayer({
       try {
         anyTarget.webkitRequestFullScreen();
         fullscreenRequestedRef.current = true;
+        fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
+        sourceChangedWhileFullscreenRef.current = false;
         return;
       } catch (error) {
         // Ignore failures caused by user gesture requirements.
+      }
+    }
+
+    const presentationVideo = videoElement as unknown as
+      | { webkitSetPresentationMode?: (mode: string) => void; webkitPresentationMode?: string }
+      | null;
+    if (presentationVideo && typeof presentationVideo.webkitSetPresentationMode === 'function') {
+      try {
+        if (presentationVideo.webkitPresentationMode !== 'fullscreen') {
+          presentationVideo.webkitSetPresentationMode('fullscreen');
+        }
+        fullscreenRequestedRef.current = true;
+        fullscreenActiveFileIdRef.current = activeFile?.id ?? null;
+        sourceChangedWhileFullscreenRef.current = false;
+        return;
+      } catch (error) {
+        void error;
       }
     }
 
@@ -1012,6 +1056,48 @@ export default function VideoPlayer({
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage" ref={fullscreenRef}>
           <div className="video-player__canvas">
+            {infoBadge &&
+            (infoBadge.title || infoBadge.meta || infoBadge.coverUrl || infoBadge.glyph) ? (
+              <div className="player-panel__player-info-header" aria-hidden="true">
+                <PlayerChannelBug
+                  glyph={(infoBadge.glyph ?? '').trim() || 'TV'}
+                  label={infoBadge.glyphLabel}
+                />
+                {infoBadge.coverUrl && !coverFailed ? (
+                  <div className="player-panel__player-info-art" data-variant={artVariant}>
+                    <img
+                      className="player-panel__player-info-art-main"
+                      src={infoBadge.coverUrl}
+                      alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
+                      onError={() => setCoverFailed(true)}
+                      loading="lazy"
+                    />
+                    {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
+                      <img
+                        className="player-panel__player-info-art-secondary"
+                        src={infoBadge.coverSecondaryUrl}
+                        alt=""
+                        aria-hidden="true"
+                        onError={() => setSecondaryCoverFailed(true)}
+                        loading="lazy"
+                      />
+                    ) : null}
+                  </div>
+                ) : null}
+                {infoBadge.title || infoBadge.meta ? (
+                  <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
+                    <div className="player-panel__interactive-book-badge-text">
+                      {infoBadge.title ? (
+                        <span className="player-panel__interactive-book-badge-title">{infoBadge.title}</span>
+                      ) : null}
+                      {infoBadge.meta ? (
+                        <span className="player-panel__interactive-book-badge-meta">{infoBadge.meta}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <video
               ref={elementRef}
               className="video-player__element"

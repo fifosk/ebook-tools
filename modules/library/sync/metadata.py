@@ -346,6 +346,10 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
 
         options_section = request_section.get("options")
         if isinstance(options_section, Mapping):
+            input_language = options_section.get("input_language") or options_section.get("original_language")
+            if isinstance(input_language, str) and input_language.strip():
+                metadata.setdefault("input_language", input_language.strip())
+                metadata.setdefault("original_language", input_language.strip())
             if language_candidate is None:
                 target_language = options_section.get("target_language")
                 if isinstance(target_language, str) and target_language.strip():
@@ -355,6 +359,10 @@ def apply_narrated_subtitle_defaults(metadata: Dict[str, Any], job_root: Path) -
     _set_if_blank("book_title", title_candidate)
     _set_if_blank("genre", genre_candidate or "Subtitles")
     _set_if_blank("language", language_candidate)
+    if isinstance(language_candidate, str) and language_candidate.strip():
+        metadata.setdefault("target_language", language_candidate.strip())
+        metadata.setdefault("translation_language", language_candidate.strip())
+        metadata.setdefault("target_languages", [language_candidate.strip()])
 
     source_relative = file_ops.resolve_source_relative(metadata, job_root)
     if source_relative:
@@ -368,6 +376,8 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
 
     result_section = metadata.get("result")
     request_section = metadata.get("request")
+    resume_section = metadata.get("resume_context")
+    request_payload_section = metadata.get("request_payload")
 
     book_metadata: Optional[Mapping[str, Any]] = None
     direct_book_metadata = metadata.get("book_metadata")
@@ -410,40 +420,57 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
             str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
         )
 
-    if isinstance(request_section, Mapping):
-        inputs_section = request_section.get("inputs")
-        config_section = request_section.get("config")
+    def _extract_language(value: Any) -> Optional[str]:
+        if isinstance(value, str):
+            stripped = value.strip()
+            return stripped or None
+        if isinstance(value, list):
+            for entry in value:
+                if isinstance(entry, str) and entry.strip():
+                    return entry.strip()
+        return None
 
-        def _extract_language(value: Any) -> Optional[str]:
-            if isinstance(value, str):
-                stripped = value.strip()
-                return stripped or None
-            if isinstance(value, list):
-                for entry in value:
-                    if isinstance(entry, str) and entry.strip():
-                        return entry.strip()
-            return None
+    def _extract_languages(value: Any) -> list[str]:
+        if isinstance(value, list):
+            return [entry.strip() for entry in value if isinstance(entry, str) and entry.strip()]
+        if isinstance(value, str) and value.strip():
+            return [value.strip()]
+        return []
 
-        def _extract_languages(value: Any) -> list[str]:
-            if isinstance(value, list):
-                return [entry.strip() for entry in value if isinstance(entry, str) and entry.strip()]
-            if isinstance(value, str) and value.strip():
-                return [value.strip()]
+    def _read_key(section: Mapping[str, Any], key: str) -> Any:
+        if key in section:
+            return section.get(key)
+        camel = "".join([part if i == 0 else part.capitalize() for i, part in enumerate(key.split("_"))])
+        if camel in section:
+            return section.get(camel)
+        return None
+
+    def _iter_request_sections(payload: Any) -> list[Mapping[str, Any]]:
+        if not isinstance(payload, Mapping):
             return []
+        candidates: list[Any] = [
+            payload.get("inputs"),
+            payload.get("config"),
+            payload.get("options"),
+        ]
+        sections: list[Mapping[str, Any]] = []
+        for candidate in candidates:
+            if isinstance(candidate, Mapping):
+                sections.append(candidate)
+        return sections
 
-        for section in (inputs_section, config_section):
-            if not isinstance(section, Mapping):
-                continue
-            extracted_input_language = _extract_language(section.get("input_language"))
+    for root_payload in (request_section, resume_section, request_payload_section):
+        for section in _iter_request_sections(root_payload):
+            extracted_input_language = _extract_language(_read_key(section, "input_language"))
             extracted_target_languages = _extract_languages(
-                section.get("target_languages")
-                or section.get("target_language")
-                or section.get("translation_language")
+                _read_key(section, "target_languages")
+                or _read_key(section, "target_language")
+                or _read_key(section, "translation_language")
             )
             extracted_language = _extract_language(
-                section.get("target_language")
-                or section.get("translation_language")
-                or section.get("target_languages")
+                _read_key(section, "target_language")
+                or _read_key(section, "translation_language")
+                or _read_key(section, "target_languages")
             )
 
             if request_input_language_candidate is None and extracted_input_language is not None:
@@ -551,7 +578,11 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     if language is None and isinstance(request_section, Mapping):
         language = request_section.get("target_language") or request_section.get("language")
     if isinstance(language, str) and language.strip():
-        metadata.setdefault("language", language.strip())
+        normalized_language = language.strip()
+        metadata.setdefault("language", normalized_language)
+        metadata.setdefault("target_language", normalized_language)
+        metadata.setdefault("translation_language", normalized_language)
+        metadata.setdefault("target_languages", [normalized_language])
 
     video_path: Optional[str] = None
     if isinstance(dub_section, Mapping):
