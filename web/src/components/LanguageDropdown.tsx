@@ -1,5 +1,6 @@
 import { useId, useMemo } from 'react';
-import { buildLanguageOptions, formatLanguageOptionLabel, normalizeLanguageLabel, sortLanguageLabelsByName } from '../utils/languages';
+import { buildLanguageOptions, normalizeLanguageLabel, sortLanguageLabelsByName } from '../utils/languages';
+import LanguageSelect from './LanguageSelect';
 
 type Props = {
   id?: string;
@@ -41,19 +42,14 @@ export function LanguageDropdown({
   return (
     <label htmlFor={selectId}>
       {label}
-      <select
+      <LanguageSelect
         id={selectId}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        aria-describedby={helperText ? helperId : undefined}
+        options={options}
+        onChange={onChange}
         disabled={disabled}
-      >
-        {options.map((language) => (
-          <option key={language} value={language}>
-            {formatLanguageOptionLabel(language)}
-          </option>
-        ))}
-      </select>
+        ariaDescribedBy={helperText ? helperId : undefined}
+      />
       {helperText ? (
         <small id={helperId} className="form-help-text">
           {helperText}

@@ -22,12 +22,13 @@ import type {
 import type { MacOSVoice } from '../api/dtos';
 import type { JobState } from '../components/JobList';
 import { VOICE_OPTIONS } from '../constants/menuOptions';
+import EmojiIcon from '../components/EmojiIcon';
+import LanguageSelect from '../components/LanguageSelect';
 import { resolveLanguageName } from '../constants/languageCodes';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import { sampleSentenceFor } from '../utils/sampleSentences';
 import {
   buildLanguageOptions,
-  formatLanguageOptionLabel,
   normalizeLanguageLabel,
   preferLanguageLabel,
   resolveLanguageCode,
@@ -1208,9 +1209,10 @@ export default function YoutubeDubPage({
                           aria-label={subtitleLabel(sub)}
                           title={subtitleLabel(sub)}
                         >
-                          <span className={styles.pillFlag} aria-hidden="true">
-                            {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
-                          </span>
+                          <EmojiIcon
+                            emoji={resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
+                            className={styles.pillFlag}
+                          />
                           <span>{(sub.format ?? '').toUpperCase()}</span>
                         </span>
                       ))
@@ -1286,18 +1288,19 @@ export default function YoutubeDubPage({
                                         <span className={`${styles.pill} ${styles.pillFormat}`}>
                                           {sub.format.toUpperCase()}
                                         </span>
-                                        <span
-                                          className={`${styles.pill} ${styles.pillMuted}`}
-                                          title={subtitleLanguageDetail(sub.language, sub.path, sub.filename)}
-                                          aria-label={subtitleLanguageDetail(sub.language, sub.path, sub.filename)}
-                                        >
-                                          <span className={styles.pillFlag} aria-hidden="true">
-                                            {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
-                                          </span>
-                                        </span>
-                                      </div>
-                                    </div>
-                                </div>
+	                                        <span
+	                                          className={`${styles.pill} ${styles.pillMuted}`}
+	                                          title={subtitleLanguageDetail(sub.language, sub.path, sub.filename)}
+	                                          aria-label={subtitleLanguageDetail(sub.language, sub.path, sub.filename)}
+	                                        >
+	                                          <EmojiIcon
+	                                            emoji={resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
+	                                            className={styles.pillFlag}
+	                                          />
+	                                        </span>
+	                                      </div>
+	                                    </div>
+	                                </div>
                               </label>
                               <div className={styles.subtitleActions}>
                                 <button
@@ -1413,19 +1416,18 @@ export default function YoutubeDubPage({
           </div>
         </div>
         <div className={styles.formFields}>
-          <label className={styles.field}>
-            <span>Translation language</span>
-            <select className={styles.input} value={targetLanguage} onChange={(event) => applyTargetLanguage(event.target.value)}>
-              {sortedLanguageOptions.map((language) => (
-                <option key={language} value={language}>
-                  {formatLanguageOptionLabel(language)}
-                </option>
-              ))}
-            </select>
-            <p className={styles.fieldHint}>
-              Matches the Subtitles page list; we will convert it to the correct language code automatically.
-            </p>
-          </label>
+	          <label className={styles.field}>
+	            <span>Translation language</span>
+	            <LanguageSelect
+	              value={targetLanguage}
+	              options={sortedLanguageOptions}
+	              onChange={applyTargetLanguage}
+	              className={styles.input}
+	            />
+	            <p className={styles.fieldHint}>
+	              Matches the Subtitles page list; we will convert it to the correct language code automatically.
+	            </p>
+	          </label>
           <label className={styles.field}>
             <span>Voice / audio mode</span>
             <div className={styles.voiceRow}>

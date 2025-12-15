@@ -103,12 +103,12 @@ function getSelectedTargetLanguages(selectElement: HTMLSelectElement = getTarget
   return Array.from(selectElement.selectedOptions).map((option) => option.value);
 }
 
-function getInputLanguageField(): HTMLInputElement {
+function getInputLanguageField(): HTMLSelectElement {
   const element = document.getElementById('input_language');
   if (!element) {
     throw new Error('Unable to locate the input language field');
   }
-  return element as HTMLInputElement;
+  return element as HTMLSelectElement;
 }
 
 describe('PipelineSubmissionForm', () => {
@@ -128,8 +128,7 @@ describe('PipelineSubmissionForm', () => {
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
-    await user.clear(getInputLanguageField());
-    await user.type(getInputLanguageField(), 'English');
+    await user.selectOptions(getInputLanguageField(), 'English');
     const targetSelect = getTargetLanguageSelect();
     expect(getSelectedTargetLanguages(targetSelect)).toEqual(['Arabic']);
     await user.selectOptions(targetSelect, ['Arabic', 'German']);
@@ -173,8 +172,7 @@ describe('PipelineSubmissionForm', () => {
     await user.type(screen.getByLabelText(/Input file path/i), '/tmp/input.txt');
     await user.clear(screen.getByLabelText(/Base output file/i));
     await user.type(screen.getByLabelText(/Base output file/i), 'output');
-    await user.clear(getInputLanguageField());
-    await user.type(getInputLanguageField(), 'English');
+    await user.selectOptions(getInputLanguageField(), 'English');
     expect(getSelectedTargetLanguages()).toEqual(['Arabic']);
 
     fireEvent.change(screen.getByLabelText(/Config overrides JSON/i), {

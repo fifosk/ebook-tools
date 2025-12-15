@@ -15,9 +15,10 @@ import {
 import type { SubtitleJobResultPayload, SubtitleSourceEntry, SubtitleTvMetadataPreviewResponse } from '../api/dtos';
 import { formatTimestamp } from '../utils/mediaFormatters';
 import type { JobParameterSnapshot } from '../api/dtos';
+import EmojiIcon from '../components/EmojiIcon';
+import LanguageSelect from '../components/LanguageSelect';
 import {
   buildLanguageOptions,
-  formatLanguageOptionLabel,
   normalizeLanguageLabel,
   sortLanguageLabelsByName
 } from '../utils/languages';
@@ -749,16 +750,16 @@ export default function SubtitlesPage({
     setUploadFile(file);
   }, []);
 
-  const handleTargetLanguageChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const value = normaliseLanguage(event.target.value);
+  const handleTargetLanguageChange = useCallback((next: string) => {
+    const value = normaliseLanguage(next);
     setTargetLanguage(value);
     if (value) {
       setPrimaryTargetLanguage(value);
     }
   }, [setPrimaryTargetLanguage]);
 
-  const handleInputLanguageChange = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    const value = normaliseLanguage(event.target.value);
+  const handleInputLanguageChange = useCallback((next: string) => {
+    const value = normaliseLanguage(next);
     setInputLanguage(value || 'English');
   }, [setInputLanguage]);
 
@@ -1146,7 +1147,7 @@ export default function SubtitlesPage({
                                   title={languageLabel}
                                   aria-label={languageLabel}
                                 >
-                                  {languageFlag}
+                                  <EmojiIcon emoji={languageFlag} />
                                 </span>
                               </div>
                             </div>
@@ -1198,31 +1199,21 @@ export default function SubtitlesPage({
               <legend>Languages</legend>
             <div className="field">
               <label className="field-label" htmlFor="subtitle-input-language">Original language</label>
-              <select
+              <LanguageSelect
                 id="subtitle-input-language"
                 value={inputLanguage}
+                options={sortedLanguageOptions}
                 onChange={handleInputLanguageChange}
-              >
-                {sortedLanguageOptions.map((language) => (
-                  <option key={language} value={language}>
-                    {formatLanguageOptionLabel(language)}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="field">
               <label className="field-label" htmlFor="subtitle-target-language">Translation language</label>
-              <select
+              <LanguageSelect
                 id="subtitle-target-language"
                 value={targetLanguage}
+                options={sortedLanguageOptions}
                 onChange={handleTargetLanguageChange}
-              >
-                {sortedLanguageOptions.map((language) => (
-                  <option key={language} value={language}>
-                    {formatLanguageOptionLabel(language)}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="field">
               <label className="field-label" htmlFor="subtitle-llm-model">LLM model (optional)</label>

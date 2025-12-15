@@ -5,6 +5,7 @@ import {
   resolveLanguageFlag,
   resolveLanguageName
 } from '../constants/languageCodes';
+import { prefersNativeEmojiFlags } from './emojiIcons';
 
 function normalizeLanguageCodeCandidate(candidate: string): string {
   return candidate.replace('-', '_');
@@ -98,6 +99,9 @@ export function formatLanguageWithFlag(value?: string | null): string {
   if (!label) {
     return '';
   }
+  if (!prefersNativeEmojiFlags()) {
+    return label;
+  }
   const flag = resolveLanguageFlag(value ?? label) ?? DEFAULT_LANGUAGE_FLAG;
   return `${flag} ${label}`;
 }
@@ -106,6 +110,9 @@ export function formatLanguageOptionLabel(value?: string | null): string {
   const label = normalizeLanguageLabel(value);
   if (!label) {
     return '';
+  }
+  if (!prefersNativeEmojiFlags()) {
+    return label;
   }
   const flag = resolveLanguageFlag(value ?? label) ?? DEFAULT_LANGUAGE_FLAG;
   return `${label} ${flag}`;

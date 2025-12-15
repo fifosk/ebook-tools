@@ -1,3 +1,6 @@
+import { useMemo } from 'react';
+import { buildLanguageOptions, sortLanguageLabelsByName } from '../utils/languages';
+import LanguageSelect from './LanguageSelect';
 import LanguageSelector from './LanguageSelector';
 
 type LanguageSectionProps = {
@@ -32,7 +35,6 @@ const PipelineLanguageSection = ({
   description,
   inputLanguage,
   targetLanguages,
-  customTargetLanguages,
   ollamaModel,
   llmModels,
   llmModelsLoading,
@@ -44,7 +46,6 @@ const PipelineLanguageSection = ({
   disableProcessingWindow = false,
   onInputLanguageChange,
   onTargetLanguagesChange,
-  onCustomTargetLanguagesChange,
   onOllamaModelChange,
   onSentencesPerOutputFileChange,
   onStartSentenceChange,
@@ -54,6 +55,16 @@ const PipelineLanguageSection = ({
   const currentModel = ollamaModel.trim();
   const resolvedModels = llmModels.length ? llmModels : currentModel ? [currentModel] : [];
   const modelOptions = Array.from(new Set([...(currentModel ? [currentModel] : []), ...resolvedModels]));
+  const inputLanguageOptions = useMemo(
+    () =>
+      sortLanguageLabelsByName(
+        buildLanguageOptions({
+          preferredLanguages: [inputLanguage],
+          fallback: 'English'
+        })
+      ),
+    [inputLanguage]
+  );
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
@@ -62,29 +73,17 @@ const PipelineLanguageSection = ({
       </header>
       <div className="pipeline-card__body">
         <label htmlFor="input_language">Input language</label>
-        <input
+        <LanguageSelect
           id="input_language"
-          name="input_language"
-          type="text"
           value={inputLanguage}
-          onChange={(event) => onInputLanguageChange(event.target.value)}
-          required
-          placeholder="English"
+          options={inputLanguageOptions}
+          onChange={onInputLanguageChange}
         />
         <label htmlFor="target_languages">Target languages</label>
         <LanguageSelector
           id="target_languages"
           value={targetLanguages}
           onChange={onTargetLanguagesChange}
-        />
-        <label htmlFor="custom_target_languages">Other target languages (comma separated)</label>
-        <input
-          id="custom_target_languages"
-          name="custom_target_languages"
-          type="text"
-          value={customTargetLanguages}
-          onChange={(event) => onCustomTargetLanguagesChange(event.target.value)}
-          placeholder="e.g. Klingon, Sindarin"
         />
         <label htmlFor="ollama_model">LLM model (optional)</label>
         <select

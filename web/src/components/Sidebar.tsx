@@ -5,6 +5,7 @@ import {
 } from '../constants/languageCodes';
 import type { SelectedView } from '../App';
 import type { JobState } from './JobList';
+import EmojiIcon from './EmojiIcon';
 import { getStatusGlyph } from '../utils/status';
 import { getJobTypeGlyph } from '../utils/jobGlyphs';
 
@@ -377,14 +378,13 @@ export function Sidebar({
           {activeJob ? (
 	            <span className="sidebar__player-meta">
 	              {activeJobLanguage?.flag ? (
-	                <span
-	                  className="sidebar__job-flag"
-	                  title={activeJobLanguage.tooltip ?? activeJobLanguage.label}
-	                  aria-label={activeJobLanguage.tooltip ?? activeJobLanguage.label}
-	                >
-	                  {activeJobLanguage.flag}
-	                </span>
-	              ) : null}
+		                <EmojiIcon
+		                  className="sidebar__job-flag"
+		                  emoji={activeJobLanguage.flag}
+		                  title={activeJobLanguage.tooltip ?? activeJobLanguage.label}
+		                  ariaLabel={activeJobLanguage.tooltip ?? activeJobLanguage.label}
+		                />
+		              ) : null}
 	              {activeJobStage ? (
 	                <span className="job-stage" title={activeJobStage.tooltip} aria-label={activeJobStage.tooltip}>
 	                  {activeJobStage.icon}
@@ -519,15 +519,14 @@ export function Sidebar({
                           >
                             {glyph.icon}
                           </span>
-	                          {languageMeta.flag ? (
-	                            <span
-	                              className="sidebar__job-flag"
-	                              title={languageMeta.tooltip ?? languageMeta.label}
-	                              aria-label={languageMeta.tooltip ?? languageMeta.label}
-	                            >
-	                              {languageMeta.flag}
-	                            </span>
-	                          ) : null}
+		                          {languageMeta.flag ? (
+		                            <EmojiIcon
+		                              className="sidebar__job-flag"
+		                              emoji={languageMeta.flag}
+		                              title={languageMeta.tooltip ?? languageMeta.label}
+		                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
+		                            />
+		                          ) : null}
 	                          {stageGlyph ? (
 	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
 	                              {stageGlyph.icon}
@@ -591,15 +590,14 @@ export function Sidebar({
                           >
                             {glyph.icon}
                           </span>
-	                          {languageMeta.flag ? (
-	                            <span
-	                              className="sidebar__job-flag"
-	                              title={languageMeta.tooltip ?? languageMeta.label}
-	                              aria-label={languageMeta.tooltip ?? languageMeta.label}
-	                            >
-	                              {languageMeta.flag}
-	                            </span>
-	                          ) : null}
+		                          {languageMeta.flag ? (
+		                            <EmojiIcon
+		                              className="sidebar__job-flag"
+		                              emoji={languageMeta.flag}
+		                              title={languageMeta.tooltip ?? languageMeta.label}
+		                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
+		                            />
+		                          ) : null}
 	                          {stageGlyph ? (
 	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
 	                              {stageGlyph.icon}
@@ -663,15 +661,14 @@ export function Sidebar({
                           >
                             {glyph.icon}
                           </span>
-	                          {languageMeta.flag ? (
-	                            <span
-	                              className="sidebar__job-flag"
-	                              title={languageMeta.tooltip ?? languageMeta.label}
-	                              aria-label={languageMeta.tooltip ?? languageMeta.label}
-	                            >
-	                              {languageMeta.flag}
-	                            </span>
-	                          ) : null}
+		                          {languageMeta.flag ? (
+		                            <EmojiIcon
+		                              className="sidebar__job-flag"
+		                              emoji={languageMeta.flag}
+		                              title={languageMeta.tooltip ?? languageMeta.label}
+		                              ariaLabel={languageMeta.tooltip ?? languageMeta.label}
+		                            />
+		                          ) : null}
 	                          {stageGlyph ? (
 	                            <span className="job-stage" title={stageGlyph.tooltip} aria-label={stageGlyph.tooltip}>
 	                              {stageGlyph.icon}

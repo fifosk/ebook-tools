@@ -3,6 +3,7 @@ import type { LibraryItem, LibraryViewMode } from '../api/dtos';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
 import { normalizeLanguageLabel } from '../utils/languages';
+import EmojiIcon from './EmojiIcon';
 import styles from './LibraryList.module.css';
 
 type Props = {
@@ -49,9 +50,7 @@ function renderLanguageLabel(language: string | null | undefined) {
   const flag = resolveLanguageFlag(language ?? label) ?? DEFAULT_LANGUAGE_FLAG;
   return (
     <span className={styles.languageLabel}>
-      <span className={styles.languageFlag} aria-hidden="true">
-        {flag}
-      </span>
+      <EmojiIcon emoji={flag} className={styles.languageFlag} />
       <span>{label}</span>
     </span>
   );

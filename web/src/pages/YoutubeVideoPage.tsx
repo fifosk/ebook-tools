@@ -14,6 +14,7 @@ import type {
   YoutubeSubtitleTrack,
   YoutubeVideoFormat
 } from '../api/dtos';
+import EmojiIcon from '../components/EmojiIcon';
 import { resolveSubtitleFlag, resolveSubtitleLanguageLabel } from '../utils/subtitles';
 import styles from './YoutubeVideoPage.module.css';
 
@@ -588,9 +589,10 @@ export default function YoutubeVideoPage() {
                             title={sub.path}
                             aria-label={subtitleBadgeLabel(sub)}
                           >
-                            <span className={styles.pillFlag} aria-hidden="true">
-                              {resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
-                            </span>
+                            <EmojiIcon
+                              emoji={resolveSubtitleFlag(sub.language, sub.path, sub.filename)}
+                              className={styles.pillFlag}
+                            />
                             <span>{(sub.format ?? '').toUpperCase()}</span>
                           </span>
                         ))
