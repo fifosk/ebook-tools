@@ -5,6 +5,101 @@ function cloneRecord(source: Record<string, unknown>): Record<string, unknown> {
   return { ...source };
 }
 
+function readNestedValue(source: unknown, path: string[]): unknown {
+  let current: unknown = source;
+  for (const key of path) {
+    if (!current || typeof current !== 'object') {
+      return null;
+    }
+    const record = current as Record<string, unknown>;
+    current = record[key];
+  }
+  return current;
+}
+
+function normaliseMetadataText(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value.toString();
+  }
+  return null;
+}
+
+function extractFirstString(value: unknown): string | null {
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const normalised = normaliseMetadataText(entry);
+      if (normalised) {
+        return normalised;
+      }
+    }
+  }
+  return normaliseMetadataText(value);
+}
+
+function extractLibraryJobLanguages(item: LibraryItem): {
+  inputLanguage: string | null;
+  originalLanguage: string | null;
+  targetLanguages: string[];
+  targetLanguage: string | null;
+} {
+  const metadata = item.metadata as Record<string, unknown> | null | undefined;
+  if (!metadata || typeof metadata !== 'object') {
+    return { inputLanguage: null, originalLanguage: null, targetLanguages: [], targetLanguage: null };
+  }
+
+  const inputLanguage =
+    extractFirstString(readNestedValue(metadata, ['input_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['original_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['request', 'config', 'input_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['request', 'inputs', 'input_language'])) ??
+    null;
+
+  const originalLanguage =
+    extractFirstString(readNestedValue(metadata, ['original_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['request', 'config', 'original_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['request', 'inputs', 'original_language'])) ??
+    inputLanguage ??
+    null;
+
+  const rawTargets =
+    readNestedValue(metadata, ['target_languages']) ??
+    readNestedValue(metadata, ['translation_languages']) ??
+    readNestedValue(metadata, ['request', 'config', 'target_languages']) ??
+    readNestedValue(metadata, ['request', 'inputs', 'target_languages']) ??
+    readNestedValue(metadata, ['request', 'config', 'target_language']) ??
+    readNestedValue(metadata, ['request', 'inputs', 'target_language']) ??
+    null;
+
+  const targetLanguages: string[] = [];
+  if (Array.isArray(rawTargets)) {
+    for (const entry of rawTargets) {
+      const normalised = normaliseMetadataText(entry);
+      if (normalised) {
+        targetLanguages.push(normalised);
+      }
+    }
+  } else {
+    const single = extractFirstString(rawTargets);
+    if (single) {
+      targetLanguages.push(single);
+    }
+  }
+
+  const targetLanguage =
+    extractFirstString(readNestedValue(metadata, ['target_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['translation_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['request', 'config', 'target_language'])) ??
+    extractFirstString(readNestedValue(metadata, ['request', 'inputs', 'target_language'])) ??
+    targetLanguages[0] ??
+    null;
+
+  return { inputLanguage, originalLanguage, targetLanguages, targetLanguage };
+}
+
 export function extractLibraryBookMetadata(
   item: LibraryItem | null | undefined,
 ): Record<string, unknown> | null {
@@ -97,6 +192,24 @@ export function buildLibraryBookMetadata(
     return null;
   }
   const payload = cloneRecord(base ?? {});
+  const languages = extractLibraryJobLanguages(item);
+  if (languages.inputLanguage && payload['input_language'] == null) {
+    payload['input_language'] = languages.inputLanguage;
+  }
+  if (languages.originalLanguage && payload['original_language'] == null) {
+    payload['original_language'] = languages.originalLanguage;
+  }
+  if (languages.targetLanguage) {
+    if (payload['target_language'] == null) {
+      payload['target_language'] = languages.targetLanguage;
+    }
+    if (payload['translation_language'] == null) {
+      payload['translation_language'] = languages.targetLanguage;
+    }
+  }
+  if (languages.targetLanguages.length > 0 && payload['target_languages'] == null) {
+    payload['target_languages'] = languages.targetLanguages;
+  }
   if (coverUrl) {
     payload['job_cover_asset_url'] = coverUrl;
   }

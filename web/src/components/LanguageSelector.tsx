@@ -1,4 +1,4 @@
-import { ChangeEvent, useId, useMemo } from 'react';
+import { ChangeEvent, KeyboardEvent, useId, useMemo, useRef } from 'react';
 import { TOP_LANGUAGES } from '../constants/menuOptions';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
 import { formatLanguageOptionLabel, normalizeLanguageLabel, sortLanguageLabelsByName } from '../utils/languages';
@@ -16,6 +16,8 @@ export function LanguageSelector({ id, value, onChange }: Props) {
   const selectId = id ?? `language-selector-${autoId}`;
   const helperId = `${selectId}-helper`;
   const shouldUseNative = prefersNativeEmojiFlags();
+  const optionInputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+  const typeaheadRef = useRef<{ query: string; lastTime: number }>({ query: '', lastTime: 0 });
   const sortedLanguages = useMemo(() => {
     return sortLanguageLabelsByName(TOP_LANGUAGES);
   }, []);
@@ -51,6 +53,45 @@ export function LanguageSelector({ id, value, onChange }: Props) {
     }
     const next = combinedOptions.filter((option) => nextKeys.has(option.toLowerCase()));
     onChange(next);
+  };
+
+  const handleTypeahead = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (shouldUseNative) {
+      return;
+    }
+    if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const key = event.key;
+    if (key.length !== 1 || !/^[a-z0-9]$/i.test(key)) {
+      return;
+    }
+    event.preventDefault();
+    const now = Date.now();
+    const previous = typeaheadRef.current;
+    const withinWindow = now - previous.lastTime < 700;
+    const nextChar = key.toLowerCase();
+    let query = withinWindow ? previous.query : '';
+    query = `${query}${nextChar}`.slice(0, 32);
+    typeaheadRef.current = { query, lastTime: now };
+
+    const normalizedQuery = query.toLowerCase();
+    const match = combinedOptions.find((language) => {
+      const label = (normalizeLanguageLabel(language) || language).toLowerCase();
+      return label.startsWith(normalizedQuery);
+    });
+    if (!match) {
+      return;
+    }
+    const input = optionInputRefs.current.get(match.toLowerCase());
+    if (input) {
+      input.focus();
+      try {
+        input.closest('label')?.scrollIntoView({ block: 'nearest' });
+      } catch {
+        // ignore
+      }
+    }
   };
 
   return (
@@ -100,7 +141,11 @@ export function LanguageSelector({ id, value, onChange }: Props) {
               </option>
             ))}
           </select>
-          <div className="language-selector__options" aria-describedby={helperId}>
+          <div
+            className="language-selector__options"
+            aria-describedby={helperId}
+            onKeyDown={handleTypeahead}
+          >
             {combinedOptions.map((language) => {
               const label = normalizeLanguageLabel(language) || language;
               const key = language.toLowerCase();
@@ -121,6 +166,13 @@ export function LanguageSelector({ id, value, onChange }: Props) {
                     checked={isSelected}
                     onChange={() => toggleLanguage(language)}
                     className="language-selector__option-checkbox"
+                    ref={(node) => {
+                      if (!node) {
+                        optionInputRefs.current.delete(key);
+                        return;
+                      }
+                      optionInputRefs.current.set(key, node);
+                    }}
                   />
                   <EmojiIcon emoji={flagEmoji} className="language-selector__option-flag" />
                   <span className="language-selector__option-label">{label}</span>

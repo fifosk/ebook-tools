@@ -1821,6 +1821,26 @@ export function PipelineSubmissionForm({
       }
 
       const configOverrides = { ...json.config };
+      const metadataBookTitle = normalizeTextValue(json.book_metadata?.['book_title']);
+      const metadataBookAuthor = normalizeTextValue(json.book_metadata?.['book_author']);
+      const metadataBookYear = normalizeTextValue(json.book_metadata?.['book_year']);
+      const metadataBookSummary = normalizeTextValue(json.book_metadata?.['book_summary']);
+      const metadataCoverFile = normalizeTextValue(json.book_metadata?.['book_cover_file']);
+      if (metadataBookTitle) {
+        configOverrides['book_title'] = metadataBookTitle;
+      }
+      if (metadataBookAuthor) {
+        configOverrides['book_author'] = metadataBookAuthor;
+      }
+      if (metadataBookYear) {
+        configOverrides['book_year'] = metadataBookYear;
+      }
+      if (metadataBookSummary) {
+        configOverrides['book_summary'] = metadataBookSummary;
+      }
+      if (metadataCoverFile) {
+        configOverrides['book_cover_file'] = metadataCoverFile;
+      }
       const selectedModel = formState.ollama_model.trim();
       if (selectedModel) {
         pipelineOverrides.ollama_model = selectedModel;

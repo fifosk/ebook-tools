@@ -18,6 +18,35 @@ function normalizeOption(value: string): string {
   return value.trim();
 }
 
+function isTypeaheadKey(key: string): boolean {
+  return key.length === 1 && /^[a-z0-9]$/i.test(key);
+}
+
+function findNextMatch(
+  options: string[],
+  query: string,
+  startIndex: number
+): number {
+  if (!query || options.length === 0) {
+    return -1;
+  }
+  const normalizedQuery = query.toLowerCase();
+  const total = options.length;
+  const clampStart = Number.isFinite(startIndex) ? Math.max(0, Math.min(total - 1, startIndex)) : 0;
+  for (let offset = 0; offset < total; offset += 1) {
+    const index = (clampStart + offset) % total;
+    const option = options[index];
+    if (!option) {
+      continue;
+    }
+    const label = (normalizeLanguageLabel(option) || option).toLowerCase();
+    if (label.startsWith(normalizedQuery)) {
+      return index;
+    }
+  }
+  return -1;
+}
+
 export function LanguageSelect({
   id,
   value,
@@ -36,6 +65,7 @@ export function LanguageSelect({
   const activeOptionRef = useRef<HTMLButtonElement | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number>(0);
+  const typeaheadRef = useRef<{ query: string; lastTime: number }>({ query: '', lastTime: 0 });
 
   const resolvedOptions = useMemo(() => {
     const seen = new Set<string>();
@@ -96,12 +126,18 @@ export function LanguageSelect({
     activeOptionRef.current.scrollIntoView({ block: 'nearest' });
   }, [activeIndex, isOpen]);
 
-  const openMenu = () => {
+  const openMenu = (initialIndex?: number) => {
     if (disabled) {
       return;
     }
     setIsOpen(true);
-    setActiveIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    const resolvedIndex =
+      typeof initialIndex === 'number' && Number.isFinite(initialIndex)
+        ? Math.max(0, Math.min(resolvedOptions.length - 1, Math.trunc(initialIndex)))
+        : selectedIndex >= 0
+          ? selectedIndex
+          : 0;
+    setActiveIndex(resolvedIndex);
   };
 
   const closeMenu = () => setIsOpen(false);
@@ -152,6 +188,32 @@ export function LanguageSelect({
       }
       event.preventDefault();
       closeMenu();
+      return;
+    }
+    if (isTypeaheadKey(event.key)) {
+      event.preventDefault();
+      const now = Date.now();
+      const previous = typeaheadRef.current;
+      const withinWindow = now - previous.lastTime < 700;
+      const nextChar = event.key.toLowerCase();
+      let query = withinWindow ? previous.query : '';
+      let startFrom = isOpen ? activeIndex : selectedIndex >= 0 ? selectedIndex : 0;
+      if (withinWindow && query.length === 1 && query === nextChar) {
+        startFrom = (startFrom + 1) % Math.max(1, resolvedOptions.length);
+        query = nextChar;
+      } else {
+        query = `${query}${nextChar}`.slice(0, 32);
+      }
+      typeaheadRef.current = { query, lastTime: now };
+
+      const matched = findNextMatch(resolvedOptions, query, startFrom);
+      if (matched >= 0) {
+        if (!isOpen) {
+          openMenu(matched);
+          return;
+        }
+        setActiveIndex(matched);
+      }
       return;
     }
     if (event.key === 'Enter' || event.key === ' ') {
@@ -260,4 +322,3 @@ export function LanguageSelect({
 }
 
 export default LanguageSelect;
-

@@ -98,10 +98,6 @@ def build_entry(
     if not job_id:
         raise error_cls("Job metadata is missing 'job_id'")
 
-    author = str(metadata.get("author") or "").strip()
-    book_title = str(metadata.get("book_title") or "").strip()
-    genre = metadata.get("genre")
-    language = str(metadata.get("language") or "").strip() or UNKNOWN_LANGUAGE
     try:
         status = normalize_status(metadata.get("status"))
     except Exception:
@@ -114,6 +110,19 @@ def build_entry(
     metadata["status"] = status
     metadata.setdefault("created_at", created_at)
     metadata["updated_at"] = updated_at
+
+    metadata["item_type"] = infer_item_type(metadata)
+    if metadata["item_type"] == "video":
+        apply_video_defaults(metadata, job_root)
+    elif metadata["item_type"] == "narrated_subtitle":
+        apply_narrated_subtitle_defaults(metadata, job_root)
+    elif metadata["item_type"] == "book":
+        apply_book_defaults(metadata, job_root)
+
+    author = str(metadata.get("author") or "").strip()
+    book_title = str(metadata.get("book_title") or "").strip()
+    genre = metadata.get("genre")
+    language = str(metadata.get("language") or "").strip() or UNKNOWN_LANGUAGE
 
     source_relative = file_ops.resolve_source_relative(metadata, job_root)
     if source_relative:
@@ -128,10 +137,6 @@ def build_entry(
         job_id,
         job_root,
     )
-
-    metadata["item_type"] = infer_item_type(metadata)
-    if metadata["item_type"] == "video":
-        apply_video_defaults(metadata, job_root)
 
     cover_path = file_ops.extract_cover_path(metadata, job_root)
     if cover_path:
@@ -385,6 +390,11 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     author_candidate: Optional[str] = None
     genre_candidate: Optional[str] = None
     language_candidate: Optional[str] = None
+    input_language_candidate: Optional[str] = None
+    target_languages_candidate: list[str] = []
+    request_language_candidate: Optional[str] = None
+    request_input_language_candidate: Optional[str] = None
+    request_target_languages_candidate: list[str] = []
 
     if book_metadata is not None:
         title_candidate = (
@@ -400,6 +410,59 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
             str(book_metadata.get("book_language") or book_metadata.get("language") or "").strip() or None
         )
 
+    if isinstance(request_section, Mapping):
+        inputs_section = request_section.get("inputs")
+        config_section = request_section.get("config")
+
+        def _extract_language(value: Any) -> Optional[str]:
+            if isinstance(value, str):
+                stripped = value.strip()
+                return stripped or None
+            if isinstance(value, list):
+                for entry in value:
+                    if isinstance(entry, str) and entry.strip():
+                        return entry.strip()
+            return None
+
+        def _extract_languages(value: Any) -> list[str]:
+            if isinstance(value, list):
+                return [entry.strip() for entry in value if isinstance(entry, str) and entry.strip()]
+            if isinstance(value, str) and value.strip():
+                return [value.strip()]
+            return []
+
+        for section in (inputs_section, config_section):
+            if not isinstance(section, Mapping):
+                continue
+            extracted_input_language = _extract_language(section.get("input_language"))
+            extracted_target_languages = _extract_languages(
+                section.get("target_languages")
+                or section.get("target_language")
+                or section.get("translation_language")
+            )
+            extracted_language = _extract_language(
+                section.get("target_language")
+                or section.get("translation_language")
+                or section.get("target_languages")
+            )
+
+            if request_input_language_candidate is None and extracted_input_language is not None:
+                request_input_language_candidate = extracted_input_language
+            if not request_target_languages_candidate and extracted_target_languages:
+                request_target_languages_candidate = extracted_target_languages
+            if request_language_candidate is None and extracted_language is not None:
+                request_language_candidate = extracted_language
+
+            if input_language_candidate is None and extracted_input_language is not None:
+                input_language_candidate = extracted_input_language
+            if not target_languages_candidate and extracted_target_languages:
+                target_languages_candidate = extracted_target_languages
+            if language_candidate is None and extracted_language is not None:
+                language_candidate = extracted_language
+
+    if language_candidate is None and target_languages_candidate:
+        language_candidate = target_languages_candidate[0]
+
     def _set_if_blank(key: str, value: Optional[str]) -> None:
         if value is None:
             return
@@ -410,13 +473,35 @@ def apply_book_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
         if current is None:
             metadata[key] = trimmed
             return
-        if isinstance(current, str) and not current.strip():
+        if isinstance(current, str) and (
+            not current.strip()
+            or (key == "language" and current.strip().lower() == UNKNOWN_LANGUAGE.lower())
+        ):
             metadata[key] = trimmed
 
     _set_if_blank("book_title", title_candidate)
     _set_if_blank("author", author_candidate)
     _set_if_blank("genre", genre_candidate)
-    _set_if_blank("language", language_candidate or UNKNOWN_LANGUAGE)
+    if request_language_candidate:
+        metadata["language"] = request_language_candidate.strip()
+    else:
+        _set_if_blank("language", language_candidate or UNKNOWN_LANGUAGE)
+
+    if request_input_language_candidate:
+        metadata["input_language"] = request_input_language_candidate.strip()
+        metadata["original_language"] = request_input_language_candidate.strip()
+    else:
+        _set_if_blank("input_language", input_language_candidate)
+        _set_if_blank("original_language", input_language_candidate)
+
+    if request_target_languages_candidate:
+        metadata["target_languages"] = request_target_languages_candidate
+        metadata["target_language"] = request_target_languages_candidate[0]
+        metadata["translation_language"] = request_target_languages_candidate[0]
+    elif target_languages_candidate:
+        metadata.setdefault("target_languages", target_languages_candidate)
+        metadata.setdefault("target_language", target_languages_candidate[0])
+        metadata.setdefault("translation_language", target_languages_candidate[0])
 
     source_relative = file_ops.resolve_source_relative(metadata, job_root)
     if source_relative:

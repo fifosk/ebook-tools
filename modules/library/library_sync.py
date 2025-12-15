@@ -579,7 +579,7 @@ class LibrarySync:
         if not job_root.exists():
             raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
 
-        with DirectoryLock(job_root):
+        with DirectoryLock(job_root) as lock:
             metadata = file_ops.load_metadata(job_root)
             refreshed = remote_sync.refresh_metadata(
                 job_id,
@@ -589,12 +589,35 @@ class LibrarySync:
                 error_cls=LibraryError,
                 current_timestamp=utils.current_timestamp,
             )
+            refreshed["item_type"] = metadata_utils.infer_item_type(refreshed)
+            if refreshed["item_type"] == "video":
+                metadata_utils.apply_video_defaults(refreshed, job_root)
+            elif refreshed["item_type"] == "narrated_subtitle":
+                metadata_utils.apply_narrated_subtitle_defaults(refreshed, job_root)
+            else:
+                metadata_utils.apply_book_defaults(refreshed, job_root)
+
+            target_path = file_ops.resolve_library_path(self._library_root, refreshed, job_id)
+            current_resolved = job_root.resolve()
+            target_resolved = target_path.resolve()
+            if target_resolved != current_resolved:
+                if target_resolved.exists():
+                    raise LibraryConflictError(
+                        f"Library path {target_resolved} already exists for job {job_id}"
+                    )
+                target_resolved.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    atomic_move(current_resolved, target_resolved)
+                except (AtomicMoveError, ChecksumMismatchError) as exc:
+                    raise LibraryError(f"Failed to relocate library entry: {exc}") from exc
+                lock.relocate(target_resolved)
+                job_root = target_resolved
+
             refreshed, _ = file_ops.retarget_metadata_generated_files(
                 refreshed,
                 job_id,
                 job_root,
             )
-            refreshed["item_type"] = metadata_utils.infer_item_type(refreshed)
             file_ops.write_metadata(job_root, refreshed)
 
         refreshed_item = metadata_utils.build_entry(

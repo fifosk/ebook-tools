@@ -691,6 +691,11 @@ class BookMetadataService:
                 existing = {}
             book_metadata = dict(existing)
 
+            config = request_payload.get("config")
+            if not isinstance(config, Mapping):
+                config = {}
+            config_payload: Dict[str, Any] = dict(config)
+
             book_section = payload.get("book")
             if isinstance(book_section, Mapping):
                 title = _normalize_text(book_section.get("title"))
@@ -703,12 +708,16 @@ class BookMetadataService:
 
                 if title:
                     book_metadata["book_title"] = title
+                    config_payload["book_title"] = title
                 if author:
                     book_metadata["book_author"] = author
+                    config_payload["book_author"] = author
                 if year:
                     book_metadata["book_year"] = year
+                    config_payload["book_year"] = year
                 if summary:
                     book_metadata["book_summary"] = summary
+                    config_payload["book_summary"] = summary
                 if isbn:
                     book_metadata["isbn"] = isbn
                     book_metadata["book_isbn"] = isbn
@@ -716,6 +725,7 @@ class BookMetadataService:
                     book_metadata["cover_url"] = cover_url
                 if cover_file:
                     book_metadata["book_cover_file"] = cover_file
+                    config_payload["book_cover_file"] = cover_file
 
                 openlibrary_work_key = _normalize_text(book_section.get("openlibrary_work_key"))
                 openlibrary_work_url = _normalize_text(book_section.get("openlibrary_work_url"))
@@ -742,12 +752,26 @@ class BookMetadataService:
 
             inputs["book_metadata"] = book_metadata
             request_payload["inputs"] = inputs
+            request_payload["config"] = config_payload
 
             job.request_payload = request_payload
             job.resume_context = copy.deepcopy(request_payload)
 
             if job.request is not None:
                 job.request.inputs.book_metadata = PipelineMetadata.from_mapping(book_metadata)
+                try:
+                    if title:
+                        job.request.config["book_title"] = title
+                    if author:
+                        job.request.config["book_author"] = author
+                    if year:
+                        job.request.config["book_year"] = year
+                    if summary:
+                        job.request.config["book_summary"] = summary
+                    if cover_file:
+                        job.request.config["book_cover_file"] = cover_file
+                except Exception:
+                    pass
 
             if isinstance(job.result_payload, Mapping):
                 result_payload = dict(job.result_payload)

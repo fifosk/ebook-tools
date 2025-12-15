@@ -400,11 +400,6 @@ export function Sidebar({
                   {activeJobStatus.icon}
                 </span>
               ) : null}
-              {activeJobLanguage?.label ? (
-                <span className="sidebar__player-language" title={activeJobLanguage.tooltip ?? activeJobLanguage.label}>
-                  {activeJobLanguage.label}
-                </span>
-              ) : null}
             </span>
           ) : (
             <span className="sidebar__player-meta">Select a job</span>
