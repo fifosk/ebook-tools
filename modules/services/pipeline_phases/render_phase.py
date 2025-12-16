@@ -49,6 +49,7 @@ def execute_render_phase(
         output_pdf=request.inputs.output_pdf,
         refined_sentences=metadata_result.ingestion.refined_sentences,
         generate_video=request.inputs.generate_video,
+        generate_images=bool(getattr(request.inputs, "add_images", False)),
         include_transliteration=request.inputs.include_transliteration,
         book_metadata=metadata_result.metadata.as_dict(),
     )

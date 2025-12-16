@@ -31,6 +31,7 @@ type SourceSectionProps = {
   sourceMode?: 'upload' | 'generated';
   showAdvancedOverrides?: boolean;
   disableBaseOutput?: boolean;
+  showOutputPathControls?: boolean;
 };
 
 const PipelineSourceSection = ({
@@ -63,7 +64,8 @@ const PipelineSourceSection = ({
   onBookMetadataChange,
   sourceMode = 'upload',
   showAdvancedOverrides = false,
-  disableBaseOutput = false
+  disableBaseOutput = false,
+  showOutputPathControls = true
 }: SourceSectionProps) => {
   const isGenerated = sourceMode === 'generated';
   const dropzoneClassNames = ['file-dropzone'];
@@ -153,27 +155,31 @@ const PipelineSourceSection = ({
             ) : null}
           </>
         )}
-        <label htmlFor="base_output_file">Base output file</label>
-        <input
-          id="base_output_file"
-          name="base_output_file"
-          type="text"
-          value={baseOutputFile}
-          disabled={disableBaseOutput}
-          onChange={(event) => onBaseOutputFileChange(event.target.value)}
-          placeholder="ebooks/output"
-          required
-        />
-        <div className="pipeline-card__actions">
-          <button
-            type="button"
-            className="link-button"
-            onClick={() => onBrowseClick('output')}
-            disabled={!canBrowseFiles || isLoadingFiles || disableBaseOutput}
-          >
-            {isLoadingFiles ? 'Loading…' : 'Browse output paths'}
-          </button>
-        </div>
+        {showOutputPathControls ? (
+          <>
+            <label htmlFor="base_output_file">Base output file</label>
+            <input
+              id="base_output_file"
+              name="base_output_file"
+              type="text"
+              value={baseOutputFile}
+              disabled={disableBaseOutput}
+              onChange={(event) => onBaseOutputFileChange(event.target.value)}
+              placeholder="ebooks/output"
+              required
+            />
+            <div className="pipeline-card__actions">
+              <button
+                type="button"
+                className="link-button"
+                onClick={() => onBrowseClick('output')}
+                disabled={!canBrowseFiles || isLoadingFiles || disableBaseOutput}
+              >
+                {isLoadingFiles ? 'Loading…' : 'Browse output paths'}
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
       {showAdvancedOverrides ? (
         <details open className="collapsible">

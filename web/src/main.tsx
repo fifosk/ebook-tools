@@ -5,6 +5,7 @@ import { ThemeProvider } from './components/ThemeProvider';
 import { AuthProvider } from './components/AuthProvider';
 import { LanguageProvider } from './context/LanguageProvider';
 import { MyLinguistProvider } from './context/MyLinguistProvider';
+import { MyPainterProvider } from './context/MyPainterProvider';
 import './index.css';
 
 const rootElement = document.getElementById('root');
@@ -18,7 +19,9 @@ ReactDOM.createRoot(rootElement).render(
       <AuthProvider>
         <LanguageProvider>
           <MyLinguistProvider>
-            <App />
+            <MyPainterProvider>
+              <App />
+            </MyPainterProvider>
           </MyLinguistProvider>
         </LanguageProvider>
       </AuthProvider>

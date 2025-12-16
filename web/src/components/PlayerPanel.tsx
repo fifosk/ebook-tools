@@ -1889,7 +1889,8 @@ export default function PlayerPanel({
   showBackToLibrary = false,
   onBackToLibrary,
 }: PlayerPanelProps) {
-  const { baseFontScalePercent, setBaseFontScalePercent, toggle: toggleMyLinguist } = useMyLinguist();
+  const { baseFontScalePercent, setBaseFontScalePercent, adjustBaseFontScalePercent, toggle: toggleMyLinguist } =
+    useMyLinguist();
   const interactiveViewerAvailable = chunks.length > 0;
   const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
     const initial: Record<MediaCategory, string | null> = {
@@ -3718,6 +3719,14 @@ const scheduleChunkMetadataAppend = useCallback(
     });
   }, []);
 
+  const adjustMyLinguistFontScale = useCallback(
+    (direction: 'increase' | 'decrease') => {
+      const delta = direction === 'increase' ? MY_LINGUIST_FONT_SCALE_STEP : -MY_LINGUIST_FONT_SCALE_STEP;
+      adjustBaseFontScalePercent(delta);
+    },
+    [adjustBaseFontScalePercent],
+  );
+
   const syncInteractiveSelection = useCallback(
     (audioUrl: string | null) => {
       if (!audioUrl) {
@@ -4058,17 +4067,29 @@ const scheduleChunkMetadataAppend = useCallback(
       return editable;
     };
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (
-        event.defaultPrevented ||
-        event.altKey ||
-        event.metaKey ||
-        event.ctrlKey ||
-        isTypingTarget(event.target)
-      ) {
+      if (event.defaultPrevented || event.altKey || event.metaKey || isTypingTarget(event.target)) {
         return;
       }
       const key = event.key?.toLowerCase();
       const code = event.code;
+      const isPlusKey =
+        key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd';
+      const isMinusKey =
+        key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
+
+      if (event.ctrlKey) {
+        if (isPlusKey) {
+          adjustMyLinguistFontScale('increase');
+          event.preventDefault();
+          return;
+        }
+        if (isMinusKey) {
+          adjustMyLinguistFontScale('decrease');
+          event.preventDefault();
+          return;
+        }
+        return;
+      }
       const isArrowRight =
         code === 'ArrowRight' || key === 'arrowright' || event.key === 'ArrowRight';
       const isArrowLeft =
@@ -4139,15 +4160,11 @@ const scheduleChunkMetadataAppend = useCallback(
         event.preventDefault();
         return;
       }
-      const isPlusKey =
-        key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd';
       if (isPlusKey) {
         adjustFontScale('increase');
         event.preventDefault();
         return;
       }
-      const isMinusKey =
-        key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
       if (isMinusKey) {
         adjustFontScale('decrease');
         event.preventDefault();
@@ -4165,6 +4182,7 @@ const scheduleChunkMetadataAppend = useCallback(
   }, [
     adjustTranslationSpeed,
     adjustFontScale,
+    adjustMyLinguistFontScale,
     canToggleOriginalAudio,
     handleInteractiveFullscreenToggle,
     handleNavigate,
@@ -4242,18 +4260,21 @@ const scheduleChunkMetadataAppend = useCallback(
               </li>
             </ul>
           </section>
-          <section className="player-panel__shortcut-help-section" aria-label="MyLinguist">
-            <h3>MyLinguist</h3>
-            <ul>
-              <li>
-                <kbd>L</kbd> Toggle MyLinguist chat window
-              </li>
-              <li>
-                <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>Alt</kbd>+<kbd>→</kbd> Previous/next word (stays on current lane)
-              </li>
-              <li>
-                <kbd>Esc</kbd> Close the bubble
-              </li>
+	          <section className="player-panel__shortcut-help-section" aria-label="MyLinguist">
+	            <h3>MyLinguist</h3>
+	            <ul>
+	              <li>
+	                <kbd>L</kbd> Toggle MyLinguist chat window
+	              </li>
+	              <li>
+	                <kbd>Ctrl</kbd>+<kbd>+</kbd>/<kbd>Ctrl</kbd>+<kbd>-</kbd> Increase/decrease MyLinguist font size
+	              </li>
+	              <li>
+	                <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>Alt</kbd>+<kbd>→</kbd> Previous/next word (stays on current lane)
+	              </li>
+	              <li>
+	                <kbd>Esc</kbd> Close the bubble
+	              </li>
               <li>
                 <kbd>Enter</kbd> or <kbd>Space</kbd> (on focused word) Seek to that word
               </li>

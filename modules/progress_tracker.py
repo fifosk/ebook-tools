@@ -225,6 +225,7 @@ class ProgressTracker:
         end_sentence: int,
         range_fragment: str,
         files: Mapping[str, object],
+        extra_files: Optional[Sequence[Mapping[str, object]]] = None,
         sentences: Optional[Sequence[Mapping[str, object]]] = None,
         audio_tracks: Optional[Mapping[str, object]] = None,
         timing_tracks: Optional[Mapping[str, Any]] = None,
@@ -236,6 +237,18 @@ class ProgressTracker:
             for kind, path in sorted(files.items())
             if path is not None and str(path)
         ]
+        if extra_files:
+            for entry in extra_files:
+                if not isinstance(entry, Mapping):
+                    continue
+                file_type = entry.get("type")
+                file_path = entry.get("path")
+                if not file_type or not file_path:
+                    continue
+                normalized_entry = dict(entry)
+                normalized_entry["type"] = str(file_type)
+                normalized_entry["path"] = str(file_path)
+                normalized_files.append(normalized_entry)
         normalized_sentences = copy.deepcopy(list(sentences)) if sentences else []
         normalized_tracks: Dict[str, Dict[str, Any]] = {}
         if audio_tracks:

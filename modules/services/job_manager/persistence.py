@@ -375,6 +375,66 @@ class PipelineJobPersistence:
 
         return chunk_manifest
 
+    @staticmethod
+    def _coerce_chunk_id(chunk: Mapping[str, Any]) -> Optional[str]:
+        value = chunk.get("chunk_id") or chunk.get("chunkId")
+        if isinstance(value, str):
+            trimmed = value.strip()
+            if trimmed:
+                return trimmed
+        return None
+
+    def _merge_generated_files(
+        self,
+        existing: Optional[Any],
+        update: Mapping[str, Any],
+    ) -> Dict[str, Any]:
+        if not isinstance(existing, Mapping):
+            return copy.deepcopy(dict(update))
+
+        existing_chunks = existing.get("chunks")
+        update_chunks = update.get("chunks")
+
+        merged_chunks: list[Dict[str, Any]] = []
+        index_by_chunk_id: Dict[str, int] = {}
+
+        if isinstance(existing_chunks, list):
+            for entry in existing_chunks:
+                if not isinstance(entry, Mapping):
+                    continue
+                chunk_copy = copy.deepcopy(dict(entry))
+                chunk_id = self._coerce_chunk_id(chunk_copy)
+                if chunk_id:
+                    index_by_chunk_id[chunk_id] = len(merged_chunks)
+                merged_chunks.append(chunk_copy)
+
+        if isinstance(update_chunks, list):
+            for entry in update_chunks:
+                if not isinstance(entry, Mapping):
+                    continue
+                chunk_copy = copy.deepcopy(dict(entry))
+                chunk_id = self._coerce_chunk_id(chunk_copy)
+                if not chunk_id:
+                    continue
+                existing_index = index_by_chunk_id.get(chunk_id)
+                if existing_index is None:
+                    index_by_chunk_id[chunk_id] = len(merged_chunks)
+                    merged_chunks.append(chunk_copy)
+                else:
+                    merged_chunks[existing_index] = chunk_copy
+
+        merged: Dict[str, Any] = {"chunks": merged_chunks}
+
+        complete_flag = update.get("complete")
+        if isinstance(complete_flag, bool):
+            merged["complete"] = complete_flag
+        else:
+            existing_complete = existing.get("complete")
+            if isinstance(existing_complete, bool):
+                merged["complete"] = existing_complete
+
+        return merged
+
     def apply_event(self, job: PipelineJob, event: ProgressEvent) -> PipelineJobMetadata:
         """Update ``job`` using ``event`` and return the persisted metadata."""
 
@@ -383,9 +443,13 @@ class PipelineJobPersistence:
         if isinstance(metadata, Mapping):
             generated = metadata.get("generated_files")
             if generated is not None:
-                job.generated_files = copy.deepcopy(generated)
-                if isinstance(generated, Mapping) and "complete" in generated:
-                    job.media_completed = bool(generated.get("complete"))
+                if isinstance(generated, Mapping):
+                    job.generated_files = self._merge_generated_files(job.generated_files, generated)
+                    complete_flag = job.generated_files.get("complete")
+                    if isinstance(complete_flag, bool):
+                        job.media_completed = complete_flag
+                else:
+                    job.generated_files = copy.deepcopy(generated)
                 job.chunk_manifest = None
 
         return self.snapshot(job)

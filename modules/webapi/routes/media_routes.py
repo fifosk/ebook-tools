@@ -6,16 +6,20 @@ import copy
 import json
 import mimetypes
 import re
+import tempfile
 import urllib.parse
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from ... import config_manager as cfg
 from ...metadata_manager import MetadataLoader
+from ...images.drawthings import DrawThingsClient, DrawThingsError, DrawThingsImageRequest
+from ...images.prompting import sentence_to_diffusion_prompt
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
 from ..dependencies import (
@@ -27,11 +31,398 @@ from ..dependencies import (
 )
 
 from ..jobs import PipelineJob
+from ..schemas.images import (
+    SentenceImageInfoResponse,
+    SentenceImageRegenerateRequest,
+    SentenceImageRegenerateResponse,
+)
 from ..schemas import PipelineMediaChunk, PipelineMediaFile, PipelineMediaResponse
 
 router = APIRouter()
 storage_router = APIRouter()
 jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+_DEFAULT_IMAGE_STYLE_SUFFIX = "monochrome, black and white, low detail, simple line art, high contrast"
+_DEFAULT_IMAGE_NEGATIVE_SUFFIX = "color, photorealistic, high detail, text, watermark, logo"
+
+
+def _coerce_int_default(value: Any, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _coerce_float_default(value: Any, default: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _atomic_write_json(path: Path, payload: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    serialized = json.dumps(payload, ensure_ascii=False, indent=2)
+    tmp_handle = tempfile.NamedTemporaryFile(
+        "w", encoding="utf-8", dir=path.parent, delete=False
+    )
+    try:
+        with tmp_handle as handle:
+            handle.write(serialized)
+            handle.flush()
+        Path(tmp_handle.name).replace(path)
+    except Exception:
+        Path(tmp_handle.name).unlink(missing_ok=True)
+        raise
+
+
+def _resolve_sentence_number(entry: Mapping[str, Any]) -> Optional[int]:
+    raw_number = entry.get("sentence_number") or entry.get("sentenceNumber")
+    try:
+        return int(raw_number)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_sentence_text(entry: Mapping[str, Any]) -> Optional[str]:
+    text_value = entry.get("text")
+    if isinstance(text_value, str) and text_value.strip():
+        return text_value.strip()
+    original = entry.get("original")
+    if isinstance(original, Mapping):
+        original_text = original.get("text")
+        if isinstance(original_text, str) and original_text.strip():
+            return original_text.strip()
+    return None
+
+
+def _extract_sentence_image(entry: Mapping[str, Any]) -> tuple[Optional[str], Optional[str]]:
+    image = entry.get("image")
+    if not isinstance(image, Mapping):
+        return None, None
+    prompt = image.get("prompt")
+    negative = image.get("negative_prompt") or image.get("negativePrompt")
+    prompt_str = prompt.strip() if isinstance(prompt, str) and prompt.strip() else None
+    negative_str = negative.strip() if isinstance(negative, str) and negative.strip() else None
+    return prompt_str, negative_str
+
+
+def _resolve_chunk_for_sentence(
+    loader: MetadataLoader,
+    sentence_number: int,
+) -> Mapping[str, Any] | None:
+    for chunk in loader.iter_chunks():
+        start = chunk.get("start_sentence") or chunk.get("startSentence")
+        end = chunk.get("end_sentence") or chunk.get("endSentence")
+        try:
+            start_val = int(start)
+            end_val = int(end)
+        except (TypeError, ValueError):
+            continue
+        if start_val <= sentence_number <= end_val:
+            return chunk
+    return None
+
+
+def _resolve_image_relative_path(range_fragment: str, sentence_number: int) -> str:
+    return f"media/images/{range_fragment}/sentence_{sentence_number:05d}.png"
+
+
+def _resolve_image_settings(config: Mapping[str, Any], request: SentenceImageRegenerateRequest) -> dict[str, Any]:
+    width = max(
+        64,
+        _coerce_int_default(
+            request.width,
+            _coerce_int_default(config.get("image_width"), 500),
+        ),
+    )
+    height = max(
+        64,
+        _coerce_int_default(
+            request.height,
+            _coerce_int_default(config.get("image_height"), 500),
+        ),
+    )
+    steps = max(
+        1,
+        _coerce_int_default(
+            request.steps,
+            _coerce_int_default(config.get("image_steps"), 12),
+        ),
+    )
+    cfg_scale = max(
+        0.0,
+        _coerce_float_default(
+            request.cfg_scale,
+            _coerce_float_default(config.get("image_cfg_scale"), 7.0),
+        ),
+    )
+    sampler_name = request.sampler_name
+    if isinstance(sampler_name, str):
+        sampler_name = sampler_name.strip() or None
+    if sampler_name is None:
+        config_sampler = config.get("image_sampler_name")
+        sampler_name = config_sampler.strip() if isinstance(config_sampler, str) and config_sampler.strip() else None
+    seed = request.seed if isinstance(request.seed, int) else None
+    return {
+        "width": width,
+        "height": height,
+        "steps": steps,
+        "cfg_scale": cfg_scale,
+        "sampler_name": sampler_name,
+        "seed": seed,
+    }
+
+
+def _normalise_prompt(prompt: str | None) -> str:
+    candidate = (prompt or "").strip()
+    return candidate
+
+
+def _normalise_negative_prompt(negative: str | None) -> str:
+    candidate = (negative or "").strip()
+    return candidate
+
+
+def _ensure_prompt_suffix(prompt: str) -> str:
+    candidate = (prompt or "").strip()
+    if not candidate:
+        return _DEFAULT_IMAGE_STYLE_SUFFIX
+    suffix_lower = _DEFAULT_IMAGE_STYLE_SUFFIX.lower()
+    if suffix_lower in candidate.lower():
+        return candidate
+    return f"{candidate}, {_DEFAULT_IMAGE_STYLE_SUFFIX}"
+
+
+def _ensure_negative_suffix(negative: str) -> str:
+    candidate = (negative or "").strip()
+    if not candidate:
+        return _DEFAULT_IMAGE_NEGATIVE_SUFFIX
+    suffix_lower = _DEFAULT_IMAGE_NEGATIVE_SUFFIX.lower()
+    if suffix_lower in candidate.lower():
+        return candidate
+    return f"{candidate}, {_DEFAULT_IMAGE_NEGATIVE_SUFFIX}"
+
+
+async def _load_sentence_image_info(
+    *,
+    job_id: str,
+    sentence_number: int,
+    locator: FileLocator,
+) -> tuple[Mapping[str, Any], Mapping[str, Any], dict[str, Any]]:
+    job_root = locator.resolve_path(job_id)
+    loader = MetadataLoader(job_root)
+    chunk = _resolve_chunk_for_sentence(loader, sentence_number)
+    if not isinstance(chunk, Mapping):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sentence chunk not found")
+    metadata_path = chunk.get("metadata_path")
+    if not isinstance(metadata_path, str) or not metadata_path.strip():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk metadata is unavailable")
+    chunk_path = locator.resolve_path(job_id, metadata_path)
+    try:
+        chunk_payload = await run_in_threadpool(lambda: json.loads(chunk_path.read_text(encoding="utf-8")))
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk metadata is unavailable") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to read chunk metadata") from exc
+    sentences = chunk_payload.get("sentences") if isinstance(chunk_payload, Mapping) else None
+    if not isinstance(sentences, list):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sentence metadata is unavailable")
+    sentence_entry: dict[str, Any] | None = None
+    for entry in sentences:
+        if not isinstance(entry, Mapping):
+            continue
+        resolved = _resolve_sentence_number(entry)
+        if resolved == sentence_number:
+            sentence_entry = dict(entry)
+            break
+    if sentence_entry is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sentence metadata is unavailable")
+    return chunk, chunk_payload, sentence_entry
+
+
+@router.get(
+    "/jobs/{job_id}/media/images/sentences/{sentence_number}",
+    response_model=SentenceImageInfoResponse,
+)
+async def get_sentence_image_info(
+    job_id: str,
+    sentence_number: int,
+    *,
+    job_manager=Depends(get_pipeline_job_manager),
+    locator: FileLocator = Depends(get_file_locator),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> SentenceImageInfoResponse:
+    """Return the stored prompt/path metadata for a sentence image."""
+
+    try:
+        job_manager.get(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    chunk, _chunk_payload, sentence_entry = await _load_sentence_image_info(
+        job_id=job_id,
+        sentence_number=sentence_number,
+        locator=locator,
+    )
+    range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
+    range_fragment_str = str(range_fragment).strip() if isinstance(range_fragment, str) and range_fragment.strip() else None
+    prompt, negative_prompt = _extract_sentence_image(sentence_entry)
+    relative_path = None
+    if range_fragment_str:
+        relative_path = _resolve_image_relative_path(range_fragment_str, sentence_number)
+    return SentenceImageInfoResponse(
+        job_id=job_id,
+        sentence_number=sentence_number,
+        range_fragment=range_fragment_str,
+        relative_path=relative_path,
+        sentence=_extract_sentence_text(sentence_entry),
+        prompt=prompt,
+        negative_prompt=negative_prompt,
+    )
+
+
+@router.post(
+    "/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate",
+    response_model=SentenceImageRegenerateResponse,
+)
+async def regenerate_sentence_image(
+    job_id: str,
+    sentence_number: int,
+    payload: SentenceImageRegenerateRequest,
+    *,
+    job_manager=Depends(get_pipeline_job_manager),
+    locator: FileLocator = Depends(get_file_locator),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> SentenceImageRegenerateResponse:
+    """Regenerate and overwrite the stored sentence image using supplied prompt/settings."""
+
+    try:
+        job_manager.get(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    config = cfg.load_configuration(verbose=False)
+    base_url = config.get("image_api_base_url")
+    base_url = base_url.strip() if isinstance(base_url, str) else ""
+    if not base_url:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="image_api_base_url is not configured",
+        )
+    timeout_seconds = max(
+        1.0,
+        _coerce_float_default(config.get("image_api_timeout_seconds"), 180.0),
+    )
+    settings = _resolve_image_settings(config, payload)
+
+    chunk, chunk_payload, sentence_entry = await _load_sentence_image_info(
+        job_id=job_id,
+        sentence_number=sentence_number,
+        locator=locator,
+    )
+    range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
+    if not isinstance(range_fragment, str) or not range_fragment.strip():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk range fragment missing")
+    range_fragment = range_fragment.strip()
+
+    stored_prompt, stored_negative = _extract_sentence_image(sentence_entry)
+    prompt = _normalise_prompt(payload.prompt) or _normalise_prompt(stored_prompt)
+    negative_prompt = _normalise_negative_prompt(payload.negative_prompt) or _normalise_negative_prompt(stored_negative)
+
+    if not prompt:
+        sentence_text = _extract_sentence_text(sentence_entry) or ""
+        diffusion = await run_in_threadpool(lambda: sentence_to_diffusion_prompt(sentence_text))
+        prompt = (diffusion.prompt or "").strip() or sentence_text.strip()
+        negative_prompt = (diffusion.negative_prompt or "").strip()
+
+    prompt_full = _ensure_prompt_suffix(prompt)
+    negative_full = _ensure_negative_suffix(negative_prompt)
+
+    client = DrawThingsClient(base_url, timeout_seconds=timeout_seconds)
+    request = DrawThingsImageRequest(
+        prompt=prompt_full,
+        negative_prompt=negative_full,
+        width=int(settings["width"]),
+        height=int(settings["height"]),
+        steps=int(settings["steps"]),
+        cfg_scale=float(settings["cfg_scale"]),
+        sampler_name=settings["sampler_name"],
+        seed=settings["seed"],
+    )
+
+    try:
+        image_bytes, _api_payload = await run_in_threadpool(client.txt2img, request)
+    except DrawThingsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"DrawThings request failed: {exc}",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Image generation failed",
+        ) from exc
+
+    relative_path = _resolve_image_relative_path(range_fragment, sentence_number)
+    job_root = locator.resolve_path(job_id)
+    image_path = job_root / relative_path
+    await run_in_threadpool(lambda: (image_path.parent.mkdir(parents=True, exist_ok=True), image_path.write_bytes(image_bytes)))
+
+    # Update chunk metadata sentence entry so the UI can load the edited prompt.
+    metadata_path = chunk.get("metadata_path")
+    if isinstance(metadata_path, str) and metadata_path.strip():
+        chunk_path = locator.resolve_path(job_id, metadata_path)
+
+        def _update_chunk_file() -> None:
+            raw = json.loads(chunk_path.read_text(encoding="utf-8"))
+            if not isinstance(raw, dict):
+                return
+            sentences = raw.get("sentences")
+            if not isinstance(sentences, list):
+                return
+            for sentence in sentences:
+                if not isinstance(sentence, dict):
+                    continue
+                if _resolve_sentence_number(sentence) != sentence_number:
+                    continue
+                image_payload: dict[str, Any] = {"path": relative_path, "prompt": prompt_full}
+                if negative_full:
+                    image_payload["negative_prompt"] = negative_full
+                sentence["image"] = image_payload
+                sentence["image_path"] = relative_path
+                sentence["imagePath"] = relative_path
+                break
+            _atomic_write_json(chunk_path, raw)
+
+        await run_in_threadpool(_update_chunk_file)
+
+    return SentenceImageRegenerateResponse(
+        job_id=job_id,
+        sentence_number=sentence_number,
+        range_fragment=range_fragment,
+        relative_path=relative_path,
+        prompt=prompt_full,
+        negative_prompt=negative_full,
+        width=int(settings["width"]),
+        height=int(settings["height"]),
+        steps=int(settings["steps"]),
+        cfg_scale=float(settings["cfg_scale"]),
+        sampler_name=settings["sampler_name"],
+        seed=settings["seed"],
+    )
 
 
 def normalize_timings(

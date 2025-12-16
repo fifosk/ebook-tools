@@ -20,6 +20,7 @@ export interface MyLinguistContextValue {
   consumePendingOpenOptions: () => MyLinguistOpenOptions | null;
   baseFontScalePercent: number;
   setBaseFontScalePercent: (value: number) => void;
+  adjustBaseFontScalePercent: (delta: number) => void;
 }
 
 const MyLinguistContext = createContext<MyLinguistContextValue | null>(null);
@@ -80,6 +81,10 @@ export function MyLinguistProvider({ children }: Props) {
     setBaseFontScalePercentState(clampPercent(value));
   }, []);
 
+  const adjustBaseFontScalePercent = useCallback((delta: number) => {
+    setBaseFontScalePercentState((current) => clampPercent(current + delta));
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -98,8 +103,19 @@ export function MyLinguistProvider({ children }: Props) {
       consumePendingOpenOptions,
       baseFontScalePercent,
       setBaseFontScalePercent,
+      adjustBaseFontScalePercent,
     };
-  }, [baseFontScalePercent, close, consumePendingOpenOptions, isOpen, open, pendingOpenOptions, setBaseFontScalePercent, toggle]);
+  }, [
+    adjustBaseFontScalePercent,
+    baseFontScalePercent,
+    close,
+    consumePendingOpenOptions,
+    isOpen,
+    open,
+    pendingOpenOptions,
+    setBaseFontScalePercent,
+    toggle,
+  ]);
 
   return <MyLinguistContext.Provider value={value}>{children}</MyLinguistContext.Provider>;
 }

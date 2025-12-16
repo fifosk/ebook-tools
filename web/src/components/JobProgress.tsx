@@ -212,6 +212,7 @@ function coerceNumber(value: unknown): number | null {
 
 function resolveGeneratedChunks(status: PipelineStatusResponse | undefined): Record<string, unknown>[] {
   const chunks: Record<string, unknown>[] = [];
+  const seenChunkIds = new Set<string>();
   if (!status) {
     return chunks;
   }
@@ -228,12 +229,88 @@ function resolveGeneratedChunks(status: PipelineStatusResponse | undefined): Rec
     if (Array.isArray(records)) {
       for (const entry of records) {
         if (entry && typeof entry === 'object') {
-          chunks.push(entry as Record<string, unknown>);
+          const record = entry as Record<string, unknown>;
+          const rawChunkId = record.chunk_id ?? record.chunkId;
+          const chunkId = typeof rawChunkId === 'string' ? rawChunkId.trim() : '';
+          if (chunkId) {
+            if (seenChunkIds.has(chunkId)) {
+              continue;
+            }
+            seenChunkIds.add(chunkId);
+          }
+          chunks.push(record);
         }
       }
     }
   }
   return chunks;
+}
+
+function resolveGeneratedFiles(status: PipelineStatusResponse | undefined): Record<string, unknown>[] {
+  const files: Record<string, unknown>[] = [];
+  const seenKeys = new Set<string>();
+  if (!status) {
+    return files;
+  }
+  const resultGenerated =
+    status.result && typeof status.result === 'object'
+      ? (status.result as Record<string, unknown>)['generated_files']
+      : undefined;
+  const candidates = [status.generated_files, resultGenerated];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object') {
+      continue;
+    }
+    const records = (candidate as Record<string, unknown>).files;
+    if (Array.isArray(records)) {
+      for (const entry of records) {
+        if (entry && typeof entry === 'object') {
+          const record = entry as Record<string, unknown>;
+          const pathValue = typeof record.path === 'string' ? record.path.trim() : '';
+          const typeValue = typeof record.type === 'string' ? record.type.trim() : '';
+          const key = `${typeValue}\u0000${pathValue}`;
+          if (pathValue || typeValue) {
+            if (seenKeys.has(key)) {
+              continue;
+            }
+            seenKeys.add(key);
+          }
+          files.push(record);
+        }
+      }
+    }
+  }
+  return files;
+}
+
+function countGeneratedImages(status: PipelineStatusResponse | undefined): number {
+  const files = resolveGeneratedFiles(status);
+  let count = 0;
+  for (const entry of files) {
+    const typeValue = typeof entry.type === 'string' ? entry.type.trim().toLowerCase() : '';
+    const pathValue = typeof entry.path === 'string' ? entry.path.toLowerCase() : '';
+    if (typeValue === 'image') {
+      count += 1;
+      continue;
+    }
+    if (pathValue.includes('/images/') && (pathValue.endsWith('.png') || pathValue.endsWith('.jpg') || pathValue.endsWith('.jpeg'))) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
+function sumRetryCounts(bucket: Record<string, number> | null | undefined): number {
+  if (!bucket) {
+    return 0;
+  }
+  let total = 0;
+  for (const value of Object.values(bucket)) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      total += value;
+    }
+  }
+  return total;
 }
 
 function resolveSentenceRange(status: PipelineStatusResponse | undefined): {
@@ -376,6 +453,19 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   const llmModelRaw = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
   const llmModel = formatModelLabel(llmModelRaw);
   const retrySummary = status.retry_summary ?? null;
+  const imageEnabled = parameters?.add_images ?? null;
+  const imageApiBaseUrl = getStringField(pipelineConfig, 'image_api_base_url');
+  const generatedImageCount = countGeneratedImages(status);
+  const imageRetryCounts =
+    retrySummary && typeof retrySummary === 'object'
+      ? (retrySummary as Record<string, Record<string, number>>).image
+      : null;
+  const imageRetryDetails = formatRetryCounts(imageRetryCounts);
+  const imageErrors = sumRetryCounts(imageRetryCounts);
+  const totalSentences =
+    status.latest_event && typeof status.latest_event === 'object' && typeof status.latest_event.snapshot?.total === 'number'
+      ? status.latest_event.snapshot.total
+      : null;
 
   if (status.job_type === 'subtitle') {
     const subtitleMetadata = resolveSubtitleMetadata(status);
@@ -588,6 +678,30 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
     parameters?.selected_voice ?? getStringField(pipelineConfig, 'selected_voice');
   if (selectedVoice) {
     entries.push({ key: 'pipeline-selected-voice', label: 'Selected voice', value: selectedVoice });
+  }
+  if (imageEnabled !== null || generatedImageCount > 0 || imageErrors > 0) {
+    const enabledLabel = imageEnabled === true ? 'On' : imageEnabled === false ? 'Off' : 'Unknown';
+    const progressLabel = totalSentences !== null ? `${generatedImageCount}/${totalSentences}` : `${generatedImageCount}`;
+    const suffixParts: string[] = [];
+    suffixParts.push(`generated ${progressLabel}`);
+    if (imageErrors > 0) {
+      suffixParts.push(`errors ${imageRetryDetails ?? imageErrors}`);
+    }
+    if (imageEnabled === true && !imageApiBaseUrl) {
+      suffixParts.push('missing DrawThings URL');
+    }
+    entries.push({
+      key: 'pipeline-add-images',
+      label: 'Images',
+      value: suffixParts.length > 0 ? `${enabledLabel} (${suffixParts.join(', ')})` : enabledLabel,
+    });
+    if (imageEnabled === true) {
+      entries.push({
+        key: 'pipeline-image-api',
+        label: 'Image API',
+        value: imageApiBaseUrl ?? 'Not configured',
+      });
+    }
   }
   const parameterOverrides =
     parameters?.voice_overrides && Object.keys(parameters.voice_overrides).length > 0

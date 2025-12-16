@@ -36,6 +36,7 @@ class RenderPhaseRequest:
     output_pdf: bool
     refined_sentences: Sequence[str]
     generate_video: bool
+    generate_images: bool = False
     include_transliteration: bool = False
     book_metadata: Optional[dict] = None
 
@@ -78,6 +79,7 @@ def process_epub(
         output_pdf=request.output_pdf,
         refined_list=request.refined_sentences,
         generate_video=request.generate_video,
+        generate_images=request.generate_images,
         include_transliteration=request.include_transliteration,
         book_metadata=request.book_metadata,
     )

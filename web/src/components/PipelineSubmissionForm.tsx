@@ -39,6 +39,13 @@ import {
 import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
 import { formatLanguageWithFlag } from '../utils/languages';
 import { sampleSentenceFor } from '../utils/sampleSentences';
+import {
+  loadCachedBookCoverDataUrl,
+  loadCachedBookCoverSourceUrl,
+  loadCachedBookMetadataJson,
+  persistCachedBookCoverDataUrl,
+  persistCachedBookMetadataJson
+} from '../utils/bookMetadataCache';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import PipelineSourceSection from './PipelineSourceSection';
 import PipelineLanguageSection from './PipelineLanguageSection';
@@ -47,6 +54,15 @@ import PipelinePerformanceSection from './PipelinePerformanceSection';
 import FileSelectionDialog from './FileSelectionDialog';
 
 const PREFERRED_SAMPLE_EBOOK = 'test-agatha-poirot-30sentences.epub';
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Unable to read cover image data'));
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+    reader.readAsDataURL(blob);
+  });
+}
 
 function capitalize(value: string): string {
   if (!value) {
@@ -107,6 +123,7 @@ type Props = {
   implicitEndOffsetThreshold?: number | null;
   sectionOverrides?: Partial<Record<PipelineFormSection, { title: string; description: string }>>;
   showInfoHeader?: boolean;
+  showOutputPathControls?: boolean;
 };
 
 type JsonFields =
@@ -134,6 +151,7 @@ type FormState = {
   output_html: boolean;
   output_pdf: boolean;
   generate_video: boolean;
+  add_images: boolean;
   include_transliteration: boolean;
   tempo: number;
   thread_count: string;
@@ -166,6 +184,7 @@ const DEFAULT_FORM_STATE: FormState = {
   output_html: false,
   output_pdf: false,
   generate_video: false,
+  add_images: false,
   include_transliteration: true,
   tempo: 1,
   thread_count: '',
@@ -619,7 +638,8 @@ export function PipelineSubmissionForm({
   customSourceSection = null,
   implicitEndOffsetThreshold = null,
   sectionOverrides = {},
-  showInfoHeader = true
+  showInfoHeader = true,
+  showOutputPathControls = true
 }: Props) {
   const isGeneratedSource = sourceMode === 'generated';
   const {
@@ -713,6 +733,149 @@ export function PipelineSubmissionForm({
     const withoutTrail = trimmed.replace(/[\\/]+$/, '');
     return withoutTrail.toLowerCase();
   }, []);
+
+  const normalizedInputForBookMetadataCache = useMemo(() => {
+    if (isGeneratedSource) {
+      return null;
+    }
+    return normalizePath(formState.input_file);
+  }, [formState.input_file, isGeneratedSource, normalizePath]);
+
+  const [cachedCoverDataUrl, setCachedCoverDataUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (!normalizedInputForBookMetadataCache) {
+      setCachedCoverDataUrl(null);
+      return;
+    }
+    setCachedCoverDataUrl(loadCachedBookCoverDataUrl(normalizedInputForBookMetadataCache));
+  }, [normalizedInputForBookMetadataCache]);
+
+  const lastCoverCacheRequestRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (!normalizedInputForBookMetadataCache) {
+      lastCoverCacheRequestRef.current = null;
+      return;
+    }
+
+    let parsed: Record<string, unknown> | null = null;
+    try {
+      parsed = parseJsonField('book_metadata', formState.book_metadata);
+    } catch {
+      parsed = null;
+    }
+
+    const coverFile = normalizeTextValue(parsed?.['book_cover_file']);
+    const coverUrl = normalizeTextValue(parsed?.['cover_url']);
+    const coverCandidate =
+      resolveCoverPreviewUrlFromCoverFile(coverFile) ||
+      (coverUrl && (/^https?:\/\//i.test(coverUrl) || coverUrl.startsWith('//')) ? coverUrl : null);
+    if (!coverCandidate || coverCandidate.startsWith('data:')) {
+      return;
+    }
+
+    let url: URL;
+    try {
+      url = new URL(coverCandidate, window.location.href);
+    } catch {
+      return;
+    }
+
+    const isSameOrigin = url.origin === window.location.origin;
+    const stableSource =
+      isSameOrigin && url.pathname.startsWith('/storage/covers/')
+        ? `${url.origin}${url.pathname}`
+        : url.href;
+    const existingSource = loadCachedBookCoverSourceUrl(normalizedInputForBookMetadataCache);
+    if (existingSource === stableSource && cachedCoverDataUrl) {
+      return;
+    }
+    if (lastCoverCacheRequestRef.current === stableSource) {
+      return;
+    }
+    lastCoverCacheRequestRef.current = stableSource;
+
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const response = await fetch(url.href, {
+          credentials: isSameOrigin ? 'include' : 'omit',
+          signal: controller.signal
+        });
+        if (!response.ok) {
+          return;
+        }
+        const blob = await response.blob();
+        if (!blob.type.startsWith('image/')) {
+          return;
+        }
+        if (blob.size > 250_000) {
+          return;
+        }
+        const dataUrl = await blobToDataUrl(blob);
+        if (!dataUrl) {
+          return;
+        }
+        persistCachedBookCoverDataUrl(normalizedInputForBookMetadataCache, stableSource, dataUrl);
+        setCachedCoverDataUrl(dataUrl);
+      } catch {
+        // ignore
+      }
+    })();
+
+    return () => controller.abort();
+  }, [cachedCoverDataUrl, formState.book_metadata, normalizedInputForBookMetadataCache]);
+
+  const bookMetadataCacheHydratedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!normalizedInputForBookMetadataCache) {
+      bookMetadataCacheHydratedRef.current = null;
+      return;
+    }
+    if (bookMetadataCacheHydratedRef.current === normalizedInputForBookMetadataCache) {
+      return;
+    }
+    bookMetadataCacheHydratedRef.current = normalizedInputForBookMetadataCache;
+
+    const cached = loadCachedBookMetadataJson(normalizedInputForBookMetadataCache);
+    if (!cached) {
+      return;
+    }
+    setFormState((previous) => {
+      const previousNormalized = normalizePath(previous.input_file);
+      if (previousNormalized !== normalizedInputForBookMetadataCache) {
+        return previous;
+      }
+      const current = previous.book_metadata.trim();
+      if (current && current !== '{}' && current !== 'null') {
+        return previous;
+      }
+      return { ...previous, book_metadata: cached };
+    });
+  }, [normalizedInputForBookMetadataCache, normalizePath]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (!normalizedInputForBookMetadataCache) {
+      return;
+    }
+    const raw = formState.book_metadata;
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === '{}' || trimmed === 'null') {
+      return;
+    }
+
+    const handle = window.setTimeout(() => {
+      persistCachedBookMetadataJson(normalizedInputForBookMetadataCache, raw);
+    }, 600);
+    return () => {
+      window.clearTimeout(handle);
+    };
+  }, [formState.book_metadata, normalizedInputForBookMetadataCache]);
 
   const resolveStartFromHistory = useCallback(
     (inputPath: string): number | null => {
@@ -972,6 +1135,8 @@ export function PipelineSubmissionForm({
     userEditedInputRef.current = false;
     userEditedEndRef.current = false;
     lastAutoEndSentenceRef.current = null;
+    const normalizedInput = normalizePath(normalizedPrefill);
+    const cachedBookMetadata = normalizedInput ? loadCachedBookMetadataJson(normalizedInput) : null;
     setFormState((previous) => {
       if (previous.input_file === normalizedPrefill) {
         return previous;
@@ -987,12 +1152,12 @@ export function PipelineSubmissionForm({
         ...previous,
         input_file: normalizedPrefill,
         base_output_file: resolvedBase,
-        book_metadata: '{}',
+        book_metadata: cachedBookMetadata ?? '{}',
         start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
     prefillAppliedRef.current = normalizedPrefill;
-  }, [prefillInputFile, resolveStartFromHistory, forcedBaseOutputFile]);
+  }, [prefillInputFile, resolveStartFromHistory, forcedBaseOutputFile, normalizePath]);
 
   useEffect(() => {
     const normalized = metadataSourceName.trim();
@@ -1374,6 +1539,8 @@ export function PipelineSubmissionForm({
     userEditedInputRef.current = true;
     userEditedEndRef.current = false;
     lastAutoEndSentenceRef.current = null;
+    const normalizedInput = normalizePath(value);
+    const cachedBookMetadata = normalizedInput ? loadCachedBookMetadataJson(normalizedInput) : null;
     setFormState((previous) => {
       if (previous.input_file === value) {
         return previous;
@@ -1390,7 +1557,7 @@ export function PipelineSubmissionForm({
         ...previous,
         input_file: value,
         base_output_file: resolvedBase,
-        book_metadata: '{}',
+        book_metadata: cachedBookMetadata ?? '{}',
         start_sentence: suggestedStart ?? DEFAULT_FORM_STATE.start_sentence
       };
     });
@@ -1901,6 +2068,7 @@ export function PipelineSubmissionForm({
           output_html: formState.output_html,
           output_pdf: formState.output_pdf,
           generate_video: formState.generate_video,
+          add_images: formState.add_images,
           include_transliteration: formState.include_transliteration,
           tempo: Number(formState.tempo),
           book_metadata: json.book_metadata
@@ -1947,6 +2115,7 @@ export function PipelineSubmissionForm({
       formState.output_html ? 'HTML' : null,
       formState.output_pdf ? 'PDF' : null,
       formState.generate_audio ? 'Audio' : null,
+      formState.add_images ? 'Images' : null,
       formState.generate_video ? 'Video' : null
     ]
       .filter(Boolean)
@@ -1990,6 +2159,7 @@ export function PipelineSubmissionForm({
               onBookMetadataChange={(value) => handleChange('book_metadata', value)}
               showAdvancedOverrides={false}
               disableBaseOutput={isGeneratedSource || Boolean(forcedBaseOutputFile)}
+              showOutputPathControls={showOutputPathControls}
             />
           )
         );
@@ -2036,6 +2206,7 @@ export function PipelineSubmissionForm({
           coverPreviewUrl && coverPreviewUrl.includes('/storage/covers/')
             ? `${coverPreviewUrl}${coverPreviewUrl.includes('?') ? '&' : '?'}v=${coverPreviewRefreshKey}`
             : coverPreviewUrl;
+        const resolvedCoverPreviewUrl = cachedCoverDataUrl ?? coverPreviewUrlWithRefresh;
         const coverDropzoneClassName = [
           'file-dropzone',
           'cover-dropzone',
@@ -2162,11 +2333,11 @@ export function PipelineSubmissionForm({
             ) : null}
 
             <div className="book-metadata-cover" aria-label="Book cover">
-              {coverPreviewUrl ? (
+              {resolvedCoverPreviewUrl ? (
                 openlibraryLink ? (
                   <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
                     <img
-                      src={coverPreviewUrlWithRefresh ?? undefined}
+                      src={resolvedCoverPreviewUrl ?? undefined}
                       alt={bookTitle ? `Cover for ${bookTitle}` : 'Book cover'}
                       loading="lazy"
                       decoding="async"
@@ -2174,7 +2345,7 @@ export function PipelineSubmissionForm({
                   </a>
                 ) : (
                   <img
-                    src={coverPreviewUrlWithRefresh ?? undefined}
+                    src={resolvedCoverPreviewUrl ?? undefined}
                     alt={bookTitle ? `Cover for ${bookTitle}` : 'Book cover'}
                     loading="lazy"
                     decoding="async"
@@ -2536,6 +2707,7 @@ export function PipelineSubmissionForm({
             writtenMode={formState.written_mode}
             outputHtml={formState.output_html}
             outputPdf={formState.output_pdf}
+            addImages={formState.add_images}
             includeTransliteration={formState.include_transliteration}
             tempo={formState.tempo}
             generateVideo={formState.generate_video}
@@ -2556,6 +2728,7 @@ export function PipelineSubmissionForm({
             onWrittenModeChange={(value) => handleChange('written_mode', value)}
             onOutputHtmlChange={(value) => handleChange('output_html', value)}
             onOutputPdfChange={(value) => handleChange('output_pdf', value)}
+            onAddImagesChange={(value) => handleChange('add_images', value)}
             onIncludeTransliterationChange={(value) =>
               handleChange('include_transliteration', value)
             }

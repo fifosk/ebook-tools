@@ -38,6 +38,7 @@ export default function NewImmersiveBookPage({
         recentJobs={recentJobs}
         implicitEndOffsetThreshold={200}
         showInfoHeader={false}
+        showOutputPathControls={false}
       />
     </div>
   );

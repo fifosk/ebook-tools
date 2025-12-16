@@ -65,7 +65,10 @@ import {
   ReadingBedDeleteResponse,
   ReadingBedEntry,
   ReadingBedListResponse,
-  ReadingBedUpdateRequestPayload
+  ReadingBedUpdateRequestPayload,
+  SentenceImageInfoResponse,
+  SentenceImageRegenerateRequestPayload,
+  SentenceImageRegenerateResponse
 } from './dtos';
 import { resolve as resolveStoragePath, resolveStorageBaseUrl } from '../utils/storageResolver';
 
@@ -675,6 +678,36 @@ export async function fetchJobMedia(jobId: string): Promise<PipelineMediaRespons
 export async function fetchLiveJobMedia(jobId: string): Promise<PipelineMediaResponse> {
   const response = await apiFetch(`/api/pipelines/jobs/${jobId}/media/live`);
   return handleResponse<PipelineMediaResponse>(response);
+}
+
+export async function fetchSentenceImageInfo(
+  jobId: string,
+  sentenceNumber: number
+): Promise<SentenceImageInfoResponse> {
+  const encodedJobId = encodeURIComponent(jobId);
+  const response = await apiFetch(
+    `/api/pipelines/jobs/${encodedJobId}/media/images/sentences/${encodeURIComponent(String(sentenceNumber))}`
+  );
+  return handleResponse<SentenceImageInfoResponse>(response);
+}
+
+export async function regenerateSentenceImage(
+  jobId: string,
+  sentenceNumber: number,
+  payload: SentenceImageRegenerateRequestPayload
+): Promise<SentenceImageRegenerateResponse> {
+  const encodedJobId = encodeURIComponent(jobId);
+  const response = await apiFetch(
+    `/api/pipelines/jobs/${encodedJobId}/media/images/sentences/${encodeURIComponent(String(sentenceNumber))}/regenerate`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    }
+  );
+  return handleResponse<SentenceImageRegenerateResponse>(response);
 }
 
 export async function generateVideo(

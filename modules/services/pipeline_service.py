@@ -55,6 +55,7 @@ class PipelineInput:
     output_html: bool
     output_pdf: bool
     generate_video: bool
+    add_images: bool
     include_transliteration: bool
     tempo: float
     book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
@@ -367,6 +368,14 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "sync_ratio": config.sync_ratio,
         "word_highlighting": config.word_highlighting,
         "highlight_granularity": config.highlight_granularity,
+        "image_api_base_url": config.image_api_base_url,
+        "image_api_timeout_seconds": config.image_api_timeout_seconds,
+        "image_concurrency": config.image_concurrency,
+        "image_width": config.image_width,
+        "image_height": config.image_height,
+        "image_steps": config.image_steps,
+        "image_cfg_scale": config.image_cfg_scale,
+        "image_sampler_name": config.image_sampler_name,
     }
 
 

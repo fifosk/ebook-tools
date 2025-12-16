@@ -7,6 +7,7 @@ import queue
 import threading
 from dataclasses import dataclass, field
 from functools import partial
+from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Set, Tuple
 
 from PIL import Image
@@ -39,6 +40,8 @@ from modules.retry_annotations import is_failure_annotation
 from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
+from modules.images.drawthings import DrawThingsClient, DrawThingsError, DrawThingsImageRequest
+from modules.images.prompting import sentence_to_diffusion_prompt
 
 
 @dataclass
@@ -59,6 +62,160 @@ class PipelineState:
     current_voice_metadata: Dict[str, Dict[str, Set[str]]] = field(
         default_factory=dict
     )
+    image_state: Any = None
+
+
+def _job_relative_path(candidate: Path, *, base_dir: Path) -> str:
+    """Best-effort conversion of an absolute path to a job-relative storage path."""
+
+    base_dir_path = Path(base_dir)
+    path_obj = Path(candidate)
+    for parent in base_dir_path.parents:
+        if parent.name.lower() == "media" and parent.parent != parent:
+            try:
+                relative = path_obj.relative_to(parent.parent)
+            except ValueError:
+                continue
+            if relative.as_posix():
+                return relative.as_posix()
+    job_root_candidates = list(base_dir_path.parents[:4])
+    job_root_candidates.append(base_dir_path)
+    for root_candidate in job_root_candidates:
+        try:
+            relative = path_obj.relative_to(root_candidate)
+        except ValueError:
+            continue
+        if relative.as_posix():
+            return relative.as_posix()
+    return path_obj.name
+
+
+def _resolve_media_root(base_dir: Path) -> Path:
+    """Return the job's media root directory based on ``base_dir``."""
+
+    candidate = Path(base_dir)
+    if candidate.name.lower() == "media":
+        return candidate
+    for parent in candidate.parents:
+        if parent.name.lower() == "media":
+            return parent
+    return candidate
+
+
+@dataclass(frozen=True, slots=True)
+class _SentenceImageResult:
+    chunk_id: str
+    range_fragment: str
+    start_sentence: int
+    end_sentence: int
+    sentence_number: int
+    relative_path: str
+    prompt: str
+    negative_prompt: str
+
+
+class _ImageGenerationState:
+    """Shared state used to merge async image results into chunk metadata."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._chunks: dict[str, dict[str, Any]] = {}
+        self._pending: dict[str, list[_SentenceImageResult]] = {}
+
+    def register_chunk(self, result: BatchExportResult) -> bool:
+        """Store ``result`` and apply any pending image updates. Returns True if updated."""
+
+        if result is None:
+            return False
+
+        sentence_map: dict[int, dict[str, Any]] = {}
+        for entry in result.sentences or []:
+            if not isinstance(entry, Mapping):
+                continue
+            raw_number = entry.get("sentence_number") or entry.get("sentenceNumber")
+            try:
+                number = int(raw_number)
+            except (TypeError, ValueError):
+                continue
+            sentence_map[number] = entry  # type: ignore[assignment]
+
+        with self._lock:
+            self._chunks[result.chunk_id] = {
+                "chunk_id": result.chunk_id,
+                "range_fragment": result.range_fragment,
+                "start_sentence": result.start_sentence,
+                "end_sentence": result.end_sentence,
+                "files": dict(result.artifacts),
+                "sentences": list(result.sentences or []),
+                "audio_tracks": dict(result.audio_tracks or {}),
+                "timing_tracks": dict(result.timing_tracks or {}),
+                "extra_files": [],
+                "sentence_map": sentence_map,
+            }
+            pending = self._pending.pop(result.chunk_id, [])
+
+        updated = False
+        for item in pending:
+            if self.apply(item):
+                updated = True
+        return updated
+
+    def apply(self, image: _SentenceImageResult) -> bool:
+        """Apply ``image`` into the cached chunk state. Returns True if changed."""
+
+        if image is None:
+            return False
+
+        with self._lock:
+            chunk = self._chunks.get(image.chunk_id)
+            if chunk is None:
+                self._pending.setdefault(image.chunk_id, []).append(image)
+                return False
+
+            sentence_entry = chunk.get("sentence_map", {}).get(image.sentence_number)
+            if isinstance(sentence_entry, dict):
+                image_payload: dict[str, Any] = {
+                    "path": image.relative_path,
+                    "prompt": image.prompt,
+                }
+                if image.negative_prompt:
+                    image_payload["negative_prompt"] = image.negative_prompt
+                previous = sentence_entry.get("image")
+                if previous != image_payload:
+                    sentence_entry["image"] = image_payload
+                    sentence_entry["image_path"] = image.relative_path
+                    sentence_entry["imagePath"] = image.relative_path
+                    updated = True
+                else:
+                    updated = False
+            else:
+                updated = False
+
+            extra_files: list[dict[str, Any]] = chunk.get("extra_files") or []
+            signature = ("image", image.relative_path)
+            seen = chunk.setdefault("_image_seen", set())
+            if signature not in seen:
+                seen.add(signature)
+                extra_files.append(
+                    {
+                        "type": "image",
+                        "path": image.relative_path,
+                        "sentence_number": image.sentence_number,
+                        "start_sentence": image.start_sentence,
+                        "end_sentence": image.end_sentence,
+                        "range_fragment": image.range_fragment,
+                        "chunk_id": image.chunk_id,
+                    }
+                )
+                chunk["extra_files"] = extra_files
+                updated = True or updated
+
+        return updated
+
+    def snapshot_chunk(self, chunk_id: str) -> Optional[dict[str, Any]]:
+        with self._lock:
+            chunk = self._chunks.get(chunk_id)
+            return dict(chunk) if isinstance(chunk, dict) else None
 
 
 class RenderPipeline:
@@ -97,6 +254,7 @@ class RenderPipeline:
         output_pdf: bool,
         refined_list: Sequence[str],
         generate_video: bool,
+        generate_images: bool = False,
         include_transliteration: bool = False,
         book_metadata: Optional[dict] = None,
     ) -> Tuple[
@@ -230,6 +388,8 @@ class RenderPipeline:
                 self._process_pipeline(
                     state=state,
                     exporter=exporter,
+                    base_dir=base_dir,
+                    base_name=base_name,
                     sentences=selected_sentences,
                     start_sentence=start_sentence,
                     total_refined=total_refined,
@@ -237,6 +397,7 @@ class RenderPipeline:
                     target_languages=target_languages,
                     generate_audio=generate_audio,
                     generate_video=generate_video,
+                    generate_images=generate_images,
                     audio_mode=audio_mode,
                     written_mode=written_mode,
                     sentences_per_file=sentences_per_file,
@@ -315,6 +476,23 @@ class RenderPipeline:
                 audio_tracks=result.audio_tracks,
                 timing_tracks=result.timing_tracks,
             )
+            image_state = getattr(state, "image_state", None)
+            if isinstance(image_state, _ImageGenerationState):
+                updated = image_state.register_chunk(result)
+                if updated:
+                    snapshot = image_state.snapshot_chunk(result.chunk_id)
+                    if snapshot:
+                        self._progress.record_generated_chunk(
+                            chunk_id=str(snapshot.get("chunk_id") or result.chunk_id),
+                            start_sentence=int(snapshot.get("start_sentence") or result.start_sentence),
+                            end_sentence=int(snapshot.get("end_sentence") or result.end_sentence),
+                            range_fragment=str(snapshot.get("range_fragment") or result.range_fragment),
+                            files=snapshot.get("files") or dict(result.artifacts),
+                            extra_files=snapshot.get("extra_files") or [],
+                            sentences=snapshot.get("sentences") or list(result.sentences or []),
+                            audio_tracks=snapshot.get("audio_tracks") or result.audio_tracks,
+                            timing_tracks=snapshot.get("timing_tracks") or result.timing_tracks,
+                        )
 
     def _handle_export_future_completion(
         self,
@@ -739,6 +917,8 @@ class RenderPipeline:
         *,
         state: PipelineState,
         exporter: BatchExporter,
+        base_dir: str,
+        base_name: str,
         sentences: Sequence[str],
         start_sentence: int,
         total_refined: int,
@@ -746,6 +926,7 @@ class RenderPipeline:
         target_languages: Sequence[str],
         generate_audio: bool,
         generate_video: bool,
+        generate_images: bool,
         audio_mode: str,
         written_mode: str,
         sentences_per_file: int,
@@ -809,17 +990,75 @@ class RenderPipeline:
             include_transliteration=include_transliteration,
         )
 
+        image_state: Optional[_ImageGenerationState] = None
+        image_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+        image_futures: set[concurrent.futures.Future] = set()
+        image_client: Optional[DrawThingsClient] = None
+        image_base_url = self._config.image_api_base_url
+        if generate_images:
+            image_state = _ImageGenerationState()
+            state.image_state = image_state
+            if image_base_url:
+                try:
+                    image_client = DrawThingsClient(
+                        image_base_url,
+                        timeout_seconds=float(self._config.image_api_timeout_seconds),
+                    )
+                except Exception as exc:
+                    logger.warning("Unable to configure DrawThings client: %s", exc)
+                    image_client = None
+            else:
+                logger.warning(
+                    "Image generation enabled but image_api_base_url is not configured."
+                )
+                if self._progress is not None:
+                    self._progress.record_retry("image", "missing_base_url")
+
+            if image_client is not None:
+                max_workers = max(1, int(self._config.image_concurrency or 1))
+                image_executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+        base_dir_path = Path(base_dir)
+        media_root = _resolve_media_root(base_dir_path)
+        final_sentence_number = start_sentence + max(total_refined - 1, 0)
+
         buffered_results = {}
         next_index = 0
         export_futures: List[concurrent.futures.Future] = []
+        cancelled = False
         try:
             while state.processed < total_refined:
+                if image_futures:
+                    done = [future for future in list(image_futures) if future.done()]
+                    for future in done:
+                        image_futures.discard(future)
+                        try:
+                            image_result = future.result()
+                        except Exception:
+                            continue
+                        if image_state is not None and isinstance(image_result, _SentenceImageResult):
+                            if image_state.apply(image_result):
+                                snapshot = image_state.snapshot_chunk(image_result.chunk_id)
+                                if snapshot and self._progress is not None:
+                                    self._progress.record_generated_chunk(
+                                        chunk_id=str(snapshot.get("chunk_id") or image_result.chunk_id),
+                                        start_sentence=int(snapshot.get("start_sentence") or image_result.start_sentence),
+                                        end_sentence=int(snapshot.get("end_sentence") or image_result.end_sentence),
+                                        range_fragment=str(snapshot.get("range_fragment") or image_result.range_fragment),
+                                        files=snapshot.get("files") or {},
+                                        extra_files=snapshot.get("extra_files") or [],
+                                        sentences=snapshot.get("sentences") or [],
+                                        audio_tracks=snapshot.get("audio_tracks") or None,
+                                        timing_tracks=snapshot.get("timing_tracks") or None,
+                                    )
                 if pipeline_stop_event.is_set() and not buffered_results:
+                    cancelled = state.processed < total_refined
                     break
                 try:
                     media_item = media_queue.get(timeout=0.1)
                 except queue.Empty:
                     if pipeline_stop_event.is_set():
+                        cancelled = state.processed < total_refined
                         break
                     continue
                 if media_item is None:
@@ -935,6 +1174,117 @@ class RenderPipeline:
                     if state.all_sentence_metadata is not None:
                         state.all_sentence_metadata.append(metadata_payload)
 
+                    if (
+                        image_executor is not None
+                        and image_state is not None
+                        and image_client is not None
+                        and not pipeline_stop_event.is_set()
+                    ):
+                        if not translation_failed:
+                            sentence_number = int(item.sentence_number)
+                            offset = max(sentence_number - start_sentence, 0)
+                            chunk_start = start_sentence + (offset // max(1, sentences_per_file)) * max(1, sentences_per_file)
+                            chunk_end = min(chunk_start + max(1, sentences_per_file) - 1, final_sentence_number)
+                            range_fragment = output_formatter.format_sentence_range(
+                                chunk_start, chunk_end, total_fully
+                            )
+                            chunk_id = f"{range_fragment}_{base_name}"
+                            images_dir = media_root / "images" / range_fragment
+                            image_path = images_dir / f"sentence_{sentence_number:05d}.png"
+
+                            sentence_for_prompt = fluent or item.sentence
+
+                            def _generate_image(
+                                *,
+                                sentence_for_prompt: str = sentence_for_prompt,
+                                sentence_number: int = sentence_number,
+                                chunk_id: str = chunk_id,
+                                range_fragment: str = range_fragment,
+                                chunk_start: int = chunk_start,
+                                chunk_end: int = chunk_end,
+                                images_dir: Path = images_dir,
+                                image_path: Path = image_path,
+                                base_dir_path: Path = base_dir_path,
+                            ) -> _SentenceImageResult:
+                                try:
+                                    diffusion = sentence_to_diffusion_prompt(sentence_for_prompt)
+                                    prompt = (diffusion.prompt or "").strip()
+                                    negative = (diffusion.negative_prompt or "").strip()
+                                    style_suffix = "monochrome, black and white, low detail, simple line art, high contrast"
+                                    prompt_full = f"{prompt}, {style_suffix}" if prompt else style_suffix
+                                    negative_suffix = "color, photorealistic, high detail, text, watermark, logo"
+                                    negative_full = (
+                                        f"{negative}, {negative_suffix}"
+                                        if negative
+                                        else negative_suffix
+                                    )
+                                    request = DrawThingsImageRequest(
+                                        prompt=prompt_full,
+                                        negative_prompt=negative_full,
+                                        width=int(self._config.image_width or 500),
+                                        height=int(self._config.image_height or 500),
+                                        steps=int(self._config.image_steps or 12),
+                                        cfg_scale=float(self._config.image_cfg_scale or 7.0),
+                                        sampler_name=self._config.image_sampler_name,
+                                    )
+                                    image_bytes, _ = image_client.txt2img(request)
+                                    images_dir.mkdir(parents=True, exist_ok=True)
+                                    try:
+                                        import io
+
+                                        with Image.open(io.BytesIO(image_bytes)) as loaded:
+                                            converted = loaded.convert("L")
+                                            output = io.BytesIO()
+                                            converted.save(output, format="PNG")
+                                            image_path.write_bytes(output.getvalue())
+                                    except Exception:
+                                        image_path.write_bytes(image_bytes)
+                                    relative_path = _job_relative_path(image_path, base_dir=base_dir_path)
+                                    return _SentenceImageResult(
+                                        chunk_id=chunk_id,
+                                        range_fragment=range_fragment,
+                                        start_sentence=chunk_start,
+                                        end_sentence=chunk_end,
+                                        sentence_number=sentence_number,
+                                        relative_path=relative_path,
+                                        prompt=prompt_full,
+                                        negative_prompt=negative_full,
+                                    )
+                                except DrawThingsError as exc:
+                                    if self._progress is not None:
+                                        self._progress.record_retry("image", "drawthings_error")
+                                    logger.warning(
+                                        "DrawThings image generation failed",
+                                        extra={
+                                            "event": "pipeline.image.error",
+                                            "attributes": {
+                                                "sentence_number": sentence_number,
+                                                "range_fragment": range_fragment,
+                                                "error": str(exc),
+                                            },
+                                            "console_suppress": True,
+                                        },
+                                    )
+                                    raise
+                                except Exception as exc:  # pragma: no cover - defensive logging
+                                    if self._progress is not None:
+                                        self._progress.record_retry("image", "exception")
+                                    logger.warning(
+                                        "Image generation failed",
+                                        extra={
+                                            "event": "pipeline.image.error",
+                                            "attributes": {
+                                                "sentence_number": sentence_number,
+                                                "range_fragment": range_fragment,
+                                                "error": str(exc),
+                                            },
+                                            "console_suppress": True,
+                                        },
+                                    )
+                                    raise
+
+                            image_futures.add(image_executor.submit(_generate_image))
+
                     should_flush = (
                         (item.sentence_number - state.current_batch_start + 1)
                         % sentences_per_file
@@ -981,6 +1331,7 @@ class RenderPipeline:
                 "Processing interrupted by user; shutting down pipeline...",
                 logger_obj=logger,
             )
+            cancelled = True
             pipeline_stop_event.set()
         finally:
             pipeline_stop_event.set()
@@ -997,3 +1348,39 @@ class RenderPipeline:
                 else:
                     if not getattr(future, "_pipeline_result_recorded", False):
                         self._register_export_result(state, export_result)
+            if image_executor is not None:
+                if cancelled:
+                    for future in list(image_futures):
+                        future.cancel()
+                if image_futures and image_state is not None and self._progress is not None:
+                    snapshot_progress = self._progress
+
+                    def _drain_images() -> None:
+                        try:
+                            for future in concurrent.futures.as_completed(list(image_futures)):
+                                try:
+                                    image_result = future.result()
+                                except Exception:
+                                    continue
+                                if not isinstance(image_result, _SentenceImageResult):
+                                    continue
+                                if image_state.apply(image_result):
+                                    snapshot = image_state.snapshot_chunk(image_result.chunk_id)
+                                    if snapshot:
+                                        snapshot_progress.record_generated_chunk(
+                                            chunk_id=str(snapshot.get("chunk_id") or image_result.chunk_id),
+                                            start_sentence=int(snapshot.get("start_sentence") or image_result.start_sentence),
+                                            end_sentence=int(snapshot.get("end_sentence") or image_result.end_sentence),
+                                            range_fragment=str(snapshot.get("range_fragment") or image_result.range_fragment),
+                                            files=snapshot.get("files") or {},
+                                            extra_files=snapshot.get("extra_files") or [],
+                                            sentences=snapshot.get("sentences") or [],
+                                            audio_tracks=snapshot.get("audio_tracks") or None,
+                                            timing_tracks=snapshot.get("timing_tracks") or None,
+                                        )
+                        finally:
+                            image_executor.shutdown(wait=True)
+
+                    threading.Thread(target=_drain_images, name="ImageWorkerDrain", daemon=True).start()
+                else:
+                    image_executor.shutdown(wait=False)

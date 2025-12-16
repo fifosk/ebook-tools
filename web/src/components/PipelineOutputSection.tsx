@@ -21,6 +21,7 @@ type PipelineOutputSectionProps = {
   includeTransliteration: boolean;
   tempo: number;
   generateVideo: boolean;
+  addImages: boolean;
   availableAudioModes: MenuOption[];
   availableVoices: MenuOption[];
   availableWrittenModes: MenuOption[];
@@ -38,6 +39,7 @@ type PipelineOutputSectionProps = {
   onWrittenModeChange: (value: string) => void;
   onOutputHtmlChange: (value: boolean) => void;
   onOutputPdfChange: (value: boolean) => void;
+  onAddImagesChange: (value: boolean) => void;
   onIncludeTransliterationChange: (value: boolean) => void;
   onTempoChange: (value: number) => void;
   onGenerateVideoChange: (value: boolean) => void;
@@ -54,6 +56,7 @@ const PipelineOutputSection = ({
   writtenMode,
   outputHtml,
   outputPdf,
+  addImages,
   includeTransliteration,
   tempo,
   generateVideo,
@@ -74,6 +77,7 @@ const PipelineOutputSection = ({
   onWrittenModeChange,
   onOutputHtmlChange,
   onOutputPdfChange,
+  onAddImagesChange,
   onIncludeTransliterationChange,
   onTempoChange,
   onGenerateVideoChange,
@@ -237,6 +241,15 @@ const PipelineOutputSection = ({
             onChange={(event) => onOutputPdfChange(event.target.checked)}
           />
           Generate PDF output
+        </label>
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            name="add_images"
+            checked={addImages}
+            onChange={(event) => onAddImagesChange(event.target.checked)}
+          />
+          Add AI-generated images to interactive reader
         </label>
         <label className="checkbox">
           <input

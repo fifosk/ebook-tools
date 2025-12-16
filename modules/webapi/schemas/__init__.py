@@ -142,6 +142,7 @@ class PipelineInputPayload(BaseModel):
     output_html: bool = False
     output_pdf: bool = False
     generate_video: bool = False
+    add_images: bool = False
     include_transliteration: bool = True
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
@@ -647,6 +648,14 @@ class PipelineResponsePayload(BaseModel):
             "word_highlighting": config.word_highlighting,
             "highlight_granularity": config.highlight_granularity,
             "voice_overrides": dict(config.voice_overrides),
+            "image_api_base_url": config.image_api_base_url,
+            "image_api_timeout_seconds": config.image_api_timeout_seconds,
+            "image_concurrency": config.image_concurrency,
+            "image_width": config.image_width,
+            "image_height": config.image_height,
+            "image_steps": config.image_steps,
+            "image_cfg_scale": config.image_cfg_scale,
+            "image_sampler_name": config.image_sampler_name,
         }
         return data
 
@@ -706,6 +715,8 @@ class JobParameterSnapshot(BaseModel):
     original_mix_percent: Optional[float] = None
     flush_sentences: Optional[int] = None
     split_batches: Optional[bool] = None
+    include_transliteration: Optional[bool] = None
+    add_images: Optional[bool] = None
 
 
 def _coerce_str(value: Any) -> Optional[str]:
@@ -801,6 +812,8 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     audio_mode = _coerce_str(inputs.get("audio_mode"))
     selected_voice = _coerce_str(inputs.get("selected_voice"))
     voice_overrides = _normalize_voice_overrides(inputs.get("voice_overrides"))
+    include_transliteration = _coerce_bool(inputs.get("include_transliteration"))
+    add_images = _coerce_bool(inputs.get("add_images"))
 
     input_file = _coerce_str(inputs.get("input_file"))
     base_output_file = _coerce_str(inputs.get("base_output_file"))
@@ -836,6 +849,8 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         audio_mode=audio_mode,
         selected_voice=selected_voice,
         voice_overrides=voice_overrides,
+        include_transliteration=include_transliteration,
+        add_images=add_images,
     )
 
 

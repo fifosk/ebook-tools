@@ -38,7 +38,9 @@ import TextPlayer, {
 import type { ChunkSentenceMetadata, TrackTimingPayload, WordTiming } from '../api/dtos';
 import { buildWordIndex, collectActiveWordIds, lowerBound, type WordIndex } from '../lib/timing/wordSync';
 import { WORD_SYNC, normaliseTranslationSpeed } from './player-panel/constants';
+import { resolve as resolveStoragePath } from '../utils/storageResolver';
 import { useLanguagePreferences } from '../context/LanguageProvider';
+import { useMyPainter } from '../context/MyPainterProvider';
 import { speakText } from '../utils/ttsPlayback';
 import { buildMyLinguistSystemPrompt } from '../utils/myLinguistPrompt';
 import type { InteractiveTextTheme } from '../types/interactiveTextTheme';
@@ -1094,6 +1096,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   forwardedRef,
 ) {
   const { inputLanguage: globalInputLanguage } = useLanguagePreferences();
+  const { setPlayerSentence, imageRefreshToken, open: openMyPainter } = useMyPainter();
   const resolvedJobOriginalLanguage = useMemo(() => {
     const trimmed = typeof jobOriginalLanguage === 'string' ? jobOriginalLanguage.trim() : '';
     return trimmed.length > 0 ? trimmed : null;
@@ -4305,6 +4308,146 @@ const handleAudioSeeked = useCallback(() => {
     .filter(Boolean)
     .join(' ');
 
+  const activeSentenceNumber = useMemo(() => {
+    const entries = chunk?.sentences ?? null;
+    if (entries && entries.length > 0) {
+      const entry = entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))];
+      const rawSentenceNumber = entry?.sentence_number ?? null;
+      if (typeof rawSentenceNumber === 'number' && Number.isFinite(rawSentenceNumber)) {
+        return Math.max(1, Math.trunc(rawSentenceNumber));
+      }
+    }
+    const start = chunk?.startSentence ?? null;
+    if (typeof start === 'number' && Number.isFinite(start)) {
+      return Math.max(1, Math.trunc(start) + Math.max(0, Math.trunc(activeSentenceIndex)));
+    }
+    return Math.max(1, Math.trunc(activeSentenceIndex) + 1);
+  }, [activeSentenceIndex, chunk?.sentences, chunk?.startSentence]);
+
+  const activeSentenceImagePath = useMemo(() => {
+    const entries = chunk?.sentences ?? null;
+    if (entries && entries.length > 0) {
+      const entry = entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))];
+      const imagePayload = entry?.image ?? null;
+      const explicit =
+        (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
+        (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
+        (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
+        null;
+      if (explicit) {
+        return explicit.trim();
+      }
+    }
+
+    const rangeFragment = chunk?.rangeFragment ?? null;
+    if (!rangeFragment || !jobId) {
+      return null;
+    }
+    const padded = String(activeSentenceNumber).padStart(5, '0');
+    return `media/images/${rangeFragment}/sentence_${padded}.png`;
+  }, [activeSentenceIndex, activeSentenceNumber, chunk?.rangeFragment, chunk?.sentences, jobId]);
+
+  const activeSentenceImageUrl = useMemo(() => {
+    const path = activeSentenceImagePath;
+    if (!path) {
+      return null;
+    }
+    if (path.includes('://')) {
+      return path;
+    }
+    if (!jobId) {
+      return null;
+    }
+    try {
+      const token =
+        imageRefreshToken > 0 ? `v=${encodeURIComponent(String(imageRefreshToken))}` : null;
+      const decorated = token ? (path.includes('?') ? `${path}&${token}` : `${path}?${token}`) : path;
+      return resolveStoragePath(jobId, decorated);
+    } catch {
+      return null;
+    }
+  }, [activeSentenceImagePath, imageRefreshToken, jobId]);
+
+  const [activeSentenceImageFailed, setActiveSentenceImageFailed] = useState(false);
+  useEffect(() => {
+    setActiveSentenceImageFailed(false);
+  }, [activeSentenceImageUrl]);
+
+  const handleSentenceImageClick = useCallback(
+    (event: ReactMouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!jobId) {
+        return;
+      }
+      const entries = chunk?.sentences ?? null;
+      const entry =
+        entries && entries.length > 0
+          ? entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))]
+          : null;
+      const imagePayload = entry?.image ?? null;
+      const prompt = typeof imagePayload?.prompt === 'string' ? imagePayload.prompt.trim() : null;
+      const negative = typeof imagePayload?.negative_prompt === 'string' ? imagePayload.negative_prompt.trim() : null;
+      const sentenceTextRaw = typeof entry?.original?.text === 'string' ? entry.original.text : null;
+      const sentenceText =
+        typeof sentenceTextRaw === 'string' && sentenceTextRaw.trim() ? sentenceTextRaw.trim() : null;
+
+      openMyPainter({
+        followPlayer: false,
+        sentence: {
+          jobId,
+          rangeFragment: chunk?.rangeFragment ?? null,
+          sentenceNumber: activeSentenceNumber,
+          sentenceText,
+          prompt,
+          negativePrompt: negative,
+          imagePath: activeSentenceImagePath,
+        },
+      });
+    },
+    [activeSentenceImagePath, activeSentenceIndex, activeSentenceNumber, chunk?.rangeFragment, chunk?.sentences, jobId, openMyPainter],
+  );
+
+  useEffect(() => {
+    if (!setPlayerSentence) {
+      return;
+    }
+    if (!jobId) {
+      setPlayerSentence(null);
+      return;
+    }
+
+    const entries = chunk?.sentences ?? null;
+    const entry =
+      entries && entries.length > 0
+        ? entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))]
+        : null;
+    const imagePayload = entry?.image ?? null;
+    const prompt = typeof imagePayload?.prompt === 'string' ? imagePayload.prompt.trim() : null;
+    const negative = typeof imagePayload?.negative_prompt === 'string' ? imagePayload.negative_prompt.trim() : null;
+    const sentenceTextRaw = typeof entry?.original?.text === 'string' ? entry.original.text : null;
+    const sentenceText =
+      typeof sentenceTextRaw === 'string' && sentenceTextRaw.trim() ? sentenceTextRaw.trim() : null;
+
+    setPlayerSentence({
+      jobId,
+      rangeFragment: chunk?.rangeFragment ?? null,
+      sentenceNumber: activeSentenceNumber,
+      sentenceText,
+      prompt,
+      negativePrompt: negative,
+      imagePath: activeSentenceImagePath,
+    });
+  }, [
+    activeSentenceImagePath,
+    activeSentenceIndex,
+    activeSentenceNumber,
+    chunk?.rangeFragment,
+    chunk?.sentences,
+    jobId,
+    setPlayerSentence,
+  ]);
+
   const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
   const showTextPlayer =
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
@@ -4694,6 +4837,23 @@ const handleAudioSeeked = useCallback(() => {
             <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
               {slideIndicator.label}
             </div>
+          ) : null}
+          {activeSentenceImageUrl && !activeSentenceImageFailed ? (
+            <button
+              type="button"
+              className="player-panel__interactive-sentence-image"
+              onClick={handleSentenceImageClick}
+              aria-label="Edit sentence image"
+              title="Edit image (MyPainter)"
+            >
+              <img
+                src={activeSentenceImageUrl}
+                alt="Sentence illustration"
+                loading="lazy"
+                decoding="async"
+                onError={() => setActiveSentenceImageFailed(true)}
+              />
+            </button>
           ) : null}
           {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : showTextPlayer ? (
             <TextPlayer

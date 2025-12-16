@@ -60,6 +60,7 @@ export interface PipelineInputPayload {
   output_html: boolean;
   output_pdf: boolean;
   generate_video: boolean;
+  add_images: boolean;
   include_transliteration: boolean;
   tempo: number;
   book_metadata: Record<string, unknown>;
@@ -140,6 +141,7 @@ export interface JobParameterSnapshot {
   flush_sentences?: number | null;
   split_batches?: boolean | null;
   include_transliteration?: boolean | null;
+  add_images?: boolean | null;
   target_height?: number | null;
   preserve_aspect_ratio?: boolean | null;
 }
@@ -744,12 +746,57 @@ export interface AudioTrackMetadata {
   sampleRate?: number | null;
 }
 
+export interface ChunkSentenceImagePayload {
+  path?: string | null;
+  prompt?: string | null;
+  negative_prompt?: string | null;
+}
+
+export interface SentenceImageInfoResponse {
+  job_id: string;
+  sentence_number: number;
+  range_fragment?: string | null;
+  relative_path?: string | null;
+  sentence?: string | null;
+  prompt?: string | null;
+  negative_prompt?: string | null;
+}
+
+export interface SentenceImageRegenerateRequestPayload {
+  prompt?: string | null;
+  negative_prompt?: string | null;
+  width?: number | null;
+  height?: number | null;
+  steps?: number | null;
+  cfg_scale?: number | null;
+  sampler_name?: string | null;
+  seed?: number | null;
+}
+
+export interface SentenceImageRegenerateResponse {
+  job_id: string;
+  sentence_number: number;
+  range_fragment?: string | null;
+  relative_path: string;
+  prompt: string;
+  negative_prompt: string;
+  width: number;
+  height: number;
+  steps: number;
+  cfg_scale: number;
+  sampler_name?: string | null;
+  seed?: number | null;
+}
+
 export interface ChunkSentenceMetadata {
   sentence_number?: number | null;
   original: ChunkSentenceVariant;
   translation?: ChunkSentenceVariant | null;
   transliteration?: ChunkSentenceVariant | null;
   timeline: ChunkSentenceTimelineEvent[];
+  image?: ChunkSentenceImagePayload | null;
+  image_path?: string | null;
+  imagePath?: string | null;
   total_duration?: number | null;
   highlight_granularity?: string | null;
   counts?: Record<string, number>;

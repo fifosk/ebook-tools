@@ -15,5 +15,8 @@
   "char_weighted_highlighting_default": true,
   "forced_alignment_backend": "whisperx",
   "forced_alignment_model": "medium.en",
-  "forced_alignment_smoothing": 0.35
+  "forced_alignment_smoothing": 0.35,
+  "image_api_base_url": "http://192.168.1.9:7860",
+  "image_concurrency": 2,
+  "image_api_timeout_seconds": 180
 }
