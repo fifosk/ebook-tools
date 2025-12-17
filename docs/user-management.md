@@ -88,22 +88,22 @@ automation can authenticate without shell access:
   [`modules/webapi/auth_routes.py`](../modules/webapi/auth_routes.py). They
   produce the same session tokens managed by `SessionManager`, decorate responses
   with profile metadata (`email`, `first_name`, `last_name`, `last_login`), and
-  enforce bearer authentication for session lookups or password changes.【F:modules/webapi/auth_routes.py†L12-L139】
+  enforce bearer authentication for session lookups or password changes.
 - Administrative CRUD operations live under
   [`modules/webapi/admin_routes.py`](../modules/webapi/admin_routes.py). The
   routes surface normalised account status flags, allow administrators to create
   users with profile metadata, suspend or reactivate accounts, and reset
-  passwords—all guarded by the `admin` role.【F:modules/webapi/admin_routes.py†L37-L288】
+  passwords—all guarded by the `admin` role.
 
 The React SPA consumes the same endpoints via the shared API client:
 
 - `AuthProvider` restores persisted tokens from `localStorage`, forwards them
   with every request, reacts to `401/403` responses by clearing the session, and
-  exposes `login`, `logout`, and `updatePassword` helpers to the component tree.【F:web/src/components/AuthProvider.tsx†L1-L122】
+  exposes `login`, `logout`, and `updatePassword` helpers to the component tree.
 - `UserManagementPanel` grants administrators a self-service interface to list
   accounts, edit profile metadata, suspend/activate users, and trigger password
   resets. It normalises state returned by the admin routes so the UI can display
-  consistent status badges and timestamps.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
+  consistent status badges and timestamps.
 
 ## Media and metadata responsibilities
 

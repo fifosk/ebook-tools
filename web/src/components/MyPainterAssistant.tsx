@@ -91,12 +91,14 @@ export default function MyPainterAssistant() {
   const [prompt, setPrompt] = useState('');
   const [negativePrompt, setNegativePrompt] = useState('');
 
-  const [width, setWidth] = useState('500');
-  const [height, setHeight] = useState('500');
-  const [steps, setSteps] = useState('12');
+  const [width, setWidth] = useState('512');
+  const [height, setHeight] = useState('512');
+  const [steps, setSteps] = useState('24');
   const [cfgScale, setCfgScale] = useState('7.0');
   const [samplerName, setSamplerName] = useState('');
   const [seed, setSeed] = useState('');
+  const [contextSentences, setContextSentences] = useState('2');
+  const [useLlmPrompt, setUseLlmPrompt] = useState(false);
 
   const [isWorking, setIsWorking] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -328,7 +330,7 @@ export default function MyPainterAssistant() {
       typeof resolvedSentenceNumber === 'number' &&
       Number.isFinite(resolvedSentenceNumber) &&
       resolvedSentenceNumber > 0 &&
-      prompt.trim(),
+      (prompt.trim() || useLlmPrompt),
   );
 
   const handleUseCurrentSentence = useCallback(() => {
@@ -344,13 +346,15 @@ export default function MyPainterAssistant() {
     }
     setFollowPlayer(false);
     const promptValue = prompt.trim();
-    if (!promptValue) {
+    if (!promptValue && !useLlmPrompt) {
       setErrorMessage('Prompt is required.');
       return;
     }
 
     const payload: SentenceImageRegenerateRequestPayload = {
-      prompt: promptValue,
+      use_llm_prompt: useLlmPrompt ? true : null,
+      context_sentences: toNumberOrNull(contextSentences, 'int'),
+      prompt: useLlmPrompt ? null : promptValue,
       negative_prompt: negativePrompt.trim() ? negativePrompt.trim() : null,
       width: toNumberOrNull(width, 'int'),
       height: toNumberOrNull(height, 'int'),
@@ -362,7 +366,7 @@ export default function MyPainterAssistant() {
 
     setIsWorking(true);
     setErrorMessage(null);
-    setStatusMessage('Generating…');
+    setStatusMessage(useLlmPrompt ? 'Generating (LLM)…' : 'Generating…');
     try {
       const response = await regenerateSentenceImage(jobId, sentenceNumber, payload);
       if (!isMountedRef.current) {
@@ -402,6 +406,7 @@ export default function MyPainterAssistant() {
   }, [
     bumpImageRefreshToken,
     cfgScale,
+    contextSentences,
     height,
     negativePrompt,
     prompt,
@@ -410,6 +415,7 @@ export default function MyPainterAssistant() {
     steps,
     targetSentence?.jobId,
     targetSentence?.sentenceNumber,
+    useLlmPrompt,
     width,
   ]);
 
@@ -560,7 +566,12 @@ export default function MyPainterAssistant() {
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
               placeholder="Diffusion prompt…"
+              disabled={useLlmPrompt}
             />
+            <label className={styles.checkboxLabel}>
+              <input type="checkbox" checked={useLlmPrompt} onChange={(event) => setUseLlmPrompt(event.target.checked)} />
+              Rebuild prompt from sentence + context
+            </label>
           </div>
 
           <div className={styles.section}>
@@ -602,6 +613,16 @@ export default function MyPainterAssistant() {
               <div className={styles.fieldRow}>
                 <div className={styles.label}>Seed</div>
                 <input className={styles.input} value={seed} onChange={(e) => setSeed(e.target.value)} inputMode="numeric" placeholder="optional" />
+              </div>
+              <div className={styles.fieldRow}>
+                <div className={styles.label}>Context</div>
+                <input
+                  className={styles.input}
+                  value={contextSentences}
+                  onChange={(e) => setContextSentences(e.target.value)}
+                  inputMode="numeric"
+                  placeholder="previous sentences"
+                />
               </div>
             </div>
           </div>

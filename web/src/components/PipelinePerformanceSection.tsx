@@ -5,11 +5,14 @@ type PipelinePerformanceSectionProps = {
   threadCount: string;
   queueSize: string;
   jobMaxWorkers: string;
+  imageConcurrency: string;
+  imagesEnabled: boolean;
   slideParallelism: string;
   slideParallelWorkers: string;
   onThreadCountChange: (value: string) => void;
   onQueueSizeChange: (value: string) => void;
   onJobMaxWorkersChange: (value: string) => void;
+  onImageConcurrencyChange: (value: string) => void;
   onSlideParallelismChange: (value: string) => void;
   onSlideParallelWorkersChange: (value: string) => void;
 };
@@ -21,11 +24,14 @@ const PipelinePerformanceSection = ({
   threadCount,
   queueSize,
   jobMaxWorkers,
+  imageConcurrency,
+  imagesEnabled,
   slideParallelism,
   slideParallelWorkers,
   onThreadCountChange,
   onQueueSizeChange,
   onJobMaxWorkersChange,
+  onImageConcurrencyChange,
   onSlideParallelismChange,
   onSlideParallelWorkersChange
 }: PipelinePerformanceSectionProps) => {
@@ -114,6 +120,26 @@ const PipelinePerformanceSection = ({
                 value={slideParallelWorkers}
                 onChange={(event) => onSlideParallelWorkersChange(event.target.value)}
                 placeholder="Default"
+              />
+            </label>
+          </details>
+          <details>
+            <summary>Image generation</summary>
+            <p className="form-help-text">
+              Control how many sentence images are generated in parallel. Enable “Add images” in Output settings to apply.
+            </p>
+            <label htmlFor="image_concurrency">
+              Image workers
+              <input
+                id="image_concurrency"
+                name="image_concurrency"
+                type="number"
+                min={1}
+                step={1}
+                value={imageConcurrency}
+                onChange={(event) => onImageConcurrencyChange(event.target.value)}
+                placeholder="Default (4)"
+                disabled={!imagesEnabled}
               />
             </label>
           </details>

@@ -1,4 +1,5 @@
 import {
+  Fragment,
   forwardRef,
   useCallback,
   useEffect,
@@ -15,8 +16,14 @@ import type {
   ReactNode,
   UIEvent,
 } from 'react';
-import { appendAccessToken, assistantLookup, fetchJobTiming } from '../api/client';
-import type { AssistantLookupResponse, AudioTrackMetadata, JobTimingEntry, JobTimingResponse } from '../api/dtos';
+import { appendAccessToken, assistantLookup, fetchJobTiming, fetchSentenceImageInfo } from '../api/client';
+import type {
+  AssistantLookupResponse,
+  AudioTrackMetadata,
+  JobTimingEntry,
+  JobTimingResponse,
+  SentenceImageInfoResponse,
+} from '../api/dtos';
 import type { LiveMediaChunk, MediaClock } from '../hooks/useLiveMedia';
 import { useMediaClock } from '../hooks/useLiveMedia';
 import PlayerCore from '../player/PlayerCore';
@@ -814,6 +821,7 @@ interface InteractiveTextViewerProps {
   noAudioAvailable: boolean;
   jobId?: string | null;
   onActiveSentenceChange?: (sentenceNumber: number | null) => void;
+  onRequestSentenceJump?: (sentenceNumber: number) => void;
   onScroll?: (event: UIEvent<HTMLDivElement>) => void;
   onAudioProgress?: (audioUrl: string, position: number) => void;
   getStoredAudioPosition?: (audioUrl: string) => number;
@@ -1083,20 +1091,21 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     infoCoverSecondaryUrl = null,
     infoCoverAltText = null,
     infoCoverVariant = null,
-    bookCoverUrl = null,
-    bookCoverAltText = null,
-    onActiveSentenceChange,
-    bookTotalSentences = null,
-    jobStartSentence = null,
-    jobEndSentence = null,
-    jobOriginalLanguage = null,
-    jobTranslationLanguage = null,
+	    bookCoverUrl = null,
+	    bookCoverAltText = null,
+	    onActiveSentenceChange,
+	    onRequestSentenceJump,
+	    bookTotalSentences = null,
+	    jobStartSentence = null,
+	    jobEndSentence = null,
+	    jobOriginalLanguage = null,
+	    jobTranslationLanguage = null,
     cueVisibility,
   },
   forwardedRef,
 ) {
   const { inputLanguage: globalInputLanguage } = useLanguagePreferences();
-  const { setPlayerSentence, imageRefreshToken, open: openMyPainter } = useMyPainter();
+  const { setPlayerSentence, imageRefreshToken } = useMyPainter();
   const resolvedJobOriginalLanguage = useMemo(() => {
     const trimmed = typeof jobOriginalLanguage === 'string' ? jobOriginalLanguage.trim() : '';
     return trimmed.length > 0 ? trimmed : null;
@@ -4324,6 +4333,121 @@ const handleAudioSeeked = useCallback(() => {
     return Math.max(1, Math.trunc(activeSentenceIndex) + 1);
   }, [activeSentenceIndex, chunk?.sentences, chunk?.startSentence]);
 
+  const minSentenceBound = useMemo(() => {
+    const raw = jobStartSentence ?? null;
+    if (typeof raw === 'number' && Number.isFinite(raw)) {
+      return Math.max(1, Math.trunc(raw));
+    }
+    return 1;
+  }, [jobStartSentence]);
+
+  const maxSentenceBound = useMemo(() => {
+    const rawEnd = jobEndSentence ?? null;
+    if (typeof rawEnd === 'number' && Number.isFinite(rawEnd)) {
+      return Math.max(1, Math.trunc(rawEnd));
+    }
+    const rawTotal = totalSentencesInBook ?? null;
+    if (typeof rawTotal === 'number' && Number.isFinite(rawTotal)) {
+      return Math.max(1, Math.trunc(rawTotal));
+    }
+    const rawBookTotal = bookTotalSentences ?? null;
+    if (typeof rawBookTotal === 'number' && Number.isFinite(rawBookTotal)) {
+      return Math.max(1, Math.trunc(rawBookTotal));
+    }
+    return null;
+  }, [bookTotalSentences, jobEndSentence, totalSentencesInBook]);
+
+  const [isSentenceImageReelVisible, setSentenceImageReelVisible] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    const stored = window.localStorage.getItem('player.sentenceImageReelVisible');
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem('player.sentenceImageReelVisible', isSentenceImageReelVisible ? 'true' : 'false');
+    } catch {
+      // ignore
+    }
+  }, [isSentenceImageReelVisible]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const isTypingTarget = (target: EventTarget | null): target is HTMLElement => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      if (target.isContentEditable) {
+        return true;
+      }
+      const tag = target.tagName;
+      return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.altKey ||
+        event.metaKey ||
+        event.ctrlKey ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+      if (event.key?.toLowerCase() !== 'r') {
+        return;
+      }
+      event.preventDefault();
+      setSentenceImageReelVisible((value) => !value);
+    };
+
+    window.addEventListener('keydown', handleShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleShortcut);
+    };
+  }, []);
+
+		  const reelSentenceSlots = useMemo(() => {
+		    const base = Math.max(1, Math.trunc(activeSentenceNumber));
+		    const offsets = [-3, -2, -1, 0, 1, 2, 3];
+		    return offsets.map((offset) => {
+	      const candidate = base + offset;
+	      if (candidate < minSentenceBound) {
+	        return null;
+	      }
+      if (maxSentenceBound !== null && candidate > maxSentenceBound) {
+        return null;
+      }
+      return candidate;
+    });
+  }, [activeSentenceNumber, maxSentenceBound, minSentenceBound]);
+
+  const chunkSentenceByNumber = useMemo(() => {
+    const entries = chunk?.sentences ?? null;
+    if (!entries || entries.length === 0) {
+      return new Map<number, ChunkSentenceMetadata>();
+    }
+    const map = new Map<number, ChunkSentenceMetadata>();
+    entries.forEach((entry) => {
+      const raw = entry?.sentence_number ?? null;
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+        return;
+      }
+      map.set(Math.max(1, Math.trunc(raw)), entry);
+    });
+    return map;
+  }, [chunk?.sentences]);
+
   const activeSentenceImagePath = useMemo(() => {
     const entries = chunk?.sentences ?? null;
     if (entries && entries.length > 0) {
@@ -4347,66 +4471,380 @@ const handleAudioSeeked = useCallback(() => {
     return `media/images/${rangeFragment}/sentence_${padded}.png`;
   }, [activeSentenceIndex, activeSentenceNumber, chunk?.rangeFragment, chunk?.sentences, jobId]);
 
-  const activeSentenceImageUrl = useMemo(() => {
-    const path = activeSentenceImagePath;
-    if (!path) {
-      return null;
-    }
-    if (path.includes('://')) {
-      return path;
-    }
-    if (!jobId) {
-      return null;
-    }
-    try {
-      const token =
-        imageRefreshToken > 0 ? `v=${encodeURIComponent(String(imageRefreshToken))}` : null;
-      const decorated = token ? (path.includes('?') ? `${path}&${token}` : `${path}?${token}`) : path;
-      return resolveStoragePath(jobId, decorated);
-    } catch {
-      return null;
-    }
-  }, [activeSentenceImagePath, imageRefreshToken, jobId]);
+  const reelImageInfoCacheRef = useRef<Map<number, SentenceImageInfoResponse>>(new Map());
+  const reelImageInfoInflightRef = useRef<Set<number>>(new Set());
+  const [reelImageInfoVersion, setReelImageInfoVersion] = useState(0);
 
-  const [activeSentenceImageFailed, setActiveSentenceImageFailed] = useState(false);
   useEffect(() => {
-    setActiveSentenceImageFailed(false);
-  }, [activeSentenceImageUrl]);
+    reelImageInfoCacheRef.current.clear();
+    reelImageInfoInflightRef.current.clear();
+    setReelImageInfoVersion((value) => value + 1);
+  }, [jobId]);
 
-  const handleSentenceImageClick = useCallback(
-    (event: ReactMouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (!jobId) {
+	  useEffect(() => {
+	    if (!jobId) {
+	      return;
+	    }
+	    if (!isSentenceImageReelVisible) {
+	      return;
+	    }
+	    const cache = reelImageInfoCacheRef.current;
+	    const inflight = reelImageInfoInflightRef.current;
+	    const required = reelSentenceSlots.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+	    if (!required.length) {
+	      return;
+	    }
+
+    let cancelled = false;
+    required.forEach((sentenceNumber) => {
+      if (chunkSentenceByNumber.has(sentenceNumber)) {
         return;
       }
-      const entries = chunk?.sentences ?? null;
-      const entry =
-        entries && entries.length > 0
-          ? entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))]
-          : null;
-      const imagePayload = entry?.image ?? null;
-      const prompt = typeof imagePayload?.prompt === 'string' ? imagePayload.prompt.trim() : null;
-      const negative = typeof imagePayload?.negative_prompt === 'string' ? imagePayload.negative_prompt.trim() : null;
-      const sentenceTextRaw = typeof entry?.original?.text === 'string' ? entry.original.text : null;
-      const sentenceText =
-        typeof sentenceTextRaw === 'string' && sentenceTextRaw.trim() ? sentenceTextRaw.trim() : null;
+      if (cache.has(sentenceNumber) || inflight.has(sentenceNumber)) {
+        return;
+      }
+      inflight.add(sentenceNumber);
+      fetchSentenceImageInfo(jobId, sentenceNumber)
+        .then((info) => {
+          if (cancelled) {
+            return;
+          }
+          cache.set(sentenceNumber, info);
+          setReelImageInfoVersion((value) => value + 1);
+        })
+        .catch(() => {
+          // ignore
+        })
+        .finally(() => {
+          inflight.delete(sentenceNumber);
+        });
+    });
 
-      openMyPainter({
-        followPlayer: false,
-        sentence: {
-          jobId,
-          rangeFragment: chunk?.rangeFragment ?? null,
-          sentenceNumber: activeSentenceNumber,
-          sentenceText,
-          prompt,
-          negativePrompt: negative,
-          imagePath: activeSentenceImagePath,
-        },
-      });
+    return () => {
+      cancelled = true;
+    };
+	  }, [chunkSentenceByNumber, isSentenceImageReelVisible, jobId, reelSentenceSlots]);
+
+  const [reelImageFailures, setReelImageFailures] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setReelImageFailures({});
+  }, [imageRefreshToken, jobId]);
+
+  const resolveSentenceImageUrl = useCallback(
+    (path: string | null) => {
+      const candidate = (path ?? '').trim();
+      if (!candidate) {
+        return null;
+      }
+      if (candidate.includes('://')) {
+        return candidate;
+      }
+      if (!jobId) {
+        return null;
+      }
+      try {
+        const token = imageRefreshToken > 0 ? `v=${encodeURIComponent(String(imageRefreshToken))}` : null;
+        const decorated = token ? (candidate.includes('?') ? `${candidate}&${token}` : `${candidate}?${token}`) : candidate;
+        return resolveStoragePath(jobId, decorated);
+      } catch {
+        return null;
+      }
     },
-    [activeSentenceImagePath, activeSentenceIndex, activeSentenceNumber, chunk?.rangeFragment, chunk?.sentences, jobId, openMyPainter],
+    [imageRefreshToken, jobId],
   );
+
+	  const reelFrames = useMemo(() => {
+	    const cache = reelImageInfoCacheRef.current;
+	    const rangeFragment = chunk?.rangeFragment ?? null;
+	    const startSentence = chunk?.startSentence ?? null;
+	    const endSentence = chunk?.endSentence ?? null;
+
+    return reelSentenceSlots.map((sentenceNumber) => {
+      if (typeof sentenceNumber !== 'number' || !Number.isFinite(sentenceNumber)) {
+        return {
+          sentenceNumber: null as number | null,
+          url: null as string | null,
+          imagePath: null as string | null,
+          rangeFragment: null as string | null,
+          sentenceText: null as string | null,
+          prompt: null as string | null,
+          negativePrompt: null as string | null,
+          isActive: false,
+          isMissing: true,
+        };
+      }
+
+      const key = String(sentenceNumber);
+      const failed = reelImageFailures[key] ?? false;
+      const isActive = sentenceNumber === activeSentenceNumber;
+
+      const chunkEntry = chunkSentenceByNumber.get(sentenceNumber) ?? null;
+      const chunkImagePayload = chunkEntry?.image ?? null;
+      const explicitPath =
+        (typeof chunkImagePayload?.path === 'string' && chunkImagePayload.path.trim()) ||
+        (typeof chunkEntry?.image_path === 'string' && chunkEntry.image_path.trim()) ||
+        (typeof chunkEntry?.imagePath === 'string' && chunkEntry.imagePath.trim()) ||
+        null;
+      const chunkSentenceTextRaw = typeof chunkEntry?.original?.text === 'string' ? chunkEntry.original.text : null;
+      const chunkSentenceText =
+        typeof chunkSentenceTextRaw === 'string' && chunkSentenceTextRaw.trim() ? chunkSentenceTextRaw.trim() : null;
+      const chunkPrompt = typeof chunkImagePayload?.prompt === 'string' && chunkImagePayload.prompt.trim() ? chunkImagePayload.prompt.trim() : null;
+      const chunkNegative = typeof chunkImagePayload?.negative_prompt === 'string' && chunkImagePayload.negative_prompt.trim() ? chunkImagePayload.negative_prompt.trim() : null;
+
+      const cached = cache.get(sentenceNumber) ?? null;
+
+      const resolvedRangeFragment =
+        (typeof rangeFragment === 'string' && rangeFragment.trim() && (
+          (typeof startSentence === 'number' &&
+            typeof endSentence === 'number' &&
+            Number.isFinite(startSentence) &&
+            Number.isFinite(endSentence) &&
+            sentenceNumber >= Math.trunc(startSentence) &&
+            sentenceNumber <= Math.trunc(endSentence)) ||
+          chunkEntry
+        ))
+          ? rangeFragment.trim()
+          : typeof cached?.range_fragment === 'string' && cached.range_fragment.trim()
+            ? cached.range_fragment.trim()
+            : null;
+
+      const padded = String(sentenceNumber).padStart(5, '0');
+      const computedPath =
+        resolvedRangeFragment ? `media/images/${resolvedRangeFragment}/sentence_${padded}.png` : null;
+
+      const imagePath = isActive
+        ? activeSentenceImagePath
+        : explicitPath
+          ? explicitPath.trim()
+          : typeof cached?.relative_path === 'string' && cached.relative_path.trim()
+            ? cached.relative_path.trim()
+            : computedPath;
+
+      const url = failed ? null : resolveSentenceImageUrl(imagePath);
+
+      return {
+        sentenceNumber,
+        url,
+        imagePath,
+        rangeFragment: resolvedRangeFragment,
+        sentenceText:
+          chunkSentenceText ??
+          (typeof cached?.sentence === 'string' && cached.sentence.trim() ? cached.sentence.trim() : null),
+        prompt:
+          chunkPrompt ??
+          (typeof cached?.prompt === 'string' && cached.prompt.trim() ? cached.prompt.trim() : null),
+        negativePrompt:
+          chunkNegative ??
+          (typeof cached?.negative_prompt === 'string' && cached.negative_prompt.trim() ? cached.negative_prompt.trim() : null),
+        isActive,
+        isMissing: !imagePath,
+      };
+    });
+  }, [
+    activeSentenceImagePath,
+    activeSentenceNumber,
+    chunk?.endSentence,
+    chunk?.rangeFragment,
+    chunk?.startSentence,
+    chunkSentenceByNumber,
+    reelImageFailures,
+    reelImageInfoVersion,
+    reelSentenceSlots,
+	    resolveSentenceImageUrl,
+	  ]);
+
+	  const resolveReelSentenceSeekTarget = useCallback(
+	    (sentenceNumber: number) => {
+	      if (!Number.isFinite(sentenceNumber)) {
+	        return null;
+	      }
+	      const targetSentence = Math.max(1, Math.trunc(sentenceNumber));
+	      if (!timelineSentences || timelineSentences.length === 0) {
+	        return null;
+	      }
+
+	      const resolvedRuntime = (() => {
+	        const match = timelineSentences.find((entry) => entry.sentenceNumber === targetSentence) ?? null;
+	        if (match) {
+	          return match;
+	        }
+	        const start = chunk?.startSentence ?? null;
+	        if (typeof start === 'number' && Number.isFinite(start)) {
+	          const candidateIndex = targetSentence - Math.max(1, Math.trunc(start));
+	          if (candidateIndex >= 0 && candidateIndex < timelineSentences.length) {
+	            return timelineSentences[candidateIndex] ?? null;
+	          }
+	        }
+	        return null;
+	      })();
+
+	      if (!resolvedRuntime) {
+	        return null;
+	      }
+
+	      const rawStartTime = resolvedRuntime.startTime;
+	      if (typeof rawStartTime !== 'number' || !Number.isFinite(rawStartTime)) {
+	        return { index: resolvedRuntime.index, time: null as number | null };
+	      }
+
+	      const epsilon = 0.02;
+	      const timelineStartTime = Math.max(0, rawStartTime - epsilon);
+
+	      const rawTotal = timelineSentences[timelineSentences.length - 1]?.endTime ?? null;
+	      const timelineTotal =
+	        typeof rawTotal === 'number' && Number.isFinite(rawTotal) && rawTotal > 0 ? rawTotal : null;
+
+	      let resolvedDuration = audioDuration;
+	      if (!(typeof resolvedDuration === 'number' && Number.isFinite(resolvedDuration) && resolvedDuration > 0)) {
+	        const normaliseUrl = (value: string) => value.split('?')[0].split('#')[0];
+	        const trackDurationForUrl = (url: string | null | undefined) => {
+	          if (!url || !audioTracks) {
+	            return null;
+	          }
+	          const needle = normaliseUrl(url);
+	          for (const track of Object.values(audioTracks)) {
+	            const candidateUrl = typeof track?.url === 'string' ? normaliseUrl(track.url) : null;
+	            if (candidateUrl && candidateUrl === needle) {
+	              const duration = track.duration ?? null;
+	              return typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? duration : null;
+	            }
+	          }
+	          return null;
+	        };
+
+	        resolvedDuration =
+	          trackDurationForUrl(effectiveAudioUrl) ??
+	          trackDurationForUrl(activeAudioUrl) ??
+	          (typeof audioTracks?.orig_trans?.duration === 'number' &&
+	          Number.isFinite(audioTracks.orig_trans.duration) &&
+	          audioTracks.orig_trans.duration > 0
+	            ? audioTracks.orig_trans.duration
+	            : null) ??
+	          (typeof audioTracks?.translation?.duration === 'number' &&
+	          Number.isFinite(audioTracks.translation.duration) &&
+	          audioTracks.translation.duration > 0
+	            ? audioTracks.translation.duration
+	            : null) ??
+	          (typeof audioTracks?.trans?.duration === 'number' &&
+	          Number.isFinite(audioTracks.trans.duration) &&
+	          audioTracks.trans.duration > 0
+	            ? audioTracks.trans.duration
+	            : null) ??
+	          null;
+	      }
+
+	      const duration =
+	        typeof resolvedDuration === 'number' && Number.isFinite(resolvedDuration) && resolvedDuration > 0
+	          ? resolvedDuration
+	          : null;
+
+	      if (timelineTotal !== null && duration !== null) {
+	        const ratio = Math.min(Math.max(timelineStartTime / timelineTotal, 0), 1);
+	        return { index: resolvedRuntime.index, time: ratio * duration };
+	      }
+
+	      return { index: resolvedRuntime.index, time: timelineStartTime };
+	    },
+	    [activeAudioUrl, audioDuration, audioTracks, chunk?.startSentence, effectiveAudioUrl, timelineSentences],
+	  );
+
+	  const syncPlayerToReelSentence = useCallback(
+	    (sentenceNumber: number) => {
+	      const target = resolveReelSentenceSeekTarget(sentenceNumber);
+	      if (!target) {
+	        return false;
+	      }
+	      setActiveSentenceIndex(target.index);
+	      if (target.time === null) {
+	        return true;
+	      }
+	      if (inlineAudioPlayingRef.current) {
+	        handleTokenSeek(target.time);
+	      } else {
+	        seekInlineAudioToTime(target.time);
+	      }
+	      return true;
+	    },
+	    [handleTokenSeek, resolveReelSentenceSeekTarget, seekInlineAudioToTime],
+	  );
+
+		  const handleReelFrameClick = useCallback(
+		    (frame: (typeof reelFrames)[number]) => (event: ReactMouseEvent) => {
+		      event.preventDefault();
+		      event.stopPropagation();
+		      const sentenceNumber = frame.sentenceNumber ?? null;
+		      if (!jobId || !sentenceNumber) {
+		        return;
+		      }
+		      if (!syncPlayerToReelSentence(sentenceNumber) && onRequestSentenceJump) {
+		        onRequestSentenceJump(sentenceNumber);
+		      }
+		    },
+		    [jobId, onRequestSentenceJump, syncPlayerToReelSentence],
+		  );
+
+	  const sentenceImageReelNode = useMemo(() => {
+	    if (!jobId || !isSentenceImageReelVisible) {
+	      return null;
+	    }
+	    const hasAnySlots = reelFrames.some((frame) => typeof frame.sentenceNumber === 'number');
+	    if (!hasAnySlots) {
+	      return null;
+    }
+    return (
+      <div className="player-panel__interactive-image-reel" aria-label="Sentence images">
+        <div className="player-panel__interactive-image-reel-strip" role="list">
+          {reelFrames.map((frame, index) => {
+            const sentenceNumber = frame.sentenceNumber;
+            const key = sentenceNumber ? String(sentenceNumber) : `empty-${index}`;
+            const classNames = [
+              'player-panel__interactive-image-reel-frame',
+              frame.isActive ? 'player-panel__interactive-image-reel-frame--active' : null,
+            ]
+              .filter(Boolean)
+              .join(' ');
+
+            return (
+              <div
+                key={key}
+                className="player-panel__interactive-image-reel-slot"
+                role="listitem"
+                aria-label={sentenceNumber ? `Sentence ${sentenceNumber}` : 'No sentence'}
+              >
+	                <button
+	                  type="button"
+	                  className={classNames}
+	                  onClick={handleReelFrameClick(frame)}
+	                  disabled={!sentenceNumber}
+	                  title={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : undefined}
+	                  aria-label={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : 'No image'}
+	                >
+                  {frame.url ? (
+                    <img
+                      src={frame.url}
+                      alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
+                      loading="lazy"
+                      decoding="async"
+                      onError={() => {
+                        if (!sentenceNumber) {
+                          return;
+                        }
+                        setReelImageFailures((previous) => ({ ...previous, [String(sentenceNumber)]: true }));
+                      }}
+                    />
+                  ) : (
+                    <span className="player-panel__interactive-image-reel-placeholder" aria-hidden="true">
+                      {sentenceNumber ? '—' : ''}
+                    </span>
+                  )}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+	  }, [handleReelFrameClick, isSentenceImageReelVisible, jobId, reelFrames]);
 
   useEffect(() => {
     if (!setPlayerSentence) {
@@ -4725,63 +5163,59 @@ const handleAudioSeeked = useCallback(() => {
 
   return (
     <>
-      <div
-        ref={rootRef}
-        className={rootClassName}
-        data-fullscreen={isFullscreen ? 'true' : 'false'}
-        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
-      >
-      {isFullscreen && hasFullscreenPanelContent ? (
-        <div
-          className={[
-            'player-panel__interactive-fullscreen-controls',
-            fullscreenControlsCollapsed ? 'player-panel__interactive-fullscreen-controls--collapsed' : null,
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          <div className="player-panel__interactive-fullscreen-controls-bar">
-            <span className="player-panel__interactive-label">
-              {fullscreenControlsCollapsed ? 'Controls hidden' : 'Controls'}
-            </span>
-            <div className="player-panel__interactive-fullscreen-controls-actions">
-              {inlineAudioAvailable && fullscreenControlsCollapsed ? (
-                <button
-                  type="button"
-                  className="player-panel__interactive-fullscreen-toggle-btn player-panel__interactive-fullscreen-toggle-btn--audio"
-                  onClick={() => setFullscreenControlsCollapsed(false)}
-                >
-                  Show audio player
-                </button>
-              ) : null}
-              <button
-                type="button"
-                className="player-panel__interactive-fullscreen-toggle-btn"
-                onClick={() => setFullscreenControlsCollapsed((value) => !value)}
-                aria-expanded={!fullscreenControlsCollapsed}
-              >
-                {fullscreenControlsCollapsed ? 'Show controls' : 'Hide controls'}
-              </button>
-            </div>
-          </div>
-          {!fullscreenControlsCollapsed ? (
-            <>
-              {fullscreenControls ? (
-                <div className="player-panel__interactive-fullscreen-controls-body">{fullscreenControls}</div>
-              ) : null}
-              {renderInlineAudioSection(false)}
-            </>
-          ) : (
-            renderInlineAudioSection(true)
-          )}
-        </div>
-      ) : (
-        renderInlineAudioSection(false)
-      )}
-      <div
-        className="player-panel__document-body player-panel__interactive-frame"
-        style={bodyStyle}
-      >
+	      <div
+	        ref={rootRef}
+	        className={rootClassName}
+	        data-fullscreen={isFullscreen ? 'true' : 'false'}
+	        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
+	      >
+	      {isFullscreen && hasFullscreenPanelContent ? (
+	        <div
+	          key="fullscreen-controls"
+	          className={[
+	            'player-panel__interactive-fullscreen-controls',
+	            fullscreenControlsCollapsed ? 'player-panel__interactive-fullscreen-controls--collapsed' : null,
+	          ]
+	            .filter(Boolean)
+	            .join(' ')}
+	        >
+	          <div className="player-panel__interactive-fullscreen-controls-bar">
+	            <span className="player-panel__interactive-label">
+	              {fullscreenControlsCollapsed ? 'Controls hidden' : 'Controls'}
+	            </span>
+	            <div className="player-panel__interactive-fullscreen-controls-actions">
+	              {inlineAudioAvailable && fullscreenControlsCollapsed ? (
+	                <button
+	                  type="button"
+	                  className="player-panel__interactive-fullscreen-toggle-btn player-panel__interactive-fullscreen-toggle-btn--audio"
+	                  onClick={() => setFullscreenControlsCollapsed(false)}
+	                >
+	                  Show audio player
+	                </button>
+	              ) : null}
+	              <button
+	                type="button"
+	                className="player-panel__interactive-fullscreen-toggle-btn"
+	                onClick={() => setFullscreenControlsCollapsed((value) => !value)}
+	                aria-expanded={!fullscreenControlsCollapsed}
+	              >
+	                {fullscreenControlsCollapsed ? 'Show controls' : 'Hide controls'}
+	              </button>
+	            </div>
+	          </div>
+	          {!fullscreenControlsCollapsed && fullscreenControls ? (
+	            <div className="player-panel__interactive-fullscreen-controls-body">{fullscreenControls}</div>
+	          ) : null}
+	        </div>
+	      ) : null}
+	      <Fragment key="inline-audio">
+	        {renderInlineAudioSection(Boolean(isFullscreen && hasFullscreenPanelContent && fullscreenControlsCollapsed))}
+	      </Fragment>
+	      <div
+	        key="interactive-body"
+	        className="player-panel__document-body player-panel__interactive-frame"
+	        style={bodyStyle}
+	      >
         {showInfoHeader ? (
           <div className="player-panel__player-info-header" aria-hidden="true">
             {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
@@ -4838,31 +5272,20 @@ const handleAudioSeeked = useCallback(() => {
               {slideIndicator.label}
             </div>
           ) : null}
-          {activeSentenceImageUrl && !activeSentenceImageFailed ? (
-            <button
-              type="button"
-              className="player-panel__interactive-sentence-image"
-              onClick={handleSentenceImageClick}
-              aria-label="Edit sentence image"
-              title="Edit image (MyPainter)"
-            >
-              <img
-                src={activeSentenceImageUrl}
-                alt="Sentence illustration"
-                loading="lazy"
-                decoding="async"
-                onError={() => setActiveSentenceImageFailed(true)}
-              />
-            </button>
-          ) : null}
           {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : showTextPlayer ? (
-            <TextPlayer
-              sentences={textPlayerSentences ?? []}
-              onSeek={handleTokenSeek}
-              footer={pinnedLinguistBubbleNode}
-            />
+            <>
+              {sentenceImageReelNode}
+              <TextPlayer
+                sentences={textPlayerSentences ?? []}
+                onSeek={handleTokenSeek}
+                footer={pinnedLinguistBubbleNode}
+              />
+            </>
           ) : paragraphs.length > 0 ? (
-            <pre className="player-panel__document-text">{content}</pre>
+            <>
+              {sentenceImageReelNode}
+              <pre className="player-panel__document-text">{content}</pre>
+            </>
           ) : chunk ? (
             <div className="player-panel__document-status" role="status">
               Loading interactive chunk…

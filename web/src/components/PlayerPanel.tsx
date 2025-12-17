@@ -2500,6 +2500,107 @@ const scheduleChunkMetadataAppend = useCallback(
     setPendingSelection,
   ]);
 
+  const handleInteractiveSentenceJump = useCallback(
+    (sentenceNumber: number) => {
+      if (!canJumpToSentence) {
+        return;
+      }
+      if (!Number.isFinite(sentenceNumber)) {
+        return;
+      }
+      const target = Math.trunc(sentenceNumber);
+      if (
+        sentenceLookup.min !== null &&
+        sentenceLookup.max !== null &&
+        (target < sentenceLookup.min || target > sentenceLookup.max)
+      ) {
+        return;
+      }
+
+      const resolution = findSentenceTarget(target);
+      if (!resolution) {
+        return;
+      }
+      const chunk = chunks[resolution.chunkIndex];
+      if (!chunk) {
+        return;
+      }
+      const baseId = resolution.baseId ?? resolveChunkBaseId(chunk);
+      if (!baseId) {
+        return;
+      }
+
+      const offsetRatio =
+        typeof resolution.ratio === 'number' && Number.isFinite(resolution.ratio)
+          ? Math.min(Math.max(resolution.ratio, 0), 1)
+          : null;
+
+      let approximateTime: number | null = null;
+      if (offsetRatio !== null && chunk.audioTracks) {
+        const normaliseUrl = (value: string) => value.replace(/[?#].*$/, '');
+        const audioId = findMatchingMediaId(baseId, 'audio', media.audio);
+        const audioNeedle = audioId ? normaliseUrl(audioId) : null;
+        const resolveDuration = () => {
+          if (!chunk.audioTracks) {
+            return null;
+          }
+          if (audioNeedle) {
+            for (const track of Object.values(chunk.audioTracks)) {
+              const url = typeof track?.url === 'string' ? normaliseUrl(track.url) : null;
+              if (url && url === audioNeedle) {
+                const duration = track.duration ?? null;
+                return typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? duration : null;
+              }
+            }
+          }
+          const combinedDuration = chunk.audioTracks.orig_trans?.duration ?? null;
+          if (showOriginalAudio && typeof combinedDuration === 'number' && Number.isFinite(combinedDuration) && combinedDuration > 0) {
+            return combinedDuration;
+          }
+          const translationDuration =
+            chunk.audioTracks.translation?.duration ?? chunk.audioTracks.trans?.duration ?? null;
+          if (typeof translationDuration === 'number' && Number.isFinite(translationDuration) && translationDuration > 0) {
+            return translationDuration;
+          }
+          for (const track of Object.values(chunk.audioTracks)) {
+            const duration = track?.duration ?? null;
+            if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
+              return duration;
+            }
+          }
+          return null;
+        };
+        const duration = resolveDuration();
+        if (duration !== null) {
+          approximateTime = offsetRatio * duration;
+        }
+      }
+
+      if (inlineAudioPlayingRef.current) {
+        pendingAutoPlayRef.current = true;
+      }
+
+      setPendingSelection({
+        baseId,
+        preferredType: 'text',
+        offsetRatio,
+        approximateTime,
+        token: Date.now(),
+      });
+    },
+    [
+      canJumpToSentence,
+      chunks,
+      findMatchingMediaId,
+      findSentenceTarget,
+      media.audio,
+      sentenceLookup.max,
+      sentenceLookup.min,
+      setPendingSelection,
+      showOriginalAudio,
+    ],
+  );
+
   useEffect(() => {
     if (!selectionRequest) {
       return;
@@ -4026,6 +4127,7 @@ const scheduleChunkMetadataAppend = useCallback(
         event.key === 'ArrowUp' ||
         event.key === 'ArrowDown' ||
         key === 'f' ||
+        key === 'r' ||
         key === 'm' ||
         key === 'l' ||
         key === 'o' ||
@@ -4232,6 +4334,9 @@ const scheduleChunkMetadataAppend = useCallback(
               </li>
               <li>
                 <kbd>F</kbd> Toggle fullscreen
+              </li>
+              <li>
+                <kbd>R</kbd> Toggle image reel
               </li>
             </ul>
           </section>
@@ -5114,6 +5219,7 @@ const scheduleChunkMetadataAppend = useCallback(
                             noAudioAvailable={inlineAudioUnavailable}
                             jobId={jobId}
                             onActiveSentenceChange={handleActiveSentenceChange}
+                            onRequestSentenceJump={handleInteractiveSentenceJump}
                             onScroll={handleTextScroll}
                             onAudioProgress={handleInlineAudioProgress}
                             getStoredAudioPosition={getInlineAudioPosition}

@@ -124,13 +124,14 @@ class PipelineConfig:
         default_factory=lambda: _coerce_float(os.environ.get("EBOOK_IMAGE_API_TIMEOUT_SECONDS"), 180.0)
     )
     image_concurrency: int = field(
-        default_factory=lambda: max(1, _coerce_int(os.environ.get("EBOOK_IMAGE_CONCURRENCY"), 2))
+        default_factory=lambda: max(1, _coerce_int(os.environ.get("EBOOK_IMAGE_CONCURRENCY"), 4))
     )
-    image_width: int = 500
-    image_height: int = 500
-    image_steps: int = 12
+    image_width: int = 512
+    image_height: int = 512
+    image_steps: int = 24
     image_cfg_scale: float = 7.0
     image_sampler_name: Optional[str] = None
+    image_prompt_context_sentences: int = 2
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -422,14 +423,14 @@ def build_pipeline_config(
                 "image_concurrency",
                 config,
                 overrides,
-                os.environ.get("EBOOK_IMAGE_CONCURRENCY") or 2,
+                os.environ.get("EBOOK_IMAGE_CONCURRENCY") or 4,
             ),
-            2,
+            4,
         ),
     )
-    image_width = max(64, _coerce_int(_select_value("image_width", config, overrides, 500), 500))
-    image_height = max(64, _coerce_int(_select_value("image_height", config, overrides, 500), 500))
-    image_steps = max(1, _coerce_int(_select_value("image_steps", config, overrides, 12), 12))
+    image_width = max(64, _coerce_int(_select_value("image_width", config, overrides, 512), 512))
+    image_height = max(64, _coerce_int(_select_value("image_height", config, overrides, 512), 512))
+    image_steps = max(1, _coerce_int(_select_value("image_steps", config, overrides, 24), 24))
     image_cfg_scale = max(
         0.0,
         _coerce_float(_select_value("image_cfg_scale", config, overrides, 7.0), 7.0),
@@ -437,6 +438,14 @@ def build_pipeline_config(
     image_sampler_name = _normalize_optional_str(
         _select_value("image_sampler_name", config, overrides, None)
     )
+    image_prompt_context_sentences = max(
+        0,
+        _coerce_int(
+            _select_value("image_prompt_context_sentences", config, overrides, 2),
+            2,
+        ),
+    )
+    image_prompt_context_sentences = min(image_prompt_context_sentences, 10)
 
     forced_alignment_enabled = _coerce_bool(
         _select_value("forced_alignment_enabled", config, overrides, False), False
@@ -599,6 +608,7 @@ def build_pipeline_config(
         image_steps=image_steps,
         image_cfg_scale=image_cfg_scale,
         image_sampler_name=image_sampler_name,
+        image_prompt_context_sentences=image_prompt_context_sentences,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         llm_source=llm_source,

@@ -21,9 +21,9 @@ class DrawThingsImageRequest:
 
     prompt: str
     negative_prompt: str = ""
-    width: int = 500
-    height: int = 500
-    steps: int = 12
+    width: int = 512
+    height: int = 512
+    steps: int = 24
     cfg_scale: float = 7.0
     sampler_name: Optional[str] = None
     seed: Optional[int] = None
@@ -112,4 +112,3 @@ class DrawThingsClient:
                 f"DrawThings request failed ({response.status_code}): {response.text}"
             )
         return response.content, {}
-

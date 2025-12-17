@@ -44,12 +44,15 @@ Follow the suggested remediations to restore parity:
 5. Restart the FastAPI backend to reload `EBOOK_API_STATIC_ROOT`.
 6. Clear `web/dist/` caches or browser caches if differences persist.
 
-## 3. Audio/metadata/highlighting checklist
+## 3. Audio/metadata/highlighting/images checklist
 
 - Confirm both machines export the same audio/highlighting env vars:
   `EBOOK_AUDIO_BACKEND`, `EBOOK_AUDIO_EXECUTABLE`,
   `EBOOK_HIGHLIGHT_POLICY`, `EBOOK_CHAR_WEIGHTED_HIGHLIGHTING_DEFAULT`,
   `EBOOK_CHAR_WEIGHTED_PUNCTUATION_BOOST`, and `forced_alignment_enabled`.
+- If sentence images are enabled for the job, confirm both machines export the
+  same image-generation env vars: `EBOOK_IMAGE_API_BASE_URL`,
+  `EBOOK_IMAGE_API_TIMEOUT_SECONDS`, and `EBOOK_IMAGE_CONCURRENCY`.
 - Inspect `storage/<job_id>/metadata/job.json` and `metadata/chunk_manifest.json`
   on each device; mismatched manifests or chunk counts indicate that audio
   regeneration or metadata compaction ran on only one machine.
@@ -57,6 +60,9 @@ Follow the suggested remediations to restore parity:
   machine—especially their `timingTracks` entries—to ensure both environments
   are replaying the same highlight provenance. Legacy jobs may still include a
   `metadata/timing_index.json` if you prefer comparing single-file hashes.
+- For image jobs, spot-check `metadata/chunk_XXXX.json` for `sentences[].image`
+  / `image_path` fields and confirm the referenced files exist under
+  `storage/<job_id>/media/images/`.
 - When snapshots disagree, rerun the pipeline or `/api/media/generate` so the
   job manager rewrites chunk metadata and audio assets consistently before
   re-testing the frontend.

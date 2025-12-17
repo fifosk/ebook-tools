@@ -3,6 +3,9 @@
 ## Documentation
 
 - [Architecture overview](docs/architecture.md)
+- [Sentence images (Draw Things / Stable Diffusion)](docs/sentence_images.md)
+- [Interactive reader metadata flow](docs/interactive_reader_metadata.md)
+- [Frontend sync checklist](docs/frontend-sync.md)
 
 ### High-level diagrams
 
@@ -25,7 +28,8 @@ implements the `BaseTTSBackend` contract and is discovered via
 `get_tts_backend()` using the values supplied in your configuration or
 environment. Video rendering follows a similar pattern: a configurable backend
 name is resolved and the concrete implementation (FFmpeg by default) can read
-backend-specific knobs from `video_backend_settings`.【F:modules/audio/backends/__init__.py†L10-L95】【F:modules/video/backends/ffmpeg_renderer.py†L1-L185】
+backend-specific knobs from `video_backend_settings` (see
+`modules/audio/backends/` and `modules/video/backends/`).
 
 Key configuration switches now live alongside the rest of the pipeline
 settings:
@@ -43,7 +47,7 @@ settings:
 
 See `conf/config.json` for the canonical defaults and `modules/conf/config.local.json`
 for a macOS-centric example config that pins the `say` binary and a Homebrew
-FFmpeg install.【F:conf/config.json†L70-L111】【F:modules/conf/config.local.json†L1-L66】
+FFmpeg install.
 
 #### Optional forced alignment
 
@@ -54,6 +58,41 @@ to let the decoder stretch sentence offsets before they are written to
 `storage/<job_id>/metadata/`. The transcript/highlighting engine remains
 functional without alignment, but enabling it significantly reduces jitter at
 word boundaries.
+
+### Sentence image generation (DrawThings / Stable Diffusion)
+
+When `add_images` is enabled (UI: “Add images”), the pipeline generates one
+illustration per sentence in parallel with translation. Images are stored as
+job media so the Interactive Reader can show them while a job is still running.
+
+- **Backend client:** `modules/images/drawthings.py` talks to a Draw Things /
+  AUTOMATIC1111-compatible `txt2img` endpoint (`/sdapi/v1/txt2img`).
+- **Prompting:** `modules/images/prompting.py` asks the configured LLM for a
+  short scene description, then appends a shared “glyph/clipart essence” base
+  prompt plus a negative prompt to reduce haze/clutter.
+- **Storage + metadata:** images are written under
+  `storage/jobs/<job_id>/media/images/<range_fragment>/sentence_00001.png` and
+  referenced from each chunk’s `metadata/chunk_XXXX.json` under
+  `sentences[].image` plus convenience fields (`image_path` / `imagePath`).
+
+Key configuration knobs:
+
+- `image_api_base_url` (env: `EBOOK_IMAGE_API_BASE_URL`) – Draw Things base URL
+  (example: `http://192.168.1.9:7860`).
+- `image_api_timeout_seconds` – per-request timeout (default: 180s).
+- `image_concurrency` (env: `EBOOK_IMAGE_CONCURRENCY`) – parallel image workers
+  (default: 4).
+- `image_width`, `image_height`, `image_steps`, `image_cfg_scale`,
+  `image_sampler_name`.
+- `image_prompt_context_sentences` – how many previous sentences are fed into
+  the LLM prompt for scene continuity.
+
+For manual inspection/regeneration the API exposes:
+
+- `GET /api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}`
+- `POST /api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate`
+
+See `docs/sentence_images.md` for the full flow and example payloads.
 
 ### Install dependencies
 
@@ -188,6 +227,13 @@ single-page application:
 - **`EBOOK_VIDEO_EXECUTABLE`** – Absolute path to the video rendering command
   (FFmpeg by default). Leaving this blank keeps the renderer pointed at the
   configured executable or system `ffmpeg`.
+- **`EBOOK_IMAGE_API_BASE_URL`** – Base URL for the Draw Things / Stable
+  Diffusion instance used for sentence images (for example,
+  `http://192.168.1.9:7860`).
+- **`EBOOK_IMAGE_API_TIMEOUT_SECONDS`** – Timeout applied to the image
+  `txt2img` requests (default: 180 seconds).
+- **`EBOOK_IMAGE_CONCURRENCY`** – Caps the number of sentence images generated
+  in parallel (default: 4).
 
 ### Authenticate with the API
 
@@ -211,7 +257,8 @@ rotating credentials. These handlers resolve to the functions defined in
 `modules/webapi/auth_routes.py`, which in turn delegate to `AuthService` for
 verification and metadata updates. Tokens can also be passed to SSE streams by
 appending `?access_token=<token>` to the `/pipelines/{job_id}/events` URL so that
-browser `EventSource` consumers remain authorised.【F:modules/webapi/auth_routes.py†L12-L139】【F:web/src/api/client.ts†L303-L317】
+browser `EventSource` consumers remain authorised (see `modules/webapi/auth_routes.py`
+and `web/src/api/client.ts`).
 
 ### Administrative API endpoints
 
@@ -241,7 +288,7 @@ curl -X POST -H "Authorization: Bearer $EBOOKTOOLS_SESSION_TOKEN" \
 
 The responses surface normalised status flags (`status`, `is_active`,
 `is_suspended`) and audit metadata (`created_at`, `updated_at`, `last_login`) for
-use in the dashboard.【F:modules/webapi/admin_routes.py†L37-L288】
+use in the dashboard.
 
 ### Media generation API
 
@@ -266,7 +313,8 @@ curl -X POST http://127.0.0.1:8000/api/media/generate \
 
 Responses follow the reusable `MediaGenerationResponse` and `MediaErrorResponse`
 schemas defined in `modules/webapi/schemas/media.py`, making it easy for clients
-to provide clear feedback to end users.【F:modules/webapi/media_routes.py†L1-L106】【F:modules/webapi/schemas/media.py†L1-L49】
+to provide clear feedback to end users (see `modules/webapi/media_routes.py` and
+`modules/webapi/schemas/media.py`).
 
 ### Pipeline job persistence cheatsheet
 
@@ -333,7 +381,7 @@ If the frontend bundle is served, the healthcheck can always be reached at
   ```
 
   or set `EBOOK_VIDEO_BACKEND=ffmpeg` and `FFMPEG_PATH=/opt/homebrew/bin/ffmpeg`
-  before launching the pipeline.【F:modules/config_manager/settings.py†L60-L110】
+  before launching the pipeline (see `modules/config_manager/settings.py`).
 
 - **Plug a custom backend** – Register an implementation before invoking the
   pipeline. Any class inheriting `BaseTTSBackend` can be named and added to the
@@ -354,7 +402,18 @@ If the frontend bundle is served, the healthcheck can always be reached at
   ```
 
   Set `tts_backend` to `mycloud` and optionally expose custom keyword arguments
-  via your own config loader if needed.【F:modules/audio/backends/__init__.py†L18-L43】【F:modules/audio/backends/base.py†L16-L44】
+  via your own config loader if needed (see `modules/audio/backends/`).
+
+- **Generate sentence images (Draw Things / Stable Diffusion)** – Enable
+  `add_images` and point the pipeline at your Draw Things instance:
+
+  ```json
+  {
+    "add_images": true,
+    "image_api_base_url": "http://192.168.1.9:7860",
+    "image_concurrency": 4
+  }
+  ```
 
 ## Web UI workspace
 
@@ -422,15 +481,18 @@ The SPA composes several providers to offer a multi-user dashboard:
 - `AuthProvider` restores persisted sessions from `localStorage`, surfaces the
   current user/role, and injects bearer tokens into every request. It also
   exposes password rotation helpers that call `/auth/password`. Logout events
-  automatically clear the cached token.【F:web/src/components/AuthProvider.tsx†L1-L122】
+  automatically clear the cached token (`web/src/components/AuthProvider.tsx`).
 - `ThemeProvider` persists the preferred colour scheme (`light`, `dark`,
   `magenta`, or `system`) and sets the `<html data-theme>` attribute so that CSS
   variables adapt instantly. User preferences survive reloads via
-  `localStorage`.【F:web/src/components/ThemeProvider.tsx†L1-L69】
+  `localStorage` (`web/src/components/ThemeProvider.tsx`).
 - `PipelineSubmissionForm` is grouped into source, language, output,
   performance, and advanced sections. It draws defaults from
   `/pipelines/defaults`, lets users upload EPUBs, and validates overrides before
-  calling `submitPipeline`.【F:web/src/App.tsx†L1-L89】
+  calling `submitPipeline` (`web/src/App.tsx`).
+- `InteractiveTextViewer` powers the Interactive Reader experience (word
+  highlighting + sentence image reel) and wires the `MyPainter` regeneration UI
+  so images can be inspected/overwritten per sentence (`web/src/components/InteractiveTextViewer.tsx`).
 - `useWordHighlighting` together with the new transcript components
   (`TranscriptView`, `SegmentBlock`, and `Word`) consume the chunked timing
   manifests stored under `storage/<job_id>/metadata/` to render interleaved
@@ -442,10 +504,10 @@ The SPA composes several providers to offer a multi-user dashboard:
 - The job board renders active and historical jobs, keeps a registry of the
   latest SSE events per job, and exposes pause/resume/cancel/delete actions that
   map to `/pipelines/jobs/{job_id}/…` endpoints. Selecting a job opens
-  `JobDetail`, which refreshes media metadata on demand.【F:web/src/App.tsx†L90-L215】
+  `JobDetail`, which refreshes media metadata on demand (`web/src/App.tsx`).
 - Administrators gain access to the `UserManagementPanel`, a CRUD surface that
   lists accounts, normalises profile metadata, and issues suspend/activate or
-  password-reset operations against the admin API.【F:web/src/components/admin/UserManagementPanel.tsx†L1-L154】
+  password-reset operations against the admin API (`web/src/components/admin/UserManagementPanel.tsx`).
 
 ### Word-highlighting metadata flow
 
@@ -686,6 +748,9 @@ Environment variables offer a lightweight override layer:
 - `EBOOK_THREAD_COUNT` adjusts the global thread pool size.
 - `EBOOK_PIPELINE_MODE`, `EBOOK_QUEUE_SIZE`, and related keys continue to work
   alongside the new slide-specific settings.
+- Sentence-image generation has its own worker cap:
+  `image_concurrency` (or `EBOOK_IMAGE_CONCURRENCY`) limits how many `txt2img`
+  calls can run in parallel when `add_images` is enabled.
 
 ### Choosing a backend
 
@@ -744,6 +809,16 @@ rule. Create the folders manually if they do not already exist.
   the source is `local` or as a fallback from cloud requests.
 - **`ollama_cloud_url`**: Cloud endpoint leveraged when the source is `cloud`
   or when falling back from a failed local request.
+- **`image_api_base_url`**: Base URL for the Draw Things / Stable Diffusion
+  `txt2img` endpoint used for sentence images (example:
+  `http://192.168.1.9:7860`).
+- **`image_api_timeout_seconds`**: Timeout applied to `txt2img` requests.
+- **`image_concurrency`**: Caps the number of sentence images generated in
+  parallel (default: 4).
+- **`image_width`**, **`image_height`**, **`image_steps`**, **`image_cfg_scale`**,
+  **`image_sampler_name`**: Diffusion settings forwarded to the backend.
+- **`image_prompt_context_sentences`**: How many previous sentences are
+  provided to the LLM when generating a scene prompt for the current sentence.
 
 These values accept overrides through CLI flags (`--ffmpeg-path`,
 `--ollama-url`, `--llm-source`) or the environment variables `FFMPEG_PATH`,
@@ -751,6 +826,9 @@ These values accept overrides through CLI flags (`--ffmpeg-path`,
 `OLLAMA_CLOUD_URL` to override the per-source endpoints. When both sources are
 configured, the runtime automatically retries the alternate adapter if the
 preferred endpoint is unavailable or rate limited.
+
+Image service settings can also be supplied via `EBOOK_IMAGE_API_BASE_URL`,
+`EBOOK_IMAGE_API_TIMEOUT_SECONDS`, and `EBOOK_IMAGE_CONCURRENCY`.
 
 ### Using the settings
 - Interactive mode (`ebook-tools interactive` or `python main.py -i`) exposes each knob in the

@@ -763,6 +763,8 @@ export interface SentenceImageInfoResponse {
 }
 
 export interface SentenceImageRegenerateRequestPayload {
+  use_llm_prompt?: boolean | null;
+  context_sentences?: number | null;
   prompt?: string | null;
   negative_prompt?: string | null;
   width?: number | null;

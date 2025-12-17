@@ -19,7 +19,11 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from ... import config_manager as cfg
 from ...metadata_manager import MetadataLoader
 from ...images.drawthings import DrawThingsClient, DrawThingsError, DrawThingsImageRequest
-from ...images.prompting import sentence_to_diffusion_prompt
+from ...images.prompting import (
+    build_sentence_image_negative_prompt,
+    build_sentence_image_prompt,
+    sentence_to_diffusion_prompt,
+)
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
 from ..dependencies import (
@@ -41,9 +45,6 @@ from ..schemas import PipelineMediaChunk, PipelineMediaFile, PipelineMediaRespon
 router = APIRouter()
 storage_router = APIRouter()
 jobs_timing_router = APIRouter(prefix="/api/jobs", tags=["jobs"])
-
-_DEFAULT_IMAGE_STYLE_SUFFIX = "monochrome, black and white, low detail, simple line art, high contrast"
-_DEFAULT_IMAGE_NEGATIVE_SUFFIX = "color, photorealistic, high detail, text, watermark, logo"
 
 
 def _coerce_int_default(value: Any, default: int) -> int:
@@ -96,6 +97,76 @@ def _extract_sentence_text(entry: Mapping[str, Any]) -> Optional[str]:
     return None
 
 
+def _read_chunk_payload(
+    *,
+    locator: FileLocator,
+    job_id: str,
+    metadata_path: str,
+) -> Optional[Mapping[str, Any]]:
+    path_value = metadata_path.strip()
+    if not path_value:
+        return None
+    chunk_path = locator.resolve_path(job_id, path_value)
+    try:
+        payload = json.loads(chunk_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return payload if isinstance(payload, Mapping) else None
+
+
+def _find_sentence_entry(
+    *,
+    chunk_payload: Mapping[str, Any],
+    sentence_number: int,
+) -> Optional[dict[str, Any]]:
+    sentences = chunk_payload.get("sentences")
+    if not isinstance(sentences, list):
+        return None
+    for entry in sentences:
+        if not isinstance(entry, dict):
+            continue
+        if _resolve_sentence_number(entry) == sentence_number:
+            return entry
+    return None
+
+
+def _collect_previous_sentence_texts(
+    *,
+    loader: MetadataLoader,
+    locator: FileLocator,
+    job_id: str,
+    sentence_number: int,
+    count: int,
+) -> list[str]:
+    if count <= 0:
+        return []
+    cache: dict[str, Mapping[str, Any]] = {}
+    collected: list[str] = []
+    start = max(sentence_number - count, 1)
+    for number in range(start, sentence_number):
+        chunk = _resolve_chunk_for_sentence(loader, number)
+        if not isinstance(chunk, Mapping):
+            continue
+        metadata_path = chunk.get("metadata_path")
+        if not isinstance(metadata_path, str) or not metadata_path.strip():
+            continue
+        key = metadata_path.strip()
+        payload = cache.get(key)
+        if payload is None:
+            loaded = _read_chunk_payload(locator=locator, job_id=job_id, metadata_path=key)
+            if loaded is None:
+                continue
+            cache[key] = loaded
+            payload = loaded
+        entry = _find_sentence_entry(chunk_payload=payload, sentence_number=number)
+        if not isinstance(entry, Mapping):
+            continue
+        text = _extract_sentence_text(entry)
+        if text:
+            collected.append(text)
+    return collected
+
+
 def _extract_sentence_image(entry: Mapping[str, Any]) -> tuple[Optional[str], Optional[str]]:
     image = entry.get("image")
     if not isinstance(image, Mapping):
@@ -133,21 +204,21 @@ def _resolve_image_settings(config: Mapping[str, Any], request: SentenceImageReg
         64,
         _coerce_int_default(
             request.width,
-            _coerce_int_default(config.get("image_width"), 500),
+            _coerce_int_default(config.get("image_width"), 512),
         ),
     )
     height = max(
         64,
         _coerce_int_default(
             request.height,
-            _coerce_int_default(config.get("image_height"), 500),
+            _coerce_int_default(config.get("image_height"), 512),
         ),
     )
     steps = max(
         1,
         _coerce_int_default(
             request.steps,
-            _coerce_int_default(config.get("image_steps"), 12),
+            _coerce_int_default(config.get("image_steps"), 24),
         ),
     )
     cfg_scale = max(
@@ -185,23 +256,11 @@ def _normalise_negative_prompt(negative: str | None) -> str:
 
 
 def _ensure_prompt_suffix(prompt: str) -> str:
-    candidate = (prompt or "").strip()
-    if not candidate:
-        return _DEFAULT_IMAGE_STYLE_SUFFIX
-    suffix_lower = _DEFAULT_IMAGE_STYLE_SUFFIX.lower()
-    if suffix_lower in candidate.lower():
-        return candidate
-    return f"{candidate}, {_DEFAULT_IMAGE_STYLE_SUFFIX}"
+    return build_sentence_image_prompt(prompt)
 
 
 def _ensure_negative_suffix(negative: str) -> str:
-    candidate = (negative or "").strip()
-    if not candidate:
-        return _DEFAULT_IMAGE_NEGATIVE_SUFFIX
-    suffix_lower = _DEFAULT_IMAGE_NEGATIVE_SUFFIX.lower()
-    if suffix_lower in candidate.lower():
-        return candidate
-    return f"{candidate}, {_DEFAULT_IMAGE_NEGATIVE_SUFFIX}"
+    return build_sentence_image_negative_prompt(negative)
 
 
 async def _load_sentence_image_info(
@@ -342,11 +401,33 @@ async def regenerate_sentence_image(
     prompt = _normalise_prompt(payload.prompt) or _normalise_prompt(stored_prompt)
     negative_prompt = _normalise_negative_prompt(payload.negative_prompt) or _normalise_negative_prompt(stored_negative)
 
-    if not prompt:
+    use_llm_prompt = bool(payload.use_llm_prompt)
+    context_count = payload.context_sentences
+    if not isinstance(context_count, int):
+        context_count = _coerce_int_default(config.get("image_prompt_context_sentences"), 2)
+    context_count = max(0, min(int(context_count), 10))
+
+    if use_llm_prompt or not prompt:
         sentence_text = _extract_sentence_text(sentence_entry) or ""
-        diffusion = await run_in_threadpool(lambda: sentence_to_diffusion_prompt(sentence_text))
-        prompt = (diffusion.prompt or "").strip() or sentence_text.strip()
-        negative_prompt = (diffusion.negative_prompt or "").strip()
+        job_root = locator.resolve_path(job_id)
+        loader = MetadataLoader(job_root)
+        context_texts = await run_in_threadpool(
+            _collect_previous_sentence_texts,
+            loader=loader,
+            locator=locator,
+            job_id=job_id,
+            sentence_number=sentence_number,
+            count=context_count,
+        )
+        diffusion = await run_in_threadpool(
+            sentence_to_diffusion_prompt,
+            sentence_text,
+            context_sentences=context_texts,
+        )
+        if use_llm_prompt or not prompt:
+            prompt = (diffusion.prompt or "").strip() or sentence_text.strip()
+        if not negative_prompt:
+            negative_prompt = (diffusion.negative_prompt or "").strip()
 
     prompt_full = _ensure_prompt_suffix(prompt)
     negative_full = _ensure_negative_suffix(negative_prompt)

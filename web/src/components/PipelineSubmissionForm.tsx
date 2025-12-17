@@ -152,11 +152,13 @@ type FormState = {
   output_pdf: boolean;
   generate_video: boolean;
   add_images: boolean;
+  image_prompt_context_sentences: number;
   include_transliteration: boolean;
   tempo: number;
   thread_count: string;
   queue_size: string;
   job_max_workers: string;
+  image_concurrency: string;
   slide_parallelism: string;
   slide_parallel_workers: string;
   config: string;
@@ -185,11 +187,13 @@ const DEFAULT_FORM_STATE: FormState = {
   output_pdf: false,
   generate_video: false,
   add_images: false,
+  image_prompt_context_sentences: 2,
   include_transliteration: true,
   tempo: 1,
   thread_count: '',
   queue_size: '',
   job_max_workers: '',
+  image_concurrency: '',
   slide_parallelism: '',
   slide_parallel_workers: '',
   config: '{}',
@@ -2001,6 +2005,16 @@ export function PipelineSubmissionForm({
       if (typeof formState.audio_mode === 'string' && formState.audio_mode.trim()) {
         pipelineOverrides.audio_mode = formState.audio_mode.trim();
       }
+      if (formState.add_images) {
+        const rawContext = Number(formState.image_prompt_context_sentences);
+        const normalizedContext = Number.isFinite(rawContext) ? Math.trunc(rawContext) : 0;
+        pipelineOverrides.image_prompt_context_sentences = Math.min(10, Math.max(0, normalizedContext));
+
+        const imageConcurrency = parseOptionalNumberInput(formState.image_concurrency);
+        if (imageConcurrency !== undefined) {
+          pipelineOverrides.image_concurrency = Math.max(1, Math.trunc(imageConcurrency));
+        }
+      }
 
       const configOverrides = { ...json.config };
       const metadataBookTitle = normalizeTextValue(json.book_metadata?.['book_title']);
@@ -2696,21 +2710,22 @@ export function PipelineSubmissionForm({
         );
       case 'output':
         return (
-          <PipelineOutputSection
-            key="output"
-            headingId="pipeline-card-output"
-            title={sectionMeta.output.title}
-            description={sectionMeta.output.description}
+	          <PipelineOutputSection
+	            key="output"
+	            headingId="pipeline-card-output"
+	            title={sectionMeta.output.title}
+	            description={sectionMeta.output.description}
             generateAudio={formState.generate_audio}
             audioMode={formState.audio_mode}
             selectedVoice={formState.selected_voice}
             writtenMode={formState.written_mode}
-            outputHtml={formState.output_html}
-            outputPdf={formState.output_pdf}
-            addImages={formState.add_images}
-            includeTransliteration={formState.include_transliteration}
-            tempo={formState.tempo}
-            generateVideo={formState.generate_video}
+	            outputHtml={formState.output_html}
+	            outputPdf={formState.output_pdf}
+	            addImages={formState.add_images}
+	            imagePromptContextSentences={formState.image_prompt_context_sentences}
+	            includeTransliteration={formState.include_transliteration}
+	            tempo={formState.tempo}
+	            generateVideo={formState.generate_video}
             availableAudioModes={availableAudioModes}
             availableVoices={availableVoices}
             availableWrittenModes={availableWrittenModes}
@@ -2726,36 +2741,40 @@ export function PipelineSubmissionForm({
             onSelectedVoiceChange={(value) => handleChange('selected_voice', value)}
             onVoiceOverrideChange={updateVoiceOverride}
             onWrittenModeChange={(value) => handleChange('written_mode', value)}
-            onOutputHtmlChange={(value) => handleChange('output_html', value)}
-            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
-            onAddImagesChange={(value) => handleChange('add_images', value)}
-            onIncludeTransliterationChange={(value) =>
-              handleChange('include_transliteration', value)
-            }
+	            onOutputHtmlChange={(value) => handleChange('output_html', value)}
+	            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
+	            onAddImagesChange={(value) => handleChange('add_images', value)}
+	            onImagePromptContextSentencesChange={(value) => handleChange('image_prompt_context_sentences', value)}
+	            onIncludeTransliterationChange={(value) =>
+	              handleChange('include_transliteration', value)
+	            }
             onTempoChange={(value) => handleChange('tempo', value)}
             onGenerateVideoChange={(value) => handleChange('generate_video', value)}
             onPlayVoicePreview={playVoicePreview}
           />
         );
-      case 'performance':
-        return (
-          <PipelinePerformanceSection
-            key="performance"
-            headingId="pipeline-card-performance"
-            title={sectionMeta.performance.title}
-            description={sectionMeta.performance.description}
-            threadCount={formState.thread_count}
-            queueSize={formState.queue_size}
-            jobMaxWorkers={formState.job_max_workers}
-            slideParallelism={formState.slide_parallelism}
-            slideParallelWorkers={formState.slide_parallel_workers}
-            onThreadCountChange={(value) => handleChange('thread_count', value)}
-            onQueueSizeChange={(value) => handleChange('queue_size', value)}
-            onJobMaxWorkersChange={(value) => handleChange('job_max_workers', value)}
-            onSlideParallelismChange={(value) => handleChange('slide_parallelism', value)}
-            onSlideParallelWorkersChange={(value) => handleChange('slide_parallel_workers', value)}
-          />
-        );
+	      case 'performance':
+	        return (
+	          <PipelinePerformanceSection
+	            key="performance"
+	            headingId="pipeline-card-performance"
+	            title={sectionMeta.performance.title}
+	            description={sectionMeta.performance.description}
+	            threadCount={formState.thread_count}
+	            queueSize={formState.queue_size}
+	            jobMaxWorkers={formState.job_max_workers}
+	            imageConcurrency={formState.image_concurrency}
+	            imagesEnabled={formState.add_images}
+	            slideParallelism={formState.slide_parallelism}
+	            slideParallelWorkers={formState.slide_parallel_workers}
+	            onThreadCountChange={(value) => handleChange('thread_count', value)}
+	            onQueueSizeChange={(value) => handleChange('queue_size', value)}
+	            onJobMaxWorkersChange={(value) => handleChange('job_max_workers', value)}
+	            onImageConcurrencyChange={(value) => handleChange('image_concurrency', value)}
+	            onSlideParallelismChange={(value) => handleChange('slide_parallelism', value)}
+	            onSlideParallelWorkersChange={(value) => handleChange('slide_parallel_workers', value)}
+	          />
+	        );
       case 'submit':
       default:
         return null;

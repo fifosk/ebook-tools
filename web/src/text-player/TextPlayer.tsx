@@ -23,6 +23,7 @@ export interface TextPlayerSentence {
 interface TextPlayerProps {
   sentences: TextPlayerSentence[];
   onSeek?: (time: number) => void;
+  belowTracks?: React.ReactNode;
   footer?: React.ReactNode;
 }
 
@@ -176,13 +177,14 @@ function renderVariant(
   );
 }
 
-const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek, footer }) => {
+const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek, belowTracks, footer }) => {
   if (!sentences.length) {
     return (
       <div className={styles.frame} data-text-player-frame="true">
         <div className={styles.lineRow}>
           <span className={styles.lineLabel}>Waiting for transcript…</span>
         </div>
+        {belowTracks ? <div className={styles.belowTracks}>{belowTracks}</div> : null}
         {footer ? <div className={styles.footer}>{footer}</div> : null}
       </div>
     );
@@ -212,6 +214,7 @@ const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek, footer }) =>
           </div>
         );
       })}
+      {belowTracks ? <div className={styles.belowTracks}>{belowTracks}</div> : null}
       {footer ? <div className={styles.footer}>{footer}</div> : null}
     </div>
   );

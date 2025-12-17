@@ -5,6 +5,7 @@ from __future__ import annotations
 import concurrent.futures
 import queue
 import threading
+from collections import deque
 from dataclasses import dataclass, field
 from functools import partial
 from pathlib import Path
@@ -41,7 +42,12 @@ from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
 from modules.images.drawthings import DrawThingsClient, DrawThingsError, DrawThingsImageRequest
-from modules.images.prompting import sentence_to_diffusion_prompt
+from modules.images.prompting import (
+    build_sentence_image_negative_prompt,
+    build_sentence_image_prompt,
+    sentence_to_diffusion_prompt,
+    stable_diffusion_seed,
+)
 
 
 @dataclass
@@ -1021,6 +1027,8 @@ class RenderPipeline:
         base_dir_path = Path(base_dir)
         media_root = _resolve_media_root(base_dir_path)
         final_sentence_number = start_sentence + max(total_refined - 1, 0)
+        prompt_context_window = max(0, int(getattr(self._config, "image_prompt_context_sentences", 0) or 0))
+        recent_prompt_sentences: deque[str] = deque(maxlen=prompt_context_window)
 
         buffered_results = {}
         next_index = 0
@@ -1174,6 +1182,13 @@ class RenderPipeline:
                     if state.all_sentence_metadata is not None:
                         state.all_sentence_metadata.append(metadata_payload)
 
+                    sentence_for_prompt = (
+                        fluent
+                        if (isinstance(fluent, str) and fluent.strip() and not translation_failed)
+                        else item.sentence
+                    )
+                    context_sentences = tuple(recent_prompt_sentences) if prompt_context_window > 0 else ()
+
                     if (
                         image_executor is not None
                         and image_state is not None
@@ -1192,11 +1207,10 @@ class RenderPipeline:
                             images_dir = media_root / "images" / range_fragment
                             image_path = images_dir / f"sentence_{sentence_number:05d}.png"
 
-                            sentence_for_prompt = fluent or item.sentence
-
                             def _generate_image(
                                 *,
                                 sentence_for_prompt: str = sentence_for_prompt,
+                                context_sentences: tuple[str, ...] = context_sentences,
                                 sentence_number: int = sentence_number,
                                 chunk_id: str = chunk_id,
                                 range_fragment: str = range_fragment,
@@ -1207,25 +1221,24 @@ class RenderPipeline:
                                 base_dir_path: Path = base_dir_path,
                             ) -> _SentenceImageResult:
                                 try:
-                                    diffusion = sentence_to_diffusion_prompt(sentence_for_prompt)
-                                    prompt = (diffusion.prompt or "").strip()
-                                    negative = (diffusion.negative_prompt or "").strip()
-                                    style_suffix = "monochrome, black and white, low detail, simple line art, high contrast"
-                                    prompt_full = f"{prompt}, {style_suffix}" if prompt else style_suffix
-                                    negative_suffix = "color, photorealistic, high detail, text, watermark, logo"
-                                    negative_full = (
-                                        f"{negative}, {negative_suffix}"
-                                        if negative
-                                        else negative_suffix
+                                    diffusion = sentence_to_diffusion_prompt(
+                                        sentence_for_prompt,
+                                        context_sentences=context_sentences,
                                     )
+                                    scene_description = (diffusion.prompt or "").strip() or (sentence_for_prompt or "").strip()
+                                    negative = (diffusion.negative_prompt or "").strip()
+                                    prompt_full = build_sentence_image_prompt(scene_description)
+                                    negative_full = build_sentence_image_negative_prompt(negative)
+                                    seed = stable_diffusion_seed(sentence_for_prompt)
                                     request = DrawThingsImageRequest(
                                         prompt=prompt_full,
                                         negative_prompt=negative_full,
-                                        width=int(self._config.image_width or 500),
-                                        height=int(self._config.image_height or 500),
-                                        steps=int(self._config.image_steps or 12),
+                                        width=int(self._config.image_width or 512),
+                                        height=int(self._config.image_height or 512),
+                                        steps=int(self._config.image_steps or 24),
                                         cfg_scale=float(self._config.image_cfg_scale or 7.0),
                                         sampler_name=self._config.image_sampler_name,
+                                        seed=seed,
                                     )
                                     image_bytes, _ = image_client.txt2img(request)
                                     images_dir.mkdir(parents=True, exist_ok=True)
@@ -1233,7 +1246,7 @@ class RenderPipeline:
                                         import io
 
                                         with Image.open(io.BytesIO(image_bytes)) as loaded:
-                                            converted = loaded.convert("L")
+                                            converted = loaded.convert("RGB")
                                             output = io.BytesIO()
                                             converted.save(output, format="PNG")
                                             image_path.write_bytes(output.getvalue())
@@ -1284,6 +1297,8 @@ class RenderPipeline:
                                     raise
 
                             image_futures.add(image_executor.submit(_generate_image))
+
+                    recent_prompt_sentences.append(str(sentence_for_prompt or "").strip())
 
                     should_flush = (
                         (item.sentence_number - state.current_batch_start + 1)

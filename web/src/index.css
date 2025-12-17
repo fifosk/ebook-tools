@@ -3606,6 +3606,147 @@ button.link-button:focus {
   padding-top: calc(4.4rem + env(safe-area-inset-top, 0px));
 }
 
+.player-panel__interactive-image-reel {
+  --reel-gap: 0.55rem;
+  position: relative;
+  width: min(100%, 58rem);
+  margin: 0 auto;
+  padding: 0.85rem 0.95rem;
+  border-radius: 1.1rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: linear-gradient(180deg, rgba(5, 6, 8, 0.72) 0%, rgba(0, 0, 0, 0.38) 100%);
+  box-shadow: 0 16px 46px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-image-reel,
+.player-panel__interactive:fullscreen .player-panel__interactive-image-reel,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-image-reel {
+  width: min(100%, 116rem);
+  padding: 1.15rem 1.25rem;
+  --reel-gap: 0.8rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-image-reel::before,
+.player-panel__interactive--fullscreen .player-panel__interactive-image-reel::after,
+.player-panel__interactive:fullscreen .player-panel__interactive-image-reel::before,
+.player-panel__interactive:fullscreen .player-panel__interactive-image-reel::after,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-image-reel::before,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-image-reel::after {
+  height: 1.15rem;
+  background-size: 1.25rem 1.15rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-image-reel-strip,
+.player-panel__interactive:fullscreen .player-panel__interactive-image-reel-strip,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-image-reel-strip {
+  padding: 0.35rem 0.25rem;
+}
+
+.player-panel__interactive--fullscreen .player-panel__interactive-image-reel-frame,
+.player-panel__interactive:fullscreen .player-panel__interactive-image-reel-frame,
+.player-panel__interactive:-webkit-full-screen .player-panel__interactive-image-reel-frame {
+  border-radius: 0.9rem;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.player-panel__interactive-image-reel::before,
+.player-panel__interactive-image-reel::after {
+  content: '';
+  position: absolute;
+  left: 0.55rem;
+  right: 0.55rem;
+  height: 0.9rem;
+  background-image: radial-gradient(circle, rgba(0, 0, 0, 0.65) 0 0.25rem, transparent 0.27rem);
+  background-size: 1.05rem 0.9rem;
+  background-repeat: repeat-x;
+  opacity: 0.8;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.player-panel__interactive-image-reel::before {
+  top: 0.35rem;
+  background-position: 0.5rem 0.45rem;
+}
+
+.player-panel__interactive-image-reel::after {
+  bottom: 0.35rem;
+  background-position: 0.5rem 0.45rem;
+}
+
+.player-panel__interactive-image-reel-strip {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--reel-gap);
+  padding: 0.25rem 0.15rem;
+}
+
+.player-panel__interactive-image-reel-slot {
+  position: relative;
+}
+
+.player-panel__interactive-image-reel-slot:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: -0.3rem;
+  bottom: -0.3rem;
+  right: calc(var(--reel-gap) * -0.5);
+  width: calc(var(--reel-gap) * 0.75);
+  border-radius: 0.7rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(0, 0, 0, 0.45) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.player-panel__interactive-image-reel-frame {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.34);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.player-panel__interactive-image-reel-frame:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.player-panel__interactive-image-reel-frame:focus-visible {
+  outline: 3px solid rgba(98, 182, 255, 0.6);
+  outline-offset: 3px;
+}
+
+.player-panel__interactive-image-reel-frame--active {
+  border-color: rgba(255, 184, 106, 0.9);
+  box-shadow: 0 0 0 2px rgba(255, 184, 106, 0.18), 0 12px 30px rgba(0, 0, 0, 0.35);
+  transform: translateY(-1px) scale(1.02);
+}
+
+.player-panel__interactive-image-reel-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+.player-panel__interactive-image-reel-placeholder {
+  font-size: 1.2rem;
+  color: rgba(255, 255, 255, 0.28);
+  user-select: none;
+}
+
 .player-panel__interactive-sentence-image {
   position: absolute;
   z-index: 20;

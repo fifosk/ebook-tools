@@ -3,6 +3,7 @@
 ## Project Layout
 - `main.py` – CLI launcher that wires configuration, logging, and live progress display for the pipeline.
 - `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem now splits responsibilities across `modules/library/library_models.py`, `library_repository.py`, `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
+- `modules/images/` – Draw Things / Stable Diffusion client + prompt helpers for per-sentence image generation.
 - `modules/subtitles/` – Subtitle parsing and translation utilities used by `SubtitleService` and the subtitle job API.
 - `web/` – React/Vite single-page application that talks to the FastAPI backend.
 - `scripts/` – Shell helpers (`run-webapi.sh`, `run-webui.sh`) that wrap common dev workflows.
@@ -13,7 +14,7 @@
 2. **Pipeline execution** – `modules/services/pipeline_service.py` assembles a `PipelineConfig`, coordinates ingestion, translation, rendering, and media generation, and returns a `PipelineResponse`.
 3. **Ingestion** – `modules/core/ingestion.py` extracts EPUB text, splits it into sentences, and caches refined lists.
 4. **Translation** – `modules/translation_engine.py` runs sentence translations through worker pools backed by the configured LLM client.
-5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, and optional video batches.
+5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, optional per-sentence images, and optional video batches.
 6. **Observability** – `modules/progress_tracker.py` emits structured events that feed CLI logs and the API SSE stream; `modules/observability.py` wraps stages with structured logging/telemetry.
 
 ### Audio/video backend architecture
@@ -27,7 +28,7 @@ to instantiate and forwards any configured executable override. When callers do
 not specify a backend, the resolver chooses `macos_say` on Darwin systems and
 `gtts` elsewhere before instantiating the engine. Custom backends
 can be registered at import time using `register_backend()` before the pipeline
-spins up workers.【F:modules/audio/backends/__init__.py†L10-L95】
+spins up workers (`modules/audio/backends/`).
 
 #### Audio worker lifecycle
 
@@ -40,7 +41,7 @@ selection. The synthesizer returns a `pydub.AudioSegment` (or the richer
 the resulting `AudioSegment` to `MediaPipelineResult`, which is later persisted
 through the job manager. No word-level tokens are emitted at this stage—timing
 information is inferred later from the rendered audio if a backend embeds
-character timings, otherwise sentence-level durations are used.【F:modules/render/audio_pipeline.py†L200-L283】
+character timings, otherwise sentence-level durations are used (`modules/render/audio_pipeline.py`).
 
 Timing metadata for highlights therefore originates from the rendering layer,
 not from forced alignment. `modules/core/rendering/timeline.py` inspects the
@@ -48,7 +49,7 @@ per-sentence audio segment, collapses any embedded character timing data into a
 sequence of timeline events, and falls back to evenly distributing tokens when
 necessary. The resulting events are stored alongside the text metadata inside
 `metadata/chunk_*.json`, giving the frontend a declarative description of when
-to reveal words.【F:modules/core/rendering/exporters.py†L213-L310】
+to reveal words (`modules/core/rendering/exporters.py`).
 
 Video slide rendering uses a comparable pattern. `modules/config/loader.py`
 resolves the selected `video_backend` and optional `video_backend_settings`
@@ -56,7 +57,16 @@ mapping, then the rendering layer instantiates the appropriate renderer through
 `modules/render/backends/__init__.py`. The built-in FFmpeg renderer honours
 settings such as `executable`, `loglevel`, and preset overrides, allowing the
 pipeline to run against system installations or portable builds without code
-changes.【F:modules/config/loader.py†L20-L135】【F:modules/video/backends/ffmpeg_renderer.py†L1-L185】
+changes (`modules/config/loader.py`, `modules/video/backends/ffmpeg_renderer.py`).
+
+### Sentence image generation
+
+When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline.py`) generates one PNG per sentence in parallel with translation. The pipeline:
+
+1. Asks the configured LLM for a short, concrete scene description (`modules/images/prompting.py:sentence_to_diffusion_prompt`), optionally including the last `image_prompt_context_sentences` sentences for scene continuity.
+2. Appends the shared base + negative prompts (`build_sentence_image_prompt`, `build_sentence_image_negative_prompt`) to keep the style consistent (currently “glyph/clipart essence”).
+3. Calls a Draw Things / AUTOMATIC1111-compatible `txt2img` endpoint via `DrawThingsClient` (`modules/images/drawthings.py`) using the configured diffusion parameters.
+4. Writes images under `media/images/<range_fragment>/sentence_XXXXX.png` and merges the image metadata back into each chunk’s `sentences[]` entries (`image`, `image_path`/`imagePath`) so `/api/pipelines/jobs/{job_id}/media/live` can surface them during running jobs.
 
 ### Metadata creation & highlighting controls
 
@@ -109,14 +119,15 @@ flowchart TD
 - `modules/webapi/dependencies.py` wires dependency injection for the pipeline service, runtime context, and job store selection.
 - `modules/webapi/auth_routes.py` issues bearer tokens, reports active session metadata, rotates passwords, and revokes sessions via `AuthService`.
 - `modules/webapi/admin_routes.py` provides CRUD operations for user accounts, normalises profile metadata, and enforces the `admin` role on every request.
+- `modules/webapi/routes/media_routes.py` exposes job media snapshots (`/api/pipelines/jobs/{job_id}/media`) plus sentence-image inspection/regeneration endpoints (`/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}`).
 - `modules/webapi/routers/subtitles.py` exposes endpoints to submit subtitle jobs, browse available source files, stream progress, and retrieve processed DRT subtitles.
 
 ## Frontend
 - The Vite client in `web/` consumes `VITE_API_BASE_URL`/`VITE_STORAGE_BASE_URL` to call the backend and display pipeline progress.
-- `AuthProvider` wraps the app to restore sessions from `localStorage`, attach bearer tokens to every fetch, and expose login/logout/password helpers to the UI shell.【F:web/src/components/AuthProvider.tsx†L1-L122】
-- `ThemeProvider` stores the preferred appearance (light, dark, magenta, or system) and updates the `data-theme` attribute so CSS variables react to the selected palette.【F:web/src/components/ThemeProvider.tsx†L1-L69】
-- `App.tsx` orchestrates the pipeline form sections, job registry, SSE subscriptions, and admin panel toggle based on the authenticated user's role.【F:web/src/App.tsx†L1-L215】
-- `SubtitlesPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs.【F:web/src/pages/SubtitlesPage.tsx†L1-L240】
+- `AuthProvider` wraps the app to restore sessions from `localStorage`, attach bearer tokens to every fetch, and expose login/logout/password helpers to the UI shell (`web/src/components/AuthProvider.tsx`).
+- `ThemeProvider` stores the preferred appearance (light, dark, magenta, or system) and updates the `data-theme` attribute so CSS variables react to the selected palette (`web/src/components/ThemeProvider.tsx`).
+- `App.tsx` orchestrates the pipeline form sections, job registry, SSE subscriptions, and admin panel toggle based on the authenticated user's role (`web/src/App.tsx`).
+- `SubtitlesPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs (`web/src/pages/SubtitlesPage.tsx`).
 - Build artifacts (`web/dist/`) can be served by the API when `EBOOK_API_STATIC_ROOT` points to the directory.
 
 ### Word highlighting on the web client

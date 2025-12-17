@@ -10,6 +10,16 @@ from pydantic import BaseModel, ConfigDict, Field
 class SentenceImageRegenerateRequest(BaseModel):
     """Request payload for manually regenerating a sentence image."""
 
+    use_llm_prompt: Optional[bool] = Field(
+        default=None,
+        description="When true, regenerate the prompt via the configured LLM instead of using the supplied/stored prompt.",
+    )
+    context_sentences: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=10,
+        description="How many previous sentences to include as context when generating an LLM prompt.",
+    )
     prompt: Optional[str] = Field(
         default=None,
         description="Prompt supplied to the diffusion backend. When omitted, the server reuses the stored prompt.",
@@ -59,4 +69,3 @@ class SentenceImageRegenerateResponse(BaseModel):
     seed: Optional[int] = None
 
     model_config = ConfigDict(extra="forbid")
-
