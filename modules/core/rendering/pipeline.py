@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import concurrent.futures
+import datetime
+import json
 import queue
 import threading
 from collections import deque
@@ -41,11 +43,19 @@ from modules.retry_annotations import is_failure_annotation
 from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
-from modules.images.drawthings import DrawThingsClient, DrawThingsError, DrawThingsImageRequest
+from modules.images.drawthings import (
+    DrawThingsClient,
+    DrawThingsError,
+    DrawThingsImageRequest,
+    DrawThingsImageToImageRequest,
+)
 from modules.images.prompting import (
+    DiffusionPrompt,
     build_sentence_image_negative_prompt,
     build_sentence_image_prompt,
     sentence_to_diffusion_prompt,
+    sentences_to_diffusion_prompt_map,
+    sentences_to_diffusion_prompt_plan,
     stable_diffusion_seed,
 )
 
@@ -106,6 +116,21 @@ def _resolve_media_root(base_dir: Path) -> Path:
         if parent.name.lower() == "media":
             return parent
     return candidate
+
+
+def _resolve_job_root(media_root: Path) -> Optional[Path]:
+    candidate = Path(media_root)
+    if candidate.name.lower() != "media":
+        return None
+    if candidate.parent == candidate:
+        return None
+    return candidate.parent
+
+
+def _atomic_write_json(path: Path, payload: Any) -> None:
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    tmp_path.replace(path)
 
 
 @dataclass(frozen=True, slots=True)
@@ -396,6 +421,7 @@ class RenderPipeline:
                     exporter=exporter,
                     base_dir=base_dir,
                     base_name=base_name,
+                    full_sentences=refined_list,
                     sentences=selected_sentences,
                     start_sentence=start_sentence,
                     total_refined=total_refined,
@@ -925,6 +951,7 @@ class RenderPipeline:
         exporter: BatchExporter,
         base_dir: str,
         base_name: str,
+        full_sentences: Sequence[str],
         sentences: Sequence[str],
         start_sentence: int,
         total_refined: int,
@@ -1024,15 +1051,569 @@ class RenderPipeline:
                 max_workers = max(1, int(self._config.image_concurrency or 1))
                 image_executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
 
+        target_sentences = [str(entry) for entry in (sentences or ())]
         base_dir_path = Path(base_dir)
         media_root = _resolve_media_root(base_dir_path)
         final_sentence_number = start_sentence + max(total_refined - 1, 0)
         prompt_context_window = max(0, int(getattr(self._config, "image_prompt_context_sentences", 0) or 0))
         recent_prompt_sentences: deque[str] = deque(maxlen=prompt_context_window)
+        image_prompt_plan: dict[int, DiffusionPrompt] = {}
+        image_prompt_seed_sources: dict[int, str] = {
+            start_sentence + offset: str(sentence).strip()
+            for offset, sentence in enumerate(target_sentences)
+        }
+        image_prompt_sources: dict[int, str] = {}
+        image_prompt_baseline = DiffusionPrompt(prompt="")
+        image_prompt_baseline_notes = ""
+        image_prompt_baseline_source = "fallback"
+        prompt_plan_quality: dict[str, Any] = {}
+        image_seed_with_previous_image = bool(
+            getattr(self._config, "image_seed_with_previous_image", False)
+        )
+        baseline_seed_image_path: Optional[Path] = None
+        baseline_seed_relative_path: Optional[str] = None
+        baseline_seed_error: Optional[str] = None
+        img2img_capability = {"enabled": image_seed_with_previous_image}
+        img2img_capability_lock = threading.Lock()
+        prompt_plan_lock = threading.Lock()
+        prompt_plan_ready = threading.Event()
+        prompt_plan_future: Optional[concurrent.futures.Future] = None
+        prompt_plan_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+        pending_image_sentence_numbers: set[int] = set()
+
+        if image_executor is not None and image_client is not None and generate_images:
+            context_window = max(
+                0,
+                int(getattr(self._config, "image_prompt_context_sentences", 0) or 0),
+            )
+            window_start_idx = max(start_sentence - 1, 0)
+            window_end_idx = min(window_start_idx + total_refined, total_fully)
+            prefix_start = max(0, window_start_idx - context_window)
+            suffix_end = min(total_fully, window_end_idx + context_window)
+            context_prefix = (
+                tuple(full_sentences[prefix_start:window_start_idx])
+                if prefix_start < window_start_idx
+                else ()
+            )
+            context_suffix = (
+                tuple(full_sentences[window_end_idx:suffix_end])
+                if window_end_idx < suffix_end
+                else ()
+            )
+            job_root = _resolve_job_root(media_root)
+            prompt_plan_path = (
+                (job_root / "metadata" / "image_prompt_plan.json")
+                if job_root is not None
+                else None
+            )
+
+            def _build_prompt_plan() -> None:
+                nonlocal image_prompt_plan
+                nonlocal image_prompt_sources
+                nonlocal image_prompt_baseline
+                nonlocal image_prompt_baseline_notes
+                nonlocal image_prompt_baseline_source
+                nonlocal prompt_plan_quality
+                nonlocal baseline_seed_image_path
+                nonlocal baseline_seed_relative_path
+                nonlocal baseline_seed_error
+
+                prompt_plan_error: Optional[str] = None
+                planned: list[DiffusionPrompt] = []
+                planned_sources: list[str] = []
+                baseline_prompt = DiffusionPrompt(prompt="")
+                baseline_notes = ""
+                baseline_source = "fallback"
+                quality: dict[str, Any] = {}
+
+                try:
+                    planned_plan = sentences_to_diffusion_prompt_plan(
+                        target_sentences,
+                        context_prefix=context_prefix,
+                        context_suffix=context_suffix,
+                    )
+                    planned = planned_plan.prompts
+                    planned_sources = planned_plan.sources
+                    baseline_prompt = planned_plan.baseline_prompt
+                    baseline_notes = planned_plan.baseline_notes
+                    baseline_source = planned_plan.baseline_source
+                    quality = (
+                        dict(planned_plan.quality)
+                        if isinstance(planned_plan.quality, dict)
+                        else {}
+                    )
+                    if len(planned) != len(target_sentences) or len(planned_sources) != len(target_sentences):
+                        raise ValueError("Prompt plan length mismatch")
+                except Exception as exc:
+                    prompt_plan_error = str(exc)
+                    baseline_prompt = DiffusionPrompt(
+                        prompt=str(target_sentences[0]).strip() if target_sentences else ""
+                    )
+                    baseline_notes = ""
+                    baseline_source = "fallback"
+                    planned = [
+                        DiffusionPrompt(prompt=str(sentence).strip())
+                        for sentence in target_sentences
+                    ]
+                    planned_sources = ["fallback"] * len(planned)
+                    quality = {
+                        "version": 1,
+                        "total_sentences": len(target_sentences),
+                        "llm_requests": 0,
+                        "initial_missing": len(target_sentences),
+                        "final_fallback": len(target_sentences),
+                        "retry_attempts": 0,
+                        "retry_requested": 0,
+                        "retry_recovered": 0,
+                        "retry_recovered_unique": 0,
+                        "initial_coverage_rate": 0.0 if target_sentences else 1.0,
+                        "llm_coverage_rate": 0.0 if target_sentences else 1.0,
+                        "fallback_rate": 1.0 if target_sentences else 0.0,
+                        "retry_success_rate": None,
+                        "recovery_rate": None,
+                        "errors": [prompt_plan_error],
+                    }
+                    if self._progress is not None:
+                        self._progress.record_retry("image", "prompt_plan_error")
+                    logger.warning(
+                        "Unable to precompute image prompts: %s",
+                        exc,
+                        extra={
+                            "event": "pipeline.image.prompt_plan.error",
+                            "attributes": {"error": str(exc)},
+                            "console_suppress": True,
+                        },
+                    )
+
+                plan_map = {
+                    start_sentence + offset: prompt
+                    for offset, prompt in enumerate(planned)
+                }
+                source_map = {
+                    start_sentence + offset: str(source)
+                    for offset, source in enumerate(planned_sources)
+                }
+
+                with prompt_plan_lock:
+                    image_prompt_plan = plan_map
+                    image_prompt_sources = source_map
+                    image_prompt_baseline = baseline_prompt
+                    image_prompt_baseline_notes = baseline_notes
+                    image_prompt_baseline_source = baseline_source
+                    prompt_plan_quality = quality
+
+                end_sentence_number = start_sentence + max(total_refined - 1, 0)
+                baseline_scene = (baseline_prompt.prompt or "").strip()
+                baseline_negative = (baseline_prompt.negative_prompt or "").strip()
+                baseline_seed_value = stable_diffusion_seed(
+                    baseline_scene or f"{start_sentence}-{end_sentence_number}"
+                )
+                baseline_seed_status = "disabled"
+                baseline_seed_image_path_local: Optional[Path] = None
+                baseline_seed_relative_path_local: Optional[str] = None
+                baseline_seed_error_local: Optional[str] = None
+
+                if image_seed_with_previous_image:
+                    baseline_seed_dir = media_root / "images" / "_seed"
+                    baseline_seed_image_path_local = baseline_seed_dir / (
+                        f"baseline_seed_{start_sentence:05d}_{end_sentence_number:05d}.png"
+                    )
+                    baseline_seed_relative_path_local = _job_relative_path(
+                        baseline_seed_image_path_local, base_dir=base_dir_path
+                    )
+                    baseline_seed_status = "skipped" if not baseline_scene else "ok"
+
+                    if baseline_scene:
+                        try:
+                            if not baseline_seed_image_path_local.exists():
+                                baseline_prompt_full = build_sentence_image_prompt(baseline_scene)
+                                baseline_negative_full = build_sentence_image_negative_prompt(
+                                    baseline_negative
+                                )
+                                request = DrawThingsImageRequest(
+                                    prompt=baseline_prompt_full,
+                                    negative_prompt=baseline_negative_full,
+                                    width=int(self._config.image_width or 512),
+                                    height=int(self._config.image_height or 512),
+                                    steps=int(self._config.image_steps or 24),
+                                    cfg_scale=float(self._config.image_cfg_scale or 7.0),
+                                    sampler_name=self._config.image_sampler_name,
+                                    seed=baseline_seed_value,
+                                )
+                                image_bytes, _ = image_client.txt2img(request)
+                                baseline_seed_dir.mkdir(parents=True, exist_ok=True)
+                                try:
+                                    import io
+
+                                    with Image.open(io.BytesIO(image_bytes)) as loaded:
+                                        converted = loaded.convert("RGB")
+                                        output = io.BytesIO()
+                                        converted.save(output, format="PNG")
+                                        baseline_seed_image_path_local.write_bytes(output.getvalue())
+                                except Exception:
+                                    baseline_seed_image_path_local.write_bytes(image_bytes)
+                        except Exception as exc:
+                            baseline_seed_error_local = str(exc)
+                            baseline_seed_status = "error"
+                            logger.warning(
+                                "Unable to generate baseline seed image: %s",
+                                exc,
+                                extra={
+                                    "event": "pipeline.image.baseline_seed.error",
+                                    "attributes": {"error": str(exc)},
+                                    "console_suppress": True,
+                                },
+                            )
+
+                with prompt_plan_lock:
+                    baseline_seed_image_path = baseline_seed_image_path_local
+                    baseline_seed_relative_path = baseline_seed_relative_path_local
+                    baseline_seed_error = baseline_seed_error_local
+
+                try:
+                    if prompt_plan_path is not None:
+                        context_prefix_payload = [
+                            {
+                                "sentence_number": idx + 1,
+                                "sentence": str(full_sentences[idx]).strip(),
+                            }
+                            for idx in range(prefix_start, window_start_idx)
+                        ]
+                        context_suffix_payload = [
+                            {
+                                "sentence_number": idx + 1,
+                                "sentence": str(full_sentences[idx]).strip(),
+                            }
+                            for idx in range(window_end_idx, suffix_end)
+                        ]
+                        prompts_payload = []
+                        for offset, sentence_text in enumerate(target_sentences):
+                            sentence_number = start_sentence + offset
+                            diffusion = plan_map.get(sentence_number)
+                            scene_prompt = ""
+                            scene_negative_prompt = ""
+                            source = source_map.get(sentence_number) or (
+                                "fallback" if diffusion is None else "llm"
+                            )
+                            if diffusion is not None:
+                                scene_prompt = (diffusion.prompt or "").strip()
+                                scene_negative_prompt = (diffusion.negative_prompt or "").strip()
+                            if not scene_prompt:
+                                scene_prompt = str(sentence_text).strip()
+                            prompts_payload.append(
+                                {
+                                    "sentence_number": sentence_number,
+                                    "sentence": str(sentence_text).strip(),
+                                    "scene_prompt": scene_prompt,
+                                    "scene_negative_prompt": scene_negative_prompt,
+                                    "source": source,
+                                    "seed": stable_diffusion_seed(
+                                        image_prompt_seed_sources.get(sentence_number)
+                                        or str(sentence_text).strip()
+                                    ),
+                                }
+                            )
+
+                        payload = {
+                            "version": 1,
+                            "generated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+                            "start_sentence": start_sentence,
+                            "end_sentence": end_sentence_number,
+                            "context_window": context_window,
+                            "style_prompt": build_sentence_image_prompt(""),
+                            "style_negative_prompt": build_sentence_image_negative_prompt(""),
+                            "baseline": {
+                                "scene_prompt": baseline_scene,
+                                "scene_negative_prompt": baseline_negative,
+                                "notes": str(baseline_notes or "").strip(),
+                                "source": str(baseline_source or "fallback"),
+                                "seed": baseline_seed_value,
+                                "seed_image_path": baseline_seed_relative_path_local,
+                                "seed_image_status": baseline_seed_status,
+                            },
+                            "context_prefix": context_prefix_payload,
+                            "context_suffix": context_suffix_payload,
+                            "status": "ok" if plan_map else "error",
+                            "quality": quality,
+                            "prompts": prompts_payload,
+                        }
+                        if baseline_seed_error_local:
+                            payload["baseline"]["seed_image_error"] = baseline_seed_error_local
+                        if prompt_plan_error:
+                            payload["error"] = prompt_plan_error
+                        prompt_plan_path.parent.mkdir(parents=True, exist_ok=True)
+                        _atomic_write_json(prompt_plan_path, payload)
+                        summary_path = prompt_plan_path.with_name("image_prompt_plan_summary.json")
+                        summary_payload = {
+                            "version": payload.get("version", 1),
+                            "generated_at": payload.get("generated_at"),
+                            "start_sentence": payload.get("start_sentence"),
+                            "end_sentence": payload.get("end_sentence"),
+                            "context_window": payload.get("context_window"),
+                            "status": payload.get("status"),
+                            "quality": payload.get("quality") or {},
+                            "baseline": {
+                                "source": payload.get("baseline", {}).get("source"),
+                                "seed_image_status": payload.get("baseline", {}).get("seed_image_status"),
+                            },
+                        }
+                        if payload.get("error"):
+                            summary_payload["error"] = payload.get("error")
+                        _atomic_write_json(summary_path, summary_payload)
+                except Exception as exc:
+                    logger.warning(
+                        "Unable to persist image prompt plan: %s",
+                        exc,
+                        extra={
+                            "event": "pipeline.image.prompt_plan.persist.error",
+                            "attributes": {"error": str(exc)},
+                            "console_suppress": True,
+                        },
+                    )
+                finally:
+                    prompt_plan_ready.set()
+
+            prompt_plan_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+            prompt_plan_future = prompt_plan_executor.submit(_build_prompt_plan)
 
         buffered_results = {}
         next_index = 0
         export_futures: List[concurrent.futures.Future] = []
+        previous_image_future: Optional[concurrent.futures.Future] = None
+        previous_image_sentence_number: Optional[int] = None
+        scheduled_image_sentence_numbers: set[int] = set()
+
+        def _submit_sentence_image(
+            *,
+            sentence_number: int,
+            sentence_for_prompt: str,
+            context_sentences: tuple[str, ...] = (),
+        ) -> None:
+            nonlocal previous_image_future
+            nonlocal previous_image_sentence_number
+
+            if (
+                image_executor is None
+                or image_state is None
+                or image_client is None
+                or pipeline_stop_event.is_set()
+            ):
+                return
+
+            if sentence_number in scheduled_image_sentence_numbers:
+                return
+
+            offset = max(sentence_number - start_sentence, 0)
+            chunk_start = start_sentence + (offset // max(1, sentences_per_file)) * max(
+                1, sentences_per_file
+            )
+            chunk_end = min(
+                chunk_start + max(1, sentences_per_file) - 1,
+                final_sentence_number,
+            )
+            range_fragment = output_formatter.format_sentence_range(
+                chunk_start, chunk_end, total_fully
+            )
+            chunk_id = f"{range_fragment}_{base_name}"
+            images_dir = media_root / "images" / range_fragment
+            image_path = images_dir / f"sentence_{sentence_number:05d}.png"
+
+            previous_seed_future = None
+            previous_sentence_number = sentence_number - 1
+            if (
+                previous_image_future is not None
+                and previous_image_sentence_number == previous_sentence_number
+                and image_prompt_sources.get(previous_sentence_number) in {"llm", "llm_retry"}
+            ):
+                previous_seed_future = previous_image_future
+
+            with prompt_plan_lock:
+                baseline_seed_snapshot = baseline_seed_image_path
+                baseline_prompt_snapshot = image_prompt_baseline
+
+            def _generate_image(
+                *,
+                sentence_for_prompt: str = sentence_for_prompt,
+                context_sentences: tuple[str, ...] = context_sentences,
+                sentence_number: int = sentence_number,
+                chunk_id: str = chunk_id,
+                range_fragment: str = range_fragment,
+                chunk_start: int = chunk_start,
+                chunk_end: int = chunk_end,
+                images_dir: Path = images_dir,
+                image_path: Path = image_path,
+                base_dir_path: Path = base_dir_path,
+                previous_seed_future: Optional[concurrent.futures.Future] = previous_seed_future,
+                previous_sentence_number: int = previous_sentence_number,
+                baseline_seed_image_path: Optional[Path] = baseline_seed_snapshot,
+                baseline_prompt: DiffusionPrompt = baseline_prompt_snapshot,
+            ) -> _SentenceImageResult:
+                try:
+                    diffusion = image_prompt_plan.get(sentence_number)
+                    if diffusion is None:
+                        diffusion = DiffusionPrompt(prompt=str(sentence_for_prompt).strip())
+                    scene_description = (diffusion.prompt or "").strip() or (sentence_for_prompt or "").strip()
+                    negative = (diffusion.negative_prompt or "").strip()
+                    current_source = image_prompt_sources.get(sentence_number) or ""
+                    baseline_scene = (baseline_prompt.prompt or "").strip()
+                    baseline_negative = (baseline_prompt.negative_prompt or "").strip()
+
+                    with img2img_capability_lock:
+                        allow_img2img = bool(img2img_capability.get("enabled"))
+
+                    use_baseline_fallback = (
+                        allow_img2img
+                        and current_source == "fallback"
+                        and previous_seed_future is None
+                        and bool(baseline_scene)
+                    )
+                    if use_baseline_fallback:
+                        scene_description = baseline_scene
+                        negative = baseline_negative
+                    prompt_full = build_sentence_image_prompt(scene_description)
+                    negative_full = build_sentence_image_negative_prompt(negative)
+                    seed_source = image_prompt_seed_sources.get(sentence_number)
+                    if use_baseline_fallback and baseline_scene:
+                        seed = stable_diffusion_seed(baseline_scene)
+                    else:
+                        seed = stable_diffusion_seed(seed_source or sentence_for_prompt)
+
+                    seed_image_path: Optional[Path] = None
+                    if allow_img2img and previous_seed_future is not None:
+                        try:
+                            previous_seed_future.result()
+                            prev_offset = max(previous_sentence_number - start_sentence, 0)
+                            prev_chunk_start = start_sentence + (
+                                prev_offset // max(1, sentences_per_file)
+                            ) * max(1, sentences_per_file)
+                            prev_chunk_end = min(
+                                prev_chunk_start + max(1, sentences_per_file) - 1,
+                                final_sentence_number,
+                            )
+                            prev_range_fragment = output_formatter.format_sentence_range(
+                                prev_chunk_start, prev_chunk_end, total_fully
+                            )
+                            candidate = (
+                                media_root
+                                / "images"
+                                / prev_range_fragment
+                                / f"sentence_{previous_sentence_number:05d}.png"
+                            )
+                            if candidate.exists():
+                                seed_image_path = candidate
+                        except Exception:
+                            seed_image_path = None
+
+                    if (
+                        seed_image_path is None
+                        and allow_img2img
+                        and baseline_seed_image_path is not None
+                        and baseline_seed_image_path.exists()
+                    ):
+                        seed_image_path = baseline_seed_image_path
+
+                    def _txt2img() -> bytes:
+                        request = DrawThingsImageRequest(
+                            prompt=prompt_full,
+                            negative_prompt=negative_full,
+                            width=int(self._config.image_width or 512),
+                            height=int(self._config.image_height or 512),
+                            steps=int(self._config.image_steps or 24),
+                            cfg_scale=float(self._config.image_cfg_scale or 7.0),
+                            sampler_name=self._config.image_sampler_name,
+                            seed=seed,
+                        )
+                        image_bytes, _payload = image_client.txt2img(request)
+                        return image_bytes
+
+                    if seed_image_path is not None and allow_img2img:
+                        try:
+                            request = DrawThingsImageToImageRequest(
+                                prompt=prompt_full,
+                                negative_prompt=negative_full,
+                                init_image=seed_image_path.read_bytes(),
+                                denoising_strength=0.5,
+                                width=int(self._config.image_width or 512),
+                                height=int(self._config.image_height or 512),
+                                steps=int(self._config.image_steps or 24),
+                                cfg_scale=float(self._config.image_cfg_scale or 7.0),
+                                sampler_name=self._config.image_sampler_name,
+                                seed=seed,
+                            )
+                            image_bytes, _payload = image_client.img2img(request)
+                        except DrawThingsError as exc:
+                            message = str(exc)
+                            if (
+                                "(404)" in message
+                                or " 404" in message
+                                or "not found" in message.lower()
+                            ):
+                                with img2img_capability_lock:
+                                    img2img_capability["enabled"] = False
+                            image_bytes = _txt2img()
+                    else:
+                        image_bytes = _txt2img()
+                    images_dir.mkdir(parents=True, exist_ok=True)
+                    try:
+                        import io
+
+                        with Image.open(io.BytesIO(image_bytes)) as loaded:
+                            converted = loaded.convert("RGB")
+                            output = io.BytesIO()
+                            converted.save(output, format="PNG")
+                            image_path.write_bytes(output.getvalue())
+                    except Exception:
+                        image_path.write_bytes(image_bytes)
+                    relative_path = _job_relative_path(image_path, base_dir=base_dir_path)
+                    return _SentenceImageResult(
+                        chunk_id=chunk_id,
+                        range_fragment=range_fragment,
+                        start_sentence=chunk_start,
+                        end_sentence=chunk_end,
+                        sentence_number=sentence_number,
+                        relative_path=relative_path,
+                        prompt=prompt_full,
+                        negative_prompt=negative_full,
+                    )
+                except DrawThingsError as exc:
+                    if self._progress is not None:
+                        self._progress.record_retry("image", "drawthings_error")
+                    logger.warning(
+                        "DrawThings image generation failed",
+                        extra={
+                            "event": "pipeline.image.error",
+                            "attributes": {
+                                "sentence_number": sentence_number,
+                                "range_fragment": range_fragment,
+                                "error": str(exc),
+                            },
+                            "console_suppress": True,
+                        },
+                    )
+                    raise
+                except Exception as exc:  # pragma: no cover - defensive logging
+                    if self._progress is not None:
+                        self._progress.record_retry("image", "exception")
+                    logger.warning(
+                        "Image generation failed",
+                        extra={
+                            "event": "pipeline.image.error",
+                            "attributes": {
+                                "sentence_number": sentence_number,
+                                "range_fragment": range_fragment,
+                                "error": str(exc),
+                            },
+                            "console_suppress": True,
+                        },
+                    )
+                    raise
+
+            future = image_executor.submit(_generate_image)
+            image_futures.add(future)
+            scheduled_image_sentence_numbers.add(sentence_number)
+            previous_image_future = future
+            previous_image_sentence_number = sentence_number
+
         cancelled = False
         try:
             while state.processed < total_refined:
@@ -1059,6 +1640,21 @@ class RenderPipeline:
                                         audio_tracks=snapshot.get("audio_tracks") or None,
                                         timing_tracks=snapshot.get("timing_tracks") or None,
                                     )
+                if (
+                    prompt_plan_ready.is_set()
+                    and pending_image_sentence_numbers
+                    and not pipeline_stop_event.is_set()
+                ):
+                    pending_numbers = sorted(pending_image_sentence_numbers)
+                    pending_image_sentence_numbers.clear()
+                    for sentence_number in pending_numbers:
+                        offset = sentence_number - start_sentence
+                        if offset < 0 or offset >= len(target_sentences):
+                            continue
+                        _submit_sentence_image(
+                            sentence_number=sentence_number,
+                            sentence_for_prompt=str(target_sentences[offset]).strip(),
+                        )
                 if pipeline_stop_event.is_set() and not buffered_results:
                     cancelled = state.processed < total_refined
                     break
@@ -1195,108 +1791,15 @@ class RenderPipeline:
                         and image_client is not None
                         and not pipeline_stop_event.is_set()
                     ):
-                        if not translation_failed:
-                            sentence_number = int(item.sentence_number)
-                            offset = max(sentence_number - start_sentence, 0)
-                            chunk_start = start_sentence + (offset // max(1, sentences_per_file)) * max(1, sentences_per_file)
-                            chunk_end = min(chunk_start + max(1, sentences_per_file) - 1, final_sentence_number)
-                            range_fragment = output_formatter.format_sentence_range(
-                                chunk_start, chunk_end, total_fully
+                        sentence_number = int(item.sentence_number)
+                        if not prompt_plan_ready.is_set():
+                            pending_image_sentence_numbers.add(sentence_number)
+                        else:
+                            _submit_sentence_image(
+                                sentence_number=sentence_number,
+                                sentence_for_prompt=str(sentence_for_prompt or "").strip(),
+                                context_sentences=context_sentences,
                             )
-                            chunk_id = f"{range_fragment}_{base_name}"
-                            images_dir = media_root / "images" / range_fragment
-                            image_path = images_dir / f"sentence_{sentence_number:05d}.png"
-
-                            def _generate_image(
-                                *,
-                                sentence_for_prompt: str = sentence_for_prompt,
-                                context_sentences: tuple[str, ...] = context_sentences,
-                                sentence_number: int = sentence_number,
-                                chunk_id: str = chunk_id,
-                                range_fragment: str = range_fragment,
-                                chunk_start: int = chunk_start,
-                                chunk_end: int = chunk_end,
-                                images_dir: Path = images_dir,
-                                image_path: Path = image_path,
-                                base_dir_path: Path = base_dir_path,
-                            ) -> _SentenceImageResult:
-                                try:
-                                    diffusion = sentence_to_diffusion_prompt(
-                                        sentence_for_prompt,
-                                        context_sentences=context_sentences,
-                                    )
-                                    scene_description = (diffusion.prompt or "").strip() or (sentence_for_prompt or "").strip()
-                                    negative = (diffusion.negative_prompt or "").strip()
-                                    prompt_full = build_sentence_image_prompt(scene_description)
-                                    negative_full = build_sentence_image_negative_prompt(negative)
-                                    seed = stable_diffusion_seed(sentence_for_prompt)
-                                    request = DrawThingsImageRequest(
-                                        prompt=prompt_full,
-                                        negative_prompt=negative_full,
-                                        width=int(self._config.image_width or 512),
-                                        height=int(self._config.image_height or 512),
-                                        steps=int(self._config.image_steps or 24),
-                                        cfg_scale=float(self._config.image_cfg_scale or 7.0),
-                                        sampler_name=self._config.image_sampler_name,
-                                        seed=seed,
-                                    )
-                                    image_bytes, _ = image_client.txt2img(request)
-                                    images_dir.mkdir(parents=True, exist_ok=True)
-                                    try:
-                                        import io
-
-                                        with Image.open(io.BytesIO(image_bytes)) as loaded:
-                                            converted = loaded.convert("RGB")
-                                            output = io.BytesIO()
-                                            converted.save(output, format="PNG")
-                                            image_path.write_bytes(output.getvalue())
-                                    except Exception:
-                                        image_path.write_bytes(image_bytes)
-                                    relative_path = _job_relative_path(image_path, base_dir=base_dir_path)
-                                    return _SentenceImageResult(
-                                        chunk_id=chunk_id,
-                                        range_fragment=range_fragment,
-                                        start_sentence=chunk_start,
-                                        end_sentence=chunk_end,
-                                        sentence_number=sentence_number,
-                                        relative_path=relative_path,
-                                        prompt=prompt_full,
-                                        negative_prompt=negative_full,
-                                    )
-                                except DrawThingsError as exc:
-                                    if self._progress is not None:
-                                        self._progress.record_retry("image", "drawthings_error")
-                                    logger.warning(
-                                        "DrawThings image generation failed",
-                                        extra={
-                                            "event": "pipeline.image.error",
-                                            "attributes": {
-                                                "sentence_number": sentence_number,
-                                                "range_fragment": range_fragment,
-                                                "error": str(exc),
-                                            },
-                                            "console_suppress": True,
-                                        },
-                                    )
-                                    raise
-                                except Exception as exc:  # pragma: no cover - defensive logging
-                                    if self._progress is not None:
-                                        self._progress.record_retry("image", "exception")
-                                    logger.warning(
-                                        "Image generation failed",
-                                        extra={
-                                            "event": "pipeline.image.error",
-                                            "attributes": {
-                                                "sentence_number": sentence_number,
-                                                "range_fragment": range_fragment,
-                                                "error": str(exc),
-                                            },
-                                            "console_suppress": True,
-                                        },
-                                    )
-                                    raise
-
-                            image_futures.add(image_executor.submit(_generate_image))
 
                     recent_prompt_sentences.append(str(sentence_for_prompt or "").strip())
 
@@ -1341,6 +1844,29 @@ class RenderPipeline:
                     next_index += 1
                 if pipeline_stop_event.is_set() and not buffered_results:
                     break
+
+            if (
+                pending_image_sentence_numbers
+                and image_executor is not None
+                and image_state is not None
+                and image_client is not None
+                and not pipeline_stop_event.is_set()
+            ):
+                if prompt_plan_future is not None and not prompt_plan_ready.is_set():
+                    try:
+                        prompt_plan_future.result()
+                    except Exception:
+                        pass
+                pending_numbers = sorted(pending_image_sentence_numbers)
+                pending_image_sentence_numbers.clear()
+                for sentence_number in pending_numbers:
+                    offset = sentence_number - start_sentence
+                    if offset < 0 or offset >= len(target_sentences):
+                        continue
+                    _submit_sentence_image(
+                        sentence_number=sentence_number,
+                        sentence_for_prompt=str(target_sentences[offset]).strip(),
+                    )
         except KeyboardInterrupt:
             console_warning(
                 "Processing interrupted by user; shutting down pipeline...",
@@ -1355,6 +1881,10 @@ class RenderPipeline:
             if translation_thread is not None:
                 translation_thread.join(timeout=1.0)
             finalize_executor.shutdown(wait=True)
+            if prompt_plan_executor is not None:
+                if cancelled and prompt_plan_future is not None:
+                    prompt_plan_future.cancel()
+                prompt_plan_executor.shutdown(wait=False)
             for future in export_futures:
                 try:
                     export_result = future.result()

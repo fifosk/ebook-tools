@@ -121,7 +121,7 @@ class PipelineConfig:
         default_factory=lambda: (os.environ.get("EBOOK_IMAGE_API_BASE_URL") or "").strip() or None
     )
     image_api_timeout_seconds: float = field(
-        default_factory=lambda: _coerce_float(os.environ.get("EBOOK_IMAGE_API_TIMEOUT_SECONDS"), 180.0)
+        default_factory=lambda: _coerce_float(os.environ.get("EBOOK_IMAGE_API_TIMEOUT_SECONDS"), 600.0)
     )
     image_concurrency: int = field(
         default_factory=lambda: max(1, _coerce_int(os.environ.get("EBOOK_IMAGE_CONCURRENCY"), 4))
@@ -132,6 +132,7 @@ class PipelineConfig:
     image_cfg_scale: float = 7.0
     image_sampler_name: Optional[str] = None
     image_prompt_context_sentences: int = 2
+    image_seed_with_previous_image: bool = False
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -411,9 +412,9 @@ def build_pipeline_config(
                 "image_api_timeout_seconds",
                 config,
                 overrides,
-                os.environ.get("EBOOK_IMAGE_API_TIMEOUT_SECONDS") or 180.0,
+                os.environ.get("EBOOK_IMAGE_API_TIMEOUT_SECONDS") or 600.0,
             ),
-            180.0,
+            600.0,
         ),
     )
     image_concurrency = max(
@@ -445,7 +446,11 @@ def build_pipeline_config(
             2,
         ),
     )
-    image_prompt_context_sentences = min(image_prompt_context_sentences, 10)
+    image_prompt_context_sentences = min(image_prompt_context_sentences, 50)
+    image_seed_with_previous_image = _coerce_bool(
+        _select_value("image_seed_with_previous_image", config, overrides, False),
+        False,
+    )
 
     forced_alignment_enabled = _coerce_bool(
         _select_value("forced_alignment_enabled", config, overrides, False), False
@@ -609,6 +614,7 @@ def build_pipeline_config(
         image_cfg_scale=image_cfg_scale,
         image_sampler_name=image_sampler_name,
         image_prompt_context_sentences=image_prompt_context_sentences,
+        image_seed_with_previous_image=image_seed_with_previous_image,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         llm_source=llm_source,

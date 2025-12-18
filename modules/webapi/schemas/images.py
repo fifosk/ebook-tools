@@ -17,8 +17,8 @@ class SentenceImageRegenerateRequest(BaseModel):
     context_sentences: Optional[int] = Field(
         default=None,
         ge=0,
-        le=10,
-        description="How many previous sentences to include as context when generating an LLM prompt.",
+        le=50,
+        description="How many nearby sentences (before and after) to include as context when generating an LLM prompt.",
     )
     prompt: Optional[str] = Field(
         default=None,

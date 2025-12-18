@@ -68,8 +68,8 @@ job media so the Interactive Reader can show them while a job is still running.
 - **Backend client:** `modules/images/drawthings.py` talks to a Draw Things /
   AUTOMATIC1111-compatible `txt2img` endpoint (`/sdapi/v1/txt2img`).
 - **Prompting:** `modules/images/prompting.py` asks the configured LLM for a
-  short scene description, then appends a shared “glyph/clipart essence” base
-  prompt plus a negative prompt to reduce haze/clutter.
+  consistent prompt plan for the full sentence window, then appends a shared
+  photorealistic base prompt plus a negative prompt to reduce artifacts.
 - **Storage + metadata:** images are written under
   `storage/jobs/<job_id>/media/images/<range_fragment>/sentence_00001.png` and
   referenced from each chunk’s `metadata/chunk_XXXX.json` under
@@ -79,7 +79,7 @@ Key configuration knobs:
 
 - `image_api_base_url` (env: `EBOOK_IMAGE_API_BASE_URL`) – Draw Things base URL
   (example: `http://192.168.1.9:7860`).
-- `image_api_timeout_seconds` – per-request timeout (default: 180s).
+- `image_api_timeout_seconds` – per-request timeout (default: 600s).
 - `image_concurrency` (env: `EBOOK_IMAGE_CONCURRENCY`) – parallel image workers
   (default: 4).
 - `image_width`, `image_height`, `image_steps`, `image_cfg_scale`,
@@ -231,7 +231,7 @@ single-page application:
   Diffusion instance used for sentence images (for example,
   `http://192.168.1.9:7860`).
 - **`EBOOK_IMAGE_API_TIMEOUT_SECONDS`** – Timeout applied to the image
-  `txt2img` requests (default: 180 seconds).
+  `txt2img` requests (default: 600 seconds).
 - **`EBOOK_IMAGE_CONCURRENCY`** – Caps the number of sentence images generated
   in parallel (default: 4).
 

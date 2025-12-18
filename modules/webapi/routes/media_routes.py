@@ -26,9 +26,11 @@ from ...images.prompting import (
 )
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
+from ...library import LibraryRepository
 from ..dependencies import (
     RequestUserContext,
     get_file_locator,
+    get_library_repository,
     get_pipeline_job_manager,
     get_pipeline_service,
     get_request_user,
@@ -99,14 +101,13 @@ def _extract_sentence_text(entry: Mapping[str, Any]) -> Optional[str]:
 
 def _read_chunk_payload(
     *,
-    locator: FileLocator,
-    job_id: str,
+    job_root: Path,
     metadata_path: str,
 ) -> Optional[Mapping[str, Any]]:
     path_value = metadata_path.strip()
     if not path_value:
         return None
-    chunk_path = locator.resolve_path(job_id, path_value)
+    chunk_path = _resolve_job_path(job_root, path_value)
     try:
         payload = json.loads(chunk_path.read_text(encoding="utf-8"))
     except Exception:
@@ -130,11 +131,10 @@ def _find_sentence_entry(
     return None
 
 
-def _collect_previous_sentence_texts(
+def _collect_context_sentence_texts(
     *,
     loader: MetadataLoader,
-    locator: FileLocator,
-    job_id: str,
+    job_root: Path,
     sentence_number: int,
     count: int,
 ) -> list[str]:
@@ -142,6 +142,7 @@ def _collect_previous_sentence_texts(
         return []
     cache: dict[str, Mapping[str, Any]] = {}
     collected: list[str] = []
+
     start = max(sentence_number - count, 1)
     for number in range(start, sentence_number):
         chunk = _resolve_chunk_for_sentence(loader, number)
@@ -153,7 +154,7 @@ def _collect_previous_sentence_texts(
         key = metadata_path.strip()
         payload = cache.get(key)
         if payload is None:
-            loaded = _read_chunk_payload(locator=locator, job_id=job_id, metadata_path=key)
+            loaded = _read_chunk_payload(job_root=job_root, metadata_path=key)
             if loaded is None:
                 continue
             cache[key] = loaded
@@ -164,6 +165,30 @@ def _collect_previous_sentence_texts(
         text = _extract_sentence_text(entry)
         if text:
             collected.append(text)
+
+    end = sentence_number + count
+    for number in range(sentence_number + 1, end + 1):
+        chunk = _resolve_chunk_for_sentence(loader, number)
+        if not isinstance(chunk, Mapping):
+            continue
+        metadata_path = chunk.get("metadata_path")
+        if not isinstance(metadata_path, str) or not metadata_path.strip():
+            continue
+        key = metadata_path.strip()
+        payload = cache.get(key)
+        if payload is None:
+            loaded = _read_chunk_payload(job_root=job_root, metadata_path=key)
+            if loaded is None:
+                continue
+            cache[key] = loaded
+            payload = loaded
+        entry = _find_sentence_entry(chunk_payload=payload, sentence_number=number)
+        if not isinstance(entry, Mapping):
+            continue
+        text = _extract_sentence_text(entry)
+        if text:
+            collected.append(text)
+
     return collected
 
 
@@ -263,13 +288,69 @@ def _ensure_negative_suffix(negative: str) -> str:
     return build_sentence_image_negative_prompt(negative)
 
 
-async def _load_sentence_image_info(
+def _resolve_job_path(job_root: Path, relative_path: str) -> Path:
+    normalized = relative_path.replace("\\", "/").strip()
+    if not normalized:
+        raise ValueError("Empty path")
+    candidate = Path(normalized)
+    if candidate.is_absolute():
+        resolved = candidate.resolve()
+    else:
+        resolved = (job_root / candidate).resolve()
+    try:
+        resolved.relative_to(job_root)
+    except ValueError as exc:
+        raise ValueError("Path escapes job root") from exc
+    return resolved
+
+
+def _resolve_job_root(
     *,
     job_id: str,
-    sentence_number: int,
     locator: FileLocator,
+    library_repository: LibraryRepository,
+    request_user: RequestUserContext,
+    job_manager: Any,
+) -> Path:
+    try:
+        job_manager.get(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError:
+        entry = library_repository.get_entry_by_id(job_id)
+        if entry is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        job_root = Path(entry.library_path)
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    else:
+        pipeline_root = locator.resolve_path(job_id)
+        probe = pipeline_root / "metadata" / "job.json"
+        if probe.exists():
+            job_root = pipeline_root
+        else:
+            entry = library_repository.get_entry_by_id(job_id)
+            if entry is not None:
+                candidate_root = Path(entry.library_path)
+                if candidate_root.exists():
+                    job_root = candidate_root
+                else:
+                    job_root = pipeline_root
+            else:
+                job_root = pipeline_root
+
+    if not job_root.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+    return job_root
+
+
+async def _load_sentence_image_info(
+    *,
+    sentence_number: int,
+    job_root: Path,
 ) -> tuple[Mapping[str, Any], Mapping[str, Any], dict[str, Any]]:
-    job_root = locator.resolve_path(job_id)
     loader = MetadataLoader(job_root)
     chunk = _resolve_chunk_for_sentence(loader, sentence_number)
     if not isinstance(chunk, Mapping):
@@ -277,7 +358,7 @@ async def _load_sentence_image_info(
     metadata_path = chunk.get("metadata_path")
     if not isinstance(metadata_path, str) or not metadata_path.strip():
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chunk metadata is unavailable")
-    chunk_path = locator.resolve_path(job_id, metadata_path)
+    chunk_path = _resolve_job_path(job_root, metadata_path)
     try:
         chunk_payload = await run_in_threadpool(lambda: json.loads(chunk_path.read_text(encoding="utf-8")))
     except FileNotFoundError as exc:
@@ -310,25 +391,22 @@ async def get_sentence_image_info(
     *,
     job_manager=Depends(get_pipeline_job_manager),
     locator: FileLocator = Depends(get_file_locator),
+    library_repository: LibraryRepository = Depends(get_library_repository),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> SentenceImageInfoResponse:
     """Return the stored prompt/path metadata for a sentence image."""
 
-    try:
-        job_manager.get(
-            job_id,
-            user_id=request_user.user_id,
-            user_role=request_user.user_role,
-        )
-    except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    job_root = _resolve_job_root(
+        job_id=job_id,
+        locator=locator,
+        library_repository=library_repository,
+        request_user=request_user,
+        job_manager=job_manager,
+    )
 
     chunk, _chunk_payload, sentence_entry = await _load_sentence_image_info(
-        job_id=job_id,
         sentence_number=sentence_number,
-        locator=locator,
+        job_root=job_root,
     )
     range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
     range_fragment_str = str(range_fragment).strip() if isinstance(range_fragment, str) and range_fragment.strip() else None
@@ -358,20 +436,18 @@ async def regenerate_sentence_image(
     *,
     job_manager=Depends(get_pipeline_job_manager),
     locator: FileLocator = Depends(get_file_locator),
+    library_repository: LibraryRepository = Depends(get_library_repository),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> SentenceImageRegenerateResponse:
     """Regenerate and overwrite the stored sentence image using supplied prompt/settings."""
 
-    try:
-        job_manager.get(
-            job_id,
-            user_id=request_user.user_id,
-            user_role=request_user.user_role,
-        )
-    except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
-    except PermissionError as exc:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    job_root = _resolve_job_root(
+        job_id=job_id,
+        locator=locator,
+        library_repository=library_repository,
+        request_user=request_user,
+        job_manager=job_manager,
+    )
 
     config = cfg.load_configuration(verbose=False)
     base_url = config.get("image_api_base_url")
@@ -388,9 +464,8 @@ async def regenerate_sentence_image(
     settings = _resolve_image_settings(config, payload)
 
     chunk, chunk_payload, sentence_entry = await _load_sentence_image_info(
-        job_id=job_id,
         sentence_number=sentence_number,
-        locator=locator,
+        job_root=job_root,
     )
     range_fragment = chunk.get("range_fragment") or chunk.get("rangeFragment")
     if not isinstance(range_fragment, str) or not range_fragment.strip():
@@ -405,17 +480,15 @@ async def regenerate_sentence_image(
     context_count = payload.context_sentences
     if not isinstance(context_count, int):
         context_count = _coerce_int_default(config.get("image_prompt_context_sentences"), 2)
-    context_count = max(0, min(int(context_count), 10))
+    context_count = max(0, min(int(context_count), 50))
 
     if use_llm_prompt or not prompt:
         sentence_text = _extract_sentence_text(sentence_entry) or ""
-        job_root = locator.resolve_path(job_id)
         loader = MetadataLoader(job_root)
         context_texts = await run_in_threadpool(
-            _collect_previous_sentence_texts,
+            _collect_context_sentence_texts,
             loader=loader,
-            locator=locator,
-            job_id=job_id,
+            job_root=job_root,
             sentence_number=sentence_number,
             count=context_count,
         )
@@ -458,14 +531,13 @@ async def regenerate_sentence_image(
         ) from exc
 
     relative_path = _resolve_image_relative_path(range_fragment, sentence_number)
-    job_root = locator.resolve_path(job_id)
     image_path = job_root / relative_path
     await run_in_threadpool(lambda: (image_path.parent.mkdir(parents=True, exist_ok=True), image_path.write_bytes(image_bytes)))
 
     # Update chunk metadata sentence entry so the UI can load the edited prompt.
     metadata_path = chunk.get("metadata_path")
     if isinstance(metadata_path, str) and metadata_path.strip():
-        chunk_path = locator.resolve_path(job_id, metadata_path)
+        chunk_path = _resolve_job_path(job_root, metadata_path)
 
         def _update_chunk_file() -> None:
             raw = json.loads(chunk_path.read_text(encoding="utf-8"))
@@ -595,13 +667,11 @@ def _is_estimated_policy(policy: Optional[str]) -> bool:
 
 
 def _probe_highlighting_policy(
-    job_id: str,
-    locator: FileLocator,
+    metadata_root: Path,
     default_policy: Optional[str],
 ) -> tuple[Optional[str], bool]:
     """Resolve the highlighting policy and whether estimated timings exist."""
 
-    metadata_root = locator.metadata_root(job_id)
     normalized_default = None
     if isinstance(default_policy, str) and default_policy.strip():
         normalized_default = default_policy.strip()
@@ -635,9 +705,13 @@ async def get_job_timing(
     *,
     job_manager = Depends(get_pipeline_job_manager),
     locator: FileLocator = Depends(get_file_locator),
+    library_repository: LibraryRepository = Depends(get_library_repository),
     request_user: RequestUserContext = Depends(get_request_user),
 ) -> JSONResponse:
     """Return flattened per-word timing data for ``job_id``."""
+
+    job_root: Path
+    result_payload: Mapping[str, Any] = {}
 
     try:
         job: PipelineJob = job_manager.get(
@@ -646,11 +720,34 @@ async def get_job_timing(
             user_role=request_user.user_role,
         )
     except KeyError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        entry = library_repository.get_entry_by_id(job_id)
+        if entry is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        job_root = Path(entry.library_path)
+        if not job_root.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+        loader = MetadataLoader(job_root)
+        try:
+            manifest = await run_in_threadpool(loader.load_manifest)
+        except FileNotFoundError as load_exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from load_exc
+        except Exception as load_exc:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Unable to load job metadata") from load_exc
+        result_value = manifest.get("result") if isinstance(manifest, Mapping) else None
+        if isinstance(result_value, Mapping):
+            result_payload = dict(result_value)
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+    else:
+        job_root = locator.resolve_path(job_id)
+        if not (job_root / "metadata" / "job.json").exists():
+            entry = library_repository.get_entry_by_id(job_id)
+            if entry is not None:
+                candidate_root = Path(entry.library_path)
+                if candidate_root.exists():
+                    job_root = candidate_root
+        result_payload = job.result_payload if isinstance(job.result_payload, Mapping) else {}
 
-    result_payload = job.result_payload if isinstance(job.result_payload, Mapping) else {}
     timing_tracks = result_payload.get("timing_tracks") if isinstance(result_payload, Mapping) else None
     if not isinstance(timing_tracks, Mapping):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
@@ -666,7 +763,7 @@ async def get_job_timing(
     resolved_paths: Dict[str, Path] = {}
     for track_name, rel_path in requested_tracks.items():
         try:
-            abs_path = locator.resolve_path(job_id, rel_path)
+            abs_path = _resolve_job_path(job_root, rel_path)
         except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -724,8 +821,7 @@ async def get_job_timing(
             playback_rate = 1.0
 
     highlighting_policy, has_estimated_segments = _probe_highlighting_policy(
-        job_id,
-        locator,
+        job_root / "metadata",
         result_payload.get("highlighting_policy") if isinstance(result_payload, Mapping) else None,
     )
 

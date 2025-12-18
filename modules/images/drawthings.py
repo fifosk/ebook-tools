@@ -46,6 +46,42 @@ class DrawThingsImageRequest:
         return payload
 
 
+@dataclass(frozen=True, slots=True)
+class DrawThingsImageToImageRequest:
+    """Payload used to request an img2img image from a Draw Things instance."""
+
+    prompt: str
+    init_image: bytes
+    negative_prompt: str = ""
+    denoising_strength: float = 0.45
+    width: int = 512
+    height: int = 512
+    steps: int = 24
+    cfg_scale: float = 7.0
+    sampler_name: Optional[str] = None
+    seed: Optional[int] = None
+
+    def as_payload(self) -> dict[str, Any]:
+        init_encoded = base64.b64encode(self.init_image).decode("ascii")
+        payload: dict[str, Any] = {
+            "prompt": self.prompt,
+            "negative_prompt": self.negative_prompt,
+            "init_images": [init_encoded],
+            "denoising_strength": float(self.denoising_strength),
+            "width": int(self.width),
+            "height": int(self.height),
+            "steps": int(self.steps),
+            "cfg_scale": float(self.cfg_scale),
+            "batch_size": 1,
+            "n_iter": 1,
+        }
+        if self.sampler_name:
+            payload["sampler_name"] = self.sampler_name
+        if self.seed is not None:
+            payload["seed"] = int(self.seed)
+        return payload
+
+
 def _decode_base64_image(value: str) -> Optional[bytes]:
     candidate = value.strip()
     if not candidate:
@@ -67,6 +103,7 @@ class DrawThingsClient:
         *,
         timeout_seconds: float = 180.0,
         txt2img_path: str = "/sdapi/v1/txt2img",
+        img2img_path: str = "/sdapi/v1/img2img",
     ) -> None:
         trimmed = (base_url or "").strip().rstrip("/")
         if not trimmed:
@@ -74,16 +111,17 @@ class DrawThingsClient:
         self._base_url = trimmed + "/"
         self._timeout = max(float(timeout_seconds), 1.0)
         self._txt2img_url = urljoin(self._base_url, txt2img_path.lstrip("/"))
+        self._img2img_url = urljoin(self._base_url, img2img_path.lstrip("/"))
 
     @property
     def base_url(self) -> str:  # pragma: no cover - trivial
         return self._base_url.rstrip("/")
 
-    def txt2img(self, request: DrawThingsImageRequest) -> Tuple[bytes, Mapping[str, Any]]:
+    def _post_image(self, url: str, payload: Mapping[str, Any]) -> Tuple[bytes, Mapping[str, Any]]:
         try:
             response = requests.post(
-                self._txt2img_url,
-                json=request.as_payload(),
+                url,
+                json=dict(payload),
                 timeout=self._timeout,
             )
         except requests.RequestException as exc:
@@ -112,3 +150,9 @@ class DrawThingsClient:
                 f"DrawThings request failed ({response.status_code}): {response.text}"
             )
         return response.content, {}
+
+    def txt2img(self, request: DrawThingsImageRequest) -> Tuple[bytes, Mapping[str, Any]]:
+        return self._post_image(self._txt2img_url, request.as_payload())
+
+    def img2img(self, request: DrawThingsImageToImageRequest) -> Tuple[bytes, Mapping[str, Any]]:
+        return self._post_image(self._img2img_url, request.as_payload())

@@ -283,6 +283,39 @@ function resolveGeneratedFiles(status: PipelineStatusResponse | undefined): Reco
   return files;
 }
 
+function resolveImagePromptPlanSummary(status: PipelineStatusResponse | undefined): Record<string, unknown> | null {
+  if (!status) {
+    return null;
+  }
+  const resultGenerated =
+    status.result && typeof status.result === 'object'
+      ? (status.result as Record<string, unknown>)['generated_files']
+      : undefined;
+  const candidates = [status.generated_files, resultGenerated];
+  for (const candidate of candidates) {
+    const record = coerceRecord(candidate);
+    if (!record) {
+      continue;
+    }
+    const summary = coerceRecord(record['image_prompt_plan_summary']);
+    if (summary) {
+      return summary;
+    }
+  }
+  return null;
+}
+
+function formatPercent(rate: number | null, fallback: string = '—'): string {
+  if (rate === null) {
+    return fallback;
+  }
+  if (!Number.isFinite(rate)) {
+    return fallback;
+  }
+  const value = Math.max(0, Math.min(rate, 1));
+  return `${Math.round(value * 100)}%`;
+}
+
 function countGeneratedImages(status: PipelineStatusResponse | undefined): number {
   const files = resolveGeneratedFiles(status);
   let count = 0;
@@ -456,6 +489,8 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   const imageEnabled = parameters?.add_images ?? null;
   const imageApiBaseUrl = getStringField(pipelineConfig, 'image_api_base_url');
   const generatedImageCount = countGeneratedImages(status);
+  const imagePromptPlanSummary = resolveImagePromptPlanSummary(status);
+  const imagePromptPlanQuality = imagePromptPlanSummary ? coerceRecord(imagePromptPlanSummary['quality']) : null;
   const imageRetryCounts =
     retrySummary && typeof retrySummary === 'object'
       ? (retrySummary as Record<string, Record<string, number>>).image
@@ -679,7 +714,7 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   if (selectedVoice) {
     entries.push({ key: 'pipeline-selected-voice', label: 'Selected voice', value: selectedVoice });
   }
-  if (imageEnabled !== null || generatedImageCount > 0 || imageErrors > 0) {
+  if (imageEnabled !== null || generatedImageCount > 0 || imageErrors > 0 || imagePromptPlanQuality) {
     const enabledLabel = imageEnabled === true ? 'On' : imageEnabled === false ? 'Off' : 'Unknown';
     const progressLabel = totalSentences !== null ? `${generatedImageCount}/${totalSentences}` : `${generatedImageCount}`;
     const suffixParts: string[] = [];
@@ -700,6 +735,61 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
         key: 'pipeline-image-api',
         label: 'Image API',
         value: imageApiBaseUrl ?? 'Not configured',
+      });
+    }
+    if (imagePromptPlanQuality) {
+      const total = coerceNumber(imagePromptPlanQuality['total_sentences']);
+      const fallbacks = coerceNumber(imagePromptPlanQuality['final_fallback']);
+      const llmCoverageRate = coerceNumber(imagePromptPlanQuality['llm_coverage_rate']);
+      const retryAttempts = coerceNumber(imagePromptPlanQuality['retry_attempts']);
+      const retryRequested = coerceNumber(imagePromptPlanQuality['retry_requested']);
+      const retryRecovered = coerceNumber(imagePromptPlanQuality['retry_recovered']);
+      const retrySuccessRate = coerceNumber(imagePromptPlanQuality['retry_success_rate']);
+      const llmRequests = coerceNumber(imagePromptPlanQuality['llm_requests']);
+      const statusValueRaw =
+        typeof imagePromptPlanSummary?.['status'] === 'string' ? (imagePromptPlanSummary['status'] as string).trim() : '';
+      const statusLabel = statusValueRaw ? statusValueRaw.toUpperCase() : null;
+      const errorMessage =
+        typeof imagePromptPlanSummary?.['error'] === 'string' ? (imagePromptPlanSummary['error'] as string).trim() : null;
+
+      const llmCount =
+        total !== null && fallbacks !== null ? Math.max(0, Math.round(total - fallbacks)) : null;
+      const coverageLabel =
+        total !== null && llmCount !== null ? `${llmCount}/${Math.round(total)} (${formatPercent(llmCoverageRate)})` : null;
+
+      const parts: string[] = [];
+      if (statusLabel) {
+        parts.push(statusLabel);
+      }
+      if (coverageLabel) {
+        parts.push(`LLM ${coverageLabel}`);
+      }
+      if (fallbacks !== null) {
+        parts.push(`fallbacks ${Math.round(fallbacks)}`);
+      }
+      if (retryAttempts !== null && retryAttempts > 0) {
+        const recoveredLabel =
+          retryRecovered !== null && retryRequested !== null ? `${Math.round(retryRecovered)}/${Math.round(retryRequested)}` : null;
+        const successLabel = retrySuccessRate !== null ? formatPercent(retrySuccessRate) : null;
+        if (recoveredLabel && successLabel) {
+          parts.push(`retries ${Math.round(retryAttempts)} (recovered ${recoveredLabel}, ${successLabel})`);
+        } else if (recoveredLabel) {
+          parts.push(`retries ${Math.round(retryAttempts)} (recovered ${recoveredLabel})`);
+        } else {
+          parts.push(`retries ${Math.round(retryAttempts)}`);
+        }
+      }
+      if (llmRequests !== null && llmRequests > 0) {
+        parts.push(`LLM calls ${Math.round(llmRequests)}`);
+      }
+      if (errorMessage) {
+        parts.push(`error: ${errorMessage}`);
+      }
+
+      entries.push({
+        key: 'pipeline-image-prompt-plan',
+        label: 'Prompt map quality',
+        value: parts.length > 0 ? parts.join(', ') : '—',
       });
     }
   }

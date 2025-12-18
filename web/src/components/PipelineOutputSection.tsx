@@ -21,8 +21,6 @@ type PipelineOutputSectionProps = {
   includeTransliteration: boolean;
   tempo: number;
   generateVideo: boolean;
-  addImages: boolean;
-  imagePromptContextSentences: number;
   availableAudioModes: MenuOption[];
   availableVoices: MenuOption[];
   availableWrittenModes: MenuOption[];
@@ -40,8 +38,6 @@ type PipelineOutputSectionProps = {
   onWrittenModeChange: (value: string) => void;
   onOutputHtmlChange: (value: boolean) => void;
   onOutputPdfChange: (value: boolean) => void;
-  onAddImagesChange: (value: boolean) => void;
-  onImagePromptContextSentencesChange: (value: number) => void;
   onIncludeTransliterationChange: (value: boolean) => void;
   onTempoChange: (value: number) => void;
   onGenerateVideoChange: (value: boolean) => void;
@@ -58,8 +54,6 @@ const PipelineOutputSection = ({
   writtenMode,
   outputHtml,
   outputPdf,
-  addImages,
-  imagePromptContextSentences,
   includeTransliteration,
   tempo,
   generateVideo,
@@ -80,8 +74,6 @@ const PipelineOutputSection = ({
   onWrittenModeChange,
   onOutputHtmlChange,
   onOutputPdfChange,
-  onAddImagesChange,
-  onImagePromptContextSentencesChange,
   onIncludeTransliterationChange,
   onTempoChange,
   onGenerateVideoChange,
@@ -246,36 +238,6 @@ const PipelineOutputSection = ({
           />
           Generate PDF output
         </label>
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            name="add_images"
-            checked={addImages}
-            onChange={(event) => onAddImagesChange(event.target.checked)}
-          />
-          Add AI-generated images to interactive reader
-        </label>
-        {addImages ? (
-          <>
-            <label htmlFor={`${headingId}-image-prompt-context`}>
-              Image prompt context (previous sentences)
-              <input
-                id={`${headingId}-image-prompt-context`}
-                name="image_prompt_context_sentences"
-                type="number"
-                step={1}
-                min={0}
-                max={10}
-                value={imagePromptContextSentences}
-                onChange={(event) => onImagePromptContextSentencesChange(Number(event.target.value))}
-              />
-            </label>
-            <p className="form-help-text">
-              Uses up to this many previous sentences when asking the LLM for a scene description (helps keep characters
-              and setting consistent).
-            </p>
-          </>
-        ) : null}
         <label className="checkbox">
           <input
             type="checkbox"

@@ -56,6 +56,7 @@ export type PipelineMenuView =
   | 'pipeline:metadata'
   | 'pipeline:language'
   | 'pipeline:output'
+  | 'pipeline:images'
   | 'pipeline:performance'
   | 'pipeline:submit';
 
@@ -87,6 +88,7 @@ const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:metadata': 'metadata',
   'pipeline:language': 'language',
   'pipeline:output': 'output',
+  'pipeline:images': 'images',
   'pipeline:performance': 'performance',
   'pipeline:submit': 'submit'
 };
@@ -96,6 +98,7 @@ const PIPELINE_SECTION_TO_VIEW: Record<PipelineFormSection, PipelineMenuView> = 
   metadata: 'pipeline:metadata',
   language: 'pipeline:language',
   output: 'pipeline:output',
+  images: 'pipeline:images',
   performance: 'pipeline:performance',
   submit: 'pipeline:submit'
 };

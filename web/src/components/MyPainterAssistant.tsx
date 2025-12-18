@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { fetchSentenceImageInfo, regenerateSentenceImage } from '../api/client';
+import { appendAccessToken, fetchSentenceImageInfo, regenerateSentenceImage, resolveLibraryMediaUrl } from '../api/client';
 import type { SentenceImageRegenerateRequestPayload } from '../api/dtos';
 import { useMyPainter, type MyPainterSentenceContext } from '../context/MyPainterProvider';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
@@ -304,22 +304,53 @@ export default function MyPainterAssistant() {
     };
   }, [isOpen, targetSentence?.jobId, targetSentence?.sentenceNumber]);
 
-  const previewUrl = useMemo(() => {
-    const jobId = targetSentence?.jobId ?? null;
-    if (!jobId) {
-      return null;
-    }
-    const rel = targetSentence?.imagePath ?? null;
-    if (!rel || rel.includes('://')) {
-      return null;
-    }
-    const token = imageRefreshToken > 0 ? `?v=${encodeURIComponent(String(imageRefreshToken))}` : '';
-    try {
-      return resolveStoragePath(jobId, `${rel}${token}`);
-    } catch {
-      return null;
-    }
-  }, [imageRefreshToken, targetSentence?.imagePath, targetSentence?.jobId]);
+	  const previewUrl = useMemo(() => {
+	    const jobId = (targetSentence?.jobId ?? '').trim();
+	    if (!jobId) {
+	      return null;
+	    }
+	    const rawPath = (targetSentence?.imagePath ?? '').trim();
+	    if (!rawPath) {
+	      return null;
+	    }
+	    if (rawPath.startsWith('data:') || rawPath.startsWith('blob:')) {
+	      return rawPath;
+	    }
+
+	    const addRefreshToken = (url: string) => {
+	      if (imageRefreshToken <= 0) {
+	        return url;
+	      }
+	      try {
+	        const resolved = new URL(url, typeof window !== 'undefined' ? window.location.origin : undefined);
+	        resolved.searchParams.set('v', String(imageRefreshToken));
+	        return resolved.toString();
+	      } catch {
+	        const token = `v=${encodeURIComponent(String(imageRefreshToken))}`;
+	        return url.includes('?') ? `${url}&${token}` : `${url}?${token}`;
+	      }
+	    };
+
+	    if (rawPath.includes('://')) {
+	      return addRefreshToken(rawPath);
+	    }
+	    if (rawPath.startsWith('/api/') || rawPath.startsWith('/storage/') || rawPath.startsWith('/pipelines/')) {
+	      return addRefreshToken(appendAccessToken(rawPath));
+	    }
+
+	    try {
+	      const baseUrl =
+	        targetSentence?.mediaOrigin === 'library'
+	          ? resolveLibraryMediaUrl(jobId, rawPath)
+	          : resolveStoragePath(jobId, rawPath);
+	      if (!baseUrl) {
+	        return null;
+	      }
+	      return addRefreshToken(baseUrl);
+	    } catch {
+	      return null;
+	    }
+	  }, [imageRefreshToken, targetSentence?.imagePath, targetSentence?.jobId, targetSentence?.mediaOrigin]);
 
   const resolvedJobIdLabel = useMemo(() => formatJobId(targetSentence?.jobId ?? null), [targetSentence?.jobId]);
   const resolvedSentenceNumber = targetSentence?.sentenceNumber ?? null;
@@ -621,7 +652,7 @@ export default function MyPainterAssistant() {
                   value={contextSentences}
                   onChange={(e) => setContextSentences(e.target.value)}
                   inputMode="numeric"
-                  placeholder="previous sentences"
+                  placeholder="nearby sentences"
                 />
               </div>
             </div>

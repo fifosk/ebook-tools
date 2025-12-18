@@ -50,6 +50,7 @@ import { useLanguagePreferences } from '../context/LanguageProvider';
 import PipelineSourceSection from './PipelineSourceSection';
 import PipelineLanguageSection from './PipelineLanguageSection';
 import PipelineOutputSection from './PipelineOutputSection';
+import PipelineImageSection from './PipelineImageSection';
 import PipelinePerformanceSection from './PipelinePerformanceSection';
 import FileSelectionDialog from './FileSelectionDialog';
 
@@ -104,6 +105,7 @@ export type PipelineFormSection =
   | 'metadata'
   | 'language'
   | 'output'
+  | 'images'
   | 'performance'
   | 'submit';
 
@@ -153,6 +155,13 @@ type FormState = {
   generate_video: boolean;
   add_images: boolean;
   image_prompt_context_sentences: number;
+  image_seed_with_previous_image: boolean;
+  image_width: string;
+  image_height: string;
+  image_steps: string;
+  image_cfg_scale: string;
+  image_sampler_name: string;
+  image_api_timeout_seconds: string;
   include_transliteration: boolean;
   tempo: number;
   thread_count: string;
@@ -188,6 +197,13 @@ const DEFAULT_FORM_STATE: FormState = {
   generate_video: false,
   add_images: false,
   image_prompt_context_sentences: 2,
+  image_seed_with_previous_image: false,
+  image_width: '',
+  image_height: '',
+  image_steps: '',
+  image_cfg_scale: '',
+  image_sampler_name: '',
+  image_api_timeout_seconds: '',
   include_transliteration: true,
   tempo: 1,
   thread_count: '',
@@ -207,11 +223,19 @@ const SECTION_ORDER: PipelineFormSection[] = [
   'metadata',
   'language',
   'output',
+  'images',
   'performance',
   'submit'
 ];
 
-const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = ['source', 'metadata', 'language', 'output', 'performance'];
+const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = [
+  'source',
+  'metadata',
+  'language',
+  'output',
+  'images',
+  'performance'
+];
 
 export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
   source: {
@@ -228,7 +252,11 @@ export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string;
   },
   output: {
     title: 'Output & narration',
-    description: 'Control narration voices, written formats, and other presentation options.'
+    description: 'Control narration voices, written formats, and presentation options.'
+  },
+  images: {
+    title: 'Images',
+    description: 'Generate sentence images and tune the diffusion settings.'
   },
   performance: {
     title: 'Performance tuning',
@@ -477,6 +505,51 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
     next.generate_video = generateVideo;
   }
 
+  const addImages = config['add_images'];
+  if (typeof addImages === 'boolean') {
+    next.add_images = addImages;
+  }
+
+  const imagePromptContext = coerceNumber(config['image_prompt_context_sentences']);
+  if (imagePromptContext !== undefined) {
+    next.image_prompt_context_sentences = Math.min(50, Math.max(0, Math.trunc(imagePromptContext)));
+  }
+
+  const imageSeedWithPrevious = config['image_seed_with_previous_image'];
+  if (typeof imageSeedWithPrevious === 'boolean') {
+    next.image_seed_with_previous_image = imageSeedWithPrevious;
+  }
+
+  const imageWidth = coerceNumber(config['image_width']);
+  if (imageWidth !== undefined) {
+    next.image_width = String(Math.max(64, Math.trunc(imageWidth)));
+  }
+
+  const imageHeight = coerceNumber(config['image_height']);
+  if (imageHeight !== undefined) {
+    next.image_height = String(Math.max(64, Math.trunc(imageHeight)));
+  }
+
+  const imageSteps = coerceNumber(config['image_steps']);
+  if (imageSteps !== undefined) {
+    next.image_steps = String(Math.max(1, Math.trunc(imageSteps)));
+  }
+
+  const imageCfgScale = coerceNumber(config['image_cfg_scale']);
+  if (imageCfgScale !== undefined) {
+    next.image_cfg_scale = String(Math.max(0, imageCfgScale));
+  }
+
+  const imageSamplerName = config['image_sampler_name'];
+  if (typeof imageSamplerName === 'string') {
+    next.image_sampler_name = imageSamplerName;
+  }
+
+  const imageApiTimeoutSeconds = coerceNumber(config['image_api_timeout_seconds']);
+  if (imageApiTimeoutSeconds !== undefined) {
+    next.image_api_timeout_seconds = String(Math.max(1, Math.trunc(imageApiTimeoutSeconds)));
+  }
+
   const includeTransliteration = config['include_transliteration'];
   if (typeof includeTransliteration === 'boolean') {
     next.include_transliteration = includeTransliteration;
@@ -500,6 +573,11 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
   const jobMaxWorkers = coerceNumber(config['job_max_workers']);
   if (jobMaxWorkers !== undefined) {
     next.job_max_workers = String(jobMaxWorkers);
+  }
+
+  const imageConcurrency = coerceNumber(config['image_concurrency']);
+  if (imageConcurrency !== undefined) {
+    next.image_concurrency = String(imageConcurrency);
   }
 
   const slideParallelism = config['slide_parallelism'];
@@ -1247,6 +1325,8 @@ export function PipelineSubmissionForm({
         typeof prefillParameters.enable_transliteration === 'boolean'
           ? prefillParameters.enable_transliteration
           : previous.include_transliteration;
+      const addImages =
+        typeof prefillParameters.add_images === 'boolean' ? prefillParameters.add_images : previous.add_images;
       const voiceOverrides =
         prefillParameters.voice_overrides && typeof prefillParameters.voice_overrides === 'object'
           ? { ...prefillParameters.voice_overrides }
@@ -1266,6 +1346,7 @@ export function PipelineSubmissionForm({
         selected_voice: selectedVoice,
         tempo,
         include_transliteration: includeTransliteration,
+        add_images: addImages,
         voice_overrides: voiceOverrides
       };
     });
@@ -2008,12 +2089,40 @@ export function PipelineSubmissionForm({
       if (formState.add_images) {
         const rawContext = Number(formState.image_prompt_context_sentences);
         const normalizedContext = Number.isFinite(rawContext) ? Math.trunc(rawContext) : 0;
-        pipelineOverrides.image_prompt_context_sentences = Math.min(10, Math.max(0, normalizedContext));
+        pipelineOverrides.image_prompt_context_sentences = Math.min(50, Math.max(0, normalizedContext));
+        pipelineOverrides.image_seed_with_previous_image = Boolean(formState.image_seed_with_previous_image);
 
         const imageConcurrency = parseOptionalNumberInput(formState.image_concurrency);
         if (imageConcurrency !== undefined) {
           pipelineOverrides.image_concurrency = Math.max(1, Math.trunc(imageConcurrency));
         }
+
+        const imageTimeout = parseOptionalNumberInput(formState.image_api_timeout_seconds);
+        if (imageTimeout !== undefined) {
+          pipelineOverrides.image_api_timeout_seconds = Math.max(1, imageTimeout);
+        }
+
+        const imageWidth = parseOptionalNumberInput(formState.image_width);
+        if (imageWidth !== undefined) {
+          pipelineOverrides.image_width = Math.max(64, Math.trunc(imageWidth));
+        }
+
+        const imageHeight = parseOptionalNumberInput(formState.image_height);
+        if (imageHeight !== undefined) {
+          pipelineOverrides.image_height = Math.max(64, Math.trunc(imageHeight));
+        }
+
+        const imageSteps = parseOptionalNumberInput(formState.image_steps);
+        if (imageSteps !== undefined) {
+          pipelineOverrides.image_steps = Math.max(1, Math.trunc(imageSteps));
+        }
+
+        const imageCfgScale = parseOptionalNumberInput(formState.image_cfg_scale);
+        if (imageCfgScale !== undefined) {
+          pipelineOverrides.image_cfg_scale = Math.max(0, imageCfgScale);
+        }
+
+        pipelineOverrides.image_sampler_name = formState.image_sampler_name;
       }
 
       const configOverrides = { ...json.config };
@@ -2710,24 +2819,22 @@ export function PipelineSubmissionForm({
         );
       case 'output':
         return (
-	          <PipelineOutputSection
-	            key="output"
-	            headingId="pipeline-card-output"
-	            title={sectionMeta.output.title}
-	            description={sectionMeta.output.description}
-            generateAudio={formState.generate_audio}
-            audioMode={formState.audio_mode}
-            selectedVoice={formState.selected_voice}
-            writtenMode={formState.written_mode}
-	            outputHtml={formState.output_html}
-	            outputPdf={formState.output_pdf}
-	            addImages={formState.add_images}
-	            imagePromptContextSentences={formState.image_prompt_context_sentences}
-	            includeTransliteration={formState.include_transliteration}
-	            tempo={formState.tempo}
-	            generateVideo={formState.generate_video}
-            availableAudioModes={availableAudioModes}
-            availableVoices={availableVoices}
+		          <PipelineOutputSection
+		            key="output"
+		            headingId="pipeline-card-output"
+		            title={sectionMeta.output.title}
+		            description={sectionMeta.output.description}
+	            generateAudio={formState.generate_audio}
+	            audioMode={formState.audio_mode}
+	            selectedVoice={formState.selected_voice}
+	            writtenMode={formState.written_mode}
+		            outputHtml={formState.output_html}
+		            outputPdf={formState.output_pdf}
+		            includeTransliteration={formState.include_transliteration}
+		            tempo={formState.tempo}
+		            generateVideo={formState.generate_video}
+	            availableAudioModes={availableAudioModes}
+	            availableVoices={availableVoices}
             availableWrittenModes={availableWrittenModes}
             languagesForOverride={languagesForOverride}
             voiceOverrides={formState.voice_overrides}
@@ -2739,42 +2846,72 @@ export function PipelineSubmissionForm({
             onGenerateAudioChange={(value) => handleChange('generate_audio', value)}
             onAudioModeChange={(value) => handleChange('audio_mode', value)}
             onSelectedVoiceChange={(value) => handleChange('selected_voice', value)}
-            onVoiceOverrideChange={updateVoiceOverride}
-            onWrittenModeChange={(value) => handleChange('written_mode', value)}
-	            onOutputHtmlChange={(value) => handleChange('output_html', value)}
-	            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
-	            onAddImagesChange={(value) => handleChange('add_images', value)}
-	            onImagePromptContextSentencesChange={(value) => handleChange('image_prompt_context_sentences', value)}
-	            onIncludeTransliterationChange={(value) =>
-	              handleChange('include_transliteration', value)
-	            }
-            onTempoChange={(value) => handleChange('tempo', value)}
-            onGenerateVideoChange={(value) => handleChange('generate_video', value)}
-            onPlayVoicePreview={playVoicePreview}
-          />
-        );
-	      case 'performance':
-	        return (
-	          <PipelinePerformanceSection
-	            key="performance"
-	            headingId="pipeline-card-performance"
-	            title={sectionMeta.performance.title}
-	            description={sectionMeta.performance.description}
-	            threadCount={formState.thread_count}
-	            queueSize={formState.queue_size}
-	            jobMaxWorkers={formState.job_max_workers}
-	            imageConcurrency={formState.image_concurrency}
-	            imagesEnabled={formState.add_images}
-	            slideParallelism={formState.slide_parallelism}
-	            slideParallelWorkers={formState.slide_parallel_workers}
-	            onThreadCountChange={(value) => handleChange('thread_count', value)}
-	            onQueueSizeChange={(value) => handleChange('queue_size', value)}
-	            onJobMaxWorkersChange={(value) => handleChange('job_max_workers', value)}
-	            onImageConcurrencyChange={(value) => handleChange('image_concurrency', value)}
-	            onSlideParallelismChange={(value) => handleChange('slide_parallelism', value)}
-	            onSlideParallelWorkersChange={(value) => handleChange('slide_parallel_workers', value)}
+	            onVoiceOverrideChange={updateVoiceOverride}
+	            onWrittenModeChange={(value) => handleChange('written_mode', value)}
+		            onOutputHtmlChange={(value) => handleChange('output_html', value)}
+		            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
+		            onIncludeTransliterationChange={(value) =>
+		              handleChange('include_transliteration', value)
+		            }
+	            onTempoChange={(value) => handleChange('tempo', value)}
+	            onGenerateVideoChange={(value) => handleChange('generate_video', value)}
+	            onPlayVoicePreview={playVoicePreview}
 	          />
 	        );
+      case 'images':
+        return (
+          <PipelineImageSection
+            key="images"
+            headingId="pipeline-card-images"
+            title={sectionMeta.images.title}
+            description={sectionMeta.images.description}
+            addImages={formState.add_images}
+            imagePromptContextSentences={formState.image_prompt_context_sentences}
+            imageSeedWithPreviousImage={formState.image_seed_with_previous_image}
+            imageConcurrency={formState.image_concurrency}
+            imageWidth={formState.image_width}
+            imageHeight={formState.image_height}
+            imageSteps={formState.image_steps}
+            imageCfgScale={formState.image_cfg_scale}
+            imageSamplerName={formState.image_sampler_name}
+            imageApiTimeoutSeconds={formState.image_api_timeout_seconds}
+            onAddImagesChange={(value) => handleChange('add_images', value)}
+            onImagePromptContextSentencesChange={(value) =>
+              handleChange('image_prompt_context_sentences', value)
+            }
+            onImageSeedWithPreviousImageChange={(value) =>
+              handleChange('image_seed_with_previous_image', value)
+            }
+            onImageConcurrencyChange={(value) => handleChange('image_concurrency', value)}
+            onImageWidthChange={(value) => handleChange('image_width', value)}
+            onImageHeightChange={(value) => handleChange('image_height', value)}
+            onImageStepsChange={(value) => handleChange('image_steps', value)}
+            onImageCfgScaleChange={(value) => handleChange('image_cfg_scale', value)}
+            onImageSamplerNameChange={(value) => handleChange('image_sampler_name', value)}
+            onImageApiTimeoutSecondsChange={(value) =>
+              handleChange('image_api_timeout_seconds', value)
+            }
+          />
+        );
+		      case 'performance':
+		        return (
+		          <PipelinePerformanceSection
+		            key="performance"
+		            headingId="pipeline-card-performance"
+		            title={sectionMeta.performance.title}
+		            description={sectionMeta.performance.description}
+		            threadCount={formState.thread_count}
+		            queueSize={formState.queue_size}
+		            jobMaxWorkers={formState.job_max_workers}
+		            slideParallelism={formState.slide_parallelism}
+		            slideParallelWorkers={formState.slide_parallel_workers}
+		            onThreadCountChange={(value) => handleChange('thread_count', value)}
+		            onQueueSizeChange={(value) => handleChange('queue_size', value)}
+		            onJobMaxWorkersChange={(value) => handleChange('job_max_workers', value)}
+		            onSlideParallelismChange={(value) => handleChange('slide_parallelism', value)}
+		            onSlideParallelWorkersChange={(value) => handleChange('slide_parallel_workers', value)}
+		          />
+		        );
       case 'submit':
       default:
         return null;

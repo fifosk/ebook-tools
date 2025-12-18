@@ -63,8 +63,9 @@ changes (`modules/config/loader.py`, `modules/video/backends/ffmpeg_renderer.py`
 
 When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline.py`) generates one PNG per sentence in parallel with translation. The pipeline:
 
-1. Asks the configured LLM for a short, concrete scene description (`modules/images/prompting.py:sentence_to_diffusion_prompt`), optionally including the last `image_prompt_context_sentences` sentences for scene continuity.
-2. Appends the shared base + negative prompts (`build_sentence_image_prompt`, `build_sentence_image_negative_prompt`) to keep the style consistent (currently “glyph/clipart essence”).
+1. Precomputes a consistent prompt plan for the selected sentence window (`modules/images/prompting.py:sentences_to_diffusion_prompt_map`), optionally including extra context sentences before/after the job window via `image_prompt_context_sentences`.
+   - Persists the prompt plan to `metadata/image_prompt_plan.json` for debugging/QA.
+2. Appends the shared base + negative prompts (`build_sentence_image_prompt`, `build_sentence_image_negative_prompt`) to keep the story-reel visual style consistent.
 3. Calls a Draw Things / AUTOMATIC1111-compatible `txt2img` endpoint via `DrawThingsClient` (`modules/images/drawthings.py`) using the configured diffusion parameters.
 4. Writes images under `media/images/<range_fragment>/sentence_XXXXX.png` and merges the image metadata back into each chunk’s `sentences[]` entries (`image`, `image_path`/`imagePath`) so `/api/pipelines/jobs/{job_id}/media/live` can surface them during running jobs.
 

@@ -16,7 +16,13 @@ import type {
   ReactNode,
   UIEvent,
 } from 'react';
-import { appendAccessToken, assistantLookup, fetchJobTiming, fetchSentenceImageInfo } from '../api/client';
+import {
+  appendAccessToken,
+  assistantLookup,
+  fetchJobTiming,
+  fetchSentenceImageInfo,
+  resolveLibraryMediaUrl,
+} from '../api/client';
 import type {
   AssistantLookupResponse,
   AudioTrackMetadata,
@@ -4530,27 +4536,102 @@ const handleAudioSeeked = useCallback(() => {
     setReelImageFailures({});
   }, [imageRefreshToken, jobId]);
 
+  const isLibraryMediaOrigin = useMemo(() => {
+    const metadataUrl = chunk?.metadataUrl ?? null;
+    if (typeof metadataUrl !== 'string' || !metadataUrl.trim()) {
+      return false;
+    }
+    return metadataUrl.includes('/api/library/media/');
+  }, [chunk?.metadataUrl]);
+
   const resolveSentenceImageUrl = useCallback(
     (path: string | null) => {
       const candidate = (path ?? '').trim();
       if (!candidate) {
         return null;
       }
-      if (candidate.includes('://')) {
+      if (candidate.startsWith('data:') || candidate.startsWith('blob:')) {
         return candidate;
       }
+
+      const addRefreshToken = (url: string) => {
+        if (imageRefreshToken <= 0) {
+          return url;
+        }
+        try {
+          const resolved = new URL(url, typeof window !== 'undefined' ? window.location.origin : undefined);
+          resolved.searchParams.set('v', String(imageRefreshToken));
+          return resolved.toString();
+        } catch {
+          const token = `v=${encodeURIComponent(String(imageRefreshToken))}`;
+          const hashIndex = url.indexOf('#');
+          const base = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
+          const hash = hashIndex >= 0 ? url.slice(hashIndex) : '';
+          const decorated = base.includes('?') ? `${base}&${token}` : `${base}?${token}`;
+          return `${decorated}${hash}`;
+        }
+      };
+
+      if (candidate.includes('://')) {
+        return addRefreshToken(candidate);
+      }
+
+      if (candidate.startsWith('/api/') || candidate.startsWith('/storage/') || candidate.startsWith('/pipelines/')) {
+        return addRefreshToken(appendAccessToken(candidate));
+      }
+
       if (!jobId) {
         return null;
       }
+
+      const normalisedCandidate = candidate.replace(/\\+/g, '/');
+      const [pathPart, hashPart] = normalisedCandidate.split('#', 2);
+      const [pathOnly, queryPart] = pathPart.split('?', 2);
+
+      const coerceRelative = (value: string): string => {
+        const trimmed = value.replace(/^\/+/, '');
+        if (!trimmed) {
+          return '';
+        }
+
+        const marker = `/${jobId}/`;
+        const markerIndex = trimmed.indexOf(marker);
+        if (markerIndex >= 0) {
+          return trimmed.slice(markerIndex + marker.length);
+        }
+
+        const segments = trimmed.split('/');
+        const mediaIndex = segments.lastIndexOf('media');
+        if (mediaIndex >= 0) {
+          return segments.slice(mediaIndex).join('/');
+        }
+
+        const metadataIndex = segments.lastIndexOf('metadata');
+        if (metadataIndex >= 0) {
+          return segments.slice(metadataIndex).join('/');
+        }
+
+        return trimmed;
+      };
+
+      const relativePath = coerceRelative(pathOnly);
+      if (!relativePath) {
+        return null;
+      }
+
       try {
-        const token = imageRefreshToken > 0 ? `v=${encodeURIComponent(String(imageRefreshToken))}` : null;
-        const decorated = token ? (candidate.includes('?') ? `${candidate}&${token}` : `${candidate}?${token}`) : candidate;
-        return resolveStoragePath(jobId, decorated);
+        const baseUrl = isLibraryMediaOrigin ? resolveLibraryMediaUrl(jobId, relativePath) : resolveStoragePath(jobId, relativePath);
+        if (!baseUrl) {
+          return null;
+        }
+        const withQuery = queryPart ? `${baseUrl}${baseUrl.includes('?') ? '&' : '?'}${queryPart}` : baseUrl;
+        const withHash = hashPart ? `${withQuery}#${hashPart}` : withQuery;
+        return addRefreshToken(withHash);
       } catch {
         return null;
       }
     },
-    [imageRefreshToken, jobId],
+    [imageRefreshToken, isLibraryMediaOrigin, jobId],
   );
 
 	  const reelFrames = useMemo(() => {
@@ -4819,15 +4900,15 @@ const handleAudioSeeked = useCallback(() => {
 	                  title={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : undefined}
 	                  aria-label={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : 'No image'}
 	                >
-                  {frame.url ? (
-                    <img
-                      src={frame.url}
-                      alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
-                      loading="lazy"
-                      decoding="async"
-                      onError={() => {
-                        if (!sentenceNumber) {
-                          return;
+	                  {frame.url ? (
+	                    <img
+	                      src={frame.url}
+	                      alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
+	                      loading="eager"
+	                      decoding="async"
+	                      onError={() => {
+	                        if (!sentenceNumber) {
+	                          return;
                         }
                         setReelImageFailures((previous) => ({ ...previous, [String(sentenceNumber)]: true }));
                       }}
@@ -4867,24 +4948,26 @@ const handleAudioSeeked = useCallback(() => {
     const sentenceText =
       typeof sentenceTextRaw === 'string' && sentenceTextRaw.trim() ? sentenceTextRaw.trim() : null;
 
-    setPlayerSentence({
-      jobId,
-      rangeFragment: chunk?.rangeFragment ?? null,
-      sentenceNumber: activeSentenceNumber,
-      sentenceText,
-      prompt,
-      negativePrompt: negative,
-      imagePath: activeSentenceImagePath,
-    });
-  }, [
-    activeSentenceImagePath,
-    activeSentenceIndex,
-    activeSentenceNumber,
-    chunk?.rangeFragment,
-    chunk?.sentences,
-    jobId,
-    setPlayerSentence,
-  ]);
+	    setPlayerSentence({
+	      jobId,
+	      mediaOrigin: isLibraryMediaOrigin ? 'library' : 'job',
+	      rangeFragment: chunk?.rangeFragment ?? null,
+	      sentenceNumber: activeSentenceNumber,
+	      sentenceText,
+	      prompt,
+	      negativePrompt: negative,
+	      imagePath: activeSentenceImagePath,
+	    });
+	  }, [
+	    activeSentenceImagePath,
+	    activeSentenceIndex,
+	    activeSentenceNumber,
+	    chunk?.rangeFragment,
+	    chunk?.sentences,
+	    isLibraryMediaOrigin,
+	    jobId,
+	    setPlayerSentence,
+	  ]);
 
   const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
   const showTextPlayer =

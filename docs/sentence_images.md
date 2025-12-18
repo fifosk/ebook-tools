@@ -12,13 +12,14 @@ Sentence images are controlled by pipeline config values (and can be overridden 
 
 - `add_images`: Enables sentence images for the job.
 - `image_api_base_url`: Base URL of the Draw Things instance (example: `http://192.168.1.9:7860`).
-- `image_api_timeout_seconds`: Request timeout for `txt2img` (default: 180 seconds).
+- `image_api_timeout_seconds`: Request timeout for `txt2img` (default: 600 seconds).
 - `image_concurrency`: Number of parallel image workers (default: 4).
 - `image_width`, `image_height`: Output resolution (defaults: 512×512).
 - `image_steps`: Sampling steps (default: 24).
 - `image_cfg_scale`: Guidance scale (default: 7).
 - `image_sampler_name`: Optional sampler identifier accepted by the backend.
-- `image_prompt_context_sentences`: How many previous sentences are provided to the LLM to keep scene continuity (default: 2, max: 10).
+- `image_prompt_context_sentences`: Adds up to this many sentences before **and** after the selected start/end window when asking the LLM for a consistent prompt plan (default: 2, max: 50).
+- `image_seed_with_previous_image`: When enabled, the pipeline uses `img2img` with the previous frame (or a baseline seed image) as an init image to keep the reel visually consistent (default: off).
 
 Environment variables:
 
@@ -30,12 +31,17 @@ Environment variables:
 
 Generated images are written under the job’s media folder:
 
-- `storage/jobs/<job_id>/media/images/<range_fragment>/sentence_00001.png`
+- `storage/<job_id>/media/images/<range_fragment>/sentence_00001.png`
 
-Chunk metadata files (`storage/jobs/<job_id>/metadata/chunk_XXXX.json`) record the image so clients can resolve it via the storage routes:
+Chunk metadata files (`storage/<job_id>/metadata/chunk_XXXX.json`) record the image so clients can resolve it via the storage routes:
 
 - `sentences[].image`: `{ "path": "<relative path>", "prompt": "...", "negative_prompt": "..." }`
 - `sentences[].image_path` and `sentences[].imagePath`: convenience string fields mirroring `image.path`
+
+For transparency, jobs that precompute a prompt plan also write:
+
+- `storage/<job_id>/metadata/image_prompt_plan.json` (one entry per sentence, plus the shared style prompt/negative prompt and any errors)
+- `storage/<job_id>/metadata/image_prompt_plan_summary.json` (compact coverage/retry stats surfaced in the job details UI)
 
 The job media snapshot endpoints (`/api/pipelines/jobs/{job_id}/media` and `/api/pipelines/jobs/{job_id}/media/live`) expose these fields so the web client can update its image reel during running jobs.
 
@@ -43,10 +49,21 @@ The job media snapshot endpoints (`/api/pipelines/jobs/{job_id}/media` and `/api
 
 Image prompts are built in two phases:
 
-1. **Scene description (LLM):** `modules/images/prompting.py:sentence_to_diffusion_prompt` converts the current sentence (plus optional context sentences) into a short, concrete scene description. The output must be **scene only** (no style keywords).
-2. **Style suffix:** `build_sentence_image_prompt(...)` appends a shared base prompt intended to render a simple “glyph/clipart essence” depiction. `build_sentence_image_negative_prompt(...)` always adds a negative prompt to suppress haze, clutter, and accidental text.
+1. **Prompt plan (LLM):** `modules/images/prompting.py:sentences_to_diffusion_prompt_map` generates a *consistent* set of per-sentence scene descriptions for the selected job sentence window (optionally with extra book context on both ends via `image_prompt_context_sentences`). Each entry is **scene only** (no style keywords).
+2. **Style suffix:** `build_sentence_image_prompt(...)` appends a shared story-reel style prompt. `build_sentence_image_negative_prompt(...)` always adds a negative prompt to suppress blur, artifacts, and accidental text.
 
 For reproducibility, the pipeline derives a stable seed from the sentence text (`stable_diffusion_seed(...)`, MD5-based).
+
+### Storyline consistency (baseline seed + chained frames)
+
+To keep the reel visually consistent across frames:
+
+- The LLM prompt-plan response includes a `baseline` anchor frame (scene prompt + layout notes). The pipeline renders a baseline seed image at:
+  - `storage/<job_id>/media/images/_seed/baseline_seed_<start>_<end>.png`
+- When supported by the backend (`/sdapi/v1/img2img`), sentence images can reuse the **previous sentence’s** generated image as an `img2img` init image **only when the previous prompt came from the LLM** (`source` is `llm` or `llm_retry`).
+- If no previous LLM-seeded image is available, the baseline seed image is used instead. If `img2img` is unavailable, the pipeline falls back to `txt2img`.
+
+This behavior is only enabled when `image_seed_with_previous_image=true` (default is off).
 
 ## API endpoints (inspect + regenerate)
 
@@ -70,7 +87,6 @@ Schemas live in `modules/webapi/schemas/images.py`.
 
 1. Confirm `image_api_base_url` is set and reachable from the API host.
 2. Verify the backend can call the Draw Things `txt2img` endpoint (`/sdapi/v1/txt2img`) and receives JSON with a base64-encoded image (`images[0]`).
-3. Inspect `storage/jobs/<job_id>/media/images/` to confirm PNGs are being written.
-4. Inspect `storage/jobs/<job_id>/metadata/chunk_XXXX.json` to confirm `sentences[].image` is present and paths are job-relative.
+3. Inspect `storage/<job_id>/media/images/` to confirm PNGs are being written.
+4. Inspect `storage/<job_id>/metadata/chunk_XXXX.json` to confirm `sentences[].image` is present and paths are job-relative.
 5. Use the `GET .../media/images/sentences/{sentence_number}` endpoint to confirm the stored prompt and expected path match what the UI is loading.
-

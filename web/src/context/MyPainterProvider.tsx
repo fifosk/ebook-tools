@@ -2,6 +2,7 @@ import { ReactNode, createContext, useCallback, useContext, useMemo, useState } 
 
 export type MyPainterSentenceContext = {
   jobId: string | null;
+  mediaOrigin?: 'job' | 'library' | null;
   rangeFragment: string | null;
   sentenceNumber: number | null;
   sentenceText: string | null;

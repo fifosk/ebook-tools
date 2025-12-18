@@ -333,9 +333,29 @@ class PipelineJobPersistence:
             except Exception:  # pragma: no cover - defensive logging
                 _LOGGER.debug("Unable to persist refined sentences", exc_info=True)
 
+        prompt_plan_summary: Optional[Dict[str, Any]] = None
+        prompt_plan_summary_path = metadata_root / "image_prompt_plan_summary.json"
+        if prompt_plan_summary_path.exists():
+            try:
+                raw_summary = json.loads(prompt_plan_summary_path.read_text(encoding="utf-8"))
+                if isinstance(raw_summary, Mapping):
+                    prompt_plan_summary = copy.deepcopy(dict(raw_summary))
+            except Exception:  # pragma: no cover - defensive logging
+                _LOGGER.debug(
+                    "Unable to load image prompt plan summary for job %s",
+                    job.job_id,
+                    exc_info=True,
+                )
+
         chunk_manifest = None
         generated_payload = snapshot.generated_files
-        if isinstance(generated_payload, Mapping):
+        if isinstance(generated_payload, Mapping) or prompt_plan_summary is not None:
+            if isinstance(generated_payload, Mapping):
+                generated_payload = dict(generated_payload)
+            else:
+                generated_payload = {"chunks": [], "files": []}
+            if prompt_plan_summary is not None:
+                generated_payload["image_prompt_plan_summary"] = prompt_plan_summary
             updated_generated, chunk_manifest = self._write_chunk_metadata(
                 job.job_id,
                 metadata_root,
