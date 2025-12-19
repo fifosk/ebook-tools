@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
-import { NavigationControls } from './PlayerPanel';
+import { NavigationControls } from './player-panel/NavigationControls';
+import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import { appendAccessToken, fetchSubtitleTvMetadata, fetchYoutubeVideoMetadata, resolveLibraryMediaUrl } from '../api/client';
 import {
   DEFAULT_TRANSLATION_SPEED,
@@ -970,108 +971,102 @@ export default function YoutubeDubPlayer({
     }
   }, [isFullscreen, resetPlaybackPosition, videoFiles]);
 
-  return (
-    <div className="player-panel" role="region" aria-label={`YouTube dub ${jobId}`}>
-      {error ? (
+  if (error) {
+    return (
+      <div className="player-panel" role="region" aria-label={`YouTube dub ${jobId}`}>
         <p role="alert">Unable to load generated media: {error.message}</p>
+      </div>
+    );
+  }
+
+  return (
+    <PlayerPanelShell
+      ariaLabel={`YouTube dub ${jobId}`}
+      toolbar={
+        <NavigationControls
+          context="panel"
+          controlsLayout="compact"
+          onNavigate={handleNavigate}
+          onToggleFullscreen={handleToggleFullscreen}
+          onTogglePlayback={handleTogglePlayback}
+          disableFirst={disableFirst}
+          disablePrevious={disablePrevious}
+          disableNext={disableNext}
+          disableLast={disableLast}
+          disablePlayback={disablePlayback}
+          disableFullscreen={disableFullscreen}
+          isFullscreen={isFullscreen}
+          isPlaying={isPlaying}
+          fullscreenLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+          nowPlayingText={
+            videoCount > 0 && currentIndex >= 0 ? `Video ${currentIndex + 1} of ${videoCount}` : null
+          }
+          showSubtitleToggle
+          onToggleSubtitles={handleSubtitleToggle}
+          subtitlesEnabled={subtitlesEnabled}
+          disableSubtitleToggle={videoCount === 0}
+          showCueLayerToggles
+          cueVisibility={cueVisibility}
+          onToggleCueLayer={toggleCueVisibility}
+          disableCueLayerToggles={videoCount === 0 || !subtitlesEnabled}
+          showTranslationSpeed
+          translationSpeed={playbackSpeed}
+          translationSpeedMin={TRANSLATION_SPEED_MIN}
+          translationSpeedMax={TRANSLATION_SPEED_MAX}
+          translationSpeedStep={TRANSLATION_SPEED_STEP}
+          onTranslationSpeedChange={handleTranslationSpeedChange}
+          showSubtitleScale
+          subtitleScale={subtitleScale}
+          subtitleScaleMin={0.5}
+          subtitleScaleMax={2}
+          subtitleScaleStep={0.25}
+          onSubtitleScaleChange={handleSubtitleScaleChange}
+          showSubtitleBackgroundOpacity
+          subtitleBackgroundOpacityPercent={subtitleBackgroundOpacityPercent}
+          subtitleBackgroundOpacityMin={0}
+          subtitleBackgroundOpacityMax={100}
+          subtitleBackgroundOpacityStep={10}
+          onSubtitleBackgroundOpacityChange={handleSubtitleBackgroundOpacityChange}
+          showBackToLibrary={showBackToLibrary}
+          onBackToLibrary={onBackToLibrary}
+        />
+      }
+    >
+      {!mediaComplete ? (
+        <div className="player-panel__notice" role="status">
+          Video batches are still rendering. Completed segments will appear as soon as they finish.
+        </div>
+      ) : null}
+      {isLoading && videoCount === 0 ? (
+        <p role="status">Loading generated video…</p>
+      ) : videoCount === 0 ? (
+        <p role="status">Awaiting generated video batches for this job.</p>
       ) : (
-        <>
-          <div className="player-panel__tabs-container">
-            <header className="player-panel__header">
-              <div className="player-panel__tabs-row">
-                <NavigationControls
-                  context="panel"
-                  controlsLayout="compact"
-                  onNavigate={handleNavigate}
-                  onToggleFullscreen={handleToggleFullscreen}
-                  onTogglePlayback={handleTogglePlayback}
-                  disableFirst={disableFirst}
-                  disablePrevious={disablePrevious}
-                  disableNext={disableNext}
-                  disableLast={disableLast}
-                  disablePlayback={disablePlayback}
-                  disableFullscreen={disableFullscreen}
-                  isFullscreen={isFullscreen}
-                  isPlaying={isPlaying}
-                  fullscreenLabel={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
-                  nowPlayingText={
-                    videoCount > 0 && currentIndex >= 0
-                      ? `Video ${currentIndex + 1} of ${videoCount}`
-                      : null
-                  }
-                  showSubtitleToggle
-                  onToggleSubtitles={handleSubtitleToggle}
-                  subtitlesEnabled={subtitlesEnabled}
-                  disableSubtitleToggle={videoCount === 0}
-                  showCueLayerToggles
-                  cueVisibility={cueVisibility}
-                  onToggleCueLayer={toggleCueVisibility}
-                  disableCueLayerToggles={videoCount === 0 || !subtitlesEnabled}
-                  showTranslationSpeed
-                  translationSpeed={playbackSpeed}
-                  translationSpeedMin={TRANSLATION_SPEED_MIN}
-                  translationSpeedMax={TRANSLATION_SPEED_MAX}
-                  translationSpeedStep={TRANSLATION_SPEED_STEP}
-                  onTranslationSpeedChange={handleTranslationSpeedChange}
-                  showSubtitleScale
-                  subtitleScale={subtitleScale}
-                  subtitleScaleMin={0.5}
-                  subtitleScaleMax={2}
-                  subtitleScaleStep={0.25}
-                  onSubtitleScaleChange={handleSubtitleScaleChange}
-                  showSubtitleBackgroundOpacity
-                  subtitleBackgroundOpacityPercent={subtitleBackgroundOpacityPercent}
-                  subtitleBackgroundOpacityMin={0}
-                  subtitleBackgroundOpacityMax={100}
-                  subtitleBackgroundOpacityStep={10}
-                  onSubtitleBackgroundOpacityChange={handleSubtitleBackgroundOpacityChange}
-                  showBackToLibrary={showBackToLibrary}
-                  onBackToLibrary={onBackToLibrary}
-                />
-              </div>
-            </header>
-            <div className="player-panel__panel">
-              {!mediaComplete ? (
-                <div className="player-panel__notice" role="status">
-                  Video batches are still rendering. Completed segments will appear as soon as they finish.
-                </div>
-              ) : null}
-              {isLoading && videoCount === 0 ? (
-                <p role="status">Loading generated video…</p>
-              ) : videoCount === 0 ? (
-                <p role="status">Awaiting generated video batches for this job.</p>
-              ) : (
-                <>
-                  <VideoPlayer
-                    files={videoFiles}
-                    activeId={activeVideoId}
-                    onSelectFile={(id) => {
-                      resetPlaybackPosition(id);
-                      setActiveVideoId(id);
-                    }}
-                    infoBadge={infoBadge}
-                    autoPlay
-                    onPlaybackEnded={handlePlaybackEnded}
-                    playbackPosition={playbackPosition}
-                    onPlaybackPositionChange={handlePlaybackPositionChange}
-                    onPlaybackStateChange={handlePlaybackStateChange}
-                    playbackRate={playbackSpeed}
-                    onPlaybackRateChange={handlePlaybackRateChange}
-                    isTheaterMode={isFullscreen}
-                    onExitTheaterMode={handleExitFullscreen}
-                    onRegisterControls={handleRegisterControls}
-                    subtitlesEnabled={subtitlesEnabled}
-                    tracks={activeSubtitleTracks}
-                    cueVisibility={cueVisibility}
-                    subtitleScale={subtitleScale}
-                    subtitleBackgroundOpacity={subtitleBackgroundOpacityPercent / 100}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        </>
+        <VideoPlayer
+          files={videoFiles}
+          activeId={activeVideoId}
+          onSelectFile={(id) => {
+            resetPlaybackPosition(id);
+            setActiveVideoId(id);
+          }}
+          infoBadge={infoBadge}
+          autoPlay
+          onPlaybackEnded={handlePlaybackEnded}
+          playbackPosition={playbackPosition}
+          onPlaybackPositionChange={handlePlaybackPositionChange}
+          onPlaybackStateChange={handlePlaybackStateChange}
+          playbackRate={playbackSpeed}
+          onPlaybackRateChange={handlePlaybackRateChange}
+          isTheaterMode={isFullscreen}
+          onExitTheaterMode={handleExitFullscreen}
+          onRegisterControls={handleRegisterControls}
+          subtitlesEnabled={subtitlesEnabled}
+          tracks={activeSubtitleTracks}
+          cueVisibility={cueVisibility}
+          subtitleScale={subtitleScale}
+          subtitleBackgroundOpacity={subtitleBackgroundOpacityPercent / 100}
+        />
       )}
-    </div>
+    </PlayerPanelShell>
   );
 }

@@ -1,67 +1,67 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent, UIEvent } from 'react';
+import type { UIEvent } from 'react';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
-import { useReadingBed } from '../hooks/useReadingBed';
 import { useWakeLock } from '../hooks/useWakeLock';
-import { extractTextFromHtml } from '../utils/mediaFormatters';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
-  DEFAULT_TRANSLATION_SPEED,
+  DEFAULT_COVER_URL,
+  DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT,
+  FONT_SCALE_MAX,
+  FONT_SCALE_MIN,
+  FONT_SCALE_STEP,
+  MEDIA_CATEGORIES,
+  MY_LINGUIST_FONT_SCALE_MAX,
+  MY_LINGUIST_FONT_SCALE_MIN,
+  MY_LINGUIST_FONT_SCALE_STEP,
   TRANSLATION_SPEED_MAX,
   TRANSLATION_SPEED_MIN,
   TRANSLATION_SPEED_STEP,
-  formatTranslationSpeedLabel,
-  normaliseTranslationSpeed,
-  type TranslationSpeed,
+  type MediaCategory,
+  type NavigationIntent,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
 import type {
-  AudioTrackMetadata,
-  ChunkSentenceMetadata,
   LibraryItem,
   MediaSearchResult,
-  ReadingBedEntry,
-  ReadingBedListResponse,
-  SubtitleTvMetadataResponse,
 } from '../api/dtos';
 import {
-  appendAccessToken,
-  buildStorageUrl,
-  fetchReadingBeds,
   fetchPipelineStatus,
-  fetchSubtitleTvMetadata,
-  resolveJobCoverUrl,
-  resolveLibraryMediaUrl,
-  withBase,
 } from '../api/client';
-import InteractiveTextViewer from './InteractiveTextViewer';
+import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
-import { isAudioFileType } from './player-panel/utils';
+import {
+  buildInteractiveAudioCatalog,
+  isAudioFileType,
+} from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
+import { NavigationControls, type NavigationControlsProps } from './player-panel/NavigationControls';
+import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
-  DEFAULT_INTERACTIVE_TEXT_THEME,
-  loadInteractiveTextTheme,
-  normalizeHexColor,
-  type InteractiveTextTheme,
-} from '../types/interactiveTextTheme';
-
-const MEDIA_CATEGORIES = ['text', 'audio', 'video'] as const;
-type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
+  deriveBaseIdFromReference,
+  extractMetadataFirstString,
+  extractMetadataText,
+  findChunkIndexForBaseId,
+  normaliseBookSentenceCount,
+  resolveBaseIdFromResult,
+} from './player-panel/helpers';
+import { useCoverArt } from './player-panel/useCoverArt';
+import { useChunkMetadata } from './player-panel/useChunkMetadata';
+import { useInlineAudioOptions } from './player-panel/useInlineAudioOptions';
+import { useInlineAudioSelection } from './player-panel/useInlineAudioSelection';
+import { usePendingSelection } from './player-panel/usePendingSelection';
+import { useSentenceNavigation } from './player-panel/useSentenceNavigation';
+import { useReadingBedControls } from './player-panel/useReadingBedControls';
+import { useInteractiveTextSettings } from './player-panel/useInteractiveTextSettings';
+import { useSubtitleInfo } from './player-panel/useSubtitleInfo';
+import { useTextPreview } from './player-panel/useTextPreview';
+import { ShortcutHelpOverlay } from './player-panel/ShortcutHelpOverlay';
+import { usePlayerShortcuts } from './player-panel/usePlayerShortcuts';
 type SearchCategory = Exclude<MediaCategory, 'audio'> | 'library';
-type NavigationIntent = 'first' | 'previous' | 'next' | 'last';
 type PlaybackControls = {
   pause: () => void;
   play: () => void;
-};
-
-type InlineAudioKind = 'translation' | 'combined' | 'other';
-
-type InlineAudioOption = {
-  url: string;
-  label: string;
-  kind: InlineAudioKind;
 };
 
 interface PlayerPanelProps {
@@ -85,1799 +85,6 @@ interface PlayerPanelProps {
   onBackToLibrary?: () => void;
 }
 
-interface TabDefinition {
-  key: MediaCategory;
-  label: string;
-  emptyMessage: string;
-}
-
-const TAB_DEFINITIONS: TabDefinition[] = [
-  { key: 'text', label: 'Interactive Reader', emptyMessage: 'No interactive reader media yet.' },
-];
-
-const DEFAULT_COVER_URL = '/assets/default-cover.png';
-const FONT_SCALE_STORAGE_KEY = 'player-panel.fontScalePercent';
-const INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY = 'player-panel.interactiveText.visibility';
-const INTERACTIVE_TEXT_THEME_STORAGE_KEY = 'player-panel.interactiveText.theme';
-const INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY = 'player-panel.interactiveText.backgroundOpacityPercent';
-const DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT = 65;
-const INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY = 'player-panel.interactiveText.sentenceCardOpacityPercent';
-const DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT = 100;
-const READING_BED_ENABLED_STORAGE_KEY = 'player-panel.readingBed.enabled';
-const READING_BED_VOLUME_STORAGE_KEY = 'player-panel.readingBed.volumePercent';
-const READING_BED_TRACK_STORAGE_KEY = 'player-panel.readingBed.track';
-const DEFAULT_READING_BED_VOLUME_PERCENT = 10;
-const DEFAULT_READING_BED_TRACK_ID = 'lost-in-the-pages';
-const FONT_SCALE_MIN = 100;
-const FONT_SCALE_MAX = 300;
-const FONT_SCALE_STEP = 5;
-const MY_LINGUIST_FONT_SCALE_MIN = 80;
-const MY_LINGUIST_FONT_SCALE_MAX = 160;
-const MY_LINGUIST_FONT_SCALE_STEP = 5;
-const DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT = 150;
-const DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT = 120;
-const clampFontScalePercent = (value: number) =>
-  Math.min(Math.max(value, FONT_SCALE_MIN), FONT_SCALE_MAX);
-
-interface NavigationControlsProps {
-  context: 'panel' | 'fullscreen';
-  onNavigate: (intent: NavigationIntent) => void;
-  onToggleFullscreen: () => void;
-  onTogglePlayback: () => void;
-  controlsLayout?: 'stacked' | 'compact';
-  disableFirst: boolean;
-  disablePrevious: boolean;
-  disableNext: boolean;
-  disableLast: boolean;
-  disablePlayback: boolean;
-  disableFullscreen: boolean;
-  isFullscreen: boolean;
-  isPlaying: boolean;
-  fullscreenLabel: string;
-  showOriginalAudioToggle?: boolean;
-  onToggleOriginalAudio?: () => void;
-  originalAudioEnabled?: boolean;
-  disableOriginalAudioToggle?: boolean;
-  showSubtitleToggle?: boolean;
-  onToggleSubtitles?: () => void;
-  subtitlesEnabled?: boolean;
-  disableSubtitleToggle?: boolean;
-  showCueLayerToggles?: boolean;
-  cueVisibility?: {
-    original: boolean;
-    transliteration: boolean;
-    translation: boolean;
-  };
-  onToggleCueLayer?: (key: 'original' | 'transliteration' | 'translation') => void;
-  disableCueLayerToggles?: boolean;
-  showTranslationSpeed: boolean;
-  translationSpeed: TranslationSpeed;
-  translationSpeedMin: number;
-  translationSpeedMax: number;
-  translationSpeedStep: number;
-  onTranslationSpeedChange: (value: TranslationSpeed) => void;
-  showSubtitleScale?: boolean;
-  subtitleScale?: number;
-  subtitleScaleMin?: number;
-  subtitleScaleMax?: number;
-  subtitleScaleStep?: number;
-  onSubtitleScaleChange?: (value: number) => void;
-  showSubtitleBackgroundOpacity?: boolean;
-  subtitleBackgroundOpacityPercent?: number;
-  subtitleBackgroundOpacityMin?: number;
-  subtitleBackgroundOpacityMax?: number;
-  subtitleBackgroundOpacityStep?: number;
-  onSubtitleBackgroundOpacityChange?: (value: number) => void;
-  showSentenceJump?: boolean;
-  sentenceJumpValue?: string;
-  sentenceJumpMin?: number | null;
-  sentenceJumpMax?: number | null;
-  sentenceJumpError?: string | null;
-  sentenceJumpDisabled?: boolean;
-  sentenceJumpInputId?: string;
-  sentenceJumpListId?: string;
-  sentenceJumpPlaceholder?: string;
-  onSentenceJumpChange?: (value: string) => void;
-  onSentenceJumpSubmit?: () => void;
-  showFontScale?: boolean;
-  fontScalePercent?: number;
-  fontScaleMin?: number;
-  fontScaleMax?: number;
-  fontScaleStep?: number;
-  onFontScaleChange?: (value: number) => void;
-  showMyLinguistFontScale?: boolean;
-  myLinguistFontScalePercent?: number;
-  myLinguistFontScaleMin?: number;
-  myLinguistFontScaleMax?: number;
-  myLinguistFontScaleStep?: number;
-  onMyLinguistFontScaleChange?: (value: number) => void;
-  nowPlayingText?: string | null;
-  nowPlayingTitle?: string | null;
-  activeSentenceNumber?: number | null;
-  totalSentencesInBook?: number | null;
-  jobStartSentence?: number | null;
-  bookTotalSentences?: number | null;
-
-  showInteractiveThemeControls?: boolean;
-  interactiveTheme?: InteractiveTextTheme | null;
-  onInteractiveThemeChange?: (next: InteractiveTextTheme) => void;
-  showInteractiveBackgroundOpacity?: boolean;
-  interactiveBackgroundOpacityPercent?: number;
-  interactiveBackgroundOpacityMin?: number;
-  interactiveBackgroundOpacityMax?: number;
-  interactiveBackgroundOpacityStep?: number;
-  onInteractiveBackgroundOpacityChange?: (value: number) => void;
-  showInteractiveSentenceCardOpacity?: boolean;
-  interactiveSentenceCardOpacityPercent?: number;
-  interactiveSentenceCardOpacityMin?: number;
-  interactiveSentenceCardOpacityMax?: number;
-  interactiveSentenceCardOpacityStep?: number;
-  onInteractiveSentenceCardOpacityChange?: (value: number) => void;
-  onResetLayout?: () => void;
-
-  showReadingBedToggle?: boolean;
-  readingBedEnabled?: boolean;
-  disableReadingBedToggle?: boolean;
-  onToggleReadingBed?: () => void;
-  showReadingBedVolume?: boolean;
-  readingBedVolumePercent?: number;
-  readingBedVolumeMin?: number;
-  readingBedVolumeMax?: number;
-  readingBedVolumeStep?: number;
-  onReadingBedVolumeChange?: (value: number) => void;
-  showReadingBedTrack?: boolean;
-  readingBedTrack?: string;
-  readingBedTrackOptions?: { value: string; label: string }[];
-  onReadingBedTrackChange?: (value: string) => void;
-
-  showBackToLibrary?: boolean;
-  onBackToLibrary?: () => void;
-}
-
-export function NavigationControls({
-  context,
-  onNavigate,
-  onToggleFullscreen,
-  onTogglePlayback,
-  controlsLayout = 'stacked',
-  disableFirst,
-  disablePrevious,
-  disableNext,
-  disableLast,
-  disablePlayback,
-  disableFullscreen,
-  isFullscreen,
-  isPlaying,
-  fullscreenLabel,
-  showOriginalAudioToggle = false,
-  onToggleOriginalAudio,
-  originalAudioEnabled = false,
-  disableOriginalAudioToggle = false,
-  showSubtitleToggle = false,
-  onToggleSubtitles,
-  subtitlesEnabled = true,
-  disableSubtitleToggle = false,
-  showCueLayerToggles = false,
-  cueVisibility,
-  onToggleCueLayer,
-  disableCueLayerToggles = false,
-  showTranslationSpeed,
-  translationSpeed,
-  translationSpeedMin,
-  translationSpeedMax,
-  translationSpeedStep,
-  onTranslationSpeedChange,
-  showSubtitleScale = false,
-  subtitleScale = 1,
-  subtitleScaleMin = 0.5,
-  subtitleScaleMax = 2,
-  subtitleScaleStep = 0.25,
-  onSubtitleScaleChange,
-  showSubtitleBackgroundOpacity = false,
-  subtitleBackgroundOpacityPercent = 70,
-  subtitleBackgroundOpacityMin = 0,
-  subtitleBackgroundOpacityMax = 100,
-  subtitleBackgroundOpacityStep = 10,
-  onSubtitleBackgroundOpacityChange,
-  showSentenceJump = false,
-  sentenceJumpValue = '',
-  sentenceJumpMin = null,
-  sentenceJumpMax = null,
-  sentenceJumpError = null,
-  sentenceJumpDisabled = false,
-  sentenceJumpInputId,
-  sentenceJumpListId,
-  sentenceJumpPlaceholder,
-  onSentenceJumpChange,
-  onSentenceJumpSubmit,
-  showFontScale = false,
-  fontScalePercent = 100,
-  fontScaleMin = FONT_SCALE_MIN,
-  fontScaleMax = FONT_SCALE_MAX,
-  fontScaleStep = FONT_SCALE_STEP,
-  onFontScaleChange,
-  showMyLinguistFontScale = false,
-  myLinguistFontScalePercent = 100,
-  myLinguistFontScaleMin = MY_LINGUIST_FONT_SCALE_MIN,
-  myLinguistFontScaleMax = MY_LINGUIST_FONT_SCALE_MAX,
-  myLinguistFontScaleStep = MY_LINGUIST_FONT_SCALE_STEP,
-  onMyLinguistFontScaleChange,
-  nowPlayingText = null,
-  nowPlayingTitle = null,
-  activeSentenceNumber = null,
-  totalSentencesInBook = null,
-  jobStartSentence = null,
-  bookTotalSentences = null,
-  showInteractiveThemeControls = false,
-  interactiveTheme = null,
-  onInteractiveThemeChange,
-  showInteractiveBackgroundOpacity = false,
-  interactiveBackgroundOpacityPercent = DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT,
-  interactiveBackgroundOpacityMin = 0,
-  interactiveBackgroundOpacityMax = 100,
-  interactiveBackgroundOpacityStep = 5,
-  onInteractiveBackgroundOpacityChange,
-  showInteractiveSentenceCardOpacity = false,
-  interactiveSentenceCardOpacityPercent = DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT,
-  interactiveSentenceCardOpacityMin = 0,
-  interactiveSentenceCardOpacityMax = 100,
-  interactiveSentenceCardOpacityStep = 5,
-  onInteractiveSentenceCardOpacityChange,
-  onResetLayout,
-  showReadingBedToggle = false,
-  readingBedEnabled = false,
-  disableReadingBedToggle = false,
-  onToggleReadingBed,
-  showReadingBedVolume = false,
-  readingBedVolumePercent = DEFAULT_READING_BED_VOLUME_PERCENT,
-  readingBedVolumeMin = 0,
-  readingBedVolumeMax = 100,
-  readingBedVolumeStep = 5,
-	  onReadingBedVolumeChange,
-	  showReadingBedTrack = false,
-	  readingBedTrack = '',
-	  readingBedTrackOptions = [],
-	  onReadingBedTrackChange,
-	  showBackToLibrary = false,
-	  onBackToLibrary,
-}: NavigationControlsProps) {
-  const groupClassName = [
-    context === 'fullscreen'
-      ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
-      : 'player-panel__navigation-group',
-    controlsLayout === 'compact' ? 'player-panel__navigation-group--compact-controls' : null,
-  ]
-    .filter(Boolean)
-    .join(' ');
-  const navigationClassName =
-    context === 'fullscreen'
-      ? 'player-panel__navigation player-panel__navigation--fullscreen'
-      : 'player-panel__navigation';
-  const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
-  const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
-  const playbackIcon = isPlaying ? '⏸' : '▶';
-  const auxiliaryToggleVariant = showSubtitleToggle ? 'subtitles' : showOriginalAudioToggle ? 'original' : null;
-  const originalToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', originalAudioEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
-  const originalToggleTitle = disableOriginalAudioToggle
-    ? 'Original audio will appear after interactive assets regenerate'
-    : 'Toggle Original Audio';
-  const subtitleToggleClassName = ['player-panel__nav-button', 'player-panel__nav-button--audio', subtitlesEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off'].join(' ');
-  const subtitleToggleTitle = disableSubtitleToggle ? 'Subtitles will appear after media finalizes' : 'Toggle Subtitles';
-  const readingBedToggleClassName = [
-    'player-panel__nav-button',
-    'player-panel__nav-button--audio',
-    readingBedEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off',
-  ].join(' ');
-  const readingBedToggleTitle = disableReadingBedToggle ? 'Reading music is not available' : 'Toggle Reading Music';
-  const sliderId = useId();
-  const subtitleSliderId = useId();
-  const subtitleBackgroundSliderId = useId();
-  const interactiveBackgroundSliderId = useId();
-  const interactiveSentenceCardSliderId = useId();
-  const readingBedSliderId = useId();
-  const jumpInputFallbackId = useId();
-  const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
-  const fontScaleSliderId = useId();
-  const myLinguistFontScaleSliderId = useId();
-  const jumpRangeId = `${jumpInputId}-range`;
-  const jumpErrorId = `${jumpInputId}-error`;
-  const describedBy =
-    sentenceJumpError && showSentenceJump
-      ? jumpErrorId
-      : showSentenceJump && sentenceJumpMin !== null && sentenceJumpMax !== null
-      ? jumpRangeId
-      : undefined;
-  const fullscreenButtonClassName = ['player-panel__nav-button'];
-  if (isFullscreen) {
-    fullscreenButtonClassName.push('player-panel__nav-button--fullscreen-active');
-  }
-  const fullscreenIcon = isFullscreen ? '🗗' : '⛶';
-  const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
-  const formattedSubtitleBackgroundOpacity = `${Math.round(
-    Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax),
-  )}%`;
-  const formattedInteractiveBackgroundOpacity = `${Math.round(
-    Math.min(Math.max(interactiveBackgroundOpacityPercent, interactiveBackgroundOpacityMin), interactiveBackgroundOpacityMax),
-  )}%`;
-  const formattedInteractiveSentenceCardOpacity = `${Math.round(
-    Math.min(
-      Math.max(interactiveSentenceCardOpacityPercent, interactiveSentenceCardOpacityMin),
-      interactiveSentenceCardOpacityMax,
-    ),
-  )}%`;
-  const formattedReadingBedVolume = `${Math.round(
-    Math.min(Math.max(readingBedVolumePercent, readingBedVolumeMin), readingBedVolumeMax),
-  )}%`;
-  const shouldShowCompactControls =
-    controlsLayout === 'compact' &&
-    (showTranslationSpeed ||
-      showSubtitleScale ||
-      showSubtitleBackgroundOpacity ||
-      showFontScale ||
-      showMyLinguistFontScale ||
-      showInteractiveBackgroundOpacity ||
-      showInteractiveSentenceCardOpacity ||
-      showInteractiveThemeControls ||
-      showReadingBedVolume ||
-      showReadingBedTrack);
-  const resolvedCueVisibility =
-    cueVisibility ??
-    ({
-      original: true,
-      transliteration: true,
-      translation: true,
-    } as const);
-  const handleToggleCueLayer = (key: 'original' | 'transliteration' | 'translation') => {
-    onToggleCueLayer?.(key);
-  };
-  const handleSpeedChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number.parseFloat(event.target.value);
-    if (!Number.isFinite(raw)) {
-      return;
-    }
-    onTranslationSpeedChange(raw);
-  };
-  const handleSentenceInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    onSentenceJumpChange?.(event.target.value);
-  };
-  const handleSentenceInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      onSentenceJumpSubmit?.();
-    }
-  };
-  const handleFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number.parseFloat(event.target.value);
-    if (!Number.isFinite(raw)) {
-      return;
-    }
-    onFontScaleChange?.(raw);
-  };
-  const handleMyLinguistFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const raw = Number.parseFloat(event.target.value);
-    if (!Number.isFinite(raw)) {
-      return;
-    }
-    onMyLinguistFontScaleChange?.(raw);
-  };
-  const handleReadingBedTrackChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    onReadingBedTrackChange?.(event.target.value);
-  };
-  const formattedFontScale = `${Math.round(
-    Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax),
-  )}%`;
-  const formattedMyLinguistFontScale = `${Math.round(
-    Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax),
-  )}%`;
-
-  const bgColorInputRef = useRef<HTMLInputElement | null>(null);
-  const originalColorInputRef = useRef<HTMLInputElement | null>(null);
-  const translationColorInputRef = useRef<HTMLInputElement | null>(null);
-  const transliterationColorInputRef = useRef<HTMLInputElement | null>(null);
-  const highlightColorInputRef = useRef<HTMLInputElement | null>(null);
-
-  const openColorPicker = (ref: { current: HTMLInputElement | null }) => {
-    ref.current?.click();
-  };
-  const sentenceNowPlaying = (() => {
-    if (activeSentenceNumber === null) {
-      return null;
-    }
-    const jobTotal = totalSentencesInBook;
-    const title =
-      jobTotal !== null
-        ? `Playing sentence ${activeSentenceNumber} of ${jobTotal}`
-        : `Playing sentence ${activeSentenceNumber}`;
-
-    const jobPercent = (() => {
-      if (jobStartSentence === null || jobTotal === null) {
-        return null;
-      }
-      const span = Math.max(jobTotal - jobStartSentence, 0);
-      const ratio = span > 0 ? (activeSentenceNumber - jobStartSentence) / span : 1;
-      if (!Number.isFinite(ratio)) {
-        return null;
-      }
-      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
-    })();
-
-    const bookPercent = (() => {
-      if (bookTotalSentences === null) {
-        return null;
-      }
-      const ratio = bookTotalSentences > 0 ? activeSentenceNumber / bookTotalSentences : null;
-      if (ratio === null || !Number.isFinite(ratio)) {
-        return null;
-      }
-      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
-    })();
-
-    const suffixParts: string[] = [];
-    if (jobPercent !== null) {
-      suffixParts.push(`Job ${jobPercent}%`);
-    }
-    if (bookPercent !== null) {
-      suffixParts.push(`Book ${bookPercent}%`);
-    }
-    if (suffixParts.length === 0) {
-      return {
-        label: `S${activeSentenceNumber}`,
-        title,
-      };
-    }
-    const compactSuffix = suffixParts
-      .map((entry) => entry.replace(/^Job\s+/i, 'J').replace(/^Book\s+/i, 'B'))
-      .join(' · ');
-    return {
-      label: `S${activeSentenceNumber} · ${compactSuffix}`,
-      title: `${title} · ${suffixParts.join(' · ')}`,
-    };
-  })();
-
-  return (
-    <div className={groupClassName}>
-      <div className="player-panel__navigation-row">
-        <div className={navigationClassName} role="group" aria-label="Navigate media items">
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('first')}
-            disabled={disableFirst}
-            aria-label="Go to first item"
-          >
-            <span aria-hidden="true">⏮</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('previous')}
-            disabled={disablePrevious}
-            aria-label="Go to previous item"
-          >
-            <span aria-hidden="true">⏪</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={onTogglePlayback}
-            disabled={disablePlayback}
-            aria-label={playbackLabel}
-            aria-pressed={isPlaying ? 'true' : 'false'}
-          >
-            <span aria-hidden="true">{playbackIcon}</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('next')}
-            disabled={disableNext}
-            aria-label="Go to next item"
-          >
-            <span aria-hidden="true">⏩</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('last')}
-            disabled={disableLast}
-            aria-label="Go to last item"
-          >
-            <span aria-hidden="true">⏭</span>
-          </button>
-          {auxiliaryToggleVariant === 'original' ? (
-            <button
-              type="button"
-              className={originalToggleClassName}
-              onClick={onToggleOriginalAudio}
-              disabled={disableOriginalAudioToggle}
-              aria-label="Toggle Original Audio"
-              aria-pressed={originalAudioEnabled}
-              title={originalToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {originalAudioEnabled ? '🎧' : '🎵'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Orig
-              </span>
-            </button>
-          ) : null}
-          {auxiliaryToggleVariant === 'subtitles' ? (
-            <button
-              type="button"
-              className={subtitleToggleClassName}
-              onClick={onToggleSubtitles}
-              disabled={disableSubtitleToggle}
-              aria-label="Toggle Subtitles"
-              aria-pressed={subtitlesEnabled}
-              title={subtitleToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {subtitlesEnabled ? '💬' : '🚫'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Subs
-              </span>
-            </button>
-          ) : null}
-          {showReadingBedToggle ? (
-            <button
-              type="button"
-              className={readingBedToggleClassName}
-              onClick={onToggleReadingBed}
-              disabled={disableReadingBedToggle}
-              aria-label="Toggle reading music"
-              aria-pressed={readingBedEnabled}
-              title={readingBedToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {readingBedEnabled ? '🎶' : '♪'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Music
-              </span>
-            </button>
-          ) : null}
-          {showCueLayerToggles ? (
-            <div
-              className="player-panel__subtitle-flags player-panel__subtitle-flags--controls"
-              role="group"
-              aria-label="Subtitle layers"
-            >
-              {[
-                { key: 'original' as const, label: 'Orig' },
-                { key: 'transliteration' as const, label: 'Translit' },
-                { key: 'translation' as const, label: 'Trans' },
-              ].map((entry) => (
-                <button
-                  key={entry.key}
-                  type="button"
-                  className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
-                  aria-pressed={resolvedCueVisibility[entry.key]}
-                  onClick={() => handleToggleCueLayer(entry.key)}
-                  disabled={disableCueLayerToggles || disableSubtitleToggle}
-                >
-                  {entry.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {sentenceNowPlaying ? (
-            <span
-              className="player-panel__now-playing player-panel__now-playing--sentence"
-              title={sentenceNowPlaying.title}
-            >
-              {sentenceNowPlaying.label}
-            </span>
-          ) : null}
-          {showBackToLibrary ? (
-            <button
-              type="button"
-              className="player-panel__nav-button"
-              onClick={onBackToLibrary}
-              aria-label="Back to library"
-              title="Back to Library"
-              disabled={!onBackToLibrary}
-            >
-              <span aria-hidden="true">📚</span>
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={fullscreenButtonClassName.join(' ')}
-            onClick={onToggleFullscreen}
-            disabled={disableFullscreen}
-            aria-pressed={isFullscreen}
-            aria-label={fullscreenLabel}
-            data-testid={fullscreenTestId}
-          >
-            <span aria-hidden="true">{fullscreenIcon}</span>
-          </button>
-        </div>
-        {nowPlayingText ? (
-          <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
-            {nowPlayingText}
-          </span>
-        ) : null}
-        {showSentenceJump ? (
-          <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
-            {sentenceJumpError ? (
-              <span id={jumpErrorId} className="visually-hidden">
-                {sentenceJumpError}
-              </span>
-            ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
-              <span id={jumpRangeId} className="visually-hidden">
-                Range {sentenceJumpMin}–{sentenceJumpMax}
-              </span>
-            ) : null}
-            <span className="player-panel__sentence-jump-label" aria-hidden="true">
-              Jump
-            </span>
-            <input
-              id={jumpInputId}
-              className="player-panel__sentence-jump-input"
-              type="number"
-              inputMode="numeric"
-              min={sentenceJumpMin ?? undefined}
-              max={sentenceJumpMax ?? undefined}
-              step={1}
-              list={sentenceJumpListId}
-              value={sentenceJumpValue}
-              onChange={handleSentenceInputChange}
-              onKeyDown={handleSentenceInputKeyDown}
-              placeholder="…"
-              aria-label="Jump to sentence"
-              aria-describedby={describedBy}
-              aria-invalid={sentenceJumpError ? 'true' : undefined}
-              disabled={sentenceJumpDisabled}
-              title={
-                sentenceJumpError ??
-                (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
-              }
-            />
-            <button
-              type="button"
-              className="player-panel__sentence-jump-button"
-              onClick={onSentenceJumpSubmit}
-              disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
-            >
-              Go
-            </button>
-          </div>
-        ) : null}
-      </div>
-      {shouldShowCompactControls ? (
-        <div className="player-panel__control-bar" role="group" aria-label="Playback tuning">
-          {showTranslationSpeed ? (
-            <div className="player-panel__control" data-testid="player-panel-speed">
-              <label className="player-panel__control-label" htmlFor={sliderId}>
-                Speed
-              </label>
-              <input
-                id={sliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={translationSpeedMin}
-                max={translationSpeedMax}
-                step={translationSpeedStep}
-                value={translationSpeed}
-                onChange={handleSpeedChange}
-                aria-label="Speed"
-                aria-valuetext={formattedSpeed}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedSpeed}
-              </span>
-            </div>
-          ) : null}
-          {showFontScale ? (
-            <div className="player-panel__control" data-testid="player-panel-font-scale">
-              <label className="player-panel__control-label" htmlFor={fontScaleSliderId}>
-                Font
-              </label>
-              <input
-                id={fontScaleSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={fontScaleMin}
-                max={fontScaleMax}
-                step={fontScaleStep}
-                value={Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax)}
-                onChange={handleFontScaleInputChange}
-                aria-label="Font size"
-                aria-valuemin={fontScaleMin}
-                aria-valuemax={fontScaleMax}
-                aria-valuenow={Math.round(fontScalePercent)}
-                aria-valuetext={formattedFontScale}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedFontScale}
-              </span>
-            </div>
-          ) : null}
-          {showMyLinguistFontScale ? (
-            <div className="player-panel__control" data-testid="player-panel-my-linguist-font-scale">
-              <label className="player-panel__control-label" htmlFor={myLinguistFontScaleSliderId}>
-                Linguist
-              </label>
-              <input
-                id={myLinguistFontScaleSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={myLinguistFontScaleMin}
-                max={myLinguistFontScaleMax}
-                step={myLinguistFontScaleStep}
-                value={Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax)}
-                onChange={handleMyLinguistFontScaleInputChange}
-                aria-label="MyLinguist font size"
-                aria-valuemin={myLinguistFontScaleMin}
-                aria-valuemax={myLinguistFontScaleMax}
-                aria-valuenow={Math.round(myLinguistFontScalePercent)}
-                aria-valuetext={formattedMyLinguistFontScale}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedMyLinguistFontScale}
-              </span>
-            </div>
-          ) : null}
-          {showSubtitleScale ? (
-            <div className="player-panel__control" data-testid="player-panel-subtitle-scale">
-              <label className="player-panel__control-label" htmlFor={subtitleSliderId}>
-                Subs
-              </label>
-              <input
-                id={subtitleSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={subtitleScaleMin}
-                max={subtitleScaleMax}
-                step={subtitleScaleStep}
-                value={subtitleScale}
-                onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
-                aria-label="Subtitle size"
-                aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {Math.round(subtitleScale * 100)}%
-              </span>
-            </div>
-          ) : null}
-          {showSubtitleBackgroundOpacity ? (
-            <div className="player-panel__control" data-testid="player-panel-subtitle-background">
-              <label className="player-panel__control-label" htmlFor={subtitleBackgroundSliderId}>
-                Box
-              </label>
-              <input
-                id={subtitleBackgroundSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={subtitleBackgroundOpacityMin}
-                max={subtitleBackgroundOpacityMax}
-                step={subtitleBackgroundOpacityStep}
-                value={subtitleBackgroundOpacityPercent}
-                onChange={(event) => onSubtitleBackgroundOpacityChange?.(Number(event.target.value))}
-                aria-label="Subtitle background opacity"
-                aria-valuetext={formattedSubtitleBackgroundOpacity}
-                disabled={disableSubtitleToggle || !subtitlesEnabled}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedSubtitleBackgroundOpacity}
-              </span>
-            </div>
-          ) : null}
-          {showInteractiveBackgroundOpacity ? (
-            <div className="player-panel__control" data-testid="player-panel-interactive-background">
-              <label className="player-panel__control-label" htmlFor={interactiveBackgroundSliderId}>
-                BG
-              </label>
-              <input
-                id={interactiveBackgroundSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={interactiveBackgroundOpacityMin}
-                max={interactiveBackgroundOpacityMax}
-                step={interactiveBackgroundOpacityStep}
-                value={interactiveBackgroundOpacityPercent}
-                onChange={(event) => onInteractiveBackgroundOpacityChange?.(Number(event.target.value))}
-                aria-label="Interactive reader background opacity"
-                aria-valuetext={formattedInteractiveBackgroundOpacity}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedInteractiveBackgroundOpacity}
-              </span>
-            </div>
-          ) : null}
-          {showInteractiveSentenceCardOpacity ? (
-            <div className="player-panel__control" data-testid="player-panel-interactive-cards">
-              <label className="player-panel__control-label" htmlFor={interactiveSentenceCardSliderId}>
-                Cards
-              </label>
-              <input
-                id={interactiveSentenceCardSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={interactiveSentenceCardOpacityMin}
-                max={interactiveSentenceCardOpacityMax}
-                step={interactiveSentenceCardOpacityStep}
-                value={interactiveSentenceCardOpacityPercent}
-                onChange={(event) => onInteractiveSentenceCardOpacityChange?.(Number(event.target.value))}
-                aria-label="Sentence card background opacity"
-                aria-valuetext={formattedInteractiveSentenceCardOpacity}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedInteractiveSentenceCardOpacity}
-              </span>
-            </div>
-          ) : null}
-          {showReadingBedVolume ? (
-            <div className="player-panel__control" data-testid="player-panel-reading-music">
-              <label className="player-panel__control-label" htmlFor={readingBedSliderId}>
-                Music
-              </label>
-              <input
-                id={readingBedSliderId}
-                type="range"
-                className="player-panel__control-slider"
-                min={readingBedVolumeMin}
-                max={readingBedVolumeMax}
-                step={readingBedVolumeStep}
-                value={Math.min(Math.max(readingBedVolumePercent, readingBedVolumeMin), readingBedVolumeMax)}
-                onChange={(event) => onReadingBedVolumeChange?.(Number(event.target.value))}
-                disabled={disableReadingBedToggle || !readingBedEnabled}
-                aria-label="Reading music mix volume"
-                aria-valuemin={readingBedVolumeMin}
-                aria-valuemax={readingBedVolumeMax}
-                aria-valuenow={Math.round(readingBedVolumePercent)}
-                aria-valuetext={formattedReadingBedVolume}
-              />
-              <span className="player-panel__control-value" aria-live="polite">
-                {formattedReadingBedVolume}
-              </span>
-            </div>
-          ) : null}
-          {showReadingBedTrack ? (
-            <div
-              className="player-panel__inline-audio"
-              role="group"
-              aria-label="Reading music track"
-              data-testid="player-panel-reading-music-track"
-            >
-              <span className="player-panel__inline-audio-label">Bed</span>
-              <select
-                value={readingBedTrack}
-                onChange={handleReadingBedTrackChange}
-                disabled={disableReadingBedToggle || !readingBedEnabled}
-                aria-label="Reading music track"
-              >
-                {readingBedTrackOptions.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-          {showInteractiveThemeControls && interactiveTheme ? (
-            <div className="player-panel__control-theme" role="group" aria-label="Interactive theme colors">
-              <button
-                type="button"
-                className="player-panel__control-color-pill"
-                onClick={() => openColorPicker(bgColorInputRef)}
-                title="Background color"
-                aria-label="Pick background color"
-              >
-                <span className="player-panel__control-color-pill-label">BG</span>
-                <span
-                  className="player-panel__control-color-pill-swatch"
-                  style={{ backgroundColor: interactiveTheme.background }}
-                  aria-hidden="true"
-                />
-              </button>
-              <input
-                ref={bgColorInputRef}
-                className="player-panel__control-color-input"
-                type="color"
-                value={interactiveTheme.background}
-                onChange={(event) =>
-                  onInteractiveThemeChange?.({
-                    ...interactiveTheme,
-                    background: normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.background),
-                  })
-                }
-                aria-label="Background color"
-              />
-
-              <button
-                type="button"
-                className="player-panel__control-color-pill"
-                onClick={() => openColorPicker(originalColorInputRef)}
-                title="Original text color"
-                aria-label="Pick original text color"
-              >
-                <span className="player-panel__control-color-pill-label">OR</span>
-                <span
-                  className="player-panel__control-color-pill-swatch"
-                  style={{ backgroundColor: interactiveTheme.original }}
-                  aria-hidden="true"
-                />
-              </button>
-              <input
-                ref={originalColorInputRef}
-                className="player-panel__control-color-input"
-                type="color"
-                value={interactiveTheme.original}
-                onChange={(event) => {
-                  const next = normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.original);
-                  onInteractiveThemeChange?.({
-                    ...interactiveTheme,
-                    original: next,
-                    originalActive: next,
-                  });
-                }}
-                aria-label="Original text color"
-              />
-
-              <button
-                type="button"
-                className="player-panel__control-color-pill"
-                onClick={() => openColorPicker(translationColorInputRef)}
-                title="Translation text color"
-                aria-label="Pick translation text color"
-              >
-                <span className="player-panel__control-color-pill-label">TR</span>
-                <span
-                  className="player-panel__control-color-pill-swatch"
-                  style={{ backgroundColor: interactiveTheme.translation }}
-                  aria-hidden="true"
-                />
-              </button>
-              <input
-                ref={translationColorInputRef}
-                className="player-panel__control-color-input"
-                type="color"
-                value={interactiveTheme.translation}
-                onChange={(event) => {
-                  const next = normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.translation);
-                  onInteractiveThemeChange?.({
-                    ...interactiveTheme,
-                    translation: next,
-                  });
-                }}
-                aria-label="Translation text color"
-              />
-
-              <button
-                type="button"
-                className="player-panel__control-color-pill"
-                onClick={() => openColorPicker(transliterationColorInputRef)}
-                title="Transliteration text color"
-                aria-label="Pick transliteration text color"
-              >
-                <span className="player-panel__control-color-pill-label">TL</span>
-                <span
-                  className="player-panel__control-color-pill-swatch"
-                  style={{ backgroundColor: interactiveTheme.transliteration }}
-                  aria-hidden="true"
-                />
-              </button>
-              <input
-                ref={transliterationColorInputRef}
-                className="player-panel__control-color-input"
-                type="color"
-                value={interactiveTheme.transliteration}
-                onChange={(event) => {
-                  const next = normalizeHexColor(
-                    event.target.value,
-                    DEFAULT_INTERACTIVE_TEXT_THEME.transliteration,
-                  );
-                  onInteractiveThemeChange?.({
-                    ...interactiveTheme,
-                    transliteration: next,
-                  });
-                }}
-                aria-label="Transliteration text color"
-              />
-
-              <button
-                type="button"
-                className="player-panel__control-color-pill"
-                onClick={() => openColorPicker(highlightColorInputRef)}
-                title="Highlight color"
-                aria-label="Pick highlight color"
-              >
-                <span className="player-panel__control-color-pill-label">HL</span>
-                <span
-                  className="player-panel__control-color-pill-swatch"
-                  style={{ backgroundColor: interactiveTheme.highlight }}
-                  aria-hidden="true"
-                />
-              </button>
-              <input
-                ref={highlightColorInputRef}
-                className="player-panel__control-color-input"
-                type="color"
-                value={interactiveTheme.highlight}
-                onChange={(event) => {
-                  const next = normalizeHexColor(event.target.value, DEFAULT_INTERACTIVE_TEXT_THEME.highlight);
-                  onInteractiveThemeChange?.({
-                    ...interactiveTheme,
-                    highlight: next,
-                  });
-                }}
-                aria-label="Highlight color"
-              />
-
-              <button
-                type="button"
-                className="player-panel__control-reset-layout"
-                onClick={() => onResetLayout?.()}
-                title="Reset layout to defaults"
-                aria-label="Reset layout to defaults"
-              >
-                ↺
-              </button>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-      {controlsLayout !== 'compact' && showTranslationSpeed ? (
-        <div className="player-panel__nav-speed" data-testid="player-panel-speed">
-          <label className="player-panel__nav-speed-label" htmlFor={sliderId}>
-            Speed
-          </label>
-          <div className="player-panel__nav-speed-control">
-            <input
-              id={sliderId}
-              type="range"
-              className="player-panel__nav-speed-slider"
-              min={translationSpeedMin}
-              max={translationSpeedMax}
-              step={translationSpeedStep}
-              value={translationSpeed}
-              onChange={handleSpeedChange}
-              aria-label="Speed"
-              aria-valuetext={formattedSpeed}
-            />
-            <span className="player-panel__nav-speed-value" aria-live="polite">
-              {formattedSpeed}
-            </span>
-          </div>
-          <div className="player-panel__nav-speed-scale" aria-hidden="true">
-            <span>{formatTranslationSpeedLabel(translationSpeedMin)}</span>
-            <span>{formatTranslationSpeedLabel(translationSpeedMax)}</span>
-          </div>
-        </div>
-      ) : null}
-      {controlsLayout !== 'compact' && showSubtitleScale ? (
-        <div className="player-panel__nav-subtitles" data-testid="player-panel-subtitle-scale">
-          <label className="player-panel__nav-subtitles-label" htmlFor={subtitleSliderId}>
-            Subtitles
-          </label>
-          <div className="player-panel__nav-subtitles-control">
-            <input
-              id={subtitleSliderId}
-              type="range"
-              className="player-panel__nav-subtitles-slider"
-              min={subtitleScaleMin}
-              max={subtitleScaleMax}
-              step={subtitleScaleStep}
-              value={subtitleScale}
-              onChange={(event) => onSubtitleScaleChange?.(Number(event.target.value))}
-              aria-label="Subtitle size"
-              aria-valuetext={`${Math.round(subtitleScale * 100)}%`}
-            />
-            <span className="player-panel__nav-subtitles-value" aria-live="polite">
-              {Math.round(subtitleScale * 100)}%
-            </span>
-          </div>
-          <div className="player-panel__nav-subtitles-scale" aria-hidden="true">
-            <span>{Math.round(subtitleScaleMin * 100)}%</span>
-            <span>{Math.round(subtitleScaleMax * 100)}%</span>
-          </div>
-        </div>
-      ) : null}
-      {controlsLayout !== 'compact' && showSubtitleBackgroundOpacity ? (
-        <div className="player-panel__nav-subtitle-background" data-testid="player-panel-subtitle-background">
-          <label className="player-panel__nav-subtitle-background-label" htmlFor={subtitleBackgroundSliderId}>
-            Box
-          </label>
-          <div className="player-panel__nav-subtitle-background-control">
-            <input
-              id={subtitleBackgroundSliderId}
-              type="range"
-              className="player-panel__nav-subtitle-background-slider"
-              min={subtitleBackgroundOpacityMin}
-              max={subtitleBackgroundOpacityMax}
-              step={subtitleBackgroundOpacityStep}
-              value={subtitleBackgroundOpacityPercent}
-              onChange={(event) => onSubtitleBackgroundOpacityChange?.(Number(event.target.value))}
-              aria-label="Subtitle background opacity"
-              aria-valuetext={formattedSubtitleBackgroundOpacity}
-              disabled={disableSubtitleToggle || !subtitlesEnabled}
-            />
-            <span className="player-panel__nav-subtitle-background-value" aria-live="polite">
-              {formattedSubtitleBackgroundOpacity}
-            </span>
-          </div>
-          <div className="player-panel__nav-subtitle-background-scale" aria-hidden="true">
-            <span>{Math.round(subtitleBackgroundOpacityMin)}%</span>
-            <span>{Math.round(subtitleBackgroundOpacityMax)}%</span>
-          </div>
-        </div>
-      ) : null}
-      {showSentenceJump && controlsLayout !== 'compact' ? (
-        <div className="player-panel__nav-jump">
-          <label className="player-panel__nav-speed-label" htmlFor={jumpInputId}>
-            Jump to sentence
-          </label>
-          <div className="player-panel__nav-jump-control">
-            <input
-              id={jumpInputId}
-              className="player-panel__nav-jump-input"
-              type="number"
-              inputMode="numeric"
-              min={sentenceJumpMin ?? undefined}
-              max={sentenceJumpMax ?? undefined}
-              step={1}
-              list={sentenceJumpListId}
-              value={sentenceJumpValue}
-              onChange={handleSentenceInputChange}
-              onKeyDown={handleSentenceInputKeyDown}
-              placeholder={sentenceJumpPlaceholder}
-              aria-describedby={describedBy}
-              aria-invalid={sentenceJumpError ? 'true' : undefined}
-            />
-            <button
-              type="button"
-              className="player-panel__nav-jump-button"
-              onClick={onSentenceJumpSubmit}
-              disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
-            >
-              Go
-            </button>
-          </div>
-          <div className="player-panel__nav-jump-meta" aria-live="polite">
-            {sentenceJumpError ? (
-              <span id={jumpErrorId} className="player-panel__nav-jump-error">
-                {sentenceJumpError}
-              </span>
-            ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
-              <span id={jumpRangeId}>
-                Range {sentenceJumpMin}–{sentenceJumpMax}
-              </span>
-            ) : null}
-          </div>
-        </div>
-      ) : null}
-      {showFontScale && !shouldShowCompactControls ? (
-        <div className="player-panel__nav-font">
-          <label className="player-panel__nav-font-label" htmlFor={fontScaleSliderId}>
-            Font size
-          </label>
-          <div className="player-panel__nav-font-control">
-            <input
-              id={fontScaleSliderId}
-              className="player-panel__nav-font-input"
-              type="range"
-              min={fontScaleMin}
-              max={fontScaleMax}
-              step={fontScaleStep}
-              value={Math.min(Math.max(fontScalePercent, fontScaleMin), fontScaleMax)}
-              onChange={handleFontScaleInputChange}
-              aria-valuemin={fontScaleMin}
-              aria-valuemax={fontScaleMax}
-              aria-valuenow={Math.round(fontScalePercent)}
-              aria-valuetext={formattedFontScale}
-              aria-label="Adjust font size"
-            />
-            <span className="player-panel__nav-font-value" aria-live="polite">
-              {formattedFontScale}
-            </span>
-          </div>
-        </div>
-      ) : null}
-      {showMyLinguistFontScale && !shouldShowCompactControls ? (
-        <div className="player-panel__nav-font">
-          <label className="player-panel__nav-font-label" htmlFor={myLinguistFontScaleSliderId}>
-            MyLinguist font
-          </label>
-          <div className="player-panel__nav-font-control">
-            <input
-              id={myLinguistFontScaleSliderId}
-              className="player-panel__nav-font-input"
-              type="range"
-              min={myLinguistFontScaleMin}
-              max={myLinguistFontScaleMax}
-              step={myLinguistFontScaleStep}
-              value={Math.min(Math.max(myLinguistFontScalePercent, myLinguistFontScaleMin), myLinguistFontScaleMax)}
-              onChange={handleMyLinguistFontScaleInputChange}
-              aria-valuemin={myLinguistFontScaleMin}
-              aria-valuemax={myLinguistFontScaleMax}
-              aria-valuenow={Math.round(myLinguistFontScalePercent)}
-              aria-valuetext={formattedMyLinguistFontScale}
-              aria-label="Adjust MyLinguist font size"
-            />
-            <span className="player-panel__nav-font-value" aria-live="polite">
-              {formattedMyLinguistFontScale}
-            </span>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function selectInitialTab(media: LiveMediaState): MediaCategory {
-  const populated = TAB_DEFINITIONS.find((tab) => media[tab.key].length > 0);
-  return populated?.key ?? 'text';
-}
-
-function deriveBaseIdFromReference(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const normalised = value.replace(/^[\\/]+/, '').split(/[\\/]/).pop();
-  if (!normalised) {
-    return null;
-  }
-  const withoutQuery = normalised.replace(/[?#].*$/, '');
-  const dotIndex = withoutQuery.lastIndexOf('.');
-  const base = dotIndex > 0 ? withoutQuery.slice(0, dotIndex) : withoutQuery;
-  const trimmed = base.trim();
-  return trimmed ? trimmed.toLowerCase() : null;
-}
-
-function resolveChunkBaseId(chunk: LiveMediaChunk): string | null {
-  const textFile = chunk.files.find((file) => file.type === 'text' && typeof file.url === 'string' && file.url.length > 0);
-  if (textFile?.url) {
-    return deriveBaseIdFromReference(textFile.url) ?? textFile.url ?? null;
-  }
-  if (chunk.chunkId) {
-    return chunk.chunkId;
-  }
-  if (chunk.rangeFragment) {
-    return chunk.rangeFragment;
-  }
-  if (chunk.metadataPath) {
-    return chunk.metadataPath;
-  }
-  if (chunk.metadataUrl) {
-    return chunk.metadataUrl;
-  }
-  return null;
-}
-
-function resolveBaseIdFromResult(result: MediaSearchResult, preferred: MediaCategory | null): string | null {
-  if (result.base_id) {
-    return result.base_id;
-  }
-
-  const categories: MediaCategory[] = [];
-  if (preferred) {
-    categories.push(preferred);
-  }
-  MEDIA_CATEGORIES.forEach((category) => {
-    if (!categories.includes(category)) {
-      categories.push(category);
-    }
-  });
-
-  for (const category of categories) {
-    const entries = result.media?.[category];
-    if (!entries || entries.length === 0) {
-      continue;
-    }
-    const primary = entries[0];
-    const baseId =
-      deriveBaseIdFromReference(primary.relative_path ?? null) ??
-      deriveBaseIdFromReference(primary.name ?? null) ??
-      deriveBaseIdFromReference(primary.url ?? null) ??
-      deriveBaseIdFromReference(primary.path ?? null);
-    if (baseId) {
-      return baseId;
-    }
-  }
-
-  return null;
-}
-
-function normaliseBookSentenceCount(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    const safe = Math.max(Math.trunc(value), 0);
-    return safe > 0 ? safe : null;
-  }
-
-  if (Array.isArray(value)) {
-    return value.length;
-  }
-
-  if (value && typeof value === 'object') {
-    const record = value as Record<string, unknown>;
-    const sentences = record.sentences;
-    if (Array.isArray(sentences)) {
-      return sentences.length;
-    }
-    const total =
-      record.total_sentences ??
-      record.sentence_count ??
-      record.book_sentence_count ??
-      record.total ??
-      record.count;
-    if (typeof total === 'number' && Number.isFinite(total)) {
-      const safe = Math.max(Math.trunc(total), 0);
-      return safe > 0 ? safe : null;
-    }
-  }
-
-  return null;
-}
-
-function normaliseLookupToken(value: string | null | undefined): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  const derived = deriveBaseIdFromReference(trimmed);
-  if (derived) {
-    return derived;
-  }
-  return trimmed.toLowerCase();
-}
-
-function normaliseAudioSignature(value: string | null | undefined): string {
-  if (!value) {
-    return '';
-  }
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '');
-}
-
-function isCombinedAudioCandidate(...values: (string | null | undefined)[]): boolean {
-  return values.some((value) => normaliseAudioSignature(value).includes('origtrans'));
-}
-
-function isOriginalAudioCandidate(...values: (string | null | undefined)[]): boolean {
-  return values.some((value) => {
-    const signature = normaliseAudioSignature(value);
-    return signature.includes('orig') && !signature.includes('origtrans');
-  });
-}
-
-function findChunkIndexForBaseId(baseId: string | null, chunks: LiveMediaChunk[]): number {
-  const target = normaliseLookupToken(baseId);
-  if (!target) {
-    return -1;
-  }
-
-  const matches = (candidate: string | null | undefined): boolean => {
-    const normalised = normaliseLookupToken(candidate);
-    return normalised !== null && normalised === target;
-  };
-
-  for (let index = 0; index < chunks.length; index += 1) {
-    const chunk = chunks[index];
-    if (
-      matches(chunk.chunkId) ||
-      matches(chunk.rangeFragment) ||
-      matches(chunk.metadataPath) ||
-      matches(chunk.metadataUrl)
-    ) {
-      return index;
-    }
-    for (const file of chunk.files) {
-      if (
-        matches(file.relative_path) ||
-        matches(file.path) ||
-        matches(file.url) ||
-        matches(file.name)
-      ) {
-        return index;
-      }
-    }
-  }
-
-  return -1;
-}
-
-function normaliseMetadataText(value: unknown): string | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value.toString();
-  }
-
-  return null;
-}
-
-function extractMetadataText(
-  metadata: Record<string, unknown> | null | undefined,
-  keys: string[],
-): string | null {
-  if (!metadata) {
-    return null;
-  }
-
-  for (const key of keys) {
-    const raw = metadata[key];
-    const normalised = normaliseMetadataText(raw);
-    if (normalised) {
-      return normalised;
-    }
-  }
-
-  return null;
-}
-
-function extractMetadataFirstString(
-  metadata: Record<string, unknown> | null | undefined,
-  keys: string[],
-): string | null {
-  if (!metadata) {
-    return null;
-  }
-  for (const key of keys) {
-    const raw = metadata[key];
-    if (Array.isArray(raw)) {
-      for (const entry of raw) {
-        const normalised = normaliseMetadataText(entry);
-        if (normalised) {
-          return normalised;
-        }
-      }
-    }
-    const normalised = normaliseMetadataText(raw);
-    if (normalised) {
-      return normalised;
-    }
-  }
-  return null;
-}
-
-function readNestedValue(source: unknown, path: string[]): unknown {
-  let current: unknown = source;
-  for (const key of path) {
-    if (!current || typeof current !== 'object') {
-      return null;
-    }
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
-}
-
-function coerceRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function extractTvMediaMetadataFromLibrary(item: LibraryItem | null | undefined): Record<string, unknown> | null {
-  const payload = item?.metadata ?? null;
-  if (!payload || typeof payload !== 'object') {
-    return null;
-  }
-  const candidate =
-    readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
-    readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
-    readNestedValue(payload, ['request', 'media_metadata']) ??
-    readNestedValue(payload, ['media_metadata']) ??
-    null;
-  return coerceRecord(candidate);
-}
-
-function resolveLibraryAssetUrl(jobId: string, value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (/^[a-z]+:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-  if (trimmed.startsWith('/api/')) {
-    return appendAccessToken(trimmed);
-  }
-  if (trimmed.startsWith('/')) {
-    return trimmed;
-  }
-  return resolveLibraryMediaUrl(jobId, trimmed);
-}
-
-function resolveJobAssetUrl(jobId: string, value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-  if (/^[a-z]+:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-  if (trimmed.startsWith('/api/')) {
-    return appendAccessToken(trimmed);
-  }
-  if (trimmed.startsWith('/')) {
-    return appendAccessToken(trimmed);
-  }
-  try {
-    return buildStorageUrl(trimmed, jobId);
-  } catch (error) {
-    console.warn('Unable to resolve job asset url', error);
-    return `/${trimmed.replace(/^\/+/, '')}`;
-  }
-}
-
-function resolveTvMetadataImage(
-  jobId: string,
-  tvMetadata: Record<string, unknown> | null,
-  path: 'show' | 'episode',
-  resolver: (jobId: string, value: unknown) => string | null,
-): string | null {
-  const section = coerceRecord(tvMetadata?.[path]);
-  if (!section) {
-    return null;
-  }
-  const image = section['image'];
-  if (!image) {
-    return null;
-  }
-  if (typeof image === 'string') {
-    return resolver(jobId, image);
-  }
-  const record = coerceRecord(image);
-  if (!record) {
-    return null;
-  }
-  return resolver(jobId, record['medium']) ?? resolver(jobId, record['original']);
-}
-
-function formatSentenceRange(start: number | null | undefined, end: number | null | undefined): string {
-  if (typeof start === 'number' && typeof end === 'number') {
-    return start === end ? `${start}` : `${start}–${end}`;
-  }
-  if (typeof start === 'number') {
-    return `${start}`;
-  }
-  if (typeof end === 'number') {
-    return `${end}`;
-  }
-  return '—';
-}
-
-function formatChunkLabel(chunk: LiveMediaChunk, index: number): string {
-  const rangeFragment = typeof chunk.rangeFragment === 'string' ? chunk.rangeFragment.trim() : '';
-  if (rangeFragment) {
-    return rangeFragment;
-  }
-  const chunkId = typeof chunk.chunkId === 'string' ? chunk.chunkId.trim() : '';
-  if (chunkId) {
-    return chunkId;
-  }
-  const sentenceRange = formatSentenceRange(chunk.startSentence ?? null, chunk.endSentence ?? null);
-  if (sentenceRange && sentenceRange !== '—') {
-    return `Chunk ${index + 1} · ${sentenceRange}`;
-  }
-  return `Chunk ${index + 1}`;
-}
-
-function buildInteractiveAudioCatalog(
-  chunks: LiveMediaChunk[],
-  audioMedia: LiveMediaItem[],
-): {
-  playlist: LiveMediaItem[];
-  nameMap: Map<string, string>;
-  chunkIndexMap: Map<string, number>;
-} {
-  const playlist: LiveMediaItem[] = [];
-  const nameMap = new Map<string, string>();
-  const chunkIndexMap = new Map<string, number>();
-  const seen = new Set<string>();
-
-  const register = (
-    item: LiveMediaItem | null | undefined,
-    chunkIndex: number | null,
-    fallbackLabel?: string,
-  ) => {
-    if (!item || !item.url) {
-      return;
-    }
-    const url = item.url;
-    if (seen.has(url)) {
-      return;
-    }
-    seen.add(url);
-    const trimmedName = typeof item.name === 'string' ? item.name.trim() : '';
-    const trimmedFallback = typeof fallbackLabel === 'string' ? fallbackLabel.trim() : '';
-    const label = trimmedName || trimmedFallback || `Audio ${playlist.length + 1}`;
-    const enriched = trimmedName ? item : { ...item, name: label };
-    playlist.push(enriched);
-    nameMap.set(url, label);
-    if (typeof chunkIndex === 'number' && chunkIndex >= 0) {
-      chunkIndexMap.set(url, chunkIndex);
-    }
-  };
-
-  chunks.forEach((chunk, index) => {
-    const chunkLabel = formatChunkLabel(chunk, index);
-    chunk.files.forEach((file) => {
-      if (!isAudioFileType(file.type)) {
-        return;
-      }
-      register(file, index, chunkLabel);
-    });
-  });
-
-  audioMedia.forEach((item) => {
-    if (!item.url) {
-      return;
-    }
-    const existingIndex = chunkIndexMap.get(item.url);
-    register(item, typeof existingIndex === 'number' ? existingIndex : null, item.name);
-  });
-
-  return { playlist, nameMap, chunkIndexMap };
-}
-
-function chunkCacheKey(chunk: LiveMediaChunk): string | null {
-  if (chunk.chunkId) {
-    return `id:${chunk.chunkId}`;
-  }
-  if (chunk.rangeFragment) {
-    return `range:${chunk.rangeFragment}`;
-  }
-  if (chunk.metadataPath) {
-    return `path:${chunk.metadataPath}`;
-  }
-  if (chunk.metadataUrl) {
-    return `url:${chunk.metadataUrl}`;
-  }
-  const audioUrl = chunk.files.find((file) => isAudioFileType(file.type) && file.url)?.url;
-  if (audioUrl) {
-    return `audio:${audioUrl}`;
-  }
-  return null;
-}
-
-const CHUNK_METADATA_PREFETCH_RADIUS = 2;
-const SINGLE_SENTENCE_PREFETCH_AHEAD = 3;
-const MAX_SENTENCE_PREFETCH_COUNT = 400;
-const CHUNK_SENTENCE_BOOTSTRAP_COUNT = 12;
-const CHUNK_SENTENCE_APPEND_BATCH = 75;
-
-type SentenceLookupEntry = {
-  chunkIndex: number;
-  localIndex: number;
-  total: number;
-  baseId: string | null;
-};
-
-type SentenceLookupRange = {
-  start: number;
-  end: number;
-  chunkIndex: number;
-  baseId: string | null;
-};
-
-type SentenceLookup = {
-  min: number | null;
-  max: number | null;
-  exact: Map<number, SentenceLookupEntry>;
-  ranges: SentenceLookupRange[];
-  suggestions: number[];
-};
-
-function isSingleSentenceChunk(chunk: LiveMediaChunk | null | undefined): boolean {
-  if (!chunk) {
-    return false;
-  }
-  if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
-    return chunk.sentences.length === 1;
-  }
-  if (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0) {
-    return chunk.sentenceCount === 1;
-  }
-  return false;
-}
-
-function getKnownSentenceCount(chunk: LiveMediaChunk | null | undefined): number | null {
-  if (!chunk) {
-    return null;
-  }
-  if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
-    return chunk.sentences.length;
-  }
-  if (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0) {
-    return chunk.sentenceCount;
-  }
-  return null;
-}
-
-function shouldPrefetchChunk(chunk: LiveMediaChunk | null | undefined): boolean {
-  const count = getKnownSentenceCount(chunk);
-  if (count === null) {
-    return true;
-  }
-  return count <= MAX_SENTENCE_PREFETCH_COUNT;
-}
-
-function partitionChunkSentences(
-  sentences: ChunkSentenceMetadata[] | null | undefined,
-  bootstrapCount: number,
-): { immediate: ChunkSentenceMetadata[]; remainder: ChunkSentenceMetadata[] } {
-  if (!Array.isArray(sentences) || sentences.length === 0) {
-    return { immediate: [], remainder: [] };
-  }
-  const take = Math.max(bootstrapCount, 0);
-  if (take <= 0 || sentences.length <= take) {
-    return { immediate: sentences, remainder: [] };
-  }
-  return {
-    immediate: sentences.slice(0, take),
-    remainder: sentences.slice(take),
-  };
-}
-
-async function requestChunkMetadata(
-  jobId: string,
-  chunk: LiveMediaChunk,
-  origin: 'job' | 'library',
-): Promise<ChunkSentenceMetadata[] | null> {
-  let targetUrl: string | null = chunk.metadataUrl ?? null;
-
-  if (!targetUrl) {
-    const metadataPath = chunk.metadataPath ?? null;
-    if (metadataPath) {
-      try {
-        if (origin === 'library') {
-          if (metadataPath.startsWith('/api/library/') || metadataPath.includes('://')) {
-            targetUrl = metadataPath;
-          } else {
-            targetUrl = resolveLibraryMediaUrl(jobId, metadataPath);
-          }
-        } else {
-          targetUrl = resolveStoragePath(jobId, metadataPath);
-        }
-      } catch (error) {
-        if (jobId) {
-          const encodedJobId = encodeURIComponent(jobId);
-          const sanitizedPath = metadataPath.replace(/^\/+/, '');
-          targetUrl = `/pipelines/jobs/${encodedJobId}/${encodeURI(sanitizedPath)}`;
-        } else {
-          console.warn('Unable to resolve chunk metadata path', metadataPath, error);
-        }
-      }
-    }
-  }
-
-  if (!targetUrl) {
-    return null;
-  }
-
-  try {
-    const url = origin === 'library' ? appendAccessToken(targetUrl) : targetUrl;
-    const response = await fetch(url, { credentials: 'include' });
-    if (!response.ok) {
-      throw new Error(`Chunk metadata request failed with status ${response.status}`);
-    }
-    const payload = await response.json();
-    const sentences = payload?.sentences;
-    if (Array.isArray(sentences)) {
-      return sentences as ChunkSentenceMetadata[];
-    }
-    return [];
-  } catch (error) {
-    console.warn('Unable to load chunk metadata', targetUrl, error);
-    return null;
-  }
-}
 
 export default function PlayerPanel({
   jobId,
@@ -1920,8 +127,6 @@ export default function PlayerPanel({
   const [pendingChunkSelection, setPendingChunkSelection] =
     useState<{ index: number; token: number } | null>(null);
   const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
-  const [sentenceJumpValue, setSentenceJumpValue] = useState('');
-  const [sentenceJumpError, setSentenceJumpError] = useState<string | null>(null);
   const [showOriginalAudio, setShowOriginalAudio] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -1932,89 +137,8 @@ export default function PlayerPanel({
     }
     return stored === 'true';
   });
-  const [interactiveTextVisibility, setInteractiveTextVisibility] = useState<{
-    original: boolean;
-    transliteration: boolean;
-    translation: boolean;
-  }>(() => {
-    const fallback = { original: true, transliteration: true, translation: true };
-    if (typeof window === 'undefined') {
-      return fallback;
-    }
-    const stored = window.localStorage.getItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY);
-    if (!stored) {
-      return fallback;
-    }
-    try {
-      const parsed = JSON.parse(stored) as Record<string, unknown>;
-      return {
-        original: typeof parsed.original === 'boolean' ? parsed.original : fallback.original,
-        transliteration:
-          typeof parsed.transliteration === 'boolean' ? parsed.transliteration : fallback.transliteration,
-        translation: typeof parsed.translation === 'boolean' ? parsed.translation : fallback.translation,
-      };
-    } catch {
-      return fallback;
-    }
-  });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
-  const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
-  const chunkMetadataStoreRef = useRef(chunkMetadataStore);
-  const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
-const pushChunkMetadata = useCallback(
-  (cacheKey: string, payload: ChunkSentenceMetadata[] | null | undefined, append: boolean) => {
-    const normalized = Array.isArray(payload) ? payload : [];
-    setChunkMetadataStore((current) => {
-      const existing = current[cacheKey];
-      if (!append && existing !== undefined) {
-        return current;
-      }
-      if (append && normalized.length === 0) {
-        return current;
-      }
-      const base = append && Array.isArray(existing) ? existing : [];
-      const nextSentences = append ? base.concat(normalized) : normalized;
-      if (append && Array.isArray(existing) && nextSentences.length === existing.length) {
-        return current;
-      }
-      if (!append && existing === nextSentences) {
-        return current;
-      }
-      return {
-        ...current,
-        [cacheKey]: nextSentences,
-      };
-    });
-  },
-  [],
-);
-const scheduleChunkMetadataAppend = useCallback(
-  (cacheKey: string, remainder: ChunkSentenceMetadata[]) => {
-    if (!Array.isArray(remainder) || remainder.length === 0) {
-      return;
-    }
-    let offset = 0;
-    const batchSize = CHUNK_SENTENCE_APPEND_BATCH;
-    const flush = () => {
-      const slice = remainder.slice(offset, offset + batchSize);
-      offset += slice.length;
-      if (slice.length > 0) {
-        pushChunkMetadata(cacheKey, slice, true);
-      }
-      if (offset < remainder.length) {
-        if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
-          window.requestAnimationFrame(flush);
-        } else {
-          setTimeout(flush, 16);
-        }
-      }
-    };
-    flush();
-  },
-  [pushChunkMetadata],
-);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
-  const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const resolveStoredInteractiveFullscreenPreference = () => {
     if (typeof window === 'undefined') {
       return false;
@@ -2039,7 +163,6 @@ const scheduleChunkMetadataAppend = useCallback(
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioPlayingRef = useRef(false);
   const hasSkippedInitialRememberRef = useRef(false);
-  const inlineAudioBaseRef = useRef<string | null>(null);
   const updateInlineAudioPlaying = useCallback((next: boolean) => {
     inlineAudioPlayingRef.current = next;
     setIsInlineAudioPlaying(next);
@@ -2051,134 +174,35 @@ const scheduleChunkMetadataAppend = useCallback(
     setAutoPlayToken((value) => value + 1);
   }, []);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
-  const [translationSpeed, setTranslationSpeed] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
-  const [fontScalePercent, setFontScalePercent] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(FONT_SCALE_STORAGE_KEY) ?? '');
-    return Number.isFinite(raw) ? clampFontScalePercent(raw) : DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT;
-  });
-  const [interactiveTextTheme, setInteractiveTextTheme] = useState<InteractiveTextTheme>(() =>
-    loadInteractiveTextTheme(INTERACTIVE_TEXT_THEME_STORAGE_KEY),
-  );
-  const [interactiveBackgroundOpacityPercent, setInteractiveBackgroundOpacityPercent] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY) ?? '');
-    if (!Number.isFinite(raw)) {
-      return DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT;
-    }
-    return Math.round(Math.min(Math.max(raw, 0), 100));
-  });
-  const [interactiveSentenceCardOpacityPercent, setInteractiveSentenceCardOpacityPercent] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY) ?? '');
-    if (!Number.isFinite(raw)) {
-      return DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT;
-    }
-    return Math.round(Math.min(Math.max(raw, 0), 100));
-  });
-  const readingBed = useReadingBed();
-  const [readingBedEnabled, setReadingBedEnabled] = useState<boolean>(() => {
-    if (typeof window === 'undefined') {
-      return true;
-    }
-    const stored = window.localStorage.getItem(READING_BED_ENABLED_STORAGE_KEY);
-    if (stored === null) {
-      return true;
-    }
-    return stored === 'true';
-  });
-  const [readingBedVolumePercent, setReadingBedVolumePercent] = useState<number>(() => {
-    if (typeof window === 'undefined') {
-      return DEFAULT_READING_BED_VOLUME_PERCENT;
-    }
-    const raw = Number.parseFloat(window.localStorage.getItem(READING_BED_VOLUME_STORAGE_KEY) ?? '');
-    if (!Number.isFinite(raw)) {
-      return DEFAULT_READING_BED_VOLUME_PERCENT;
-    }
-    return Math.round(Math.min(Math.max(raw, 0), 100));
-  });
-  const fallbackReadingBeds = useMemo(
-    () =>
-      [
-        {
-          id: DEFAULT_READING_BED_TRACK_ID,
-          label: 'Lost in the Pages',
-          url: '/assets/reading-beds/lost-in-the-pages.mp3',
-          kind: 'bundled',
-        },
-      ] as ReadingBedEntry[],
-    [],
-  );
-  const [readingBedCatalog, setReadingBedCatalog] = useState<ReadingBedListResponse | null>(null);
-  useEffect(() => {
-    const controller = new AbortController();
-    void (async () => {
-      try {
-        const catalog = await fetchReadingBeds(controller.signal);
-        setReadingBedCatalog(catalog);
-      } catch {
-        setReadingBedCatalog(null);
-      }
-    })();
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
-  const resolvedReadingBeds =
-    (readingBedCatalog?.beds?.length ?? 0) > 0 ? readingBedCatalog!.beds : fallbackReadingBeds;
-  const resolvedReadingBedDefaultId =
-    (typeof readingBedCatalog?.default_id === 'string' && readingBedCatalog.default_id.trim()
-      ? readingBedCatalog.default_id.trim()
-      : null) ?? resolvedReadingBeds[0]?.id ?? DEFAULT_READING_BED_TRACK_ID;
-  const readingBedTrackSrcById = useMemo(() => {
-    const entries = resolvedReadingBeds.map((bed) => {
-      const url = bed.url.startsWith('/api/') ? withBase(bed.url) : bed.url;
-      return [bed.id, url] as const;
-    });
-    return Object.fromEntries(entries) as Record<string, string>;
-  }, [resolvedReadingBeds]);
-
-  const [readingBedTrackSelection, setReadingBedTrackSelection] = useState<string | null>(() => {
-    if (typeof window === 'undefined') {
-      return null;
-    }
-    const raw = window.localStorage.getItem(READING_BED_TRACK_STORAGE_KEY) ?? '';
-    return raw.trim() ? raw.trim() : null;
-  });
-
-  useEffect(() => {
-    if (!readingBedTrackSelection) {
-      return;
-    }
-    if (readingBedTrackSrcById[readingBedTrackSelection]) {
-      return;
-    }
-    setReadingBedTrackSelection(null);
-  }, [readingBedTrackSelection, readingBedTrackSrcById]);
-
-  const resolvedReadingBedTrackId = useMemo(() => {
-    if (readingBedTrackSelection && readingBedTrackSrcById[readingBedTrackSelection]) {
-      return readingBedTrackSelection;
-    }
-    if (readingBedTrackSrcById[resolvedReadingBedDefaultId]) {
-      return resolvedReadingBedDefaultId;
-    }
-    return resolvedReadingBeds[0]?.id ?? DEFAULT_READING_BED_TRACK_ID;
-  }, [readingBedTrackSelection, readingBedTrackSrcById, resolvedReadingBedDefaultId, resolvedReadingBeds]);
-
-  const readingBedTrackOptions = useMemo(() => {
-    return [
-      { value: '', label: 'Default' },
-      ...resolvedReadingBeds.map((bed) => ({ value: bed.id, label: bed.label })),
-    ] satisfies { value: string; label: string }[];
-  }, [resolvedReadingBeds]);
+  const {
+    interactiveTextVisibility,
+    toggleInteractiveTextLayer: handleToggleInteractiveTextLayer,
+    translationSpeed,
+    setTranslationSpeed: handleTranslationSpeedChange,
+    adjustTranslationSpeed,
+    fontScalePercent,
+    setFontScalePercent: handleFontScaleChange,
+    adjustFontScale,
+    interactiveTextTheme,
+    setInteractiveTextTheme,
+    interactiveBackgroundOpacityPercent,
+    setInteractiveBackgroundOpacityPercent,
+    interactiveSentenceCardOpacityPercent,
+    setInteractiveSentenceCardOpacityPercent,
+    resetInteractiveTextSettings,
+  } = useInteractiveTextSettings();
+  const {
+    readingBedEnabled,
+    readingBedVolumePercent,
+    readingBedTrackSelection,
+    readingBedTrackOptions,
+    readingBedSupported,
+    toggleReadingBed: handleToggleReadingBed,
+    onReadingBedVolumeChange: handleReadingBedVolumeChange,
+    onReadingBedTrackChange: handleReadingBedTrackChange,
+    playReadingBed,
+    resetReadingBed,
+  } = useReadingBedControls();
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
@@ -2228,98 +252,6 @@ const scheduleChunkMetadataAppend = useCallback(
       cancelled = true;
     };
   }, [jobId, origin]);
-  const sentenceLookup = useMemo<SentenceLookup>(() => {
-    const exact = new Map<number, SentenceLookupEntry>();
-    const ranges: SentenceLookupRange[] = [];
-    let min = Number.POSITIVE_INFINITY;
-    let max = Number.NEGATIVE_INFINITY;
-    const boundarySet = new Set<number>();
-
-    const registerBoundary = (value: number | null | undefined): number | null => {
-      if (typeof value !== 'number' || !Number.isFinite(value)) {
-        return null;
-      }
-      const normalized = Math.trunc(value);
-      boundarySet.add(normalized);
-      if (normalized < min) {
-        min = normalized;
-      }
-      if (normalized > max) {
-        max = normalized;
-      }
-      return normalized;
-    };
-
-    chunks.forEach((chunk, chunkIndex) => {
-      const baseId = resolveChunkBaseId(chunk);
-      const start = registerBoundary(chunk.startSentence ?? null);
-      const end = registerBoundary(chunk.endSentence ?? null);
-      if (start !== null && end !== null && end >= start) {
-        ranges.push({ start, end, chunkIndex, baseId });
-      }
-      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
-        const total = chunk.sentences.length;
-        chunk.sentences.forEach((sentence, localIndex) => {
-          if (!sentence) {
-            return;
-          }
-          const absolute =
-            typeof sentence.sentence_number === 'number' && Number.isFinite(sentence.sentence_number)
-              ? Math.trunc(sentence.sentence_number)
-              : null;
-          if (absolute === null) {
-            return;
-          }
-          boundarySet.add(absolute);
-          if (absolute < min) {
-            min = absolute;
-          }
-          if (absolute > max) {
-            max = absolute;
-          }
-          exact.set(absolute, {
-            chunkIndex,
-            localIndex,
-            total,
-            baseId,
-          });
-        });
-      }
-    });
-
-    const hasBounds = Number.isFinite(min) && Number.isFinite(max);
-    const safeMin = hasBounds ? Math.trunc(min) : null;
-    const safeMax = hasBounds ? Math.trunc(max) : null;
-    const suggestions: number[] = [];
-    if (safeMin !== null && safeMax !== null) {
-      const span = safeMax - safeMin;
-      if (span <= 200) {
-        for (let value = safeMin; value <= safeMax; value += 1) {
-          suggestions.push(value);
-        }
-      } else {
-        boundarySet.add(safeMin);
-        boundarySet.add(safeMax);
-        const step = Math.max(1, Math.round(span / 25));
-        for (let value = safeMin; value <= safeMax && boundarySet.size < 400; value += step) {
-          boundarySet.add(value);
-        }
-        Array.from(boundarySet)
-          .filter((value) => value >= safeMin && value <= safeMax)
-          .sort((left, right) => left - right)
-          .slice(0, 400)
-          .forEach((value) => suggestions.push(value));
-      }
-    }
-
-    return {
-      min: safeMin,
-      max: safeMax,
-      exact,
-      ranges,
-      suggestions,
-    };
-  }, [chunks]);
   useEffect(() => {
     setBookSentenceCount(null);
   }, [jobId]);
@@ -2409,213 +341,30 @@ const scheduleChunkMetadataAppend = useCallback(
     };
   }, [bookMetadata, bookSentenceCount, chunks.length, jobId]);
 
-  const jobStartSentence = sentenceLookup.min ?? null;
-  const jobEndSentence = sentenceLookup.max ?? null;
+  const {
+    sentenceLookup,
+    jobStartSentence,
+    jobEndSentence,
+    canJumpToSentence,
+    sentenceJumpPlaceholder,
+    sentenceJumpValue,
+    sentenceJumpError,
+    onSentenceJumpChange: handleSentenceJumpChange,
+    onSentenceJumpSubmit: handleSentenceJumpSubmit,
+    onInteractiveSentenceJump: handleInteractiveSentenceJump,
+  } = useSentenceNavigation({
+    chunks,
+    mediaAudio: media.audio,
+    showOriginalAudio,
+    findMatchingMediaId,
+    requestAutoPlay,
+    inlineAudioPlayingRef,
+    onRequestSelection: setPendingSelection,
+  });
+
   const handleActiveSentenceChange = useCallback((value: number | null) => {
     setActiveSentenceNumber(value);
   }, []);
-  const findSentenceTarget = useCallback(
-    (sentenceNumber: number) => {
-      if (!Number.isFinite(sentenceNumber)) {
-        return null;
-      }
-      const target = Math.trunc(sentenceNumber);
-      const exactEntry = sentenceLookup.exact.get(target);
-      if (exactEntry) {
-        const span = Math.max(exactEntry.total - 1, 1);
-        const ratio =
-          exactEntry.total > 1 ? exactEntry.localIndex / span : 0;
-        return {
-          chunkIndex: exactEntry.chunkIndex,
-          baseId: exactEntry.baseId,
-          ratio: Number.isFinite(ratio) ? Math.min(Math.max(ratio, 0), 1) : 0,
-        };
-      }
-      for (const range of sentenceLookup.ranges) {
-        if (target >= range.start && target <= range.end) {
-          const span = range.end - range.start;
-          const ratio = span > 0 ? (target - range.start) / span : 0;
-          return {
-            chunkIndex: range.chunkIndex,
-            baseId: range.baseId,
-            ratio: Number.isFinite(ratio) ? Math.min(Math.max(ratio, 0), 1) : 0,
-          };
-        }
-      }
-      return null;
-    },
-    [sentenceLookup],
-  );
-  const canJumpToSentence = sentenceLookup.min !== null && sentenceLookup.max !== null;
-  const sentenceJumpPlaceholder =
-    canJumpToSentence && sentenceLookup.min !== null && sentenceLookup.max !== null
-      ? sentenceLookup.min === sentenceLookup.max
-        ? `${sentenceLookup.min}`
-        : `${sentenceLookup.min}–${sentenceLookup.max}`
-      : undefined;
-  const handleSentenceJumpChange = useCallback((value: string) => {
-    setSentenceJumpValue(value);
-    setSentenceJumpError(null);
-  }, []);
-  const handleSentenceJumpSubmit = useCallback(() => {
-    if (!canJumpToSentence) {
-      setSentenceJumpError('Sentence navigation unavailable.');
-      return;
-    }
-    const trimmed = sentenceJumpValue.trim();
-    if (!trimmed) {
-      setSentenceJumpError('Enter a sentence number.');
-      return;
-    }
-    const parsed = Number(trimmed);
-    if (!Number.isFinite(parsed)) {
-      setSentenceJumpError('Enter a valid sentence number.');
-      return;
-    }
-    const target = Math.trunc(parsed);
-    if (
-      sentenceLookup.min !== null &&
-      sentenceLookup.max !== null &&
-      (target < sentenceLookup.min || target > sentenceLookup.max)
-    ) {
-      setSentenceJumpError(`Enter a number between ${sentenceLookup.min} and ${sentenceLookup.max}.`);
-      return;
-    }
-    const resolution = findSentenceTarget(target);
-    if (!resolution) {
-      setSentenceJumpError('Sentence not found in current assets.');
-      return;
-    }
-    const chunk = chunks[resolution.chunkIndex];
-    if (!chunk) {
-      setSentenceJumpError('Sentence chunk is unavailable.');
-      return;
-    }
-    const baseId = resolution.baseId ?? resolveChunkBaseId(chunk);
-    if (!baseId) {
-      setSentenceJumpError('Unable to locate chunk for this sentence.');
-      return;
-    }
-    setSentenceJumpValue(target.toString());
-    setSentenceJumpError(null);
-    setPendingSelection({
-      baseId,
-      preferredType: 'text',
-      offsetRatio: resolution.ratio ?? null,
-      approximateTime: null,
-      token: Date.now(),
-    });
-  }, [
-    canJumpToSentence,
-    sentenceJumpValue,
-    sentenceLookup.min,
-    sentenceLookup.max,
-    findSentenceTarget,
-    chunks,
-    setPendingSelection,
-  ]);
-
-  const handleInteractiveSentenceJump = useCallback(
-    (sentenceNumber: number) => {
-      if (!canJumpToSentence) {
-        return;
-      }
-      if (!Number.isFinite(sentenceNumber)) {
-        return;
-      }
-      const target = Math.trunc(sentenceNumber);
-      if (
-        sentenceLookup.min !== null &&
-        sentenceLookup.max !== null &&
-        (target < sentenceLookup.min || target > sentenceLookup.max)
-      ) {
-        return;
-      }
-
-      const resolution = findSentenceTarget(target);
-      if (!resolution) {
-        return;
-      }
-      const chunk = chunks[resolution.chunkIndex];
-      if (!chunk) {
-        return;
-      }
-      const baseId = resolution.baseId ?? resolveChunkBaseId(chunk);
-      if (!baseId) {
-        return;
-      }
-
-      const offsetRatio =
-        typeof resolution.ratio === 'number' && Number.isFinite(resolution.ratio)
-          ? Math.min(Math.max(resolution.ratio, 0), 1)
-          : null;
-
-      let approximateTime: number | null = null;
-      if (offsetRatio !== null && chunk.audioTracks) {
-        const normaliseUrl = (value: string) => value.replace(/[?#].*$/, '');
-        const audioId = findMatchingMediaId(baseId, 'audio', media.audio);
-        const audioNeedle = audioId ? normaliseUrl(audioId) : null;
-        const resolveDuration = () => {
-          if (!chunk.audioTracks) {
-            return null;
-          }
-          if (audioNeedle) {
-            for (const track of Object.values(chunk.audioTracks)) {
-              const url = typeof track?.url === 'string' ? normaliseUrl(track.url) : null;
-              if (url && url === audioNeedle) {
-                const duration = track.duration ?? null;
-                return typeof duration === 'number' && Number.isFinite(duration) && duration > 0 ? duration : null;
-              }
-            }
-          }
-          const combinedDuration = chunk.audioTracks.orig_trans?.duration ?? null;
-          if (showOriginalAudio && typeof combinedDuration === 'number' && Number.isFinite(combinedDuration) && combinedDuration > 0) {
-            return combinedDuration;
-          }
-          const translationDuration =
-            chunk.audioTracks.translation?.duration ?? chunk.audioTracks.trans?.duration ?? null;
-          if (typeof translationDuration === 'number' && Number.isFinite(translationDuration) && translationDuration > 0) {
-            return translationDuration;
-          }
-          for (const track of Object.values(chunk.audioTracks)) {
-            const duration = track?.duration ?? null;
-            if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
-              return duration;
-            }
-          }
-          return null;
-        };
-        const duration = resolveDuration();
-        if (duration !== null) {
-          approximateTime = offsetRatio * duration;
-        }
-      }
-
-      if (inlineAudioPlayingRef.current) {
-        requestAutoPlay();
-      }
-
-      setPendingSelection({
-        baseId,
-        preferredType: 'text',
-        offsetRatio,
-        approximateTime,
-        token: Date.now(),
-      });
-    },
-    [
-      canJumpToSentence,
-      chunks,
-      findMatchingMediaId,
-      findSentenceTarget,
-      media.audio,
-      requestAutoPlay,
-      sentenceLookup.max,
-      sentenceLookup.min,
-      setPendingSelection,
-      showOriginalAudio,
-    ],
-  );
 
   useEffect(() => {
     if (!selectionRequest) {
@@ -2630,9 +379,6 @@ const scheduleChunkMetadataAppend = useCallback(
     });
   }, [selectionRequest]);
 
-  useEffect(() => {
-    chunkMetadataStoreRef.current = chunkMetadataStore;
-  }, [chunkMetadataStore]);
   useEffect(() => {
     if (import.meta.env.DEV) {
       return enableDebugOverlay();
@@ -2657,246 +403,20 @@ const scheduleChunkMetadataAppend = useCallback(
     return map;
   }, [media]);
 
-  const jobCoverAsset = useMemo(() => {
-    const value = bookMetadata?.['job_cover_asset'];
-    if (typeof value !== 'string') {
-      return null;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }, [bookMetadata]);
+  const { coverUrl: displayCoverUrl, shouldShowCoverImage } = useCoverArt({
+    jobId,
+    origin,
+    bookMetadata,
+    mediaComplete,
+  });
 
-  const legacyCoverFile = useMemo(() => {
-    const value = bookMetadata?.['book_cover_file'];
-    if (typeof value !== 'string') {
-      return null;
-    }
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }, [bookMetadata]);
-
-  const apiCoverUrl = useMemo(() => {
-    if (!hasJobId || origin === 'library') {
-      return null;
-    }
-    return resolveJobCoverUrl(normalisedJobId);
-  }, [hasJobId, normalisedJobId, origin]);
-
-  const coverCandidates = useMemo(() => {
-    const candidates: string[] = [];
-    const unique = new Set<string>();
-
-    const convertCandidate = (value: string | null | undefined): string | null => {
-      if (typeof value !== 'string') {
-        return null;
-      }
-      const trimmed = value.trim();
-      if (!trimmed) {
-        return null;
-      }
-
-      if (origin === 'library' && trimmed.includes('/pipelines/')) {
-        return null;
-      }
-
-      if (/^https?:\/\//i.test(trimmed)) {
-        if (origin === 'library' && trimmed.includes('/pipelines/')) {
-          return null;
-        }
-        return appendAccessToken(trimmed);
-      }
-
-      if (/^\/?assets\//i.test(trimmed)) {
-        return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
-      }
-
-       if (origin === 'library' && trimmed.startsWith('/') && !trimmed.startsWith('/api/library/')) {
-         return null;
-       }
-
-      if (origin === 'library') {
-        if (trimmed.includes('/pipelines/')) {
-          return null;
-        }
-        if (trimmed.startsWith('/api/library/')) {
-          return appendAccessToken(trimmed);
-        }
-        if (trimmed.startsWith('/')) {
-          return null;
-        }
-        const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);
-        return resolved ? appendAccessToken(resolved) : null;
-      }
-
-      if (trimmed.startsWith('/api/library/')) {
-        return appendAccessToken(trimmed);
-      }
-      if (trimmed.startsWith('/pipelines/')) {
-        return appendAccessToken(trimmed);
-      }
-
-      const stripped = trimmed.replace(/^\/+/, '');
-      if (!stripped) {
-        return null;
-      }
-      try {
-        return buildStorageUrl(stripped, normalisedJobId);
-      } catch (error) {
-        console.warn('Unable to build storage URL for cover image', error);
-        return `/${stripped}`;
-      }
-    };
-
-    const push = (candidate: string | null | undefined) => {
-      const resolved = convertCandidate(candidate);
-      if (!resolved || unique.has(resolved)) {
-        return;
-      }
-      unique.add(resolved);
-      candidates.push(resolved);
-    };
-
-    if (apiCoverUrl) {
-      push(apiCoverUrl);
-    }
-
-    const metadataCoverUrl = (() => {
-      const value = bookMetadata?.['job_cover_asset_url'];
-      return typeof value === 'string' ? value : null;
-    })();
-
-    if (metadataCoverUrl && !(origin === 'library' && /\/pipelines\//.test(metadataCoverUrl))) {
-      push(metadataCoverUrl);
-    }
-
-    push(jobCoverAsset);
-    if (legacyCoverFile && legacyCoverFile !== jobCoverAsset) {
-      push(legacyCoverFile);
-    }
-
-    push(DEFAULT_COVER_URL);
-
-    return candidates;
-  }, [apiCoverUrl, bookMetadata, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
-
-  useEffect(() => {
-    if (coverSourceIndex !== 0) {
-      setCoverSourceIndex(0);
-    }
-  }, [coverCandidates, coverSourceIndex]);
-
-  const displayCoverUrl = coverCandidates[coverSourceIndex] ?? DEFAULT_COVER_URL;
-  const handleCoverError = useCallback(() => {
-    setCoverSourceIndex((currentIndex) => {
-      const nextIndex = currentIndex + 1;
-      if (nextIndex >= coverCandidates.length) {
-        return currentIndex;
-      }
-      return nextIndex;
-    });
-  }, [coverCandidates]);
-  const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
-  const shouldShowCoverImage = origin === 'library' || mediaComplete;
-  const coverErrorHandler = shouldShowCoverImage && shouldHandleCoverError ? handleCoverError : undefined;
-
-  const isSubtitleContext = useMemo(() => {
-    if (itemType === 'narrated_subtitle') {
-      return true;
-    }
-    const normalized = (jobType ?? '').trim().toLowerCase();
-    return normalized === 'subtitle' || normalized.includes('subtitle');
-  }, [itemType, jobType]);
-
-  const libraryTvMediaMetadata = useMemo(() => {
-    if (!isSubtitleContext || origin !== 'library') {
-      return null;
-    }
-    return extractTvMediaMetadataFromLibrary(libraryItem);
-  }, [isSubtitleContext, libraryItem, origin]);
-
-  const [subtitleTvMetadata, setSubtitleTvMetadata] = useState<SubtitleTvMetadataResponse | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    if (!isSubtitleContext) {
-      setSubtitleTvMetadata(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-    if (origin === 'library' && libraryTvMediaMetadata) {
-      return () => {
-        cancelled = true;
-      };
-    }
-    void fetchSubtitleTvMetadata(normalisedJobId)
-      .then((payload) => {
-        if (!cancelled) {
-          setSubtitleTvMetadata(payload);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) {
-          console.warn('Unable to load subtitle TV metadata for player', error);
-          setSubtitleTvMetadata(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [isSubtitleContext, libraryTvMediaMetadata, normalisedJobId, origin]);
-
-  const subtitleMediaMetadata = useMemo<Record<string, unknown> | null>(() => {
-    if (!isSubtitleContext) {
-      return null;
-    }
-    if (libraryTvMediaMetadata) {
-      return libraryTvMediaMetadata;
-    }
-    const candidate = subtitleTvMetadata?.media_metadata ?? null;
-    return candidate && typeof candidate === 'object' ? (candidate as Record<string, unknown>) : null;
-  }, [isSubtitleContext, libraryTvMediaMetadata, subtitleTvMetadata]);
-
-  const subtitleInfo = useMemo(() => {
-    if (!isSubtitleContext) {
-      return {
-        title: null as string | null,
-        meta: null as string | null,
-        coverUrl: null as string | null,
-        coverSecondaryUrl: null as string | null,
-        coverAltText: null as string | null,
-      };
-    }
-
-    const jobIdValue = normalisedJobId;
-    const resolver = origin === 'library' ? resolveLibraryAssetUrl : resolveJobAssetUrl;
-    const episodeCoverUrl = resolveTvMetadataImage(jobIdValue, subtitleMediaMetadata, 'episode', resolver);
-    const showCoverUrl = resolveTvMetadataImage(jobIdValue, subtitleMediaMetadata, 'show', resolver);
-    const coverUrl = episodeCoverUrl ?? showCoverUrl ?? null;
-    const coverSecondaryUrl =
-      showCoverUrl && coverUrl && coverUrl !== showCoverUrl ? showCoverUrl : null;
-
-    const show = coerceRecord(subtitleMediaMetadata?.['show']);
-    const episode = coerceRecord(subtitleMediaMetadata?.['episode']);
-    const showName = normaliseMetadataText(show?.['name']);
-    const parsedSeries = subtitleTvMetadata?.parsed ? normaliseMetadataText(subtitleTvMetadata.parsed.series) : null;
-    const sourceName = subtitleTvMetadata ? normaliseMetadataText(subtitleTvMetadata.source_name) : null;
-    const title = showName ?? parsedSeries ?? sourceName ?? null;
-
-    const seasonNumber = typeof episode?.['season'] === 'number' ? (episode['season'] as number) : null;
-    const episodeNumber = typeof episode?.['number'] === 'number' ? (episode['number'] as number) : null;
-    const code =
-      seasonNumber && episodeNumber && seasonNumber > 0 && episodeNumber > 0
-        ? `S${seasonNumber.toString().padStart(2, '0')}E${episodeNumber.toString().padStart(2, '0')}`
-        : null;
-    const episodeTitle = normaliseMetadataText(episode?.['name']);
-    const airdate = normaliseMetadataText(episode?.['airdate']);
-    const metaParts = [code, episodeTitle, airdate].filter((value): value is string => Boolean(value));
-    const meta = metaParts.length > 0 ? metaParts.join(' · ') : null;
-
-    const coverAltText = title ? `Cover for ${title}` : null;
-
-    return { title, meta, coverUrl, coverSecondaryUrl, coverAltText };
-  }, [isSubtitleContext, normalisedJobId, origin, subtitleMediaMetadata, subtitleTvMetadata]);
+  const { isSubtitleContext, subtitleInfo } = useSubtitleInfo({
+    jobId,
+    jobType,
+    itemType,
+    origin,
+    libraryItem,
+  });
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: SearchCategory) => {
@@ -3094,11 +614,6 @@ const scheduleChunkMetadataAppend = useCallback(
     [media],
   );
 
-  const textContentCache = useRef(new Map<string, { raw: string; plain: string }>());
-  const [textPreview, setTextPreview] = useState<{ url: string; content: string; raw: string } | null>(null);
-  const [textLoading, setTextLoading] = useState(false);
-  const [textError, setTextError] = useState<string | null>(null);
-
   useEffect(() => {
     onVideoPlaybackStateChange?.(false);
   }, [onVideoPlaybackStateChange]);
@@ -3117,22 +632,7 @@ const scheduleChunkMetadataAppend = useCallback(
     }
     return media.text.find((item) => item.url === selectedItemId) ?? media.text[0] ?? null;
   }, [media.text, selectedItemId]);
-  const hasInteractiveChunks = useMemo(() => {
-    return chunks.some((chunk) => {
-      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
-        return true;
-      }
-      if (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0) {
-        return true;
-      }
-      const cacheKey = chunkCacheKey(chunk);
-      if (!cacheKey) {
-        return false;
-      }
-      const cached = chunkMetadataStore[cacheKey];
-      return cached !== undefined;
-    });
-  }, [chunks, chunkMetadataStore]);
+  const { textPreview, textLoading, textError } = useTextPreview(selectedItem?.url);
   const selectedChunk = useMemo(() => {
     if (!selectedItem) {
       return null;
@@ -3192,520 +692,69 @@ const scheduleChunkMetadataAppend = useCallback(
     () => (activeTextChunk ? chunks.findIndex((chunk) => chunk === activeTextChunk) : -1),
     [activeTextChunk, chunks],
   );
-
-  const queueChunkMetadataFetch = useCallback(
-    (chunk: LiveMediaChunk | null | undefined) => {
-      if (!jobId || !chunk) {
-        return;
-      }
-      if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
-        return;
-      }
-      const cacheKey = chunkCacheKey(chunk);
-      if (!cacheKey) {
-        return;
-      }
-      if (chunkMetadataStoreRef.current[cacheKey] !== undefined) {
-        return;
-      }
-      if (chunkMetadataLoadingRef.current.has(cacheKey)) {
-        return;
-      }
-      chunkMetadataLoadingRef.current.add(cacheKey);
-      requestChunkMetadata(jobId, chunk, origin)
-        .then((sentences) => {
-          if (sentences === null) {
-            return;
-          }
-          const { immediate, remainder } = partitionChunkSentences(
-            sentences,
-            CHUNK_SENTENCE_BOOTSTRAP_COUNT,
-          );
-          pushChunkMetadata(cacheKey, immediate, false);
-          if (remainder.length > 0) {
-            scheduleChunkMetadataAppend(cacheKey, remainder);
-          }
-        })
-        .catch((error) => {
-          console.warn('Unable to load interactive chunk metadata', error);
-        })
-        .finally(() => {
-          chunkMetadataLoadingRef.current.delete(cacheKey);
-        });
-    },
-    [jobId, origin, pushChunkMetadata, scheduleChunkMetadataAppend],
-  );
-
-  useEffect(() => {
-    if (!jobId) {
-      return;
-    }
-    const targets = new Set<LiveMediaChunk>();
-
-    if (activeTextChunk) {
-      targets.add(activeTextChunk);
-    }
-
-    if (activeTextChunkIndex >= 0) {
-      for (let offset = -CHUNK_METADATA_PREFETCH_RADIUS; offset <= CHUNK_METADATA_PREFETCH_RADIUS; offset += 1) {
-        const neighbourIndex = activeTextChunkIndex + offset;
-        if (neighbourIndex < 0 || neighbourIndex >= chunks.length) {
-          continue;
-        }
-        const neighbour = chunks[neighbourIndex];
-        if (neighbour && (neighbour === activeTextChunk || shouldPrefetchChunk(neighbour))) {
-          targets.add(neighbour);
-        }
-      }
-
-      if (isSingleSentenceChunk(activeTextChunk)) {
-        let aheadPrefetched = 0;
-        for (
-          let lookaheadIndex = activeTextChunkIndex + 1;
-          lookaheadIndex < chunks.length && aheadPrefetched < SINGLE_SENTENCE_PREFETCH_AHEAD;
-          lookaheadIndex += 1
-        ) {
-          const lookaheadChunk = chunks[lookaheadIndex];
-          if (!lookaheadChunk) {
-            continue;
-          }
-          if (shouldPrefetchChunk(lookaheadChunk)) {
-            targets.add(lookaheadChunk);
-          }
-          aheadPrefetched += 1;
-        }
-      }
-    }
-
-    targets.forEach((chunk) => {
-      queueChunkMetadataFetch(chunk);
-    });
-  }, [jobId, chunks, activeTextChunk, activeTextChunkIndex, queueChunkMetadataFetch]);
-
-  const resolvedActiveTextChunk = useMemo(() => {
-    if (!activeTextChunk) {
-      return null;
-    }
-    if (Array.isArray(activeTextChunk.sentences) && activeTextChunk.sentences.length > 0) {
-      return activeTextChunk;
-    }
-    const cacheKey = chunkCacheKey(activeTextChunk);
-    if (!cacheKey) {
-      return activeTextChunk;
-    }
-    const cached = chunkMetadataStore[cacheKey];
-    if (cached !== undefined) {
-      return {
-        ...activeTextChunk,
-        sentences: cached,
-        sentenceCount: cached.length,
-      };
-    }
-    return activeTextChunk;
-  }, [activeTextChunk, chunkMetadataStore]);
-  const activeAudioTracks = useMemo(() => {
-    const chunkRef = resolvedActiveTextChunk;
-    if (!normalisedJobId || !chunkRef) {
-      return null;
-    }
-    const tracks = chunkRef.audioTracks ?? null;
-    const files = chunkRef.files ?? [];
-    const mapping: Record<string, AudioTrackMetadata> = {};
-
-    const normaliseSource = (source: string | null | undefined) => {
-      if (!source) {
-        return null;
-      }
-      const trimmed = source.trim();
-      if (!trimmed) {
-        return null;
-      }
-      if (trimmed.includes('://')) {
-        return trimmed;
-      }
-      if (trimmed.startsWith('/')) {
-        if (origin === 'library') {
-          return appendAccessToken(trimmed);
-        }
-        return trimmed;
-      }
-      if (origin === 'library') {
-        const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);
-        return resolved ?? appendAccessToken(trimmed);
-      }
-      return buildStorageUrl(trimmed, normalisedJobId);
-    };
-
-    const registerTrack = (key: string, descriptor: AudioTrackMetadata | string | null | undefined) => {
-      if (!key || !descriptor) {
-        return;
-      }
-      let payload: AudioTrackMetadata;
-      if (typeof descriptor === 'string') {
-        payload = { path: descriptor };
-      } else {
-        payload = { ...descriptor };
-      }
-      const resolved = normaliseSource(payload.url ?? payload.path ?? null);
-      if (resolved) {
-        payload.url = resolved;
-      }
-      if (payload.path && !payload.url) {
-        payload.url = normaliseSource(payload.path);
-      }
-      const existing = mapping[key] ?? {};
-      mapping[key] = { ...existing, ...payload };
-    };
-
-    if (tracks) {
-      Object.entries(tracks).forEach(([key, value]) => {
-        const normalisedKey = key === 'trans' ? 'translation' : key;
-        if (typeof value === 'string' || (value && typeof value === 'object')) {
-          registerTrack(normalisedKey, value as AudioTrackMetadata | string);
-        }
-      });
-    }
-
-    files.forEach((file) => {
-      if (!file || typeof file !== 'object') {
-        return;
-      }
-      if (!isAudioFileType(file.type)) {
-        return;
-      }
-      const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
-      const displayName = typeof file.name === 'string' ? file.name : '';
-      const isCombinedCandidate = isCombinedAudioCandidate(relativePath, displayName);
-      const descriptor: AudioTrackMetadata = {
-        path: typeof file.relative_path === 'string' ? file.relative_path : undefined,
-        url: typeof file.url === 'string' ? file.url : undefined,
-      };
-      if (isCombinedCandidate) {
-        registerTrack('orig_trans', descriptor);
-        return;
-      }
-      const isOriginalCandidate = isOriginalAudioCandidate(relativePath, displayName);
-      if (isOriginalCandidate) {
-        registerTrack('orig', descriptor);
-        return;
-      }
-      if (!mapping.translation) {
-        registerTrack('translation', descriptor);
-      }
-    });
-
-    return Object.keys(mapping).length > 0 ? mapping : null;
-  }, [normalisedJobId, origin, resolvedActiveTextChunk]);
-  const inlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
-    const seen = new Set<string>();
-    const options: InlineAudioOption[] = [];
-    const register = (
-      url: string | null | undefined,
-      label: string | null | undefined,
-      kind: InlineAudioKind,
-    ) => {
-      if (!url || seen.has(url)) {
-        return;
-      }
-      const trimmedLabel = typeof label === 'string' ? label.trim() : '';
-      options.push({
-        url,
-        label: trimmedLabel || `Audio ${options.length + 1}`,
-        kind,
-      });
-      seen.add(url);
-    };
-    const chunkForOptions = resolvedActiveTextChunk ?? activeTextChunk;
-    if (chunkForOptions && activeTextChunkIndex >= 0) {
-      chunkForOptions.files.forEach((file) => {
-        if (!isAudioFileType(file.type) || !file.url) {
-          return;
-        }
-        const relativePath = typeof file.relative_path === 'string' ? file.relative_path : '';
-        const displayName = typeof file.name === 'string' ? file.name : '';
-        const isCombined = isCombinedAudioCandidate(relativePath, displayName);
-        if (isOriginalAudioCandidate(relativePath, displayName) && !isCombined) {
-          return;
-        }
-        const label =
-          interactiveAudioNameMap.get(file.url) ??
-          (typeof file.name === 'string' ? file.name.trim() : '') ??
-          formatChunkLabel(chunkForOptions, activeTextChunkIndex);
-        register(file.url, label, isCombined ? 'combined' : 'translation');
-      });
-    }
-    if (activeAudioTracks) {
-      Object.entries(activeAudioTracks).forEach(([key, metadata]) => {
-        if (!metadata?.url || seen.has(metadata.url)) {
-          return;
-        }
-        const label =
-          key === 'orig_trans'
-            ? 'Original + Translation'
-            : key === 'translation'
-              ? 'Translation'
-              : key === 'orig'
-                ? 'Original'
-                : `Audio (${key})`;
-        let kind: InlineAudioKind = 'other';
-        if (key === 'orig_trans') {
-          kind = 'combined';
-        } else if (key === 'translation' || key === 'trans') {
-          kind = 'translation';
-        }
-        register(metadata.url, label, kind);
-      });
-    }
-    interactiveAudioPlaylist.forEach((item, index) => {
-      register(item.url, item.name ?? `Audio ${index + 1}`, 'translation');
-    });
-    return options;
-  }, [
-    activeAudioTracks,
+  const { hasInteractiveChunks, resolvedActiveTextChunk } = useChunkMetadata({
+    jobId,
+    origin,
+    chunks,
     activeTextChunk,
+    activeTextChunkIndex,
+  });
+
+  const {
+    activeAudioTracks,
+    visibleInlineAudioOptions,
+    inlineAudioUnavailable,
+    hasCombinedAudio,
+    canToggleOriginalAudio,
+    effectiveOriginalAudioEnabled,
+    handleOriginalAudioToggle,
+    activeTimingTrack,
+  } = useInlineAudioOptions({
+    jobId,
+    origin,
+    activeTextChunk,
+    resolvedActiveTextChunk,
     activeTextChunkIndex,
     interactiveAudioNameMap,
     interactiveAudioPlaylist,
-    resolvedActiveTextChunk,
-  ]);
-
-  const hasCombinedAudio = Boolean(
-    activeAudioTracks?.orig_trans?.url || activeAudioTracks?.orig_trans?.path,
-  );
-  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig?.url || activeAudioTracks?.orig?.path);
-  const canToggleOriginalAudio = hasCombinedAudio || hasLegacyOriginal;
-  const effectiveOriginalAudioEnabled = showOriginalAudio && hasCombinedAudio;
-  const visibleInlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
-    if (showOriginalAudio && hasCombinedAudio) {
-      return inlineAudioOptions.filter((option) => option.kind === 'combined');
-    }
-    return inlineAudioOptions.filter((option) => option.kind !== 'combined' || !hasCombinedAudio);
-  }, [hasCombinedAudio, inlineAudioOptions, showOriginalAudio]);
-
-  const inlineAudioUnavailable = visibleInlineAudioOptions.length === 0;
-  const handleOriginalAudioToggle = useCallback(() => {
-    if (!hasCombinedAudio) {
-      return;
-    }
-    setShowOriginalAudio((current) => !current);
-  }, [hasCombinedAudio]);
-
-  useEffect(() => {
-    if (!hasCombinedAudio && showOriginalAudio) {
-      setShowOriginalAudio(false);
-    }
-  }, [hasCombinedAudio, showOriginalAudio]);
-
-  useEffect(() => {
-    if (!hasCombinedAudio) {
-      return;
-    }
-    const combinedUrl = activeAudioTracks?.orig_trans?.url ?? null;
-    const translationUrl =
-      activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
-    setInlineAudioSelection((current) => {
-      if (showOriginalAudio) {
-        if (combinedUrl && current !== combinedUrl) {
-          return combinedUrl;
-        }
-        return combinedUrl ?? current;
-      }
-      if (combinedUrl && current === combinedUrl) {
-        if (translationUrl) {
-          return translationUrl;
-        }
-        return null;
-      }
-      return current;
-    });
-  }, [
-    activeAudioTracks?.orig_trans?.url,
-    activeAudioTracks?.translation?.url,
-    activeAudioTracks?.trans?.url,
-    hasCombinedAudio,
+    inlineAudioSelection,
     showOriginalAudio,
-  ]);
-  const combinedTrackUrl = activeAudioTracks?.orig_trans?.url ?? null;
-  const translationTrackUrl =
-    activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
-  const activeTimingTrack: 'mix' | 'translation' =
-    combinedTrackUrl &&
-    ((inlineAudioSelection && inlineAudioSelection === combinedTrackUrl) ||
-      (!inlineAudioSelection && effectiveOriginalAudioEnabled))
-      ? 'mix'
-      : 'translation';
-  useEffect(() => {
-    if (!pendingSelection) {
-      return;
-    }
+    setShowOriginalAudio,
+    setInlineAudioSelection,
+  });
 
-    const hasLoadedMedia = MEDIA_CATEGORIES.some((category) => media[category].length > 0);
-    if (!hasLoadedMedia) {
-      return;
-    }
-
-    const { baseId, preferredType, offsetRatio = null, approximateTime = null } = pendingSelection;
-    const selectionToken = pendingSelection.token ?? Date.now();
-    const chunkMatchIndex = findChunkIndexForBaseId(baseId, chunks);
-
-    const candidateOrder: MediaCategory[] = [];
-    if (preferredType) {
-      candidateOrder.push(preferredType);
-    }
-    MEDIA_CATEGORIES.forEach((category) => {
-      if (!candidateOrder.includes(category)) {
-        candidateOrder.push(category);
-      }
-    });
-
-    const matchByCategory: Record<MediaCategory, string | null> = {
-      text: baseId ? findMatchingMediaId(baseId, 'text', media.text) : null,
-      audio: baseId ? findMatchingMediaId(baseId, 'audio', media.audio) : null,
-      video: baseId ? findMatchingMediaId(baseId, 'video', media.video) : null,
-    };
-
-    if (matchByCategory.audio) {
-      setSelectedItemIds((current) =>
-        current.audio === matchByCategory.audio ? current : { ...current, audio: matchByCategory.audio },
-      );
-    }
-
-    const tabCandidates = candidateOrder.filter(
-      (category): category is Extract<MediaCategory, 'text' | 'video'> =>
-        category === 'text' || category === 'video',
-    );
-
-    let appliedCategory: MediaCategory | null = null;
-
-    for (const category of tabCandidates) {
-      if (category === 'text' && !matchByCategory.text && chunkMatchIndex >= 0) {
-        setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
-        appliedCategory = 'text';
-        break;
-      }
-
-      const matchId = matchByCategory[category];
-      if (!matchId) {
-        continue;
-      }
-
-      setSelectedItemIds((current) => {
-        if (current[category] === matchId) {
-          return current;
-        }
-        return { ...current, [category]: matchId };
-      });
-      appliedCategory = category;
-      break;
-    }
-
-    if (!appliedCategory && preferredType) {
-      if (preferredType === 'audio') {
-        setSelectedItemIds((current) => {
-          if (current.audio !== null) {
-            return current;
-          }
-          const firstAudio = media.audio.find((item) => item.url);
-          if (!firstAudio?.url) {
-            return current;
-          }
-          return { ...current, audio: firstAudio.url };
-        });
-
-        if (chunkMatchIndex >= 0) {
-          setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
-          appliedCategory = 'text';
-        } else if (media.text.length > 0) {
-          setSelectedItemIds((current) => {
-            if (current.text) {
-              return current;
-            }
-            const firstText = media.text.find((item) => item.url);
-            if (!firstText?.url) {
-              return current;
-            }
-            return { ...current, text: firstText.url };
-          });
-          appliedCategory = 'text';
-        } else if (media.video.length > 0) {
-          setSelectedItemIds((current) => {
-            if (current.video) {
-              return current;
-            }
-            const firstVideo = media.video.find((item) => item.url);
-            if (!firstVideo?.url) {
-              return current;
-            }
-            return { ...current, video: firstVideo.url };
-          });
-          appliedCategory = 'video';
-        }
-      } else {
-        const category = preferredType;
-        if (category === 'text' && chunkMatchIndex >= 0) {
-          setPendingChunkSelection({ index: chunkMatchIndex, token: selectionToken });
-          appliedCategory = 'text';
-        } else {
-          setSelectedItemIds((current) => {
-            const hasCurrent = current[category] !== null;
-            if (hasCurrent) {
-              return current;
-            }
-            const firstItem = media[category].find((item) => item.url);
-            if (!firstItem?.url) {
-              return current;
-            }
-            return { ...current, [category]: firstItem.url };
-          });
-          appliedCategory = media[category].length > 0 ? category : null;
-        }
-      }
-    }
-
-    if (matchByCategory.audio && approximateTime != null && Number.isFinite(approximateTime)) {
-      const audioItem = getMediaItem('audio', matchByCategory.audio);
-      const audioBaseId = audioItem ? deriveBaseId(audioItem) : null;
-      rememberPosition({
-        mediaId: matchByCategory.audio,
-        mediaType: 'audio',
-        baseId: audioBaseId,
-        position: Math.max(approximateTime, 0),
-      });
-    }
-
-    if (matchByCategory.video && approximateTime != null && Number.isFinite(approximateTime)) {
-      const videoItem = getMediaItem('video', matchByCategory.video);
-      const videoBaseId = videoItem ? deriveBaseId(videoItem) : null;
-      rememberPosition({
-        mediaId: matchByCategory.video,
-        mediaType: 'video',
-        baseId: videoBaseId,
-        position: Math.max(approximateTime, 0),
-      });
-    }
-
-    if ((matchByCategory.text || chunkMatchIndex >= 0) && offsetRatio != null && Number.isFinite(offsetRatio)) {
-      setPendingTextScrollRatio(Math.max(Math.min(offsetRatio, 1), 0));
-    } else {
-      setPendingTextScrollRatio(null);
-    }
-
-    if (matchByCategory.audio && visibleInlineAudioOptions.some((option) => option.url === matchByCategory.audio)) {
-      setInlineAudioSelection((current) => (current === matchByCategory.audio ? current : matchByCategory.audio));
-    }
-
-    setPendingSelection(null);
-  }, [
+  usePendingSelection({
     pendingSelection,
-    findMatchingMediaId,
+    setPendingSelection,
+    chunks,
     media,
+    findMatchingMediaId,
     getMediaItem,
     deriveBaseId,
     rememberPosition,
     visibleInlineAudioOptions,
-    chunks,
+    setSelectedItemIds,
     setPendingChunkSelection,
-  ]);
+    setPendingTextScrollRatio,
+    setInlineAudioSelection,
+  });
+
+  const { activateChunk, handleInlineAudioEnded } = useInlineAudioSelection({
+    chunks,
+    audioChunkIndexMap,
+    activeTextChunkIndex,
+    inlineAudioSelection,
+    setInlineAudioSelection,
+    visibleInlineAudioOptions,
+    mediaAudio: media.audio,
+    getMediaItem,
+    deriveBaseId,
+    setSelectedItemIds,
+    setPendingTextScrollRatio,
+    rememberPosition,
+    requestAutoPlay,
+    updateSelection,
+  });
 
   const fallbackTextContent = useMemo(() => {
     if (!resolvedActiveTextChunk || !Array.isArray(resolvedActiveTextChunk.sentences)) {
@@ -3748,7 +797,6 @@ const scheduleChunkMetadataAppend = useCallback(
     updateInteractiveFullscreenPreference(false);
     setIsInteractiveFullscreen(false);
   }, [updateInteractiveFullscreenPreference]);
-  const panelClassName = 'player-panel';
   useEffect(() => {
     if (!canRenderInteractiveViewer) {
       if (!hasInteractiveChunks && isInteractiveFullscreen) {
@@ -3823,18 +871,6 @@ const scheduleChunkMetadataAppend = useCallback(
   useWakeLock(shouldHoldWakeLock);
   const isPlaybackDisabled = !playbackControlsAvailable;
   const isFullscreenDisabled = !canRenderInteractiveViewer;
-  const handleTranslationSpeedChange = useCallback((speed: TranslationSpeed) => {
-    setTranslationSpeed(normaliseTranslationSpeed(speed));
-  }, []);
-  const handleFontScaleChange = useCallback((percent: number) => {
-    setFontScalePercent(clampFontScalePercent(percent));
-  }, []);
-  const adjustFontScale = useCallback((direction: 'increase' | 'decrease') => {
-    setFontScalePercent((current) => {
-      const delta = direction === 'increase' ? FONT_SCALE_STEP : -FONT_SCALE_STEP;
-      return clampFontScalePercent(current + delta);
-    });
-  }, []);
 
   const adjustMyLinguistFontScale = useCallback(
     (direction: 'increase' | 'decrease') => {
@@ -3842,79 +878,6 @@ const scheduleChunkMetadataAppend = useCallback(
       adjustBaseFontScalePercent(delta);
     },
     [adjustBaseFontScalePercent],
-  );
-
-  const syncInteractiveSelection = useCallback(
-    (audioUrl: string | null) => {
-      if (!audioUrl) {
-        return;
-      }
-      setSelectedItemIds((current) =>
-        current.audio === audioUrl ? current : { ...current, audio: audioUrl },
-      );
-      const chunkIndex = audioChunkIndexMap.get(audioUrl);
-      if (typeof chunkIndex === 'number' && chunkIndex >= 0 && chunkIndex < chunks.length) {
-        const targetChunk = chunks[chunkIndex];
-        const nextTextFile = targetChunk.files.find((file) => file.type === 'text' && file.url);
-        if (nextTextFile?.url) {
-          setSelectedItemIds((current) =>
-            current.text === nextTextFile.url ? current : { ...current, text: nextTextFile.url },
-          );
-        }
-      }
-    },
-    [
-      audioChunkIndexMap,
-      chunks,
-      setSelectedItemIds,
-    ],
-  );
-
-  const activateChunk = useCallback(
-    (chunk: LiveMediaChunk | null | undefined, options?: { scrollRatio?: number; autoPlay?: boolean }) => {
-      if (!chunk) {
-        return false;
-      }
-      const scrollRatio =
-        typeof options?.scrollRatio === 'number' ? Math.min(Math.max(options.scrollRatio, 0), 1) : null;
-      if (scrollRatio !== null) {
-        setPendingTextScrollRatio(scrollRatio);
-      }
-      const textFile = chunk.files.find(
-        (file) => file.type === 'text' && typeof file.url === 'string' && file.url.length > 0,
-      );
-      if (textFile?.url) {
-        setSelectedItemIds((current) =>
-          current.text === textFile.url ? current : { ...current, text: textFile.url },
-        );
-        const textBaseId = deriveBaseIdFromReference(textFile.url);
-        rememberPosition({ mediaId: textFile.url, mediaType: 'text', baseId: textBaseId, position: 0 });
-      }
-      const audioFile = chunk.files.find(
-        (file) => isAudioFileType(file.type) && typeof file.url === 'string' && file.url.length > 0,
-      );
-      if (audioFile?.url) {
-        const audioItem = getMediaItem('audio', audioFile.url);
-        const audioBaseId = audioItem ? deriveBaseId(audioItem) : deriveBaseIdFromReference(audioFile.url);
-        rememberPosition({ mediaId: audioFile.url, mediaType: 'audio', baseId: audioBaseId, position: 0 });
-        setInlineAudioSelection((current) => (current === audioFile.url ? current : audioFile.url));
-        syncInteractiveSelection(audioFile.url);
-        if (options?.autoPlay) {
-          requestAutoPlay();
-        }
-      }
-      return true;
-    },
-    [
-      deriveBaseId,
-      getMediaItem,
-      rememberPosition,
-      requestAutoPlay,
-      setInlineAudioSelection,
-      setPendingTextScrollRatio,
-      setSelectedItemIds,
-      syncInteractiveSelection,
-    ],
   );
 
   const activateTextItem = useCallback(
@@ -3955,17 +918,6 @@ const scheduleChunkMetadataAppend = useCallback(
     activateChunk(chunks[index], { scrollRatio: 0 });
     setPendingChunkSelection(null);
   }, [activateChunk, chunks, pendingChunkSelection]);
-
-  const handleInlineAudioSelect = useCallback(
-    (audioUrl: string) => {
-      if (!audioUrl) {
-        return;
-      }
-      setInlineAudioSelection((current) => (current === audioUrl ? current : audioUrl));
-      syncInteractiveSelection(audioUrl);
-    },
-    [syncInteractiveSelection],
-  );
 
   const handleInlineAudioPlaybackStateChange = useCallback(
     (state: 'playing' | 'paused') => {
@@ -4069,18 +1021,11 @@ const scheduleChunkMetadataAppend = useCallback(
 
   const handlePlayActiveMedia = useCallback(() => {
     if (readingBedEnabled) {
-      void readingBed.play();
+      playReadingBed();
     }
     inlineAudioControlsRef.current?.play();
     updateInlineAudioPlaying(true);
-  }, [readingBed, readingBedEnabled, updateInlineAudioPlaying]);
-
-  const adjustTranslationSpeed = useCallback((direction: 'faster' | 'slower') => {
-    setTranslationSpeed((current) => {
-      const delta = direction === 'faster' ? TRANSLATION_SPEED_STEP : -TRANSLATION_SPEED_STEP;
-      return normaliseTranslationSpeed(current + delta);
-    });
-  }, []);
+  }, [playReadingBed, readingBedEnabled, updateInlineAudioPlaying]);
 
   const handleToggleActiveMedia = useCallback(() => {
     if (isActiveMediaPlaying) {
@@ -4090,344 +1035,27 @@ const scheduleChunkMetadataAppend = useCallback(
     }
   }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
 
-  const [showShortcutHelp, setShowShortcutHelp] = useState(false);
-  const shortcutHelpCardRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    if (!showShortcutHelp) {
-      return;
-    }
-    shortcutHelpCardRef.current?.focus();
-  }, [showShortcutHelp]);
-  useEffect(() => {
-    if (!showShortcutHelp) {
-      return;
-    }
-    if (typeof window === 'undefined') {
-      return;
-    }
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) {
-        return;
-      }
-      if (event.key === 'Escape' || event.key === 'Esc') {
-        event.preventDefault();
-        event.stopPropagation();
-        setShowShortcutHelp(false);
-        return;
-      }
-      if (event.altKey || event.metaKey || event.ctrlKey) {
-        if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
-          event.preventDefault();
-          event.stopPropagation();
-        }
-        return;
-      }
-      if (event.shiftKey) {
-        return;
-      }
-      if (event.key?.toLowerCase() === 'h') {
-        event.preventDefault();
-        event.stopPropagation();
-        setShowShortcutHelp(false);
-        return;
-      }
-      if (event.key === 'Tab') {
-        return;
-      }
-      event.stopPropagation();
-      const key = event.key?.toLowerCase();
-      if (
-        event.code === 'Space' ||
-        event.key === ' ' ||
-        event.key === 'ArrowLeft' ||
-        event.key === 'ArrowRight' ||
-        event.key === 'ArrowUp' ||
-        event.key === 'ArrowDown' ||
-        key === 'f' ||
-        key === 'r' ||
-        key === 'm' ||
-        key === 'l' ||
-        key === 'o' ||
-        key === 'i' ||
-        key === 'p' ||
-        key === 'g' ||
-        key === 'd' ||
-        key === '+' ||
-        key === '=' ||
-        key === '-' ||
-        key === '_'
-      ) {
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown, true);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown, true);
-    };
-  }, [showShortcutHelp]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-    const isTypingTarget = (target: EventTarget | null): boolean => {
-      if (!target || !(target instanceof HTMLElement)) {
-        return false;
-      }
-      const tag = target.tagName;
-      if (!tag) {
-        return false;
-      }
-      const editable =
-        target.isContentEditable ||
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT';
-      return editable;
-    };
-    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.metaKey || isTypingTarget(event.target)) {
-        return;
-      }
-      const key = event.key?.toLowerCase();
-      const code = event.code;
-      const isPlusKey =
-        key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd';
-      const isMinusKey =
-        key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
-
-      if (event.ctrlKey) {
-        if (isPlusKey) {
-          adjustMyLinguistFontScale('increase');
-          event.preventDefault();
-          return;
-        }
-        if (isMinusKey) {
-          adjustMyLinguistFontScale('decrease');
-          event.preventDefault();
-          return;
-        }
-        return;
-      }
-      const isArrowRight =
-        code === 'ArrowRight' || key === 'arrowright' || event.key === 'ArrowRight';
-      const isArrowLeft =
-        code === 'ArrowLeft' || key === 'arrowleft' || event.key === 'ArrowLeft';
-      if (isArrowRight) {
-        handleNavigatePreservingPlayback('next');
-        event.preventDefault();
-        return;
-      }
-      if (isArrowLeft) {
-        handleNavigatePreservingPlayback('previous');
-        event.preventDefault();
-        return;
-      }
-      if (key === 'h' && !event.shiftKey) {
-        setShowShortcutHelp((value) => !value);
-        event.preventDefault();
-        return;
-      }
-      if (key === 'l' && !event.shiftKey) {
-        toggleMyLinguist();
-        event.preventDefault();
-        return;
-      }
-      if (key === 'm' && !event.shiftKey) {
-        handleToggleReadingBed();
-        event.preventDefault();
-        return;
-      }
-      if (key === 'f') {
-        handleInteractiveFullscreenToggle();
-        event.preventDefault();
-        return;
-      }
-      if (key === 'o') {
-        if (event.shiftKey && canToggleOriginalAudio) {
-          handleOriginalAudioToggle();
-        } else {
-          setInteractiveTextVisibility((current) => ({ ...current, original: !current.original }));
-        }
-        event.preventDefault();
-        return;
-      }
-      if (key === 'i') {
-        setInteractiveTextVisibility((current) => ({
-          ...current,
-          transliteration: !current.transliteration,
-        }));
-        event.preventDefault();
-        return;
-      }
-      if (key === 'p') {
-        setInteractiveTextVisibility((current) => ({ ...current, translation: !current.translation }));
-        event.preventDefault();
-        return;
-      }
-      const isArrowUp =
-        code === 'ArrowUp' || key === 'arrowup' || event.key === 'ArrowUp';
-      if (isArrowUp) {
-        adjustTranslationSpeed('faster');
-        event.preventDefault();
-        return;
-      }
-      const isArrowDown =
-        code === 'ArrowDown' || key === 'arrowdown' || event.key === 'ArrowDown';
-      if (isArrowDown) {
-        adjustTranslationSpeed('slower');
-        event.preventDefault();
-        return;
-      }
-      if (isPlusKey) {
-        adjustFontScale('increase');
-        event.preventDefault();
-        return;
-      }
-      if (isMinusKey) {
-        adjustFontScale('decrease');
-        event.preventDefault();
-        return;
-      }
-      if (!event.shiftKey && (event.code === 'Space' || key === ' ')) {
-        handleToggleActiveMedia();
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [
+  const { showShortcutHelp, setShowShortcutHelp } = usePlayerShortcuts({
+    canToggleOriginalAudio,
+    onToggleOriginalAudio: handleOriginalAudioToggle,
+    onToggleCueLayer: handleToggleInteractiveTextLayer,
+    onToggleMyLinguist: toggleMyLinguist,
+    onToggleReadingBed: handleToggleReadingBed,
+    onToggleFullscreen: handleInteractiveFullscreenToggle,
+    onTogglePlayback: handleToggleActiveMedia,
+    onNavigate: handleNavigatePreservingPlayback,
     adjustTranslationSpeed,
     adjustFontScale,
     adjustMyLinguistFontScale,
-    canToggleOriginalAudio,
-    handleInteractiveFullscreenToggle,
-    handleNavigate,
-    handleOriginalAudioToggle,
-    handleToggleActiveMedia,
-    toggleMyLinguist,
-  ]);
+  });
 
-  const shortcutHelpOverlay = showShortcutHelp ? (
-    <div
-      className="player-panel__shortcut-help-overlay"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Keyboard shortcuts"
-    >
-      <div
-        className="player-panel__shortcut-help-backdrop"
-        onPointerDown={() => setShowShortcutHelp(false)}
-      />
-      <div
-        className="player-panel__shortcut-help-card"
-        ref={shortcutHelpCardRef}
-        tabIndex={-1}
-      >
-        <header className="player-panel__shortcut-help-header">
-          <h2 className="player-panel__shortcut-help-title">Keyboard shortcuts</h2>
-          <button
-            type="button"
-            className="player-panel__shortcut-help-close"
-            onClick={() => setShowShortcutHelp(false)}
-          >
-            Close
-          </button>
-        </header>
-        <div className="player-panel__shortcut-help-body">
-          <section className="player-panel__shortcut-help-section" aria-label="Playback and navigation">
-            <h3>Playback &amp; navigation</h3>
-            <ul>
-              <li>
-                <kbd>Space</kbd> Play/pause active track
-              </li>
-              <li>
-                <kbd>←</kbd>/<kbd>→</kbd> Previous/next chunk (keeps play state)
-              </li>
-              <li>
-                <kbd>M</kbd> Toggle background music
-              </li>
-              <li>
-                <kbd>F</kbd> Toggle fullscreen
-              </li>
-              <li>
-                <kbd>R</kbd> Toggle image reel
-              </li>
-            </ul>
-          </section>
-          <section className="player-panel__shortcut-help-section" aria-label="Text display">
-            <h3>Text display</h3>
-            <ul>
-              <li>
-                <kbd>O</kbd> Toggle original line
-              </li>
-              {canToggleOriginalAudio ? (
-                <li>
-                  <kbd>Shift</kbd>+<kbd>O</kbd> Toggle original audio
-                </li>
-              ) : null}
-              <li>
-                <kbd>I</kbd> Toggle transliteration line
-              </li>
-              <li>
-                <kbd>P</kbd> Toggle translation line
-              </li>
-              <li>
-                <kbd>+</kbd>/<kbd>-</kbd> Increase/decrease font size
-              </li>
-              <li>
-                <kbd>↑</kbd>/<kbd>↓</kbd> Translation speed up/down
-              </li>
-            </ul>
-          </section>
-	          <section className="player-panel__shortcut-help-section" aria-label="MyLinguist">
-	            <h3>MyLinguist</h3>
-	            <ul>
-	              <li>
-	                <kbd>L</kbd> Toggle MyLinguist chat window
-	              </li>
-	              <li>
-	                <kbd>Ctrl</kbd>+<kbd>+</kbd>/<kbd>Ctrl</kbd>+<kbd>-</kbd> Increase/decrease MyLinguist font size
-	              </li>
-	              <li>
-	                <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>Alt</kbd>+<kbd>→</kbd> Previous/next word (stays on current lane)
-	              </li>
-	              <li>
-	                <kbd>Esc</kbd> Close the bubble
-	              </li>
-              <li>
-                <kbd>Enter</kbd> or <kbd>Space</kbd> (on focused word) Seek to that word
-              </li>
-            </ul>
-          </section>
-          <section className="player-panel__shortcut-help-section" aria-label="Fullscreen controls">
-            <h3>Fullscreen</h3>
-            <ul>
-              <li>
-                <kbd>Shift</kbd>+<kbd>H</kbd> Collapse/expand fullscreen controls
-              </li>
-            </ul>
-          </section>
-          <section className="player-panel__shortcut-help-section" aria-label="Help and debug">
-            <h3>Help &amp; debug</h3>
-            <ul>
-              <li>
-                <kbd>H</kbd> Toggle this help overlay
-              </li>
-              <li>
-                <kbd>Esc</kbd> Close dialogs/overlays
-              </li>
-              <li>
-                <kbd>G</kbd>/<kbd>P</kbd>/<kbd>D</kbd> Toggle word-sync debug overlays (dev)
-              </li>
-            </ul>
-          </section>
-        </div>
-      </div>
-    </div>
-  ) : null;
+  const shortcutHelpOverlay = (
+    <ShortcutHelpOverlay
+      isOpen={showShortcutHelp}
+      onClose={() => setShowShortcutHelp(false)}
+      canToggleOriginalAudio={canToggleOriginalAudio}
+    />
+  );
 
   const handleTextScroll = useCallback(
     (event: UIEvent<HTMLElement>) => {
@@ -4460,165 +1088,6 @@ const scheduleChunkMetadataAppend = useCallback(
     (audioUrl: string) => getPosition(audioUrl),
     [getPosition],
   );
-
-  const advanceInteractiveChunk = useCallback((options?: { autoPlay?: boolean }) => {
-    if (chunks.length === 0) {
-      return false;
-    }
-    let currentIndex = activeTextChunkIndex;
-    if (currentIndex < 0 && inlineAudioSelection) {
-      const mappedIndex = audioChunkIndexMap.get(inlineAudioSelection);
-      if (typeof mappedIndex === 'number' && mappedIndex >= 0) {
-        currentIndex = mappedIndex;
-      }
-    }
-    const nextIndex = currentIndex >= 0 ? currentIndex + 1 : 0;
-    if (nextIndex >= chunks.length) {
-      return false;
-    }
-    const nextChunk = chunks[nextIndex];
-    activateChunk(nextChunk, {
-      scrollRatio: 0,
-      autoPlay: options?.autoPlay ?? false,
-    });
-    return true;
-  }, [
-    activeTextChunkIndex,
-    audioChunkIndexMap,
-    activateChunk,
-    chunks,
-    inlineAudioSelection,
-  ]);
-
-  const handleInlineAudioEnded = useCallback(() => {
-    const advanced = advanceInteractiveChunk({ autoPlay: true });
-    if (!advanced) {
-      updateSelection('text', 'next');
-    }
-  }, [advanceInteractiveChunk, updateSelection]);
-
-  useEffect(() => {
-    if (visibleInlineAudioOptions.length === 0) {
-      if (inlineAudioSelection) {
-        const currentAudio = getMediaItem('audio', inlineAudioSelection);
-        if (!currentAudio) {
-          setInlineAudioSelection(null);
-        }
-      }
-      return;
-    }
-
-    if (inlineAudioSelection) {
-      const hasExactMatch = visibleInlineAudioOptions.some((option) => option.url === inlineAudioSelection);
-      if (hasExactMatch) {
-        return;
-      }
-
-      const currentAudio = getMediaItem('audio', inlineAudioSelection);
-      const currentBaseId =
-        currentAudio ? deriveBaseId(currentAudio) : inlineAudioBaseRef.current ?? deriveBaseIdFromReference(inlineAudioSelection);
-
-      if (currentBaseId) {
-        const remapped = visibleInlineAudioOptions.find((option) => {
-          const optionAudio = getMediaItem('audio', option.url);
-          if (optionAudio) {
-            return deriveBaseId(optionAudio) === currentBaseId;
-          }
-          return deriveBaseIdFromReference(option.url) === currentBaseId;
-        });
-
-        if (remapped?.url) {
-          setInlineAudioSelection((current) => (current === remapped.url ? current : remapped.url));
-          if (remapped.url !== inlineAudioSelection) {
-            syncInteractiveSelection(remapped.url);
-          }
-          return;
-        }
-      }
-    }
-
-    const desiredBaseId = inlineAudioBaseRef.current;
-    if (!inlineAudioSelection) {
-      const fallbackUrl = visibleInlineAudioOptions[0]?.url ?? null;
-      if (fallbackUrl) {
-        setInlineAudioSelection(fallbackUrl);
-        syncInteractiveSelection(fallbackUrl);
-      }
-      return;
-    }
-
-    if (!desiredBaseId) {
-      return;
-    }
-
-    const preferredOption = visibleInlineAudioOptions.find((option) => {
-      const optionAudio = getMediaItem('audio', option.url);
-      if (optionAudio) {
-        return deriveBaseId(optionAudio) === desiredBaseId;
-      }
-      return deriveBaseIdFromReference(option.url) === desiredBaseId;
-    });
-
-    if (!preferredOption?.url || preferredOption.url === inlineAudioSelection) {
-      return;
-    }
-
-    setInlineAudioSelection(preferredOption.url);
-    syncInteractiveSelection(preferredOption.url);
-  }, [
-    deriveBaseId,
-    getMediaItem,
-    visibleInlineAudioOptions,
-    inlineAudioSelection,
-    syncInteractiveSelection,
-  ]);
-
-  useEffect(() => {
-    if (!inlineAudioSelection) {
-      inlineAudioBaseRef.current = null;
-      return;
-    }
-    const currentAudio = getMediaItem('audio', inlineAudioSelection);
-    const baseId = currentAudio ? deriveBaseId(currentAudio) : deriveBaseIdFromReference(inlineAudioSelection);
-    inlineAudioBaseRef.current = baseId;
-  }, [deriveBaseId, getMediaItem, inlineAudioSelection]);
-
-  useEffect(() => {
-    if (!inlineAudioSelection) {
-      return;
-    }
-    const currentAudio = getMediaItem('audio', inlineAudioSelection);
-    if (currentAudio) {
-      return;
-    }
-    const baseId = inlineAudioBaseRef.current ?? deriveBaseIdFromReference(inlineAudioSelection);
-    if (!baseId) {
-      return;
-    }
-
-    const replacement = media.audio.find((item) => {
-      if (!item.url) {
-        return false;
-      }
-      const optionAudio = getMediaItem('audio', item.url);
-      if (optionAudio) {
-        return deriveBaseId(optionAudio) === baseId;
-      }
-      return deriveBaseIdFromReference(item.url) === baseId;
-    });
-
-    if (replacement?.url) {
-      setInlineAudioSelection(replacement.url);
-      syncInteractiveSelection(replacement.url);
-    }
-  }, [
-    deriveBaseId,
-    deriveBaseIdFromReference,
-    getMediaItem,
-    inlineAudioSelection,
-    media.audio,
-    syncInteractiveSelection,
-  ]);
 
   useEffect(() => {
     if (!pendingAutoPlayRef.current) {
@@ -4687,74 +1156,6 @@ const scheduleChunkMetadataAppend = useCallback(
   ]);
 
   useEffect(() => {
-    const url = selectedItem?.url;
-    if (!url) {
-      setTextPreview(null);
-      setTextError(null);
-      setTextLoading(false);
-      return;
-    }
-
-    const cached = textContentCache.current.get(url);
-    if (cached) {
-      setTextPreview({ url, content: cached.plain, raw: cached.raw });
-      setTextError(null);
-      setTextLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    setTextLoading(true);
-    setTextError(null);
-    setTextPreview(null);
-
-    if (typeof fetch !== 'function') {
-      setTextLoading(false);
-      setTextPreview(null);
-      setTextError('Document preview is unavailable in this environment.');
-      return;
-    }
-
-    fetch(url, { credentials: 'include' })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(`Failed to load document (status ${response.status})`);
-        }
-        return response.text();
-      })
-      .then((raw) => {
-        if (cancelled) {
-          return;
-        }
-
-        const normalised = extractTextFromHtml(raw);
-        textContentCache.current.set(url, { raw, plain: normalised });
-        setTextPreview({ url, content: normalised, raw });
-        setTextError(null);
-      })
-      .catch((requestError) => {
-        if (cancelled) {
-          return;
-        }
-        const message =
-          requestError instanceof Error
-            ? requestError.message
-            : 'Failed to load document.';
-        setTextError(message);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setTextLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedItem?.url]);
-
-  useEffect(() => {
     setIsInteractiveFullscreen(false);
     setPendingSelection(null);
     setPendingChunkSelection(null);
@@ -4772,137 +1173,11 @@ const scheduleChunkMetadataAppend = useCallback(
     window.localStorage.setItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
   }, [showOriginalAudio]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(INTERACTIVE_TEXT_VISIBILITY_STORAGE_KEY, JSON.stringify(interactiveTextVisibility));
-  }, [interactiveTextVisibility]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScalePercent));
-  }, [fontScalePercent]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(INTERACTIVE_TEXT_THEME_STORAGE_KEY, JSON.stringify(interactiveTextTheme));
-  }, [interactiveTextTheme]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(INTERACTIVE_TEXT_BG_OPACITY_STORAGE_KEY, String(interactiveBackgroundOpacityPercent));
-  }, [interactiveBackgroundOpacityPercent]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(
-      INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_STORAGE_KEY,
-      String(interactiveSentenceCardOpacityPercent),
-    );
-  }, [interactiveSentenceCardOpacityPercent]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(READING_BED_ENABLED_STORAGE_KEY, readingBedEnabled ? 'true' : 'false');
-  }, [readingBedEnabled]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-    window.localStorage.setItem(READING_BED_VOLUME_STORAGE_KEY, String(readingBedVolumePercent));
-  }, [readingBedVolumePercent]);
-
-	  useEffect(() => {
-	    if (typeof window === 'undefined') {
-	      return;
-	    }
-	    if (!readingBedTrackSelection) {
-	      window.localStorage.removeItem(READING_BED_TRACK_STORAGE_KEY);
-	      return;
-	    }
-	    window.localStorage.setItem(READING_BED_TRACK_STORAGE_KEY, String(readingBedTrackSelection));
-	  }, [readingBedTrackSelection]);
-
-  useEffect(() => {
-    readingBed.setVolume((Math.min(Math.max(readingBedVolumePercent, 0), 100) / 100) * 0.8);
-  }, [readingBed, readingBedVolumePercent]);
-
-	  useEffect(() => {
-	    const src =
-	      readingBedTrackSrcById[resolvedReadingBedTrackId] ?? readingBedTrackSrcById[DEFAULT_READING_BED_TRACK_ID];
-	    readingBed.setSource(src);
-	  }, [readingBed, readingBedTrackSrcById, resolvedReadingBedTrackId]);
-
-  useEffect(() => {
-    if (!readingBedEnabled) {
-      void readingBed.pause();
-      return;
-    }
-    void readingBed.play();
-  }, [readingBed, readingBedEnabled]);
-
-	  const handleResetInteractiveLayout = useCallback(() => {
-	    setTranslationSpeed(DEFAULT_TRANSLATION_SPEED);
-	    setFontScalePercent(DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT);
-	    setBaseFontScalePercent(DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT);
-	    setInteractiveTextTheme(DEFAULT_INTERACTIVE_TEXT_THEME);
-	    setInteractiveBackgroundOpacityPercent(DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT);
-	    setInteractiveSentenceCardOpacityPercent(DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT);
-	    setReadingBedEnabled(true);
-	    setReadingBedVolumePercent(DEFAULT_READING_BED_VOLUME_PERCENT);
-	    setReadingBedTrackSelection(null);
-	    void readingBed.pause();
-	  }, [readingBed, setBaseFontScalePercent]);
-
-  const handleToggleReadingBed = useCallback(() => {
-    setReadingBedEnabled((current) => {
-      const next = !current;
-      if (next) {
-        void readingBed.play();
-      } else {
-        void readingBed.pause();
-      }
-      return next;
-    });
-  }, [readingBed]);
-
-  const handleReadingBedVolumeChange = useCallback(
-    (value: number) => {
-      const clamped = Math.round(Math.min(Math.max(value, 0), 100));
-      setReadingBedVolumePercent(clamped);
-      if (readingBedEnabled) {
-        void readingBed.play();
-      }
-    },
-    [readingBed, readingBedEnabled],
-  );
-
-	  const handleReadingBedTrackChange = useCallback(
-	    (value: string) => {
-	      const nextSelection = value.trim() ? value.trim() : null;
-	      setReadingBedTrackSelection(nextSelection);
-	      const resolvedId =
-	        (nextSelection && readingBedTrackSrcById[nextSelection] ? nextSelection : null) ?? resolvedReadingBedDefaultId;
-	      const src = readingBedTrackSrcById[resolvedId] ?? readingBedTrackSrcById[DEFAULT_READING_BED_TRACK_ID];
-	      readingBed.setSource(src);
-	      if (readingBedEnabled) {
-	        void readingBed.play();
-	      }
-	    },
-	    [readingBed, readingBedEnabled, readingBedTrackSrcById, resolvedReadingBedDefaultId],
-	  );
+  const handleResetInteractiveLayout = useCallback(() => {
+    setBaseFontScalePercent(DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT);
+    resetInteractiveTextSettings();
+    resetReadingBed();
+  }, [resetInteractiveTextSettings, resetReadingBed, setBaseFontScalePercent]);
 
   const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
@@ -4964,200 +1239,160 @@ const scheduleChunkMetadataAppend = useCallback(
       </datalist>
     ) : null;
 
-  const handleToggleInteractiveTextLayer = useCallback((key: 'original' | 'transliteration' | 'translation') => {
-    setInteractiveTextVisibility((current) => ({ ...current, [key]: !current[key] }));
-  }, []);
 
   const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
+
+  const navigationBaseProps = {
+    onNavigate: handleNavigatePreservingPlayback,
+    onToggleFullscreen: handleInteractiveFullscreenToggle,
+    onTogglePlayback: handleToggleActiveMedia,
+    controlsLayout: 'compact',
+    disableFirst: isFirstDisabled,
+    disablePrevious: isPreviousDisabled,
+    disableNext: isNextDisabled,
+    disableLast: isLastDisabled,
+    disablePlayback: isPlaybackDisabled,
+    disableFullscreen: isFullscreenDisabled,
+    isFullscreen: isInteractiveFullscreen,
+    isPlaying: isActiveMediaPlaying,
+    fullscreenLabel: interactiveFullscreenLabel,
+    showBackToLibrary: shouldShowBackToLibrary,
+    onBackToLibrary,
+    showOriginalAudioToggle: canToggleOriginalAudio,
+    onToggleOriginalAudio: handleOriginalAudioToggle,
+    originalAudioEnabled: effectiveOriginalAudioEnabled,
+    disableOriginalAudioToggle: !hasCombinedAudio,
+    showCueLayerToggles: true,
+    cueVisibility: interactiveTextVisibility,
+    onToggleCueLayer: handleToggleInteractiveTextLayer,
+    showTranslationSpeed: true,
+    translationSpeed,
+    translationSpeedMin: TRANSLATION_SPEED_MIN,
+    translationSpeedMax: TRANSLATION_SPEED_MAX,
+    translationSpeedStep: TRANSLATION_SPEED_STEP,
+    onTranslationSpeedChange: handleTranslationSpeedChange,
+    showSentenceJump: canJumpToSentence,
+    sentenceJumpValue,
+    sentenceJumpMin: sentenceLookup.min,
+    sentenceJumpMax: sentenceLookup.max,
+    sentenceJumpError,
+    sentenceJumpDisabled,
+    sentenceJumpListId,
+    sentenceJumpPlaceholder,
+    onSentenceJumpChange: handleSentenceJumpChange,
+    onSentenceJumpSubmit: handleSentenceJumpSubmit,
+    showFontScale: true,
+    fontScalePercent,
+    fontScaleMin: FONT_SCALE_MIN,
+    fontScaleMax: FONT_SCALE_MAX,
+    fontScaleStep: FONT_SCALE_STEP,
+    onFontScaleChange: handleFontScaleChange,
+    showMyLinguistFontScale: true,
+    myLinguistFontScalePercent: baseFontScalePercent,
+    myLinguistFontScaleMin: MY_LINGUIST_FONT_SCALE_MIN,
+    myLinguistFontScaleMax: MY_LINGUIST_FONT_SCALE_MAX,
+    myLinguistFontScaleStep: MY_LINGUIST_FONT_SCALE_STEP,
+    onMyLinguistFontScaleChange: setBaseFontScalePercent,
+    showInteractiveThemeControls: true,
+    interactiveTheme: interactiveTextTheme,
+    onInteractiveThemeChange: setInteractiveTextTheme,
+    showInteractiveBackgroundOpacity: true,
+    interactiveBackgroundOpacityPercent: interactiveBackgroundOpacityPercent,
+    interactiveBackgroundOpacityMin: 0,
+    interactiveBackgroundOpacityMax: 100,
+    interactiveBackgroundOpacityStep: 5,
+    onInteractiveBackgroundOpacityChange: setInteractiveBackgroundOpacityPercent,
+    showInteractiveSentenceCardOpacity: true,
+    interactiveSentenceCardOpacityPercent: interactiveSentenceCardOpacityPercent,
+    interactiveSentenceCardOpacityMin: 0,
+    interactiveSentenceCardOpacityMax: 100,
+    interactiveSentenceCardOpacityStep: 5,
+    onInteractiveSentenceCardOpacityChange: setInteractiveSentenceCardOpacityPercent,
+    onResetLayout: handleResetInteractiveLayout,
+    showReadingBedToggle: true,
+    readingBedEnabled,
+    disableReadingBedToggle: !readingBedSupported,
+    onToggleReadingBed: handleToggleReadingBed,
+    showReadingBedVolume: true,
+    readingBedVolumePercent,
+    readingBedVolumeMin: 0,
+    readingBedVolumeMax: 100,
+    readingBedVolumeStep: 5,
+    onReadingBedVolumeChange: handleReadingBedVolumeChange,
+    showReadingBedTrack: true,
+    readingBedTrack: readingBedTrackSelection ?? '',
+    readingBedTrackOptions,
+    onReadingBedTrackChange: handleReadingBedTrackChange,
+    activeSentenceNumber,
+    totalSentencesInBook: jobEndSentence,
+    jobStartSentence,
+    bookTotalSentences: bookSentenceCount,
+  } satisfies Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
 
   const navigationGroup = (
     <NavigationControls
       context="panel"
-      onNavigate={handleNavigatePreservingPlayback}
-      onToggleFullscreen={handleInteractiveFullscreenToggle}
-      onTogglePlayback={handleToggleActiveMedia}
-      controlsLayout="compact"
-      disableFirst={isFirstDisabled}
-      disablePrevious={isPreviousDisabled}
-      disableNext={isNextDisabled}
-      disableLast={isLastDisabled}
-      disablePlayback={isPlaybackDisabled}
-      disableFullscreen={isFullscreenDisabled}
-      isFullscreen={isInteractiveFullscreen}
-      isPlaying={isActiveMediaPlaying}
-      fullscreenLabel={interactiveFullscreenLabel}
-      showBackToLibrary={shouldShowBackToLibrary}
-      onBackToLibrary={onBackToLibrary}
-      showOriginalAudioToggle={canToggleOriginalAudio}
-      onToggleOriginalAudio={handleOriginalAudioToggle}
-      originalAudioEnabled={effectiveOriginalAudioEnabled}
-      disableOriginalAudioToggle={!hasCombinedAudio}
-      showCueLayerToggles
-      cueVisibility={interactiveTextVisibility}
-      onToggleCueLayer={handleToggleInteractiveTextLayer}
-      showTranslationSpeed
-      translationSpeed={translationSpeed}
-      translationSpeedMin={TRANSLATION_SPEED_MIN}
-      translationSpeedMax={TRANSLATION_SPEED_MAX}
-      translationSpeedStep={TRANSLATION_SPEED_STEP}
-      onTranslationSpeedChange={handleTranslationSpeedChange}
-      showSentenceJump={canJumpToSentence}
-      sentenceJumpValue={sentenceJumpValue}
-      sentenceJumpMin={sentenceLookup.min}
-      sentenceJumpMax={sentenceLookup.max}
-      sentenceJumpError={sentenceJumpError}
-      sentenceJumpDisabled={sentenceJumpDisabled}
       sentenceJumpInputId={sentenceJumpInputId}
-      sentenceJumpListId={sentenceJumpListId}
-      sentenceJumpPlaceholder={sentenceJumpPlaceholder}
-      onSentenceJumpChange={handleSentenceJumpChange}
-      onSentenceJumpSubmit={handleSentenceJumpSubmit}
-      showFontScale
-      fontScalePercent={fontScalePercent}
-      fontScaleMin={FONT_SCALE_MIN}
-      fontScaleMax={FONT_SCALE_MAX}
-      fontScaleStep={FONT_SCALE_STEP}
-      onFontScaleChange={handleFontScaleChange}
-      showMyLinguistFontScale
-      myLinguistFontScalePercent={baseFontScalePercent}
-      myLinguistFontScaleMin={MY_LINGUIST_FONT_SCALE_MIN}
-      myLinguistFontScaleMax={MY_LINGUIST_FONT_SCALE_MAX}
-      myLinguistFontScaleStep={MY_LINGUIST_FONT_SCALE_STEP}
-      onMyLinguistFontScaleChange={setBaseFontScalePercent}
-      showInteractiveThemeControls
-      interactiveTheme={interactiveTextTheme}
-      onInteractiveThemeChange={setInteractiveTextTheme}
-      showInteractiveBackgroundOpacity
-      interactiveBackgroundOpacityPercent={interactiveBackgroundOpacityPercent}
-      interactiveBackgroundOpacityMin={0}
-      interactiveBackgroundOpacityMax={100}
-      interactiveBackgroundOpacityStep={5}
-      onInteractiveBackgroundOpacityChange={(value) =>
-        setInteractiveBackgroundOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
-      }
-      showInteractiveSentenceCardOpacity
-      interactiveSentenceCardOpacityPercent={interactiveSentenceCardOpacityPercent}
-      interactiveSentenceCardOpacityMin={0}
-      interactiveSentenceCardOpacityMax={100}
-      interactiveSentenceCardOpacityStep={5}
-      onInteractiveSentenceCardOpacityChange={(value) =>
-        setInteractiveSentenceCardOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
-      }
-      onResetLayout={handleResetInteractiveLayout}
-      showReadingBedToggle
-      readingBedEnabled={readingBedEnabled}
-      disableReadingBedToggle={!readingBed.supported}
-      onToggleReadingBed={handleToggleReadingBed}
-      showReadingBedVolume
-      readingBedVolumePercent={readingBedVolumePercent}
-      readingBedVolumeMin={0}
-      readingBedVolumeMax={100}
-      readingBedVolumeStep={5}
-	      onReadingBedVolumeChange={handleReadingBedVolumeChange}
-	      showReadingBedTrack
-	      readingBedTrack={readingBedTrackSelection ?? ''}
-	      readingBedTrackOptions={readingBedTrackOptions}
-	      onReadingBedTrackChange={handleReadingBedTrackChange}
-      activeSentenceNumber={activeSentenceNumber}
-      totalSentencesInBook={jobEndSentence}
-      jobStartSentence={jobStartSentence}
-      bookTotalSentences={bookSentenceCount}
+      {...navigationBaseProps}
     />
   );
-	  const fullscreenNavigationGroup = isInteractiveFullscreen ? (
-	    <NavigationControls
+
+  const fullscreenNavigationGroup = isInteractiveFullscreen ? (
+    <NavigationControls
       context="fullscreen"
-      onNavigate={handleNavigatePreservingPlayback}
-      onToggleFullscreen={handleInteractiveFullscreenToggle}
-      onTogglePlayback={handleToggleActiveMedia}
-      controlsLayout="compact"
-      disableFirst={isFirstDisabled}
-      disablePrevious={isPreviousDisabled}
-      disableNext={isNextDisabled}
-      disableLast={isLastDisabled}
-      disablePlayback={isPlaybackDisabled}
-      disableFullscreen={isFullscreenDisabled}
-      isFullscreen={isInteractiveFullscreen}
-      isPlaying={isActiveMediaPlaying}
-      fullscreenLabel={interactiveFullscreenLabel}
-      showBackToLibrary={shouldShowBackToLibrary}
-      onBackToLibrary={onBackToLibrary}
-      showOriginalAudioToggle={canToggleOriginalAudio}
-      onToggleOriginalAudio={handleOriginalAudioToggle}
-      originalAudioEnabled={effectiveOriginalAudioEnabled}
-      disableOriginalAudioToggle={!hasCombinedAudio}
-      showCueLayerToggles
-      cueVisibility={interactiveTextVisibility}
-      onToggleCueLayer={handleToggleInteractiveTextLayer}
-      showTranslationSpeed
-      translationSpeed={translationSpeed}
-      translationSpeedMin={TRANSLATION_SPEED_MIN}
-      translationSpeedMax={TRANSLATION_SPEED_MAX}
-      translationSpeedStep={TRANSLATION_SPEED_STEP}
-      onTranslationSpeedChange={handleTranslationSpeedChange}
-      showSentenceJump={canJumpToSentence}
-      sentenceJumpValue={sentenceJumpValue}
-      sentenceJumpMin={sentenceLookup.min}
-      sentenceJumpMax={sentenceLookup.max}
-      sentenceJumpError={sentenceJumpError}
-      sentenceJumpDisabled={sentenceJumpDisabled}
       sentenceJumpInputId={sentenceJumpInputFullscreenId}
-      sentenceJumpListId={sentenceJumpListId}
-      sentenceJumpPlaceholder={sentenceJumpPlaceholder}
-      onSentenceJumpChange={handleSentenceJumpChange}
-      onSentenceJumpSubmit={handleSentenceJumpSubmit}
-      showFontScale
-      fontScalePercent={fontScalePercent}
-      fontScaleMin={FONT_SCALE_MIN}
-      fontScaleMax={FONT_SCALE_MAX}
-      fontScaleStep={FONT_SCALE_STEP}
-      onFontScaleChange={handleFontScaleChange}
-      showMyLinguistFontScale
-      myLinguistFontScalePercent={baseFontScalePercent}
-      myLinguistFontScaleMin={MY_LINGUIST_FONT_SCALE_MIN}
-      myLinguistFontScaleMax={MY_LINGUIST_FONT_SCALE_MAX}
-      myLinguistFontScaleStep={MY_LINGUIST_FONT_SCALE_STEP}
-      onMyLinguistFontScaleChange={setBaseFontScalePercent}
-      showInteractiveThemeControls
-      interactiveTheme={interactiveTextTheme}
-      onInteractiveThemeChange={setInteractiveTextTheme}
-      showInteractiveBackgroundOpacity
-      interactiveBackgroundOpacityPercent={interactiveBackgroundOpacityPercent}
-      interactiveBackgroundOpacityMin={0}
-      interactiveBackgroundOpacityMax={100}
-      interactiveBackgroundOpacityStep={5}
-      onInteractiveBackgroundOpacityChange={(value) =>
-        setInteractiveBackgroundOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
-      }
-      showInteractiveSentenceCardOpacity
-      interactiveSentenceCardOpacityPercent={interactiveSentenceCardOpacityPercent}
-      interactiveSentenceCardOpacityMin={0}
-      interactiveSentenceCardOpacityMax={100}
-      interactiveSentenceCardOpacityStep={5}
-      onInteractiveSentenceCardOpacityChange={(value) =>
-        setInteractiveSentenceCardOpacityPercent(Math.round(Math.min(Math.max(value, 0), 100)))
-      }
-      onResetLayout={handleResetInteractiveLayout}
-      showReadingBedToggle
-      readingBedEnabled={readingBedEnabled}
-      disableReadingBedToggle={!readingBed.supported}
-      onToggleReadingBed={handleToggleReadingBed}
-      showReadingBedVolume
-      readingBedVolumePercent={readingBedVolumePercent}
-      readingBedVolumeMin={0}
-      readingBedVolumeMax={100}
-      readingBedVolumeStep={5}
-	      onReadingBedVolumeChange={handleReadingBedVolumeChange}
-	      showReadingBedTrack
-	      readingBedTrack={readingBedTrackSelection ?? ''}
-	      readingBedTrackOptions={readingBedTrackOptions}
-	      onReadingBedTrackChange={handleReadingBedTrackChange}
-      activeSentenceNumber={activeSentenceNumber}
-      totalSentencesInBook={jobEndSentence}
-      jobStartSentence={jobStartSentence}
-      bookTotalSentences={bookSentenceCount}
+      {...navigationBaseProps}
     />
   ) : null;
+
+  const interactiveViewerProps = {
+    content: interactiveViewerContent,
+    rawContent: interactiveViewerRaw,
+    chunk: resolvedActiveTextChunk,
+    totalSentencesInBook: bookSentenceCount,
+    bookTotalSentences: bookSentenceCount,
+    jobStartSentence,
+    jobEndSentence,
+    jobOriginalLanguage,
+    jobTranslationLanguage,
+    cueVisibility: interactiveTextVisibility,
+    activeAudioUrl: inlineAudioSelection,
+    noAudioAvailable: inlineAudioUnavailable,
+    jobId,
+    onActiveSentenceChange: handleActiveSentenceChange,
+    onRequestSentenceJump: handleInteractiveSentenceJump,
+    onScroll: handleTextScroll,
+    onAudioProgress: handleInlineAudioProgress,
+    getStoredAudioPosition: getInlineAudioPosition,
+    onRegisterInlineAudioControls: handleInlineAudioControlsRegistration,
+    onInlineAudioPlaybackStateChange: handleInlineAudioPlaybackStateChange,
+    onRequestAdvanceChunk: handleInlineAudioEnded,
+    isFullscreen: isInteractiveFullscreen,
+    onRequestExitFullscreen: handleExitInteractiveFullscreen,
+    fullscreenControls: isInteractiveFullscreen ? fullscreenNavigationGroup : null,
+    translationSpeed,
+    audioTracks: activeAudioTracks,
+    activeTimingTrack,
+    originalAudioEnabled: effectiveOriginalAudioEnabled,
+    fontScale: interactiveFontScale,
+    theme: interactiveTextTheme,
+    backgroundOpacityPercent: interactiveBackgroundOpacityPercent,
+    sentenceCardOpacityPercent: interactiveSentenceCardOpacityPercent,
+    infoGlyph: channelBug.glyph,
+    infoGlyphLabel: channelBug.label,
+    infoTitle: isSubtitleContext ? subtitleInfo.title : null,
+    infoMeta: isSubtitleContext ? subtitleInfo.meta : null,
+    infoCoverUrl: isSubtitleContext ? subtitleInfo.coverUrl : null,
+    infoCoverSecondaryUrl: isSubtitleContext ? subtitleInfo.coverSecondaryUrl : null,
+    infoCoverAltText: isSubtitleContext ? subtitleInfo.coverAltText : null,
+    infoCoverVariant: (isSubtitleContext ? 'subtitles' : null) as 'subtitles' | null,
+    bookTitle: bookTitle ?? headingLabel,
+    bookAuthor,
+    bookYear,
+    bookGenre,
+    bookCoverUrl: shouldShowCoverImage ? displayCoverUrl : null,
+    bookCoverAltText: coverAltText,
+  };
 
   if (error) {
     return (
@@ -5175,129 +1410,59 @@ const scheduleChunkMetadataAppend = useCallback(
     );
   }
 
-  return (
-    <div className={panelClassName} role="region" aria-label={sectionLabel}>
-      {sentenceJumpDatalist}
-      {shortcutHelpOverlay}
-      {!hasJobId ? (
+  if (!hasJobId) {
+    return (
+      <div className="player-panel" role="region" aria-label={sectionLabel}>
+        {sentenceJumpDatalist}
+        {shortcutHelpOverlay}
         <div className="player-panel__empty" role="status">
           <p>No job selected.</p>
         </div>
-      ) : (
+      </div>
+    );
+  }
+
+  return (
+    <PlayerPanelShell
+      ariaLabel={sectionLabel}
+      prelude={
         <>
-          <div className="player-panel__search">
-            <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />
-          </div>
-          <div className="player-panel__tabs-container">
-            <header className="player-panel__header">
-              <div className="player-panel__tabs-row">{navigationGroup}</div>
-            </header>
-            <div className="player-panel__panel">
-              {!hasAnyMedia && !isLoading ? (
-                <p role="status">{emptyMediaMessage}</p>
-              ) : !hasTextItems && !hasInteractiveChunks ? (
-                <p role="status">No interactive reader media yet.</p>
-              ) : (
-                <div className="player-panel__stage">
-                  {!mediaComplete ? (
-                    <div className="player-panel__notice" role="status">
-                      Media generation is still finishing. Newly generated files will appear automatically.
-                    </div>
-                  ) : null}
-                  <div className="player-panel__viewer">
-                    <div className="player-panel__document">
-                      {shouldShowEmptySelectionPlaceholder ? (
-                        <div className="player-panel__empty-viewer" role="status">
-                          Select a file to preview.
-                        </div>
-                      ) : shouldShowLoadingPlaceholder ? (
-                        <div className="player-panel__document-status" role="status">
-                          Loading document…
-                        </div>
-                      ) : shouldShowStandaloneError ? (
-                        <div className="player-panel__document-error" role="alert">
-                          {textError}
-                        </div>
-                      ) : shouldShowInteractiveViewer ? (
-                        <>
-                          <InteractiveTextViewer
-                            ref={textScrollRef}
-                            content={interactiveViewerContent}
-                            rawContent={interactiveViewerRaw}
-                            chunk={resolvedActiveTextChunk}
-                            totalSentencesInBook={bookSentenceCount}
-                            bookTotalSentences={bookSentenceCount}
-                            jobStartSentence={jobStartSentence}
-                            jobEndSentence={jobEndSentence}
-                            jobOriginalLanguage={jobOriginalLanguage}
-                            jobTranslationLanguage={jobTranslationLanguage}
-                            cueVisibility={interactiveTextVisibility}
-                            activeAudioUrl={inlineAudioSelection}
-                            noAudioAvailable={inlineAudioUnavailable}
-                            jobId={jobId}
-                            onActiveSentenceChange={handleActiveSentenceChange}
-                            onRequestSentenceJump={handleInteractiveSentenceJump}
-                            onScroll={handleTextScroll}
-                            onAudioProgress={handleInlineAudioProgress}
-                            getStoredAudioPosition={getInlineAudioPosition}
-                            onRegisterInlineAudioControls={handleInlineAudioControlsRegistration}
-                            onInlineAudioPlaybackStateChange={handleInlineAudioPlaybackStateChange}
-                            onRequestAdvanceChunk={handleInlineAudioEnded}
-                            isFullscreen={isInteractiveFullscreen}
-                            onRequestExitFullscreen={handleExitInteractiveFullscreen}
-                            fullscreenControls={isInteractiveFullscreen ? fullscreenNavigationGroup : null}
-                            translationSpeed={translationSpeed}
-                            audioTracks={activeAudioTracks}
-                            activeTimingTrack={activeTimingTrack}
-                            originalAudioEnabled={effectiveOriginalAudioEnabled}
-                            fontScale={interactiveFontScale}
-                            theme={interactiveTextTheme}
-                            backgroundOpacityPercent={interactiveBackgroundOpacityPercent}
-                            sentenceCardOpacityPercent={interactiveSentenceCardOpacityPercent}
-                            infoGlyph={channelBug.glyph}
-                            infoGlyphLabel={channelBug.label}
-                            infoTitle={isSubtitleContext ? subtitleInfo.title : null}
-                            infoMeta={isSubtitleContext ? subtitleInfo.meta : null}
-                            infoCoverUrl={isSubtitleContext ? subtitleInfo.coverUrl : null}
-                            infoCoverSecondaryUrl={isSubtitleContext ? subtitleInfo.coverSecondaryUrl : null}
-                            infoCoverAltText={isSubtitleContext ? subtitleInfo.coverAltText : null}
-                            infoCoverVariant={isSubtitleContext ? 'subtitles' : null}
-                            bookTitle={bookTitle ?? headingLabel}
-                            bookAuthor={bookAuthor}
-                            bookYear={bookYear}
-                            bookGenre={bookGenre}
-                            bookCoverUrl={shouldShowCoverImage ? displayCoverUrl : null}
-                            bookCoverAltText={coverAltText}
-                          />
-                          {textLoading && selectedItem ? (
-                            <div className="player-panel__document-status" role="status">
-                              Loading document…
-                            </div>
-                          ) : null}
-                          {textError ? (
-                            <div className="player-panel__document-error" role="alert">
-                              {textError}
-                            </div>
-                          ) : null}
-                          {!canRenderInteractiveViewer ? (
-                            <div className="player-panel__document-status" role="status">
-                              Interactive reader assets are still being prepared.
-                            </div>
-                          ) : null}
-                        </>
-                      ) : (
-                        <div className="player-panel__document-status" role="status">
-                          Interactive reader assets are still being prepared.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+          {sentenceJumpDatalist}
+          {shortcutHelpOverlay}
+        </>
+      }
+      search={<MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />}
+      toolbar={navigationGroup}
+    >
+      {!hasAnyMedia && !isLoading ? (
+        <p role="status">{emptyMediaMessage}</p>
+      ) : !hasTextItems && !hasInteractiveChunks ? (
+        <p role="status">No interactive reader media yet.</p>
+      ) : (
+        <div className="player-panel__stage">
+          {!mediaComplete ? (
+            <div className="player-panel__notice" role="status">
+              Media generation is still finishing. Newly generated files will appear automatically.
+            </div>
+          ) : null}
+          <div className="player-panel__viewer">
+            <div className="player-panel__document">
+              <PlayerPanelInteractiveDocument
+                shouldShowEmptySelectionPlaceholder={shouldShowEmptySelectionPlaceholder}
+                shouldShowLoadingPlaceholder={shouldShowLoadingPlaceholder}
+                shouldShowStandaloneError={shouldShowStandaloneError}
+                shouldShowInteractiveViewer={shouldShowInteractiveViewer}
+                canRenderInteractiveViewer={canRenderInteractiveViewer}
+                textError={textError}
+                textLoading={textLoading}
+                selectedItem={selectedItem}
+                viewerProps={interactiveViewerProps}
+                textScrollRef={textScrollRef}
+              />
             </div>
           </div>
-        </>
+        </div>
       )}
-    </div>
+    </PlayerPanelShell>
   );
 }

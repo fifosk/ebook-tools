@@ -17,6 +17,21 @@ export const TAB_DEFINITIONS: TabDefinition[] = [
 
 export const DEFAULT_COVER_URL = '/assets/default-cover.png';
 
+export const DEFAULT_INTERACTIVE_TEXT_BG_OPACITY_PERCENT = 65;
+export const DEFAULT_INTERACTIVE_TEXT_SENTENCE_CARD_OPACITY_PERCENT = 100;
+export const DEFAULT_READING_BED_VOLUME_PERCENT = 10;
+
+export const FONT_SCALE_MIN = 100;
+export const FONT_SCALE_MAX = 300;
+export const FONT_SCALE_STEP = 5;
+
+export const MY_LINGUIST_FONT_SCALE_MIN = 80;
+export const MY_LINGUIST_FONT_SCALE_MAX = 160;
+export const MY_LINGUIST_FONT_SCALE_STEP = 5;
+
+export const DEFAULT_INTERACTIVE_FONT_SCALE_PERCENT = 150;
+export const DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT = 120;
+
 export function selectInitialTab(media: LiveMediaState): MediaCategory {
   const populated = TAB_DEFINITIONS.find((tab) => media[tab.key].length > 0);
   return populated?.key ?? 'text';

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaChunk } from '../hooks/useLiveMedia';
 import { appendAccessToken, buildStorageUrl, fetchVideoStatus, generateVideo } from '../api/client';
 import { isAudioFileType } from './player-panel/utils';
+import { PanelHeader } from './player-panel/PanelHeader';
+import { PanelMessage } from './player-panel/PanelMessage';
 import type { VideoGenerationResponse } from '../api/dtos';
 
 interface VideoPanelProps {
@@ -164,30 +166,33 @@ export default function VideoPanel({ jobId, chunks, isLoading = false }: VideoPa
 
   return (
     <section className="video-panel" aria-label="Video preview">
-      <header className="video-panel__header">
-        <h2>Video</h2>
-        <span className={`video-panel__status video-panel__status--${currentStatus.toLowerCase()}`}>
-          Status: {currentStatus}
-        </span>
-      </header>
+      <PanelHeader
+        title="Video"
+        status={currentStatus}
+        className="video-panel__header"
+        statusClassName="video-panel__status"
+        statusClassNamePrefix="video-panel__status--"
+      />
       {previewUrl ? (
         <video className="video-panel__preview" controls src={previewUrl}>
           Your browser does not support the video tag.
         </video>
       ) : (
-        <div className="video-panel__placeholder">
+        <PanelMessage as="div" className="video-panel__placeholder">
           No rendered video available yet.
-        </div>
+        </PanelMessage>
       )}
       <div className="video-panel__actions">
         <button type="button" onClick={handleRegenerate} disabled={disableRegenerate}>
           {isSubmitting ? 'Regenerating…' : 'Regenerate'}
         </button>
         {videoRequest === null && !isLoading && (
-          <p className="video-panel__hint">Provide audio by running the pipeline to enable regeneration.</p>
+          <PanelMessage className="video-panel__hint">
+            Provide audio by running the pipeline to enable regeneration.
+          </PanelMessage>
         )}
       </div>
-      {error && <p className="video-panel__error">{error}</p>}
+      {error && <PanelMessage className="video-panel__error">{error}</PanelMessage>}
     </section>
   );
 }
