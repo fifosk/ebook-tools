@@ -2045,6 +2045,11 @@ const scheduleChunkMetadataAppend = useCallback(
     setIsInlineAudioPlaying(next);
   }, []);
   const pendingAutoPlayRef = useRef(false);
+  const [autoPlayToken, setAutoPlayToken] = useState(0);
+  const requestAutoPlay = useCallback(() => {
+    pendingAutoPlayRef.current = true;
+    setAutoPlayToken((value) => value + 1);
+  }, []);
   const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
   const [translationSpeed, setTranslationSpeed] = useState<TranslationSpeed>(DEFAULT_TRANSLATION_SPEED);
   const [fontScalePercent, setFontScalePercent] = useState<number>(() => {
@@ -2587,7 +2592,7 @@ const scheduleChunkMetadataAppend = useCallback(
       }
 
       if (inlineAudioPlayingRef.current) {
-        pendingAutoPlayRef.current = true;
+        requestAutoPlay();
       }
 
       setPendingSelection({
@@ -2604,6 +2609,7 @@ const scheduleChunkMetadataAppend = useCallback(
       findMatchingMediaId,
       findSentenceTarget,
       media.audio,
+      requestAutoPlay,
       sentenceLookup.max,
       sentenceLookup.min,
       setPendingSelection,
@@ -3894,7 +3900,7 @@ const scheduleChunkMetadataAppend = useCallback(
         setInlineAudioSelection((current) => (current === audioFile.url ? current : audioFile.url));
         syncInteractiveSelection(audioFile.url);
         if (options?.autoPlay) {
-          pendingAutoPlayRef.current = true;
+          requestAutoPlay();
         }
       }
       return true;
@@ -3903,6 +3909,7 @@ const scheduleChunkMetadataAppend = useCallback(
       deriveBaseId,
       getMediaItem,
       rememberPosition,
+      requestAutoPlay,
       setInlineAudioSelection,
       setPendingTextScrollRatio,
       setSelectedItemIds,
@@ -3927,11 +3934,11 @@ const scheduleChunkMetadataAppend = useCallback(
         setPendingTextScrollRatio(Math.min(Math.max(options.scrollRatio, 0), 1));
       }
       if (options?.autoPlay) {
-        pendingAutoPlayRef.current = true;
+        requestAutoPlay();
       }
       return false;
     },
-    [activateChunk, chunks, deriveBaseId, setPendingTextScrollRatio, setSelectedItemIds],
+    [activateChunk, chunks, deriveBaseId, requestAutoPlay, setPendingTextScrollRatio, setSelectedItemIds],
   );
 
   useEffect(() => {
@@ -4624,7 +4631,7 @@ const scheduleChunkMetadataAppend = useCallback(
     pendingAutoPlayRef.current = false;
     controls.pause();
     controls.play();
-  }, [hasInlineAudioControls, inlineAudioSelection]);
+  }, [autoPlayToken, hasInlineAudioControls, inlineAudioSelection]);
 
   useEffect(() => {
     const mediaId = selectedItemIds.text;

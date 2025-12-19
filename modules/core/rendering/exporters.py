@@ -529,6 +529,15 @@ class BatchExporter:
             payload.setdefault("startGate", float(start_gate_value))
             payload.setdefault("endGate", float(end_gate_value))
 
+        image_payload = meta_payload.get("image")
+        if isinstance(image_payload, Mapping):
+            payload["image"] = dict(image_payload)
+        image_path = meta_payload.get("image_path") or meta_payload.get("imagePath")
+        if isinstance(image_path, str) and image_path.strip():
+            trimmed = image_path.strip()
+            payload["image_path"] = trimmed
+            payload["imagePath"] = trimmed
+
         return payload
 
     @staticmethod
