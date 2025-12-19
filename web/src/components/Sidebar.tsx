@@ -318,6 +318,50 @@ function resolveSidebarProgress(job: JobState): number | null {
   return Math.min(100, Math.max(0, Math.round(ratio * 100)));
 }
 
+function resolveImageWaitStatus(job: JobState): { icon: string; tooltip: string; percent: number | null } | null {
+  const stats = job.status.image_generation ?? null;
+  if (!stats || !stats.enabled) {
+    return null;
+  }
+  if (job.status.status !== 'running') {
+    return null;
+  }
+  const expected = stats.expected;
+  const generated = stats.generated;
+  const sentenceTotal = stats.sentence_total;
+  if (
+    typeof expected !== 'number' ||
+    !Number.isFinite(expected) ||
+    expected <= 0 ||
+    typeof generated !== 'number' ||
+    !Number.isFinite(generated) ||
+    typeof sentenceTotal !== 'number' ||
+    !Number.isFinite(sentenceTotal)
+  ) {
+    return null;
+  }
+  const event = job.latestEvent ?? job.status.latest_event ?? null;
+  const completed = event?.snapshot?.completed;
+  if (typeof completed !== 'number' || !Number.isFinite(completed)) {
+    return null;
+  }
+  if (completed < sentenceTotal) {
+    return null;
+  }
+  if (generated >= expected) {
+    return null;
+  }
+  const percent =
+    typeof stats.percent === 'number' && Number.isFinite(stats.percent)
+      ? stats.percent
+      : Math.round((generated / expected) * 100);
+  return {
+    icon: '🖼️',
+    tooltip: `Waiting for images (${generated}/${expected})`,
+    percent,
+  };
+}
+
 export function Sidebar({
   selectedView,
   onSelectView,
@@ -343,7 +387,12 @@ export function Sidebar({
   const activeJobLabel = activeJob ? resolveSidebarLabel(activeJob) : null;
   const activeJobGlyph = activeJob ? resolveJobGlyph(activeJob.status.job_type) : null;
   const activeJobLanguage = activeJob ? resolveSidebarLanguage(activeJob) : null;
-  const activeJobStatus = activeJob ? resolveSidebarStatus(activeJob.status.status ?? 'pending') : null;
+  const activeJobImageWait = activeJob ? resolveImageWaitStatus(activeJob) : null;
+  const activeJobStatus = activeJob
+    ? activeJobImageWait
+      ? { icon: activeJobImageWait.icon, tooltip: activeJobImageWait.tooltip }
+      : resolveSidebarStatus(activeJob.status.status ?? 'pending')
+    : null;
   const activeJobStage = activeJob ? resolveSidebarStage(activeJob) : null;
   const bookJobs = sidebarJobs.filter((job) =>
     job.status.job_type === 'pipeline' || job.status.job_type === 'book'
@@ -387,15 +436,25 @@ export function Sidebar({
 		                  ariaLabel={activeJobLanguage.tooltip ?? activeJobLanguage.label}
 		                />
 		              ) : null}
-	              {activeJobStage ? (
-	                <span className="job-stage" title={activeJobStage.tooltip} aria-label={activeJobStage.tooltip}>
-	                  {activeJobStage.icon}
-	                </span>
-	              ) : null}
-	              {activeJobStatus ? (
-	                <span
-	                  className="job-status"
-	                  data-state={activeJob.status.status ?? 'pending'}
+              {activeJobStage ? (
+                <span className="job-stage" title={activeJobStage.tooltip} aria-label={activeJobStage.tooltip}>
+                  {activeJobStage.icon}
+                </span>
+              ) : null}
+              {activeJobImageWait && activeJobImageWait.percent !== null ? (
+                <span
+                  className="job-progress"
+                  data-state="image"
+                  title={activeJobImageWait.tooltip}
+                  aria-label={activeJobImageWait.tooltip}
+                >
+                  {activeJobImageWait.percent}%
+                </span>
+              ) : null}
+              {activeJobStatus ? (
+                <span
+                  className="job-status"
+                  data-state={activeJob.status.status ?? 'pending'}
                   title={activeJobStatus.tooltip}
                   aria-label={activeJobStatus.tooltip}
                 >
@@ -480,7 +539,8 @@ export function Sidebar({
               <ul className="sidebar__list">
 	                {bookJobs.map((job) => {
 	                  const statusValue = job.status?.status ?? 'pending';
-	                  const statusLabel = resolveSidebarStatus(statusValue);
+	                  const imageWait = resolveImageWaitStatus(job);
+	                  const statusLabel = imageWait ?? resolveSidebarStatus(statusValue);
 	                  const isActiveJob = activeJobId === job.jobId;
 	                  const languageMeta = resolveSidebarLanguage(job);
 	                  const nameMeta = resolveSidebarLabel(job);
@@ -507,6 +567,16 @@ export function Sidebar({
                               aria-label={`${progressPercent}% complete`}
                             >
                               {progressPercent}%
+                            </span>
+                          ) : null}
+                          {imageWait && imageWait.percent !== null ? (
+                            <span
+                              className="job-progress"
+                              data-state="image"
+                              title={imageWait.tooltip}
+                              aria-label={imageWait.tooltip}
+                            >
+                              {imageWait.percent}%
                             </span>
                           ) : null}
                           <span
@@ -551,7 +621,8 @@ export function Sidebar({
               <ul className="sidebar__list">
 	                {subtitleJobs.map((job) => {
 	                  const statusValue = job.status?.status ?? 'pending';
-	                  const statusLabel = resolveSidebarStatus(statusValue);
+	                  const imageWait = resolveImageWaitStatus(job);
+	                  const statusLabel = imageWait ?? resolveSidebarStatus(statusValue);
 	                  const isActiveJob = activeJobId === job.jobId;
 	                  const languageMeta = resolveSidebarLanguage(job);
 	                  const nameMeta = resolveSidebarLabel(job);
@@ -578,6 +649,16 @@ export function Sidebar({
                               aria-label={`${progressPercent}% complete`}
                             >
                               {progressPercent}%
+                            </span>
+                          ) : null}
+                          {imageWait && imageWait.percent !== null ? (
+                            <span
+                              className="job-progress"
+                              data-state="image"
+                              title={imageWait.tooltip}
+                              aria-label={imageWait.tooltip}
+                            >
+                              {imageWait.percent}%
                             </span>
                           ) : null}
                           <span
@@ -622,7 +703,8 @@ export function Sidebar({
               <ul className="sidebar__list">
 	                {youtubeDubJobs.map((job) => {
 	                  const statusValue = job.status?.status ?? 'pending';
-	                  const statusLabel = resolveSidebarStatus(statusValue);
+	                  const imageWait = resolveImageWaitStatus(job);
+	                  const statusLabel = imageWait ?? resolveSidebarStatus(statusValue);
 	                  const isActiveJob = activeJobId === job.jobId;
 	                  const languageMeta = resolveSidebarLanguage(job);
 	                  const nameMeta = resolveSidebarLabel(job);
@@ -649,6 +731,16 @@ export function Sidebar({
                               aria-label={`${progressPercent}% complete`}
                             >
                               {progressPercent}%
+                            </span>
+                          ) : null}
+                          {imageWait && imageWait.percent !== null ? (
+                            <span
+                              className="job-progress"
+                              data-state="image"
+                              title={imageWait.tooltip}
+                              aria-label={imageWait.tooltip}
+                            >
+                              {imageWait.percent}%
                             </span>
                           ) : null}
                           <span

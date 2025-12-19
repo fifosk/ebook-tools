@@ -37,6 +37,13 @@ export default function NewImmersiveBookPage({
         externalError={submitError}
         recentJobs={recentJobs}
         implicitEndOffsetThreshold={200}
+        defaultImageSettings={{
+          add_images: true,
+          image_style_template: 'wireframe',
+          image_prompt_context_sentences: 0,
+          image_width: '256',
+          image_height: '256'
+        }}
         showInfoHeader={false}
         showOutputPathControls={false}
       />

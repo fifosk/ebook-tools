@@ -223,6 +223,7 @@ def sentence_to_diffusion_prompt(
         "- Describe a single framed moment (characters, action, setting, time of day, mood, framing).\n"
         "- Keep recurring characters/setting consistent with the provided context.\n"
         "- Do NOT request readable text (letters/words).\n"
+        "- Do NOT depict the scene as an illustration inside an open book or on a page/screen.\n"
         "- Avoid graphic sexual content or violence; if implied, depict it non-graphically.\n"
     )
 

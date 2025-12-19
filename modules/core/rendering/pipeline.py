@@ -1070,6 +1070,15 @@ class RenderPipeline:
                 )
                 image_prompt_batches.append(list(target_sentences[offset_start:offset_end]))
                 image_prompt_batch_starts.append(int(batch_start))
+        image_task_total = 0
+        if generate_images and image_executor is not None and image_client is not None:
+            image_task_total = (
+                len(image_prompt_batch_starts)
+                if image_prompt_batch_size > 1
+                else len(target_sentences)
+            )
+            if self._progress is not None and image_task_total > 0:
+                self._progress.set_total(total_refined + image_task_total)
         image_prompt_plan: dict[int, DiffusionPrompt] = {}
         if image_prompt_batch_size > 1:
             image_prompt_seed_sources = {
@@ -1608,6 +1617,7 @@ class RenderPipeline:
                 baseline_seed_image_path: Optional[Path] = baseline_seed_snapshot,
                 baseline_prompt: DiffusionPrompt = baseline_prompt_snapshot,
             ) -> list[_SentenceImageResult]:
+                success = False
                 try:
                     diffusion = image_prompt_plan.get(image_key_sentence_number)
                     if diffusion is None:
@@ -1818,6 +1828,7 @@ class RenderPipeline:
                                 negative_prompt=negative_full,
                             )
                         )
+                    success = True
                     return results
                 except DrawThingsError as exc:
                     if self._progress is not None:
@@ -1851,6 +1862,19 @@ class RenderPipeline:
                         },
                     )
                     raise
+                finally:
+                    if self._progress is not None and image_task_total > 0:
+                        self._progress.record_step_completion(
+                            stage="image",
+                            index=int(image_key_sentence_number),
+                            metadata={
+                                "sentence_total": int(total_refined),
+                                "image_total": int(image_task_total),
+                                "image_batch_size": int(image_prompt_batch_size),
+                                "image_key_sentence": int(image_key_sentence_number),
+                                "image_success": success,
+                            },
+                        )
 
             future = image_executor.submit(_generate_image)
             image_futures.add(future)
@@ -2243,49 +2267,40 @@ class RenderPipeline:
                     for future in list(image_futures):
                         future.cancel()
                 if image_futures and image_state is not None and self._progress is not None:
-                    snapshot_progress = self._progress
-
-                    def _drain_images() -> None:
+                    for future in concurrent.futures.as_completed(list(image_futures)):
                         try:
-                            for future in concurrent.futures.as_completed(list(image_futures)):
-                                try:
-                                    image_result = future.result()
-                                except Exception:
-                                    continue
-                                results: list[_SentenceImageResult] = []
-                                if isinstance(image_result, _SentenceImageResult):
-                                    results = [image_result]
-                                elif isinstance(image_result, Sequence):
-                                    results = [
-                                        item
-                                        for item in image_result
-                                        if isinstance(item, _SentenceImageResult)
-                                    ]
-                                if not results:
-                                    continue
+                            image_result = future.result()
+                        except Exception:
+                            continue
+                        results: list[_SentenceImageResult] = []
+                        if isinstance(image_result, _SentenceImageResult):
+                            results = [image_result]
+                        elif isinstance(image_result, Sequence):
+                            results = [
+                                item
+                                for item in image_result
+                                if isinstance(item, _SentenceImageResult)
+                            ]
+                        if not results:
+                            continue
 
-                                updated_chunks: dict[str, _SentenceImageResult] = {}
-                                for item in results:
-                                    if image_state.apply(item):
-                                        updated_chunks[item.chunk_id] = item
+                        updated_chunks: dict[str, _SentenceImageResult] = {}
+                        for item in results:
+                            if image_state.apply(item):
+                                updated_chunks[item.chunk_id] = item
 
-                                for chunk_id, item in updated_chunks.items():
-                                    snapshot = image_state.snapshot_chunk(chunk_id)
-                                    if snapshot:
-                                        snapshot_progress.record_generated_chunk(
-                                            chunk_id=str(snapshot.get("chunk_id") or chunk_id),
-                                            start_sentence=int(snapshot.get("start_sentence") or item.start_sentence),
-                                            end_sentence=int(snapshot.get("end_sentence") or item.end_sentence),
-                                            range_fragment=str(snapshot.get("range_fragment") or item.range_fragment),
-                                            files=snapshot.get("files") or {},
-                                            extra_files=snapshot.get("extra_files") or [],
-                                            sentences=snapshot.get("sentences") or [],
-                                            audio_tracks=snapshot.get("audio_tracks") or None,
-                                            timing_tracks=snapshot.get("timing_tracks") or None,
-                                        )
-                        finally:
-                            image_executor.shutdown(wait=True)
-
-                    threading.Thread(target=_drain_images, name="ImageWorkerDrain", daemon=True).start()
-                else:
-                    image_executor.shutdown(wait=False)
+                        for chunk_id, item in updated_chunks.items():
+                            snapshot = image_state.snapshot_chunk(chunk_id)
+                            if snapshot:
+                                self._progress.record_generated_chunk(
+                                    chunk_id=str(snapshot.get("chunk_id") or chunk_id),
+                                    start_sentence=int(snapshot.get("start_sentence") or item.start_sentence),
+                                    end_sentence=int(snapshot.get("end_sentence") or item.end_sentence),
+                                    range_fragment=str(snapshot.get("range_fragment") or item.range_fragment),
+                                    files=snapshot.get("files") or {},
+                                    extra_files=snapshot.get("extra_files") or [],
+                                    sentences=snapshot.get("sentences") or [],
+                                    audio_tracks=snapshot.get("audio_tracks") or None,
+                                    timing_tracks=snapshot.get("timing_tracks") or None,
+                                )
+                image_executor.shutdown(wait=True)

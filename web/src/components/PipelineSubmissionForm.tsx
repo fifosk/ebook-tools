@@ -28,7 +28,8 @@ import {
   uploadEpubFile,
   uploadCoverFile,
   lookupBookOpenLibraryMetadataPreview,
-  withBase
+  withBase,
+  appendAccessToken
 } from '../api/client';
 import {
   AUDIO_MODE_OPTIONS,
@@ -126,6 +127,7 @@ type Props = {
   sectionOverrides?: Partial<Record<PipelineFormSection, { title: string; description: string }>>;
   showInfoHeader?: boolean;
   showOutputPathControls?: boolean;
+  defaultImageSettings?: ImageDefaults | null;
 };
 
 type JsonFields =
@@ -179,6 +181,22 @@ type FormState = {
   pipeline_overrides: string;
   book_metadata: string;
 };
+
+type ImageDefaults = {
+  add_images: boolean;
+  image_style_template: string;
+  image_prompt_context_sentences: number;
+  image_width: string;
+  image_height: string;
+};
+
+const IMAGE_DEFAULT_FIELDS = new Set<keyof FormState>([
+  'add_images',
+  'image_style_template',
+  'image_prompt_context_sentences',
+  'image_width',
+  'image_height',
+]);
 
 const DEFAULT_FORM_STATE: FormState = {
   input_file: '',
@@ -751,15 +769,61 @@ export function PipelineSubmissionForm({
   implicitEndOffsetThreshold = null,
   sectionOverrides = {},
   showInfoHeader = true,
-  showOutputPathControls = true
+  showOutputPathControls = true,
+  defaultImageSettings = null
 }: Props) {
   const isGeneratedSource = sourceMode === 'generated';
+  const imageDefaults = defaultImageSettings ?? null;
+  const userEditedImageDefaultsRef = useRef<Set<keyof FormState>>(new Set());
   const {
     inputLanguage: sharedInputLanguage,
     setInputLanguage: setSharedInputLanguage,
     targetLanguages: sharedTargetLanguages,
     setTargetLanguages: setSharedTargetLanguages
   } = useLanguagePreferences();
+  const hasPrefillAddImages = typeof prefillParameters?.add_images === 'boolean';
+  const applyImageDefaults = useCallback(
+    (state: FormState): FormState => {
+      if (!imageDefaults) {
+        return state;
+      }
+      const edited = userEditedImageDefaultsRef.current;
+      let next = state;
+      let changed = false;
+      const merge = (partial: Partial<FormState>) => {
+        if (!changed) {
+          next = { ...state, ...partial };
+          changed = true;
+          return;
+        }
+        next = { ...next, ...partial };
+      };
+      if (!hasPrefillAddImages && !edited.has('add_images') && state.add_images !== imageDefaults.add_images) {
+        merge({ add_images: imageDefaults.add_images });
+      }
+      if (!edited.has('image_style_template') && state.image_style_template !== imageDefaults.image_style_template) {
+        merge({ image_style_template: imageDefaults.image_style_template });
+      }
+      const normalizedContext = Math.max(
+        0,
+        Math.min(50, Math.trunc(imageDefaults.image_prompt_context_sentences))
+      );
+      if (
+        !edited.has('image_prompt_context_sentences') &&
+        state.image_prompt_context_sentences !== normalizedContext
+      ) {
+        merge({ image_prompt_context_sentences: normalizedContext });
+      }
+      if (!edited.has('image_width') && state.image_width !== imageDefaults.image_width) {
+        merge({ image_width: imageDefaults.image_width });
+      }
+      if (!edited.has('image_height') && state.image_height !== imageDefaults.image_height) {
+        merge({ image_height: imageDefaults.image_height });
+      }
+      return changed ? next : state;
+    },
+    [hasPrefillAddImages, imageDefaults]
+  );
   const [formState, setFormState] = useState<FormState>(() => ({
     ...DEFAULT_FORM_STATE,
     base_output_file: forcedBaseOutputFile ?? DEFAULT_FORM_STATE.base_output_file,
@@ -769,6 +833,9 @@ export function PipelineSubmissionForm({
         ? normalizeSingleTargetLanguages(sharedTargetLanguages)
         : [...DEFAULT_FORM_STATE.target_languages]
   }));
+  useEffect(() => {
+    setFormState((previous) => applyImageDefaults(previous));
+  }, [applyImageDefaults]);
   const [error, setError] = useState<string | null>(null);
   const [fileOptions, setFileOptions] = useState<PipelineFileBrowserResponse | null>(null);
   const [fileDialogError, setFileDialogError] = useState<string | null>(null);
@@ -879,9 +946,11 @@ export function PipelineSubmissionForm({
       parsed = null;
     }
 
+    const coverAssetUrl = normalizeTextValue(parsed?.['job_cover_asset_url']);
     const coverFile = normalizeTextValue(parsed?.['book_cover_file']);
     const coverUrl = normalizeTextValue(parsed?.['cover_url']);
     const coverCandidate =
+      (coverAssetUrl ? appendAccessToken(coverAssetUrl) : null) ||
       resolveCoverPreviewUrlFromCoverFile(coverFile) ||
       (coverUrl && (/^https?:\/\//i.test(coverUrl) || coverUrl.startsWith('//')) ? coverUrl : null);
     if (!coverCandidate || coverCandidate.startsWith('data:')) {
@@ -1391,12 +1460,41 @@ export function PipelineSubmissionForm({
           return;
         }
         const config = defaults?.config ?? {};
-        userEditedStartRef.current = false;
-        userEditedInputRef.current = false;
-        userEditedEndRef.current = false;
+        // Preserve user edits; defaults should not overwrite in-flight changes.
         lastAutoEndSentenceRef.current = null;
         setFormState((previous) => {
-          const next = applyConfigDefaults(previous, config);
+          let next = applyImageDefaults(applyConfigDefaults(previous, config));
+          if (isGeneratedSource || userEditedInputRef.current) {
+            next = { ...next, input_file: previous.input_file };
+          }
+          if (userEditedStartRef.current) {
+            next = { ...next, start_sentence: previous.start_sentence };
+          }
+          if (userEditedEndRef.current) {
+            next = { ...next, end_sentence: previous.end_sentence };
+          }
+          const editedImageFields = userEditedImageDefaultsRef.current;
+          if (editedImageFields.size > 0) {
+            const restored: Partial<FormState> = {};
+            if (editedImageFields.has('add_images')) {
+              restored.add_images = previous.add_images;
+            }
+            if (editedImageFields.has('image_style_template')) {
+              restored.image_style_template = previous.image_style_template;
+            }
+            if (editedImageFields.has('image_prompt_context_sentences')) {
+              restored.image_prompt_context_sentences = previous.image_prompt_context_sentences;
+            }
+            if (editedImageFields.has('image_width')) {
+              restored.image_width = previous.image_width;
+            }
+            if (editedImageFields.has('image_height')) {
+              restored.image_height = previous.image_height;
+            }
+            if (Object.keys(restored).length > 0) {
+              next = { ...next, ...restored };
+            }
+          }
           const suggestedStart = resolveStartFromHistory(next.input_file);
           const baseOutput = forcedBaseOutputFile ?? next.base_output_file;
           if (suggestedStart !== null) {
@@ -1429,7 +1527,7 @@ export function PipelineSubmissionForm({
     return () => {
       cancelled = true;
     };
-  }, [resolveStartFromHistory, setSharedInputLanguage, setSharedTargetLanguages, forcedBaseOutputFile]);
+  }, [resolveStartFromHistory, setSharedInputLanguage, setSharedTargetLanguages, forcedBaseOutputFile, applyImageDefaults]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1596,6 +1694,9 @@ export function PipelineSubmissionForm({
         return;
       }
       userEditedInputRef.current = true;
+    }
+    if (IMAGE_DEFAULT_FIELDS.has(key)) {
+      userEditedImageDefaultsRef.current.add(key);
     }
     setFormState((previous) => {
       if (previous[key] === value) {
@@ -2343,6 +2444,7 @@ export function PipelineSubmissionForm({
         const isbn =
           normalizeTextValue(parsedMetadata?.['isbn']) || normalizeTextValue(parsedMetadata?.['book_isbn']);
         const summary = normalizeTextValue(parsedMetadata?.['book_summary']);
+        const coverAssetUrl = normalizeTextValue(parsedMetadata?.['job_cover_asset_url']);
         const coverUrl = normalizeTextValue(parsedMetadata?.['cover_url']);
         const coverFile = normalizeTextValue(parsedMetadata?.['book_cover_file']);
         const openlibraryWorkUrl = normalizeTextValue(parsedMetadata?.['openlibrary_work_url']);
@@ -2361,6 +2463,7 @@ export function PipelineSubmissionForm({
         const lookupCoverFile =
           normalizeTextValue(lookupBook?.['cover_file']) || normalizeTextValue(lookup?.['cover_file']);
         const coverPreviewUrl =
+          (coverAssetUrl ? appendAccessToken(coverAssetUrl) : null) ||
           resolveCoverPreviewUrlFromCoverFile(coverFile) ||
           resolveCoverPreviewUrlFromCoverFile(lookupCoverFile) ||
           lookupCoverUrl ||

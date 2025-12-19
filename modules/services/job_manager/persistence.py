@@ -301,8 +301,10 @@ class PipelineJobPersistence:
         cover_asset = self._mirror_cover_asset(job.job_id, metadata_root, book_metadata)
         if cover_asset:
             book_metadata["job_cover_asset"] = cover_asset
+            book_metadata.setdefault("job_cover_asset_url", f"/api/pipelines/{job.job_id}/cover")
         else:
             book_metadata.pop("job_cover_asset", None)
+            book_metadata.pop("job_cover_asset_url", None)
         result_payload["book_metadata"] = book_metadata
         snapshot.result = result_payload
 

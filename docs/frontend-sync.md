@@ -68,9 +68,9 @@ Follow the suggested remediations to restore parity:
   / `image_path` fields and confirm the referenced files exist under
   `storage/<job_id>/media/images/`.
 - If the interactive reel shows gaps, confirm the batch image files exist for the
-  active window (up to 11 slots, with 2-slot prefetch on each side) and that the
-  `/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}` endpoint
-  resolves the expected paths.
+  trailing window (up to 5 slots, active + previous only, with 2-slot prefetch)
+  and that the `/api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}`
+  endpoint resolves the expected paths.
 - When snapshots disagree, rerun the pipeline or `/api/media/generate` so the
   job manager rewrites chunk metadata and audio assets consistently before
   re-testing the frontend.

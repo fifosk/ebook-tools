@@ -114,6 +114,17 @@ export interface PipelineResponsePayload {
   generated_files?: Record<string, unknown> | null;
 }
 
+export interface ImageGenerationSummary {
+  enabled: boolean;
+  expected?: number | null;
+  generated?: number | null;
+  completed?: number | null;
+  pending?: number | null;
+  percent?: number | null;
+  sentence_total?: number | null;
+  batch_size?: number | null;
+}
+
 export interface JobParameterSnapshot {
   input_file?: string | null;
   base_output_file?: string | null;
@@ -164,6 +175,7 @@ export interface PipelineStatusResponse {
   media_completed?: boolean | null;
   retry_summary?: Record<string, Record<string, number>> | null;
   job_label?: string | null;
+  image_generation?: ImageGenerationSummary | null;
 }
 
 export interface SubtitleSourceEntry {

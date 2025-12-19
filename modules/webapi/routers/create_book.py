@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import re
+from datetime import datetime
 from dataclasses import replace as dataclass_replace
 from pathlib import Path
 from typing import Any, Iterable
@@ -13,7 +14,14 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from fastapi.concurrency import run_in_threadpool
 
+from modules import logging_manager as log_mgr
 from modules.epub_utils import create_epub_from_sentences
+from modules.images.drawthings import DrawThingsClient, DrawThingsImageRequest
+from modules.images.prompting import (
+    build_sentence_image_negative_prompt,
+    build_sentence_image_prompt,
+)
+from modules.images.style_templates import resolve_image_style_template
 from modules.llm_client_manager import client_scope
 from modules.user_management import AuthService
 from modules.user_management.user_store_base import UserRecord
@@ -51,6 +59,11 @@ _PLACEHOLDER_SENTENCES = frozenset(
         "sample sentence",
     }
 )
+_MAX_METADATA_SENTENCES = 50
+_SUMMARY_MAX_SENTENCES = 4
+_SUMMARY_MAX_CHARACTERS = 600
+
+logger = log_mgr.get_logger()
 
 
 def _extract_bearer_token(authorization: str | None) -> str | None:
@@ -93,6 +106,188 @@ def _build_summary(topic: str, genre: str) -> str:
     if topic_text:
         return f"Story about {topic_text}."
     return "Synthetic book generated via create-book workflow."
+
+
+def _collapse_whitespace(value: str) -> str:
+    return re.sub(r"\s+", " ", (value or "").strip()).strip()
+
+
+def _normalize_optional_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _extract_json_object(payload: str) -> dict[str, Any] | None:
+    raw = (payload or "").strip()
+    if not raw:
+        return None
+    try:
+        parsed: Any = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        try:
+            parsed = json.loads(raw[start : end + 1])
+        except json.JSONDecodeError:
+            return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _limit_summary_length(summary: str) -> str:
+    cleaned = summary.strip()
+    if not cleaned:
+        return cleaned
+
+    primary_paragraph = cleaned.split("\n\n", 1)[0].strip()
+    sentences = re.split(r"(?<=[.!?])\s+", primary_paragraph)
+
+    limited_sentences: list[str] = []
+    for sentence in sentences:
+        stripped = sentence.strip()
+        if not stripped:
+            continue
+        limited_sentences.append(stripped)
+        if len(limited_sentences) >= _SUMMARY_MAX_SENTENCES:
+            break
+
+    short_summary = " ".join(limited_sentences) if limited_sentences else primary_paragraph
+    if len(short_summary) <= _SUMMARY_MAX_CHARACTERS:
+        return short_summary
+
+    truncated = short_summary[: _SUMMARY_MAX_CHARACTERS - 1].rsplit(" ", 1)[0]
+    return truncated + "…"
+
+
+def _coerce_int(value: object, fallback: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _coerce_float(value: object, fallback: float) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _generate_llm_metadata(
+    *,
+    book_title: str,
+    topic: str,
+    seed_genre: str,
+    author: str,
+    input_language: str,
+    sentences: list[str],
+) -> dict[str, Any]:
+    if not sentences:
+        return {}
+    sentence_block = [entry.strip() for entry in sentences if entry.strip()]
+    if not sentence_block:
+        return {}
+    sentence_block = sentence_block[:_MAX_METADATA_SENTENCES]
+
+    system_prompt = (
+        "You are a publishing editor helping generate metadata for a synthetic audiobook. "
+        "Return JSON only with keys: summary, genre, cover_prompt, cover_negative_prompt.\n"
+        "- summary: 2-4 sentences (<= 80 words), in the input language.\n"
+        "- genre: a concise 1-3 word genre label.\n"
+        "- cover_prompt: English-only scene description for diffusion (no style keywords, no text).\n"
+        "- cover_negative_prompt: optional English list of things to avoid.\n"
+        "Do not add extra keys or commentary."
+    )
+    user_payload = {
+        "book_title": book_title,
+        "topic": topic,
+        "seed_genre": seed_genre,
+        "author": author,
+        "input_language": input_language,
+        "sentences": sentence_block,
+    }
+    user_prompt = "```json\n" + json.dumps(user_payload, ensure_ascii=False, indent=2) + "\n```"
+
+    last_error: str | None = None
+    with client_scope(None) as client:
+        if not getattr(client, "model", None):
+            raise RuntimeError("LLM model is not configured.")
+        for _ in range(2):
+            response = client.send_chat_request(
+                {
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "stream": False,
+                    "options": {"temperature": 0.4, "top_p": 0.9},
+                },
+                timeout=180,
+            )
+            if response.error:
+                last_error = response.error
+                continue
+            payload = _extract_json_object(response.text or "")
+            if payload is not None:
+                return payload
+            last_error = "LLM response was not valid JSON."
+    raise RuntimeError(last_error or "Failed to generate metadata via LLM.")
+
+
+def _generate_cover_image(
+    *,
+    prompt: str,
+    negative_prompt: str | None,
+    output_dir: Path,
+    config: dict[str, Any],
+) -> tuple[str | None, str | None, str | None]:
+    base_url = config.get("image_api_base_url")
+    if not isinstance(base_url, str) or not base_url.strip():
+        return None, None, None
+
+    style_value = config.get("image_style_template")
+    style_template = resolve_image_style_template(style_value)
+    prompt_text = _collapse_whitespace(prompt)
+    if not prompt_text:
+        return None, None, None
+
+    full_prompt = build_sentence_image_prompt(
+        prompt_text,
+        style_template=style_template.template_id,
+    )
+    full_negative = build_sentence_image_negative_prompt(
+        _collapse_whitespace(negative_prompt or ""),
+        style_template=style_template.template_id,
+    )
+
+    width = max(64, _coerce_int(config.get("image_width"), 512))
+    height = max(64, _coerce_int(config.get("image_height"), 512))
+    steps = max(1, _coerce_int(config.get("image_steps"), int(style_template.default_steps)))
+    cfg_scale = _coerce_float(config.get("image_cfg_scale"), style_template.default_cfg_scale)
+    sampler_name = _normalize_optional_text(config.get("image_sampler_name"))
+    if not sampler_name:
+        sampler_name = style_template.default_sampler_name
+
+    request = DrawThingsImageRequest(
+        prompt=full_prompt,
+        negative_prompt=full_negative,
+        width=width,
+        height=height,
+        steps=steps,
+        cfg_scale=cfg_scale,
+        sampler_name=sampler_name,
+    )
+    timeout_seconds = max(1.0, _coerce_float(config.get("image_api_timeout_seconds"), 180.0))
+    client = DrawThingsClient(base_url, timeout_seconds=timeout_seconds)
+    image_bytes, _payload = client.txt2img(request)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    cover_path = output_dir / "cover.png"
+    cover_path.write_bytes(image_bytes)
+    return str(cover_path), full_prompt, full_negative
 
 
 def _parse_sentences(payload: str, expected: int) -> list[str]:
@@ -252,6 +447,8 @@ def _execute_book_job(
         context=context,
         resolved_config=resolved_config,
     )
+    cover_config = dict(resolved_config)
+    cover_config.update(pipeline_payload.pipeline_overrides)
     request.progress_tracker = tracker
     request.stop_event = stop_event
     request.correlation_id = request.correlation_id or job.job_id
@@ -331,29 +528,108 @@ def _execute_book_job(
         }
     )
 
+    metadata_messages: list[str] = []
+    metadata_warnings: list[str] = []
+    llm_summary: str | None = None
+    llm_genre: str | None = None
+    cover_prompt: str | None = None
+    cover_negative_prompt: str | None = None
+    cover_file_path: str | None = None
+    cover_prompt_used: str | None = None
+    cover_negative_used: str | None = None
+
+    _check_cancelled("metadata generation")
+    if sentences:
+        _publish_progress(
+            {
+                "stage": "book_generation",
+                "message": "Generating metadata summary and cover prompt.",
+            }
+        )
+        try:
+            llm_payload = _generate_llm_metadata(
+                book_title=generator_payload.book_name,
+                topic=generator_payload.topic,
+                seed_genre=generator_payload.genre,
+                author=generator_payload.author or "Me",
+                input_language=input_language,
+                sentences=sentences,
+            )
+        except Exception as exc:
+            metadata_warnings.append(f"Metadata generation failed: {exc}")
+            logger.warning("Metadata generation failed for job %s: %s", job.job_id, exc)
+        else:
+            llm_summary = _normalize_optional_text(llm_payload.get("summary"))
+            if llm_summary:
+                llm_summary = _limit_summary_length(llm_summary)
+                metadata_messages.append("Generated metadata summary using the LLM.")
+            llm_genre = _normalize_optional_text(llm_payload.get("genre"))
+            if llm_genre:
+                metadata_messages.append("Classified book genre using the LLM.")
+            cover_prompt = _normalize_optional_text(llm_payload.get("cover_prompt"))
+            cover_negative_prompt = _normalize_optional_text(
+                llm_payload.get("cover_negative_prompt")
+            )
+            if cover_prompt:
+                metadata_messages.append("Prepared a cover prompt using the LLM.")
+            else:
+                metadata_warnings.append("LLM did not return a cover prompt.")
+
+    if cover_prompt:
+        _check_cancelled("cover generation")
+        _publish_progress(
+            {
+                "stage": "book_generation",
+                "message": "Generating cover art via diffusion.",
+            }
+        )
+        try:
+            (
+                cover_file_path,
+                cover_prompt_used,
+                cover_negative_used,
+            ) = _generate_cover_image(
+                prompt=cover_prompt,
+                negative_prompt=cover_negative_prompt,
+                output_dir=data_root,
+                config=cover_config,
+            )
+            if cover_file_path:
+                metadata_messages.append("Generated cover art using the diffusion model.")
+            else:
+                metadata_warnings.append(
+                    "Cover generation skipped because image_api_base_url is not configured."
+                )
+        except Exception as exc:
+            metadata_warnings.append(f"Cover generation failed: {exc}")
+            logger.warning("Cover generation failed for job %s: %s", job.job_id, exc)
+
     _check_cancelled("epub preparation")
     create_epub_from_sentences(sentences, epub_path, book_title=generator_payload.book_name)
     relative_epub_path = _relative_epub_path(epub_path, data_root)
 
-    summary = _build_summary(generator_payload.topic, generator_payload.genre)
+    summary = llm_summary or _build_summary(generator_payload.topic, generator_payload.genre)
+    current_year = str(datetime.now().year)
     creation_messages = [
         f"Generated {sentence_count} unique sentences using the language model.",
+        *metadata_messages,
         f"Seed EPUB created at {relative_epub_path}.",
         "Seed EPUB prepared; continuing with pipeline processing.",
     ]
     creation_summary = {
         "epub_path": relative_epub_path,
         "messages": list(creation_messages),
-        "warnings": list(warnings),
+        "warnings": list(warnings) + list(metadata_warnings),
         "sentences_preview": list(sentences_preview),
     }
 
     metadata_updates = {
         "book_title": generator_payload.book_name,
         "book_author": generator_payload.author or "Me",
-        "book_genre": generator_payload.genre,
+        "book_genre": llm_genre or generator_payload.genre,
         "book_topic": generator_payload.topic,
         "book_summary": summary,
+        "book_year": current_year,
         "source_language": input_language,
         "target_language": target_language or input_language,
         "selected_voice": selected_voice,
@@ -363,10 +639,18 @@ def _execute_book_job(
         "created_via": "book_generation_job",
         "seed_epub_path": relative_epub_path,
         "creation_messages": creation_messages,
-        "creation_warnings": list(warnings),
+        "creation_warnings": list(warnings) + list(metadata_warnings),
         "creation_sentences_preview": list(sentences_preview),
         "creation_summary": creation_summary,
     }
+    if cover_file_path:
+        metadata_updates["book_cover_file"] = cover_file_path
+    cover_prompt_value = cover_prompt_used or cover_prompt
+    cover_negative_value = cover_negative_used or cover_negative_prompt
+    if cover_prompt_value:
+        metadata_updates["book_cover_prompt"] = cover_prompt_value
+    if cover_negative_value:
+        metadata_updates["book_cover_negative_prompt"] = cover_negative_value
     request.inputs.book_metadata.update(metadata_updates)
     request.pipeline_overrides = dict(request.pipeline_overrides)
     request.pipeline_overrides.setdefault(

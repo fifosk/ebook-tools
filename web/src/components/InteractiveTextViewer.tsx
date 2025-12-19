@@ -4513,7 +4513,7 @@ const handleAudioSeeked = useCallback(() => {
     return Math.max(1, Math.trunc(parsed));
   }, [imagePromptPlanSummary]);
 
-  const reelWindowRadius = 5;
+  const reelWindowSize = 5;
   const reelPrefetchBuffer = 2;
 
   const promptPlanSentenceRange = useMemo(() => {
@@ -4595,21 +4595,21 @@ const handleAudioSeeked = useCallback(() => {
         ? null
         : Math.max(boundedStart, Math.min(rangeEnd, maxSentenceBound ?? rangeEnd));
 
-    const slots = new Set<number>();
-    for (let offset = -reelWindowRadius; offset <= reelWindowRadius; offset += 1) {
-      const candidate = base + offset * step;
+    const slots: number[] = [];
+    for (let offset = 0; offset < reelWindowSize; offset += 1) {
+      const candidate = base - offset * step;
       if (candidate < boundedStart) {
         continue;
       }
       if (boundedEnd !== null && candidate > boundedEnd) {
         continue;
       }
-      slots.add(candidate);
+      slots.push(candidate);
     }
-    if (slots.size === 0) {
-      slots.add(base);
+    if (slots.length === 0) {
+      slots.push(base);
     }
-    return Array.from(slots).sort((a, b) => a - b);
+    return Array.from(new Set(slots)).sort((a, b) => a - b);
   }, [
     activeImageBatchSize,
     activeImageBatchStart,
@@ -4617,7 +4617,7 @@ const handleAudioSeeked = useCallback(() => {
     maxSentenceBound,
     minSentenceBound,
     promptPlanSentenceRange,
-    reelWindowRadius,
+    reelWindowSize,
   ]);
 
   const reelPrefetchSlots = useMemo(() => {
@@ -4632,11 +4632,11 @@ const handleAudioSeeked = useCallback(() => {
         : Math.max(boundedStart, Math.min(rangeEnd, maxSentenceBound ?? rangeEnd));
     const visible = new Set(reelSentenceSlots);
     const slots: number[] = [];
+    const trailingSpan = Math.max(0, reelWindowSize - 1);
 
     for (let offset = 1; offset <= reelPrefetchBuffer; offset += 1) {
-      const delta = (reelWindowRadius + offset) * step;
-      const forward = base + delta;
-      const back = base - delta;
+      const forward = base + offset * step;
+      const back = base - (trailingSpan + offset) * step;
       if (
         forward >= boundedStart &&
         (boundedEnd === null || forward <= boundedEnd) &&
@@ -4663,7 +4663,7 @@ const handleAudioSeeked = useCallback(() => {
     promptPlanSentenceRange,
     reelPrefetchBuffer,
     reelSentenceSlots,
-    reelWindowRadius,
+    reelWindowSize,
   ]);
 
   const chunkSentenceByNumber = useMemo(() => {
@@ -4708,7 +4708,7 @@ const handleAudioSeeked = useCallback(() => {
   const reelImageInfoCacheRef = useRef<Map<number, SentenceImageInfoResponse>>(new Map());
   const reelImageInfoInflightRef = useRef<Set<number>>(new Set());
   const [reelImageInfoVersion, setReelImageInfoVersion] = useState(0);
-  const [reelRefreshToken, setReelRefreshToken] = useState(0);
+  const [reelImageRetryTokens, setReelImageRetryTokens] = useState<Record<string, number>>({});
   const reelScrollRef = useRef<HTMLDivElement | null>(null);
   const reelPrefetchCacheRef = useRef<Set<string>>(new Set());
 
@@ -4717,7 +4717,7 @@ const handleAudioSeeked = useCallback(() => {
     reelImageInfoInflightRef.current.clear();
     reelPrefetchCacheRef.current.clear();
     setReelImageInfoVersion((value) => value + 1);
-    setReelRefreshToken(0);
+    setReelImageRetryTokens({});
   }, [jobId]);
 
   const reelLookupSlots = useMemo(() => {
@@ -4799,12 +4799,9 @@ const handleAudioSeeked = useCallback(() => {
   const [reelImageFailures, setReelImageFailures] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setReelImageFailures({});
+    setReelImageRetryTokens({});
     reelPrefetchCacheRef.current.clear();
   }, [imageRefreshToken, jobId]);
-
-  useEffect(() => {
-    reelPrefetchCacheRef.current.clear();
-  }, [reelRefreshToken]);
 
   useEffect(() => {
     if (!jobId || !isSentenceImageReelVisible) {
@@ -4825,8 +4822,14 @@ const handleAudioSeeked = useCallback(() => {
         });
         return next;
       });
-      setReelRefreshToken((value) => value + 1);
-    }, 9000);
+      setReelImageRetryTokens((previous) => {
+        const next: Record<string, number> = { ...previous };
+        failedKeys.forEach((key) => {
+          next[key] = (next[key] ?? 0) + 1;
+        });
+        return next;
+      });
+    }, 3000);
 
     return () => {
       window.clearTimeout(timer);
@@ -4842,7 +4845,7 @@ const handleAudioSeeked = useCallback(() => {
   }, [chunk?.metadataUrl]);
 
   const resolveSentenceImageUrl = useCallback(
-    (path: string | null) => {
+    (path: string | null, sentenceNumber?: number | null) => {
       const candidate = (path ?? '').trim();
       if (!candidate) {
         return null;
@@ -4851,7 +4854,11 @@ const handleAudioSeeked = useCallback(() => {
         return candidate;
       }
 
-      const refreshToken = imageRefreshToken + reelRefreshToken;
+      const retryToken =
+        sentenceNumber && Number.isFinite(sentenceNumber)
+          ? reelImageRetryTokens[String(sentenceNumber)] ?? 0
+          : 0;
+      const refreshToken = imageRefreshToken + retryToken;
 
       const addRefreshToken = (url: string) => {
         if (refreshToken <= 0) {
@@ -4930,7 +4937,7 @@ const handleAudioSeeked = useCallback(() => {
         return null;
       }
     },
-    [imageRefreshToken, isLibraryMediaOrigin, jobId, reelRefreshToken],
+    [imageRefreshToken, isLibraryMediaOrigin, jobId, reelImageRetryTokens],
   );
 
   const resolveReelImagePath = useCallback(
@@ -5050,7 +5057,7 @@ const handleAudioSeeked = useCallback(() => {
 
       const imagePath = resolveReelImagePath(sentenceNumber, isActive);
 
-      const url = failed ? null : resolveSentenceImageUrl(imagePath);
+      const url = failed ? null : resolveSentenceImageUrl(imagePath, sentenceNumber);
 
       return {
         sentenceNumber,
@@ -5083,6 +5090,11 @@ const handleAudioSeeked = useCallback(() => {
     resolveSentenceImageUrl,
   ]);
 
+  const reelVisibleFrames = useMemo(
+    () => reelFrames.filter((frame) => frame.isActive || Boolean(frame.url)),
+    [reelFrames],
+  );
+
   useEffect(() => {
     if (!jobId || !isSentenceImageReelVisible) {
       return;
@@ -5096,7 +5108,7 @@ const handleAudioSeeked = useCallback(() => {
         return;
       }
       const imagePath = resolveReelImagePath(sentenceNumber, false);
-      const url = resolveSentenceImageUrl(imagePath);
+      const url = resolveSentenceImageUrl(imagePath, sentenceNumber);
       if (!url || cache.has(url)) {
         return;
       }
@@ -5136,13 +5148,17 @@ const handleAudioSeeked = useCallback(() => {
     if (!(containerRect.width > 0 && activeRect.width > 0)) {
       return;
     }
-    const offset = activeRect.left - containerRect.left;
-    const target = container.scrollLeft + offset - (containerRect.width - activeRect.width) / 2;
+    const offset = activeRect.right - containerRect.right;
+    const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
+    const target = Math.max(0, Math.min(maxScroll, container.scrollLeft + offset));
+    if (Math.abs(container.scrollLeft - target) < 1) {
+      return;
+    }
     container.scrollTo({
-      left: Math.max(0, target),
-      behavior: 'smooth',
+      left: target,
+      behavior: 'auto',
     });
-  }, [activeImageBatchStart, isFullscreen, isSentenceImageReelVisible, reelFrames.length]);
+  }, [activeImageBatchStart, isFullscreen, isSentenceImageReelVisible, reelVisibleFrames.length]);
 
 	  const resolveReelSentenceSeekTarget = useCallback(
 	    (sentenceNumber: number) => {
@@ -5278,10 +5294,11 @@ const handleAudioSeeked = useCallback(() => {
 	    if (!jobId || !isSentenceImageReelVisible) {
 	      return null;
 	    }
-	    const hasAnySlots = reelFrames.some((frame) => typeof frame.sentenceNumber === 'number');
+	    const hasAnySlots = reelVisibleFrames.length > 0;
 	    if (!hasAnySlots) {
 	      return null;
     }
+    const activeIndex = reelVisibleFrames.findIndex((frame) => frame.isActive);
     return (
       <div
         ref={reelScrollRef}
@@ -5289,9 +5306,15 @@ const handleAudioSeeked = useCallback(() => {
         aria-label="Sentence images"
       >
         <div className="player-panel__interactive-image-reel-strip" role="list">
-          {reelFrames.map((frame, index) => {
+          {reelVisibleFrames.map((frame, index) => {
             const sentenceNumber = frame.sentenceNumber;
             const key = sentenceNumber ? String(sentenceNumber) : `empty-${index}`;
+            const slotClassName = [
+              'player-panel__interactive-image-reel-slot',
+              index === activeIndex - 1 ? 'player-panel__interactive-image-reel-slot--preactive' : null,
+            ]
+              .filter(Boolean)
+              .join(' ');
             const classNames = [
               'player-panel__interactive-image-reel-frame',
               frame.isActive ? 'player-panel__interactive-image-reel-frame--active' : null,
@@ -5302,7 +5325,7 @@ const handleAudioSeeked = useCallback(() => {
             return (
               <div
                 key={key}
-                className="player-panel__interactive-image-reel-slot"
+                className={slotClassName}
                 role="listitem"
                 aria-label={sentenceNumber ? `Sentence ${sentenceNumber}` : 'No sentence'}
               >
@@ -5319,7 +5342,7 @@ const handleAudioSeeked = useCallback(() => {
                     <img
                       src={frame.url}
                       alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
-                      loading={frame.isActive ? 'eager' : 'lazy'}
+                      loading="eager"
                       decoding="async"
                       onError={() => {
 	                        if (!sentenceNumber) {
@@ -5340,7 +5363,7 @@ const handleAudioSeeked = useCallback(() => {
         </div>
       </div>
     );
-	  }, [handleReelFrameClick, isSentenceImageReelVisible, jobId, reelFrames]);
+	  }, [handleReelFrameClick, isSentenceImageReelVisible, jobId, reelVisibleFrames]);
 
   useEffect(() => {
     if (!setPlayerSentence) {

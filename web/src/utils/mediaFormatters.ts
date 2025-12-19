@@ -114,11 +114,11 @@ export function resolveMediaCompletion(status: MediaStatusLike | null | undefine
   if (status.media_completed === true) {
     return true;
   }
-  if (hasGeneratedMedia(status.generated_files)) {
-    return true;
-  }
   if (status.media_completed === false) {
     return false;
+  }
+  if (hasGeneratedMedia(status.generated_files)) {
+    return true;
   }
   return null;
 }

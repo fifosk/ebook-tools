@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import copy
+import json
+import math
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Mapping
+from typing import Any, Dict, List, Literal, Mapping, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from ...core.config import PipelineConfig
 from ...progress_tracker import ProgressEvent, ProgressSnapshot
 from ...services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
+from ...services.file_locator import FileLocator
 from ...video.jobs import (
     VideoJob,
     VideoJobResult,
@@ -723,6 +726,19 @@ class JobParameterSnapshot(BaseModel):
     add_images: Optional[bool] = None
 
 
+class ImageGenerationSummary(BaseModel):
+    """Aggregated image generation statistics for pipeline jobs."""
+
+    enabled: bool
+    expected: Optional[int] = None
+    generated: Optional[int] = None
+    completed: Optional[int] = None
+    pending: Optional[int] = None
+    percent: Optional[int] = None
+    sentence_total: Optional[int] = None
+    batch_size: Optional[int] = None
+
+
 def _coerce_str(value: Any) -> Optional[str]:
     if isinstance(value, str):
         trimmed = value.strip()
@@ -759,6 +775,160 @@ def _coerce_float(value: Any) -> Optional[float]:
         except ValueError:
             return None
     return None
+
+
+def _load_image_prompt_plan_summary(job_id: str) -> Optional[Dict[str, Any]]:
+    locator = FileLocator()
+    summary_path = locator.resolve_metadata_path(job_id, "image_prompt_plan_summary.json")
+    if not summary_path.exists():
+        return None
+    try:
+        payload = json.loads(summary_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    return dict(payload) if isinstance(payload, Mapping) else None
+
+
+def _count_generated_images(payload: Mapping[str, Any]) -> int:
+    def _is_image_entry(entry: Mapping[str, Any]) -> bool:
+        type_value = entry.get("type")
+        type_label = str(type_value).strip().lower() if type_value is not None else ""
+        path_value = entry.get("path") or entry.get("relative_path") or entry.get("relativePath")
+        path_label = str(path_value).strip().lower() if path_value is not None else ""
+        if type_label == "image":
+            return True
+        if "/images/" in path_label and path_label.endswith((".png", ".jpg", ".jpeg")):
+            return True
+        return False
+
+    seen: set[str] = set()
+    count = 0
+    files_section = payload.get("files")
+    if isinstance(files_section, list):
+        for entry in files_section:
+            if not isinstance(entry, Mapping):
+                continue
+            if not _is_image_entry(entry):
+                continue
+            path_value = entry.get("path") or entry.get("relative_path") or entry.get("relativePath")
+            key = str(path_value or entry)
+            if key in seen:
+                continue
+            seen.add(key)
+            count += 1
+
+    chunks_section = payload.get("chunks")
+    if isinstance(chunks_section, list):
+        for chunk in chunks_section:
+            if not isinstance(chunk, Mapping):
+                continue
+            files = chunk.get("files")
+            if not isinstance(files, list):
+                continue
+            for entry in files:
+                if not isinstance(entry, Mapping):
+                    continue
+                if not _is_image_entry(entry):
+                    continue
+                path_value = entry.get("path") or entry.get("relative_path") or entry.get("relativePath")
+                key = str(path_value or entry)
+                if key in seen:
+                    continue
+                seen.add(key)
+                count += 1
+
+    return count
+
+
+def _resolve_image_prompt_summary(
+    job_id: str,
+    generated_files: Optional[Mapping[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if isinstance(generated_files, Mapping):
+        summary = generated_files.get("image_prompt_plan_summary")
+        if isinstance(summary, Mapping):
+            return dict(summary)
+    return _load_image_prompt_plan_summary(job_id)
+
+
+def _build_image_generation_summary(
+    job: PipelineJob,
+    *,
+    parameters: Optional[JobParameterSnapshot],
+    latest_event: Optional[ProgressEventPayload],
+    generated_files: Optional[Mapping[str, Any]],
+) -> Optional[ImageGenerationSummary]:
+    if job.job_type not in {"pipeline", "book"}:
+        return None
+    enabled = bool(parameters.add_images) if parameters is not None and parameters.add_images is not None else False
+    summary = _resolve_image_prompt_summary(job.job_id, generated_files)
+    if parameters is None or parameters.add_images is None:
+        if summary or generated_files:
+            enabled = True
+    if not enabled and not generated_files and not summary:
+        return None
+    summary_record = summary or {}
+    quality = summary_record.get("quality")
+    quality_record = quality if isinstance(quality, Mapping) else {}
+
+    start_sentence = _coerce_int(summary_record.get("start_sentence") or summary_record.get("startSentence"))
+    end_sentence = _coerce_int(summary_record.get("end_sentence") or summary_record.get("endSentence"))
+    sentence_total: Optional[int] = None
+    if start_sentence is not None and end_sentence is not None and end_sentence >= start_sentence:
+        sentence_total = int(end_sentence - start_sentence + 1)
+    if sentence_total is None:
+        sentence_total = _coerce_int(quality_record.get("total_sentences") or quality_record.get("totalSentences"))
+
+    batch_size = _coerce_int(
+        summary_record.get("prompt_batch_size")
+        or summary_record.get("promptBatchSize")
+        or quality_record.get("prompt_batch_size")
+        or quality_record.get("promptBatchSize")
+    )
+    if batch_size is not None:
+        batch_size = max(1, int(batch_size))
+
+    expected: Optional[int] = None
+    if sentence_total is not None and batch_size is not None:
+        if batch_size > 1:
+            total_batches = _coerce_int(quality_record.get("total_batches") or quality_record.get("totalBatches"))
+            if total_batches is not None:
+                expected = max(0, int(total_batches))
+            else:
+                expected = int(math.ceil(sentence_total / float(batch_size))) if sentence_total > 0 else 0
+        else:
+            expected = max(0, int(sentence_total))
+
+    if generated_files:
+        generated = _count_generated_images(generated_files)
+    else:
+        generated = 0 if enabled else None
+
+    completed: Optional[int] = None
+    pending: Optional[int] = None
+    if expected is not None and sentence_total is not None and latest_event is not None:
+        try:
+            completed_total = int(latest_event.snapshot.completed)
+        except Exception:
+            completed_total = None
+        if completed_total is not None:
+            completed = max(0, min(expected, completed_total - sentence_total))
+            pending = max(0, expected - completed)
+
+    percent: Optional[int] = None
+    if expected is not None and expected > 0 and generated is not None:
+        percent = max(0, min(100, int(round((generated / expected) * 100))))
+
+    return ImageGenerationSummary(
+        enabled=enabled,
+        expected=expected,
+        generated=generated,
+        completed=completed,
+        pending=pending,
+        percent=percent,
+        sentence_total=sentence_total,
+        batch_size=batch_size,
+    )
 
 
 def _coerce_bool(value: Any) -> Optional[bool]:
@@ -1100,6 +1270,7 @@ class PipelineStatusResponse(BaseModel):
     media_completed: Optional[bool] = None
     retry_summary: Optional[Dict[str, Dict[str, int]]] = None
     job_label: Optional[str] = None
+    image_generation: Optional[ImageGenerationSummary] = None
 
     @classmethod
     def from_job(cls, job: PipelineJob) -> "PipelineStatusResponse":
@@ -1112,6 +1283,28 @@ class PipelineStatusResponse(BaseModel):
         elif job.result_payload is not None:
             result_payload = copy.deepcopy(job.result_payload)
 
+        if job.job_type in {"pipeline", "book"} and result_payload is not None:
+            cover_url = f"/api/pipelines/{job.job_id}/cover"
+            if isinstance(result_payload, PipelineResponsePayload):
+                book_metadata = result_payload.book_metadata
+                if (
+                    isinstance(book_metadata, dict)
+                    and book_metadata.get("job_cover_asset")
+                    and not book_metadata.get("job_cover_asset_url")
+                ):
+                    book_metadata["job_cover_asset_url"] = cover_url
+            elif isinstance(result_payload, Mapping):
+                raw_book = result_payload.get("book_metadata")
+                if (
+                    isinstance(raw_book, Mapping)
+                    and raw_book.get("job_cover_asset")
+                    and not raw_book.get("job_cover_asset_url")
+                ):
+                    updated = dict(raw_book)
+                    updated["job_cover_asset_url"] = cover_url
+                    result_payload = dict(result_payload)
+                    result_payload["book_metadata"] = updated
+
         latest_event = None
         if job.last_event is not None:
             latest_event = ProgressEventPayload.from_event(job.last_event)
@@ -1119,6 +1312,14 @@ class PipelineStatusResponse(BaseModel):
         generated_files = None
         if job.generated_files is not None:
             generated_files = copy.deepcopy(job.generated_files)
+
+        parameters = _build_job_parameters(job)
+        image_generation = _build_image_generation_summary(
+            job,
+            parameters=parameters,
+            latest_event=latest_event,
+            generated_files=generated_files,
+        )
 
         return cls(
             job_id=job.job_id,
@@ -1134,10 +1335,11 @@ class PipelineStatusResponse(BaseModel):
             user_id=job.user_id,
             user_role=job.user_role,
             generated_files=generated_files,
-            parameters=_build_job_parameters(job),
+            parameters=parameters,
             media_completed=job.media_completed,
             retry_summary=job.tracker.get_retry_counts() if job.tracker else job.retry_summary,
             job_label=_resolve_job_label(job),
+            image_generation=image_generation,
         )
 
 

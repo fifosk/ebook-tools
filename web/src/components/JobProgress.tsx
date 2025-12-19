@@ -486,9 +486,32 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   const llmModelRaw = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
   const llmModel = formatModelLabel(llmModelRaw);
   const retrySummary = status.retry_summary ?? null;
-  const imageEnabled = parameters?.add_images ?? null;
+  const imageStats = status.image_generation ?? null;
+  const imageEnabled = parameters?.add_images ?? (imageStats ? imageStats.enabled : null);
   const imageApiBaseUrl = getStringField(pipelineConfig, 'image_api_base_url');
   const generatedImageCount = countGeneratedImages(status);
+  const expectedImages =
+    imageStats && typeof imageStats.expected === 'number' && Number.isFinite(imageStats.expected)
+      ? imageStats.expected
+      : null;
+  const resolvedGeneratedImages =
+    imageStats && typeof imageStats.generated === 'number' && Number.isFinite(imageStats.generated)
+      ? imageStats.generated
+      : generatedImageCount;
+  const imagePercent =
+    imageStats && typeof imageStats.percent === 'number' && Number.isFinite(imageStats.percent)
+      ? imageStats.percent
+      : expectedImages !== null && expectedImages > 0
+        ? Math.round((resolvedGeneratedImages / expectedImages) * 100)
+        : null;
+  const imagePending =
+    imageStats && typeof imageStats.pending === 'number' && Number.isFinite(imageStats.pending)
+      ? imageStats.pending
+      : null;
+  const imageBatchSize =
+    imageStats && typeof imageStats.batch_size === 'number' && Number.isFinite(imageStats.batch_size)
+      ? imageStats.batch_size
+      : null;
   const imagePromptPlanSummary = resolveImagePromptPlanSummary(status);
   const imagePromptPlanQuality = imagePromptPlanSummary ? coerceRecord(imagePromptPlanSummary['quality']) : null;
   const imageRetryCounts =
@@ -497,10 +520,6 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
       : null;
   const imageRetryDetails = formatRetryCounts(imageRetryCounts);
   const imageErrors = sumRetryCounts(imageRetryCounts);
-  const totalSentences =
-    status.latest_event && typeof status.latest_event === 'object' && typeof status.latest_event.snapshot?.total === 'number'
-      ? status.latest_event.snapshot.total
-      : null;
 
   if (status.job_type === 'subtitle') {
     const subtitleMetadata = resolveSubtitleMetadata(status);
@@ -716,9 +735,18 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   }
   if (imageEnabled !== null || generatedImageCount > 0 || imageErrors > 0 || imagePromptPlanQuality) {
     const enabledLabel = imageEnabled === true ? 'On' : imageEnabled === false ? 'Off' : 'Unknown';
-    const progressLabel = totalSentences !== null ? `${generatedImageCount}/${totalSentences}` : `${generatedImageCount}`;
+    const progressLabel =
+      expectedImages !== null ? `${resolvedGeneratedImages}/${expectedImages}` : `${resolvedGeneratedImages}`;
+    const percentLabel = imagePercent !== null ? `${imagePercent}%` : null;
+    const generatedLabel = percentLabel ? `${progressLabel} (${percentLabel})` : progressLabel;
     const suffixParts: string[] = [];
-    suffixParts.push(`generated ${progressLabel}`);
+    suffixParts.push(`generated ${generatedLabel}`);
+    if (imagePending !== null && imagePending > 0) {
+      suffixParts.push(`pending ${imagePending}`);
+    }
+    if (imageBatchSize !== null && imageBatchSize > 1) {
+      suffixParts.push(`batch ${Math.round(imageBatchSize)}`);
+    }
     if (imageErrors > 0) {
       suffixParts.push(`errors ${imageRetryDetails ?? imageErrors}`);
     }
@@ -938,9 +966,13 @@ export function JobProgress({
     if (!shouldShowCoverPreview) {
       return null;
     }
+    const metadataCoverUrl = normalizeTextValue(metadata['job_cover_asset_url']);
+    if (metadataCoverUrl) {
+      return appendAccessToken(metadataCoverUrl);
+    }
     const url = resolveJobCoverUrl(jobId);
     return url ? appendAccessToken(url) : null;
-  }, [jobId, shouldShowCoverPreview]);
+  }, [jobId, metadata, shouldShowCoverPreview]);
   const [coverFailed, setCoverFailed] = useState(false);
   useEffect(() => {
     setCoverFailed(false);

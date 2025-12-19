@@ -207,6 +207,13 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
         sourceMode="generated"
         submitLabel="Generate & process"
         forcedBaseOutputFile={forcedBaseOutput}
+        defaultImageSettings={{
+          add_images: true,
+          image_style_template: 'wireframe',
+          image_prompt_context_sentences: 0,
+          image_width: '256',
+          image_height: '256'
+        }}
         customSourceSection={bookPromptSection}
         showInfoHeader={false}
         sectionOverrides={{

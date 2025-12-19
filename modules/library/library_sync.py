@@ -329,7 +329,6 @@ class LibrarySync:
                 job_id,
                 target_path,
             )
-            metadata, _ = file_ops.compact_metadata_generated_files(metadata, job_root=target_path)
 
             cover_reference: Optional[str] = None
 
