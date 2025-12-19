@@ -15,8 +15,10 @@ class _StubLibrarySync:
     def get_media(
         self,
         job_id: str,
+        summary: bool = False,
     ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool]:
         assert job_id == "library-job"
+        assert summary is False
         return self._payload
 
 

@@ -37,7 +37,7 @@ export function useLibraryMedia(jobId: string | null | undefined): UseLibraryMed
     setIsLoading(true);
     setError(null);
 
-    fetchLibraryMedia(jobId)
+    fetchLibraryMedia(jobId, { summary: true })
       .then((response: PipelineMediaResponse) => {
         if (cancelled) {
           return;

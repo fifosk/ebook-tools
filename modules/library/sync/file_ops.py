@@ -9,7 +9,7 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 import copy
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Tuple
 from urllib.parse import quote
 
 from modules import logging_manager
@@ -474,6 +474,8 @@ def retarget_metadata_generated_files(
     metadata: Mapping[str, Any],
     job_id: str,
     job_root: Path,
+    *,
+    fast: bool = False,
 ) -> Tuple[Dict[str, Any], bool]:
     """Retarget generated media references on the root and nested result payloads."""
 
@@ -488,7 +490,7 @@ def retarget_metadata_generated_files(
         if key not in payload:
             return
         original = payload.get(key)
-        retargeted = retarget_generated_files(original, job_id, job_root)
+        retargeted = retarget_generated_files(original, job_id, job_root, fast=fast)
         if retargeted is not original and retargeted != original:
             changed = True
         payload[key] = retargeted
@@ -508,7 +510,174 @@ def retarget_metadata_generated_files(
     return updated, changed
 
 
-def retarget_generated_files(payload: Any, job_id: str, job_root: Path) -> Any:
+def compact_metadata_generated_files(
+    metadata: Mapping[str, Any],
+    job_root: Path | None = None,
+) -> Tuple[Dict[str, Any], bool]:
+    """Strip inline chunk payloads when metadata files are already present."""
+
+    if not isinstance(metadata, Mapping):
+        return {}, False
+
+    changed = False
+    updated: Dict[str, Any] = dict(metadata)
+
+    def load_chunk_payload(metadata_path: str) -> Optional[Mapping[str, Any]]:
+        if job_root is None:
+            return None
+        raw_path = metadata_path.replace("\\", "/")
+        if not raw_path:
+            return None
+        candidate = Path(raw_path)
+        if not candidate.is_absolute():
+            normalized = raw_path.lstrip("/")
+            if not normalized:
+                return None
+            candidate = job_root / normalized
+        if not candidate.exists():
+            return None
+        try:
+            with candidate.open("r", encoding="utf-8") as handle:
+                data = json.load(handle)
+        except (OSError, json.JSONDecodeError):
+            return None
+        return data if isinstance(data, Mapping) else None
+
+    def is_empty_payload(value: Any) -> bool:
+        if value is None:
+            return True
+        if isinstance(value, (list, tuple, dict, set)):
+            return len(value) == 0
+        return False
+
+    def strip_group(
+        chunk_entry: Dict[str, Any],
+        metadata_payload: Optional[Mapping[str, Any]],
+        keys: Tuple[str, ...],
+        has_payload: Callable[[Any], bool],
+    ) -> bool:
+        if not any(key in chunk_entry for key in keys):
+            return False
+        inline_value = None
+        for key in keys:
+            if key in chunk_entry:
+                inline_value = chunk_entry.get(key)
+                break
+        if job_root is None:
+            for key in keys:
+                chunk_entry.pop(key, None)
+            return True
+        if metadata_payload is None:
+            if is_empty_payload(inline_value):
+                for key in keys:
+                    chunk_entry.pop(key, None)
+                return True
+            return False
+        payload_value = None
+        for key in keys:
+            if key in metadata_payload:
+                payload_value = metadata_payload.get(key)
+                break
+        if has_payload(payload_value) or is_empty_payload(inline_value):
+            for key in keys:
+                chunk_entry.pop(key, None)
+            return True
+        return False
+
+    def strip_chunk_payload(chunk_entry: Dict[str, Any]) -> bool:
+        metadata_path = chunk_entry.get("metadata_path") or chunk_entry.get("metadataPath")
+        if not (isinstance(metadata_path, str) and metadata_path.strip()):
+            return False
+        metadata_payload = load_chunk_payload(metadata_path.strip())
+        removed = False
+
+        def has_sentence_payload(value: Any) -> bool:
+            return isinstance(value, list) and len(value) > 0
+
+        def has_mapping_payload(value: Any) -> bool:
+            return isinstance(value, Mapping) and len(value) > 0
+
+        removed |= strip_group(chunk_entry, metadata_payload, ("sentences",), has_sentence_payload)
+        removed |= strip_group(
+            chunk_entry,
+            metadata_payload,
+            ("audio_tracks", "audioTracks"),
+            has_mapping_payload,
+        )
+        removed |= strip_group(
+            chunk_entry,
+            metadata_payload,
+            ("timing_tracks", "timingTracks"),
+            has_mapping_payload,
+        )
+        return removed
+
+    def compact_generated(payload: Any) -> Tuple[Any, bool]:
+        if not isinstance(payload, Mapping):
+            return payload, False
+        updated_payload: Dict[str, Any] = dict(payload)
+        local_changed = False
+
+        chunks_value = payload.get("chunks")
+        if isinstance(chunks_value, list):
+            compacted_chunks: List[Any] = []
+            for entry in chunks_value:
+                if not isinstance(entry, Mapping):
+                    compacted_chunks.append(entry)
+                    continue
+                chunk_entry = dict(entry)
+                if strip_chunk_payload(chunk_entry):
+                    local_changed = True
+                compacted_chunks.append(chunk_entry)
+            if local_changed:
+                updated_payload["chunks"] = compacted_chunks
+        elif isinstance(chunks_value, Mapping):
+            compacted_chunks_map: Dict[str, Any] = {}
+            for key, entry in chunks_value.items():
+                if not isinstance(entry, Mapping):
+                    compacted_chunks_map[key] = entry
+                    continue
+                chunk_entry = dict(entry)
+                if strip_chunk_payload(chunk_entry):
+                    local_changed = True
+                compacted_chunks_map[key] = chunk_entry
+            if local_changed:
+                updated_payload["chunks"] = compacted_chunks_map
+
+        return updated_payload, local_changed
+
+    def _compact_field(payload: Dict[str, Any], key: str) -> None:
+        nonlocal changed
+        if key not in payload:
+            return
+        original = payload.get(key)
+        compacted, compacted_changed = compact_generated(original)
+        if compacted_changed:
+            payload[key] = compacted
+            changed = True
+
+    _compact_field(updated, "generated_files")
+
+    for nested_key in ("result", "result_payload"):
+        section = updated.get(nested_key)
+        if not isinstance(section, Mapping):
+            continue
+        section_payload = dict(section)
+        _compact_field(section_payload, "generated_files")
+        if section_payload != section:
+            changed = True
+        updated[nested_key] = section_payload
+
+    return updated, changed
+
+
+def retarget_generated_files(
+    payload: Any,
+    job_id: str,
+    job_root: Path,
+    *,
+    fast: bool = False,
+) -> Any:
     """Rewrite generated file payloads so they reference library paths."""
 
     if not isinstance(payload, Mapping):
@@ -518,13 +687,13 @@ def retarget_generated_files(payload: Any, job_id: str, job_root: Path) -> Any:
         if key == "files":
             if isinstance(value, list):
                 updated[key] = [
-                    retarget_media_entry(entry, job_id, job_root)
+                    retarget_media_entry(entry, job_id, job_root, fast=fast)
                     for entry in value
                     if isinstance(entry, Mapping)
                 ]
             elif isinstance(value, Mapping):
                 updated[key] = {
-                    name: retarget_media_entry(entry, job_id, job_root)
+                    name: retarget_media_entry(entry, job_id, job_root, fast=fast)
                     for name, entry in value.items()
                     if isinstance(entry, Mapping)
                 }
@@ -533,13 +702,13 @@ def retarget_generated_files(payload: Any, job_id: str, job_root: Path) -> Any:
         elif key == "chunks":
             if isinstance(value, list):
                 updated[key] = [
-                    retarget_chunk_entry(chunk, job_id, job_root)
+                    retarget_chunk_entry(chunk, job_id, job_root, fast=fast)
                     for chunk in value
                     if isinstance(chunk, Mapping)
                 ]
             elif isinstance(value, Mapping):
                 updated[key] = {
-                    name: retarget_chunk_entry(chunk, job_id, job_root)
+                    name: retarget_chunk_entry(chunk, job_id, job_root, fast=fast)
                     for name, chunk in value.items()
                     if isinstance(chunk, Mapping)
                 }
@@ -550,20 +719,26 @@ def retarget_generated_files(payload: Any, job_id: str, job_root: Path) -> Any:
     return updated
 
 
-def retarget_chunk_entry(chunk: Mapping[str, Any], job_id: str, job_root: Path) -> Dict[str, Any]:
+def retarget_chunk_entry(
+    chunk: Mapping[str, Any],
+    job_id: str,
+    job_root: Path,
+    *,
+    fast: bool = False,
+) -> Dict[str, Any]:
     """Retarget chunk metadata."""
 
     payload = dict(chunk)
     files = chunk.get("files")
     if isinstance(files, list):
         payload["files"] = [
-            retarget_media_entry(entry, job_id, job_root)
+            retarget_media_entry(entry, job_id, job_root, fast=fast)
             for entry in files
             if isinstance(entry, Mapping)
         ]
     elif isinstance(files, Mapping):
         payload["files"] = {
-            name: retarget_media_entry(entry, job_id, job_root)
+            name: retarget_media_entry(entry, job_id, job_root, fast=fast)
             for name, entry in files.items()
             if isinstance(entry, Mapping)
         }
@@ -574,11 +749,14 @@ def retarget_media_entry(
     entry: Mapping[str, Any],
     job_id: str,
     job_root: Path,
+    *,
+    fast: bool = False,
 ) -> Dict[str, Any]:
     """Retarget a generated media entry."""
 
     payload = dict(entry)
-    job_root = job_root.resolve()
+    if not fast:
+        job_root = job_root.resolve()
 
     def normalize_relative(raw: str) -> Optional[Path]:
         text = raw.strip()
@@ -610,12 +788,13 @@ def retarget_media_entry(
     if isinstance(path_value, str) and path_value.strip():
         path_candidate = Path(path_value.strip()).expanduser()
         if not path_candidate.is_absolute():
-            path_candidate = (job_root / path_candidate).resolve()
+            path_candidate = (job_root / path_candidate).resolve() if not fast else (job_root / path_candidate)
         else:
-            try:
-                path_candidate = path_candidate.resolve()
-            except OSError:
-                pass
+            if not fast:
+                try:
+                    path_candidate = path_candidate.resolve()
+                except OSError:
+                    pass
         absolute_path = path_candidate
         if relative_path is None:
             try:
@@ -627,7 +806,7 @@ def retarget_media_entry(
         normalized_relative = Path(relative_path.as_posix())
         payload["relative_path"] = normalized_relative.as_posix()
         payload["url"] = build_library_media_url(job_id, normalized_relative.as_posix())
-        absolute_path = (job_root / normalized_relative).resolve()
+        absolute_path = (job_root / normalized_relative).resolve() if not fast else (job_root / normalized_relative)
     elif "relative_path" in payload and not payload["relative_path"]:
         payload.pop("relative_path", None)
 
@@ -655,6 +834,11 @@ def serialize_media_entries(
     job_id: str,
     generated_files: Any,
     job_root: Path,
+    *,
+    include_stats: bool = True,
+    include_chunk_sentences: bool = True,
+    include_chunk_metadata: bool = True,
+    fast_paths: bool = False,
 ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool]:
     """Return categorized media payloads for API responses."""
 
@@ -671,6 +855,8 @@ def serialize_media_entries(
     loader_attempted = False
 
     def resolve_loader() -> Optional[MetadataLoader]:
+        if not include_chunk_metadata:
+            return None
         nonlocal loader, loader_attempted
         if loader is not None:
             return loader
@@ -701,6 +887,8 @@ def serialize_media_entries(
                         job_id,
                         file_entry,
                         job_root,
+                        include_stats=include_stats,
+                        fast_paths=fast_paths,
                     )
                     if record is None or category is None:
                         continue
@@ -724,10 +912,10 @@ def serialize_media_entries(
             sentence_count = utils.coerce_int(summary.get("sentence_count"))
 
             sentences_payload: List[Any] = []
-            if isinstance(metadata_path, str) and metadata_path.strip():
-                sentences_payload = []
-            else:
-                if active_loader is not None:
+            has_metadata_path = isinstance(metadata_path, str) and metadata_path.strip()
+            should_include_sentences = include_chunk_sentences or not has_metadata_path
+            if should_include_sentences:
+                if include_chunk_sentences and active_loader is not None:
                     sentences_payload = active_loader.load_chunk_sentences(chunk)
                 else:
                     inline_sentences = summary.get("sentences") or chunk.get("sentences")
@@ -819,6 +1007,8 @@ def serialize_media_entries(
                 job_id,
                 file_entry,
                 job_root,
+                include_stats=include_stats,
+                fast_paths=fast_paths,
             )
             if record is None or category is None:
                 continue
@@ -834,10 +1024,13 @@ def build_media_record(
     job_id: str,
     entry: Mapping[str, Any],
     job_root: Path,
+    *,
+    include_stats: bool = True,
+    fast_paths: bool = False,
 ) -> Tuple[Optional[Dict[str, Any]], Optional[str], Tuple[str, str, str]]:
     """Build a media record from a generated entry."""
 
-    sanitized = retarget_media_entry(entry, job_id, job_root)
+    sanitized = retarget_media_entry(entry, job_id, job_root, fast=fast_paths)
     category = resolve_media_category(sanitized)
     if category is None:
         return None, None, ("", "", "")
@@ -856,7 +1049,7 @@ def build_media_record(
 
     size: Optional[int] = None
     updated_at: Optional[str] = None
-    if absolute_path is not None and absolute_path.exists():
+    if include_stats and absolute_path is not None and absolute_path.exists():
         try:
             stat_result = absolute_path.stat()
         except OSError:
@@ -1004,6 +1197,7 @@ __all__ = [
     "build_library_media_url",
     "build_media_record",
     "cleanup_cover_assets",
+    "compact_metadata_generated_files",
     "contains_cover_asset",
     "contains_media_files",
     "copy_cover_asset",

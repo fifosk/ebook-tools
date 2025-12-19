@@ -329,6 +329,7 @@ class LibrarySync:
                 job_id,
                 target_path,
             )
+            metadata, _ = file_ops.compact_metadata_generated_files(metadata, job_root=target_path)
 
             cover_reference: Optional[str] = None
 
@@ -840,6 +841,7 @@ class LibrarySync:
     def get_media(
         self,
         job_id: str,
+        summary: bool = False,
     ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, Any]], bool]:
         """Return generated media details for ``job_id``."""
 
@@ -853,6 +855,7 @@ class LibrarySync:
             metadata,
             job_id,
             job_root,
+            fast=summary,
         )
         generated = metadata.get("generated_files")
         if not isinstance(generated, Mapping):
@@ -864,11 +867,12 @@ class LibrarySync:
                         generated_candidate,
                         job_id,
                         job_root,
+                        fast=summary,
                     )
                     metadata["generated_files"] = generated
                     changed = True
 
-        if changed:
+        if changed and not summary:
             try:
                 file_ops.write_metadata(job_root, metadata)
             except Exception:
@@ -878,6 +882,10 @@ class LibrarySync:
             job_id,
             generated,
             job_root,
+            include_stats=not summary,
+            include_chunk_sentences=not summary,
+            include_chunk_metadata=not summary,
+            fast_paths=summary,
         )
         completed_flag = bool(metadata.get("media_completed")) or generated_complete
         return media_map, chunk_records, completed_flag

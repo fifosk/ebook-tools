@@ -66,6 +66,7 @@ import {
   ReadingBedEntry,
   ReadingBedListResponse,
   ReadingBedUpdateRequestPayload,
+  SentenceImageInfoBatchResponse,
   SentenceImageInfoResponse,
   SentenceImageRegenerateRequestPayload,
   SentenceImageRegenerateResponse
@@ -691,6 +692,24 @@ export async function fetchSentenceImageInfo(
   return handleResponse<SentenceImageInfoResponse>(response);
 }
 
+export async function fetchSentenceImageInfoBatch(
+  jobId: string,
+  sentenceNumbers: number[]
+): Promise<SentenceImageInfoResponse[]> {
+  const requested = (sentenceNumbers ?? []).filter((value) => Number.isFinite(value));
+  if (!requested.length) {
+    return [];
+  }
+  const encodedJobId = encodeURIComponent(jobId);
+  const params = new URLSearchParams();
+  params.set('sentence_numbers', requested.join(','));
+  const response = await apiFetch(
+    `/api/pipelines/jobs/${encodedJobId}/media/images/sentences/batch?${params.toString()}`
+  );
+  const payload = await handleResponse<SentenceImageInfoBatchResponse>(response);
+  return Array.isArray(payload.items) ? payload.items : [];
+}
+
 export async function regenerateSentenceImage(
   jobId: string,
   sentenceNumber: number,
@@ -1095,8 +1114,19 @@ export function resolveLibraryMediaUrl(jobId: string, relativePath: string): str
   return appendAccessToken(url);
 }
 
-export async function fetchLibraryMedia(jobId: string): Promise<PipelineMediaResponse> {
-  const response = await apiFetch(`/api/library/media/${encodeURIComponent(jobId)}`);
+export async function fetchLibraryMedia(
+  jobId: string,
+  options?: { summary?: boolean },
+): Promise<PipelineMediaResponse> {
+  const query = new URLSearchParams();
+  if (options?.summary) {
+    query.set('summary', '1');
+  }
+  const suffix = query.toString();
+  const url = suffix
+    ? `/api/library/media/${encodeURIComponent(jobId)}?${suffix}`
+    : `/api/library/media/${encodeURIComponent(jobId)}`;
+  const response = await apiFetch(url);
   return handleResponse<PipelineMediaResponse>(response);
 }
 

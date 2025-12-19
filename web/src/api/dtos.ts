@@ -750,6 +750,9 @@ export interface ChunkSentenceImagePayload {
   path?: string | null;
   prompt?: string | null;
   negative_prompt?: string | null;
+  batch_start_sentence?: number | null;
+  batch_end_sentence?: number | null;
+  batch_size?: number | null;
 }
 
 export interface SentenceImageInfoResponse {
@@ -760,6 +763,12 @@ export interface SentenceImageInfoResponse {
   sentence?: string | null;
   prompt?: string | null;
   negative_prompt?: string | null;
+}
+
+export interface SentenceImageInfoBatchResponse {
+  job_id: string;
+  items: SentenceImageInfoResponse[];
+  missing: number[];
 }
 
 export interface SentenceImageRegenerateRequestPayload {

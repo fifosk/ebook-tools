@@ -3,6 +3,7 @@ import {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useImperativeHandle,
   useMemo,
   useRef,
@@ -20,7 +21,7 @@ import {
   appendAccessToken,
   assistantLookup,
   fetchJobTiming,
-  fetchSentenceImageInfo,
+  fetchSentenceImageInfoBatch,
   resolveLibraryMediaUrl,
 } from '../api/client';
 import type {
@@ -4423,20 +4424,247 @@ const handleAudioSeeked = useCallback(() => {
     };
   }, []);
 
-		  const reelSentenceSlots = useMemo(() => {
-		    const base = Math.max(1, Math.trunc(activeSentenceNumber));
-		    const offsets = [-3, -2, -1, 0, 1, 2, 3];
-		    return offsets.map((offset) => {
-	      const candidate = base + offset;
-	      if (candidate < minSentenceBound) {
-	        return null;
-	      }
-      if (maxSentenceBound !== null && candidate > maxSentenceBound) {
+  const [imagePromptPlanSummary, setImagePromptPlanSummary] = useState<Record<string, unknown> | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    setImagePromptPlanSummary(null);
+    if (!jobId) {
+      return;
+    }
+
+    let cancelled = false;
+    const url = (() => {
+      try {
+        return resolveStoragePath(jobId, 'metadata/image_prompt_plan_summary.json');
+      } catch {
         return null;
       }
-      return candidate;
-    });
-  }, [activeSentenceNumber, maxSentenceBound, minSentenceBound]);
+    })();
+
+    if (!url) {
+      return;
+    }
+
+    fetch(url)
+      .then(async (response) => {
+        if (!response.ok) {
+          return null;
+        }
+        try {
+          const payload = (await response.json()) as unknown;
+          return payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : null;
+        } catch {
+          return null;
+        }
+      })
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+        if (payload) {
+          setImagePromptPlanSummary(payload);
+        }
+      })
+      .catch(() => {
+        // ignore
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [jobId]);
+
+  const parseBatchStartFromBatchImagePath = (path: string | null): number | null => {
+    const candidate = (path ?? '').trim();
+    if (!candidate) {
+      return null;
+    }
+    const normalised = candidate.replace(/\\+/g, '/');
+    const base = normalised.split('?')[0].split('#')[0];
+    const match = base.match(/batch_(\\d+)\\.png$/i);
+    if (!match) {
+      return null;
+    }
+    const parsed = Number(match[1]);
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    return Math.max(1, Math.trunc(parsed));
+  };
+
+  const promptPlanBatchSize = useMemo(() => {
+    const summary = imagePromptPlanSummary;
+    if (!summary) {
+      return null;
+    }
+    const quality = summary.quality;
+    if (!quality || typeof quality !== 'object') {
+      return null;
+    }
+    const record = quality as Record<string, unknown>;
+    const raw = record.prompt_batch_size ?? record.promptBatchSize ?? null;
+    const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+    if (!Number.isFinite(parsed)) {
+      return null;
+    }
+    return Math.max(1, Math.trunc(parsed));
+  }, [imagePromptPlanSummary]);
+
+  const reelWindowRadius = 5;
+  const reelPrefetchBuffer = 2;
+
+  const promptPlanSentenceRange = useMemo(() => {
+    const summary = imagePromptPlanSummary;
+    if (!summary || typeof summary !== 'object') {
+      return null;
+    }
+    const record = summary as Record<string, unknown>;
+    const rawStart = record.start_sentence ?? record.startSentence ?? null;
+    const rawEnd = record.end_sentence ?? record.endSentence ?? null;
+    const startParsed = typeof rawStart === 'number' ? rawStart : typeof rawStart === 'string' ? Number(rawStart) : NaN;
+    const endParsed = typeof rawEnd === 'number' ? rawEnd : typeof rawEnd === 'string' ? Number(rawEnd) : NaN;
+    if (!Number.isFinite(startParsed) || !Number.isFinite(endParsed)) {
+      return null;
+    }
+    const start = Math.max(1, Math.trunc(startParsed));
+    const end = Math.max(start, Math.trunc(endParsed));
+    return { start, end };
+  }, [imagePromptPlanSummary]);
+
+  const activeImageBatchStart = useMemo(() => {
+    const entries = chunk?.sentences ?? null;
+    const entry =
+      entries && entries.length > 0
+        ? entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))]
+        : null;
+    const imagePayload = entry?.image ?? null;
+    const raw = imagePayload?.batch_start_sentence ?? (imagePayload as any)?.batchStartSentence ?? null;
+    const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+    if (Number.isFinite(parsed)) {
+      return Math.max(1, Math.trunc(parsed));
+    }
+    const explicitPath =
+      (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
+      (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
+      (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
+      null;
+    const inferred = parseBatchStartFromBatchImagePath(explicitPath);
+    if (inferred !== null) {
+      return inferred;
+    }
+    return Math.max(1, Math.trunc(activeSentenceNumber));
+  }, [activeSentenceIndex, activeSentenceNumber, chunk?.sentences]);
+
+  const activeImageBatchSize = useMemo(() => {
+    const entries = chunk?.sentences ?? null;
+    const entry =
+      entries && entries.length > 0
+        ? entries[Math.max(0, Math.min(activeSentenceIndex, entries.length - 1))]
+        : null;
+    const imagePayload = entry?.image ?? null;
+    const raw = imagePayload?.batch_size ?? (imagePayload as any)?.batchSize ?? null;
+    const parsed = typeof raw === 'number' ? raw : typeof raw === 'string' ? Number(raw) : NaN;
+    if (Number.isFinite(parsed)) {
+      return Math.max(1, Math.trunc(parsed));
+    }
+    if (typeof promptPlanBatchSize === 'number' && Number.isFinite(promptPlanBatchSize)) {
+      return Math.max(1, Math.trunc(promptPlanBatchSize));
+    }
+    const explicitPath =
+      (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
+      (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
+      (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
+      null;
+    if (explicitPath && explicitPath.includes('/images/batches/batch_')) {
+      return 10;
+    }
+    return 1;
+  }, [activeSentenceIndex, chunk?.sentences, promptPlanBatchSize]);
+
+  const reelSentenceSlots = useMemo(() => {
+    const base = Math.max(1, Math.trunc(activeImageBatchStart));
+    const step = Math.max(1, Math.trunc(activeImageBatchSize));
+    const rangeStart = promptPlanSentenceRange?.start ?? minSentenceBound;
+    const rangeEnd = promptPlanSentenceRange?.end ?? maxSentenceBound ?? chunk?.endSentence ?? base;
+    const boundedStart = Math.max(minSentenceBound, rangeStart);
+    const boundedEnd =
+      rangeEnd === null
+        ? null
+        : Math.max(boundedStart, Math.min(rangeEnd, maxSentenceBound ?? rangeEnd));
+
+    const slots = new Set<number>();
+    for (let offset = -reelWindowRadius; offset <= reelWindowRadius; offset += 1) {
+      const candidate = base + offset * step;
+      if (candidate < boundedStart) {
+        continue;
+      }
+      if (boundedEnd !== null && candidate > boundedEnd) {
+        continue;
+      }
+      slots.add(candidate);
+    }
+    if (slots.size === 0) {
+      slots.add(base);
+    }
+    return Array.from(slots).sort((a, b) => a - b);
+  }, [
+    activeImageBatchSize,
+    activeImageBatchStart,
+    chunk?.endSentence,
+    maxSentenceBound,
+    minSentenceBound,
+    promptPlanSentenceRange,
+    reelWindowRadius,
+  ]);
+
+  const reelPrefetchSlots = useMemo(() => {
+    const base = Math.max(1, Math.trunc(activeImageBatchStart));
+    const step = Math.max(1, Math.trunc(activeImageBatchSize));
+    const rangeStart = promptPlanSentenceRange?.start ?? minSentenceBound;
+    const rangeEnd = promptPlanSentenceRange?.end ?? maxSentenceBound ?? chunk?.endSentence ?? base;
+    const boundedStart = Math.max(minSentenceBound, rangeStart);
+    const boundedEnd =
+      rangeEnd === null
+        ? null
+        : Math.max(boundedStart, Math.min(rangeEnd, maxSentenceBound ?? rangeEnd));
+    const visible = new Set(reelSentenceSlots);
+    const slots: number[] = [];
+
+    for (let offset = 1; offset <= reelPrefetchBuffer; offset += 1) {
+      const delta = (reelWindowRadius + offset) * step;
+      const forward = base + delta;
+      const back = base - delta;
+      if (
+        forward >= boundedStart &&
+        (boundedEnd === null || forward <= boundedEnd) &&
+        !visible.has(forward)
+      ) {
+        slots.push(forward);
+      }
+      if (
+        back >= boundedStart &&
+        (boundedEnd === null || back <= boundedEnd) &&
+        !visible.has(back)
+      ) {
+        slots.push(back);
+      }
+    }
+
+    return slots;
+  }, [
+    activeImageBatchSize,
+    activeImageBatchStart,
+    chunk?.endSentence,
+    maxSentenceBound,
+    minSentenceBound,
+    promptPlanSentenceRange,
+    reelPrefetchBuffer,
+    reelSentenceSlots,
+    reelWindowRadius,
+  ]);
 
   const chunkSentenceByNumber = useMemo(() => {
     const entries = chunk?.sentences ?? null;
@@ -4480,61 +4708,130 @@ const handleAudioSeeked = useCallback(() => {
   const reelImageInfoCacheRef = useRef<Map<number, SentenceImageInfoResponse>>(new Map());
   const reelImageInfoInflightRef = useRef<Set<number>>(new Set());
   const [reelImageInfoVersion, setReelImageInfoVersion] = useState(0);
+  const [reelRefreshToken, setReelRefreshToken] = useState(0);
+  const reelScrollRef = useRef<HTMLDivElement | null>(null);
+  const reelPrefetchCacheRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     reelImageInfoCacheRef.current.clear();
     reelImageInfoInflightRef.current.clear();
+    reelPrefetchCacheRef.current.clear();
     setReelImageInfoVersion((value) => value + 1);
+    setReelRefreshToken(0);
   }, [jobId]);
 
-	  useEffect(() => {
-	    if (!jobId) {
-	      return;
-	    }
-	    if (!isSentenceImageReelVisible) {
-	      return;
-	    }
-	    const cache = reelImageInfoCacheRef.current;
-	    const inflight = reelImageInfoInflightRef.current;
-	    const required = reelSentenceSlots.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-	    if (!required.length) {
-	      return;
-	    }
+  const reelLookupSlots = useMemo(() => {
+    const merged = new Set<number>();
+    reelSentenceSlots.forEach((value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        merged.add(value);
+      }
+    });
+    reelPrefetchSlots.forEach((value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        merged.add(value);
+      }
+    });
+    return Array.from(merged);
+  }, [reelPrefetchSlots, reelSentenceSlots]);
+
+  useEffect(() => {
+    if (!jobId) {
+      return;
+    }
+    if (!isSentenceImageReelVisible) {
+      return;
+    }
+    const cache = reelImageInfoCacheRef.current;
+    const inflight = reelImageInfoInflightRef.current;
+    const required = reelLookupSlots.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    if (!required.length) {
+      return;
+    }
 
     let cancelled = false;
-    required.forEach((sentenceNumber) => {
+    const targets = required.filter((sentenceNumber) => {
       if (chunkSentenceByNumber.has(sentenceNumber)) {
-        return;
+        return false;
       }
       if (cache.has(sentenceNumber) || inflight.has(sentenceNumber)) {
-        return;
+        return false;
       }
+      return true;
+    });
+    if (!targets.length) {
+      return;
+    }
+    targets.forEach((sentenceNumber) => {
       inflight.add(sentenceNumber);
-      fetchSentenceImageInfo(jobId, sentenceNumber)
-        .then((info) => {
-          if (cancelled) {
+    });
+    fetchSentenceImageInfoBatch(jobId, targets)
+      .then((items) => {
+        if (cancelled) {
+          return;
+        }
+        let updated = false;
+        items.forEach((info) => {
+          if (!info || typeof info.sentence_number !== 'number' || !Number.isFinite(info.sentence_number)) {
             return;
           }
-          cache.set(sentenceNumber, info);
+          cache.set(info.sentence_number, info);
+          updated = true;
+        });
+        if (updated) {
           setReelImageInfoVersion((value) => value + 1);
-        })
-        .catch(() => {
-          // ignore
-        })
-        .finally(() => {
+        }
+      })
+      .catch(() => {
+        // ignore
+      })
+      .finally(() => {
+        targets.forEach((sentenceNumber) => {
           inflight.delete(sentenceNumber);
         });
-    });
+      });
 
     return () => {
       cancelled = true;
     };
-	  }, [chunkSentenceByNumber, isSentenceImageReelVisible, jobId, reelSentenceSlots]);
+  }, [chunkSentenceByNumber, isSentenceImageReelVisible, jobId, reelLookupSlots]);
 
   const [reelImageFailures, setReelImageFailures] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setReelImageFailures({});
+    reelPrefetchCacheRef.current.clear();
   }, [imageRefreshToken, jobId]);
+
+  useEffect(() => {
+    reelPrefetchCacheRef.current.clear();
+  }, [reelRefreshToken]);
+
+  useEffect(() => {
+    if (!jobId || !isSentenceImageReelVisible) {
+      return;
+    }
+    const failedKeys = Object.entries(reelImageFailures)
+      .filter(([, failed]) => failed)
+      .map(([key]) => key);
+    if (failedKeys.length === 0) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setReelImageFailures((previous) => {
+        const next: Record<string, boolean> = { ...previous };
+        failedKeys.forEach((key) => {
+          delete next[key];
+        });
+        return next;
+      });
+      setReelRefreshToken((value) => value + 1);
+    }, 9000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [isSentenceImageReelVisible, jobId, reelImageFailures]);
 
   const isLibraryMediaOrigin = useMemo(() => {
     const metadataUrl = chunk?.metadataUrl ?? null;
@@ -4554,16 +4851,18 @@ const handleAudioSeeked = useCallback(() => {
         return candidate;
       }
 
+      const refreshToken = imageRefreshToken + reelRefreshToken;
+
       const addRefreshToken = (url: string) => {
-        if (imageRefreshToken <= 0) {
+        if (refreshToken <= 0) {
           return url;
         }
         try {
           const resolved = new URL(url, typeof window !== 'undefined' ? window.location.origin : undefined);
-          resolved.searchParams.set('v', String(imageRefreshToken));
+          resolved.searchParams.set('v', String(refreshToken));
           return resolved.toString();
         } catch {
-          const token = `v=${encodeURIComponent(String(imageRefreshToken))}`;
+          const token = `v=${encodeURIComponent(String(refreshToken))}`;
           const hashIndex = url.indexOf('#');
           const base = hashIndex >= 0 ? url.slice(0, hashIndex) : url;
           const hash = hashIndex >= 0 ? url.slice(hashIndex) : '';
@@ -4631,14 +4930,79 @@ const handleAudioSeeked = useCallback(() => {
         return null;
       }
     },
-    [imageRefreshToken, isLibraryMediaOrigin, jobId],
+    [imageRefreshToken, isLibraryMediaOrigin, jobId, reelRefreshToken],
   );
 
-	  const reelFrames = useMemo(() => {
-	    const cache = reelImageInfoCacheRef.current;
-	    const rangeFragment = chunk?.rangeFragment ?? null;
-	    const startSentence = chunk?.startSentence ?? null;
-	    const endSentence = chunk?.endSentence ?? null;
+  const resolveReelImagePath = useCallback(
+    (sentenceNumber: number, preferActive: boolean) => {
+      if (!Number.isFinite(sentenceNumber)) {
+        return null;
+      }
+      const cache = reelImageInfoCacheRef.current;
+      const rangeFragment = chunk?.rangeFragment ?? null;
+      const startSentence = chunk?.startSentence ?? null;
+      const endSentence = chunk?.endSentence ?? null;
+
+      const chunkEntry = chunkSentenceByNumber.get(sentenceNumber) ?? null;
+      const chunkImagePayload = chunkEntry?.image ?? null;
+      const explicitPath =
+        (typeof chunkImagePayload?.path === 'string' && chunkImagePayload.path.trim()) ||
+        (typeof chunkEntry?.image_path === 'string' && chunkEntry.image_path.trim()) ||
+        (typeof chunkEntry?.imagePath === 'string' && chunkEntry.imagePath.trim()) ||
+        null;
+      const cached = cache.get(sentenceNumber) ?? null;
+
+      const resolvedRangeFragment =
+        (typeof rangeFragment === 'string' && rangeFragment.trim() && (
+          (typeof startSentence === 'number' &&
+            typeof endSentence === 'number' &&
+            Number.isFinite(startSentence) &&
+            Number.isFinite(endSentence) &&
+            sentenceNumber >= Math.trunc(startSentence) &&
+            sentenceNumber <= Math.trunc(endSentence)) ||
+          chunkEntry
+        ))
+          ? rangeFragment.trim()
+          : typeof cached?.range_fragment === 'string' && cached.range_fragment.trim()
+            ? cached.range_fragment.trim()
+            : null;
+
+      const padded = String(sentenceNumber).padStart(5, '0');
+      const computedPath =
+        activeImageBatchSize > 1
+          ? `media/images/batches/batch_${padded}.png`
+          : resolvedRangeFragment
+            ? `media/images/${resolvedRangeFragment}/sentence_${padded}.png`
+            : null;
+
+      if (preferActive && sentenceNumber === activeImageBatchStart && activeSentenceImagePath) {
+        return activeSentenceImagePath;
+      }
+
+      if (explicitPath) {
+        return explicitPath.trim();
+      }
+      if (typeof cached?.relative_path === 'string' && cached.relative_path.trim()) {
+        return cached.relative_path.trim();
+      }
+      return computedPath;
+    },
+    [
+      activeImageBatchSize,
+      activeImageBatchStart,
+      activeSentenceImagePath,
+      chunk?.endSentence,
+      chunk?.rangeFragment,
+      chunk?.startSentence,
+      chunkSentenceByNumber,
+    ],
+  );
+
+  const reelFrames = useMemo(() => {
+    const cache = reelImageInfoCacheRef.current;
+    const rangeFragment = chunk?.rangeFragment ?? null;
+    const startSentence = chunk?.startSentence ?? null;
+    const endSentence = chunk?.endSentence ?? null;
 
     return reelSentenceSlots.map((sentenceNumber) => {
       if (typeof sentenceNumber !== 'number' || !Number.isFinite(sentenceNumber)) {
@@ -4657,15 +5021,10 @@ const handleAudioSeeked = useCallback(() => {
 
       const key = String(sentenceNumber);
       const failed = reelImageFailures[key] ?? false;
-      const isActive = sentenceNumber === activeSentenceNumber;
+      const isActive = sentenceNumber === activeImageBatchStart;
 
       const chunkEntry = chunkSentenceByNumber.get(sentenceNumber) ?? null;
       const chunkImagePayload = chunkEntry?.image ?? null;
-      const explicitPath =
-        (typeof chunkImagePayload?.path === 'string' && chunkImagePayload.path.trim()) ||
-        (typeof chunkEntry?.image_path === 'string' && chunkEntry.image_path.trim()) ||
-        (typeof chunkEntry?.imagePath === 'string' && chunkEntry.imagePath.trim()) ||
-        null;
       const chunkSentenceTextRaw = typeof chunkEntry?.original?.text === 'string' ? chunkEntry.original.text : null;
       const chunkSentenceText =
         typeof chunkSentenceTextRaw === 'string' && chunkSentenceTextRaw.trim() ? chunkSentenceTextRaw.trim() : null;
@@ -4689,17 +5048,7 @@ const handleAudioSeeked = useCallback(() => {
             ? cached.range_fragment.trim()
             : null;
 
-      const padded = String(sentenceNumber).padStart(5, '0');
-      const computedPath =
-        resolvedRangeFragment ? `media/images/${resolvedRangeFragment}/sentence_${padded}.png` : null;
-
-      const imagePath = isActive
-        ? activeSentenceImagePath
-        : explicitPath
-          ? explicitPath.trim()
-          : typeof cached?.relative_path === 'string' && cached.relative_path.trim()
-            ? cached.relative_path.trim()
-            : computedPath;
+      const imagePath = resolveReelImagePath(sentenceNumber, isActive);
 
       const url = failed ? null : resolveSentenceImageUrl(imagePath);
 
@@ -4722,8 +5071,7 @@ const handleAudioSeeked = useCallback(() => {
       };
     });
   }, [
-    activeSentenceImagePath,
-    activeSentenceNumber,
+    activeImageBatchStart,
     chunk?.endSentence,
     chunk?.rangeFragment,
     chunk?.startSentence,
@@ -4731,8 +5079,70 @@ const handleAudioSeeked = useCallback(() => {
     reelImageFailures,
     reelImageInfoVersion,
     reelSentenceSlots,
-	    resolveSentenceImageUrl,
-	  ]);
+    resolveReelImagePath,
+    resolveSentenceImageUrl,
+  ]);
+
+  useEffect(() => {
+    if (!jobId || !isSentenceImageReelVisible) {
+      return;
+    }
+    if (!reelPrefetchSlots.length) {
+      return;
+    }
+    const cache = reelPrefetchCacheRef.current;
+    reelPrefetchSlots.forEach((sentenceNumber) => {
+      if (typeof sentenceNumber !== 'number' || !Number.isFinite(sentenceNumber)) {
+        return;
+      }
+      const imagePath = resolveReelImagePath(sentenceNumber, false);
+      const url = resolveSentenceImageUrl(imagePath);
+      if (!url || cache.has(url)) {
+        return;
+      }
+      const image = new Image();
+      image.src = url;
+      cache.add(url);
+    });
+  }, [
+    isSentenceImageReelVisible,
+    jobId,
+    reelImageInfoVersion,
+    reelPrefetchSlots,
+    resolveReelImagePath,
+    resolveSentenceImageUrl,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!isSentenceImageReelVisible) {
+      return;
+    }
+    const container = reelScrollRef.current;
+    if (!container) {
+      return;
+    }
+    const activeKey = typeof activeImageBatchStart === 'number' ? activeImageBatchStart : null;
+    if (!activeKey) {
+      return;
+    }
+    const activeNode = container.querySelector(
+      `[data-reel-sentence="${activeKey}"]`,
+    ) as HTMLElement | null;
+    if (!activeNode) {
+      return;
+    }
+    const containerRect = container.getBoundingClientRect();
+    const activeRect = activeNode.getBoundingClientRect();
+    if (!(containerRect.width > 0 && activeRect.width > 0)) {
+      return;
+    }
+    const offset = activeRect.left - containerRect.left;
+    const target = container.scrollLeft + offset - (containerRect.width - activeRect.width) / 2;
+    container.scrollTo({
+      left: Math.max(0, target),
+      behavior: 'smooth',
+    });
+  }, [activeImageBatchStart, isFullscreen, isSentenceImageReelVisible, reelFrames.length]);
 
 	  const resolveReelSentenceSeekTarget = useCallback(
 	    (sentenceNumber: number) => {
@@ -4873,7 +5283,11 @@ const handleAudioSeeked = useCallback(() => {
 	      return null;
     }
     return (
-      <div className="player-panel__interactive-image-reel" aria-label="Sentence images">
+      <div
+        ref={reelScrollRef}
+        className="player-panel__interactive-image-reel"
+        aria-label="Sentence images"
+      >
         <div className="player-panel__interactive-image-reel-strip" role="list">
           {reelFrames.map((frame, index) => {
             const sentenceNumber = frame.sentenceNumber;
@@ -4892,21 +5306,22 @@ const handleAudioSeeked = useCallback(() => {
                 role="listitem"
                 aria-label={sentenceNumber ? `Sentence ${sentenceNumber}` : 'No sentence'}
               >
-	                <button
-	                  type="button"
-	                  className={classNames}
-	                  onClick={handleReelFrameClick(frame)}
-	                  disabled={!sentenceNumber}
-	                  title={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : undefined}
-	                  aria-label={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : 'No image'}
-	                >
-	                  {frame.url ? (
-	                    <img
-	                      src={frame.url}
-	                      alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
-	                      loading="eager"
-	                      decoding="async"
-	                      onError={() => {
+                <button
+                  type="button"
+                  className={classNames}
+                  onClick={handleReelFrameClick(frame)}
+                  disabled={!sentenceNumber}
+                  title={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : undefined}
+                  aria-label={sentenceNumber ? `Jump to sentence ${sentenceNumber}` : 'No image'}
+                  data-reel-sentence={sentenceNumber ?? undefined}
+                >
+                  {frame.url ? (
+                    <img
+                      src={frame.url}
+                      alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
+                      loading={frame.isActive ? 'eager' : 'lazy'}
+                      decoding="async"
+                      onError={() => {
 	                        if (!sentenceNumber) {
 	                          return;
                         }

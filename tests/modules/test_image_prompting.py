@@ -78,6 +78,15 @@ def test_build_sentence_image_prompt_appends_story_reel_suffix() -> None:
     assert "photorealistic cinematic film still" in prompt
 
 
+def test_build_sentence_image_prompt_supports_style_templates() -> None:
+    prompt = prompting.build_sentence_image_prompt(
+        "A child runs through a forest at dusk",
+        style_template="comics",
+    )
+    assert "graphic novel illustration" in prompt
+    assert "photorealistic cinematic film still" not in prompt
+
+
 def test_build_sentence_image_prompt_does_not_double_append() -> None:
     base = "A child runs through a forest at dusk, photorealistic cinematic film still"
     assert prompting.build_sentence_image_prompt(base) == base
@@ -90,6 +99,12 @@ def test_build_sentence_image_prompt_respects_legacy_glyph_style() -> None:
 
 def test_build_sentence_image_negative_prompt_appends_base() -> None:
     negative = prompting.build_sentence_image_negative_prompt("")
+    assert "watermark" in negative.lower()
+
+
+def test_build_sentence_image_negative_prompt_supports_style_templates() -> None:
+    negative = prompting.build_sentence_image_negative_prompt("", style_template="wireframe")
+    assert "blueprint" in prompting.build_sentence_image_prompt("", style_template="wireframe").lower()
     assert "watermark" in negative.lower()
 
 
@@ -132,3 +147,27 @@ def test_prompt_map_retries_missing_indices(monkeypatch: pytest.MonkeyPatch) -> 
     assert plan.quality["final_fallback"] == 0
     assert plan.quality["retry_attempts"] == 1
     assert len(dummy_client.payloads) == 2
+
+
+def test_sentence_batches_to_diffusion_prompt_plan_groups_sentences(monkeypatch: pytest.MonkeyPatch) -> None:
+    dummy_client = _DummyClient()
+
+    @contextmanager
+    def scope(_client):  # noqa: ANN001 - signature must match client_scope
+        yield dummy_client
+
+    monkeypatch.setattr(prompting, "client_scope", scope)
+
+    batches = [
+        ["Sentence 1", "Sentence 2"],
+        ["Sentence 3"],
+    ]
+
+    plan = prompting.sentence_batches_to_diffusion_prompt_plan(batches)
+
+    assert len(plan.prompts) == 2
+    assert len(dummy_client.payloads) == 1
+    request_sentences = dummy_client.payloads[0].get("sentences") or []
+    assert "Batch narrative" in request_sentences[0]
+    assert "Sentence 1" in request_sentences[0]
+    assert "Sentence 2" in request_sentences[0]

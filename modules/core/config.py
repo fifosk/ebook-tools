@@ -18,6 +18,7 @@ from ..epub_parser import (
     DEFAULT_MAX_WORDS,
 )
 from ..video.slides import SlideRenderOptions
+from ..images.style_templates import resolve_image_style_template
 
 
 def _coerce_bool(value: Any, default: bool) -> bool:
@@ -131,8 +132,12 @@ class PipelineConfig:
     image_steps: int = 24
     image_cfg_scale: float = 7.0
     image_sampler_name: Optional[str] = None
+    image_style_template: str = "photorealistic"
+    image_prompt_batching_enabled: bool = True
+    image_prompt_batch_size: int = 10
     image_prompt_context_sentences: int = 2
     image_seed_with_previous_image: bool = False
+    image_blank_detection_enabled: bool = False
     ollama_api_key: Optional[str] = None
     translation_client: LLMClient = field(init=False, repr=False)
 
@@ -429,16 +434,47 @@ def build_pipeline_config(
             4,
         ),
     )
+    image_style = resolve_image_style_template(
+        _select_value("image_style_template", config, overrides, None)
+    )
+    image_style_template = image_style.template_id
     image_width = max(64, _coerce_int(_select_value("image_width", config, overrides, 512), 512))
     image_height = max(64, _coerce_int(_select_value("image_height", config, overrides, 512), 512))
-    image_steps = max(1, _coerce_int(_select_value("image_steps", config, overrides, 24), 24))
+    image_steps_default = max(1, int(image_style.default_steps))
+    image_steps = max(
+        1,
+        _coerce_int(
+            _select_value("image_steps", config, overrides, image_steps_default),
+            image_steps_default,
+        ),
+    )
     image_cfg_scale = max(
         0.0,
-        _coerce_float(_select_value("image_cfg_scale", config, overrides, 7.0), 7.0),
+        _coerce_float(
+            _select_value(
+                "image_cfg_scale",
+                config,
+                overrides,
+                float(image_style.default_cfg_scale),
+            ),
+            float(image_style.default_cfg_scale),
+        ),
     )
     image_sampler_name = _normalize_optional_str(
-        _select_value("image_sampler_name", config, overrides, None)
+        _select_value("image_sampler_name", config, overrides, image_style.default_sampler_name)
     )
+    image_prompt_batching_enabled = _coerce_bool(
+        _select_value("image_prompt_batching_enabled", config, overrides, True),
+        True,
+    )
+    image_prompt_batch_size = max(
+        1,
+        _coerce_int(
+            _select_value("image_prompt_batch_size", config, overrides, 10),
+            10,
+        ),
+    )
+    image_prompt_batch_size = min(image_prompt_batch_size, 50)
     image_prompt_context_sentences = max(
         0,
         _coerce_int(
@@ -449,6 +485,15 @@ def build_pipeline_config(
     image_prompt_context_sentences = min(image_prompt_context_sentences, 50)
     image_seed_with_previous_image = _coerce_bool(
         _select_value("image_seed_with_previous_image", config, overrides, False),
+        False,
+    )
+    image_blank_detection_enabled = _coerce_bool(
+        _select_value(
+            "image_blank_detection_enabled",
+            config,
+            overrides,
+            os.environ.get("EBOOK_IMAGE_BLANK_DETECTION_ENABLED") or False,
+        ),
         False,
     )
 
@@ -613,8 +658,12 @@ def build_pipeline_config(
         image_steps=image_steps,
         image_cfg_scale=image_cfg_scale,
         image_sampler_name=image_sampler_name,
+        image_style_template=image_style_template,
+        image_prompt_batching_enabled=image_prompt_batching_enabled,
+        image_prompt_batch_size=image_prompt_batch_size,
         image_prompt_context_sentences=image_prompt_context_sentences,
         image_seed_with_previous_image=image_seed_with_previous_image,
+        image_blank_detection_enabled=image_blank_detection_enabled,
         ollama_model=ollama_model,
         ollama_url=ollama_url,
         llm_source=llm_source,

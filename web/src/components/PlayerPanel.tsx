@@ -1828,6 +1828,7 @@ function partitionChunkSentences(
 async function requestChunkMetadata(
   jobId: string,
   chunk: LiveMediaChunk,
+  origin: 'job' | 'library',
 ): Promise<ChunkSentenceMetadata[] | null> {
   let targetUrl: string | null = chunk.metadataUrl ?? null;
 
@@ -1835,7 +1836,15 @@ async function requestChunkMetadata(
     const metadataPath = chunk.metadataPath ?? null;
     if (metadataPath) {
       try {
-        targetUrl = resolveStoragePath(jobId, metadataPath);
+        if (origin === 'library') {
+          if (metadataPath.startsWith('/api/library/') || metadataPath.includes('://')) {
+            targetUrl = metadataPath;
+          } else {
+            targetUrl = resolveLibraryMediaUrl(jobId, metadataPath);
+          }
+        } else {
+          targetUrl = resolveStoragePath(jobId, metadataPath);
+        }
       } catch (error) {
         if (jobId) {
           const encodedJobId = encodeURIComponent(jobId);
@@ -1853,7 +1862,8 @@ async function requestChunkMetadata(
   }
 
   try {
-    const response = await fetch(targetUrl, { credentials: 'include' });
+    const url = origin === 'library' ? appendAccessToken(targetUrl) : targetUrl;
+    const response = await fetch(url, { credentials: 'include' });
     if (!response.ok) {
       throw new Error(`Chunk metadata request failed with status ${response.status}`);
     }
@@ -3196,7 +3206,7 @@ const scheduleChunkMetadataAppend = useCallback(
         return;
       }
       chunkMetadataLoadingRef.current.add(cacheKey);
-      requestChunkMetadata(jobId, chunk)
+      requestChunkMetadata(jobId, chunk, origin)
         .then((sentences) => {
           if (sentences === null) {
             return;
@@ -3217,7 +3227,7 @@ const scheduleChunkMetadataAppend = useCallback(
           chunkMetadataLoadingRef.current.delete(cacheKey);
         });
     },
-    [jobId, pushChunkMetadata, scheduleChunkMetadataAppend],
+    [jobId, origin, pushChunkMetadata, scheduleChunkMetadataAppend],
   );
 
   useEffect(() => {

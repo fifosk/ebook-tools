@@ -187,3 +187,13 @@ def test_render_pipeline_passes_audio_api_configuration(monkeypatch, tmp_path):
     assert synth._client_base_url == "https://audio.example"
     assert synth._client_timeout == 12.0
     assert synth._client_poll_interval == 0.75
+
+
+def test_build_pipeline_config_applies_image_style_template_defaults(tmp_path):
+    context = _build_runtime_context(tmp_path)
+
+    pipeline_config = build_pipeline_config(context, {}, {"image_style_template": "wire frame"})
+
+    assert pipeline_config.image_style_template == "wireframe"
+    assert pipeline_config.image_steps == 12
+    assert pipeline_config.image_cfg_scale == 6.5

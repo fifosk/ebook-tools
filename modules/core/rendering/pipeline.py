@@ -54,6 +54,7 @@ from modules.images.prompting import (
     build_sentence_image_negative_prompt,
     build_sentence_image_prompt,
     sentence_to_diffusion_prompt,
+    sentence_batches_to_diffusion_prompt_plan,
     sentences_to_diffusion_prompt_map,
     sentences_to_diffusion_prompt_plan,
     stable_diffusion_seed,
@@ -205,13 +206,21 @@ class _ImageGenerationState:
 
             sentence_entry = chunk.get("sentence_map", {}).get(image.sentence_number)
             if isinstance(sentence_entry, dict):
+                preserved: dict[str, Any] = {}
+                previous = sentence_entry.get("image")
+                if isinstance(previous, Mapping):
+                    for key, value in previous.items():
+                        if key in {"path", "prompt", "negative_prompt", "negativePrompt"}:
+                            continue
+                        preserved[key] = value
+
                 image_payload: dict[str, Any] = {
+                    **preserved,
                     "path": image.relative_path,
                     "prompt": image.prompt,
                 }
                 if image.negative_prompt:
                     image_payload["negative_prompt"] = image.negative_prompt
-                previous = sentence_entry.get("image")
                 if previous != image_payload:
                     sentence_entry["image"] = image_payload
                     sentence_entry["image_path"] = image.relative_path
@@ -1002,26 +1011,6 @@ class RenderPipeline:
             media_result_factory=av_gen.MediaPipelineResult,
         )
         media_queue, media_threads = media_orchestrator.start()
-        target_sequence = build_target_sequence(
-            target_languages,
-            total_refined,
-            start_sentence=start_sentence,
-        )
-        translation_thread = start_translation_pipeline(
-            sentences,
-            input_language,
-            target_sequence,
-            start_sentence=start_sentence,
-            output_queue=translation_queue,
-            consumer_count=len(media_threads) or 1,
-            stop_event=pipeline_stop_event,
-            worker_count=worker_count,
-            progress_tracker=self._progress,
-            client=translation_client,
-            worker_pool=worker_pool,
-            transliterator=self._transliterator,
-            include_transliteration=include_transliteration,
-        )
 
         image_state: Optional[_ImageGenerationState] = None
         image_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
@@ -1057,16 +1046,53 @@ class RenderPipeline:
         final_sentence_number = start_sentence + max(total_refined - 1, 0)
         prompt_context_window = max(0, int(getattr(self._config, "image_prompt_context_sentences", 0) or 0))
         recent_prompt_sentences: deque[str] = deque(maxlen=prompt_context_window)
+        image_prompt_batching_enabled = bool(
+            getattr(self._config, "image_prompt_batching_enabled", True)
+        )
+        image_prompt_batch_size = max(
+            1,
+            int(getattr(self._config, "image_prompt_batch_size", 10) or 10),
+        )
+        image_prompt_batch_size = min(image_prompt_batch_size, 50)
+        if not image_prompt_batching_enabled:
+            image_prompt_batch_size = 1
+        image_prompt_batches: list[list[str]] = []
+        image_prompt_batch_starts: list[int] = []
+        if image_prompt_batch_size > 1 and final_sentence_number >= start_sentence:
+            for batch_start in range(
+                start_sentence,
+                final_sentence_number + 1,
+                image_prompt_batch_size,
+            ):
+                offset_start = max(batch_start - start_sentence, 0)
+                offset_end = min(
+                    offset_start + image_prompt_batch_size, len(target_sentences)
+                )
+                image_prompt_batches.append(list(target_sentences[offset_start:offset_end]))
+                image_prompt_batch_starts.append(int(batch_start))
         image_prompt_plan: dict[int, DiffusionPrompt] = {}
-        image_prompt_seed_sources: dict[int, str] = {
-            start_sentence + offset: str(sentence).strip()
-            for offset, sentence in enumerate(target_sentences)
-        }
+        if image_prompt_batch_size > 1:
+            image_prompt_seed_sources = {
+                batch_start: "\n".join(
+                    str(sentence).strip()
+                    for sentence in batch
+                    if str(sentence).strip()
+                ).strip()
+                for batch_start, batch in zip(
+                    image_prompt_batch_starts, image_prompt_batches
+                )
+            }
+        else:
+            image_prompt_seed_sources = {
+                start_sentence + offset: str(sentence).strip()
+                for offset, sentence in enumerate(target_sentences)
+            }
         image_prompt_sources: dict[int, str] = {}
         image_prompt_baseline = DiffusionPrompt(prompt="")
         image_prompt_baseline_notes = ""
         image_prompt_baseline_source = "fallback"
         prompt_plan_quality: dict[str, Any] = {}
+        image_style_template = getattr(self._config, "image_style_template", None)
         image_seed_with_previous_image = bool(
             getattr(self._config, "image_seed_with_previous_image", False)
         )
@@ -1079,7 +1105,8 @@ class RenderPipeline:
         prompt_plan_ready = threading.Event()
         prompt_plan_future: Optional[concurrent.futures.Future] = None
         prompt_plan_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
-        pending_image_sentence_numbers: set[int] = set()
+        pending_image_keys: set[int] = set()
+        translation_thread = None
 
         if image_executor is not None and image_client is not None and generate_images:
             context_window = max(
@@ -1127,11 +1154,20 @@ class RenderPipeline:
                 quality: dict[str, Any] = {}
 
                 try:
-                    planned_plan = sentences_to_diffusion_prompt_plan(
-                        target_sentences,
-                        context_prefix=context_prefix,
-                        context_suffix=context_suffix,
-                    )
+                    if image_prompt_batch_size > 1:
+                        planned_plan = sentence_batches_to_diffusion_prompt_plan(
+                            image_prompt_batches,
+                            context_prefix=context_prefix,
+                            context_suffix=context_suffix,
+                        )
+                        expected = len(image_prompt_batch_starts)
+                    else:
+                        planned_plan = sentences_to_diffusion_prompt_plan(
+                            target_sentences,
+                            context_prefix=context_prefix,
+                            context_suffix=context_suffix,
+                        )
+                        expected = len(target_sentences)
                     planned = planned_plan.prompts
                     planned_sources = planned_plan.sources
                     baseline_prompt = planned_plan.baseline_prompt
@@ -1142,37 +1178,56 @@ class RenderPipeline:
                         if isinstance(planned_plan.quality, dict)
                         else {}
                     )
-                    if len(planned) != len(target_sentences) or len(planned_sources) != len(target_sentences):
+                    if len(planned) != expected or len(planned_sources) != expected:
                         raise ValueError("Prompt plan length mismatch")
+                    if image_prompt_batch_size > 1:
+                        quality = dict(quality)
+                        quality.setdefault("total_batches", expected)
+                        quality.setdefault("total_sentences", len(target_sentences))
+                        quality.setdefault("prompt_batch_size", image_prompt_batch_size)
                 except Exception as exc:
                     prompt_plan_error = str(exc)
-                    baseline_prompt = DiffusionPrompt(
-                        prompt=str(target_sentences[0]).strip() if target_sentences else ""
-                    )
+                    baseline_prompt = DiffusionPrompt(prompt=str(target_sentences[0]).strip() if target_sentences else "")
                     baseline_notes = ""
                     baseline_source = "fallback"
-                    planned = [
-                        DiffusionPrompt(prompt=str(sentence).strip())
-                        for sentence in target_sentences
-                    ]
-                    planned_sources = ["fallback"] * len(planned)
+                    if image_prompt_batch_size > 1:
+                        planned = [
+                            DiffusionPrompt(
+                                prompt="\n".join(
+                                    str(sentence).strip()
+                                    for sentence in batch
+                                    if str(sentence).strip()
+                                ).strip()
+                            )
+                            for batch in image_prompt_batches
+                        ]
+                        planned_sources = ["fallback"] * len(planned)
+                    else:
+                        planned = [
+                            DiffusionPrompt(prompt=str(sentence).strip())
+                            for sentence in target_sentences
+                        ]
+                        planned_sources = ["fallback"] * len(planned)
                     quality = {
                         "version": 1,
                         "total_sentences": len(target_sentences),
                         "llm_requests": 0,
-                        "initial_missing": len(target_sentences),
-                        "final_fallback": len(target_sentences),
+                        "initial_missing": len(planned),
+                        "final_fallback": len(planned),
                         "retry_attempts": 0,
                         "retry_requested": 0,
                         "retry_recovered": 0,
                         "retry_recovered_unique": 0,
-                        "initial_coverage_rate": 0.0 if target_sentences else 1.0,
-                        "llm_coverage_rate": 0.0 if target_sentences else 1.0,
-                        "fallback_rate": 1.0 if target_sentences else 0.0,
+                        "initial_coverage_rate": 0.0 if planned else 1.0,
+                        "llm_coverage_rate": 0.0 if planned else 1.0,
+                        "fallback_rate": 1.0 if planned else 0.0,
                         "retry_success_rate": None,
                         "recovery_rate": None,
                         "errors": [prompt_plan_error],
                     }
+                    if image_prompt_batch_size > 1:
+                        quality["total_batches"] = len(planned)
+                        quality["prompt_batch_size"] = image_prompt_batch_size
                     if self._progress is not None:
                         self._progress.record_retry("image", "prompt_plan_error")
                     logger.warning(
@@ -1185,14 +1240,24 @@ class RenderPipeline:
                         },
                     )
 
-                plan_map = {
-                    start_sentence + offset: prompt
-                    for offset, prompt in enumerate(planned)
-                }
-                source_map = {
-                    start_sentence + offset: str(source)
-                    for offset, source in enumerate(planned_sources)
-                }
+                if image_prompt_batch_size > 1:
+                    plan_map = {
+                        int(batch_start): prompt
+                        for batch_start, prompt in zip(image_prompt_batch_starts, planned)
+                    }
+                    source_map = {
+                        int(batch_start): str(source)
+                        for batch_start, source in zip(image_prompt_batch_starts, planned_sources)
+                    }
+                else:
+                    plan_map = {
+                        start_sentence + offset: prompt
+                        for offset, prompt in enumerate(planned)
+                    }
+                    source_map = {
+                        start_sentence + offset: str(source)
+                        for offset, source in enumerate(planned_sources)
+                    }
 
                 with prompt_plan_lock:
                     image_prompt_plan = plan_map
@@ -1226,9 +1291,13 @@ class RenderPipeline:
                     if baseline_scene:
                         try:
                             if not baseline_seed_image_path_local.exists():
-                                baseline_prompt_full = build_sentence_image_prompt(baseline_scene)
+                                baseline_prompt_full = build_sentence_image_prompt(
+                                    baseline_scene,
+                                    style_template=image_style_template,
+                                )
                                 baseline_negative_full = build_sentence_image_negative_prompt(
-                                    baseline_negative
+                                    baseline_negative,
+                                    style_template=image_style_template,
                                 )
                                 request = DrawThingsImageRequest(
                                     prompt=baseline_prompt_full,
@@ -1287,32 +1356,73 @@ class RenderPipeline:
                             for idx in range(window_end_idx, suffix_end)
                         ]
                         prompts_payload = []
-                        for offset, sentence_text in enumerate(target_sentences):
-                            sentence_number = start_sentence + offset
-                            diffusion = plan_map.get(sentence_number)
-                            scene_prompt = ""
-                            scene_negative_prompt = ""
-                            source = source_map.get(sentence_number) or (
-                                "fallback" if diffusion is None else "llm"
-                            )
-                            if diffusion is not None:
-                                scene_prompt = (diffusion.prompt or "").strip()
-                                scene_negative_prompt = (diffusion.negative_prompt or "").strip()
-                            if not scene_prompt:
-                                scene_prompt = str(sentence_text).strip()
-                            prompts_payload.append(
-                                {
-                                    "sentence_number": sentence_number,
-                                    "sentence": str(sentence_text).strip(),
-                                    "scene_prompt": scene_prompt,
-                                    "scene_negative_prompt": scene_negative_prompt,
-                                    "source": source,
-                                    "seed": stable_diffusion_seed(
-                                        image_prompt_seed_sources.get(sentence_number)
-                                        or str(sentence_text).strip()
-                                    ),
-                                }
-                            )
+                        if image_prompt_batch_size > 1:
+                            for batch_index, batch_start in enumerate(image_prompt_batch_starts):
+                                offset_start = max(int(batch_start) - start_sentence, 0)
+                                offset_end = min(
+                                    offset_start + image_prompt_batch_size, len(target_sentences)
+                                )
+                                batch_sentences = [
+                                    str(entry).strip()
+                                    for entry in target_sentences[offset_start:offset_end]
+                                ]
+                                batch_end = int(batch_start) + max(offset_end - offset_start - 1, 0)
+                                diffusion = plan_map.get(int(batch_start))
+                                scene_prompt = (diffusion.prompt or "").strip() if diffusion else ""
+                                scene_negative_prompt = (diffusion.negative_prompt or "").strip() if diffusion else ""
+                                source = source_map.get(int(batch_start)) or (
+                                    "fallback" if diffusion is None else "llm"
+                                )
+                                if not scene_prompt:
+                                    scene_prompt = batch_sentences[0] if batch_sentences else ""
+                                prompts_payload.append(
+                                    {
+                                        "batch_index": int(batch_index),
+                                        "start_sentence": int(batch_start),
+                                        "end_sentence": int(batch_end),
+                                        "sentences": [
+                                            {
+                                                "sentence_number": int(batch_start) + idx,
+                                                "sentence": sentence,
+                                            }
+                                            for idx, sentence in enumerate(batch_sentences)
+                                        ],
+                                        "scene_prompt": scene_prompt,
+                                        "scene_negative_prompt": scene_negative_prompt,
+                                        "source": source,
+                                        "seed": stable_diffusion_seed(
+                                            image_prompt_seed_sources.get(int(batch_start))
+                                            or scene_prompt
+                                        ),
+                                    }
+                                )
+                        else:
+                            for offset, sentence_text in enumerate(target_sentences):
+                                sentence_number = start_sentence + offset
+                                diffusion = plan_map.get(sentence_number)
+                                scene_prompt = ""
+                                scene_negative_prompt = ""
+                                source = source_map.get(sentence_number) or (
+                                    "fallback" if diffusion is None else "llm"
+                                )
+                                if diffusion is not None:
+                                    scene_prompt = (diffusion.prompt or "").strip()
+                                    scene_negative_prompt = (diffusion.negative_prompt or "").strip()
+                                if not scene_prompt:
+                                    scene_prompt = str(sentence_text).strip()
+                                prompts_payload.append(
+                                    {
+                                        "sentence_number": sentence_number,
+                                        "sentence": str(sentence_text).strip(),
+                                        "scene_prompt": scene_prompt,
+                                        "scene_negative_prompt": scene_negative_prompt,
+                                        "source": source,
+                                        "seed": stable_diffusion_seed(
+                                            image_prompt_seed_sources.get(sentence_number)
+                                            or str(sentence_text).strip()
+                                        ),
+                                    }
+                                )
 
                         payload = {
                             "version": 1,
@@ -1320,8 +1430,17 @@ class RenderPipeline:
                             "start_sentence": start_sentence,
                             "end_sentence": end_sentence_number,
                             "context_window": context_window,
-                            "style_prompt": build_sentence_image_prompt(""),
-                            "style_negative_prompt": build_sentence_image_negative_prompt(""),
+                            "prompt_batching_enabled": bool(image_prompt_batch_size > 1),
+                            "prompt_batch_size": int(image_prompt_batch_size),
+                            "style_prompt": build_sentence_image_prompt(
+                                "",
+                                style_template=image_style_template,
+                            ),
+                            "style_negative_prompt": build_sentence_image_negative_prompt(
+                                "",
+                                style_template=image_style_template,
+                            ),
+                            "style_template": image_style_template,
                             "baseline": {
                                 "scene_prompt": baseline_scene,
                                 "scene_negative_prompt": baseline_negative,
@@ -1376,12 +1495,34 @@ class RenderPipeline:
             prompt_plan_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             prompt_plan_future = prompt_plan_executor.submit(_build_prompt_plan)
 
+        target_sequence = build_target_sequence(
+            target_languages,
+            total_refined,
+            start_sentence=start_sentence,
+        )
+        translation_thread = start_translation_pipeline(
+            sentences,
+            input_language,
+            target_sequence,
+            start_sentence=start_sentence,
+            output_queue=translation_queue,
+            consumer_count=len(media_threads) or 1,
+            stop_event=pipeline_stop_event,
+            worker_count=worker_count,
+            progress_tracker=self._progress,
+            client=translation_client,
+            worker_pool=worker_pool,
+            transliterator=self._transliterator,
+            include_transliteration=include_transliteration,
+        )
+
         buffered_results = {}
         next_index = 0
         export_futures: List[concurrent.futures.Future] = []
         previous_image_future: Optional[concurrent.futures.Future] = None
-        previous_image_sentence_number: Optional[int] = None
-        scheduled_image_sentence_numbers: set[int] = set()
+        previous_image_key_sentence_number: Optional[int] = None
+        scheduled_image_keys: set[int] = set()
+        batch_images_prequeued = False
 
         def _submit_sentence_image(
             *,
@@ -1390,7 +1531,7 @@ class RenderPipeline:
             context_sentences: tuple[str, ...] = (),
         ) -> None:
             nonlocal previous_image_future
-            nonlocal previous_image_sentence_number
+            nonlocal previous_image_key_sentence_number
 
             if (
                 image_executor is None
@@ -1400,10 +1541,24 @@ class RenderPipeline:
             ):
                 return
 
-            if sentence_number in scheduled_image_sentence_numbers:
+            image_key_sentence_number = int(sentence_number)
+            if image_key_sentence_number in scheduled_image_keys:
                 return
 
-            offset = max(sentence_number - start_sentence, 0)
+            batch_start_sentence_number = image_key_sentence_number
+            batch_end_sentence_number = (
+                min(
+                    batch_start_sentence_number + image_prompt_batch_size - 1,
+                    final_sentence_number,
+                )
+                if image_prompt_batch_size > 1
+                else batch_start_sentence_number
+            )
+            applies_sentence_numbers = tuple(
+                range(batch_start_sentence_number, batch_end_sentence_number + 1)
+            )
+
+            offset = max(batch_start_sentence_number - start_sentence, 0)
             chunk_start = start_sentence + (offset // max(1, sentences_per_file)) * max(
                 1, sentences_per_file
             )
@@ -1411,19 +1566,23 @@ class RenderPipeline:
                 chunk_start + max(1, sentences_per_file) - 1,
                 final_sentence_number,
             )
-            range_fragment = output_formatter.format_sentence_range(
-                chunk_start, chunk_end, total_fully
-            )
+            range_fragment = output_formatter.format_sentence_range(chunk_start, chunk_end, total_fully)
             chunk_id = f"{range_fragment}_{base_name}"
-            images_dir = media_root / "images" / range_fragment
-            image_path = images_dir / f"sentence_{sentence_number:05d}.png"
+            if image_prompt_batch_size > 1:
+                images_dir = media_root / "images" / "batches"
+                image_path = images_dir / f"batch_{batch_start_sentence_number:05d}.png"
+            else:
+                images_dir = media_root / "images" / range_fragment
+                image_path = images_dir / f"sentence_{batch_start_sentence_number:05d}.png"
 
             previous_seed_future = None
-            previous_sentence_number = sentence_number - 1
+            previous_key_sentence_number = batch_start_sentence_number - (
+                image_prompt_batch_size if image_prompt_batch_size > 1 else 1
+            )
             if (
                 previous_image_future is not None
-                and previous_image_sentence_number == previous_sentence_number
-                and image_prompt_sources.get(previous_sentence_number) in {"llm", "llm_retry"}
+                and previous_image_key_sentence_number == previous_key_sentence_number
+                and image_prompt_sources.get(previous_key_sentence_number) in {"llm", "llm_retry"}
             ):
                 previous_seed_future = previous_image_future
 
@@ -1435,7 +1594,8 @@ class RenderPipeline:
                 *,
                 sentence_for_prompt: str = sentence_for_prompt,
                 context_sentences: tuple[str, ...] = context_sentences,
-                sentence_number: int = sentence_number,
+                image_key_sentence_number: int = image_key_sentence_number,
+                applies_sentence_numbers: tuple[int, ...] = applies_sentence_numbers,
                 chunk_id: str = chunk_id,
                 range_fragment: str = range_fragment,
                 chunk_start: int = chunk_start,
@@ -1444,17 +1604,17 @@ class RenderPipeline:
                 image_path: Path = image_path,
                 base_dir_path: Path = base_dir_path,
                 previous_seed_future: Optional[concurrent.futures.Future] = previous_seed_future,
-                previous_sentence_number: int = previous_sentence_number,
+                previous_key_sentence_number: int = previous_key_sentence_number,
                 baseline_seed_image_path: Optional[Path] = baseline_seed_snapshot,
                 baseline_prompt: DiffusionPrompt = baseline_prompt_snapshot,
-            ) -> _SentenceImageResult:
+            ) -> list[_SentenceImageResult]:
                 try:
-                    diffusion = image_prompt_plan.get(sentence_number)
+                    diffusion = image_prompt_plan.get(image_key_sentence_number)
                     if diffusion is None:
                         diffusion = DiffusionPrompt(prompt=str(sentence_for_prompt).strip())
                     scene_description = (diffusion.prompt or "").strip() or (sentence_for_prompt or "").strip()
                     negative = (diffusion.negative_prompt or "").strip()
-                    current_source = image_prompt_sources.get(sentence_number) or ""
+                    current_source = image_prompt_sources.get(image_key_sentence_number) or ""
                     baseline_scene = (baseline_prompt.prompt or "").strip()
                     baseline_negative = (baseline_prompt.negative_prompt or "").strip()
 
@@ -1470,9 +1630,15 @@ class RenderPipeline:
                     if use_baseline_fallback:
                         scene_description = baseline_scene
                         negative = baseline_negative
-                    prompt_full = build_sentence_image_prompt(scene_description)
-                    negative_full = build_sentence_image_negative_prompt(negative)
-                    seed_source = image_prompt_seed_sources.get(sentence_number)
+                    prompt_full = build_sentence_image_prompt(
+                        scene_description,
+                        style_template=image_style_template,
+                    )
+                    negative_full = build_sentence_image_negative_prompt(
+                        negative,
+                        style_template=image_style_template,
+                    )
+                    seed_source = image_prompt_seed_sources.get(image_key_sentence_number)
                     if use_baseline_fallback and baseline_scene:
                         seed = stable_diffusion_seed(baseline_scene)
                     else:
@@ -1482,23 +1648,31 @@ class RenderPipeline:
                     if allow_img2img and previous_seed_future is not None:
                         try:
                             previous_seed_future.result()
-                            prev_offset = max(previous_sentence_number - start_sentence, 0)
-                            prev_chunk_start = start_sentence + (
-                                prev_offset // max(1, sentences_per_file)
-                            ) * max(1, sentences_per_file)
-                            prev_chunk_end = min(
-                                prev_chunk_start + max(1, sentences_per_file) - 1,
-                                final_sentence_number,
-                            )
-                            prev_range_fragment = output_formatter.format_sentence_range(
-                                prev_chunk_start, prev_chunk_end, total_fully
-                            )
-                            candidate = (
-                                media_root
-                                / "images"
-                                / prev_range_fragment
-                                / f"sentence_{previous_sentence_number:05d}.png"
-                            )
+                            if image_prompt_batch_size > 1:
+                                candidate = (
+                                    media_root
+                                    / "images"
+                                    / "batches"
+                                    / f"batch_{previous_key_sentence_number:05d}.png"
+                                )
+                            else:
+                                prev_offset = max(previous_key_sentence_number - start_sentence, 0)
+                                prev_chunk_start = start_sentence + (
+                                    prev_offset // max(1, sentences_per_file)
+                                ) * max(1, sentences_per_file)
+                                prev_chunk_end = min(
+                                    prev_chunk_start + max(1, sentences_per_file) - 1,
+                                    final_sentence_number,
+                                )
+                                prev_range_fragment = output_formatter.format_sentence_range(
+                                    prev_chunk_start, prev_chunk_end, total_fully
+                                )
+                                candidate = (
+                                    media_root
+                                    / "images"
+                                    / prev_range_fragment
+                                    / f"sentence_{previous_key_sentence_number:05d}.png"
+                                )
                             if candidate.exists():
                                 seed_image_path = candidate
                         except Exception:
@@ -1512,69 +1686,139 @@ class RenderPipeline:
                     ):
                         seed_image_path = baseline_seed_image_path
 
-                    def _txt2img() -> bytes:
-                        request = DrawThingsImageRequest(
-                            prompt=prompt_full,
-                            negative_prompt=negative_full,
-                            width=int(self._config.image_width or 512),
-                            height=int(self._config.image_height or 512),
-                            steps=int(self._config.image_steps or 24),
-                            cfg_scale=float(self._config.image_cfg_scale or 7.0),
-                            sampler_name=self._config.image_sampler_name,
-                            seed=seed,
-                        )
-                        image_bytes, _payload = image_client.txt2img(request)
-                        return image_bytes
+                    blank_detection_enabled = bool(
+                        getattr(self._config, "image_blank_detection_enabled", False)
+                    )
+                    max_image_retries = 2
+                    images_dir.mkdir(parents=True, exist_ok=True)
 
-                    if seed_image_path is not None and allow_img2img:
+                    import io
+
+                    def _is_likely_blank(converted: Image.Image) -> bool:
                         try:
-                            request = DrawThingsImageToImageRequest(
+                            from PIL import ImageStat
+
+                            stats = ImageStat.Stat(converted.convert("L"))
+                            mean = float(stats.mean[0]) if stats.mean else 0.0
+                            stddev = float(stats.stddev[0]) if getattr(stats, "stddev", None) else 0.0
+                        except Exception:
+                            return False
+
+                        if stddev >= 2.0:
+                            return False
+                        return mean < 8.0 or mean > 247.0
+
+                    last_raw_bytes: Optional[bytes] = None
+                    for attempt in range(max_image_retries + 1):
+                        seed_value = int(seed + attempt * 9973) if attempt else int(seed)
+
+                        def _txt2img() -> bytes:
+                            request = DrawThingsImageRequest(
                                 prompt=prompt_full,
                                 negative_prompt=negative_full,
-                                init_image=seed_image_path.read_bytes(),
-                                denoising_strength=0.5,
                                 width=int(self._config.image_width or 512),
                                 height=int(self._config.image_height or 512),
                                 steps=int(self._config.image_steps or 24),
                                 cfg_scale=float(self._config.image_cfg_scale or 7.0),
                                 sampler_name=self._config.image_sampler_name,
-                                seed=seed,
+                                seed=seed_value,
                             )
-                            image_bytes, _payload = image_client.img2img(request)
-                        except DrawThingsError as exc:
-                            message = str(exc)
-                            if (
-                                "(404)" in message
-                                or " 404" in message
-                                or "not found" in message.lower()
-                            ):
-                                with img2img_capability_lock:
-                                    img2img_capability["enabled"] = False
-                            image_bytes = _txt2img()
-                    else:
-                        image_bytes = _txt2img()
-                    images_dir.mkdir(parents=True, exist_ok=True)
-                    try:
-                        import io
+                            image_bytes, _payload = image_client.txt2img(request)
+                            return image_bytes
 
-                        with Image.open(io.BytesIO(image_bytes)) as loaded:
-                            converted = loaded.convert("RGB")
-                            output = io.BytesIO()
-                            converted.save(output, format="PNG")
-                            image_path.write_bytes(output.getvalue())
-                    except Exception:
-                        image_path.write_bytes(image_bytes)
+                        try:
+                            use_img2img_attempt = (
+                                attempt == 0 and seed_image_path is not None and allow_img2img
+                            )
+                            if use_img2img_attempt:
+                                try:
+                                    request = DrawThingsImageToImageRequest(
+                                        prompt=prompt_full,
+                                        negative_prompt=negative_full,
+                                        init_image=seed_image_path.read_bytes(),
+                                        denoising_strength=0.5,
+                                        width=int(self._config.image_width or 512),
+                                        height=int(self._config.image_height or 512),
+                                        steps=int(self._config.image_steps or 24),
+                                        cfg_scale=float(self._config.image_cfg_scale or 7.0),
+                                        sampler_name=self._config.image_sampler_name,
+                                        seed=seed_value,
+                                    )
+                                    image_bytes, _payload = image_client.img2img(request)
+                                except DrawThingsError as exc:
+                                    message = str(exc)
+                                    if (
+                                        "(404)" in message
+                                        or " 404" in message
+                                        or "not found" in message.lower()
+                                    ):
+                                        with img2img_capability_lock:
+                                            img2img_capability["enabled"] = False
+                                    image_bytes = _txt2img()
+                            else:
+                                image_bytes = _txt2img()
+                        except DrawThingsError:
+                            raise
+                        except Exception:
+                            raise
+
+                        last_raw_bytes = image_bytes
+
+                        try:
+                            with Image.open(io.BytesIO(image_bytes)) as loaded:
+                                converted = loaded.convert("RGB")
+                                if (
+                                    blank_detection_enabled
+                                    and attempt < max_image_retries
+                                    and _is_likely_blank(converted)
+                                ):
+                                    if self._progress is not None:
+                                        self._progress.record_retry("image", "blank_image")
+                                    seed_image_path = None
+                                    continue
+                                output = io.BytesIO()
+                                converted.save(output, format="PNG")
+                                image_path.write_bytes(output.getvalue())
+                                last_raw_bytes = None
+                                break
+                        except Exception:
+                            if attempt < max_image_retries:
+                                if self._progress is not None:
+                                    self._progress.record_retry("image", "invalid_image_bytes")
+                                seed_image_path = None
+                                continue
+                            break
+
+                    if last_raw_bytes is not None:
+                        image_path.write_bytes(last_raw_bytes)
                     relative_path = _job_relative_path(image_path, base_dir=base_dir_path)
-                    return _SentenceImageResult(
-                        chunk_id=chunk_id,
-                        range_fragment=range_fragment,
-                        start_sentence=chunk_start,
-                        end_sentence=chunk_end,
-                        sentence_number=sentence_number,
-                        relative_path=relative_path,
-                        prompt=prompt_full,
-                        negative_prompt=negative_full,
-                    )
+                    results: list[_SentenceImageResult] = []
+                    for sentence_number in applies_sentence_numbers:
+                        offset = max(sentence_number - start_sentence, 0)
+                        sentence_chunk_start = start_sentence + (
+                            offset // max(1, sentences_per_file)
+                        ) * max(1, sentences_per_file)
+                        sentence_chunk_end = min(
+                            sentence_chunk_start + max(1, sentences_per_file) - 1,
+                            final_sentence_number,
+                        )
+                        sentence_range_fragment = output_formatter.format_sentence_range(
+                            sentence_chunk_start, sentence_chunk_end, total_fully
+                        )
+                        sentence_chunk_id = f"{sentence_range_fragment}_{base_name}"
+                        results.append(
+                            _SentenceImageResult(
+                                chunk_id=sentence_chunk_id,
+                                range_fragment=sentence_range_fragment,
+                                start_sentence=sentence_chunk_start,
+                                end_sentence=sentence_chunk_end,
+                                sentence_number=sentence_number,
+                                relative_path=relative_path,
+                                prompt=prompt_full,
+                                negative_prompt=negative_full,
+                            )
+                        )
+                    return results
                 except DrawThingsError as exc:
                     if self._progress is not None:
                         self._progress.record_retry("image", "drawthings_error")
@@ -1583,7 +1827,7 @@ class RenderPipeline:
                         extra={
                             "event": "pipeline.image.error",
                             "attributes": {
-                                "sentence_number": sentence_number,
+                                "sentence_number": image_key_sentence_number,
                                 "range_fragment": range_fragment,
                                 "error": str(exc),
                             },
@@ -1599,7 +1843,7 @@ class RenderPipeline:
                         extra={
                             "event": "pipeline.image.error",
                             "attributes": {
-                                "sentence_number": sentence_number,
+                                "sentence_number": image_key_sentence_number,
                                 "range_fragment": range_fragment,
                                 "error": str(exc),
                             },
@@ -1610,13 +1854,24 @@ class RenderPipeline:
 
             future = image_executor.submit(_generate_image)
             image_futures.add(future)
-            scheduled_image_sentence_numbers.add(sentence_number)
+            scheduled_image_keys.add(image_key_sentence_number)
             previous_image_future = future
-            previous_image_sentence_number = sentence_number
+            previous_image_key_sentence_number = image_key_sentence_number
 
         cancelled = False
         try:
             while state.processed < total_refined:
+                if (
+                    image_prompt_batch_size > 1
+                    and not batch_images_prequeued
+                    and prompt_plan_ready.is_set()
+                    and image_executor is not None
+                    and image_state is not None
+                    and image_client is not None
+                    and not pipeline_stop_event.is_set()
+                ):
+                    pending_image_keys.update(image_prompt_batch_starts)
+                    batch_images_prequeued = True
                 if image_futures:
                     done = [future for future in list(image_futures) if future.done()]
                     for future in done:
@@ -1625,35 +1880,67 @@ class RenderPipeline:
                             image_result = future.result()
                         except Exception:
                             continue
-                        if image_state is not None and isinstance(image_result, _SentenceImageResult):
-                            if image_state.apply(image_result):
-                                snapshot = image_state.snapshot_chunk(image_result.chunk_id)
-                                if snapshot and self._progress is not None:
-                                    self._progress.record_generated_chunk(
-                                        chunk_id=str(snapshot.get("chunk_id") or image_result.chunk_id),
-                                        start_sentence=int(snapshot.get("start_sentence") or image_result.start_sentence),
-                                        end_sentence=int(snapshot.get("end_sentence") or image_result.end_sentence),
-                                        range_fragment=str(snapshot.get("range_fragment") or image_result.range_fragment),
-                                        files=snapshot.get("files") or {},
-                                        extra_files=snapshot.get("extra_files") or [],
-                                        sentences=snapshot.get("sentences") or [],
-                                        audio_tracks=snapshot.get("audio_tracks") or None,
-                                        timing_tracks=snapshot.get("timing_tracks") or None,
-                                    )
+                        if image_state is None:
+                            continue
+                        results: list[_SentenceImageResult] = []
+                        if isinstance(image_result, _SentenceImageResult):
+                            results = [image_result]
+                        elif isinstance(image_result, Sequence):
+                            results = [
+                                item
+                                for item in image_result
+                                if isinstance(item, _SentenceImageResult)
+                            ]
+                        if not results:
+                            continue
+
+                        updated_chunks: dict[str, _SentenceImageResult] = {}
+                        for item in results:
+                            if image_state.apply(item):
+                                updated_chunks[item.chunk_id] = item
+
+                        for chunk_id, item in updated_chunks.items():
+                            snapshot = image_state.snapshot_chunk(chunk_id)
+                            if snapshot and self._progress is not None:
+                                self._progress.record_generated_chunk(
+                                    chunk_id=str(snapshot.get("chunk_id") or chunk_id),
+                                    start_sentence=int(snapshot.get("start_sentence") or item.start_sentence),
+                                    end_sentence=int(snapshot.get("end_sentence") or item.end_sentence),
+                                    range_fragment=str(snapshot.get("range_fragment") or item.range_fragment),
+                                    files=snapshot.get("files") or {},
+                                    extra_files=snapshot.get("extra_files") or [],
+                                    sentences=snapshot.get("sentences") or [],
+                                    audio_tracks=snapshot.get("audio_tracks") or None,
+                                    timing_tracks=snapshot.get("timing_tracks") or None,
+                                )
                 if (
                     prompt_plan_ready.is_set()
-                    and pending_image_sentence_numbers
+                    and pending_image_keys
                     and not pipeline_stop_event.is_set()
                 ):
-                    pending_numbers = sorted(pending_image_sentence_numbers)
-                    pending_image_sentence_numbers.clear()
+                    pending_numbers = sorted(pending_image_keys)
+                    pending_image_keys.clear()
                     for sentence_number in pending_numbers:
-                        offset = sentence_number - start_sentence
-                        if offset < 0 or offset >= len(target_sentences):
+                        offset_start = sentence_number - start_sentence
+                        if offset_start < 0 or offset_start >= len(target_sentences):
                             continue
+                        fallback_prompt_text = str(target_sentences[offset_start]).strip()
+                        if image_prompt_batch_size > 1:
+                            offset_end = min(
+                                offset_start + image_prompt_batch_size, len(target_sentences)
+                            )
+                            batch_items = [
+                                str(entry).strip()
+                                for entry in target_sentences[offset_start:offset_end]
+                                if str(entry).strip()
+                            ]
+                            if batch_items:
+                                fallback_prompt_text = "Batch narrative:\n" + "\n".join(
+                                    f"- {entry}" for entry in batch_items
+                                )
                         _submit_sentence_image(
                             sentence_number=sentence_number,
-                            sentence_for_prompt=str(target_sentences[offset]).strip(),
+                            sentence_for_prompt=fallback_prompt_text,
                         )
                 if pipeline_stop_event.is_set() and not buffered_results:
                     cancelled = state.processed < total_refined
@@ -1774,6 +2061,30 @@ class RenderPipeline:
                         except Exception:
                             pass
 
+                    sentence_number = int(item.sentence_number)
+                    if generate_images and image_prompt_batch_size > 1:
+                        batch_start_sentence_number = start_sentence + (
+                            (sentence_number - start_sentence) // image_prompt_batch_size
+                        ) * image_prompt_batch_size
+                        batch_start_sentence_number = max(start_sentence, int(batch_start_sentence_number))
+                        batch_end_sentence_number = min(
+                            batch_start_sentence_number + image_prompt_batch_size - 1,
+                            final_sentence_number,
+                        )
+                        relative_path = f"media/images/batches/batch_{batch_start_sentence_number:05d}.png"
+                        image_payload = metadata_payload.get("image")
+                        if isinstance(image_payload, Mapping):
+                            image_payload = dict(image_payload)
+                        else:
+                            image_payload = {}
+                        image_payload.setdefault("path", relative_path)
+                        image_payload.setdefault("batch_start_sentence", batch_start_sentence_number)
+                        image_payload.setdefault("batch_end_sentence", batch_end_sentence_number)
+                        image_payload.setdefault("batch_size", image_prompt_batch_size)
+                        metadata_payload["image"] = image_payload
+                        metadata_payload["image_path"] = relative_path
+                        metadata_payload["imagePath"] = relative_path
+
                     state.current_sentence_metadata.append(metadata_payload)
                     if state.all_sentence_metadata is not None:
                         state.all_sentence_metadata.append(metadata_payload)
@@ -1791,13 +2102,33 @@ class RenderPipeline:
                         and image_client is not None
                         and not pipeline_stop_event.is_set()
                     ):
-                        sentence_number = int(item.sentence_number)
+                        image_key_sentence_number = sentence_number
+                        if image_prompt_batch_size > 1:
+                            image_key_sentence_number = start_sentence + (
+                                (sentence_number - start_sentence) // image_prompt_batch_size
+                            ) * image_prompt_batch_size
+                            image_key_sentence_number = max(start_sentence, int(image_key_sentence_number))
+                        fallback_prompt_text = str(sentence_for_prompt or "").strip()
+                        if image_prompt_batch_size > 1:
+                            offset_start = max(image_key_sentence_number - start_sentence, 0)
+                            offset_end = min(
+                                offset_start + image_prompt_batch_size, len(target_sentences)
+                            )
+                            batch_items = [
+                                str(entry).strip()
+                                for entry in target_sentences[offset_start:offset_end]
+                                if str(entry).strip()
+                            ]
+                            if batch_items:
+                                fallback_prompt_text = "Batch narrative:\n" + "\n".join(
+                                    f"- {entry}" for entry in batch_items
+                                )
                         if not prompt_plan_ready.is_set():
-                            pending_image_sentence_numbers.add(sentence_number)
+                            pending_image_keys.add(image_key_sentence_number)
                         else:
                             _submit_sentence_image(
-                                sentence_number=sentence_number,
-                                sentence_for_prompt=str(sentence_for_prompt or "").strip(),
+                                sentence_number=image_key_sentence_number,
+                                sentence_for_prompt=fallback_prompt_text,
                                 context_sentences=context_sentences,
                             )
 
@@ -1846,7 +2177,7 @@ class RenderPipeline:
                     break
 
             if (
-                pending_image_sentence_numbers
+                pending_image_keys
                 and image_executor is not None
                 and image_state is not None
                 and image_client is not None
@@ -1857,15 +2188,29 @@ class RenderPipeline:
                         prompt_plan_future.result()
                     except Exception:
                         pass
-                pending_numbers = sorted(pending_image_sentence_numbers)
-                pending_image_sentence_numbers.clear()
+                pending_numbers = sorted(pending_image_keys)
+                pending_image_keys.clear()
                 for sentence_number in pending_numbers:
-                    offset = sentence_number - start_sentence
-                    if offset < 0 or offset >= len(target_sentences):
+                    offset_start = sentence_number - start_sentence
+                    if offset_start < 0 or offset_start >= len(target_sentences):
                         continue
+                    fallback_prompt_text = str(target_sentences[offset_start]).strip()
+                    if image_prompt_batch_size > 1:
+                        offset_end = min(
+                            offset_start + image_prompt_batch_size, len(target_sentences)
+                        )
+                        batch_items = [
+                            str(entry).strip()
+                            for entry in target_sentences[offset_start:offset_end]
+                            if str(entry).strip()
+                        ]
+                        if batch_items:
+                            fallback_prompt_text = "Batch narrative:\n" + "\n".join(
+                                f"- {entry}" for entry in batch_items
+                            )
                     _submit_sentence_image(
                         sentence_number=sentence_number,
-                        sentence_for_prompt=str(target_sentences[offset]).strip(),
+                        sentence_for_prompt=fallback_prompt_text,
                     )
         except KeyboardInterrupt:
             console_warning(
@@ -1907,16 +2252,31 @@ class RenderPipeline:
                                     image_result = future.result()
                                 except Exception:
                                     continue
-                                if not isinstance(image_result, _SentenceImageResult):
+                                results: list[_SentenceImageResult] = []
+                                if isinstance(image_result, _SentenceImageResult):
+                                    results = [image_result]
+                                elif isinstance(image_result, Sequence):
+                                    results = [
+                                        item
+                                        for item in image_result
+                                        if isinstance(item, _SentenceImageResult)
+                                    ]
+                                if not results:
                                     continue
-                                if image_state.apply(image_result):
-                                    snapshot = image_state.snapshot_chunk(image_result.chunk_id)
+
+                                updated_chunks: dict[str, _SentenceImageResult] = {}
+                                for item in results:
+                                    if image_state.apply(item):
+                                        updated_chunks[item.chunk_id] = item
+
+                                for chunk_id, item in updated_chunks.items():
+                                    snapshot = image_state.snapshot_chunk(chunk_id)
                                     if snapshot:
                                         snapshot_progress.record_generated_chunk(
-                                            chunk_id=str(snapshot.get("chunk_id") or image_result.chunk_id),
-                                            start_sentence=int(snapshot.get("start_sentence") or image_result.start_sentence),
-                                            end_sentence=int(snapshot.get("end_sentence") or image_result.end_sentence),
-                                            range_fragment=str(snapshot.get("range_fragment") or image_result.range_fragment),
+                                            chunk_id=str(snapshot.get("chunk_id") or chunk_id),
+                                            start_sentence=int(snapshot.get("start_sentence") or item.start_sentence),
+                                            end_sentence=int(snapshot.get("end_sentence") or item.end_sentence),
+                                            range_fragment=str(snapshot.get("range_fragment") or item.range_fragment),
                                             files=snapshot.get("files") or {},
                                             extra_files=snapshot.get("extra_files") or [],
                                             sentences=snapshot.get("sentences") or [],

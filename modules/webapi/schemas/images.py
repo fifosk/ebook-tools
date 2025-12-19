@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -48,6 +48,16 @@ class SentenceImageInfoResponse(BaseModel):
     sentence: Optional[str] = None
     prompt: Optional[str] = None
     negative_prompt: Optional[str] = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SentenceImageInfoBatchResponse(BaseModel):
+    """Batch metadata returned for multiple sentence images."""
+
+    job_id: str
+    items: List[SentenceImageInfoResponse] = Field(default_factory=list)
+    missing: List[int] = Field(default_factory=list)
 
     model_config = ConfigDict(extra="forbid")
 

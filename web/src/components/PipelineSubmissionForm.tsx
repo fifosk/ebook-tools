@@ -154,8 +154,12 @@ type FormState = {
   output_pdf: boolean;
   generate_video: boolean;
   add_images: boolean;
+  image_style_template: string;
+  image_prompt_batching_enabled: boolean;
+  image_prompt_batch_size: number;
   image_prompt_context_sentences: number;
   image_seed_with_previous_image: boolean;
+  image_blank_detection_enabled: boolean;
   image_width: string;
   image_height: string;
   image_steps: string;
@@ -196,14 +200,18 @@ const DEFAULT_FORM_STATE: FormState = {
   output_pdf: false,
   generate_video: false,
   add_images: false,
+  image_style_template: 'photorealistic',
+  image_prompt_batching_enabled: true,
+  image_prompt_batch_size: 10,
   image_prompt_context_sentences: 2,
   image_seed_with_previous_image: false,
+  image_blank_detection_enabled: false,
   image_width: '',
   image_height: '',
   image_steps: '',
   image_cfg_scale: '',
   image_sampler_name: '',
-  image_api_timeout_seconds: '',
+  image_api_timeout_seconds: '300',
   include_transliteration: true,
   tempo: 1,
   thread_count: '',
@@ -510,6 +518,21 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
     next.add_images = addImages;
   }
 
+  const imageStyleTemplate = config['image_style_template'];
+  if (typeof imageStyleTemplate === 'string' && imageStyleTemplate.trim()) {
+    next.image_style_template = imageStyleTemplate.trim();
+  }
+
+  const imagePromptBatchingEnabled = config['image_prompt_batching_enabled'];
+  if (typeof imagePromptBatchingEnabled === 'boolean') {
+    next.image_prompt_batching_enabled = imagePromptBatchingEnabled;
+  }
+
+  const imagePromptBatchSize = coerceNumber(config['image_prompt_batch_size']);
+  if (imagePromptBatchSize !== undefined) {
+    next.image_prompt_batch_size = Math.min(50, Math.max(1, Math.trunc(imagePromptBatchSize)));
+  }
+
   const imagePromptContext = coerceNumber(config['image_prompt_context_sentences']);
   if (imagePromptContext !== undefined) {
     next.image_prompt_context_sentences = Math.min(50, Math.max(0, Math.trunc(imagePromptContext)));
@@ -518,6 +541,11 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
   const imageSeedWithPrevious = config['image_seed_with_previous_image'];
   if (typeof imageSeedWithPrevious === 'boolean') {
     next.image_seed_with_previous_image = imageSeedWithPrevious;
+  }
+
+  const imageBlankDetectionEnabled = config['image_blank_detection_enabled'];
+  if (typeof imageBlankDetectionEnabled === 'boolean') {
+    next.image_blank_detection_enabled = imageBlankDetectionEnabled;
   }
 
   const imageWidth = coerceNumber(config['image_width']);
@@ -547,7 +575,9 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
 
   const imageApiTimeoutSeconds = coerceNumber(config['image_api_timeout_seconds']);
   if (imageApiTimeoutSeconds !== undefined) {
-    next.image_api_timeout_seconds = String(Math.max(1, Math.trunc(imageApiTimeoutSeconds)));
+    next.image_api_timeout_seconds = String(
+      Math.max(300, Math.max(1, Math.trunc(imageApiTimeoutSeconds)))
+    );
   }
 
   const includeTransliteration = config['include_transliteration'];
@@ -2087,10 +2117,20 @@ export function PipelineSubmissionForm({
         pipelineOverrides.audio_mode = formState.audio_mode.trim();
       }
       if (formState.add_images) {
+        if (typeof formState.image_style_template === 'string' && formState.image_style_template.trim()) {
+          pipelineOverrides.image_style_template = formState.image_style_template.trim();
+        }
+
+        pipelineOverrides.image_prompt_batching_enabled = Boolean(formState.image_prompt_batching_enabled);
+        const rawBatchSize = Number(formState.image_prompt_batch_size);
+        const normalizedBatchSize = Number.isFinite(rawBatchSize) ? Math.trunc(rawBatchSize) : 10;
+        pipelineOverrides.image_prompt_batch_size = Math.min(50, Math.max(1, normalizedBatchSize));
+
         const rawContext = Number(formState.image_prompt_context_sentences);
         const normalizedContext = Number.isFinite(rawContext) ? Math.trunc(rawContext) : 0;
         pipelineOverrides.image_prompt_context_sentences = Math.min(50, Math.max(0, normalizedContext));
         pipelineOverrides.image_seed_with_previous_image = Boolean(formState.image_seed_with_previous_image);
+        pipelineOverrides.image_blank_detection_enabled = Boolean(formState.image_blank_detection_enabled);
 
         const imageConcurrency = parseOptionalNumberInput(formState.image_concurrency);
         if (imageConcurrency !== undefined) {
@@ -2866,8 +2906,12 @@ export function PipelineSubmissionForm({
             title={sectionMeta.images.title}
             description={sectionMeta.images.description}
             addImages={formState.add_images}
+            imageStyleTemplate={formState.image_style_template}
+            imagePromptBatchingEnabled={formState.image_prompt_batching_enabled}
+            imagePromptBatchSize={formState.image_prompt_batch_size}
             imagePromptContextSentences={formState.image_prompt_context_sentences}
             imageSeedWithPreviousImage={formState.image_seed_with_previous_image}
+            imageBlankDetectionEnabled={formState.image_blank_detection_enabled}
             imageConcurrency={formState.image_concurrency}
             imageWidth={formState.image_width}
             imageHeight={formState.image_height}
@@ -2876,11 +2920,17 @@ export function PipelineSubmissionForm({
             imageSamplerName={formState.image_sampler_name}
             imageApiTimeoutSeconds={formState.image_api_timeout_seconds}
             onAddImagesChange={(value) => handleChange('add_images', value)}
+            onImageStyleTemplateChange={(value) => handleChange('image_style_template', value)}
+            onImagePromptBatchingEnabledChange={(value) => handleChange('image_prompt_batching_enabled', value)}
+            onImagePromptBatchSizeChange={(value) => handleChange('image_prompt_batch_size', value)}
             onImagePromptContextSentencesChange={(value) =>
               handleChange('image_prompt_context_sentences', value)
             }
             onImageSeedWithPreviousImageChange={(value) =>
               handleChange('image_seed_with_previous_image', value)
+            }
+            onImageBlankDetectionEnabledChange={(value) =>
+              handleChange('image_blank_detection_enabled', value)
             }
             onImageConcurrencyChange={(value) => handleChange('image_concurrency', value)}
             onImageWidthChange={(value) => handleChange('image_width', value)}

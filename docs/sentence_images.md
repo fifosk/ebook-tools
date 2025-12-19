@@ -1,10 +1,12 @@
 # Sentence Images (Draw Things / Stable Diffusion)
 
-This document describes how ebook-tools generates and serves per-sentence images for the Interactive Reader.
+This document describes how ebook-tools generates and serves sentence-timed images for the Interactive Reader.
 
 ## Overview
 
-When `add_images` is enabled for a job, the backend generates **one image per sentence** in parallel with translation. Images are stored as job media and referenced from chunk metadata so the web player can show them while a job is still running.
+When `add_images` is enabled for a job, the backend generates images in parallel with translation and stores them as job media referenced from chunk metadata so the web player can show them while a job is still running.
+
+By default, prompts are generated in **sentence batches** (10 sentences per image), so a 100-sentence job typically produces ~10 images. Batch images persist while the player speaks the whole batch, then switch to the next batch image.
 
 ## Configuration
 
@@ -15,6 +17,11 @@ Sentence images are controlled by pipeline config values (and can be overridden 
 - `image_api_timeout_seconds`: Request timeout for `txt2img` (default: 600 seconds).
 - `image_concurrency`: Number of parallel image workers (default: 4).
 - `image_width`, `image_height`: Output resolution (defaults: 512×512).
+- `image_prompt_batching_enabled`: Enables prompt/image batching (default: `true`).
+- `image_prompt_batch_size`: Number of sentences per batch (default: `10`, max: `50`).
+- `image_style_template`: Visual template used when appending the shared style suffix to scene prompts.
+  - Supported: `photorealistic` (default), `comics`, `children_book`, `wireframe`.
+  - The selected template also supplies default `image_steps` / `image_cfg_scale` values when not explicitly overridden.
 - `image_steps`: Sampling steps (default: 24).
 - `image_cfg_scale`: Guidance scale (default: 7).
 - `image_sampler_name`: Optional sampler identifier accepted by the backend.
@@ -31,16 +38,19 @@ Environment variables:
 
 Generated images are written under the job’s media folder:
 
-- `storage/<job_id>/media/images/<range_fragment>/sentence_00001.png`
+- **Batched (default):** `storage/<job_id>/media/images/batches/batch_00001.png` (the filename is the batch start sentence number)
+- **Per-sentence (legacy / when batching disabled):** `storage/<job_id>/media/images/<range_fragment>/sentence_00001.png`
 
 Chunk metadata files (`storage/<job_id>/metadata/chunk_XXXX.json`) record the image so clients can resolve it via the storage routes:
 
 - `sentences[].image`: `{ "path": "<relative path>", "prompt": "...", "negative_prompt": "..." }`
 - `sentences[].image_path` and `sentences[].imagePath`: convenience string fields mirroring `image.path`
 
+When batching is enabled, multiple consecutive sentences share the same `image.path` and include batch metadata (`batch_start_sentence`, `batch_end_sentence`, `batch_size`) to help clients render batch-aware UI.
+
 For transparency, jobs that precompute a prompt plan also write:
 
-- `storage/<job_id>/metadata/image_prompt_plan.json` (one entry per sentence, plus the shared style prompt/negative prompt and any errors)
+- `storage/<job_id>/metadata/image_prompt_plan.json` (one entry per prompt target: sentence when batching is off, batch when batching is on; includes `prompt_batching_enabled` / `prompt_batch_size`)
 - `storage/<job_id>/metadata/image_prompt_plan_summary.json` (compact coverage/retry stats surfaced in the job details UI)
 
 The job media snapshot endpoints (`/api/pipelines/jobs/{job_id}/media` and `/api/pipelines/jobs/{job_id}/media/live`) expose these fields so the web client can update its image reel during running jobs.
@@ -49,8 +59,8 @@ The job media snapshot endpoints (`/api/pipelines/jobs/{job_id}/media` and `/api
 
 Image prompts are built in two phases:
 
-1. **Prompt plan (LLM):** `modules/images/prompting.py:sentences_to_diffusion_prompt_map` generates a *consistent* set of per-sentence scene descriptions for the selected job sentence window (optionally with extra book context on both ends via `image_prompt_context_sentences`). Each entry is **scene only** (no style keywords).
-2. **Style suffix:** `build_sentence_image_prompt(...)` appends a shared story-reel style prompt. `build_sentence_image_negative_prompt(...)` always adds a negative prompt to suppress blur, artifacts, and accidental text.
+1. **Prompt plan (LLM):** `modules/images/prompting.py:sentences_to_diffusion_prompt_plan` generates a *consistent* set of scene descriptions for the selected job sentence window. When batching is enabled, the pipeline uses `sentence_batches_to_diffusion_prompt_plan` so each batch gets a single scene prompt that represents the batch narrative. Each entry is **scene only** (no style keywords).
+2. **Style suffix:** `build_sentence_image_prompt(..., style_template=...)` appends the shared style prompt for the selected `image_style_template`. `build_sentence_image_negative_prompt(..., style_template=...)` always adds a negative prompt to suppress blur, artifacts, and accidental text.
 
 For reproducibility, the pipeline derives a stable seed from the sentence text (`stable_diffusion_seed(...)`, MD5-based).
 
@@ -60,7 +70,7 @@ To keep the reel visually consistent across frames:
 
 - The LLM prompt-plan response includes a `baseline` anchor frame (scene prompt + layout notes). The pipeline renders a baseline seed image at:
   - `storage/<job_id>/media/images/_seed/baseline_seed_<start>_<end>.png`
-- When supported by the backend (`/sdapi/v1/img2img`), sentence images can reuse the **previous sentence’s** generated image as an `img2img` init image **only when the previous prompt came from the LLM** (`source` is `llm` or `llm_retry`).
+- When supported by the backend (`/sdapi/v1/img2img`), images can reuse the **previous frame’s** generated image as an `img2img` init image **only when the previous prompt came from the LLM** (`source` is `llm` or `llm_retry`). With batching enabled, “previous frame” refers to the previous batch image.
 - If no previous LLM-seeded image is available, the baseline seed image is used instead. If `img2img` is unavailable, the pipeline falls back to `txt2img`.
 
 This behavior is only enabled when `image_seed_with_previous_image=true` (default is off).
@@ -74,13 +84,15 @@ The media routes expose sentence-image inspection and regeneration endpoints (av
 - `POST /api/pipelines/jobs/{job_id}/media/images/sentences/{sentence_number}/regenerate`
   - Regenerates the image and overwrites the stored PNG.
   - Supports reusing the stored prompt, supplying a new prompt, or asking the LLM to rebuild a prompt (`use_llm_prompt`).
+  - Ensures the stored/LLM prompt includes the style suffix for the job's `image_style_template`.
   - Supports optional overrides for `context_sentences`, `negative_prompt`, `width`, `height`, `steps`, `cfg_scale`, `sampler_name`, and `seed`.
+  - When batching is enabled, regenerating any sentence updates the shared batch image and refreshes prompt metadata for all sentences that reference it.
 
 Schemas live in `modules/webapi/schemas/images.py`.
 
 ## Frontend integration
 
-- **Interactive Reader reel:** `web/src/components/InteractiveTextViewer.tsx` renders a “movie reel” strip above the text tracks showing 7 images (3 previous, active, 3 next). Toggle visibility with `R`. Fullscreen uses `F` (the reel scales up in fullscreen).
+- **Interactive Reader reel:** `web/src/components/InteractiveTextViewer.tsx` renders a “movie reel” strip above the text tracks showing up to 11 images (5 previous, active, 5 next). When batching is enabled, the reel advances per batch rather than per sentence. The reel keeps the active batch centered, prefetches two frames on each side, and lazy-loads non-active slots. Toggle visibility with `R`. Fullscreen uses `F` (the reel scales up in fullscreen).
 - **MyPainter:** the web UI can load a sentence’s stored prompt/settings, regenerate the image via the API, and overwrite the original media asset.
 
 ## Debugging checklist

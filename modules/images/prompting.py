@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping, Optional, Sequence
 
 from modules.llm_client_manager import client_scope
+from modules.images.style_templates import IMAGE_STYLE_TEMPLATES, resolve_image_style_template
 
 
 _MAX_LLM_CONTEXT_SENTENCES = 50
@@ -19,19 +20,29 @@ _PROMPT_MAP_MISSING_RETRY_ATTEMPTS = 2
 _PROMPT_MAP_MISSING_CONTEXT_RADIUS = 2
 _SCENE_PROMPT_MAX_WORDS = 45
 _BASELINE_NOTES_MAX_CHARS = 800
-_STYLE_LEAK_PHRASES = (
-    # Current story-reel style (photorealistic).
-    "photorealistic cinematic film still",
-    "cinematic film still",
-    "35mm photography",
-    "photo-realistic",
-    "photorealistic",
-    # Previous story-reel styles (keep for compatibility / sanitizing).
-    "high-quality color comic panel",
-    "graphic novel illustration",
-    "comic panel",
-    "cinematic storybook illustration",
-    "cohesive visual style across frames",
+_STYLE_LEAK_PHRASES = tuple(
+    dict.fromkeys(
+        [
+            # Current + legacy story-reel style phrases (keep for sanitizing stored prompts).
+            "photorealistic cinematic film still",
+            "cinematic film still",
+            "35mm photography",
+            "photo-realistic",
+            "photorealistic",
+            "high-quality color comic panel",
+            "graphic novel illustration",
+            "comic panel",
+            "cinematic storybook illustration",
+            "cohesive visual style across frames",
+            # Template markers (preferred going forward).
+            *[
+                marker
+                for template in IMAGE_STYLE_TEMPLATES.values()
+                for marker in template.prompt_markers
+                if marker
+            ],
+        ]
+    ).keys()
 )
 
 
@@ -52,42 +63,29 @@ class DiffusionPromptPlan:
     quality: dict[str, Any]
 
 
-STORY_REEL_BASE_PROMPT = (
-    "photorealistic cinematic film still,\n"
-    "cohesive visual style across frames, consistent character appearance,\n"
-    "realistic lighting, natural skin texture, subtle film grain,\n"
-    "35mm photography, shallow depth of field, sharp focus, no motion blur,\n"
-    "rich color, tasteful color grading, high dynamic range,\n"
-    "detailed environment, strong sense of place, atmospheric perspective,\n"
-    "single frame, no collage, no split panels,\n"
-    "no text, no captions, no watermark, no logo"
-)
+_PHOTOREALISTIC_TEMPLATE = IMAGE_STYLE_TEMPLATES["photorealistic"]
+STORY_REEL_BASE_PROMPT = _PHOTOREALISTIC_TEMPLATE.base_prompt
+STORY_REEL_NEGATIVE_PROMPT = _PHOTOREALISTIC_TEMPLATE.negative_prompt
 
-STORY_REEL_NEGATIVE_PROMPT = (
-    "lowres, blurry, out of focus, jpeg artifacts, noise,\n"
-    "watermark, logo, signature, text, letters, words, speech bubble,\n"
-    "cartoon, comic, manga, anime, illustration, drawing, painting,\n"
-    "cgi, 3d render, unreal engine,\n"
-    "cropped, cut off, duplicate, multiple heads, extra limbs,\n"
-    "bad anatomy, deformed hands, missing fingers, malformed face,\n"
-    "nsfw, nude, nudity, explicit,\n"
-    "gore, graphic violence"
-)
-
-_STYLE_PROMPT_MARKERS = (
-    # Current story-reel style.
-    "photorealistic cinematic film still",
-    "cinematic film still",
-    "35mm photography",
-    "cohesive visual style across frames",
-    # Previous story-reel style.
-    "high-quality color comic panel",
-    "graphic novel illustration",
-    "cinematic storybook illustration",
-    # Legacy glyph-style prompt marker (keep for compatibility with stored prompts).
-    "glyph-style clipart icon",
-    "single framed comic panel",
-    "one-panel comic illustration",
+_STYLE_PROMPT_MARKERS = tuple(
+    dict.fromkeys(
+        [
+            # Template markers.
+            *[
+                marker
+                for template in IMAGE_STYLE_TEMPLATES.values()
+                for marker in template.prompt_markers
+                if marker
+            ],
+            # Generic story-reel markers (still present in stored prompts).
+            "cinematic film still",
+            "cohesive visual style across frames",
+            # Legacy glyph-style prompt marker (keep for compatibility with stored prompts).
+            "glyph-style clipart icon",
+            "single framed comic panel",
+            "one-panel comic illustration",
+        ]
+    ).keys()
 )
 _STYLE_NEGATIVE_MARKERS = (
     "watermark, logo, signature",
@@ -156,28 +154,32 @@ def _strip_legacy_suffix(value: str, suffix: str) -> str:
     return cleaned.rstrip(",").strip()
 
 
-def build_sentence_image_prompt(scene_description: str) -> str:
-    """Return a full diffusion prompt for sentence images with the shared story-reel style appended."""
+def build_sentence_image_prompt(scene_description: str, *, style_template: str | None = None) -> str:
+    """Return a full diffusion prompt for sentence images with the selected style appended."""
 
     candidate = _strip_legacy_suffix(scene_description, _LEGACY_IMAGE_STYLE_SUFFIX)
     if not candidate:
-        return STORY_REEL_BASE_PROMPT
+        return resolve_image_style_template(style_template).base_prompt
     candidate_lower = candidate.lower()
     if any(marker.lower() in candidate_lower for marker in _STYLE_PROMPT_MARKERS):
         return candidate
-    return f"{candidate},\n{STORY_REEL_BASE_PROMPT}"
+    return f"{candidate},\n{resolve_image_style_template(style_template).base_prompt}"
 
 
-def build_sentence_image_negative_prompt(extra_negative: str) -> str:
+def build_sentence_image_negative_prompt(
+    extra_negative: str,
+    *,
+    style_template: str | None = None,
+) -> str:
     """Return the full negative prompt for sentence images (always includes the base negative prompt)."""
 
     candidate = _strip_legacy_suffix(extra_negative, _LEGACY_IMAGE_NEGATIVE_SUFFIX)
     if not candidate:
-        return STORY_REEL_NEGATIVE_PROMPT
+        return resolve_image_style_template(style_template).negative_prompt
     candidate_lower = candidate.lower()
     if any(marker.lower() in candidate_lower for marker in _STYLE_NEGATIVE_MARKERS):
         return candidate
-    return f"{STORY_REEL_NEGATIVE_PROMPT}, {candidate}"
+    return f"{resolve_image_style_template(style_template).negative_prompt}, {candidate}"
 
 
 def _extract_json_object(text: str) -> Optional[Mapping[str, Any]]:
@@ -211,13 +213,14 @@ def sentence_to_diffusion_prompt(
         return DiffusionPrompt(prompt="")
 
     system_prompt = (
-        "You convert book sentences into Stable Diffusion 1.5 scene descriptions for a coherent photorealistic story reel.\n"
+        "You convert book sentences into Stable Diffusion 1.5 scene descriptions for a coherent story reel.\n"
+        "The visual style is applied separately; do NOT include style keywords.\n"
         "Return JSON only with keys: prompt, negative_prompt.\n"
         "The `prompt` must describe the concrete scene only; do NOT include style keywords.\n"
         "Constraints:\n"
         "- Use English.\n"
         "- Keep it concise (<= 45 words).\n"
-        "- Describe a single realistic moment as if captured by a camera (characters, action, setting, time of day, mood, framing).\n"
+        "- Describe a single framed moment (characters, action, setting, time of day, mood, framing).\n"
         "- Keep recurring characters/setting consistent with the provided context.\n"
         "- Do NOT request readable text (letters/words).\n"
         "- Avoid graphic sexual content or violence; if implied, depict it non-graphically.\n"
@@ -783,7 +786,7 @@ def sentences_to_diffusion_prompt_plan(
 
     total = len(targets)
     if total <= _PROMPT_MAP_MAX_TARGET_SENTENCES:
-        plan = _prompt_map_batch(
+        return _prompt_map_batch(
             targets,
             context_prefix=context_prefix,
             context_suffix=context_suffix,
@@ -793,7 +796,6 @@ def sentences_to_diffusion_prompt_plan(
             baseline_source=None,
             timeout_seconds=timeout_seconds,
         )
-        return plan
 
     overlap = max(0, min(_PROMPT_MAP_OVERLAP_SENTENCES, total))
     continuity_bible = ""
@@ -875,18 +877,10 @@ def sentences_to_diffusion_prompt_plan(
         planned_sources = padded_sources
         errors.append("Prompt plan length mismatch; padded missing entries with fallbacks.")
 
-    initial_coverage_rate = (
-        (total - initial_missing) / total if total else 1.0
-    )
-    llm_coverage_rate = (
-        (total - final_fallback) / total if total else 1.0
-    )
-    retry_success_rate = (
-        retry_recovered / retry_requested if retry_requested else None
-    )
-    recovery_rate = (
-        retry_recovered_unique / initial_missing if initial_missing else None
-    )
+    initial_coverage_rate = (total - initial_missing) / total if total else 1.0
+    llm_coverage_rate = (total - final_fallback) / total if total else 1.0
+    retry_success_rate = retry_recovered / retry_requested if retry_requested else None
+    recovery_rate = retry_recovered_unique / initial_missing if initial_missing else None
 
     quality = {
         "version": 1,
@@ -910,10 +904,40 @@ def sentences_to_diffusion_prompt_plan(
         prompts=planned_prompts,
         sources=planned_sources,
         continuity_bible=continuity_bible,
-        baseline_prompt=baseline_prompt or DiffusionPrompt(prompt=_sanitize_scene_prompt("", fallback=targets[0])),
+        baseline_prompt=baseline_prompt
+        or DiffusionPrompt(prompt=_sanitize_scene_prompt("", fallback=targets[0])),
         baseline_notes=baseline_notes,
         baseline_source=str(baseline_source or "fallback"),
         quality=quality,
+    )
+
+
+def sentence_batches_to_diffusion_prompt_plan(
+    sentence_batches: Sequence[Sequence[str]],
+    *,
+    context_prefix: Sequence[str] | None = None,
+    context_suffix: Sequence[str] | None = None,
+    timeout_seconds: int = 240,
+) -> DiffusionPromptPlan:
+    """Generate a diffusion prompt plan for grouped sentences.
+
+    Each batch becomes a single prompt target so the resulting prompt represents the batch narrative
+    (one image persists across the batch in the interactive reader).
+    """
+
+    combined: list[str] = []
+    for batch in sentence_batches or ():
+        items = [str(entry).strip() for entry in (batch or ()) if str(entry).strip()]
+        if not items:
+            combined.append("")
+            continue
+        combined.append("Batch narrative:\n" + "\n".join(f"- {entry}" for entry in items))
+
+    return sentences_to_diffusion_prompt_plan(
+        combined,
+        context_prefix=context_prefix,
+        context_suffix=context_suffix,
+        timeout_seconds=timeout_seconds,
     )
 
 

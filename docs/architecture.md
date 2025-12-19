@@ -3,7 +3,7 @@
 ## Project Layout
 - `main.py` – CLI launcher that wires configuration, logging, and live progress display for the pipeline.
 - `modules/` – Python package containing configuration helpers, pipeline core logic, media synthesis, observability, and web API. The library subsystem now splits responsibilities across `modules/library/library_models.py`, `library_repository.py`, `library_metadata.py`, `library_sync.py`, and the orchestration facade in `library_service.py`.
-- `modules/images/` – Draw Things / Stable Diffusion client + prompt helpers for per-sentence image generation.
+- `modules/images/` – Draw Things / Stable Diffusion client + prompt helpers for sentence/batch image generation.
 - `modules/subtitles/` – Subtitle parsing and translation utilities used by `SubtitleService` and the subtitle job API.
 - `web/` – React/Vite single-page application that talks to the FastAPI backend.
 - `scripts/` – Shell helpers (`run-webapi.sh`, `run-webui.sh`) that wrap common dev workflows.
@@ -14,7 +14,7 @@
 2. **Pipeline execution** – `modules/services/pipeline_service.py` assembles a `PipelineConfig`, coordinates ingestion, translation, rendering, and media generation, and returns a `PipelineResponse`.
 3. **Ingestion** – `modules/core/ingestion.py` extracts EPUB text, splits it into sentences, and caches refined lists.
 4. **Translation** – `modules/translation_engine.py` runs sentence translations through worker pools backed by the configured LLM client.
-5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, optional per-sentence images, and optional video batches.
+5. **Rendering & media** – `modules/core/rendering/`, `modules/output_formatter.py`, and `modules/audio_video_generator.py` create HTML/PDF documents, audio narration, optional sentence/batch images, and optional video batches.
 6. **Observability** – `modules/progress_tracker.py` emits structured events that feed CLI logs and the API SSE stream; `modules/observability.py` wraps stages with structured logging/telemetry.
 
 ### Audio/video backend architecture
@@ -61,13 +61,13 @@ changes (`modules/config/loader.py`, `modules/video/backends/ffmpeg_renderer.py`
 
 ### Sentence image generation
 
-When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline.py`) generates one PNG per sentence in parallel with translation. The pipeline:
+When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline.py`) generates PNGs in parallel with translation. By default it batches sentences (`image_prompt_batching_enabled=true`, `image_prompt_batch_size=10`) so one image persists for an entire sentence batch in the player. The pipeline:
 
-1. Precomputes a consistent prompt plan for the selected sentence window (`modules/images/prompting.py:sentences_to_diffusion_prompt_map`), optionally including extra context sentences before/after the job window via `image_prompt_context_sentences`.
+1. Precomputes a consistent prompt plan for the selected sentence window (`modules/images/prompting.py:sentences_to_diffusion_prompt_plan`). When batching is enabled, the renderer groups sentences into batches and asks for one prompt per batch.
    - Persists the prompt plan to `metadata/image_prompt_plan.json` for debugging/QA.
-2. Appends the shared base + negative prompts (`build_sentence_image_prompt`, `build_sentence_image_negative_prompt`) to keep the story-reel visual style consistent.
+2. Appends the selected style template base + negative prompts (`image_style_template`, `build_sentence_image_prompt`, `build_sentence_image_negative_prompt`) to keep the reel visual style consistent.
 3. Calls a Draw Things / AUTOMATIC1111-compatible `txt2img` endpoint via `DrawThingsClient` (`modules/images/drawthings.py`) using the configured diffusion parameters.
-4. Writes images under `media/images/<range_fragment>/sentence_XXXXX.png` and merges the image metadata back into each chunk’s `sentences[]` entries (`image`, `image_path`/`imagePath`) so `/api/pipelines/jobs/{job_id}/media/live` can surface them during running jobs.
+4. Writes images under `media/images/batches/batch_XXXXX.png` when batching is enabled (or `media/images/<range_fragment>/sentence_XXXXX.png` when disabled) and merges the image metadata back into each chunk’s `sentences[]` entries (`image`, `image_path`/`imagePath`) so `/api/pipelines/jobs/{job_id}/media/live` can surface them during running jobs.
 
 ### Metadata creation & highlighting controls
 
