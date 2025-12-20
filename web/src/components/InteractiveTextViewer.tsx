@@ -1798,11 +1798,13 @@ const handleAudioSeeked = useCallback(() => {
   });
 
   const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
+  const hasVisibleCues =
+    resolvedCueVisibility.original || resolvedCueVisibility.transliteration || resolvedCueVisibility.translation;
   const showTextPlayer =
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
     Boolean(textPlayerSentences && textPlayerSentences.length > 0);
   const pinnedLinguistBubbleNode =
-    linguistEnabled && linguistBubble && linguistBubblePinned ? (
+    linguistEnabled && linguistBubble && linguistBubblePinned && hasVisibleCues ? (
       <MyLinguistBubble
         bubble={linguistBubble}
         isPinned={linguistBubblePinned}
@@ -1834,12 +1836,13 @@ const handleAudioSeeked = useCallback(() => {
 
   return (
     <>
-	      <div
-	        ref={rootRef}
-	        className={rootClassName}
-	        data-fullscreen={isFullscreen ? 'true' : 'false'}
-	        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
-	      >
+      <div
+        ref={rootRef}
+        className={rootClassName}
+        data-fullscreen={isFullscreen ? 'true' : 'false'}
+        data-original-enabled={originalAudioEnabled ? 'true' : 'false'}
+        data-cues-visible={hasVisibleCues ? 'true' : 'false'}
+      >
       <InteractiveFullscreenControls
         isVisible={isFullscreen && hasFullscreenPanelContent}
         collapsed={fullscreenControlsCollapsed}
@@ -1950,7 +1953,7 @@ const handleAudioSeeked = useCallback(() => {
               Text preview will appear once generated.
             </div>
           )}
-          {linguistEnabled && linguistBubble && !linguistBubblePinned ? (
+          {linguistEnabled && linguistBubble && !linguistBubblePinned && hasVisibleCues ? (
             <MyLinguistBubble
               bubble={linguistBubble}
               isPinned={linguistBubblePinned}

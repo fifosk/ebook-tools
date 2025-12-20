@@ -52,7 +52,6 @@ export function InlineAudioPlayer({
         <span className="player-panel__interactive-label">Synchronized audio</span>
         <div className="player-panel__interactive-audio-controls">
           <PlayerCore
-            key={audioUrl ?? 'inline-audio'}
             ref={playerRef}
             mediaRef={mediaRef}
             src={audioUrl ?? undefined}

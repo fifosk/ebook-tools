@@ -3696,6 +3696,13 @@ button.link-button:focus {
   padding-top: calc(4.4rem + env(safe-area-inset-top, 0px));
 }
 
+.player-panel__interactive[data-cues-visible='false'] [data-text-player-frame='true'],
+.player-panel__interactive[data-cues-visible='false'] .player-panel__document-text,
+.player-panel__interactive[data-cues-visible='false'] .player-panel__document-status,
+.player-panel__interactive[data-cues-visible='false'] .player-panel__document-error {
+  display: none;
+}
+
 .player-panel__interactive-image-reel {
   --reel-gap: 0.55rem;
   --reel-frame-size: clamp(3.6rem, 8vw, 5.1rem);
