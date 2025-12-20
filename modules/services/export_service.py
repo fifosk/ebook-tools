@@ -10,11 +10,12 @@ from pathlib import Path
 import re
 import shutil
 import uuid
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Iterable, Mapping, Optional, Tuple
 from urllib.parse import urlparse
 
 from conf.sync_config import AUDIO_SUFFIXES, VIDEO_SUFFIXES
 from modules import logging_manager
+from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.metadata_manager import MetadataLoader
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService
@@ -29,6 +30,9 @@ DEFAULT_SCHEMA_VERSION = 1
 DEFAULT_READING_BED_ID = "lost-in-the-pages"
 DEFAULT_READING_BED_LABEL = "Lost in the Pages"
 DEFAULT_READING_BED_URL = "assets/reading-beds/lost-in-the-pages.mp3"
+DEFAULT_UNKNOWN_LANGUAGE_CODE = "und"
+UNTITLED_BOOK = "Untitled Book"
+UNKNOWN_AUTHOR = "Unknown Author"
 IMAGE_SUFFIXES = {
     ".png",
     ".jpg",
@@ -74,8 +78,8 @@ def _resolve_export_root(file_locator: FileLocator) -> Path:
 
 
 def _sanitize_filename(value: str, fallback: str = "export") -> str:
-    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_")
-    raw = (value or "").strip()
+    allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_, ")
+    raw = " ".join((value or "").split())
     if not raw:
         return fallback
     normalized = []
@@ -92,8 +96,269 @@ def _sanitize_filename(value: str, fallback: str = "export") -> str:
             if not last_sep and normalized:
                 normalized.append("-")
                 last_sep = True
-    result = "".join(normalized).strip("-_")
+    result = "".join(normalized).strip(" -_,")
     return result or fallback
+
+
+_LANG_CODE_LOOKUP = {key.lower(): value for key, value in LANGUAGE_CODES.items()}
+_LANG_CODE_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _camel_key(key: str) -> str:
+    parts = key.split("_")
+    return parts[0] + "".join(part.capitalize() for part in parts[1:])
+
+
+def _extract_first_text(payload: Mapping[str, Any], keys: Iterable[str]) -> Optional[str]:
+    for key in keys:
+        for lookup in (key, _camel_key(key)):
+            if lookup not in payload:
+                continue
+            value = payload.get(lookup)
+            if isinstance(value, str):
+                trimmed = value.strip()
+                if trimmed:
+                    return trimmed
+            if isinstance(value, list):
+                for entry in value:
+                    if isinstance(entry, str):
+                        trimmed = entry.strip()
+                        if trimmed:
+                            return trimmed
+    return None
+
+
+def _normalize_language_tag(value: str) -> str:
+    parts = [part for part in value.replace("_", "-").split("-") if part]
+    if not parts:
+        return value
+    normalized = [parts[0].lower()]
+    for part in parts[1:]:
+        if len(part) in {2, 3}:
+            normalized.append(part.upper())
+        elif len(part) == 4:
+            normalized.append(part.title())
+        else:
+            normalized.append(part.lower())
+    return "-".join(normalized)
+
+
+def _normalize_language_code(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    mapped = _LANG_CODE_LOOKUP.get(raw.lower())
+    if mapped:
+        return mapped
+    if any(ch.isspace() for ch in raw) or not _LANG_CODE_PATTERN.fullmatch(raw):
+        return None
+    return _normalize_language_tag(raw)
+
+
+def _coerce_int(value: Any) -> Optional[int]:
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _iter_metadata_sections(metadata: Mapping[str, Any]) -> Iterable[Mapping[str, Any]]:
+    yield metadata
+    for key in ("request", "result", "request_payload", "resume_context", "parameters", "inputs", "options", "config"):
+        section = metadata.get(key)
+        if isinstance(section, Mapping):
+            yield section
+            for nested_key in ("inputs", "options", "config"):
+                nested = section.get(nested_key)
+                if isinstance(nested, Mapping):
+                    yield nested
+
+
+def _resolve_language_labels(
+    metadata: Mapping[str, Any],
+    book_metadata: Optional[Mapping[str, Any]],
+) -> Tuple[Optional[str], Optional[str]]:
+    original = None
+    target = None
+    original_keys = ("original_language", "input_language", "source_language")
+    target_keys = ("target_language", "translation_language", "target_languages")
+
+    for section in _iter_metadata_sections(metadata):
+        if original is None:
+            original = _extract_first_text(section, original_keys)
+        if target is None:
+            target = _extract_first_text(section, target_keys)
+        if original and target:
+            break
+
+    if original is None:
+        original = _extract_first_text(metadata, ("book_language", "language"))
+    if target is None:
+        target = _extract_first_text(metadata, ("language", "book_language"))
+
+    if isinstance(book_metadata, Mapping):
+        if original is None:
+            original = _extract_first_text(book_metadata, ("original_language", "input_language", "book_language", "language"))
+        if target is None:
+            target = _extract_first_text(book_metadata, ("target_language", "translation_language", "target_languages", "language", "book_language"))
+
+    return original, target
+
+
+def _resolve_sentence_range(
+    metadata: Mapping[str, Any],
+    chunks: Iterable[Mapping[str, Any]],
+) -> Tuple[Optional[int], Optional[int]]:
+    start_candidates: list[int] = []
+    end_candidates: list[int] = []
+
+    for chunk in chunks:
+        start = _coerce_int(chunk.get("start_sentence") or chunk.get("startSentence"))
+        end = _coerce_int(chunk.get("end_sentence") or chunk.get("endSentence"))
+        sentence_count = _coerce_int(chunk.get("sentence_count") or chunk.get("sentenceCount"))
+        if start is not None and end is None and sentence_count:
+            end = start + sentence_count - 1
+        if end is not None and start is None and sentence_count:
+            start = end - sentence_count + 1
+        if start is not None:
+            start_candidates.append(start)
+        if end is not None:
+            end_candidates.append(end)
+
+    if not start_candidates:
+        for section in _iter_metadata_sections(metadata):
+            start = _coerce_int(section.get("start_sentence") or section.get("startSentence"))
+            if start is not None:
+                start_candidates.append(start)
+                break
+    if not end_candidates:
+        for section in _iter_metadata_sections(metadata):
+            end = _coerce_int(section.get("end_sentence") or section.get("endSentence"))
+            if end is not None:
+                end_candidates.append(end)
+                break
+
+    start_value = min(start_candidates) if start_candidates else None
+    end_value = max(end_candidates) if end_candidates else None
+    if start_value is None and end_value is None:
+        return None, None
+    if start_value is None and end_value is not None:
+        start_value = end_value
+    if end_value is None and start_value is not None:
+        end_value = start_value
+    return start_value, end_value
+
+
+def _normalize_label_text(value: Optional[str], fallback: str) -> str:
+    if not value:
+        return fallback
+    trimmed = " ".join(value.strip().split())
+    return trimmed or fallback
+
+
+def _resolve_book_metadata_section(metadata: Mapping[str, Any]) -> Optional[Mapping[str, Any]]:
+    candidate = metadata.get("book_metadata")
+    return candidate if isinstance(candidate, Mapping) else None
+
+
+def _is_book_export(
+    item_type: Optional[str],
+    job_type: Optional[str],
+    book_metadata: Mapping[str, Any],
+) -> bool:
+    if isinstance(item_type, str) and item_type.strip().lower() == "book":
+        return True
+    if isinstance(job_type, str) and "book" in job_type.lower():
+        return True
+    for key in ("book_title", "title", "book_name", "book_author", "author"):
+        value = book_metadata.get(key)
+        if isinstance(value, str) and value.strip():
+            return True
+    nested = _resolve_book_metadata_section(book_metadata)
+    if isinstance(nested, Mapping):
+        for key in ("book_title", "title", "book_name", "book_author", "author"):
+            value = nested.get(key)
+            if isinstance(value, str) and value.strip():
+                return True
+    return False
+
+
+def _has_interactive_chunks(chunks: Iterable[Mapping[str, Any]]) -> bool:
+    for chunk in chunks:
+        if not isinstance(chunk, Mapping):
+            continue
+        sentences = chunk.get("sentences")
+        if isinstance(sentences, list) and len(sentences) > 0:
+            return True
+        sentence_count = _coerce_int(chunk.get("sentence_count") or chunk.get("sentenceCount"))
+        if sentence_count and sentence_count > 0:
+            return True
+    return False
+
+
+def _is_video_export(
+    *,
+    item_type: Optional[str],
+    job_type: Optional[str],
+    metadata: Mapping[str, Any],
+    media_map: Mapping[str, list[Dict[str, Any]]],
+    chunks: Iterable[Mapping[str, Any]],
+) -> bool:
+    if isinstance(item_type, str) and item_type.strip().lower() == "video":
+        return True
+    if isinstance(job_type, str):
+        normalized = job_type.strip().lower()
+        if normalized == "youtube_dub" or "video" in normalized:
+            return True
+    if isinstance(metadata.get("youtube_dub"), Mapping):
+        return True
+    result_section = metadata.get("result")
+    if isinstance(result_section, Mapping) and isinstance(result_section.get("youtube_dub"), Mapping):
+        return True
+    has_video_media = bool(media_map.get("video"))
+    if has_video_media and not _has_interactive_chunks(chunks):
+        return True
+    return False
+
+
+def _build_export_label(
+    *,
+    metadata: Mapping[str, Any],
+    book_metadata: Mapping[str, Any],
+    chunks: Iterable[Mapping[str, Any]],
+    library_entry: Optional[LibraryEntry] = None,
+) -> Optional[str]:
+    nested_book = _resolve_book_metadata_section(book_metadata)
+    author_candidate = library_entry.author if library_entry else None
+    title_candidate = library_entry.book_title if library_entry else None
+
+    if not author_candidate:
+        author_candidate = _extract_first_text(
+            nested_book or book_metadata,
+            ("book_author", "author", "writer", "creator"),
+        )
+    if not title_candidate:
+        title_candidate = _extract_first_text(
+            nested_book or book_metadata,
+            ("book_title", "title", "book_name", "name"),
+        )
+
+    author = _normalize_label_text(author_candidate, UNKNOWN_AUTHOR)
+    title = _normalize_label_text(title_candidate, UNTITLED_BOOK)
+    original_label, target_label = _resolve_language_labels(metadata, nested_book or book_metadata)
+    original_code = _normalize_language_code(original_label) or DEFAULT_UNKNOWN_LANGUAGE_CODE
+    target_code = _normalize_language_code(target_label) or DEFAULT_UNKNOWN_LANGUAGE_CODE
+    start_sentence, end_sentence = _resolve_sentence_range(metadata, chunks)
+    if start_sentence is None:
+        start_sentence = 1
+    if end_sentence is None:
+        end_sentence = start_sentence
+
+    return f"{author}, {title}, {original_code}-{target_code}, sentence {start_sentence}-{end_sentence}"
 
 
 def _strip_url_suffix(value: str) -> str:
@@ -527,6 +792,25 @@ class ExportService:
         complete = bool(complete_flag) if isinstance(complete_flag, bool) else False
 
         book_metadata = _sanitize_book_metadata(metadata, job_root=job_root)
+        is_video_export = _is_video_export(
+            item_type=item_type,
+            job_type=job_type,
+            metadata=metadata,
+            media_map=media_map,
+            chunks=chunk_payloads,
+        )
+        is_book_export = False if is_video_export else _is_book_export(item_type, job_type, book_metadata)
+        export_label = (
+            _build_export_label(
+                metadata=metadata,
+                book_metadata=book_metadata,
+                chunks=chunk_payloads,
+                library_entry=library_entry,
+            )
+            if is_book_export
+            else None
+        )
+        export_player_type = "video" if is_video_export else DEFAULT_EXPORT_PLAYER_TYPE
 
         source_payload: Dict[str, Any] = {
             "kind": source_kind,
@@ -541,7 +825,7 @@ class ExportService:
         export_manifest = {
             "schema_version": DEFAULT_SCHEMA_VERSION,
             "player": {
-                "type": DEFAULT_EXPORT_PLAYER_TYPE,
+                "type": export_player_type,
                 "features": {
                     "linguist": False,
                     "painter": False,
@@ -560,6 +844,8 @@ class ExportService:
             },
             "created_at": _now_iso(),
         }
+        if export_label:
+            export_manifest["export_label"] = export_label
 
         manifest_path = export_dir / "manifest.json"
         manifest_path.write_text(
@@ -574,8 +860,12 @@ class ExportService:
             encoding="utf-8",
         )
 
-        download_label = book_metadata.get("book_title") or job_id
-        download_name = f"{_sanitize_filename(str(download_label), fallback='export')}-player.zip"
+        if export_label:
+            base_name = _sanitize_filename(export_label, fallback="export")
+            download_name = f"{base_name}.zip"
+        else:
+            download_label = book_metadata.get("book_title") or job_id
+            download_name = f"{_sanitize_filename(str(download_label), fallback='export')}-player.zip"
 
         zip_path = export_root / f"{export_id}.zip"
         shutil.make_archive(str(zip_path.with_suffix("")), "zip", root_dir=export_dir)

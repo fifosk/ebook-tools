@@ -15,6 +15,7 @@ import {
 import { buildMediaFileId, toVideoFiles } from './player-panel/utils';
 import type { NavigationIntent } from './player-panel/constants';
 import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../api/dtos';
+import { coerceExportPath } from '../utils/storageResolver';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void };
 
@@ -24,12 +25,33 @@ interface YoutubeDubPlayerProps {
   mediaComplete: boolean;
   isLoading: boolean;
   error: Error | null;
+  playerMode?: 'online' | 'export';
   onFullscreenChange?: (isFullscreen: boolean) => void;
   onPlaybackStateChange?: (isPlaying: boolean) => void;
   onVideoPlaybackStateChange?: (isPlaying: boolean) => void;
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
   libraryItem?: LibraryItem | null;
+}
+
+function replaceUrlExtension(value: string, suffix: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const [pathPart, hashPart] = trimmed.split('#', 2);
+  const [pathOnly, queryPart] = pathPart.split('?', 2);
+  if (!pathOnly || !/\.[^/.]+$/.test(pathOnly)) {
+    return null;
+  }
+  let result = pathOnly.replace(/\.[^/.]+$/, suffix);
+  if (queryPart) {
+    result += `?${queryPart}`;
+  }
+  if (hashPart) {
+    result += `#${hashPart}`;
+  }
+  return result;
 }
 
 function readNestedValue(source: unknown, path: string[]): unknown {
@@ -167,6 +189,7 @@ export default function YoutubeDubPlayer({
   mediaComplete,
   isLoading,
   error,
+  playerMode = 'online',
   onFullscreenChange,
   onPlaybackStateChange,
   onVideoPlaybackStateChange,
@@ -174,6 +197,16 @@ export default function YoutubeDubPlayer({
   onBackToLibrary,
   libraryItem = null,
 }: YoutubeDubPlayerProps) {
+  const isExportMode = playerMode === 'export';
+  const resolveMediaUrl = useCallback(
+    (url: string) => {
+      if (isExportMode) {
+        return coerceExportPath(url, jobId) ?? url;
+      }
+      return appendAccessToken(url);
+    },
+    [appendAccessToken, isExportMode, jobId],
+  );
   const videoLookup = useMemo(() => {
     const map = new Map<string, LiveMediaItem>();
     media.video.forEach((item, index) => {
@@ -188,13 +221,13 @@ export default function YoutubeDubPlayer({
   const videoFiles = useMemo(
     () =>
       toVideoFiles(media.video).map((file) => {
-        const urlWithToken = appendAccessToken(file.url);
+        const urlWithToken = resolveMediaUrl(file.url);
         return {
           ...file,
           url: urlWithToken,
         };
       }),
-    [media.video],
+    [media.video, resolveMediaUrl],
   );
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, deriveBaseId } = useMediaMemory({
     jobId,
@@ -203,7 +236,7 @@ export default function YoutubeDubPlayer({
   const [jobYoutubeMetadata, setJobYoutubeMetadata] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
-    if (libraryItem) {
+    if (libraryItem || isExportMode) {
       setJobTvMetadata(null);
       setJobYoutubeMetadata(null);
       return;
@@ -236,7 +269,7 @@ export default function YoutubeDubPlayer({
     return () => {
       cancelled = true;
     };
-  }, [jobId, libraryItem]);
+  }, [isExportMode, jobId, libraryItem]);
   const subtitleMap = useMemo(() => {
     const priorities = ['vtt', 'srt', 'ass', 'text'];
     const resolveSuffix = (value: string | null | undefined) => {
@@ -281,7 +314,7 @@ export default function YoutubeDubPlayer({
       .filter((entry) => typeof entry.url === 'string' && entry.url.length > 0)
       .sort((a, b) => formatRank(a) - formatRank(b))
       .map((entry) => ({
-        url: appendAccessToken(entry.url!),
+        url: resolveMediaUrl(entry.url!),
         label: entry.name ?? entry.url ?? 'Subtitles',
         kind: 'subtitles',
         language: (entry as { language?: string }).language ?? undefined,
@@ -330,7 +363,7 @@ export default function YoutubeDubPlayer({
       if (best) {
         map.set(videoId, [
           {
-            url: appendAccessToken(best.url!),
+            url: resolveMediaUrl(best.url!),
             label: best.name ?? best.url ?? 'Subtitles',
             kind: 'subtitles',
             language: (best as { language?: string }).language ?? undefined,
@@ -345,7 +378,7 @@ export default function YoutubeDubPlayer({
           filtered
             .sort((a, b) => formatRank(a) - formatRank(b))
             .map((entry) => ({
-              url: appendAccessToken(entry.url!),
+              url: resolveMediaUrl(entry.url!),
               label: entry.name ?? entry.url ?? 'Subtitles',
               kind: 'subtitles',
               language: (entry as { language?: string }).language ?? undefined,
@@ -358,30 +391,24 @@ export default function YoutubeDubPlayer({
     }
 
     return map;
-  }, [deriveBaseId, media.text, media.video]);
+  }, [deriveBaseId, media.text, media.video, resolveMediaUrl]);
 
   const buildSiblingSubtitleTracks = useCallback((videoUrl: string | null | undefined): SubtitleTrack[] => {
     if (!videoUrl) {
       return [];
     }
-    try {
-      const url = new URL(videoUrl, window.location.origin);
-      const candidates = ['.vtt', '.srt', '.ass'].map((suffix) => {
-        const clone = new URL(url.toString());
-        const path = clone.pathname.replace(/\.[^/.]+$/, suffix);
-        clone.pathname = path;
-        return appendAccessToken(clone.toString());
-      });
-      return candidates.map((candidate, index) => ({
-        url: candidate,
-        label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
-        kind: 'subtitles',
-        language: 'und',
-      }));
-    } catch (error) {
-      void error;
+    const candidates = ['.vtt', '.srt', '.ass']
+      .map((suffix) => replaceUrlExtension(videoUrl, suffix))
+      .filter((candidate): candidate is string => Boolean(candidate));
+    if (candidates.length === 0) {
+      return [];
     }
-    return [];
+    return candidates.map((candidate, index) => ({
+      url: candidate,
+      label: index === 0 ? 'Subtitles' : `Subtitles (${index + 1})`,
+      kind: 'subtitles',
+      language: 'und',
+    }));
   }, []);
   const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);

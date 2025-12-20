@@ -3,6 +3,7 @@ import type { LibraryItem, LibraryViewMode, LibraryMetadataUpdatePayload } from 
 import {
   applyLibraryIsbn,
   appendAccessToken,
+  createExport,
   lookupLibraryIsbnMetadata,
   removeLibraryEntry,
   reindexLibrary,
@@ -10,6 +11,7 @@ import {
   searchLibrary,
   updateLibraryMetadata,
   uploadLibrarySource,
+  withBase,
   type LibrarySearchParams
 } from '../api/client';
 import LibraryList from '../components/LibraryList';
@@ -433,6 +435,55 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     [items.length, page]
   );
 
+  const handleExportEntry = useCallback(
+    async (item: LibraryItem) => {
+      if (mutating[item.jobId]) {
+        return;
+      }
+      if (!item.mediaCompleted) {
+        window.alert('Export is available once the entry has finished processing.');
+        return;
+      }
+      setMutating((previous) => ({ ...previous, [item.jobId]: true }));
+      try {
+        const result = await createExport({
+          source_kind: 'library',
+          source_id: item.jobId,
+          player_type: 'interactive-text'
+        });
+        const resolved =
+          result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
+            ? result.download_url
+            : withBase(result.download_url);
+        const downloadUrl = appendAccessToken(resolved);
+        if (typeof document !== 'undefined') {
+          const anchor = document.createElement('a');
+          anchor.href = downloadUrl;
+          anchor.download = result.filename ?? '';
+          anchor.rel = 'noopener';
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          return;
+        }
+        if (typeof window !== 'undefined') {
+          window.location.assign(downloadUrl);
+        }
+      } catch (actionError) {
+        const message =
+          actionError instanceof Error ? actionError.message : 'Unable to export offline player.';
+        window.alert(message);
+      } finally {
+        setMutating((previous) => {
+          const next = { ...previous };
+          delete next[item.jobId];
+          return next;
+        });
+      }
+    },
+    [appendAccessToken, createExport, mutating, withBase]
+  );
+
   const handleReindex = useCallback(async () => {
     setIsReindexing(true);
     try {
@@ -740,6 +791,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
               variant="embedded"
               onSelect={selectLibraryItem}
               onOpen={handleOpen}
+              onExport={handleExportEntry}
               onRemove={handleRemoveEntry}
               onEditMetadata={handleEditMetadata}
               selectedJobId={selectedItem?.jobId}

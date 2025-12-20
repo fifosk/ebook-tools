@@ -14,6 +14,7 @@ type Props = {
   view: LibraryViewMode;
   onSelect?: (item: LibraryItem) => void;
   onOpen: (item: LibraryItem) => void;
+  onExport?: (item: LibraryItem) => void;
   onRemove: (item: LibraryItem) => void;
   onEditMetadata: (item: LibraryItem) => void;
   selectedJobId?: string | null;
@@ -750,6 +751,7 @@ function LibraryList({
   view,
   onSelect,
   onOpen,
+  onExport,
   onRemove,
   onEditMetadata,
   selectedJobId,
@@ -769,53 +771,76 @@ function LibraryList({
     }
   };
 
-  const renderActions = (item: LibraryItem) => (
-    <div className={styles.actions}>
-      <button
-        type="button"
-        className={styles.actionIconButton}
-        onClick={(event) => {
-          event.stopPropagation();
-          onOpen(item);
-        }}
-        disabled={Boolean(mutating[item.jobId])}
-        aria-label="Play"
-        title="Play"
-      >
-        <span aria-hidden="true">▶</span>
-        <span className="visually-hidden">Play</span>
-      </button>
-      <button
-        type="button"
-        className={styles.actionIconButton}
-        onClick={(event) => {
-          event.stopPropagation();
-          onEditMetadata(item);
-        }}
-        disabled={Boolean(mutating[item.jobId])}
-        aria-label="Edit"
-        title="Edit"
-      >
-        <span aria-hidden="true">✎</span>
-        <span className="visually-hidden">Edit</span>
-      </button>
-      <button
-        type="button"
-        className={styles.actionIconButton}
-        onClick={(event) => {
-          event.stopPropagation();
-          onRemove(item);
-        }}
-        disabled={Boolean(mutating[item.jobId])}
-        aria-label="Delete"
-        title="Delete"
-        data-variant="danger"
-      >
-        <span aria-hidden="true">🗑</span>
-        <span className="visually-hidden">Delete</span>
-      </button>
-    </div>
-  );
+  const renderActions = (item: LibraryItem) => {
+    const isExportReady = item.mediaCompleted;
+    const exportTitle = isExportReady ? 'Export offline player' : 'Export available after media completes';
+    const isMutating = Boolean(mutating[item.jobId]);
+    return (
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.actionIconButton}
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpen(item);
+          }}
+          disabled={isMutating}
+          aria-label="Play"
+          title="Play"
+        >
+          <span aria-hidden="true">▶</span>
+          <span className="visually-hidden">Play</span>
+        </button>
+        <button
+          type="button"
+          className={styles.actionIconButton}
+          onClick={(event) => {
+            event.stopPropagation();
+            onEditMetadata(item);
+          }}
+          disabled={isMutating}
+          aria-label="Edit"
+          title="Edit"
+        >
+          <span aria-hidden="true">✎</span>
+          <span className="visually-hidden">Edit</span>
+        </button>
+        {onExport ? (
+          <button
+            type="button"
+            className={styles.actionIconButton}
+            onClick={(event) => {
+              event.stopPropagation();
+              if (isExportReady) {
+                onExport(item);
+              }
+            }}
+            disabled={isMutating || !isExportReady}
+            aria-label="Export offline player"
+            title={exportTitle}
+          >
+            <span aria-hidden="true">📦</span>
+            <span className="visually-hidden">Export offline player</span>
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className={styles.actionIconButton}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRemove(item);
+          }}
+          disabled={isMutating}
+          aria-label="Delete"
+          title="Delete"
+          data-variant="danger"
+        >
+          <span aria-hidden="true">🗑</span>
+          <span className="visually-hidden">Delete</span>
+        </button>
+      </div>
+    );
+  };
 
   if (items.length === 0) {
     return (

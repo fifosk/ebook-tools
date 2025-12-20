@@ -23,6 +23,7 @@ export type ExportPlayerSource = {
 
 export type ExportPlayerManifest = {
   schema_version: number;
+  export_label?: string | null;
   player?: {
     type?: string | null;
     features?: ExportPlayerFeatureFlags | null;

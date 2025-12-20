@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import PlayerPanel from '../components/PlayerPanel';
+import YoutubeDubPlayer from '../components/YoutubeDubPlayer';
 import type { PipelineMediaResponse } from '../api/dtos';
 import { normaliseFetchedMedia } from '../hooks/useLiveMedia';
 import type { ExportPlayerManifest, ExportReadingBed } from '../types/exportPlayer';
@@ -37,6 +38,15 @@ export default function ExportPlayerApp() {
   }
 
   const jobId = manifest.source?.id ?? 'export';
+  const exportLabel = useMemo(() => {
+    if (typeof manifest.export_label === 'string' && manifest.export_label.trim()) {
+      return manifest.export_label.trim();
+    }
+    if (typeof manifest.source?.label === 'string' && manifest.source.label.trim()) {
+      return manifest.source.label.trim();
+    }
+    return null;
+  }, [manifest]);
   const payload: PipelineMediaResponse = {
     media: manifest.media ?? {},
     chunks: manifest.chunks ?? [],
@@ -45,6 +55,46 @@ export default function ExportPlayerApp() {
 
   const snapshot = useMemo(() => normaliseFetchedMedia(payload, jobId), [jobId, payload]);
   const readingBed = resolveReadingBed(manifest);
+  const hasInteractiveChunks = useMemo(
+    () =>
+      snapshot.chunks.some(
+        (chunk) =>
+          (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) ||
+          (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount > 0),
+      ),
+    [snapshot.chunks],
+  );
+  const isVideoExport = useMemo(() => {
+    const rawPlayerType = manifest.player?.type;
+    const playerType = typeof rawPlayerType === 'string' ? rawPlayerType.toLowerCase() : '';
+    if (playerType === 'video') {
+      return true;
+    }
+    if (manifest.source?.item_type === 'video') {
+      return true;
+    }
+    return snapshot.media.video.length > 0 && !hasInteractiveChunks;
+  }, [hasInteractiveChunks, manifest.player?.type, manifest.source?.item_type, snapshot.media.video.length]);
+
+  useEffect(() => {
+    if (!exportLabel || typeof document === 'undefined') {
+      return;
+    }
+    document.title = exportLabel;
+  }, [exportLabel]);
+
+  if (isVideoExport) {
+    return (
+      <YoutubeDubPlayer
+        jobId={jobId}
+        media={snapshot.media}
+        mediaComplete={snapshot.complete}
+        isLoading={false}
+        error={null}
+        playerMode="export"
+      />
+    );
+  }
 
   return (
     <PlayerPanel

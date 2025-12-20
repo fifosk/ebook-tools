@@ -223,6 +223,8 @@ export default function VideoPlayer({
     () => sanitiseOpacityPercent(subtitleBackgroundOpacity),
     [subtitleBackgroundOpacity],
   );
+  const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
+  const allowCrossOrigin = !isFileProtocol;
   const [processedSubtitleUrl, setProcessedSubtitleUrl] = useState<string>(EMPTY_VTT_DATA_URL);
   const [coverFailed, setCoverFailed] = useState(false);
   const [secondaryCoverFailed, setSecondaryCoverFailed] = useState(false);
@@ -273,7 +275,7 @@ export default function VideoPlayer({
       return;
     }
 
-    if (typeof fetch !== 'function') {
+    if (isFileProtocol || typeof fetch !== 'function') {
       setProcessedSubtitleUrl(activeSubtitleTrack.url);
       return;
     }
@@ -308,7 +310,7 @@ export default function VideoPlayer({
         URL.revokeObjectURL(revokedUrl);
       }
     };
-  }, [activeSubtitleTrack?.url, resolvedSubtitleBackgroundOpacityPercent, subtitleScale, subtitlesEnabled]);
+  }, [activeSubtitleTrack?.url, isFileProtocol, resolvedSubtitleBackgroundOpacityPercent, subtitleScale, subtitlesEnabled]);
 
   const applySubtitleTrack = useCallback(
     (track: SubtitleTrack | null) => {
@@ -1104,7 +1106,7 @@ export default function VideoPlayer({
               style={videoStyle}
               data-testid="video-player"
               controls
-              crossOrigin="anonymous"
+              crossOrigin={allowCrossOrigin ? 'anonymous' : undefined}
               src={activeFile.url}
               poster={activeFile.poster}
               autoPlay={autoPlay}
