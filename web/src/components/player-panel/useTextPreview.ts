@@ -13,7 +13,15 @@ type UseTextPreviewResult = {
   textError: string | null;
 };
 
-export function useTextPreview(url: string | null | undefined): UseTextPreviewResult {
+type UseTextPreviewOptions = {
+  enabled?: boolean;
+};
+
+export function useTextPreview(
+  url: string | null | undefined,
+  options: UseTextPreviewOptions = {},
+): UseTextPreviewResult {
+  const { enabled = true } = options;
   const textContentCache = useRef(new Map<string, { raw: string; plain: string }>());
   const [textPreview, setTextPreview] = useState<TextPreview | null>(null);
   const [textLoading, setTextLoading] = useState(false);
@@ -21,7 +29,14 @@ export function useTextPreview(url: string | null | undefined): UseTextPreviewRe
 
   useEffect(() => {
     const targetUrl = typeof url === 'string' ? url : '';
+    const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
     if (!targetUrl) {
+      setTextPreview(null);
+      setTextError(null);
+      setTextLoading(false);
+      return;
+    }
+    if (!enabled || isFileProtocol) {
       setTextPreview(null);
       setTextError(null);
       setTextLoading(false);
@@ -84,7 +99,7 @@ export function useTextPreview(url: string | null | undefined): UseTextPreviewRe
     return () => {
       cancelled = true;
     };
-  }, [url]);
+  }, [enabled, url]);
 
   return { textPreview, textLoading, textError };
 }

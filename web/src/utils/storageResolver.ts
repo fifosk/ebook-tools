@@ -109,3 +109,62 @@ export function resolve(
   }
   return baseUrl;
 }
+
+export function coerceExportPath(
+  value: string | null | undefined,
+  jobId?: string | null
+): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return trimmed;
+  }
+  if (/^[a-z]+:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+
+  const normalised = trimmed.replace(/\\+/g, '/');
+  const [pathPart, hashPart] = normalised.split('#', 2);
+  const [pathOnly, queryPart] = pathPart.split('?', 2);
+
+  let relative = pathOnly.replace(/^\/+/, '');
+  const safeJobId = (jobId ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
+  if (safeJobId) {
+    const marker = `/${safeJobId}/`;
+    const markerIndex = relative.indexOf(marker);
+    if (markerIndex >= 0) {
+      relative = relative.slice(markerIndex + marker.length);
+    } else if (relative.startsWith(`${safeJobId}/`)) {
+      relative = relative.slice(safeJobId.length + 1);
+    }
+  }
+
+  const segments = relative.split('/').filter((segment) => segment && segment !== '.' && segment !== '..');
+  const mediaIndex = segments.indexOf('media');
+  const metadataIndex = segments.indexOf('metadata');
+  if (mediaIndex >= 0) {
+    relative = segments.slice(mediaIndex).join('/');
+  } else if (metadataIndex >= 0) {
+    relative = segments.slice(metadataIndex).join('/');
+  } else {
+    relative = segments.join('/');
+  }
+
+  if (!relative) {
+    return null;
+  }
+
+  let result = relative;
+  if (queryPart) {
+    result = `${result}?${queryPart}`;
+  }
+  if (hashPart) {
+    result = `${result}#${hashPart}`;
+  }
+  return result;
+}

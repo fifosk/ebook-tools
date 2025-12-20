@@ -41,6 +41,7 @@ export type UseLinguistBubbleArgs = {
   audioRef: MutableRefObject<HTMLAudioElement | null>;
   inlineAudioPlayingRef: MutableRefObject<boolean>;
   dictionarySuppressSeekRef: MutableRefObject<boolean>;
+  enabled?: boolean;
   activeSentenceIndex: number;
   setActiveSentenceIndex: (value: number) => void;
   timelineDisplay: TimelineDisplay | null;
@@ -82,6 +83,7 @@ export function useLinguistBubble({
   audioRef,
   inlineAudioPlayingRef,
   dictionarySuppressSeekRef,
+  enabled,
   activeSentenceIndex,
   setActiveSentenceIndex,
   timelineDisplay,
@@ -95,6 +97,7 @@ export function useLinguistBubble({
   onInlineAudioPlaybackStateChange,
   seekInlineAudioToTime,
 }: UseLinguistBubbleArgs): UseLinguistBubbleResult {
+  const isEnabled = enabled !== false;
   const linguistBubbleRef = useRef<HTMLDivElement | null>(null);
   const linguistAnchorRectRef = useRef<DOMRect | null>(null);
   const linguistAnchorElementRef = useRef<HTMLElement | null>(null);
@@ -114,6 +117,12 @@ export function useLinguistBubble({
     left: number;
   } | null>(null);
   const linguistBubblePositionRafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isEnabled) {
+      setLinguistBubble(null);
+    }
+  }, [isEnabled]);
 
   const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dictionaryPointerIdRef = useRef<number | null>(null);
@@ -340,6 +349,9 @@ export function useLinguistBubble({
       anchorElement: HTMLElement | null,
       navigationOverride: LinguistBubbleNavigation | null = null,
     ) => {
+      if (!isEnabled) {
+        return;
+      }
       const cleanedQuery = sanitizeLookupQuery(query);
       if (!cleanedQuery) {
         return;
@@ -476,6 +488,7 @@ export function useLinguistBubble({
       chunk?.chunkId,
       extractLinguistNavigation,
       globalInputLanguage,
+      isEnabled,
       jobId,
       resolvedJobOriginalLanguage,
       resolvedJobTranslationLanguage,
@@ -889,6 +902,9 @@ export function useLinguistBubble({
   }, [closeLinguistBubble, linguistBubble]);
 
   useEffect(() => {
+    if (!isEnabled) {
+      return;
+    }
     if (typeof window === 'undefined') {
       return;
     }
@@ -915,9 +931,12 @@ export function useLinguistBubble({
       window.removeEventListener('pointerdown', handleGlobalPointerDown, true);
       window.removeEventListener('keydown', handleGlobalKeyDown, true);
     };
-  }, [resumeDictionaryInteraction]);
+  }, [isEnabled, resumeDictionaryInteraction]);
 
   useEffect(() => {
+    if (!isEnabled) {
+      return;
+    }
     if (typeof document === 'undefined') {
       return;
     }
@@ -948,7 +967,7 @@ export function useLinguistBubble({
     return () => {
       document.removeEventListener('selectionchange', handleSelectionChange);
     };
-  }, [containerRef, resumeDictionaryInteraction]);
+  }, [containerRef, isEnabled, resumeDictionaryInteraction]);
 
   useEffect(() => {
     return () => {
@@ -1305,6 +1324,35 @@ export function useLinguistBubble({
       window.removeEventListener('keydown', handleShortcut);
     };
   }, [linguistBubble, navigateLinguistWord]);
+
+  const noop = useCallback(() => {}, []);
+  const noopNavigate = useCallback((_delta: -1 | 1) => {}, []);
+  const noopMouse = useCallback((_event: ReactMouseEvent<HTMLDivElement>) => {}, []);
+  const noopPointer = useCallback((_event: ReactPointerEvent<HTMLDivElement>) => {}, []);
+
+  if (!isEnabled) {
+    return {
+      bubble: null,
+      bubblePinned: false,
+      bubbleRef: linguistBubbleRef,
+      floatingPlacement: 'above',
+      floatingPosition: null,
+      canNavigatePrev: false,
+      canNavigateNext: false,
+      onTogglePinned: noop,
+      onClose: noop,
+      onSpeak: noop,
+      onSpeakSlow: noop,
+      onNavigateWord: noopNavigate,
+      onTokenClickCapture: noopMouse,
+      onPointerDownCapture: noopPointer,
+      onPointerMoveCapture: noopPointer,
+      onPointerUpCaptureWithSelection: noopPointer,
+      onPointerCancelCapture: noopPointer,
+      onBackgroundClick: handleInteractiveBackgroundClick,
+      requestPositionUpdate: noop,
+    };
+  }
 
   return {
     bubble: linguistBubble,

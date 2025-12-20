@@ -3,12 +3,25 @@ import type { MutableRefObject, ReactNode } from 'react';
 import { appendAccessToken, fetchSentenceImageInfoBatch, resolveLibraryMediaUrl } from '../../api/client';
 import type { AudioTrackMetadata, ChunkSentenceMetadata, SentenceImageInfoResponse } from '../../api/dtos';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
-import { resolve as resolveStoragePath } from '../../utils/storageResolver';
+import { coerceExportPath, resolve as resolveStoragePath } from '../../utils/storageResolver';
 import { SentenceImageReel, type SentenceImageFrame } from './SentenceImageReel';
 import type { TimelineSentenceRuntime } from './types';
+import type { ExportPlayerManifest } from '../../types/exportPlayer';
+
+function getExportManifest(): ExportPlayerManifest | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  const candidate = (window as Window & { __EXPORT_DATA__?: unknown }).__EXPORT_DATA__;
+  if (!candidate || typeof candidate !== 'object') {
+    return null;
+  }
+  return candidate as ExportPlayerManifest;
+}
 
 type UseSentenceImageReelArgs = {
   jobId: string | null;
+  playerMode?: 'online' | 'export';
   chunk: LiveMediaChunk | null;
   activeSentenceNumber: number;
   activeSentenceIndex: number;
@@ -56,6 +69,7 @@ const parseBatchStartFromBatchImagePath = (path: string | null): number | null =
 
 export function useSentenceImageReel({
   jobId,
+  playerMode = 'online',
   chunk,
   activeSentenceNumber,
   activeSentenceIndex,
@@ -77,6 +91,7 @@ export function useSentenceImageReel({
   handleTokenSeek,
   seekInlineAudioToTime,
 }: UseSentenceImageReelArgs): UseSentenceImageReelResult {
+  const isExportMode = playerMode === 'export';
   const minSentenceBound = useMemo(() => {
     const raw = jobStartSentence ?? null;
     if (typeof raw === 'number' && Number.isFinite(raw)) {
@@ -100,6 +115,32 @@ export function useSentenceImageReel({
     }
     return null;
   }, [bookTotalSentences, jobEndSentence, totalSentencesInBook]);
+
+  const exportSentenceByNumber = useMemo(() => {
+    if (!isExportMode) {
+      return null;
+    }
+    const manifest = getExportManifest();
+    const chunks = manifest?.chunks;
+    if (!Array.isArray(chunks)) {
+      return null;
+    }
+    const map = new Map<number, ChunkSentenceMetadata>();
+    chunks.forEach((chunk) => {
+      const entries = chunk?.sentences;
+      if (!Array.isArray(entries)) {
+        return;
+      }
+      entries.forEach((entry) => {
+        const raw = entry?.sentence_number ?? null;
+        if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+          return;
+        }
+        map.set(Math.max(1, Math.trunc(raw)), entry);
+      });
+    });
+    return map;
+  }, [isExportMode]);
 
   const [isSentenceImageReelVisible, setSentenceImageReelVisible] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
@@ -164,6 +205,9 @@ export function useSentenceImageReel({
   const [imagePromptPlanSummary, setImagePromptPlanSummary] = useState<Record<string, unknown> | null>(null);
   const imagePromptPlanRetryRef = useRef(0);
   const imagePromptPlanSummaryUrl = useMemo(() => {
+    if (isExportMode) {
+      return 'metadata/image_prompt_plan_summary.json';
+    }
     if (!jobId) {
       return null;
     }
@@ -175,7 +219,7 @@ export function useSentenceImageReel({
     } catch {
       return null;
     }
-  }, [isLibraryMediaOrigin, jobId]);
+  }, [isExportMode, isLibraryMediaOrigin, jobId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -183,6 +227,9 @@ export function useSentenceImageReel({
     }
     setImagePromptPlanSummary(null);
     imagePromptPlanRetryRef.current = 0;
+    if (isExportMode) {
+      return;
+    }
     if (!imagePromptPlanSummaryUrl) {
       return;
     }
@@ -456,20 +503,20 @@ export function useSentenceImageReel({
   ]);
 
   const chunkSentenceByNumber = useMemo(() => {
+    const baseMap = exportSentenceByNumber ? new Map(exportSentenceByNumber) : new Map<number, ChunkSentenceMetadata>();
     const entries = chunk?.sentences ?? null;
     if (!entries || entries.length === 0) {
-      return new Map<number, ChunkSentenceMetadata>();
+      return baseMap;
     }
-    const map = new Map<number, ChunkSentenceMetadata>();
     entries.forEach((entry) => {
       const raw = entry?.sentence_number ?? null;
       if (typeof raw !== 'number' || !Number.isFinite(raw)) {
         return;
       }
-      map.set(Math.max(1, Math.trunc(raw)), entry);
+      baseMap.set(Math.max(1, Math.trunc(raw)), entry);
     });
-    return map;
-  }, [chunk?.sentences]);
+    return baseMap;
+  }, [chunk?.sentences, exportSentenceByNumber]);
 
   const activeSentenceImagePath = useMemo(() => {
     const entries = chunk?.sentences ?? null;
@@ -538,6 +585,9 @@ export function useSentenceImageReel({
   }, [reelPrefetchSlots, reelSentenceSlots]);
 
   useEffect(() => {
+    if (isExportMode) {
+      return;
+    }
     if (!jobId) {
       return;
     }
@@ -596,7 +646,7 @@ export function useSentenceImageReel({
     return () => {
       cancelled = true;
     };
-  }, [chunkSentenceByNumber, isSentenceImageReelVisible, jobId, reelLookupSlots]);
+  }, [chunkSentenceByNumber, isExportMode, isSentenceImageReelVisible, jobId, reelLookupSlots]);
 
   const [reelImageFailures, setReelImageFailures] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -672,6 +722,11 @@ export function useSentenceImageReel({
         }
       };
 
+      if (isExportMode) {
+        const resolved = coerceExportPath(candidate, jobId);
+        return resolved ? addRefreshToken(resolved) : null;
+      }
+
       if (candidate.includes('://')) {
         return addRefreshToken(candidate);
       }
@@ -733,7 +788,7 @@ export function useSentenceImageReel({
         return null;
       }
     },
-    [imageRefreshToken, isLibraryMediaOrigin, jobId, reelImageRetryTokens],
+    [imageRefreshToken, isExportMode, isLibraryMediaOrigin, jobId, reelImageRetryTokens],
   );
 
   const resolveReelImagePath = useCallback(

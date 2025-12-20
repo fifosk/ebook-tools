@@ -5,7 +5,6 @@ import { useMediaMemory } from '../hooks/useMediaMemory';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
-  DEFAULT_COVER_URL,
   DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT,
   FONT_SCALE_MAX,
   FONT_SCALE_MIN,
@@ -26,7 +25,10 @@ import type {
   MediaSearchResult,
 } from '../api/dtos';
 import {
+  appendAccessToken,
+  createExport,
   fetchPipelineStatus,
+  withBase,
 } from '../api/client';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
@@ -35,7 +37,7 @@ import {
   isAudioFileType,
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
-import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest } from '../types/player';
+import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
 import { NavigationControls, type NavigationControlsProps } from './player-panel/NavigationControls';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
@@ -64,6 +66,46 @@ type PlaybackControls = {
   play: () => void;
 };
 
+type ReadingBedOverride = {
+  id: string;
+  label: string;
+  url: string;
+};
+
+const deriveSentenceCountFromChunks = (chunks: LiveMediaChunk[]): number | null => {
+  let maxSentence = 0;
+  let hasValue = false;
+  chunks.forEach((chunk) => {
+    if (!chunk) {
+      return;
+    }
+    const endSentence =
+      typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
+        ? Math.trunc(chunk.endSentence)
+        : null;
+    if (endSentence !== null) {
+      maxSentence = Math.max(maxSentence, endSentence);
+      hasValue = true;
+      return;
+    }
+    const startSentence =
+      typeof chunk.startSentence === 'number' && Number.isFinite(chunk.startSentence)
+        ? Math.trunc(chunk.startSentence)
+        : null;
+    const sentenceCount =
+      typeof chunk.sentenceCount === 'number' && Number.isFinite(chunk.sentenceCount)
+        ? Math.trunc(chunk.sentenceCount)
+        : Array.isArray(chunk.sentences) && chunk.sentences.length > 0
+          ? chunk.sentences.length
+          : null;
+    if (startSentence !== null && sentenceCount !== null) {
+      maxSentence = Math.max(maxSentence, startSentence + Math.max(sentenceCount - 1, 0));
+      hasValue = true;
+    }
+  });
+  return hasValue ? maxSentence : null;
+};
+
 interface PlayerPanelProps {
   jobId: string;
   jobType?: string | null;
@@ -83,6 +125,9 @@ interface PlayerPanelProps {
   selectionRequest?: MediaSelectionRequest | null;
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
+  playerMode?: PlayerMode;
+  playerFeatures?: PlayerFeatureFlags;
+  readingBedOverride?: ReadingBedOverride | null;
 }
 
 
@@ -105,7 +150,14 @@ export default function PlayerPanel({
   selectionRequest = null,
   showBackToLibrary = false,
   onBackToLibrary,
+  playerMode = 'online',
+  playerFeatures,
+  readingBedOverride = null,
 }: PlayerPanelProps) {
+  const features = playerFeatures ?? {};
+  const linguistEnabled = features.linguist !== false;
+  const painterEnabled = features.painter !== false;
+  const searchEnabled = features.search !== false;
   const { baseFontScalePercent, setBaseFontScalePercent, adjustBaseFontScalePercent, toggle: toggleMyLinguist } =
     useMyLinguist();
   const interactiveViewerAvailable = chunks.length > 0;
@@ -119,10 +171,10 @@ export default function PlayerPanel({
     MEDIA_CATEGORIES.forEach((category) => {
       const firstItem = media[category][0];
       initial[category] = firstItem?.url ?? null;
-  });
+    });
 
-  return initial;
-});
+    return initial;
+  });
   const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
   const [pendingChunkSelection, setPendingChunkSelection] =
     useState<{ index: number; token: number } | null>(null);
@@ -202,14 +254,16 @@ export default function PlayerPanel({
     onReadingBedTrackChange: handleReadingBedTrackChange,
     playReadingBed,
     resetReadingBed,
-  } = useReadingBedControls();
+  } = useReadingBedControls({ bedOverride: readingBedOverride, playerMode });
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
   const [jobTranslationLanguage, setJobTranslationLanguage] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (origin !== 'library') {
+    if (origin !== 'library' && playerMode !== 'export') {
       return;
     }
     const original =
@@ -218,10 +272,10 @@ export default function PlayerPanel({
       extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ?? null;
     setJobOriginalLanguage(original);
     setJobTranslationLanguage(target);
-  }, [bookMetadata, origin]);
+  }, [bookMetadata, origin, playerMode]);
 
   useEffect(() => {
-    if (!jobId || origin === 'library') {
+    if (!jobId || origin === 'library' || playerMode === 'export') {
       return;
     }
     let cancelled = false;
@@ -251,9 +305,13 @@ export default function PlayerPanel({
     return () => {
       cancelled = true;
     };
-  }, [jobId, origin]);
+  }, [jobId, origin, playerMode]);
   useEffect(() => {
     setBookSentenceCount(null);
+  }, [jobId]);
+  useEffect(() => {
+    setIsExporting(false);
+    setExportError(null);
   }, [jobId]);
 
   useEffect(() => {
@@ -275,6 +333,16 @@ export default function PlayerPanel({
     }
 
     if (bookSentenceCount !== null) {
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (playerMode === 'export') {
+      const derivedCount = deriveSentenceCountFromChunks(chunks);
+      if (derivedCount !== null) {
+        setBookSentenceCount((current) => (current === derivedCount ? current : derivedCount));
+      }
       return () => {
         cancelled = true;
       };
@@ -339,7 +407,7 @@ export default function PlayerPanel({
     return () => {
       cancelled = true;
     };
-  }, [bookMetadata, bookSentenceCount, chunks.length, jobId]);
+  }, [bookMetadata, bookSentenceCount, chunks.length, jobId, playerMode]);
 
   const {
     sentenceLookup,
@@ -408,6 +476,7 @@ export default function PlayerPanel({
     origin,
     bookMetadata,
     mediaComplete,
+    playerMode,
   });
 
   const { isSubtitleContext, subtitleInfo } = useSubtitleInfo({
@@ -416,6 +485,7 @@ export default function PlayerPanel({
     itemType,
     origin,
     libraryItem,
+    playerMode,
   });
 
   const handleSearchSelection = useCallback(
@@ -632,7 +702,11 @@ export default function PlayerPanel({
     }
     return media.text.find((item) => item.url === selectedItemId) ?? media.text[0] ?? null;
   }, [media.text, selectedItemId]);
-  const { textPreview, textLoading, textError } = useTextPreview(selectedItem?.url);
+  const allowTextPreview =
+    playerMode !== 'export' || (typeof window !== 'undefined' && window.location.protocol !== 'file:');
+  const { textPreview, textLoading, textError } = useTextPreview(selectedItem?.url, {
+    enabled: allowTextPreview,
+  });
   const selectedChunk = useMemo(() => {
     if (!selectedItem) {
       return null;
@@ -695,6 +769,7 @@ export default function PlayerPanel({
   const { hasInteractiveChunks, resolvedActiveTextChunk } = useChunkMetadata({
     jobId,
     origin,
+    playerMode,
     chunks,
     activeTextChunk,
     activeTextChunkIndex,
@@ -712,6 +787,7 @@ export default function PlayerPanel({
   } = useInlineAudioOptions({
     jobId,
     origin,
+    playerMode,
     activeTextChunk,
     resolvedActiveTextChunk,
     activeTextChunkIndex,
@@ -879,6 +955,20 @@ export default function PlayerPanel({
     },
     [adjustBaseFontScalePercent],
   );
+  const handleToggleMyLinguist = useCallback(() => {
+    if (linguistEnabled) {
+      toggleMyLinguist();
+    }
+  }, [linguistEnabled, toggleMyLinguist]);
+  const handleAdjustMyLinguistFontScale = useCallback(
+    (direction: 'increase' | 'decrease') => {
+      if (!linguistEnabled) {
+        return;
+      }
+      adjustMyLinguistFontScale(direction);
+    },
+    [adjustMyLinguistFontScale, linguistEnabled],
+  );
 
   const activateTextItem = useCallback(
     (item: LiveMediaItem | null | undefined, options?: { scrollRatio?: number; autoPlay?: boolean }) => {
@@ -1039,14 +1129,15 @@ export default function PlayerPanel({
     canToggleOriginalAudio,
     onToggleOriginalAudio: handleOriginalAudioToggle,
     onToggleCueLayer: handleToggleInteractiveTextLayer,
-    onToggleMyLinguist: toggleMyLinguist,
+    onToggleMyLinguist: handleToggleMyLinguist,
+    enableMyLinguist: linguistEnabled,
     onToggleReadingBed: handleToggleReadingBed,
     onToggleFullscreen: handleInteractiveFullscreenToggle,
     onTogglePlayback: handleToggleActiveMedia,
     onNavigate: handleNavigatePreservingPlayback,
     adjustTranslationSpeed,
     adjustFontScale,
-    adjustMyLinguistFontScale,
+    adjustMyLinguistFontScale: handleAdjustMyLinguistFontScale,
   });
 
   const shortcutHelpOverlay = (
@@ -1054,6 +1145,7 @@ export default function PlayerPanel({
       isOpen={showShortcutHelp}
       onClose={() => setShowShortcutHelp(false)}
       canToggleOriginalAudio={canToggleOriginalAudio}
+      showMyLinguist={linguistEnabled}
     />
   );
 
@@ -1183,6 +1275,49 @@ export default function PlayerPanel({
   const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
   const bookYear = extractMetadataText(bookMetadata, ['book_year', 'year', 'publication_year', 'published_year', 'first_publish_year']);
   const bookGenre = extractMetadataFirstString(bookMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
+  const isBookLike =
+    itemType === 'book' || (jobType ?? '').trim().toLowerCase().includes('book') || Boolean(bookTitle);
+  const canExport = playerMode !== 'export' && isBookLike && mediaComplete && (hasInteractiveChunks || hasTextItems);
+  const handleExport = useCallback(() => {
+    if (!jobId || isExporting) {
+      return;
+    }
+    setIsExporting(true);
+    setExportError(null);
+    const payload = {
+      source_kind: origin === 'library' ? 'library' : 'job',
+      source_id: jobId,
+      player_type: 'interactive-text',
+    } as const;
+    createExport(payload)
+      .then((result) => {
+        const resolved =
+          result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
+            ? result.download_url
+            : withBase(result.download_url);
+        const downloadUrl = appendAccessToken(resolved);
+        if (typeof document !== 'undefined') {
+          const anchor = document.createElement('a');
+          anchor.href = downloadUrl;
+          anchor.download = result.filename ?? '';
+          anchor.rel = 'noopener';
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          return;
+        }
+        if (typeof window !== 'undefined') {
+          window.location.assign(downloadUrl);
+        }
+      })
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : 'Unable to export offline player.';
+        setExportError(message);
+      })
+      .finally(() => {
+        setIsExporting(false);
+      });
+  }, [appendAccessToken, createExport, isExporting, jobId, origin, withBase]);
   const channelBug = useMemo(() => {
     const normalisedJobType = (jobType ?? '').trim().toLowerCase();
     if (itemType === 'book') {
@@ -1239,8 +1374,31 @@ export default function PlayerPanel({
       </datalist>
     ) : null;
 
-
   const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
+  const exportAction = canExport ? (
+    <div className="player-panel__export-action">
+      <button
+        type="button"
+        className="player-panel__nav-button player-panel__nav-button--export"
+        onClick={handleExport}
+        disabled={isExporting}
+        aria-label="Export offline player"
+        title="Export offline player"
+      >
+        <span aria-hidden="true" className="player-panel__nav-button-icon">
+          📦
+        </span>
+        <span aria-hidden="true" className="player-panel__nav-button-text">
+          {isExporting ? 'Preparing export…' : 'Export offline player'}
+        </span>
+      </button>
+      {exportError ? (
+        <span className="player-panel__export-error" role="alert">
+          {exportError}
+        </span>
+      ) : null}
+    </div>
+  ) : null;
 
   const navigationBaseProps = {
     onNavigate: handleNavigatePreservingPlayback,
@@ -1287,12 +1445,12 @@ export default function PlayerPanel({
     fontScaleMax: FONT_SCALE_MAX,
     fontScaleStep: FONT_SCALE_STEP,
     onFontScaleChange: handleFontScaleChange,
-    showMyLinguistFontScale: true,
+    showMyLinguistFontScale: linguistEnabled,
     myLinguistFontScalePercent: baseFontScalePercent,
     myLinguistFontScaleMin: MY_LINGUIST_FONT_SCALE_MIN,
     myLinguistFontScaleMax: MY_LINGUIST_FONT_SCALE_MAX,
     myLinguistFontScaleStep: MY_LINGUIST_FONT_SCALE_STEP,
-    onMyLinguistFontScaleChange: setBaseFontScalePercent,
+    onMyLinguistFontScaleChange: linguistEnabled ? setBaseFontScalePercent : undefined,
     showInteractiveThemeControls: true,
     interactiveTheme: interactiveTextTheme,
     onInteractiveThemeChange: setInteractiveTextTheme,
@@ -1330,11 +1488,14 @@ export default function PlayerPanel({
   } satisfies Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
 
   const navigationGroup = (
-    <NavigationControls
-      context="panel"
-      sentenceJumpInputId={sentenceJumpInputId}
-      {...navigationBaseProps}
-    />
+    <>
+      <NavigationControls
+        context="panel"
+        sentenceJumpInputId={sentenceJumpInputId}
+        {...navigationBaseProps}
+      />
+      {exportAction}
+    </>
   );
 
   const fullscreenNavigationGroup = isInteractiveFullscreen ? (
@@ -1346,6 +1507,11 @@ export default function PlayerPanel({
   ) : null;
 
   const interactiveViewerProps = {
+    playerMode,
+    playerFeatures: {
+      linguist: linguistEnabled,
+      painter: painterEnabled,
+    },
     content: interactiveViewerContent,
     rawContent: interactiveViewerRaw,
     chunk: resolvedActiveTextChunk,
@@ -1431,7 +1597,7 @@ export default function PlayerPanel({
           {shortcutHelpOverlay}
         </>
       }
-      search={<MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} />}
+      search={searchEnabled ? <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} /> : null}
       toolbar={navigationGroup}
     >
       {!hasAnyMedia && !isLoading ? (

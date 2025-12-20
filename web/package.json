@@ -7,7 +7,8 @@
     "clean:artifacts": "node ./scripts/clean-stale-artifacts.mjs",
     "prebuild": "pnpm run clean:artifacts",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --mode export",
+    "build:export": "vite build --mode export",
     "preview": "vite preview",
     "test": "vitest"
   },

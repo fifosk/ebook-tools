@@ -2,6 +2,14 @@ import type { LibraryItem } from '../api/dtos';
 
 export type MediaCategory = 'text' | 'audio' | 'video';
 
+export type PlayerMode = 'online' | 'export';
+
+export type PlayerFeatureFlags = {
+  linguist?: boolean;
+  painter?: boolean;
+  search?: boolean;
+};
+
 export interface MediaSelectionRequest {
   baseId: string | null;
   preferredType?: MediaCategory | null;

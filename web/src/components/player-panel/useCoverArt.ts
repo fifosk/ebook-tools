@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { appendAccessToken, buildStorageUrl, resolveJobCoverUrl, resolveLibraryMediaUrl } from '../../api/client';
+import { coerceExportPath } from '../../utils/storageResolver';
 import { DEFAULT_COVER_URL } from './constants';
 
 type UseCoverArtArgs = {
@@ -7,6 +8,7 @@ type UseCoverArtArgs = {
   origin: 'job' | 'library';
   bookMetadata?: Record<string, unknown> | null;
   mediaComplete: boolean;
+  playerMode?: 'online' | 'export';
 };
 
 type UseCoverArtResult = {
@@ -20,9 +22,11 @@ export function useCoverArt({
   origin,
   bookMetadata = null,
   mediaComplete,
+  playerMode = 'online',
 }: UseCoverArtArgs): UseCoverArtResult {
   const [coverSourceIndex, setCoverSourceIndex] = useState(0);
   const normalisedJobId = jobId ?? '';
+  const isExportMode = playerMode === 'export';
 
   const jobCoverAsset = useMemo(() => {
     const value = bookMetadata?.['job_cover_asset'];
@@ -43,11 +47,11 @@ export function useCoverArt({
   }, [bookMetadata]);
 
   const apiCoverUrl = useMemo(() => {
-    if (!normalisedJobId || origin === 'library') {
+    if (!normalisedJobId || origin === 'library' || isExportMode) {
       return null;
     }
     return resolveJobCoverUrl(normalisedJobId);
-  }, [normalisedJobId, origin]);
+  }, [isExportMode, normalisedJobId, origin]);
 
   const coverCandidates = useMemo(() => {
     const candidates: string[] = [];
@@ -60,6 +64,9 @@ export function useCoverArt({
       const trimmed = value.trim();
       if (!trimmed) {
         return null;
+      }
+      if (isExportMode) {
+        return coerceExportPath(trimmed, normalisedJobId);
       }
 
       if (origin === 'library' && trimmed.includes('/pipelines/')) {
@@ -144,7 +151,7 @@ export function useCoverArt({
     push(DEFAULT_COVER_URL);
 
     return candidates;
-  }, [apiCoverUrl, bookMetadata, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
+  }, [apiCoverUrl, bookMetadata, isExportMode, jobCoverAsset, legacyCoverFile, normalisedJobId, origin]);
 
   useEffect(() => {
     if (coverSourceIndex !== 0) {
@@ -163,7 +170,7 @@ export function useCoverArt({
     });
   }, [coverCandidates]);
   const shouldHandleCoverError = coverSourceIndex < coverCandidates.length - 1;
-  const shouldShowCoverImage = origin === 'library' || mediaComplete;
+  const shouldShowCoverImage = origin === 'library' || mediaComplete || isExportMode;
   const onCoverError = shouldShowCoverImage && shouldHandleCoverError ? handleCoverError : undefined;
 
   return {

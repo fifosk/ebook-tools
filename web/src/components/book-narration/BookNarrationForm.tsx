@@ -208,7 +208,7 @@ const DEFAULT_FORM_STATE: FormState = {
   output_pdf: false,
   generate_video: false,
   add_images: false,
-  image_style_template: 'photorealistic',
+  image_style_template: 'comics',
   image_prompt_batching_enabled: true,
   image_prompt_batch_size: 10,
   image_prompt_context_sentences: 2,

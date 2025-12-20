@@ -1,7 +1,7 @@
 import type { ChunkSentenceMetadata, LibraryItem, MediaSearchResult } from '../../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveLibraryMediaUrl } from '../../api/client';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
-import { resolve as resolveStoragePath } from '../../utils/storageResolver';
+import { coerceExportPath, resolve as resolveStoragePath } from '../../utils/storageResolver';
 import type { MediaCategory } from './constants';
 import { MEDIA_CATEGORIES } from './constants';
 
@@ -412,10 +412,19 @@ export async function requestChunkMetadata(
   jobId: string,
   chunk: LiveMediaChunk,
   origin: 'job' | 'library',
+  playerMode: 'online' | 'export' = 'online',
 ): Promise<ChunkSentenceMetadata[] | null> {
+  const isExportMode = playerMode === 'export';
   let targetUrl: string | null = chunk.metadataUrl ?? null;
 
-  if (!targetUrl) {
+  if (isExportMode) {
+    const candidate = chunk.metadataPath ?? chunk.metadataUrl ?? null;
+    if (candidate) {
+      targetUrl = coerceExportPath(candidate, jobId) ?? candidate;
+    } else {
+      targetUrl = null;
+    }
+  } else if (!targetUrl) {
     const metadataPath = chunk.metadataPath ?? null;
     if (metadataPath) {
       try {
@@ -445,7 +454,7 @@ export async function requestChunkMetadata(
   }
 
   try {
-    const url = origin === 'library' ? appendAccessToken(targetUrl) : targetUrl;
+    const url = origin === 'library' && !isExportMode ? appendAccessToken(targetUrl) : targetUrl;
     const response = await fetch(url, { credentials: 'include' });
     if (!response.ok) {
       throw new Error(`Chunk metadata request failed with status ${response.status}`);

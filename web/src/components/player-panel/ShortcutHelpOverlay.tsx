@@ -4,9 +4,15 @@ type ShortcutHelpOverlayProps = {
   isOpen: boolean;
   onClose: () => void;
   canToggleOriginalAudio: boolean;
+  showMyLinguist?: boolean;
 };
 
-export function ShortcutHelpOverlay({ isOpen, onClose, canToggleOriginalAudio }: ShortcutHelpOverlayProps) {
+export function ShortcutHelpOverlay({
+  isOpen,
+  onClose,
+  canToggleOriginalAudio,
+  showMyLinguist = true,
+}: ShortcutHelpOverlayProps) {
   const shortcutHelpCardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -160,26 +166,28 @@ export function ShortcutHelpOverlay({ isOpen, onClose, canToggleOriginalAudio }:
               </li>
             </ul>
           </section>
-          <section className="player-panel__shortcut-help-section" aria-label="MyLinguist">
-            <h3>MyLinguist</h3>
-            <ul>
-              <li>
-                <kbd>L</kbd> Toggle MyLinguist chat window
-              </li>
-              <li>
-                <kbd>Ctrl</kbd>+<kbd>+</kbd>/<kbd>Ctrl</kbd>+<kbd>-</kbd> Increase/decrease MyLinguist font size
-              </li>
-              <li>
-                <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>Alt</kbd>+<kbd>→</kbd> Previous/next word (stays on current lane)
-              </li>
-              <li>
-                <kbd>Esc</kbd> Close the bubble
-              </li>
-              <li>
-                <kbd>Enter</kbd> or <kbd>Space</kbd> (on focused word) Seek to that word
-              </li>
-            </ul>
-          </section>
+          {showMyLinguist ? (
+            <section className="player-panel__shortcut-help-section" aria-label="MyLinguist">
+              <h3>MyLinguist</h3>
+              <ul>
+                <li>
+                  <kbd>L</kbd> Toggle MyLinguist chat window
+                </li>
+                <li>
+                  <kbd>Ctrl</kbd>+<kbd>+</kbd>/<kbd>Ctrl</kbd>+<kbd>-</kbd> Increase/decrease MyLinguist font size
+                </li>
+                <li>
+                  <kbd>Alt</kbd>+<kbd>←</kbd>/<kbd>Alt</kbd>+<kbd>→</kbd> Previous/next word (stays on current lane)
+                </li>
+                <li>
+                  <kbd>Esc</kbd> Close the bubble
+                </li>
+                <li>
+                  <kbd>Enter</kbd> or <kbd>Space</kbd> (on focused word) Seek to that word
+                </li>
+              </ul>
+            </section>
+          ) : null}
           <section className="player-panel__shortcut-help-section" aria-label="Fullscreen controls">
             <h3>Fullscreen</h3>
             <ul>

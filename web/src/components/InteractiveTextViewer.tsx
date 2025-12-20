@@ -70,6 +70,8 @@ import { useSentenceImageReel } from './interactive-text/useSentenceImageReel';
 import { createNoopWordSyncController, createWordSyncController } from './interactive-text/wordSyncController';
 import { useTextPlayerSentences } from './interactive-text/useTextPlayerSentences';
 import { useTimelineDisplay } from './interactive-text/useTimelineDisplay';
+import type { PlayerFeatureFlags, PlayerMode } from '../types/player';
+import { coerceExportPath } from '../utils/storageResolver';
 
 type InlineAudioControls = {
   pause: () => void;
@@ -80,6 +82,8 @@ interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
+  playerMode?: PlayerMode;
+  playerFeatures?: PlayerFeatureFlags | null;
   totalSentencesInBook?: number | null;
   bookTotalSentences?: number | null;
   jobStartSentence?: number | null;
@@ -134,6 +138,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     content,
     rawContent = null,
     chunk,
+    playerMode = 'online',
+    playerFeatures = null,
     totalSentencesInBook = null,
     activeAudioUrl,
     noAudioAvailable,
@@ -167,21 +173,25 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     infoCoverSecondaryUrl = null,
     infoCoverAltText = null,
     infoCoverVariant = null,
-	    bookCoverUrl = null,
-	    bookCoverAltText = null,
-	    onActiveSentenceChange,
-	    onRequestSentenceJump,
-	    bookTotalSentences = null,
-	    jobStartSentence = null,
-	    jobEndSentence = null,
-	    jobOriginalLanguage = null,
-	    jobTranslationLanguage = null,
+    bookCoverUrl = null,
+    bookCoverAltText = null,
+    onActiveSentenceChange,
+    onRequestSentenceJump,
+    bookTotalSentences = null,
+    jobStartSentence = null,
+    jobEndSentence = null,
+    jobOriginalLanguage = null,
+    jobTranslationLanguage = null,
     cueVisibility,
   },
   forwardedRef,
 ) {
   const { inputLanguage: globalInputLanguage } = useLanguagePreferences();
   const { setPlayerSentence, imageRefreshToken } = useMyPainter();
+  const featureFlags = playerFeatures ?? {};
+  const linguistEnabled = featureFlags.linguist !== false;
+  const painterEnabled = featureFlags.painter !== false;
+  const isExportMode = playerMode === 'export';
   const resolvedJobOriginalLanguage = useMemo(() => {
     const trimmed = typeof jobOriginalLanguage === 'string' ? jobOriginalLanguage.trim() : '';
     return trimmed.length > 0 ? trimmed : null;
@@ -598,7 +608,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const wordSyncAllowed = (wordSyncQueryState ?? WORD_SYNC.FEATURE) === true;
   const followHighlightEnabled = !prefersReducedMotion;
   useEffect(() => {
-    if (!jobId || !wordSyncAllowed) {
+    if (!jobId || !wordSyncAllowed || isExportMode) {
       setJobTimingResponse(null);
       setTimingDiagnostics(null);
       return;
@@ -636,7 +646,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         controller.abort();
       }
     };
-  }, [jobId, wordSyncAllowed]);
+  }, [isExportMode, jobId, wordSyncAllowed]);
 
   const paragraphs = useMemo(() => buildParagraphs(content), [content]);
   const { timelineSentences, timelineDisplay } = useTimelineDisplay({
@@ -687,6 +697,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     audioRef,
     inlineAudioPlayingRef,
     dictionarySuppressSeekRef,
+    enabled: linguistEnabled,
     activeSentenceIndex,
     setActiveSentenceIndex,
     timelineDisplay,
@@ -740,10 +751,15 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     return null;
   }, [activeAudioUrl, audioTracks, originalAudioEnabled]);
 
-  const resolvedAudioUrl = useMemo(
-    () => (effectiveAudioUrl ? appendAccessToken(effectiveAudioUrl) : null),
-    [effectiveAudioUrl],
-  );
+  const resolvedAudioUrl = useMemo(() => {
+    if (!effectiveAudioUrl) {
+      return null;
+    }
+    if (isExportMode) {
+      return coerceExportPath(effectiveAudioUrl, jobId) ?? effectiveAudioUrl;
+    }
+    return appendAccessToken(effectiveAudioUrl);
+  }, [effectiveAudioUrl, isExportMode, jobId]);
   const chunkSentenceMap = useMemo(() => {
     const map = new Map<number, ChunkSentenceMetadata>();
     if (!chunk?.sentences || chunk.sentences.length === 0) {
@@ -1748,6 +1764,7 @@ const handleAudioSeeked = useCallback(() => {
 
   const { sentenceImageReelNode, activeSentenceImagePath } = useSentenceImageReel({
     jobId,
+    playerMode,
     chunk,
     activeSentenceNumber,
     activeSentenceIndex,
@@ -1777,7 +1794,7 @@ const handleAudioSeeked = useCallback(() => {
     activeSentenceNumber,
     activeSentenceImagePath,
     isLibraryMediaOrigin,
-    setPlayerSentence,
+    setPlayerSentence: painterEnabled ? setPlayerSentence : null,
   });
 
   const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
@@ -1785,7 +1802,7 @@ const handleAudioSeeked = useCallback(() => {
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
     Boolean(textPlayerSentences && textPlayerSentences.length > 0);
   const pinnedLinguistBubbleNode =
-    linguistBubble && linguistBubblePinned ? (
+    linguistEnabled && linguistBubble && linguistBubblePinned ? (
       <MyLinguistBubble
         bubble={linguistBubble}
         isPinned={linguistBubblePinned}
@@ -1933,7 +1950,7 @@ const handleAudioSeeked = useCallback(() => {
               Text preview will appear once generated.
             </div>
           )}
-          {linguistBubble && !linguistBubblePinned ? (
+          {linguistEnabled && linguistBubble && !linguistBubblePinned ? (
             <MyLinguistBubble
               bubble={linguistBubble}
               isPinned={linguistBubblePinned}

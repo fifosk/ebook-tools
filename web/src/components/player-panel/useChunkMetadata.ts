@@ -16,6 +16,7 @@ import {
 type UseChunkMetadataArgs = {
   jobId: string | null;
   origin: 'job' | 'library';
+  playerMode?: 'online' | 'export';
   chunks: LiveMediaChunk[];
   activeTextChunk: LiveMediaChunk | null;
   activeTextChunkIndex: number;
@@ -29,10 +30,12 @@ type UseChunkMetadataResult = {
 export function useChunkMetadata({
   jobId,
   origin,
+  playerMode = 'online',
   chunks,
   activeTextChunk,
   activeTextChunkIndex,
 }: UseChunkMetadataArgs): UseChunkMetadataResult {
+  const isExportMode = playerMode === 'export';
   const [chunkMetadataStore, setChunkMetadataStore] = useState<Record<string, ChunkSentenceMetadata[]>>({});
   const chunkMetadataStoreRef = useRef(chunkMetadataStore);
   const chunkMetadataLoadingRef = useRef<Set<string>>(new Set());
@@ -103,6 +106,9 @@ export function useChunkMetadata({
       if (Array.isArray(chunk.sentences) && chunk.sentences.length > 0) {
         return;
       }
+      if (isExportMode && !chunk.metadataPath && !chunk.metadataUrl) {
+        return;
+      }
       const cacheKey = chunkCacheKey(chunk);
       if (!cacheKey) {
         return;
@@ -114,7 +120,7 @@ export function useChunkMetadata({
         return;
       }
       chunkMetadataLoadingRef.current.add(cacheKey);
-      requestChunkMetadata(jobId, chunk, origin)
+      requestChunkMetadata(jobId, chunk, origin, playerMode)
         .then((sentences) => {
           if (sentences === null) {
             return;
@@ -135,7 +141,7 @@ export function useChunkMetadata({
           chunkMetadataLoadingRef.current.delete(cacheKey);
         });
     },
-    [jobId, origin, pushChunkMetadata, scheduleChunkMetadataAppend],
+    [isExportMode, jobId, origin, playerMode, pushChunkMetadata, scheduleChunkMetadataAppend],
   );
 
   useEffect(() => {

@@ -18,7 +18,7 @@ export const IMAGE_API_NODE_OPTIONS: ImageApiNodeOption[] = [
   {
     value: 'http://192.168.1.76:7860',
     label: 'Ipad Pro (192.168.1.76:7860)',
-    defaultActive: false
+    defaultActive: true
   }
 ];
 

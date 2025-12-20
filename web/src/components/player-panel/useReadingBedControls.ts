@@ -25,7 +25,33 @@ type UseReadingBedControlsResult = {
   resetReadingBed: () => void;
 };
 
-export function useReadingBedControls(): UseReadingBedControlsResult {
+type UseReadingBedControlsArgs = {
+  bedOverride?: { id: string; label: string; url: string } | null;
+  playerMode?: 'online' | 'export';
+};
+
+export function useReadingBedControls({
+  bedOverride = null,
+  playerMode = 'online',
+}: UseReadingBedControlsArgs = {}): UseReadingBedControlsResult {
+  const isExportMode = playerMode === 'export';
+  const normalizedOverride = useMemo(() => {
+    if (!bedOverride) {
+      return null;
+    }
+    const id = bedOverride.id?.trim() ?? '';
+    const label = bedOverride.label?.trim() ?? '';
+    const url = bedOverride.url?.trim() ?? '';
+    if (!id || !label || !url) {
+      return null;
+    }
+    return {
+      id,
+      label,
+      url,
+      kind: 'bundled',
+    } satisfies ReadingBedEntry;
+  }, [bedOverride]);
   const readingBed = useReadingBed();
   const [readingBedEnabled, setReadingBedEnabled] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
@@ -53,14 +79,19 @@ export function useReadingBedControls(): UseReadingBedControlsResult {
         {
           id: DEFAULT_READING_BED_TRACK_ID,
           label: 'Lost in the Pages',
-          url: '/assets/reading-beds/lost-in-the-pages.mp3',
+          url: isExportMode ? 'assets/reading-beds/lost-in-the-pages.mp3' : '/assets/reading-beds/lost-in-the-pages.mp3',
           kind: 'bundled',
         },
       ] as ReadingBedEntry[],
-    [],
+    [isExportMode],
   );
   const [readingBedCatalog, setReadingBedCatalog] = useState<ReadingBedListResponse | null>(null);
   useEffect(() => {
+    if (normalizedOverride) {
+      setReadingBedCatalog({ beds: [normalizedOverride], default_id: normalizedOverride.id });
+      return;
+    }
+    setReadingBedCatalog(null);
     const controller = new AbortController();
     void (async () => {
       try {
@@ -73,7 +104,7 @@ export function useReadingBedControls(): UseReadingBedControlsResult {
     return () => {
       controller.abort();
     };
-  }, []);
+  }, [normalizedOverride]);
 
   const resolvedReadingBeds =
     (readingBedCatalog?.beds?.length ?? 0) > 0 ? readingBedCatalog!.beds : fallbackReadingBeds;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import type { LiveMediaChunk, LiveMediaItem } from '../../hooks/useLiveMedia';
 import type { AudioTrackMetadata } from '../../api/dtos';
 import { appendAccessToken, buildStorageUrl, resolveLibraryMediaUrl } from '../../api/client';
+import { coerceExportPath } from '../../utils/storageResolver';
 import { formatChunkLabel, isAudioFileType } from './utils';
 import { isCombinedAudioCandidate, isOriginalAudioCandidate } from './helpers';
 
@@ -16,6 +17,7 @@ export type InlineAudioOption = {
 type UseInlineAudioOptionsArgs = {
   jobId: string | null;
   origin: 'job' | 'library';
+  playerMode?: 'online' | 'export';
   activeTextChunk: LiveMediaChunk | null;
   resolvedActiveTextChunk: LiveMediaChunk | null;
   activeTextChunkIndex: number;
@@ -44,6 +46,7 @@ type UseInlineAudioOptionsResult = {
 export function useInlineAudioOptions({
   jobId,
   origin,
+  playerMode = 'online',
   activeTextChunk,
   resolvedActiveTextChunk,
   activeTextChunkIndex,
@@ -55,6 +58,7 @@ export function useInlineAudioOptions({
   setInlineAudioSelection,
 }: UseInlineAudioOptionsArgs): UseInlineAudioOptionsResult {
   const normalisedJobId = jobId ?? '';
+  const isExportMode = playerMode === 'export';
 
   const activeAudioTracks = useMemo(() => {
     const chunkRef = resolvedActiveTextChunk;
@@ -72,6 +76,9 @@ export function useInlineAudioOptions({
       const trimmed = source.trim();
       if (!trimmed) {
         return null;
+      }
+      if (isExportMode) {
+        return coerceExportPath(trimmed, normalisedJobId);
       }
       if (trimmed.includes('://')) {
         return trimmed;
@@ -148,7 +155,7 @@ export function useInlineAudioOptions({
     });
 
     return Object.keys(mapping).length > 0 ? mapping : null;
-  }, [normalisedJobId, origin, resolvedActiveTextChunk]);
+  }, [isExportMode, normalisedJobId, origin, resolvedActiveTextChunk]);
 
   const inlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
     const seen = new Set<string>();

@@ -29,6 +29,7 @@ from ..services.subtitle_metadata_service import SubtitleMetadataService
 from ..services.youtube_video_metadata_service import YoutubeVideoMetadataService
 from ..services.video_service import VideoService
 from ..services.youtube_dubbing import YoutubeDubbingService
+from ..services.export_service import ExportService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
 from .jobs import PipelineJobManager
@@ -316,6 +317,17 @@ def get_library_repository() -> LibraryRepository:
     """Convenience accessor for the shared :class:`LibraryRepository`."""
 
     return get_library_service().repository
+
+
+@lru_cache
+def get_export_service() -> ExportService:
+    """Return the shared :class:`ExportService` instance."""
+
+    return ExportService(
+        pipeline_service=get_pipeline_service(),
+        library_service=get_library_service(),
+        file_locator=get_file_locator(),
+    )
 
 
 @lru_cache

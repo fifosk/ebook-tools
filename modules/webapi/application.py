@@ -23,6 +23,7 @@ from modules import load_environment
 from .admin_routes import router as admin_router
 from .routers.audio import router as audio_router
 from .routers.create_book import router as create_book_router
+from .routers.exports import router as exports_router
 from .routers.library import router as library_router
 from .routers.subtitles import router as subtitles_router
 from .routers.assistant import router as assistant_router
@@ -373,6 +374,7 @@ def create_app() -> FastAPI:
     app.include_router(reading_beds_router)
     app.include_router(reading_beds_admin_router)
     app.include_router(assistant_router)
+    app.include_router(exports_router)
     app.include_router(router, prefix="/api/pipelines", tags=["pipelines"])
     app.include_router(router, prefix="/pipelines", tags=["pipelines"], include_in_schema=False)
     app.include_router(storage_router, prefix="/storage", tags=["storage"])

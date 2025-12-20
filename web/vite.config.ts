@@ -10,6 +10,7 @@ export default defineConfig(({ mode }) => {
 
   // Load env vars from the same dir as this config file
   const env = loadEnv(mode, __dirname, "");
+  const isExportBuild = mode === "export";
 
   console.log("[DEBUG] loaded env via loadEnv:", {
     https: env.VITE_DEV_HTTPS,
@@ -20,15 +21,26 @@ export default defineConfig(({ mode }) => {
 
   const httpsOptions = resolveHttpsOptions(env);
 
+  const buildConfig = {
+    // Silence chunk size warnings; the app bundles many shared components by design.
+    chunkSizeWarningLimit: 1500,
+    ...(isExportBuild
+      ? {
+          outDir: "export-dist",
+          rollupOptions: {
+            input: path.resolve(__dirname, "export.html")
+          }
+        }
+      : {})
+  };
+
   return {
     envDir: __dirname,
+    base: isExportBuild ? "./" : "/",
 
     plugins: [react()],
 
-    build: {
-      // Silence chunk size warnings; the app bundles many shared components by design.
-      chunkSizeWarningLimit: 1500
-    },
+    build: buildConfig,
 
     server: {
       host: true,

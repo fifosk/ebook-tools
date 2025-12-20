@@ -906,6 +906,19 @@ export interface MediaSearchResponse {
   results: MediaSearchResult[];
 }
 
+export interface ExportRequestPayload {
+  source_kind: 'job' | 'library';
+  source_id: string;
+  player_type?: 'interactive-text';
+}
+
+export interface ExportResponse {
+  export_id: string;
+  download_url: string;
+  filename: string;
+  created_at: string;
+}
+
 export type ReadingBedKind = 'bundled' | 'uploaded';
 
 export interface ReadingBedEntry {

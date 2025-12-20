@@ -8,6 +8,7 @@ type UsePlayerShortcutsArgs = {
   onToggleOriginalAudio: () => void;
   onToggleCueLayer: (layer: CueLayer) => void;
   onToggleMyLinguist: () => void;
+  enableMyLinguist?: boolean;
   onToggleReadingBed: () => void;
   onToggleFullscreen: () => void;
   onTogglePlayback: () => void;
@@ -27,6 +28,7 @@ export function usePlayerShortcuts({
   onToggleOriginalAudio,
   onToggleCueLayer,
   onToggleMyLinguist,
+  enableMyLinguist = true,
   onToggleReadingBed,
   onToggleFullscreen,
   onTogglePlayback,
@@ -68,12 +70,12 @@ export function usePlayerShortcuts({
         key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
 
       if (event.ctrlKey) {
-        if (isPlusKey) {
+        if (enableMyLinguist && isPlusKey) {
           adjustMyLinguistFontScale('increase');
           event.preventDefault();
           return;
         }
-        if (isMinusKey) {
+        if (enableMyLinguist && isMinusKey) {
           adjustMyLinguistFontScale('decrease');
           event.preventDefault();
           return;
@@ -99,7 +101,7 @@ export function usePlayerShortcuts({
         event.preventDefault();
         return;
       }
-      if (key === 'l' && !event.shiftKey) {
+      if (key === 'l' && !event.shiftKey && enableMyLinguist) {
         onToggleMyLinguist();
         event.preventDefault();
         return;
@@ -171,6 +173,7 @@ export function usePlayerShortcuts({
     adjustMyLinguistFontScale,
     adjustTranslationSpeed,
     canToggleOriginalAudio,
+    enableMyLinguist,
     onNavigate,
     onToggleCueLayer,
     onToggleFullscreen,

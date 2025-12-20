@@ -9,6 +9,7 @@ import {
   resolveLibraryAssetUrl,
   resolveTvMetadataImage,
 } from './helpers';
+import { coerceExportPath } from '../../utils/storageResolver';
 
 type SubtitleInfo = {
   title: string | null;
@@ -24,6 +25,14 @@ type UseSubtitleInfoArgs = {
   itemType?: 'book' | 'video' | 'narrated_subtitle' | null;
   origin?: 'job' | 'library';
   libraryItem?: LibraryItem | null;
+  playerMode?: 'online' | 'export';
+};
+
+const resolveExportAssetUrl = (jobId: string, value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  return coerceExportPath(value, jobId);
 };
 
 export function useSubtitleInfo({
@@ -32,6 +41,7 @@ export function useSubtitleInfo({
   itemType = null,
   origin = 'job',
   libraryItem = null,
+  playerMode = 'online',
 }: UseSubtitleInfoArgs): { isSubtitleContext: boolean; subtitleInfo: SubtitleInfo } {
   const isSubtitleContext = useMemo(() => {
     if (itemType === 'narrated_subtitle') {
@@ -52,6 +62,12 @@ export function useSubtitleInfo({
   useEffect(() => {
     let cancelled = false;
     if (!isSubtitleContext) {
+      setSubtitleTvMetadata(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (playerMode === 'export') {
       setSubtitleTvMetadata(null);
       return () => {
         cancelled = true;
@@ -84,7 +100,7 @@ export function useSubtitleInfo({
     return () => {
       cancelled = true;
     };
-  }, [isSubtitleContext, jobId, libraryTvMediaMetadata, origin]);
+  }, [isSubtitleContext, jobId, libraryTvMediaMetadata, origin, playerMode]);
 
   const subtitleMediaMetadata = useMemo<Record<string, unknown> | null>(() => {
     if (!isSubtitleContext) {
@@ -109,7 +125,12 @@ export function useSubtitleInfo({
     }
 
     const jobIdValue = jobId ?? '';
-    const resolver = origin === 'library' ? resolveLibraryAssetUrl : resolveJobAssetUrl;
+    const resolver =
+      playerMode === 'export'
+        ? resolveExportAssetUrl
+        : origin === 'library'
+          ? resolveLibraryAssetUrl
+          : resolveJobAssetUrl;
     const episodeCoverUrl = resolveTvMetadataImage(jobIdValue, subtitleMediaMetadata, 'episode', resolver);
     const showCoverUrl = resolveTvMetadataImage(jobIdValue, subtitleMediaMetadata, 'show', resolver);
     const coverUrl = episodeCoverUrl ?? showCoverUrl ?? null;
@@ -137,7 +158,7 @@ export function useSubtitleInfo({
     const coverAltText = title ? `Cover for ${title}` : null;
 
     return { title, meta, coverUrl, coverSecondaryUrl, coverAltText };
-  }, [isSubtitleContext, jobId, origin, subtitleMediaMetadata, subtitleTvMetadata]);
+  }, [isSubtitleContext, jobId, origin, playerMode, subtitleMediaMetadata, subtitleTvMetadata]);
 
   return {
     isSubtitleContext,
