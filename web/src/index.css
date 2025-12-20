@@ -2028,6 +2028,60 @@ button.link-button:focus {
   margin-top: var(--space-sm);
 }
 
+.image-node-option {
+  justify-content: flex-start;
+}
+
+.image-node-status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--font-size-small);
+  color: var(--color-text-muted);
+}
+
+.image-node-status__dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: var(--color-border-subtle);
+  box-shadow: 0 0 0 1px var(--color-border-subtle);
+}
+
+.image-node-status[data-state='available'] {
+  color: var(--color-status-success-text);
+}
+
+.image-node-status[data-state='available'] .image-node-status__dot {
+  background: var(--color-status-success-text);
+  box-shadow: 0 0 0 1px var(--color-status-success-text);
+}
+
+.image-node-status[data-state='unavailable'] {
+  color: var(--color-status-danger-text);
+}
+
+.image-node-status[data-state='unavailable'] .image-node-status__dot {
+  background: var(--color-status-danger-text);
+  box-shadow: 0 0 0 1px var(--color-status-danger-text);
+}
+
+.image-node-status[data-state='checking'] {
+  color: var(--color-status-warning-text);
+}
+
+.image-node-status[data-state='checking'] .image-node-status__dot {
+  background: var(--color-status-warning-text);
+  box-shadow: 0 0 0 1px var(--color-status-warning-text);
+}
+
+.image-node-status[data-state='unknown'] .image-node-status__dot,
+.image-node-status[data-state='idle'] .image-node-status__dot {
+  background: var(--color-border-subtle);
+  box-shadow: 0 0 0 1px var(--color-border-subtle);
+}
+
 .collapsible-group {
   display: flex;
   flex-direction: column;

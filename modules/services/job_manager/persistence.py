@@ -455,6 +455,15 @@ class PipelineJobPersistence:
             if isinstance(existing_complete, bool):
                 merged["complete"] = existing_complete
 
+        for key, value in existing.items():
+            if key in {"chunks", "files", "complete"}:
+                continue
+            merged[key] = copy.deepcopy(value)
+        for key, value in update.items():
+            if key in {"chunks", "files", "complete"}:
+                continue
+            merged[key] = copy.deepcopy(value)
+
         return merged
 
     def apply_event(self, job: PipelineJob, event: ProgressEvent) -> PipelineJobMetadata:
@@ -902,12 +911,21 @@ class PipelineJobPersistence:
                     record["end_sentence"] = end_sentence
                 files_index.append(record)
 
-        if not normalized_chunks and not files_index:
+        extras: Dict[str, Any] = {}
+        for key, value in raw.items():
+            if key in {"chunks", "files", "complete"}:
+                continue
+            extras[key] = copy.deepcopy(value)
+
+        if not normalized_chunks and not files_index and not extras:
             return None
+
         complete_flag = raw.get("complete")
         payload: Dict[str, Any] = {"chunks": normalized_chunks, "files": files_index}
         if isinstance(complete_flag, bool):
             payload["complete"] = complete_flag
+        if extras:
+            payload.update(extras)
         return payload
 
 

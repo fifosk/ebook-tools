@@ -26,6 +26,10 @@
     "tts_backend": "gtts",
     "tts_executable_path": null,
     "image_api_base_url": "http://192.168.1.9:7860",
+    "image_api_base_urls": [
+        "http://192.168.1.9:7860",
+        "http://192.168.1.157:7860"
+    ],
     "image_api_timeout_seconds": 180.0,
     "image_concurrency": 2,
     "auto_metadata": true,

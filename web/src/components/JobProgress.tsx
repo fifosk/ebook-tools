@@ -20,6 +20,7 @@ import {
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
 import { formatModelLabel } from '../utils/modelInfo';
+import { IMAGE_API_NODE_OPTIONS } from '../constants/imageNodes';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 type Props = {
@@ -305,6 +306,152 @@ function resolveImagePromptPlanSummary(status: PipelineStatusResponse | undefine
   return null;
 }
 
+type ImageClusterNodeSummary = {
+  baseUrl: string;
+  active: boolean;
+  processed: number | null;
+  avgSecondsPerImage: number | null;
+};
+
+function resolveImageClusterSummary(status: PipelineStatusResponse | undefined): Record<string, unknown> | null {
+  if (!status) {
+    return null;
+  }
+  const resultGenerated =
+    status.result && typeof status.result === 'object'
+      ? (status.result as Record<string, unknown>)['generated_files']
+      : undefined;
+  const candidates = [status.generated_files, resultGenerated];
+  for (const candidate of candidates) {
+    const record = coerceRecord(candidate);
+    if (!record) {
+      continue;
+    }
+    const summary = coerceRecord(record['image_cluster']);
+    if (summary) {
+      return summary;
+    }
+  }
+  return null;
+}
+
+function normalizeBaseUrl(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+function resolveImageClusterBaseUrls(config: Record<string, unknown> | null): string[] {
+  if (!config) {
+    return [];
+  }
+  const urlsRaw = config['image_api_base_urls'];
+  const baseUrls: string[] = [];
+  if (Array.isArray(urlsRaw)) {
+    for (const entry of urlsRaw) {
+      const normalized = normalizeBaseUrl(entry);
+      if (normalized) {
+        baseUrls.push(normalized);
+      }
+    }
+  } else if (typeof urlsRaw === 'string') {
+    const normalized = normalizeBaseUrl(urlsRaw);
+    if (normalized) {
+      baseUrls.push(normalized);
+    }
+  }
+
+  const fallback = normalizeBaseUrl(config['image_api_base_url']);
+  if (fallback) {
+    baseUrls.push(fallback);
+  }
+
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const entry of baseUrls) {
+    if (seen.has(entry)) {
+      continue;
+    }
+    seen.add(entry);
+    deduped.push(entry);
+  }
+  return deduped;
+}
+
+function buildImageClusterNodes(
+  summary: Record<string, unknown> | null,
+  config: Record<string, unknown> | null,
+  enabled: boolean
+): ImageClusterNodeSummary[] {
+  const nodes: ImageClusterNodeSummary[] = [];
+  const summaryRecord = summary ? coerceRecord(summary) : null;
+  const rawNodes = summaryRecord && Array.isArray(summaryRecord['nodes']) ? summaryRecord['nodes'] : [];
+  const statsByUrl = new Map<string, Record<string, unknown>>();
+  if (Array.isArray(rawNodes)) {
+    for (const entry of rawNodes) {
+      if (!entry || typeof entry !== 'object') {
+        continue;
+      }
+      const record = entry as Record<string, unknown>;
+      const url = normalizeBaseUrl(record['base_url'] ?? record['baseUrl']);
+      if (!url) {
+        continue;
+      }
+      statsByUrl.set(url, record);
+    }
+  }
+
+  const configuredUrls = resolveImageClusterBaseUrls(config);
+  if (!enabled && statsByUrl.size === 0) {
+    return nodes;
+  }
+  if (statsByUrl.size === 0 && configuredUrls.length === 0) {
+    return nodes;
+  }
+
+  const configuredSet = new Set(configuredUrls);
+  const knownUrls = new Set<string>();
+  for (const option of IMAGE_API_NODE_OPTIONS) {
+    const url = normalizeBaseUrl(option.value);
+    if (!url) {
+      continue;
+    }
+    knownUrls.add(url);
+    const stats = statsByUrl.get(url) ?? {};
+    const activeOverride = typeof stats['active'] === 'boolean' ? (stats['active'] as boolean) : null;
+    const processed = coerceNumber(stats['processed']);
+    const avgSeconds = coerceNumber(stats['avg_seconds_per_image'] ?? stats['avgSecondsPerImage']);
+    nodes.push({
+      baseUrl: url,
+      active: activeOverride ?? configuredSet.has(url),
+      processed: processed ?? 0,
+      avgSecondsPerImage: avgSeconds,
+    });
+  }
+
+  for (const [url, stats] of statsByUrl.entries()) {
+    if (knownUrls.has(url)) {
+      continue;
+    }
+    const activeOverride = typeof stats['active'] === 'boolean' ? (stats['active'] as boolean) : null;
+    const processed = coerceNumber(stats['processed']);
+    const avgSeconds = coerceNumber(stats['avg_seconds_per_image'] ?? stats['avgSecondsPerImage']);
+    nodes.push({
+      baseUrl: url,
+      active: activeOverride ?? configuredSet.has(url),
+      processed: processed ?? 0,
+      avgSecondsPerImage: avgSeconds,
+    });
+  }
+
+  return nodes;
+}
+
 function formatPercent(rate: number | null, fallback: string = '—'): string {
   if (rate === null) {
     return fallback;
@@ -314,6 +461,19 @@ function formatPercent(rate: number | null, fallback: string = '—'): string {
   }
   const value = Math.max(0, Math.min(rate, 1));
   return `${Math.round(value * 100)}%`;
+}
+
+function formatSecondsPerImage(value: number | null): string {
+  if (value === null || !Number.isFinite(value) || value <= 0) {
+    return '— s/image';
+  }
+  if (value < 1) {
+    return `${value.toFixed(2)} s/image`;
+  }
+  if (value < 10) {
+    return `${value.toFixed(1)} s/image`;
+  }
+  return `${Math.round(value)} s/image`;
 }
 
 function countGeneratedImages(status: PipelineStatusResponse | undefined): number {
@@ -929,6 +1089,10 @@ export function JobProgress({
     isPipelineLikeJob && status?.result && typeof status.result === 'object'
       ? (status.result as PipelineResponsePayload)
       : null;
+  const pipelineConfig =
+    pipelineResult && pipelineResult.pipeline_config && typeof pipelineResult.pipeline_config === 'object'
+      ? (pipelineResult.pipeline_config as Record<string, unknown>)
+      : null;
   const subtitleResult =
     isSubtitleJob && status?.result && typeof status.result === 'object'
       ? (status.result as Record<string, unknown>)
@@ -1066,6 +1230,32 @@ export function JobProgress({
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
   const statusGlyph = getStatusGlyph(statusValue);
   const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
+
+  const imageGenerationEnabled = useMemo(() => {
+    const parametersEnabled = status?.parameters?.add_images;
+    if (typeof parametersEnabled === 'boolean') {
+      return parametersEnabled;
+    }
+    if (status?.image_generation && typeof status.image_generation.enabled === 'boolean') {
+      return status.image_generation.enabled;
+    }
+    return false;
+  }, [status?.parameters?.add_images, status?.image_generation]);
+  const imageClusterSummary = useMemo(() => resolveImageClusterSummary(status), [status]);
+  const imageClusterNodes = useMemo(
+    () => buildImageClusterNodes(imageClusterSummary, pipelineConfig, imageGenerationEnabled),
+    [imageClusterSummary, pipelineConfig, imageGenerationEnabled]
+  );
+  const imageNodeLabels = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const option of IMAGE_API_NODE_OPTIONS) {
+      const normalized = normalizeBaseUrl(option.value);
+      if (normalized) {
+        labels.set(normalized, option.label);
+      }
+    }
+    return labels;
+  }, []);
 
   const [subtitleTab, setSubtitleTab] = useState<SubtitleJobTab>('overview');
   useEffect(() => {
@@ -1244,6 +1434,26 @@ export function JobProgress({
                 <dd>{entry.value}</dd>
               </div>
             ))}
+          </dl>
+        </div>
+      ) : null}
+      {isBookJob && imageClusterNodes.length > 0 ? (
+        <div className="job-card__section">
+          <h4>Image cluster</h4>
+          <dl className="metadata-grid">
+            {imageClusterNodes.map((node) => {
+              const label = imageNodeLabels.get(node.baseUrl) ?? node.baseUrl;
+              const processedCount = typeof node.processed === 'number' ? node.processed : 0;
+              const processedLabel = `${processedCount} image${processedCount === 1 ? '' : 's'}`;
+              const statusLabel = node.active ? 'Active' : 'Inactive';
+              const speedLabel = formatSecondsPerImage(node.avgSecondsPerImage);
+              return (
+                <div key={node.baseUrl} className="metadata-grid__row">
+                  <dt>{label}</dt>
+                  <dd>{`${statusLabel} • ${processedLabel} • ${speedLabel}`}</dd>
+                </div>
+              );
+            })}
           </dl>
         </div>
       ) : null}

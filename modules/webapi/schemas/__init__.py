@@ -162,6 +162,27 @@ class PipelineDefaultsResponse(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
 
 
+class ImageNodeAvailabilityRequest(BaseModel):
+    """Request payload for image node availability checks."""
+
+    base_urls: List[str] = Field(default_factory=list)
+
+
+class ImageNodeAvailabilityEntry(BaseModel):
+    """Availability result for a single image node."""
+
+    base_url: str
+    available: bool
+
+
+class ImageNodeAvailabilityResponse(BaseModel):
+    """Response payload for image node availability checks."""
+
+    nodes: List[ImageNodeAvailabilityEntry] = Field(default_factory=list)
+    available: List[str] = Field(default_factory=list)
+    unavailable: List[str] = Field(default_factory=list)
+
+
 class PipelineFileDeleteRequest(BaseModel):
     """Request payload for deleting a stored pipeline input file."""
 
@@ -652,6 +673,7 @@ class PipelineResponsePayload(BaseModel):
             "highlight_granularity": config.highlight_granularity,
             "voice_overrides": dict(config.voice_overrides),
             "image_api_base_url": config.image_api_base_url,
+            "image_api_base_urls": list(config.image_api_base_urls),
             "image_api_timeout_seconds": config.image_api_timeout_seconds,
             "image_concurrency": config.image_concurrency,
             "image_width": config.image_width,

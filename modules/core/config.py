@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Mapping, Optional
+from typing import Any, Mapping, Optional, Sequence
 
 from pydub import AudioSegment
 
@@ -51,12 +51,44 @@ def _coerce_float(value: Any, default: float) -> float:
         return default
 
 
+def _coerce_str_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [entry for entry in (part.strip() for part in value.split(",")) if entry]
+    if isinstance(value, Sequence):
+        entries: list[str] = []
+        for entry in value:
+            if entry is None:
+                continue
+            text = str(entry).strip()
+            if text:
+                entries.append(text)
+        return entries
+    return []
+
+
 def _normalize_optional_str(value: Any) -> Optional[str]:
     if isinstance(value, str):
         stripped = value.strip()
         if stripped:
             return stripped
     return None
+
+
+def _normalize_url_list(values: Sequence[str]) -> list[str]:
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        normalized = _normalize_optional_str(value)
+        if not normalized:
+            continue
+        normalized = normalized.rstrip("/")
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        cleaned.append(normalized)
+    return cleaned
 
 
 @dataclass(slots=True)
@@ -121,6 +153,7 @@ class PipelineConfig:
     image_api_base_url: Optional[str] = field(
         default_factory=lambda: (os.environ.get("EBOOK_IMAGE_API_BASE_URL") or "").strip() or None
     )
+    image_api_base_urls: tuple[str, ...] = field(default_factory=tuple)
     image_api_timeout_seconds: float = field(
         default_factory=lambda: _coerce_float(os.environ.get("EBOOK_IMAGE_API_TIMEOUT_SECONDS"), 600.0)
     )
@@ -410,6 +443,20 @@ def build_pipeline_config(
             (os.environ.get("EBOOK_IMAGE_API_BASE_URL") or "").strip() or None,
         )
     )
+    image_api_base_urls = _normalize_url_list(
+        _coerce_str_list(
+            _select_value(
+                "image_api_base_urls",
+                config,
+                overrides,
+                os.environ.get("EBOOK_IMAGE_API_BASE_URLS"),
+            )
+        )
+    )
+    if image_api_base_url and image_api_base_url not in image_api_base_urls:
+        image_api_base_urls.insert(0, image_api_base_url)
+    elif not image_api_base_url and image_api_base_urls:
+        image_api_base_url = image_api_base_urls[0]
     image_api_timeout_seconds = max(
         1.0,
         _coerce_float(
@@ -651,6 +698,7 @@ def build_pipeline_config(
         video_backend=video_backend,
         video_backend_settings=video_backend_settings,
         image_api_base_url=image_api_base_url,
+        image_api_base_urls=tuple(image_api_base_urls),
         image_api_timeout_seconds=image_api_timeout_seconds,
         image_concurrency=image_concurrency,
         image_width=image_width,

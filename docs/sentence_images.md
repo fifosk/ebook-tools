@@ -14,6 +14,9 @@ Sentence images are controlled by pipeline config values (and can be overridden 
 
 - `add_images`: Enables sentence images for the job.
 - `image_api_base_url`: Base URL of the Draw Things instance (example: `http://192.168.1.9:7860`).
+- `image_api_base_urls`: Optional list of Draw Things base URLs for clustered rendering.
+  - When set, requests fan out to each node at startup (one in-flight per node), then the next request goes to whichever node is free, so faster nodes naturally take more work.
+  - Set `image_concurrency` to at least the number of nodes if you want the first batch of images to fan out across the cluster immediately.
 - `image_api_timeout_seconds`: Request timeout for `txt2img` (default: 600 seconds).
 - `image_concurrency`: Number of parallel image workers (default: 4).
 - `image_width`, `image_height`: Output resolution (defaults: 512×512).
@@ -31,6 +34,7 @@ Sentence images are controlled by pipeline config values (and can be overridden 
 Environment variables:
 
 - `EBOOK_IMAGE_API_BASE_URL`
+- `EBOOK_IMAGE_API_BASE_URLS` (comma-separated list for clustered rendering)
 - `EBOOK_IMAGE_API_TIMEOUT_SECONDS`
 - `EBOOK_IMAGE_CONCURRENCY`
 
@@ -54,6 +58,8 @@ For transparency, jobs that precompute a prompt plan also write:
 - `storage/<job_id>/metadata/image_prompt_plan_summary.json` (compact coverage/retry stats surfaced in the job details UI)
 
 The job media snapshot endpoints (`/api/pipelines/jobs/{job_id}/media` and `/api/pipelines/jobs/{job_id}/media/live`) expose these fields so the web client can update its image reel during running jobs.
+
+When clustered rendering is enabled, `generated_files.image_cluster` includes per-node stats (active flag, processed count, and average seconds per image) so the job detail view can report node throughput.
 
 ## Prompting flow (LLM → Diffusion prompt)
 
@@ -97,7 +103,7 @@ Schemas live in `modules/webapi/schemas/images.py`.
 
 ## Debugging checklist
 
-1. Confirm `image_api_base_url` is set and reachable from the API host.
+1. Confirm `image_api_base_url` or `image_api_base_urls` is set and reachable from the API host.
 2. Verify the backend can call the Draw Things `txt2img` endpoint (`/sdapi/v1/txt2img`) and receives JSON with a base64-encoded image (`images[0]`).
 3. Inspect `storage/<job_id>/media/images/` to confirm PNGs are being written.
 4. Inspect `storage/<job_id>/metadata/chunk_XXXX.json` to confirm `sentences[].image` is present and paths are job-relative.

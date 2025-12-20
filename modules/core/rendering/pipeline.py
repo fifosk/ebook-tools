@@ -44,10 +44,11 @@ from .blocks import build_written_and_video_blocks
 from .constants import LANGUAGE_CODES, NON_LATIN_LANGUAGES
 from .exporters import BatchExportRequest, BatchExportResult, BatchExporter, build_exporter
 from modules.images.drawthings import (
-    DrawThingsClient,
+    DrawThingsClientLike,
     DrawThingsError,
     DrawThingsImageRequest,
     DrawThingsImageToImageRequest,
+    resolve_drawthings_client,
 )
 from modules.images.prompting import (
     DiffusionPrompt,
@@ -1015,23 +1016,49 @@ class RenderPipeline:
         image_state: Optional[_ImageGenerationState] = None
         image_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
         image_futures: set[concurrent.futures.Future] = set()
-        image_client: Optional[DrawThingsClient] = None
-        image_base_url = self._config.image_api_base_url
+        image_client: Optional[DrawThingsClientLike] = None
+        image_base_urls = list(self._config.image_api_base_urls or ())
+        if not image_base_urls and self._config.image_api_base_url:
+            image_base_urls.append(self._config.image_api_base_url)
+        image_cluster_nodes: list[dict[str, object]] = []
+        image_cluster_available: list[str] = []
+        image_cluster_unavailable: list[str] = []
         if generate_images:
             image_state = _ImageGenerationState()
             state.image_state = image_state
-            if image_base_url:
+            if image_base_urls:
                 try:
-                    image_client = DrawThingsClient(
-                        image_base_url,
+                    image_client, _available_urls, unavailable_urls = resolve_drawthings_client(
+                        base_urls=image_base_urls,
                         timeout_seconds=float(self._config.image_api_timeout_seconds),
                     )
+                    image_cluster_available = list(_available_urls or ())
+                    image_cluster_unavailable = list(unavailable_urls or ())
+                    if unavailable_urls:
+                        logger.warning(
+                            "DrawThings endpoints unavailable: %s",
+                            ", ".join(unavailable_urls),
+                            extra={
+                                "event": "pipeline.image.unavailable",
+                                "attributes": {"unavailable": unavailable_urls},
+                                "console_suppress": True,
+                            },
+                        )
+                    if image_client is None:
+                        logger.warning(
+                            "Image generation enabled but no DrawThings endpoints are reachable.",
+                            extra={
+                                "event": "pipeline.image.unreachable",
+                                "attributes": {"configured": image_base_urls},
+                                "console_suppress": True,
+                            },
+                        )
                 except Exception as exc:
                     logger.warning("Unable to configure DrawThings client: %s", exc)
                     image_client = None
             else:
                 logger.warning(
-                    "Image generation enabled but image_api_base_url is not configured."
+                    "Image generation enabled but image_api_base_url(s) are not configured."
                 )
                 if self._progress is not None:
                     self._progress.record_retry("image", "missing_base_url")
@@ -1039,6 +1066,50 @@ class RenderPipeline:
             if image_client is not None:
                 max_workers = max(1, int(self._config.image_concurrency or 1))
                 image_executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
+
+            if image_base_urls:
+                image_cluster_nodes = [
+                    {"base_url": url, "active": url in image_cluster_available}
+                    for url in image_base_urls
+                ]
+
+        def _update_image_cluster_stats() -> None:
+            if self._progress is None or not image_cluster_nodes:
+                return
+            stats_list: list[dict[str, object]] = []
+            if image_client is not None and hasattr(image_client, "snapshot_stats"):
+                try:
+                    stats_list = list(image_client.snapshot_stats())
+                except Exception:
+                    stats_list = []
+            stats_by_url: dict[str, dict[str, object]] = {}
+            for entry in stats_list:
+                if not isinstance(entry, Mapping):
+                    continue
+                base_url = entry.get("base_url")
+                if isinstance(base_url, str) and base_url:
+                    stats_by_url[base_url] = dict(entry)
+            nodes_payload: list[dict[str, object]] = []
+            for node in image_cluster_nodes:
+                base_url = node.get("base_url")
+                if not isinstance(base_url, str):
+                    continue
+                entry = dict(node)
+                stats = stats_by_url.get(base_url)
+                if stats:
+                    entry["processed"] = stats.get("processed", 0)
+                    entry["total_seconds"] = stats.get("total_seconds")
+                    entry["avg_seconds_per_image"] = stats.get("avg_seconds_per_image")
+                else:
+                    entry.setdefault("processed", 0)
+                    entry.setdefault("avg_seconds_per_image", None)
+                nodes_payload.append(entry)
+            self._progress.update_generated_files_metadata(
+                {"image_cluster": {"nodes": nodes_payload, "unavailable": image_cluster_unavailable}}
+            )
+
+        if generate_images and image_cluster_nodes:
+            _update_image_cluster_stats()
 
         target_sentences = [str(entry) for entry in (sentences or ())]
         base_dir_path = Path(base_dir)
@@ -1829,6 +1900,7 @@ class RenderPipeline:
                             )
                         )
                     success = True
+                    _update_image_cluster_stats()
                     return results
                 except DrawThingsError as exc:
                     if self._progress is not None:

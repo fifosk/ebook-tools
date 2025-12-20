@@ -16,7 +16,11 @@ from fastapi.concurrency import run_in_threadpool
 
 from modules import logging_manager as log_mgr
 from modules.epub_utils import create_epub_from_sentences
-from modules.images.drawthings import DrawThingsClient, DrawThingsImageRequest
+from modules.images.drawthings import (
+    DrawThingsImageRequest,
+    normalize_drawthings_base_urls,
+    resolve_drawthings_client,
+)
 from modules.images.prompting import (
     build_sentence_image_negative_prompt,
     build_sentence_image_prompt,
@@ -243,16 +247,19 @@ def _generate_cover_image(
     negative_prompt: str | None,
     output_dir: Path,
     config: dict[str, Any],
-) -> tuple[str | None, str | None, str | None]:
-    base_url = config.get("image_api_base_url")
-    if not isinstance(base_url, str) or not base_url.strip():
-        return None, None, None
+) -> tuple[str | None, str | None, str | None, str | None]:
+    base_urls = normalize_drawthings_base_urls(
+        base_url=config.get("image_api_base_url"),
+        base_urls=config.get("image_api_base_urls"),
+    )
+    if not base_urls:
+        return None, None, None, "unconfigured"
 
     style_value = config.get("image_style_template")
     style_template = resolve_image_style_template(style_value)
     prompt_text = _collapse_whitespace(prompt)
     if not prompt_text:
-        return None, None, None
+        return None, None, None, None
 
     full_prompt = build_sentence_image_prompt(
         prompt_text,
@@ -281,13 +288,28 @@ def _generate_cover_image(
         sampler_name=sampler_name,
     )
     timeout_seconds = max(1.0, _coerce_float(config.get("image_api_timeout_seconds"), 180.0))
-    client = DrawThingsClient(base_url, timeout_seconds=timeout_seconds)
+    client, _available_urls, unavailable_urls = resolve_drawthings_client(
+        base_urls=base_urls,
+        timeout_seconds=timeout_seconds,
+    )
+    if unavailable_urls:
+        logger.warning(
+            "DrawThings endpoints unavailable: %s",
+            ", ".join(unavailable_urls),
+            extra={
+                "event": "webapi.cover.unavailable",
+                "attributes": {"unavailable": unavailable_urls},
+                "console_suppress": True,
+            },
+        )
+    if client is None:
+        return None, None, None, "unavailable"
     image_bytes, _payload = client.txt2img(request)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     cover_path = output_dir / "cover.png"
     cover_path.write_bytes(image_bytes)
-    return str(cover_path), full_prompt, full_negative
+    return str(cover_path), full_prompt, full_negative, None
 
 
 def _parse_sentences(payload: str, expected: int) -> list[str]:
@@ -537,6 +559,7 @@ def _execute_book_job(
     cover_file_path: str | None = None
     cover_prompt_used: str | None = None
     cover_negative_used: str | None = None
+    cover_skip_reason: str | None = None
 
     _check_cancelled("metadata generation")
     if sentences:
@@ -588,6 +611,7 @@ def _execute_book_job(
                 cover_file_path,
                 cover_prompt_used,
                 cover_negative_used,
+                cover_skip_reason,
             ) = _generate_cover_image(
                 prompt=cover_prompt,
                 negative_prompt=cover_negative_prompt,
@@ -597,9 +621,16 @@ def _execute_book_job(
             if cover_file_path:
                 metadata_messages.append("Generated cover art using the diffusion model.")
             else:
-                metadata_warnings.append(
-                    "Cover generation skipped because image_api_base_url is not configured."
-                )
+                if cover_skip_reason == "unavailable":
+                    metadata_warnings.append(
+                        "Cover generation skipped because DrawThings endpoints are unavailable."
+                    )
+                elif cover_skip_reason == "unconfigured":
+                    metadata_warnings.append(
+                        "Cover generation skipped because image_api_base_url(s) are not configured."
+                    )
+                else:
+                    metadata_warnings.append("Cover generation skipped.")
         except Exception as exc:
             metadata_warnings.append(f"Cover generation failed: {exc}")
             logger.warning("Cover generation failed for job %s: %s", job.job_id, exc)

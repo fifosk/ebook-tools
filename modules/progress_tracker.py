@@ -93,6 +93,7 @@ class ProgressTracker:
         self._completion_emitted = False
         self._generated_chunks: List[Dict[str, object]] = []
         self._generated_files_snapshot: Dict[str, object] = {"chunks": [], "files": []}
+        self._generated_files_extras: Dict[str, object] = {}
         self._retry_counts: Dict[str, Dict[str, int]] = {}
 
     @property
@@ -324,6 +325,16 @@ class ProgressTracker:
         with self._lock:
             return copy.deepcopy(self._generated_files_snapshot)
 
+    def update_generated_files_metadata(self, payload: Mapping[str, object]) -> None:
+        """Merge ``payload`` into the generated files snapshot."""
+
+        if not payload:
+            return
+        with self._lock:
+            for key, value in payload.items():
+                self._generated_files_extras[key] = copy.deepcopy(value)
+            self._generated_files_snapshot = self._build_generated_files_snapshot_locked()
+
     def get_retry_counts(self) -> Dict[str, Dict[str, int]]:
         """Return a snapshot of retry counters grouped by stage and reason."""
 
@@ -517,7 +528,15 @@ class ProgressTracker:
                     }
                 )
         _, complete = self._compute_completion_flag_locked()
-        return {"chunks": chunks_copy, "files": files_index, "complete": complete}
+        payload: Dict[str, object] = {
+            "chunks": chunks_copy,
+            "files": files_index,
+            "complete": complete,
+        }
+        if self._generated_files_extras:
+            for key, value in self._generated_files_extras.items():
+                payload[key] = copy.deepcopy(value)
+        return payload
 
     def _build_generated_files_delta_locked(
         self,

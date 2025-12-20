@@ -52,7 +52,8 @@ Follow the suggested remediations to restore parity:
   `EBOOK_CHAR_WEIGHTED_PUNCTUATION_BOOST`, and `forced_alignment_enabled`.
 - If sentence images are enabled for the job, confirm both machines export the
   same image-generation env vars: `EBOOK_IMAGE_API_BASE_URL`,
-  `EBOOK_IMAGE_API_TIMEOUT_SECONDS`, and `EBOOK_IMAGE_CONCURRENCY`.
+  `EBOOK_IMAGE_API_BASE_URLS`, `EBOOK_IMAGE_API_TIMEOUT_SECONDS`, and
+  `EBOOK_IMAGE_CONCURRENCY`.
 - If prompts look inconsistent between environments, confirm both machines use
   the same `image_prompt_context_sentences` default/override when running the job.
 - For image prompt consistency investigations, compare `storage/<job_id>/metadata/image_prompt_plan.json`

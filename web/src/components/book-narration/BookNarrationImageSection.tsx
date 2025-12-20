@@ -1,3 +1,7 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { checkImageNodeAvailability } from '../../api/client';
+import { IMAGE_API_NODE_OPTIONS } from '../../constants/imageNodes';
+
 type BookNarrationImageSectionProps = {
   headingId: string;
   title: string;
@@ -9,6 +13,7 @@ type BookNarrationImageSectionProps = {
   imagePromptContextSentences: number;
   imageSeedWithPreviousImage: boolean;
   imageBlankDetectionEnabled: boolean;
+  imageApiBaseUrls: string[];
   imageConcurrency: string;
   imageWidth: string;
   imageHeight: string;
@@ -23,6 +28,7 @@ type BookNarrationImageSectionProps = {
   onImagePromptContextSentencesChange: (value: number) => void;
   onImageSeedWithPreviousImageChange: (value: boolean) => void;
   onImageBlankDetectionEnabledChange: (value: boolean) => void;
+  onImageApiBaseUrlsChange: (value: string[]) => void;
   onImageConcurrencyChange: (value: string) => void;
   onImageWidthChange: (value: string) => void;
   onImageHeightChange: (value: string) => void;
@@ -40,6 +46,18 @@ type ImageStyleOption = {
   maxSteps: number;
   defaultSteps: number;
   secondsAtDefault: number;
+};
+
+type ImageNodeAvailabilityState = 'available' | 'unavailable' | 'checking' | 'unknown' | 'idle';
+
+const IMAGE_API_NODE_VALUES = IMAGE_API_NODE_OPTIONS.map((option) => option.value);
+const IMAGE_API_NODE_VALUE_SET = new Set(IMAGE_API_NODE_VALUES);
+const IMAGE_NODE_STATUS_LABELS: Record<ImageNodeAvailabilityState, string> = {
+  available: 'Available',
+  unavailable: 'Unavailable',
+  checking: 'Checking',
+  unknown: 'Unknown',
+  idle: 'Not selected'
 };
 
 const IMAGE_STYLE_OPTIONS: ImageStyleOption[] = [
@@ -116,7 +134,7 @@ function qualityFromSteps(steps: number, style: ImageStyleOption): number {
 
 function formatSeconds(seconds: number): string {
   if (!Number.isFinite(seconds)) {
-    return '—';
+    return '-';
   }
   if (seconds < 1) {
     return `${seconds.toFixed(2)}s`;
@@ -138,6 +156,7 @@ const BookNarrationImageSection = ({
   imagePromptContextSentences,
   imageSeedWithPreviousImage,
   imageBlankDetectionEnabled,
+  imageApiBaseUrls,
   imageConcurrency,
   imageWidth,
   imageHeight,
@@ -152,6 +171,7 @@ const BookNarrationImageSection = ({
   onImagePromptContextSentencesChange,
   onImageSeedWithPreviousImageChange,
   onImageBlankDetectionEnabledChange,
+  onImageApiBaseUrlsChange,
   onImageConcurrencyChange,
   onImageWidthChange,
   onImageHeightChange,
@@ -171,6 +191,83 @@ const BookNarrationImageSection = ({
   const resolutionFactor = Math.max(0.25, (widthValue * heightValue) / (512 * 512));
   const secondsPerImage = (style.secondsAtDefault * resolutionFactor * stepsValue) / style.defaultSteps;
   const imagesPerMinute = concurrencyValue > 0 ? (60 * concurrencyValue) / secondsPerImage : 0;
+  const selectedNodes = useMemo(() => new Set(imageApiBaseUrls), [imageApiBaseUrls]);
+  const selectedNodeUrls = useMemo(
+    () => IMAGE_API_NODE_OPTIONS.map((option) => option.value).filter((value) => selectedNodes.has(value)),
+    [selectedNodes]
+  );
+  const [nodeStatusByUrl, setNodeStatusByUrl] = useState<Record<string, ImageNodeAvailabilityState>>({});
+  const nodeStatusRequestId = useRef(0);
+
+  useEffect(() => {
+    if (!addImages) {
+      setNodeStatusByUrl({});
+      return;
+    }
+    if (selectedNodeUrls.length === 0) {
+      setNodeStatusByUrl({});
+      return;
+    }
+
+    nodeStatusRequestId.current += 1;
+    const requestId = nodeStatusRequestId.current;
+
+    setNodeStatusByUrl((prev) => {
+      const next = { ...prev };
+      for (const url of selectedNodeUrls) {
+        next[url] = 'checking';
+      }
+      return next;
+    });
+
+    checkImageNodeAvailability({ base_urls: selectedNodeUrls })
+      .then((response) => {
+        if (nodeStatusRequestId.current !== requestId) {
+          return;
+        }
+        setNodeStatusByUrl((prev) => {
+          const next = { ...prev };
+          for (const entry of response.nodes) {
+            next[entry.base_url] = entry.available ? 'available' : 'unavailable';
+          }
+          return next;
+        });
+      })
+      .catch(() => {
+        if (nodeStatusRequestId.current !== requestId) {
+          return;
+        }
+        setNodeStatusByUrl((prev) => {
+          const next = { ...prev };
+          for (const url of selectedNodeUrls) {
+            if (next[url] === 'checking') {
+              next[url] = 'unknown';
+            }
+          }
+          return next;
+        });
+      });
+  }, [addImages, selectedNodeUrls]);
+  const handleNodeToggle = (value: string, checked: boolean) => {
+    const next = new Set(selectedNodes);
+    if (checked) {
+      next.add(value);
+    } else {
+      next.delete(value);
+    }
+    const ordered: string[] = [];
+    for (const option of IMAGE_API_NODE_OPTIONS) {
+      if (next.has(option.value)) {
+        ordered.push(option.value);
+      }
+    }
+    for (const entry of imageApiBaseUrls) {
+      if (!IMAGE_API_NODE_VALUE_SET.has(entry) && next.has(entry)) {
+        ordered.push(entry);
+      }
+    }
+    onImageApiBaseUrlsChange(ordered);
+  };
 
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
@@ -233,7 +330,7 @@ const BookNarrationImageSection = ({
             </label>
             <p className="form-help-text">
               Estimate: ~{formatSeconds(secondsPerImage)} per image; with {concurrencyValue} worker
-              {concurrencyValue === 1 ? '' : 's'} ≈ {Number.isFinite(imagesPerMinute) ? imagesPerMinute.toFixed(1) : '—'}{' '}
+              {concurrencyValue === 1 ? '' : 's'} ~ {Number.isFinite(imagesPerMinute) ? imagesPerMinute.toFixed(1) : '-'}{' '}
               images/min (rough).
             </p>
             <label className="checkbox">
@@ -312,6 +409,32 @@ const BookNarrationImageSection = ({
             <h4>Generation settings</h4>
             <p className="form-help-text">
               Tune these if you see Draw Things timeouts or want higher fidelity. Larger sizes and more steps take longer.
+            </p>
+            <p className="form-help-text">Draw Things nodes (checked nodes receive work).</p>
+            <div className="option-grid">
+              {IMAGE_API_NODE_OPTIONS.map((option) => {
+                const isSelected = selectedNodes.has(option.value);
+                const status = isSelected ? nodeStatusByUrl[option.value] ?? 'checking' : 'idle';
+                const statusLabel = IMAGE_NODE_STATUS_LABELS[status];
+                return (
+                  <label key={option.value} className="checkbox image-node-option">
+                    <input
+                      type="checkbox"
+                      name="image_api_base_urls"
+                      checked={isSelected}
+                      onChange={(event) => handleNodeToggle(option.value, event.target.checked)}
+                    />
+                    <span>{option.label}</span>
+                    <span className="image-node-status" data-state={status} aria-label={statusLabel} title={statusLabel}>
+                      <span className="image-node-status__dot" aria-hidden="true" />
+                      <span className="image-node-status__label">{statusLabel}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            <p className="form-help-text">
+              Requests fan out across selected nodes; set image workers to at least the node count for full parallelism.
             </p>
             <label htmlFor={`${headingId}-image-concurrency`}>
               Image workers

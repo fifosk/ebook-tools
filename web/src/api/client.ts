@@ -2,6 +2,8 @@ import {
   LoginRequestPayload,
   ManagedUser,
   PasswordChangeRequestPayload,
+  ImageNodeAvailabilityRequestPayload,
+  ImageNodeAvailabilityResponse,
   PipelineDefaultsResponse,
   PipelineFileBrowserResponse,
   PipelineFileEntry,
@@ -888,6 +890,19 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
   const response = await apiFetch('/api/pipelines/defaults');
   return handleResponse<PipelineDefaultsResponse>(response);
+}
+
+export async function checkImageNodeAvailability(
+  payload: ImageNodeAvailabilityRequestPayload
+): Promise<ImageNodeAvailabilityResponse> {
+  const response = await apiFetch('/api/pipelines/image-nodes/availability', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<ImageNodeAvailabilityResponse>(response);
 }
 
 export async function fetchVoiceInventory(): Promise<VoiceInventoryResponse> {

@@ -50,6 +50,7 @@ import BookNarrationSourceSection from './BookNarrationSourceSection';
 import BookNarrationLanguageSection from './BookNarrationLanguageSection';
 import BookNarrationOutputSection from './BookNarrationOutputSection';
 import BookNarrationImageSection from './BookNarrationImageSection';
+import { DEFAULT_IMAGE_API_BASE_URLS } from '../../constants/imageNodes';
 import BookNarrationPerformanceSection from './BookNarrationPerformanceSection';
 import BookMetadataSection from './BookMetadataSection';
 import FileSelectionDialog from '../FileSelectionDialog';
@@ -150,6 +151,7 @@ type FormState = {
   image_prompt_context_sentences: number;
   image_seed_with_previous_image: boolean;
   image_blank_detection_enabled: boolean;
+  image_api_base_urls: string[];
   image_width: string;
   image_height: string;
   image_steps: string;
@@ -212,6 +214,7 @@ const DEFAULT_FORM_STATE: FormState = {
   image_prompt_context_sentences: 2,
   image_seed_with_previous_image: false,
   image_blank_detection_enabled: false,
+  image_api_base_urls: [...DEFAULT_IMAGE_API_BASE_URLS],
   image_width: '',
   image_height: '',
   image_steps: '',
@@ -315,6 +318,49 @@ function coerceNumber(value: unknown): number | undefined {
     }
   }
   return undefined;
+}
+
+function coerceStringList(value: unknown): string[] | undefined {
+  if (Array.isArray(value)) {
+    const entries = value
+      .map((entry) => (typeof entry === 'string' ? entry : ''))
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    return entries.length > 0 ? entries : undefined;
+  }
+  if (typeof value === 'string') {
+    const entries = value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0);
+    return entries.length > 0 ? entries : undefined;
+  }
+  return undefined;
+}
+
+function normalizeBaseUrl(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  return trimmed.replace(/\/+$/, '');
+}
+
+function normalizeBaseUrls(values: string[]): string[] {
+  const cleaned: string[] = [];
+  const seen = new Set<string>();
+  for (const entry of values) {
+    const normalized = normalizeBaseUrl(entry);
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    cleaned.push(normalized);
+  }
+  return cleaned;
 }
 
 function extractBookMetadata(config: Record<string, unknown>): Record<string, unknown> | null {
@@ -518,6 +564,16 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
   const imageSamplerName = config['image_sampler_name'];
   if (typeof imageSamplerName === 'string') {
     next.image_sampler_name = imageSamplerName;
+  }
+
+  const imageApiBaseUrls = normalizeBaseUrls(coerceStringList(config['image_api_base_urls']) ?? []);
+  const imageApiBaseUrl = normalizeBaseUrl(
+    typeof config['image_api_base_url'] === 'string' ? config['image_api_base_url'] : null
+  );
+  if (imageApiBaseUrls.length > 0) {
+    next.image_api_base_urls = imageApiBaseUrls;
+  } else if (imageApiBaseUrl) {
+    next.image_api_base_urls = [imageApiBaseUrl];
   }
 
   const imageApiTimeoutSeconds = coerceNumber(config['image_api_timeout_seconds']);
@@ -2193,6 +2249,10 @@ export function BookNarrationForm({
         pipelineOverrides.image_seed_with_previous_image = Boolean(formState.image_seed_with_previous_image);
         pipelineOverrides.image_blank_detection_enabled = Boolean(formState.image_blank_detection_enabled);
 
+        const normalizedImageBaseUrls = normalizeBaseUrls(formState.image_api_base_urls);
+        pipelineOverrides.image_api_base_urls = normalizedImageBaseUrls;
+        pipelineOverrides.image_api_base_url = normalizedImageBaseUrls[0] ?? '';
+
         const imageConcurrency = parseOptionalNumberInput(formState.image_concurrency);
         if (imageConcurrency !== undefined) {
           pipelineOverrides.image_concurrency = Math.max(1, Math.trunc(imageConcurrency));
@@ -2493,6 +2553,7 @@ export function BookNarrationForm({
             imagePromptContextSentences={formState.image_prompt_context_sentences}
             imageSeedWithPreviousImage={formState.image_seed_with_previous_image}
             imageBlankDetectionEnabled={formState.image_blank_detection_enabled}
+            imageApiBaseUrls={formState.image_api_base_urls}
             imageConcurrency={formState.image_concurrency}
             imageWidth={formState.image_width}
             imageHeight={formState.image_height}
@@ -2513,6 +2574,7 @@ export function BookNarrationForm({
             onImageBlankDetectionEnabledChange={(value) =>
               handleChange('image_blank_detection_enabled', value)
             }
+            onImageApiBaseUrlsChange={(value) => handleChange('image_api_base_urls', value)}
             onImageConcurrencyChange={(value) => handleChange('image_concurrency', value)}
             onImageWidthChange={(value) => handleChange('image_width', value)}
             onImageHeightChange={(value) => handleChange('image_height', value)}

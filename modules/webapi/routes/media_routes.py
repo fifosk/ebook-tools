@@ -20,7 +20,12 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from ... import config_manager as cfg
 from ... import logging_manager
 from ...metadata_manager import MetadataLoader
-from ...images.drawthings import DrawThingsClient, DrawThingsError, DrawThingsImageRequest
+from ...images.drawthings import (
+    DrawThingsError,
+    DrawThingsImageRequest,
+    normalize_drawthings_base_urls,
+    resolve_drawthings_client,
+)
 from ...images.prompting import (
     build_sentence_image_negative_prompt,
     build_sentence_image_prompt,
@@ -720,12 +725,14 @@ async def regenerate_sentence_image(
     style_template = _resolve_job_image_style_template(job_root)
 
     config = cfg.load_configuration(verbose=False)
-    base_url = config.get("image_api_base_url")
-    base_url = base_url.strip() if isinstance(base_url, str) else ""
-    if not base_url:
+    base_urls = normalize_drawthings_base_urls(
+        base_url=config.get("image_api_base_url"),
+        base_urls=config.get("image_api_base_urls"),
+    )
+    if not base_urls:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="image_api_base_url is not configured",
+            detail="image_api_base_url(s) are not configured",
         )
     timeout_seconds = max(
         1.0,
@@ -808,7 +815,25 @@ async def regenerate_sentence_image(
     prompt_full = _ensure_prompt_suffix(prompt, style_template=style_template)
     negative_full = _ensure_negative_suffix(negative_prompt, style_template=style_template)
 
-    client = DrawThingsClient(base_url, timeout_seconds=timeout_seconds)
+    client, _available_urls, unavailable_urls = resolve_drawthings_client(
+        base_urls=base_urls,
+        timeout_seconds=timeout_seconds,
+    )
+    if unavailable_urls:
+        LOGGER.warning(
+            "DrawThings endpoints unavailable: %s",
+            ", ".join(unavailable_urls),
+            extra={
+                "event": "webapi.image.unavailable",
+                "attributes": {"unavailable": unavailable_urls},
+                "console_suppress": True,
+            },
+        )
+    if client is None:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="DrawThings endpoints are unavailable",
+        )
     blank_detection_enabled = _coerce_bool_default(
         config.get("image_blank_detection_enabled"), False
     )

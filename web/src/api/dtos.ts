@@ -26,6 +26,21 @@ export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }
 
+export interface ImageNodeAvailabilityRequestPayload {
+  base_urls: string[];
+}
+
+export interface ImageNodeAvailabilityEntry {
+  base_url: string;
+  available: boolean;
+}
+
+export interface ImageNodeAvailabilityResponse {
+  nodes: ImageNodeAvailabilityEntry[];
+  available: string[];
+  unavailable: string[];
+}
+
 export interface MacOSVoice {
   name: string;
   lang: string;

@@ -369,6 +369,7 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "word_highlighting": config.word_highlighting,
         "highlight_granularity": config.highlight_granularity,
         "image_api_base_url": config.image_api_base_url,
+        "image_api_base_urls": list(config.image_api_base_urls),
         "image_api_timeout_seconds": config.image_api_timeout_seconds,
         "image_concurrency": config.image_concurrency,
         "image_width": config.image_width,
