@@ -1,4 +1,4 @@
-type PipelinePerformanceSectionProps = {
+type BookNarrationPerformanceSectionProps = {
   headingId: string;
   title: string;
   description: string;
@@ -14,7 +14,7 @@ type PipelinePerformanceSectionProps = {
   onSlideParallelWorkersChange: (value: string) => void;
 };
 
-const PipelinePerformanceSection = ({
+const BookNarrationPerformanceSection = ({
   headingId,
   title,
   description,
@@ -28,7 +28,7 @@ const PipelinePerformanceSection = ({
   onJobMaxWorkersChange,
   onSlideParallelismChange,
   onSlideParallelWorkersChange
-}: PipelinePerformanceSectionProps) => {
+}: BookNarrationPerformanceSectionProps) => {
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
@@ -123,4 +123,4 @@ const PipelinePerformanceSection = ({
   );
 };
 
-export default PipelinePerformanceSection;
+export default BookNarrationPerformanceSection;

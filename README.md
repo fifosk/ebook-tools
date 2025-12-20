@@ -486,8 +486,8 @@ The SPA composes several providers to offer a multi-user dashboard:
   `magenta`, or `system`) and sets the `<html data-theme>` attribute so that CSS
   variables adapt instantly. User preferences survive reloads via
   `localStorage` (`web/src/components/ThemeProvider.tsx`).
-- `PipelineSubmissionForm` is grouped into source, language, output,
-  performance, and advanced sections. It draws defaults from
+- `BookNarrationForm` is grouped into source, metadata, language, output,
+  images, performance, and submit sections. It draws defaults from
   `/pipelines/defaults`, lets users upload EPUBs, and validates overrides before
   calling `submitPipeline` (`web/src/App.tsx`).
 - `InteractiveTextViewer` powers the Interactive Reader experience (word

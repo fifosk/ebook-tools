@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useId } from 'react';
-import type { PipelineFormSection } from './components/PipelineSubmissionForm';
+import type { BookNarrationFormSection } from './components/book-narration/BookNarrationForm';
 import type { JobState } from './components/JobList';
 import JobProgress from './components/JobProgress';
 import LibraryPage from './pages/LibraryPage';
 import CreateBookPage from './pages/CreateBookPage';
 import PlayerView, { type PlayerContext } from './pages/PlayerView';
 import NewImmersiveBookPage from './pages/NewImmersiveBookPage';
-import SubtitlesPage from './pages/SubtitlesPage';
+import SubtitleToolPage from './pages/SubtitleToolPage';
 import YoutubeVideoPage from './pages/YoutubeVideoPage';
-import YoutubeDubPage from './pages/YoutubeDubPage';
+import VideoDubbingPage from './pages/VideoDubbingPage';
 import DualTrackDemoRoute from './routes/DualTrackDemoRoute';
 import Sidebar from './components/Sidebar';
 import MyLinguistAssistant from './components/MyLinguistAssistant';
@@ -83,7 +83,7 @@ export type SelectedView =
   | typeof YOUTUBE_SUBTITLES_VIEW
   | typeof YOUTUBE_DUB_VIEW;
 
-const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
+const BOOK_NARRATION_SECTION_MAP: Record<PipelineMenuView, BookNarrationFormSection> = {
   'pipeline:source': 'source',
   'pipeline:metadata': 'metadata',
   'pipeline:language': 'language',
@@ -93,7 +93,7 @@ const PIPELINE_SECTION_MAP: Record<PipelineMenuView, PipelineFormSection> = {
   'pipeline:submit': 'submit'
 };
 
-const PIPELINE_SECTION_TO_VIEW: Record<PipelineFormSection, PipelineMenuView> = {
+const BOOK_NARRATION_SECTION_TO_VIEW: Record<BookNarrationFormSection, PipelineMenuView> = {
   source: 'pipeline:source',
   metadata: 'pipeline:metadata',
   language: 'pipeline:language',
@@ -880,8 +880,8 @@ export function App() {
   );
 
   const handleImmersiveSectionChange = useCallback(
-    (section: PipelineFormSection) => {
-      const nextView = PIPELINE_SECTION_TO_VIEW[section];
+    (section: BookNarrationFormSection) => {
+      const nextView = BOOK_NARRATION_SECTION_TO_VIEW[section];
       setSelectedView(nextView);
     },
     [setSelectedView]
@@ -999,7 +999,7 @@ export function App() {
     if (!isPipelineView) {
       return null;
     }
-    return PIPELINE_SECTION_MAP[selectedView as PipelineMenuView];
+    return BOOK_NARRATION_SECTION_MAP[selectedView as PipelineMenuView];
   }, [isPipelineView, selectedView]);
 
   const selectedJob = useMemo(() => {
@@ -1374,7 +1374,7 @@ export function App() {
               ) : null}
               {isSubtitlesView ? (
                 <section>
-                  <SubtitlesPage
+                  <SubtitleToolPage
                     subtitleJobs={subtitleJobStates}
                     onJobCreated={handleSubtitleJobCreated}
                     onSelectJob={handleSubtitleJobSelected}
@@ -1391,7 +1391,7 @@ export function App() {
               ) : null}
               {isYoutubeDubView ? (
                 <section>
-                  <YoutubeDubPage
+                  <VideoDubbingPage
                     jobs={youtubeDubJobStates}
                     onJobCreated={handleYoutubeDubJobCreated}
                     onSelectJob={handleYoutubeDubJobSelected}

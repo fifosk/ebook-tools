@@ -1,5 +1,5 @@
-import { MenuOption } from '../constants/menuOptions';
-import { formatLanguageWithFlag } from '../utils/languages';
+import { MenuOption } from '../../constants/menuOptions';
+import { formatLanguageWithFlag } from '../../utils/languages';
 
 type VoicePreviewStatus = 'idle' | 'loading' | 'playing';
 
@@ -8,7 +8,7 @@ type LanguageEntry = {
   code: string | null;
 };
 
-type PipelineOutputSectionProps = {
+type BookNarrationOutputSectionProps = {
   headingId: string;
   title: string;
   description: string;
@@ -44,7 +44,7 @@ type PipelineOutputSectionProps = {
   onPlayVoicePreview: (languageCode: string, languageLabel: string) => Promise<void> | void;
 };
 
-const PipelineOutputSection = ({
+const BookNarrationOutputSection = ({
   headingId,
   title,
   description,
@@ -78,7 +78,7 @@ const PipelineOutputSection = ({
   onTempoChange,
   onGenerateVideoChange,
   onPlayVoicePreview
-}: PipelineOutputSectionProps) => {
+}: BookNarrationOutputSectionProps) => {
   const selectedAudioOption =
     availableAudioModes.find((option) => option.value === audioMode) ?? null;
   const selectedVoiceOption =
@@ -273,4 +273,4 @@ const PipelineOutputSection = ({
   );
 };
 
-export default PipelineOutputSection;
+export default BookNarrationOutputSection;

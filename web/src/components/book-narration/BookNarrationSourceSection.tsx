@@ -1,6 +1,6 @@
 import { DragEvent } from 'react';
 
-type SourceSectionProps = {
+type BookNarrationSourceSectionProps = {
   headingId: string;
   title: string;
   description: string;
@@ -34,7 +34,7 @@ type SourceSectionProps = {
   showOutputPathControls?: boolean;
 };
 
-const PipelineSourceSection = ({
+const BookNarrationSourceSection = ({
   headingId,
   title,
   description,
@@ -66,7 +66,7 @@ const PipelineSourceSection = ({
   showAdvancedOverrides = false,
   disableBaseOutput = false,
   showOutputPathControls = true
-}: SourceSectionProps) => {
+}: BookNarrationSourceSectionProps) => {
   const isGenerated = sourceMode === 'generated';
   const dropzoneClassNames = ['file-dropzone'];
   if (isDraggingFile) {
@@ -238,4 +238,4 @@ const PipelineSourceSection = ({
   );
 };
 
-export default PipelineSourceSection;
+export default BookNarrationSourceSection;

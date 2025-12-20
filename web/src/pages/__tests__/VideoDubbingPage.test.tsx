@@ -10,7 +10,7 @@ import {
 import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { LanguageProvider } from '../../context/LanguageProvider';
-import YoutubeDubPage from '../YoutubeDubPage';
+import VideoDubbingPage from '../VideoDubbingPage';
 import type { JobState } from '../../components/JobList';
 
 vi.mock('../../api/client', () => ({
@@ -33,7 +33,7 @@ const mockExtractInlineSubtitles = vi.mocked(extractInlineSubtitles);
 const mockDeleteNasSubtitle = vi.mocked(deleteNasSubtitle);
 const mockFetchPipelineDefaults = vi.mocked(fetchPipelineDefaults);
 
-describe('YoutubeDubPage', () => {
+describe('VideoDubbingPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockFetchInlineSubtitleStreams.mockResolvedValue({ video_path: '', streams: [] });
@@ -70,7 +70,7 @@ describe('YoutubeDubPage', () => {
 
     render(
       <LanguageProvider>
-        <YoutubeDubPage
+        <VideoDubbingPage
           jobs={[] as JobState[]}
           onJobCreated={() => {}}
           onSelectJob={() => {}}
@@ -127,7 +127,7 @@ describe('YoutubeDubPage', () => {
 
     render(
       <LanguageProvider>
-        <YoutubeDubPage
+        <VideoDubbingPage
           jobs={[] as JobState[]}
           onJobCreated={() => {}}
           onSelectJob={() => {}}

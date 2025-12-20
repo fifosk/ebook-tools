@@ -17,7 +17,7 @@ import {
   JobParameterSnapshot,
   VoiceInventoryResponse,
   BookOpenLibraryMetadataPreviewResponse
-} from '../api/dtos';
+} from '../../api/dtos';
 import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
@@ -26,62 +26,50 @@ import {
   deletePipelineEbook,
   synthesizeVoicePreview,
   uploadEpubFile,
-  uploadCoverFile,
   lookupBookOpenLibraryMetadataPreview,
-  withBase,
   appendAccessToken
-} from '../api/client';
+} from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
   MenuOption,
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
-} from '../constants/menuOptions';
-import { resolveLanguageCode, resolveLanguageName } from '../constants/languageCodes';
-import { formatLanguageWithFlag } from '../utils/languages';
-import { sampleSentenceFor } from '../utils/sampleSentences';
+} from '../../constants/menuOptions';
+import { resolveLanguageCode, resolveLanguageName } from '../../constants/languageCodes';
+import { formatLanguageWithFlag } from '../../utils/languages';
+import { sampleSentenceFor } from '../../utils/sampleSentences';
 import {
   loadCachedBookCoverDataUrl,
   loadCachedBookCoverSourceUrl,
   loadCachedBookMetadataJson,
   persistCachedBookCoverDataUrl,
   persistCachedBookMetadataJson
-} from '../utils/bookMetadataCache';
-import { useLanguagePreferences } from '../context/LanguageProvider';
-import PipelineSourceSection from './PipelineSourceSection';
-import PipelineLanguageSection from './PipelineLanguageSection';
-import PipelineOutputSection from './PipelineOutputSection';
-import PipelineImageSection from './PipelineImageSection';
-import PipelinePerformanceSection from './PipelinePerformanceSection';
-import FileSelectionDialog from './FileSelectionDialog';
+} from '../../utils/bookMetadataCache';
+import { useLanguagePreferences } from '../../context/LanguageProvider';
+import BookNarrationSourceSection from './BookNarrationSourceSection';
+import BookNarrationLanguageSection from './BookNarrationLanguageSection';
+import BookNarrationOutputSection from './BookNarrationOutputSection';
+import BookNarrationImageSection from './BookNarrationImageSection';
+import BookNarrationPerformanceSection from './BookNarrationPerformanceSection';
+import BookMetadataSection from './BookMetadataSection';
+import FileSelectionDialog from '../FileSelectionDialog';
+import {
+  basenameFromPath,
+  blobToDataUrl,
+  coerceRecord,
+  isRecord,
+  normalizeTextValue,
+  parseJsonField,
+  resolveCoverPreviewUrlFromCoverFile
+} from './bookNarrationUtils';
 
 const PREFERRED_SAMPLE_EBOOK = 'test-agatha-poirot-30sentences.epub';
-
-function blobToDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error('Unable to read cover image data'));
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.readAsDataURL(blob);
-  });
-}
 
 function capitalize(value: string): string {
   if (!value) {
     return value;
   }
   return value.charAt(0).toUpperCase() + value.slice(1);
-}
-
-function normalizeIsbnCandidate(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const cleaned = value.replace(/[^0-9Xx]/g, '').toUpperCase();
-  if (cleaned.length === 10 || cleaned.length === 13) {
-    return cleaned;
-  }
-  return null;
 }
 
 function formatMacOSVoiceIdentifier(voice: MacOSVoice): string {
@@ -101,7 +89,7 @@ function formatMacOSVoiceLabel(voice: MacOSVoice): string {
   const meta = segments.length > 0 ? ` (${segments.join(', ')})` : '';
   return `${voice.name}${meta}`;
 }
-export type PipelineFormSection =
+export type BookNarrationFormSection =
   | 'source'
   | 'metadata'
   | 'language'
@@ -110,11 +98,11 @@ export type PipelineFormSection =
   | 'performance'
   | 'submit';
 
-type Props = {
+type BookNarrationFormProps = {
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
   isSubmitting?: boolean;
-  activeSection?: PipelineFormSection;
-  onSectionChange?: (section: PipelineFormSection) => void;
+  activeSection?: BookNarrationFormSection;
+  onSectionChange?: (section: BookNarrationFormSection) => void;
   externalError?: string | null;
   prefillInputFile?: string | null;
   prefillParameters?: JobParameterSnapshot | null;
@@ -124,7 +112,7 @@ type Props = {
   forcedBaseOutputFile?: string | null;
   customSourceSection?: ReactNode;
   implicitEndOffsetThreshold?: number | null;
-  sectionOverrides?: Partial<Record<PipelineFormSection, { title: string; description: string }>>;
+  sectionOverrides?: Partial<Record<BookNarrationFormSection, { title: string; description: string }>>;
   showInfoHeader?: boolean;
   showOutputPathControls?: boolean;
   defaultImageSettings?: ImageDefaults | null;
@@ -244,17 +232,7 @@ const DEFAULT_FORM_STATE: FormState = {
   book_metadata: '{}'
 };
 
-const SECTION_ORDER: PipelineFormSection[] = [
-  'source',
-  'metadata',
-  'language',
-  'output',
-  'images',
-  'performance',
-  'submit'
-];
-
-const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = [
+const BOOK_NARRATION_TAB_SECTIONS: BookNarrationFormSection[] = [
   'source',
   'metadata',
   'language',
@@ -263,7 +241,10 @@ const PIPELINE_TAB_SECTIONS: PipelineFormSection[] = [
   'performance'
 ];
 
-export const PIPELINE_SECTION_META: Record<PipelineFormSection, { title: string; description: string }> = {
+export const BOOK_NARRATION_SECTION_META: Record<
+  BookNarrationFormSection,
+  { title: string; description: string }
+> = {
   source: {
     title: 'Source',
     description: 'Select the EPUB to ingest and where generated files should be written.'
@@ -317,58 +298,6 @@ function normalizeSingleTargetLanguages(languages: string[]): string[] {
     }
   }
   return [];
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function coerceRecord(value: unknown): Record<string, unknown> | null {
-  return isRecord(value) ? value : null;
-}
-
-function normalizeTextValue(value: unknown): string | null {
-  if (typeof value !== 'string') {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function basenameFromPath(value: string): string {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return '';
-  }
-  const parts = trimmed.split(/[/\\]/);
-  return parts[parts.length - 1] || trimmed;
-}
-
-function resolveCoverPreviewUrlFromCoverFile(coverFile: string | null): string | null {
-  const trimmed = coverFile?.trim() ?? '';
-  if (!trimmed) {
-    return null;
-  }
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
-  }
-
-  const normalised = trimmed.replace(/\\/g, '/');
-  const storagePrefix = '/storage/covers/';
-  const storageIndex = normalised.lastIndexOf(storagePrefix);
-  if (storageIndex >= 0) {
-    return withBase(normalised.slice(storageIndex));
-  }
-  const storageRelativeIndex = normalised.lastIndexOf('storage/covers/');
-  if (storageRelativeIndex >= 0) {
-    return withBase(`/${normalised.slice(storageRelativeIndex)}`);
-  }
-
-  const filename = basenameFromPath(normalised);
-  if (!filename) {
-    return null;
-  }
-  return withBase(`/storage/covers/${encodeURIComponent(filename)}`);
 }
 
 function coerceNumber(value: unknown): number | undefined {
@@ -646,23 +575,6 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
   return next;
 }
 
-function parseJsonField(label: JsonFields, value: string): Record<string, unknown> {
-  if (!value.trim()) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(value);
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      throw new Error(`${label} must be an object`);
-    }
-    return parsed as Record<string, unknown>;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid JSON for ${label}: ${message}`);
-  }
-}
-
 function parseOptionalNumberInput(value: string): number | undefined {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -753,7 +665,7 @@ function deriveBaseOutputName(inputPath: string): string {
   return 'book-output';
 }
 
-export function PipelineSubmissionForm({
+export function BookNarrationForm({
   onSubmit,
   isSubmitting = false,
   activeSection,
@@ -771,7 +683,7 @@ export function PipelineSubmissionForm({
   showInfoHeader = true,
   showOutputPathControls = true,
   defaultImageSettings = null
-}: Props) {
+}: BookNarrationFormProps) {
   const isGeneratedSource = sourceMode === 'generated';
   const imageDefaults = defaultImageSettings ?? null;
   const userEditedImageDefaultsRef = useRef<Set<keyof FormState>>(new Set());
@@ -845,12 +757,6 @@ export function PipelineSubmissionForm({
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recentUploadName, setRecentUploadName] = useState<string | null>(null);
-  const coverUploadInputRef = useRef<HTMLInputElement | null>(null);
-  const [coverUploadCandidate, setCoverUploadCandidate] = useState<File | null>(null);
-  const [isUploadingCover, setIsUploadingCover] = useState(false);
-  const [coverUploadError, setCoverUploadError] = useState<string | null>(null);
-  const [isCoverDragActive, setIsCoverDragActive] = useState(false);
-  const [coverPreviewRefreshKey, setCoverPreviewRefreshKey] = useState(0);
   const [voiceInventory, setVoiceInventory] = useState<VoiceInventoryResponse | null>(null);
   const [voiceInventoryError, setVoiceInventoryError] = useState<string | null>(null);
   const [isLoadingVoiceInventory, setIsLoadingVoiceInventory] = useState<boolean>(false);
@@ -866,6 +772,8 @@ export function PipelineSubmissionForm({
   const userEditedStartRef = useRef<boolean>(false);
   const userEditedInputRef = useRef<boolean>(false);
   const userEditedEndRef = useRef<boolean>(false);
+  const userEditedFieldsRef = useRef<Set<keyof FormState>>(new Set<keyof FormState>());
+  const defaultsAppliedRef = useRef<boolean>(false);
   const lastAutoEndSentenceRef = useRef<string | null>(null);
 
   const metadataSourceName = useMemo(() => {
@@ -885,15 +793,15 @@ export function PipelineSubmissionForm({
   const metadataAutoLookupRef = useRef<string | null>(null);
 
   const sectionMeta = useMemo(() => {
-    const base: Record<PipelineFormSection, { title: string; description: string }> = {
-      ...PIPELINE_SECTION_META
+    const base: Record<BookNarrationFormSection, { title: string; description: string }> = {
+      ...BOOK_NARRATION_SECTION_META
     };
     for (const [key, override] of Object.entries(sectionOverrides)) {
       if (!override) {
         continue;
       }
-      const sectionKey = key as PipelineFormSection;
-      base[sectionKey] = { ...PIPELINE_SECTION_META[sectionKey], ...override };
+      const sectionKey = key as BookNarrationFormSection;
+      base[sectionKey] = { ...BOOK_NARRATION_SECTION_META[sectionKey], ...override };
     }
     return base;
   }, [sectionOverrides]);
@@ -911,6 +819,28 @@ export function PipelineSubmissionForm({
     }
     const withoutTrail = trimmed.replace(/[\\/]+$/, '');
     return withoutTrail.toLowerCase();
+  }, []);
+  const markUserEditedField = useCallback((key: keyof FormState) => {
+    userEditedFieldsRef.current.add(key);
+  }, []);
+  const preserveUserEditedFields = useCallback((previous: FormState, next: FormState): FormState => {
+    const edited = userEditedFieldsRef.current;
+    if (edited.size === 0) {
+      return next;
+    }
+    let result = next;
+    let changed = false;
+    for (const key of edited) {
+      if (next[key] === previous[key]) {
+        continue;
+      }
+      if (!changed) {
+        result = { ...next };
+        changed = true;
+      }
+      (result as Record<keyof FormState, FormState[keyof FormState]>)[key] = previous[key];
+    }
+    return result;
   }, []);
 
   const normalizedInputForBookMetadataCache = useMemo(() => {
@@ -1232,6 +1162,14 @@ export function PipelineSubmissionForm({
     [applyMetadataLookupToDraft]
   );
 
+  const handleClearMetadata = useCallback(() => {
+    setMetadataPreview(null);
+    setMetadataError(null);
+    setMetadataLoading(false);
+    markUserEditedField('book_metadata');
+    setFormState((previous) => ({ ...previous, book_metadata: '{}' }));
+  }, [markUserEditedField]);
+
   const resolveLatestJobSelection = useCallback((): { input?: string | null; base?: string | null } | null => {
     const jobs = recentJobsRef.current;
     if (!jobs || jobs.length === 0) {
@@ -1278,8 +1216,8 @@ export function PipelineSubmissionForm({
     });
   }, []);
 
-  const tabSections: PipelineFormSection[] = PIPELINE_TAB_SECTIONS;
-  const [activeTab, setActiveTab] = useState<PipelineFormSection>(() => {
+  const tabSections: BookNarrationFormSection[] = BOOK_NARRATION_TAB_SECTIONS;
+  const [activeTab, setActiveTab] = useState<BookNarrationFormSection>(() => {
     if (activeSection && tabSections.includes(activeSection)) {
       return activeSection;
     }
@@ -1287,7 +1225,7 @@ export function PipelineSubmissionForm({
   });
 
   const handleSectionChange = useCallback(
-    (section: PipelineFormSection) => {
+    (section: BookNarrationFormSection) => {
       setActiveTab(section);
       onSectionChange?.(section);
     },
@@ -1431,7 +1369,7 @@ export function PipelineSubmissionForm({
           ? { ...prefillParameters.voice_overrides }
           : previous.voice_overrides;
 
-      return {
+      const next = {
         ...previous,
         input_file: inputFile,
         base_output_file: forcedBaseOutputFile ?? baseOutputFile,
@@ -1448,18 +1386,24 @@ export function PipelineSubmissionForm({
         add_images: addImages,
         voice_overrides: voiceOverrides
       };
+      return preserveUserEditedFields(previous, next);
     });
-  }, [prefillParameters, forcedBaseOutputFile]);
+  }, [prefillParameters, forcedBaseOutputFile, preserveUserEditedFields]);
 
   useEffect(() => {
     let cancelled = false;
     const loadDefaults = async () => {
+      if (defaultsAppliedRef.current) {
+        return;
+      }
       try {
         const defaults = await fetchPipelineDefaults();
         if (cancelled) {
           return;
         }
         const config = defaults?.config ?? {};
+        const allowInputDefaults = !userEditedFieldsRef.current.has('input_language');
+        const allowTargetDefaults = !userEditedFieldsRef.current.has('target_languages');
         // Preserve user edits; defaults should not overwrite in-flight changes.
         lastAutoEndSentenceRef.current = null;
         setFormState((previous) => {
@@ -1495,15 +1439,20 @@ export function PipelineSubmissionForm({
               next = { ...next, ...restored };
             }
           }
+          next = preserveUserEditedFields(previous, next);
           const suggestedStart = resolveStartFromHistory(next.input_file);
           const baseOutput = forcedBaseOutputFile ?? next.base_output_file;
-          if (suggestedStart !== null) {
+          const shouldApplySuggestedStart =
+            suggestedStart !== null &&
+            !userEditedStartRef.current &&
+            !userEditedFieldsRef.current.has('start_sentence');
+          if (shouldApplySuggestedStart) {
             return { ...next, start_sentence: suggestedStart, base_output_file: baseOutput };
           }
           return { ...next, base_output_file: baseOutput };
         });
         const inputLanguage = typeof config['input_language'] === 'string' ? config['input_language'] : null;
-        if (inputLanguage) {
+        if (allowInputDefaults && inputLanguage) {
           setSharedInputLanguage(inputLanguage);
         }
         const targetLanguages = Array.isArray(config['target_languages'])
@@ -1516,9 +1465,10 @@ export function PipelineSubmissionForm({
               )
             )
           : [];
-        if (targetLanguages.length > 0) {
+        if (allowTargetDefaults && targetLanguages.length > 0) {
           setSharedTargetLanguages(normalizeSingleTargetLanguages(targetLanguages));
         }
+        defaultsAppliedRef.current = true;
       } catch (defaultsError) {
         console.warn('Unable to load pipeline defaults', defaultsError);
       }
@@ -1527,7 +1477,14 @@ export function PipelineSubmissionForm({
     return () => {
       cancelled = true;
     };
-  }, [resolveStartFromHistory, setSharedInputLanguage, setSharedTargetLanguages, forcedBaseOutputFile, applyImageDefaults]);
+  }, [
+    resolveStartFromHistory,
+    setSharedInputLanguage,
+    setSharedTargetLanguages,
+    forcedBaseOutputFile,
+    applyImageDefaults,
+    preserveUserEditedFields
+  ]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1684,17 +1641,18 @@ export function PipelineSubmissionForm({
   }, [formState.end_sentence, formState.start_sentence]);
 
   const handleChange = <K extends keyof FormState>(key: K, value: FormState[K]) => {
+    if (key === 'base_output_file' && forcedBaseOutputFile !== null && forcedBaseOutputFile !== undefined) {
+      return;
+    }
     if (key === 'start_sentence') {
       userEditedStartRef.current = true;
     } else if (key === 'end_sentence') {
       userEditedEndRef.current = true;
       lastAutoEndSentenceRef.current = null;
     } else if (key === 'base_output_file') {
-      if (forcedBaseOutputFile !== null && forcedBaseOutputFile !== undefined) {
-        return;
-      }
       userEditedInputRef.current = true;
     }
+    markUserEditedField(key);
     if (IMAGE_DEFAULT_FIELDS.has(key)) {
       userEditedImageDefaultsRef.current.add(key);
     }
@@ -1724,6 +1682,7 @@ export function PipelineSubmissionForm({
     if (!trimmedCode) {
       return;
     }
+    markUserEditedField('voice_overrides');
     setFormState((previous) => {
       const normalizedVoice = voiceValue.trim();
       const overrides = previous.voice_overrides;
@@ -1746,7 +1705,7 @@ export function PipelineSubmissionForm({
         }
       };
     });
-  }, []);
+  }, [markUserEditedField]);
 
   const handleInputFileChange = (value: string) => {
     setRecentUploadName(null);
@@ -1755,6 +1714,7 @@ export function PipelineSubmissionForm({
     userEditedInputRef.current = true;
     userEditedEndRef.current = false;
     lastAutoEndSentenceRef.current = null;
+    markUserEditedField('input_file');
     const normalizedInput = normalizePath(value);
     const cachedBookMetadata = normalizedInput ? loadCachedBookMetadataJson(normalizedInput) : null;
     setFormState((previous) => {
@@ -2387,12 +2347,12 @@ export function PipelineSubmissionForm({
   const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
 
-  const renderSection = (section: PipelineFormSection) => {
+  const renderSection = (section: BookNarrationFormSection) => {
     switch (section) {
       case 'source':
         return (
           customSourceSection ?? (
-            <PipelineSourceSection
+            <BookNarrationSourceSection
               key="source"
               headingId="pipeline-card-source"
               title={sectionMeta.source.title}
@@ -2427,511 +2387,29 @@ export function PipelineSubmissionForm({
             />
           )
         );
-      case 'metadata': {
-        let parsedMetadata: Record<string, unknown> | null = null;
-        let parsedError: string | null = null;
-        try {
-          parsedMetadata = parseJsonField('book_metadata', formState.book_metadata);
-        } catch (error) {
-          parsedMetadata = null;
-          parsedError = error instanceof Error ? error.message : String(error);
-        }
-
-        const jobLabel = normalizeTextValue(parsedMetadata?.['job_label']);
-        const bookTitle = normalizeTextValue(parsedMetadata?.['book_title']);
-        const bookAuthor = normalizeTextValue(parsedMetadata?.['book_author']);
-        const bookYear = normalizeTextValue(parsedMetadata?.['book_year']);
-        const isbn =
-          normalizeTextValue(parsedMetadata?.['isbn']) || normalizeTextValue(parsedMetadata?.['book_isbn']);
-        const summary = normalizeTextValue(parsedMetadata?.['book_summary']);
-        const coverAssetUrl = normalizeTextValue(parsedMetadata?.['job_cover_asset_url']);
-        const coverUrl = normalizeTextValue(parsedMetadata?.['cover_url']);
-        const coverFile = normalizeTextValue(parsedMetadata?.['book_cover_file']);
-        const openlibraryWorkUrl = normalizeTextValue(parsedMetadata?.['openlibrary_work_url']);
-        const openlibraryBookUrl = normalizeTextValue(parsedMetadata?.['openlibrary_book_url']);
-        const openlibraryLink = openlibraryBookUrl || openlibraryWorkUrl;
-        const isbnQuery = normalizeIsbnCandidate(isbn);
-        const resolvedLookupQuery = (isbnQuery ?? metadataLookupQuery).trim();
-
-        const lookup = metadataPreview ? coerceRecord(metadataPreview.book_metadata_lookup) : null;
-        const storedLookup = parsedMetadata ? coerceRecord(parsedMetadata['book_metadata_lookup']) : null;
-        const rawPayload = lookup ?? storedLookup;
-        const lookupBook = lookup ? coerceRecord(lookup['book']) : null;
-        const lookupError = normalizeTextValue(lookup?.['error']);
-        const lookupCoverUrl =
-          normalizeTextValue(lookupBook?.['cover_url']) || normalizeTextValue(lookup?.['cover_url']);
-        const lookupCoverFile =
-          normalizeTextValue(lookupBook?.['cover_file']) || normalizeTextValue(lookup?.['cover_file']);
-        const coverPreviewUrl =
-          (coverAssetUrl ? appendAccessToken(coverAssetUrl) : null) ||
-          resolveCoverPreviewUrlFromCoverFile(coverFile) ||
-          resolveCoverPreviewUrlFromCoverFile(lookupCoverFile) ||
-          lookupCoverUrl ||
-          coverUrl;
-        const coverPreviewUrlWithRefresh =
-          coverPreviewUrl && coverPreviewUrl.includes('/storage/covers/')
-            ? `${coverPreviewUrl}${coverPreviewUrl.includes('?') ? '&' : '?'}v=${coverPreviewRefreshKey}`
-            : coverPreviewUrl;
-        const resolvedCoverPreviewUrl = cachedCoverDataUrl ?? coverPreviewUrlWithRefresh;
-        const coverDropzoneClassName = [
-          'file-dropzone',
-          'cover-dropzone',
-          isCoverDragActive ? 'file-dropzone--dragging' : '',
-          isUploadingCover ? 'file-dropzone--uploading' : ''
-        ]
-          .filter(Boolean)
-          .join(' ');
-
-        const updateBookMetadata = (updater: (draft: Record<string, unknown>) => void) => {
-          setFormState((previous) => {
-            let draft: Record<string, unknown> = {};
-            try {
-              draft = parseJsonField('book_metadata', previous.book_metadata);
-            } catch {
-              draft = {};
-            }
-            const next = { ...draft };
-            updater(next);
-            const nextJson = JSON.stringify(next, null, 2);
-            if (nextJson === previous.book_metadata) {
-              return previous;
-            }
-            return { ...previous, book_metadata: nextJson };
-          });
-        };
-
-        const performCoverUpload = async (candidate: File | null) => {
-          if (!candidate || isUploadingCover) {
-            return;
-          }
-          setCoverUploadCandidate(candidate);
-          setIsUploadingCover(true);
-          setCoverUploadError(null);
-          try {
-            const entry = await uploadCoverFile(candidate);
-            updateBookMetadata((draft) => {
-              draft['book_cover_file'] = entry.path;
-            });
-            setCoverPreviewRefreshKey((previous) => previous + 1);
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Unable to upload cover image.';
-            setCoverUploadError(message);
-          } finally {
-            setIsUploadingCover(false);
-            setCoverUploadCandidate(null);
-            setIsCoverDragActive(false);
-            if (coverUploadInputRef.current) {
-              coverUploadInputRef.current.value = '';
-            }
-          }
-        };
-
+      case 'metadata':
         return (
-          <section className="pipeline-card" aria-labelledby="pipeline-card-metadata">
-            <header className="pipeline-card__header">
-              <h3 id="pipeline-card-metadata">{sectionMeta.metadata.title}</h3>
-              <p>{sectionMeta.metadata.description}</p>
-            </header>
-
-            {metadataError ? (
-              <div className="alert" role="alert">
-                {metadataError}
-              </div>
-            ) : null}
-
-            <div className="metadata-loader-row">
-              <label style={{ marginBottom: 0 }}>
-                Lookup query
-                <input
-                  type="text"
-                  value={metadataLookupQuery}
-                  onChange={(event) => setMetadataLookupQuery(event.target.value)}
-                  placeholder={
-                    metadataSourceName ? metadataSourceName : 'Title, ISBN, or filename (ISBN field preferred)'
-                  }
-                />
-              </label>
-              <div className="metadata-loader-actions">
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => void performMetadataLookup(resolvedLookupQuery, false)}
-                  disabled={!resolvedLookupQuery || metadataLoading}
-                  aria-busy={metadataLoading}
-                >
-                  {metadataLoading ? 'Looking up…' : 'Lookup'}
-                </button>
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => void performMetadataLookup(resolvedLookupQuery, true)}
-                  disabled={!resolvedLookupQuery || metadataLoading}
-                  aria-busy={metadataLoading}
-                >
-                  Refresh
-                </button>
-                <button
-                  type="button"
-                  className="link-button"
-                  onClick={() => {
-                    setMetadataPreview(null);
-                    setMetadataError(null);
-                    setMetadataLoading(false);
-                    setFormState((previous) => ({ ...previous, book_metadata: '{}' }));
-                  }}
-                  disabled={metadataLoading}
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-
-            {!metadataSourceName && !metadataLookupQuery.trim() ? (
-              <p className="form-help-text" role="status">
-                Select an EPUB file in the Source tab to load metadata.
-              </p>
-            ) : null}
-
-            {metadataLoading ? (
-              <p className="form-help-text" role="status">
-                Loading metadata…
-              </p>
-            ) : null}
-
-            <div className="book-metadata-cover" aria-label="Book cover">
-              {resolvedCoverPreviewUrl ? (
-                openlibraryLink ? (
-                  <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
-                    <img
-                      src={resolvedCoverPreviewUrl ?? undefined}
-                      alt={bookTitle ? `Cover for ${bookTitle}` : 'Book cover'}
-                      loading="lazy"
-                      decoding="async"
-                    />
-                  </a>
-                ) : (
-                  <img
-                    src={resolvedCoverPreviewUrl ?? undefined}
-                    alt={bookTitle ? `Cover for ${bookTitle}` : 'Book cover'}
-                    loading="lazy"
-                    decoding="async"
-                  />
-                )
-              ) : (
-                <div className="book-metadata-cover__placeholder" aria-hidden="true">
-                  No cover
-                </div>
-              )}
-              <div
-                className={coverDropzoneClassName}
-                onDragOver={(event) => {
-                  if (isUploadingCover) {
-                    return;
-                  }
-                  event.preventDefault();
-                  setIsCoverDragActive(true);
-                }}
-                onDragLeave={() => setIsCoverDragActive(false)}
-                onDrop={(event) => {
-                  if (isUploadingCover) {
-                    return;
-                  }
-                  event.preventDefault();
-                  setIsCoverDragActive(false);
-                  const file = event.dataTransfer.files?.[0] ?? null;
-                  void performCoverUpload(file);
-                }}
-                aria-busy={isUploadingCover}
-              >
-                <label>
-                  <strong>Upload cover</strong>
-                  <span>
-                    {isUploadingCover
-                      ? 'Uploading…'
-                      : coverUploadCandidate
-                        ? coverUploadCandidate.name
-                        : 'Drop image here or click to browse (saved as 600×900 JPG)'}
-                  </span>
-                </label>
-                <input
-                  ref={coverUploadInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0] ?? null;
-                    setCoverUploadError(null);
-                    void performCoverUpload(file);
-                  }}
-                  disabled={isUploadingCover}
-                />
-              </div>
-            </div>
-
-            {coverUploadError ? (
-              <p className="form-help-text form-help-text--error" role="alert">
-                Cover upload failed: {coverUploadError}
-              </p>
-            ) : null}
-
-            {bookTitle || bookAuthor || bookYear || isbn || openlibraryLink || coverUrl || coverFile ? (
-              <dl className="metadata-grid">
-                {jobLabel ? (
-                  <div className="metadata-grid__row">
-                    <dt>Label</dt>
-                    <dd>{jobLabel}</dd>
-                  </div>
-                ) : null}
-                {bookTitle ? (
-                  <div className="metadata-grid__row">
-                    <dt>Title</dt>
-                    <dd>{bookTitle}</dd>
-                  </div>
-                ) : null}
-                {bookAuthor ? (
-                  <div className="metadata-grid__row">
-                    <dt>Author</dt>
-                    <dd>{bookAuthor}</dd>
-                  </div>
-                ) : null}
-                {bookYear ? (
-                  <div className="metadata-grid__row">
-                    <dt>Year</dt>
-                    <dd>{bookYear}</dd>
-                  </div>
-                ) : null}
-                {isbn ? (
-                  <div className="metadata-grid__row">
-                    <dt>ISBN</dt>
-                    <dd>{isbn}</dd>
-                  </div>
-                ) : null}
-                {openlibraryLink ? (
-                  <div className="metadata-grid__row">
-                    <dt>Open Library</dt>
-                    <dd>
-                      <a href={openlibraryLink} target="_blank" rel="noopener noreferrer">
-                        {openlibraryLink}
-                      </a>
-                    </dd>
-                  </div>
-                ) : null}
-                {coverUrl ? (
-                  <div className="metadata-grid__row">
-                    <dt>Cover URL</dt>
-                    <dd>{coverUrl}</dd>
-                  </div>
-                ) : null}
-                {coverFile ? (
-                  <div className="metadata-grid__row">
-                    <dt>Cover file</dt>
-                    <dd>{coverFile}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            ) : null}
-
-            {metadataPreview ? (
-              <dl className="metadata-grid">
-                {metadataPreview.source_name ? (
-                  <div className="metadata-grid__row">
-                    <dt>Source</dt>
-                    <dd>{metadataPreview.source_name}</dd>
-                  </div>
-                ) : null}
-                {metadataPreview.query?.title ? (
-                  <div className="metadata-grid__row">
-                    <dt>Query</dt>
-                    <dd>
-                      {[metadataPreview.query.title, metadataPreview.query.author, metadataPreview.query.isbn]
-                        .filter(Boolean)
-                        .join(' · ')}
-                    </dd>
-                  </div>
-                ) : metadataPreview.query?.isbn ? (
-                  <div className="metadata-grid__row">
-                    <dt>Query</dt>
-                    <dd>{metadataPreview.query.isbn}</dd>
-                  </div>
-                ) : null}
-                {lookupError ? (
-                  <div className="metadata-grid__row">
-                    <dt>Status</dt>
-                    <dd>{lookupError}</dd>
-                  </div>
-                ) : null}
-              </dl>
-            ) : null}
-
-            {rawPayload ? (
-              <details>
-                <summary>Raw payload</summary>
-                <pre style={{ whiteSpace: 'pre-wrap' }}>{JSON.stringify(rawPayload, null, 2)}</pre>
-              </details>
-            ) : null}
-
-            <fieldset>
-              <legend>Edit metadata</legend>
-              {parsedError ? (
-                <div className="notice notice--warning" role="alert">
-                  Book metadata JSON is invalid: {parsedError}
-                </div>
-              ) : null}
-              <div className="field-grid">
-                <label>
-                  Job label
-                  <input
-                    type="text"
-                    value={jobLabel ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['job_label'] = trimmed;
-                        } else {
-                          delete draft['job_label'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label>
-                  Title
-                  <input
-                    type="text"
-                    value={bookTitle ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['book_title'] = trimmed;
-                        } else {
-                          delete draft['book_title'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label>
-                  Author
-                  <input
-                    type="text"
-                    value={bookAuthor ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['book_author'] = trimmed;
-                        } else {
-                          delete draft['book_author'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label>
-                  Year
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    value={bookYear ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['book_year'] = trimmed;
-                        } else {
-                          delete draft['book_year'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label>
-                  ISBN
-                  <input
-                    type="text"
-                    value={isbn ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['isbn'] = trimmed;
-                          draft['book_isbn'] = trimmed;
-                        } else {
-                          delete draft['isbn'];
-                          delete draft['book_isbn'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label style={{ gridColumn: '1 / -1' }}>
-                  Summary
-                  <textarea
-                    rows={4}
-                    value={summary ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['book_summary'] = trimmed;
-                        } else {
-                          delete draft['book_summary'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label style={{ gridColumn: '1 / -1' }}>
-                  Cover URL
-                  <input
-                    type="text"
-                    value={coverUrl ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['cover_url'] = trimmed;
-                        } else {
-                          delete draft['cover_url'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-                <label style={{ gridColumn: '1 / -1' }}>
-                  Cover file (local)
-                  <input
-                    type="text"
-                    value={coverFile ?? ''}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      updateBookMetadata((draft) => {
-                        const trimmed = value.trim();
-                        if (trimmed) {
-                          draft['book_cover_file'] = trimmed;
-                        } else {
-                          delete draft['book_cover_file'];
-                        }
-                      });
-                    }}
-                  />
-                </label>
-              </div>
-            </fieldset>
-          </section>
+          <BookMetadataSection
+            key="metadata"
+            headingId="pipeline-card-metadata"
+            title={sectionMeta.metadata.title}
+            description={sectionMeta.metadata.description}
+            metadataSourceName={metadataSourceName}
+            metadataLookupQuery={metadataLookupQuery}
+            metadataPreview={metadataPreview}
+            metadataLoading={metadataLoading}
+            metadataError={metadataError}
+            bookMetadataJson={formState.book_metadata}
+            cachedCoverDataUrl={cachedCoverDataUrl}
+            onMetadataLookupQueryChange={(value) => setMetadataLookupQuery(value)}
+            onLookupMetadata={performMetadataLookup}
+            onClearMetadata={handleClearMetadata}
+            onBookMetadataJsonChange={(value) => handleChange('book_metadata', value)}
+          />
         );
-      }
       case 'language':
         return (
-          <PipelineLanguageSection
+          <BookNarrationLanguageSection
             key="language"
             headingId="pipeline-card-language"
             title={sectionMeta.language.title}
@@ -2962,7 +2440,7 @@ export function PipelineSubmissionForm({
         );
       case 'output':
         return (
-		          <PipelineOutputSection
+		          <BookNarrationOutputSection
 		            key="output"
 		            headingId="pipeline-card-output"
 		            title={sectionMeta.output.title}
@@ -3003,7 +2481,7 @@ export function PipelineSubmissionForm({
 	        );
       case 'images':
         return (
-          <PipelineImageSection
+          <BookNarrationImageSection
             key="images"
             headingId="pipeline-card-images"
             title={sectionMeta.images.title}
@@ -3048,7 +2526,7 @@ export function PipelineSubmissionForm({
         );
 		      case 'performance':
 		        return (
-		          <PipelinePerformanceSection
+		          <BookNarrationPerformanceSection
 		            key="performance"
 		            headingId="pipeline-card-performance"
 		            title={sectionMeta.performance.title}
@@ -3149,4 +2627,4 @@ export function PipelineSubmissionForm({
 
 }
 
-export default PipelineSubmissionForm;
+export default BookNarrationForm;

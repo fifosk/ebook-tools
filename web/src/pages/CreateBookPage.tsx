@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
 import { submitBookJob, type BookGenerationJobRequest } from '../api/createBook';
-import PipelineSubmissionForm from '../components/PipelineSubmissionForm';
+import BookNarrationForm from '../components/book-narration/BookNarrationForm';
 
 type GeneratorFormState = {
   topic: string;
@@ -199,7 +199,7 @@ export default function CreateBookPage({ onJobSubmitted, recentJobs = null }: Cr
           {latestJobId ? <p style={{ margin: '0.25rem 0 0 0' }}>Job {latestJobId}</p> : null}
         </div>
       ) : null}
-      <PipelineSubmissionForm
+      <BookNarrationForm
         onSubmit={handleSubmit}
         isSubmitting={isSubmitting}
         externalError={submitError}

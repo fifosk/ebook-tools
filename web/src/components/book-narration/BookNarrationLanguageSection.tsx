@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { buildLanguageOptions, sortLanguageLabelsByName } from '../utils/languages';
-import LanguageSelect from './LanguageSelect';
+import { buildLanguageOptions, sortLanguageLabelsByName } from '../../utils/languages';
+import LanguageSelect from '../LanguageSelect';
 
-type LanguageSectionProps = {
+type BookNarrationLanguageSectionProps = {
   headingId: string;
   title: string;
   description: string;
@@ -28,7 +28,7 @@ type LanguageSectionProps = {
   onStitchFullChange: (value: boolean) => void;
 };
 
-const PipelineLanguageSection = ({
+const BookNarrationLanguageSection = ({
   headingId,
   title,
   description,
@@ -50,7 +50,7 @@ const PipelineLanguageSection = ({
   onStartSentenceChange,
   onEndSentenceChange,
   onStitchFullChange
-}: LanguageSectionProps) => {
+}: BookNarrationLanguageSectionProps) => {
   const currentModel = ollamaModel.trim();
   const resolvedModels = llmModels.length ? llmModels : currentModel ? [currentModel] : [];
   const modelOptions = Array.from(new Set([...(currentModel ? [currentModel] : []), ...resolvedModels]));
@@ -170,4 +170,4 @@ const PipelineLanguageSection = ({
   );
 };
 
-export default PipelineLanguageSection;
+export default BookNarrationLanguageSection;

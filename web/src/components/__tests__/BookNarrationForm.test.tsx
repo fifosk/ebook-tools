@@ -16,7 +16,7 @@ import {
   uploadEpubFile
 } from '../../api/client';
 import { LanguageProvider } from '../../context/LanguageProvider';
-import { PipelineSubmissionForm } from '../PipelineSubmissionForm';
+import { BookNarrationForm } from '../book-narration/BookNarrationForm';
 
 vi.mock('../../api/client', () => ({
   fetchPipelineFiles: vi.fn(),
@@ -111,13 +111,13 @@ function getInputLanguageField(): HTMLSelectElement {
   return element as HTMLSelectElement;
 }
 
-describe('PipelineSubmissionForm', () => {
+describe('BookNarrationForm', () => {
   it('submits normalized payloads when valid', async () => {
     const user = userEvent.setup();
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
 
     await act(async () => {
-      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -161,7 +161,7 @@ describe('PipelineSubmissionForm', () => {
     const handleSubmit = vi.fn();
 
     await act(async () => {
-      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -187,7 +187,7 @@ describe('PipelineSubmissionForm', () => {
 
   it('prefills the form with defaults from the API response', async () => {
     await act(async () => {
-      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -246,7 +246,7 @@ describe('PipelineSubmissionForm', () => {
   it('allows selecting files from the dialog', async () => {
     const user = userEvent.setup();
     await act(async () => {
-      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={vi.fn()} />);
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -272,7 +272,7 @@ describe('PipelineSubmissionForm', () => {
     });
 
     await act(async () => {
-      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={vi.fn()} activeSection="source" />);
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={vi.fn()} activeSection="source" />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -303,7 +303,7 @@ describe('PipelineSubmissionForm', () => {
     const handleSubmit = vi.fn<[PipelineRequestPayload], Promise<void>>().mockResolvedValue();
 
     await act(async () => {
-      renderWithLanguageProvider(<PipelineSubmissionForm onSubmit={handleSubmit} />);
+      renderWithLanguageProvider(<BookNarrationForm onSubmit={handleSubmit} />);
     });
 
     await waitFor(() => expect(fetchPipelineDefaults).toHaveBeenCalled());
@@ -337,7 +337,7 @@ describe('PipelineSubmissionForm', () => {
 
     await act(async () => {
       renderWithLanguageProvider(
-        <PipelineSubmissionForm onSubmit={handleSubmit} implicitEndOffsetThreshold={200} />
+        <BookNarrationForm onSubmit={handleSubmit} implicitEndOffsetThreshold={200} />
       );
     });
 

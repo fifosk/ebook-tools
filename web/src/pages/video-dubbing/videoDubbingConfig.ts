@@ -1,0 +1,12 @@
+export const DEFAULT_VIDEO_DIR = '/Volumes/Data/Download/DStation';
+export const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
+export const VIDEO_DUB_STORAGE_KEYS = {
+  baseDir: 'ebookTools.youtubeDub.baseDir',
+  selectedVideoPath: 'ebookTools.youtubeDub.selectedVideoPath',
+  selectedSubtitlePath: 'ebookTools.youtubeDub.selectedSubtitlePath'
+} as const;
+export const RESOLUTION_OPTIONS = [
+  { value: 320, label: '320p (lighter)' },
+  { value: 480, label: '480p (default)' },
+  { value: 720, label: '720p' }
+];

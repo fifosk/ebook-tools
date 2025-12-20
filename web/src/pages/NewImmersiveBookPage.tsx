@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import type { JobParameterSnapshot, PipelineRequestPayload, PipelineStatusResponse } from '../api/dtos';
-import PipelineSubmissionForm, { type PipelineFormSection } from '../components/PipelineSubmissionForm';
+import BookNarrationForm, { type BookNarrationFormSection } from '../components/book-narration/BookNarrationForm';
 
 interface NewImmersiveBookPageProps {
-  activeSection: PipelineFormSection;
-  onSectionChange: (section: PipelineFormSection) => void;
+  activeSection: BookNarrationFormSection;
+  onSectionChange: (section: BookNarrationFormSection) => void;
   onSubmit: (payload: PipelineRequestPayload) => Promise<void> | void;
   isSubmitting?: boolean;
   prefillInputFile?: string | null;
@@ -23,11 +23,11 @@ export default function NewImmersiveBookPage({
   recentJobs = null,
   prefillParameters = null
 }: NewImmersiveBookPageProps) {
-  const effectiveSection: PipelineFormSection = useMemo(() => activeSection, [activeSection]);
+  const effectiveSection: BookNarrationFormSection = useMemo(() => activeSection, [activeSection]);
 
   return (
     <div className="new-immersive-book">
-      <PipelineSubmissionForm
+      <BookNarrationForm
         onSubmit={onSubmit}
         isSubmitting={isSubmitting}
         prefillInputFile={prefillInputFile}

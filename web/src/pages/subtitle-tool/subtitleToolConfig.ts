@@ -1,0 +1,12 @@
+export const DEFAULT_SUBTITLE_SOURCE_DIRECTORY = '/Volumes/Data/Download/Subtitles';
+export const DEFAULT_WORKER_COUNT = 10;
+export const DEFAULT_BATCH_SIZE = 20;
+export const DEFAULT_START_TIME = '00:00';
+export const SHOW_ORIGINAL_STORAGE_KEY = 'subtitles:show_original';
+export const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
+export const DEFAULT_ASS_FONT_SIZE = 56;
+export const MIN_ASS_FONT_SIZE = 12;
+export const MAX_ASS_FONT_SIZE = 120;
+export const DEFAULT_ASS_EMPHASIS = 1.3;
+export const MIN_ASS_EMPHASIS = 1.0;
+export const MAX_ASS_EMPHASIS = 2.5;

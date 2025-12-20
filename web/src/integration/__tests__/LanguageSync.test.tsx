@@ -2,7 +2,7 @@ import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '../../context/LanguageProvider';
-import { PipelineSubmissionForm } from '../../components/PipelineSubmissionForm';
+import { BookNarrationForm } from '../../components/book-narration/BookNarrationForm';
 import CreateBookPage from '../../pages/CreateBookPage';
 import {
   fetchPipelineDefaults,
@@ -83,14 +83,14 @@ afterEach(() => {
 });
 
 describe('LanguageProvider synchronization', () => {
-  it('keeps CreateBookPage and PipelineSubmissionForm languages in sync', async () => {
+  it('keeps CreateBookPage and BookNarrationForm languages in sync', async () => {
     const user = userEvent.setup();
 
     await act(async () => {
       render(
         <LanguageProvider>
           <div data-testid="pipeline">
-            <PipelineSubmissionForm onSubmit={vi.fn()} activeSection="language" />
+            <BookNarrationForm onSubmit={vi.fn()} activeSection="language" />
           </div>
           <div data-testid="create-book">
             <CreateBookPage />

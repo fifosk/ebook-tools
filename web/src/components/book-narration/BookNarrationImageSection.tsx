@@ -1,4 +1,4 @@
-type PipelineImageSectionProps = {
+type BookNarrationImageSectionProps = {
   headingId: string;
   title: string;
   description: string;
@@ -127,7 +127,7 @@ function formatSeconds(seconds: number): string {
   return `${Math.round(seconds)}s`;
 }
 
-const PipelineImageSection = ({
+const BookNarrationImageSection = ({
   headingId,
   title,
   description,
@@ -159,7 +159,7 @@ const PipelineImageSection = ({
   onImageCfgScaleChange,
   onImageSamplerNameChange,
   onImageApiTimeoutSecondsChange
-}: PipelineImageSectionProps) => {
+}: BookNarrationImageSectionProps) => {
   const style =
     IMAGE_STYLE_OPTIONS.find((option) => option.id === imageStyleTemplate) ??
     IMAGE_STYLE_OPTIONS[0];
@@ -409,4 +409,4 @@ const PipelineImageSection = ({
   );
 };
 
-export default PipelineImageSection;
+export default BookNarrationImageSection;

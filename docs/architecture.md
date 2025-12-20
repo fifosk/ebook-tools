@@ -128,7 +128,7 @@ flowchart TD
 - `AuthProvider` wraps the app to restore sessions from `localStorage`, attach bearer tokens to every fetch, and expose login/logout/password helpers to the UI shell (`web/src/components/AuthProvider.tsx`).
 - `ThemeProvider` stores the preferred appearance (light, dark, magenta, or system) and updates the `data-theme` attribute so CSS variables react to the selected palette (`web/src/components/ThemeProvider.tsx`).
 - `App.tsx` orchestrates the pipeline form sections, job registry, SSE subscriptions, and admin panel toggle based on the authenticated user's role (`web/src/App.tsx`).
-- `SubtitlesPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs (`web/src/pages/SubtitlesPage.tsx`).
+- `SubtitleToolPage.tsx` provides the subtitle workflow UI, including source selection, language configuration, and live status tracking for subtitle jobs (`web/src/pages/SubtitleToolPage.tsx`).
 - Build artifacts (`web/dist/`) can be served by the API when `EBOOK_API_STATIC_ROOT` points to the directory.
 
 ### Word highlighting on the web client
