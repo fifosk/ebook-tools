@@ -189,6 +189,16 @@ export default function PlayerPanel({
     }
     return stored === 'true';
   });
+  const [showTranslationAudio, setShowTranslationAudio] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return true;
+    }
+    const stored = window.localStorage.getItem('player.showTranslationAudio');
+    if (stored === null) {
+      return true;
+    }
+    return stored === 'true';
+  });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
   const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const resolveStoredInteractiveFullscreenPreference = () => {
@@ -424,6 +434,7 @@ export default function PlayerPanel({
     chunks,
     mediaAudio: media.audio,
     showOriginalAudio,
+    showTranslationAudio,
     findMatchingMediaId,
     requestAutoPlay,
     inlineAudioPlayingRef,
@@ -779,10 +790,12 @@ export default function PlayerPanel({
     activeAudioTracks,
     visibleInlineAudioOptions,
     inlineAudioUnavailable,
-    hasCombinedAudio,
     canToggleOriginalAudio,
+    canToggleTranslationAudio,
     effectiveOriginalAudioEnabled,
+    effectiveTranslationAudioEnabled,
     handleOriginalAudioToggle,
+    handleTranslationAudioToggle,
     activeTimingTrack,
   } = useInlineAudioOptions({
     jobId,
@@ -796,6 +809,8 @@ export default function PlayerPanel({
     inlineAudioSelection,
     showOriginalAudio,
     setShowOriginalAudio,
+    showTranslationAudio,
+    setShowTranslationAudio,
     setInlineAudioSelection,
   });
 
@@ -1128,6 +1143,8 @@ export default function PlayerPanel({
   const { showShortcutHelp, setShowShortcutHelp } = usePlayerShortcuts({
     canToggleOriginalAudio,
     onToggleOriginalAudio: handleOriginalAudioToggle,
+    canToggleTranslationAudio,
+    onToggleTranslationAudio: handleTranslationAudioToggle,
     onToggleCueLayer: handleToggleInteractiveTextLayer,
     onToggleMyLinguist: handleToggleMyLinguist,
     enableMyLinguist: linguistEnabled,
@@ -1145,6 +1162,7 @@ export default function PlayerPanel({
       isOpen={showShortcutHelp}
       onClose={() => setShowShortcutHelp(false)}
       canToggleOriginalAudio={canToggleOriginalAudio}
+      canToggleTranslationAudio={canToggleTranslationAudio}
       showMyLinguist={linguistEnabled}
     />
   );
@@ -1264,6 +1282,12 @@ export default function PlayerPanel({
     }
     window.localStorage.setItem('player.showOriginalAudio', showOriginalAudio ? 'true' : 'false');
   }, [showOriginalAudio]);
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    window.localStorage.setItem('player.showTranslationAudio', showTranslationAudio ? 'true' : 'false');
+  }, [showTranslationAudio]);
 
   const handleResetInteractiveLayout = useCallback(() => {
     setBaseFontScalePercent(DEFAULT_MY_LINGUIST_FONT_SCALE_PERCENT);
@@ -1419,7 +1443,11 @@ export default function PlayerPanel({
     showOriginalAudioToggle: canToggleOriginalAudio,
     onToggleOriginalAudio: handleOriginalAudioToggle,
     originalAudioEnabled: effectiveOriginalAudioEnabled,
-    disableOriginalAudioToggle: !hasCombinedAudio,
+    disableOriginalAudioToggle: !canToggleOriginalAudio,
+    showTranslationAudioToggle: canToggleTranslationAudio,
+    onToggleTranslationAudio: handleTranslationAudioToggle,
+    translationAudioEnabled: effectiveTranslationAudioEnabled,
+    disableTranslationAudioToggle: !canToggleTranslationAudio,
     showCueLayerToggles: true,
     cueVisibility: interactiveTextVisibility,
     onToggleCueLayer: handleToggleInteractiveTextLayer,
@@ -1540,6 +1568,7 @@ export default function PlayerPanel({
     audioTracks: activeAudioTracks,
     activeTimingTrack,
     originalAudioEnabled: effectiveOriginalAudioEnabled,
+    translationAudioEnabled: effectiveTranslationAudioEnabled,
     fontScale: interactiveFontScale,
     theme: interactiveTextTheme,
     backgroundOpacityPercent: interactiveBackgroundOpacityPercent,

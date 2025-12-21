@@ -518,6 +518,23 @@ export function useSentenceImageReel({
     return baseMap;
   }, [chunk?.sentences, exportSentenceByNumber]);
 
+  const hasGeneratedImages = useMemo(() => {
+    for (const entry of chunkSentenceByNumber.values()) {
+      const imagePayload = entry?.image ?? null;
+      const explicit =
+        (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
+        (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
+        (typeof entry?.imagePath === 'string' && entry.imagePath.trim()) ||
+        null;
+      if (explicit) {
+        return true;
+      }
+    }
+    return false;
+  }, [chunkSentenceByNumber]);
+
+  const isReelEnabled = isSentenceImageReelVisible && hasGeneratedImages;
+
   const activeSentenceImagePath = useMemo(() => {
     const entries = chunk?.sentences ?? null;
     if (entries && entries.length > 0) {
@@ -591,7 +608,7 @@ export function useSentenceImageReel({
     if (!jobId) {
       return;
     }
-    if (!isSentenceImageReelVisible) {
+    if (!isReelEnabled) {
       return;
     }
     const cache = reelImageInfoCacheRef.current;
@@ -646,7 +663,7 @@ export function useSentenceImageReel({
     return () => {
       cancelled = true;
     };
-  }, [chunkSentenceByNumber, isExportMode, isSentenceImageReelVisible, jobId, reelLookupSlots]);
+  }, [chunkSentenceByNumber, isExportMode, isReelEnabled, jobId, reelLookupSlots]);
 
   const [reelImageFailures, setReelImageFailures] = useState<Record<string, boolean>>({});
   useEffect(() => {
@@ -656,7 +673,7 @@ export function useSentenceImageReel({
   }, [imageRefreshToken, jobId]);
 
   useEffect(() => {
-    if (!jobId || !isSentenceImageReelVisible) {
+    if (!jobId || !isReelEnabled) {
       return;
     }
     const failedKeys = Object.entries(reelImageFailures)
@@ -686,7 +703,7 @@ export function useSentenceImageReel({
     return () => {
       window.clearTimeout(timer);
     };
-  }, [isSentenceImageReelVisible, jobId, reelImageFailures]);
+  }, [isReelEnabled, jobId, reelImageFailures]);
 
   const resolveSentenceImageUrl = useCallback(
     (path: string | null, sentenceNumber?: number | null) => {
@@ -966,7 +983,7 @@ export function useSentenceImageReel({
   const reelVisibleFrames = useMemo(() => reelFrames, [reelFrames]);
 
   useEffect(() => {
-    if (!jobId || !isSentenceImageReelVisible) {
+    if (!jobId || !isReelEnabled) {
       return;
     }
     if (!reelPrefetchSlots.length) {
@@ -987,7 +1004,7 @@ export function useSentenceImageReel({
       cache.add(url);
     });
   }, [
-    isSentenceImageReelVisible,
+    isReelEnabled,
     jobId,
     reelImageInfoVersion,
     reelPrefetchSlots,
@@ -996,7 +1013,7 @@ export function useSentenceImageReel({
   ]);
 
   useLayoutEffect(() => {
-    if (!isSentenceImageReelVisible) {
+    if (!isReelEnabled) {
       return;
     }
     const container = reelScrollRef.current;
@@ -1028,7 +1045,7 @@ export function useSentenceImageReel({
       left: target,
       behavior: 'auto',
     });
-  }, [activeSentenceNumber, isFullscreen, isSentenceImageReelVisible, reelVisibleFrames.length]);
+  }, [activeSentenceNumber, isFullscreen, isReelEnabled, reelVisibleFrames.length]);
 
   const resolveReelSentenceSeekTarget = useCallback(
     (sentenceNumber: number) => {
@@ -1092,6 +1109,11 @@ export function useSentenceImageReel({
         resolvedDuration =
           trackDurationForUrl(effectiveAudioUrl) ??
           trackDurationForUrl(activeAudioUrl) ??
+          (typeof audioTracks?.orig?.duration === 'number' &&
+          Number.isFinite(audioTracks.orig.duration) &&
+          audioTracks.orig.duration > 0
+            ? audioTracks.orig.duration
+            : null) ??
           (typeof audioTracks?.orig_trans?.duration === 'number' &&
           Number.isFinite(audioTracks.orig_trans.duration) &&
           audioTracks.orig_trans.duration > 0
@@ -1163,7 +1185,7 @@ export function useSentenceImageReel({
   }, []);
 
   const sentenceImageReelNode = useMemo(() => {
-    if (!jobId || !isSentenceImageReelVisible) {
+    if (!jobId || !isReelEnabled) {
       return null;
     }
     if (reelVisibleFrames.length === 0) {
@@ -1177,7 +1199,7 @@ export function useSentenceImageReel({
         onFrameError={handleReelFrameError}
       />
     );
-  }, [handleReelFrameClick, handleReelFrameError, isSentenceImageReelVisible, jobId, reelVisibleFrames]);
+  }, [handleReelFrameClick, handleReelFrameError, isReelEnabled, jobId, reelVisibleFrames]);
 
   return {
     sentenceImageReelNode,

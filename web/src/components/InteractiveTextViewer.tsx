@@ -78,6 +78,59 @@ type InlineAudioControls = {
   play: () => void;
 };
 
+type SequenceTrack = 'original' | 'translation';
+type SequenceSegment = {
+  track: SequenceTrack;
+  start: number;
+  end: number;
+  sentenceIndex: number;
+};
+
+type SequenceDebugState = {
+  enabled?: boolean;
+};
+
+declare global {
+  interface Window {
+    __SEQ_DEBUG__?: SequenceDebugState;
+  }
+}
+
+const SEQUENCE_DEBUG_EMPTY: SequenceDebugState = { enabled: false };
+
+function useSequenceDebug(): boolean {
+  const [enabled, setEnabled] = useState(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const paramEnabled = params.get('seqdebug');
+    if (paramEnabled === '1' || paramEnabled === 'true') {
+      return true;
+    }
+    return Boolean(window.__SEQ_DEBUG__?.enabled);
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handle = () => {
+      const params = new URLSearchParams(window.location.search);
+      const paramEnabled = params.get('seqdebug');
+      const next =
+        paramEnabled === '1' ||
+        paramEnabled === 'true' ||
+        Boolean((window.__SEQ_DEBUG__ ?? SEQUENCE_DEBUG_EMPTY).enabled);
+      setEnabled(Boolean(next));
+    };
+    window.addEventListener('seq_debug_update', handle);
+    return () => window.removeEventListener('seq_debug_update', handle);
+  }, []);
+
+  return enabled;
+}
+
 interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
@@ -110,8 +163,9 @@ interface InteractiveTextViewerProps {
   onRequestExitFullscreen?: () => void;
   fullscreenControls?: ReactNode;
   audioTracks?: Record<string, AudioTrackMetadata> | null;
-  activeTimingTrack?: 'mix' | 'translation';
+  activeTimingTrack?: 'mix' | 'translation' | 'original';
   originalAudioEnabled?: boolean;
+  translationAudioEnabled?: boolean;
   translationSpeed?: number;
   fontScale?: number;
   theme?: InteractiveTextTheme | null;
@@ -156,6 +210,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     audioTracks = null,
     activeTimingTrack = 'translation',
     originalAudioEnabled = false,
+    translationAudioEnabled = true,
     translationSpeed = 1,
     fontScale = 1,
     theme = null,
@@ -192,6 +247,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const linguistEnabled = featureFlags.linguist !== false;
   const painterEnabled = featureFlags.painter !== false;
   const isExportMode = playerMode === 'export';
+  const sequenceDebugEnabled = useSequenceDebug();
   const resolvedJobOriginalLanguage = useMemo(() => {
     const trimmed = typeof jobOriginalLanguage === 'string' ? jobOriginalLanguage.trim() : '';
     return trimmed.length > 0 ? trimmed : null;
@@ -580,13 +636,463 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(forwardedRef, () => containerRef.current);
   const [chunkTime, setChunkTime] = useState(0);
   const hasTimeline = Boolean(chunk?.sentences && chunk.sentences.length > 0);
-  const useCombinedPhases = Boolean(
-    originalAudioEnabled &&
-      (audioTracks?.orig_trans?.url || audioTracks?.orig_trans?.path),
-  );
   const [audioDuration, setAudioDuration] = useState<number | null>(null);
   const [activeSentenceIndex, setActiveSentenceIndex] = useState(0);
   const [activeSentenceProgress, setActiveSentenceProgress] = useState(0);
+  const combinedTrackUrl =
+    audioTracks?.orig_trans?.url ?? audioTracks?.orig_trans?.path ?? null;
+  const originalTrackUrl = audioTracks?.orig?.url ?? audioTracks?.orig?.path ?? null;
+  const translationTrackUrl =
+    audioTracks?.translation?.url ??
+    audioTracks?.translation?.path ??
+    audioTracks?.trans?.url ??
+    audioTracks?.trans?.path ??
+    null;
+  const allowCombinedAudio = Boolean(combinedTrackUrl) && (!originalTrackUrl || !translationTrackUrl);
+  const normaliseAudioUrl = (value: string | null) => {
+    if (!value) {
+      return null;
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return null;
+    }
+    const stripped = trimmed.replace(/[?#].*$/, '');
+    if (!stripped) {
+      return null;
+    }
+    try {
+      const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+      const parsed = new URL(stripped, base);
+      return parsed.pathname || stripped;
+    } catch {
+      return stripped;
+    }
+  };
+  const deriveAudioBaseId = (value: string | null) => {
+    const normalized = normaliseAudioUrl(value);
+    if (!normalized) {
+      return null;
+    }
+    const parts = normalized.split('/');
+    const filename = parts[parts.length - 1] ?? '';
+    if (!filename) {
+      return null;
+    }
+    const withoutExt = filename.replace(/\.[^.]+$/, '');
+    const trimmed = withoutExt.trim();
+    if (!trimmed) {
+      return null;
+    }
+    try {
+      return trimmed.normalize('NFC').toLowerCase();
+    } catch {
+      return trimmed.toLowerCase();
+    }
+  };
+  const activeAudioRef = normaliseAudioUrl(activeAudioUrl);
+  const originalTrackRef = normaliseAudioUrl(originalTrackUrl);
+  const translationTrackRef = normaliseAudioUrl(translationTrackUrl);
+  const combinedTrackRef = normaliseAudioUrl(combinedTrackUrl);
+  const activeAudioBase = deriveAudioBaseId(activeAudioUrl);
+  const originalTrackBase = deriveAudioBaseId(originalTrackUrl);
+  const translationTrackBase = deriveAudioBaseId(translationTrackUrl);
+  const combinedTrackBase = deriveAudioBaseId(combinedTrackUrl);
+  const matchesTrack =
+    Boolean(
+      activeAudioRef &&
+        (activeAudioRef === originalTrackRef ||
+          activeAudioRef === translationTrackRef ||
+          activeAudioRef === combinedTrackRef),
+    ) ||
+    Boolean(
+      activeAudioBase &&
+        (activeAudioBase === originalTrackBase ||
+          activeAudioBase === translationTrackBase ||
+          activeAudioBase === combinedTrackBase),
+    );
+  const hasExplicitAudioSelection =
+    Boolean(activeAudioUrl && !matchesTrack);
+
+  const resolveNumericValue = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Number(value);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+    return null;
+  };
+
+  const readSentenceGate = (
+    sentence: ChunkSentenceMetadata | null | undefined,
+    keys: string[],
+  ): number | null => {
+    if (!sentence) {
+      return null;
+    }
+    const record = sentence as unknown as Record<string, unknown>;
+    for (const key of keys) {
+      const raw = record[key];
+      const numeric = resolveNumericValue(raw);
+      if (numeric !== null) {
+        return numeric;
+      }
+    }
+    return null;
+  };
+
+  const resolveSentenceGate = (
+    sentence: ChunkSentenceMetadata | null | undefined,
+    track: SequenceTrack,
+  ): { start: number; end: number } | null => {
+    const start = track === 'original'
+      ? readSentenceGate(sentence, ['original_start_gate', 'originalStartGate', 'original_startGate'])
+      : readSentenceGate(sentence, ['start_gate', 'startGate']);
+    const end = track === 'original'
+      ? readSentenceGate(sentence, ['original_end_gate', 'originalEndGate', 'original_endGate'])
+      : readSentenceGate(sentence, ['end_gate', 'endGate']);
+    if (start === null || end === null) {
+      return null;
+    }
+    const safeStart = Math.max(0, start);
+    const safeEnd = Math.max(safeStart, end);
+    if (!Number.isFinite(safeStart) || !Number.isFinite(safeEnd)) {
+      return null;
+    }
+    if (safeEnd <= safeStart) {
+      return null;
+    }
+    return { start: safeStart, end: safeEnd };
+  };
+
+  const sequencePlan = useMemo<SequenceSegment[]>(() => {
+    if (!chunk) {
+      return [];
+    }
+    const isSingleSentence =
+      (typeof chunk.sentenceCount === 'number' && chunk.sentenceCount === 1) ||
+      (typeof chunk.startSentence === 'number' &&
+        typeof chunk.endSentence === 'number' &&
+        chunk.startSentence === chunk.endSentence);
+    const buildFallbackSegments = (
+      includeOriginal: boolean,
+      includeTranslation: boolean,
+    ): SequenceSegment[] => {
+      const fallback: SequenceSegment[] = [];
+      const originalDuration = audioTracks?.orig?.duration ?? null;
+      const translationDuration = audioTracks?.translation?.duration ?? audioTracks?.trans?.duration ?? null;
+      if (
+        includeOriginal &&
+        typeof originalDuration === 'number' &&
+        Number.isFinite(originalDuration) &&
+        originalDuration > 0
+      ) {
+        fallback.push({
+          track: 'original',
+          start: 0,
+          end: originalDuration,
+          sentenceIndex: 0,
+        });
+      }
+      if (
+        includeTranslation &&
+        typeof translationDuration === 'number' &&
+        Number.isFinite(translationDuration) &&
+        translationDuration > 0
+      ) {
+        fallback.push({
+          track: 'translation',
+          start: 0,
+          end: translationDuration,
+          sentenceIndex: 0,
+        });
+      }
+      return fallback;
+    };
+
+    if (!chunk.sentences || chunk.sentences.length === 0) {
+      return isSingleSentence ? buildFallbackSegments(true, true) : [];
+    }
+
+    const segments: SequenceSegment[] = [];
+    let hasOriginalGate = false;
+    let hasTranslationGate = false;
+    chunk.sentences.forEach((sentence, index) => {
+      const originalGate = resolveSentenceGate(sentence, 'original');
+      if (originalGate) {
+        hasOriginalGate = true;
+        segments.push({
+          track: 'original',
+          start: originalGate.start,
+          end: originalGate.end,
+          sentenceIndex: index,
+        });
+      }
+      const translationGate = resolveSentenceGate(sentence, 'translation');
+      if (translationGate) {
+        hasTranslationGate = true;
+        segments.push({
+          track: 'translation',
+          start: translationGate.start,
+          end: translationGate.end,
+          sentenceIndex: index,
+        });
+      }
+    });
+
+    if (!isSingleSentence) {
+      return segments;
+    }
+
+    if (!hasOriginalGate || !hasTranslationGate) {
+      const fallback = buildFallbackSegments(!hasOriginalGate, !hasTranslationGate);
+      if (fallback.length === 0) {
+        return segments;
+      }
+      if (!hasOriginalGate && fallback.some((segment) => segment.track === 'original')) {
+        segments.unshift(
+          ...fallback.filter((segment) => segment.track === 'original'),
+        );
+      }
+      if (!hasTranslationGate && fallback.some((segment) => segment.track === 'translation')) {
+        segments.push(
+          ...fallback.filter((segment) => segment.track === 'translation'),
+        );
+      }
+    }
+
+    return segments;
+  }, [audioTracks, chunk]);
+
+  const hasOriginalSegments = useMemo(
+    () => sequencePlan.some((segment) => segment.track === 'original'),
+    [sequencePlan],
+  );
+  const hasTranslationSegments = useMemo(
+    () => sequencePlan.some((segment) => segment.track === 'translation'),
+    [sequencePlan],
+  );
+  const sequenceDefaultTrack: SequenceTrack = hasOriginalSegments ? 'original' : 'translation';
+  const sequenceEnabled = Boolean(
+    originalAudioEnabled &&
+      translationAudioEnabled &&
+      originalTrackUrl &&
+      translationTrackUrl &&
+      hasOriginalSegments &&
+      hasTranslationSegments,
+  );
+  const [sequenceTrack, setSequenceTrack] = useState<SequenceTrack | null>(sequenceDefaultTrack);
+  const sequenceTrackRef = useRef<SequenceTrack | null>(sequenceTrack);
+  const sequenceIndexRef = useRef(0);
+  const pendingSequenceSeekRef = useRef<{ time: number; autoPlay: boolean } | null>(null);
+  const activeSentenceIndexRef = useRef(0);
+  const lastSequenceEndedRef = useRef<number | null>(null);
+  const sequenceAutoPlayRef = useRef(false);
+  const pendingChunkAutoPlayRef = useRef(false);
+  const pendingChunkAutoPlayKeyRef = useRef<string | null>(null);
+  const sequenceChunkKeyRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    sequenceTrackRef.current = sequenceTrack;
+  }, [sequenceTrack]);
+  useEffect(() => {
+    activeSentenceIndexRef.current = activeSentenceIndex;
+  }, [activeSentenceIndex]);
+
+  const formatSequenceDebugUrl = useCallback((value: string | null) => {
+    if (!value) {
+      return '—';
+    }
+    const trimmed = value.trim().replace(/[?#].*$/, '');
+    if (!trimmed) {
+      return '—';
+    }
+    const parts = trimmed.split('/');
+    return parts[parts.length - 1] || trimmed;
+  }, []);
+
+  const sequenceChunkKey = useMemo(() => {
+    return (
+      chunk?.chunkId ??
+      chunk?.rangeFragment ??
+      chunk?.metadataPath ??
+      chunk?.metadataUrl ??
+      null
+    );
+  }, [chunk?.chunkId, chunk?.metadataPath, chunk?.metadataUrl, chunk?.rangeFragment]);
+
+  useEffect(() => {
+    const previous = sequenceChunkKeyRef.current;
+    sequenceChunkKeyRef.current = sequenceChunkKey;
+    if (!sequenceEnabled || !sequenceChunkKey || previous === sequenceChunkKey) {
+      return;
+    }
+    sequenceIndexRef.current = 0;
+    pendingSequenceSeekRef.current = null;
+    sequenceTrackRef.current = sequenceDefaultTrack;
+    setSequenceTrack(sequenceDefaultTrack);
+  }, [sequenceChunkKey, sequenceDefaultTrack, sequenceEnabled]);
+
+  const effectiveAudioUrl = useMemo(() => {
+    if (sequenceEnabled) {
+      const track = sequenceTrack ?? sequenceDefaultTrack;
+      return track === 'original' ? originalTrackUrl : translationTrackUrl;
+    }
+    if (activeAudioUrl) {
+      return activeAudioUrl;
+    }
+    if (originalAudioEnabled && originalTrackUrl) {
+      return originalTrackUrl;
+    }
+    if (originalAudioEnabled && allowCombinedAudio && combinedTrackUrl) {
+      return combinedTrackUrl;
+    }
+    if (translationAudioEnabled && translationTrackUrl) {
+      return translationTrackUrl;
+    }
+    if (translationAudioEnabled && allowCombinedAudio && combinedTrackUrl) {
+      return combinedTrackUrl;
+    }
+    if (translationTrackUrl) {
+      return translationTrackUrl;
+    }
+    if (allowCombinedAudio && combinedTrackUrl) {
+      return combinedTrackUrl;
+    }
+    return null;
+  }, [
+    activeAudioUrl,
+    allowCombinedAudio,
+    combinedTrackUrl,
+    originalAudioEnabled,
+    originalTrackUrl,
+    sequenceEnabled,
+    sequenceDefaultTrack,
+    sequenceTrack,
+    translationAudioEnabled,
+    translationTrackUrl,
+  ]);
+
+  const resolvedAudioUrl = useMemo(() => {
+    if (!effectiveAudioUrl) {
+      return null;
+    }
+    if (isExportMode) {
+      return coerceExportPath(effectiveAudioUrl, jobId) ?? effectiveAudioUrl;
+    }
+    return appendAccessToken(effectiveAudioUrl);
+  }, [effectiveAudioUrl, isExportMode, jobId]);
+
+  const audioResetKey = useMemo(() => {
+    if (sequenceEnabled) {
+      const chunkKey =
+        chunk?.chunkId ??
+        chunk?.rangeFragment ??
+        chunk?.metadataPath ??
+        chunk?.metadataUrl ??
+        'unknown';
+      return `sequence:${chunkKey}:${originalTrackUrl ?? ''}:${translationTrackUrl ?? ''}`;
+    }
+    return effectiveAudioUrl ?? 'none';
+  }, [
+    chunk?.chunkId,
+    chunk?.metadataPath,
+    chunk?.metadataUrl,
+    chunk?.rangeFragment,
+    effectiveAudioUrl,
+    originalTrackUrl,
+    sequenceEnabled,
+    translationTrackUrl,
+  ]);
+
+  const sequenceDebugInfo = sequenceDebugEnabled
+    ? {
+        enabled: sequenceEnabled,
+        origEnabled: originalAudioEnabled,
+        transEnabled: translationAudioEnabled,
+        hasOrigSeg: hasOriginalSegments,
+        hasTransSeg: hasTranslationSegments,
+        hasOrigTrack: Boolean(originalTrackUrl),
+        hasTransTrack: Boolean(translationTrackUrl),
+        track: sequenceTrackRef.current ?? sequenceTrack ?? sequenceDefaultTrack,
+        index: sequenceIndexRef.current,
+        lastEnded: lastSequenceEndedRef.current ? lastSequenceEndedRef.current.toFixed(3) : 'none',
+        autoPlay: sequenceAutoPlayRef.current ? 'true' : 'false',
+        plan: sequencePlan.length,
+        sentence: activeSentenceIndex,
+        time: chunkTime,
+        pending: pendingSequenceSeekRef.current
+          ? `${pendingSequenceSeekRef.current.time.toFixed(3)}:${pendingSequenceSeekRef.current.autoPlay ? 'auto' : 'manual'}`
+          : 'none',
+        playing: audioRef.current ? !audioRef.current.paused : inlineAudioPlayingRef.current,
+        audio: formatSequenceDebugUrl(resolvedAudioUrl),
+        original: formatSequenceDebugUrl(originalTrackUrl),
+        translation: formatSequenceDebugUrl(translationTrackUrl),
+      }
+    : null;
+
+  const findSequenceIndexForSentence = useCallback(
+    (sentenceIndex: number, preferredTrack?: SequenceTrack | null) => {
+      if (!sequencePlan.length || sentenceIndex < 0) {
+        return -1;
+      }
+      if (preferredTrack) {
+        const matched = sequencePlan.findIndex(
+          (segment) => segment.sentenceIndex === sentenceIndex && segment.track === preferredTrack,
+        );
+        if (matched >= 0) {
+          return matched;
+        }
+      }
+      return sequencePlan.findIndex((segment) => segment.sentenceIndex === sentenceIndex);
+    },
+    [sequencePlan],
+  );
+
+  useEffect(() => {
+    if (!sequenceEnabled || sequencePlan.length === 0) {
+      sequenceIndexRef.current = 0;
+      setSequenceTrack(null);
+      pendingSequenceSeekRef.current = null;
+      return;
+    }
+    const preferredSentence = activeSentenceIndexRef.current ?? 0;
+    const preferredTrack = sequenceTrackRef.current ?? sequenceDefaultTrack;
+    let nextIndex = findSequenceIndexForSentence(preferredSentence, preferredTrack);
+    if (nextIndex < 0) {
+      nextIndex = findSequenceIndexForSentence(preferredSentence, null);
+    }
+    if (nextIndex < 0) {
+      nextIndex = 0;
+    }
+    const segment = sequencePlan[nextIndex];
+    if (!segment) {
+      return;
+    }
+    sequenceIndexRef.current = nextIndex;
+    if (sequenceTrackRef.current && sequenceTrackRef.current === segment.track) {
+      pendingSequenceSeekRef.current = null;
+      return;
+    }
+    if (!sequenceTrackRef.current) {
+      setSequenceTrack(segment.track);
+      return;
+    }
+    pendingSequenceSeekRef.current = {
+      time: segment.start,
+      autoPlay: inlineAudioPlayingRef.current,
+    };
+    setSequenceTrack(segment.track);
+  }, [findSequenceIndexForSentence, sequenceDefaultTrack, sequenceEnabled, sequencePlan]);
+
+  const resolvedTimingTrack: 'mix' | 'translation' | 'original' =
+    sequenceEnabled ? sequenceTrack ?? sequenceDefaultTrack : activeTimingTrack;
+  const hasCombinedAudio = Boolean(combinedTrackUrl);
+  const useCombinedPhases = resolvedTimingTrack === 'mix' && hasCombinedAudio;
   const wordSyncQueryState = useMemo<boolean | null>(() => {
     if (typeof window === 'undefined') {
       return null;
@@ -653,6 +1159,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     chunk,
     hasTimeline,
     useCombinedPhases,
+    activeTimingTrack: resolvedTimingTrack,
     audioDuration,
     chunkTime,
     activeSentenceIndex,
@@ -733,33 +1240,6 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     requestPositionUpdate: requestLinguistBubblePositionUpdate,
   } = linguist;
 
-  const effectiveAudioUrl = useMemo(() => {
-    const combinedUrl = audioTracks?.orig_trans?.url ?? null;
-    const translationUrl = audioTracks?.translation?.url ?? audioTracks?.trans?.url ?? null;
-    if (originalAudioEnabled && combinedUrl) {
-      return combinedUrl;
-    }
-    if (activeAudioUrl) {
-      return activeAudioUrl;
-    }
-    if (translationUrl) {
-      return translationUrl;
-    }
-    if (combinedUrl) {
-      return combinedUrl;
-    }
-    return null;
-  }, [activeAudioUrl, audioTracks, originalAudioEnabled]);
-
-  const resolvedAudioUrl = useMemo(() => {
-    if (!effectiveAudioUrl) {
-      return null;
-    }
-    if (isExportMode) {
-      return coerceExportPath(effectiveAudioUrl, jobId) ?? effectiveAudioUrl;
-    }
-    return appendAccessToken(effectiveAudioUrl);
-  }, [effectiveAudioUrl, isExportMode, jobId]);
   const chunkSentenceMap = useMemo(() => {
     const map = new Map<number, ChunkSentenceMetadata>();
     if (!chunk?.sentences || chunk.sentences.length === 0) {
@@ -789,20 +1269,22 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [chunk?.chunkId, wordSyncTracks]);
   const wordSyncPreferredTypes = useMemo(() => {
     const preferences: TrackTimingPayload['trackType'][] = [];
-    const combinedUrl = audioTracks?.orig_trans?.url ?? null;
-    const preferred =
-      originalAudioEnabled && combinedUrl && effectiveAudioUrl === combinedUrl
-        ? 'original_translated'
-        : 'translated';
-    preferences.push(preferred);
-    if (!preferences.includes('translated')) {
+    if (resolvedTimingTrack === 'original') {
+      preferences.push('original');
+    } else if (resolvedTimingTrack === 'mix') {
+      preferences.push('original_translated');
+    } else {
       preferences.push('translated');
     }
-    if (!preferences.includes('original_translated')) {
-      preferences.push('original_translated');
-    }
+    (['translated', 'original_translated', 'original'] as TrackTimingPayload['trackType'][]).forEach(
+      (candidate) => {
+        if (!preferences.includes(candidate)) {
+          preferences.push(candidate);
+        }
+      },
+    );
     return preferences;
-  }, [audioTracks, effectiveAudioUrl, originalAudioEnabled]);
+  }, [resolvedTimingTrack]);
   const selectedWordSyncTrack = useMemo(() => {
     if (wordSyncTrackCandidates.length === 0) {
       return null;
@@ -907,8 +1389,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     if (!hasRemoteTiming || !jobTimingResponse) {
       return null;
     }
-    return buildTimingPayloadFromJobTiming(jobTimingResponse, activeTimingTrack);
-  }, [activeTimingTrack, hasRemoteTiming, jobTimingResponse]);
+    return buildTimingPayloadFromJobTiming(jobTimingResponse, resolvedTimingTrack);
+  }, [hasRemoteTiming, jobTimingResponse, resolvedTimingTrack]);
 
   const timingPayload = useMemo<TimingPayload | null>(() => {
     if (remoteTrackPayload) {
@@ -968,7 +1450,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       jobId,
       timingPayload.trackKind,
       String(timingPayload.segments.length),
-      activeTimingTrack,
+      resolvedTimingTrack,
       jobTimingResponse?.highlighting_policy ?? 'unknown',
     ].join('|');
     if (diagnosticsSignatureRef.current === signature) {
@@ -993,10 +1475,10 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         tempoRatio: Number(metrics.tempoRatio.toFixed(3)),
         uniformVsRealMeanDeltaMs: Number(metrics.uniformVsRealMeanDeltaMs.toFixed(2)),
         totalDriftMs: Number(metrics.totalDriftMs.toFixed(2)),
-        track: activeTimingTrack,
+        track: resolvedTimingTrack,
       });
     }
-  }, [jobId, timingPayload, activeTimingTrack, jobTimingResponse]);
+  }, [jobId, timingPayload, resolvedTimingTrack, jobTimingResponse]);
   const registerTokenElement = useCallback((id: string, element: HTMLSpanElement | null) => {
     const map = tokenElementsRef.current;
     if (!element) {
@@ -1280,7 +1762,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     setActiveSentenceProgress(0);
     setAudioDuration(null);
     setChunkTime(0);
-  }, [effectiveAudioUrl, getStoredAudioPosition]);
+  }, [audioResetKey, getStoredAudioPosition]);
 
   const handleScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
@@ -1433,8 +1915,139 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     timingStore.setActiveGate(candidate);
   }, []);
 
+  const syncSequenceIndexToTime = useCallback(
+    (mediaTime: number) => {
+      if (!sequenceEnabled || sequencePlan.length === 0) {
+        return;
+      }
+      const currentTrack = sequenceTrackRef.current;
+      if (!currentTrack) {
+        return;
+      }
+      const epsilon = 0.05;
+      let matchIndex = sequencePlan.findIndex(
+        (segment) =>
+          segment.track === currentTrack &&
+          mediaTime >= segment.start - epsilon &&
+          mediaTime <= segment.end + epsilon,
+      );
+      if (matchIndex < 0) {
+        matchIndex = sequencePlan.findIndex(
+          (segment) => segment.track === currentTrack && mediaTime < segment.start,
+        );
+        if (matchIndex < 0) {
+          matchIndex = sequencePlan.length - 1;
+        }
+      }
+      if (matchIndex >= 0) {
+        sequenceIndexRef.current = matchIndex;
+      }
+    },
+    [sequenceEnabled, sequencePlan],
+  );
+
+  const getSequenceIndexForPlayback = useCallback(() => {
+    if (!sequencePlan.length) {
+      return -1;
+    }
+    const currentTrack = sequenceTrackRef.current ?? sequenceDefaultTrack;
+    const sentenceIndex = activeSentenceIndexRef.current ?? 0;
+    const resolvedIndex = findSequenceIndexForSentence(sentenceIndex, currentTrack);
+    if (resolvedIndex >= 0) {
+      return resolvedIndex;
+    }
+    return sequenceIndexRef.current >= 0 ? sequenceIndexRef.current : 0;
+  }, [findSequenceIndexForSentence, sequenceDefaultTrack, sequencePlan.length]);
+
+  const applySequenceSegment = useCallback(
+    (segment: SequenceSegment, options?: { autoPlay?: boolean }) => {
+      if (!segment) {
+        return;
+      }
+      const element = audioRef.current;
+      const shouldPlay = options?.autoPlay ?? inlineAudioPlayingRef.current;
+      sequenceAutoPlayRef.current = shouldPlay;
+      if (sequenceTrackRef.current !== segment.track) {
+        sequenceTrackRef.current = segment.track;
+        pendingSequenceSeekRef.current = { time: segment.start, autoPlay: shouldPlay };
+        setSequenceTrack(segment.track);
+        return;
+      }
+      if (!element) {
+        return;
+      }
+      wordSyncControllerRef.current?.handleSeeking();
+      element.currentTime = Math.max(0, segment.start);
+      setChunkTime(segment.start);
+      if (!hasTimeline && Number.isFinite(element.duration) && element.duration > 0) {
+        updateSentenceForTime(segment.start, element.duration);
+      }
+      updateActiveGateFromTime(segment.start);
+      emitAudioProgress(segment.start);
+      if (shouldPlay) {
+        const result = element.play?.();
+        if (result && typeof result.catch === 'function') {
+          result.catch(() => undefined);
+        }
+      }
+    },
+    [emitAudioProgress, hasTimeline, updateActiveGateFromTime, updateSentenceForTime],
+  );
+
+  const advanceSequenceSegment = useCallback(
+    (options?: { autoPlay?: boolean }) => {
+      if (!sequenceEnabled || sequencePlan.length === 0) {
+        return false;
+      }
+      const currentIndex = getSequenceIndexForPlayback();
+      if (currentIndex < 0) {
+        return false;
+      }
+      const nextIndex = currentIndex + 1;
+      if (nextIndex >= sequencePlan.length) {
+        return false;
+      }
+      const nextSegment = sequencePlan[nextIndex];
+      if (!nextSegment) {
+        return false;
+      }
+      sequenceIndexRef.current = nextIndex;
+      applySequenceSegment(nextSegment, options);
+      return true;
+    },
+    [applySequenceSegment, getSequenceIndexForPlayback, sequenceEnabled, sequencePlan],
+  );
+
+  const maybeAdvanceSequence = useCallback(
+    (mediaTime: number) => {
+      if (!sequenceEnabled || sequencePlan.length === 0) {
+        return false;
+      }
+      if (!inlineAudioPlayingRef.current) {
+        return false;
+      }
+      if (pendingSequenceSeekRef.current) {
+        return false;
+      }
+      syncSequenceIndexToTime(mediaTime);
+      const currentIndex = getSequenceIndexForPlayback();
+      const segment = currentIndex >= 0 ? sequencePlan[currentIndex] : null;
+      if (!segment) {
+        return false;
+      }
+      if (mediaTime < segment.end - 0.03) {
+        return false;
+      }
+      return advanceSequenceSegment({ autoPlay: true });
+    },
+    [advanceSequenceSegment, getSequenceIndexForPlayback, sequenceEnabled, sequencePlan, syncSequenceIndexToTime],
+  );
+
   const handleInlineAudioPlay = useCallback(() => {
     inlineAudioPlayingRef.current = true;
+    sequenceAutoPlayRef.current = true;
+    pendingChunkAutoPlayRef.current = false;
+    pendingChunkAutoPlayKeyRef.current = null;
     timingStore.setLast(null);
     const startPlayback = () => {
       wordSyncControllerRef.current?.handlePlay();
@@ -1465,6 +2078,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
             updateSentenceForTime(currentTime, duration);
           }
           updateActiveGateFromTime(currentTime);
+          maybeAdvanceSequence(currentTime);
         }, 120);
       }
     };
@@ -1489,17 +2103,60 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       scheduleStart();
     };
     element.addEventListener('canplay', handleCanPlay, { once: true });
-  }, [onInlineAudioPlaybackStateChange, updateActiveGateFromTime, updateSentenceForTime]);
+  }, [maybeAdvanceSequence, onInlineAudioPlaybackStateChange, updateActiveGateFromTime, updateSentenceForTime]);
 
   const handleInlineAudioPause = useCallback(() => {
+    const element = audioRef.current;
+    if (element?.ended && onRequestAdvanceChunk) {
+      const hasNextSegment = sequenceEnabled
+        ? (() => {
+            const currentIndex = getSequenceIndexForPlayback();
+            return currentIndex >= 0 && currentIndex < sequencePlan.length - 1;
+          })()
+        : false;
+      if (!sequenceEnabled || !hasNextSegment) {
+        pendingChunkAutoPlayRef.current = true;
+        pendingChunkAutoPlayKeyRef.current = audioResetKey;
+        return;
+      }
+    }
+    if (sequenceEnabled) {
+      if (pendingSequenceSeekRef.current) {
+        return;
+      }
+      if (pendingChunkAutoPlayRef.current && pendingChunkAutoPlayKeyRef.current === audioResetKey) {
+        return;
+      }
+      if (element?.ended) {
+        if (sequenceAutoPlayRef.current || inlineAudioPlayingRef.current) {
+          pendingChunkAutoPlayRef.current = true;
+          pendingChunkAutoPlayKeyRef.current = audioResetKey;
+          return;
+        }
+        const currentIndex = getSequenceIndexForPlayback();
+        const hasNextSegment = currentIndex >= 0 && currentIndex < sequencePlan.length - 1;
+        if (hasNextSegment) {
+          return;
+        }
+      }
+    }
     inlineAudioPlayingRef.current = false;
+    sequenceAutoPlayRef.current = false;
+    pendingChunkAutoPlayRef.current = false;
+    pendingChunkAutoPlayKeyRef.current = null;
     if (progressTimerRef.current !== null) {
       window.clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
     }
     wordSyncControllerRef.current?.handlePause();
     onInlineAudioPlaybackStateChange?.('paused');
-  }, [onInlineAudioPlaybackStateChange]);
+  }, [
+    audioResetKey,
+    getSequenceIndexForPlayback,
+    onInlineAudioPlaybackStateChange,
+    sequenceEnabled,
+    sequencePlan.length,
+  ]);
 
   const handleAudioSeeking = useCallback(() => {
     wordSyncControllerRef.current?.handleSeeking();
@@ -1543,6 +2200,38 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       element.currentTime = initialTime;
     }
     setChunkTime(initialTime);
+    const pendingSequenceSeek = pendingSequenceSeekRef.current;
+    if (pendingSequenceSeek) {
+      const safeDuration = Number.isFinite(duration) && duration > 0 ? duration : null;
+      const nearEndThreshold =
+        safeDuration !== null ? Math.max(safeDuration * 0.9, safeDuration - 3) : null;
+      let targetSeek = pendingSequenceSeek.time;
+      if (nearEndThreshold !== null && targetSeek >= nearEndThreshold) {
+        targetSeek = 0;
+      }
+      if (safeDuration !== null) {
+        targetSeek = Math.min(targetSeek, Math.max(safeDuration - 0.1, 0));
+      }
+      if (targetSeek < 0 || !Number.isFinite(targetSeek)) {
+        targetSeek = 0;
+      }
+      element.currentTime = targetSeek;
+      if (safeDuration !== null && !hasTimeline) {
+        updateSentenceForTime(targetSeek, safeDuration);
+      }
+      updateActiveGateFromTime(targetSeek);
+      emitAudioProgress(targetSeek);
+      if (pendingSequenceSeek.autoPlay) {
+        sequenceAutoPlayRef.current = true;
+        const maybePlay = element.play?.();
+        if (maybePlay && typeof maybePlay.catch === 'function') {
+          maybePlay.catch(() => undefined);
+        }
+      }
+      pendingSequenceSeekRef.current = null;
+      wordSyncControllerRef.current?.snap();
+      return;
+    }
     const seek = pendingInitialSeek.current;
     if (typeof seek === 'number' && seek > 0 && Number.isFinite(duration) && duration > 0) {
       const nearEndThreshold = Math.max(duration * 0.9, duration - 3);
@@ -1587,12 +2276,29 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     }
     emitAudioProgress(currentTime);
     updateActiveGateFromTime(currentTime);
+    maybeAdvanceSequence(currentTime);
     if (element.paused) {
       wordSyncControllerRef.current?.snap();
     }
-  }, [emitAudioProgress, hasTimeline, updateSentenceForTime, updateActiveGateFromTime]);
+  }, [emitAudioProgress, hasTimeline, maybeAdvanceSequence, updateSentenceForTime, updateActiveGateFromTime]);
 
   const handleAudioEnded = useCallback(() => {
+    if (sequenceEnabled) {
+      const element = audioRef.current;
+      if (element && Number.isFinite(element.currentTime)) {
+        lastSequenceEndedRef.current = element.currentTime;
+      }
+    }
+    if (sequenceEnabled && pendingSequenceSeekRef.current) {
+      return;
+    }
+    if (sequenceEnabled && advanceSequenceSegment({ autoPlay: true })) {
+      return;
+    }
+    if (onRequestAdvanceChunk) {
+      pendingChunkAutoPlayRef.current = true;
+      pendingChunkAutoPlayKeyRef.current = audioResetKey;
+    }
     inlineAudioPlayingRef.current = false;
     if (progressTimerRef.current !== null) {
       window.clearInterval(progressTimerRef.current);
@@ -1612,14 +2318,80 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     emitAudioProgress(0);
     onRequestAdvanceChunk?.();
   }, [
+    advanceSequenceSegment,
     audioDuration,
+    audioResetKey,
     emitAudioProgress,
     hasTimeline,
     onInlineAudioPlaybackStateChange,
     onRequestAdvanceChunk,
+    sequenceEnabled,
     timelineDisplay,
     totalSentences,
   ]);
+
+  useEffect(() => {
+    if (!sequenceAutoPlayRef.current) {
+      return;
+    }
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    let active = true;
+    const attemptPlay = () => {
+      if (!active || !sequenceAutoPlayRef.current) {
+        return;
+      }
+      const result = element.play?.();
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => undefined);
+      }
+    };
+    if (element.readyState >= element.HAVE_FUTURE_DATA) {
+      attemptPlay();
+      return;
+    }
+    element.addEventListener('canplay', attemptPlay, { once: true });
+    return () => {
+      active = false;
+      element.removeEventListener('canplay', attemptPlay);
+    };
+  }, [resolvedAudioUrl]);
+
+  useEffect(() => {
+    if (!pendingChunkAutoPlayRef.current) {
+      return;
+    }
+    if (pendingChunkAutoPlayKeyRef.current === audioResetKey) {
+      return;
+    }
+    pendingChunkAutoPlayRef.current = false;
+    pendingChunkAutoPlayKeyRef.current = null;
+    const element = audioRef.current;
+    if (!element) {
+      return;
+    }
+    let active = true;
+    const attemptPlay = () => {
+      if (!active) {
+        return;
+      }
+      const result = element.play?.();
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => undefined);
+      }
+    };
+    if (element.readyState >= element.HAVE_CURRENT_DATA) {
+      attemptPlay();
+      return;
+    }
+    element.addEventListener('canplay', attemptPlay, { once: true });
+    return () => {
+      active = false;
+      element.removeEventListener('canplay', attemptPlay);
+    };
+  }, [audioResetKey, resolvedAudioUrl]);
 
 const handleAudioSeeked = useCallback(() => {
   wordSyncControllerRef.current?.handleSeeked();
@@ -1628,11 +2400,12 @@ const handleAudioSeeked = useCallback(() => {
     return;
   }
   setChunkTime(element.currentTime ?? 0);
+  syncSequenceIndexToTime(element.currentTime ?? 0);
   if (!hasTimeline) {
     updateSentenceForTime(element.currentTime, element.duration);
   }
   emitAudioProgress(element.currentTime);
-}, [emitAudioProgress, hasTimeline, updateSentenceForTime]);
+}, [emitAudioProgress, hasTimeline, syncSequenceIndexToTime, updateSentenceForTime]);
   const handleTokenSeek = useCallback(
     (time: number) => {
       if (dictionarySuppressSeekRef.current) {
@@ -1869,11 +2642,34 @@ const handleAudioSeeked = useCallback(() => {
         onPlaying={handleAudioPlaying}
         onRateChange={handleAudioRateChange}
       />
-	      <div
-	        key="interactive-body"
-	        className="player-panel__document-body player-panel__interactive-frame"
-	        style={bodyStyle}
-	      >
+      {sequenceDebugInfo ? (
+        <div className="player-panel__sequence-debug">
+          <span>seqEnabled: {sequenceDebugInfo.enabled ? 'true' : 'false'}</span>
+          <span>origEnabled: {sequenceDebugInfo.origEnabled ? 'true' : 'false'}</span>
+          <span>transEnabled: {sequenceDebugInfo.transEnabled ? 'true' : 'false'}</span>
+          <span>hasOrigSeg: {sequenceDebugInfo.hasOrigSeg ? 'true' : 'false'}</span>
+          <span>hasTransSeg: {sequenceDebugInfo.hasTransSeg ? 'true' : 'false'}</span>
+          <span>hasOrigTrack: {sequenceDebugInfo.hasOrigTrack ? 'true' : 'false'}</span>
+          <span>hasTransTrack: {sequenceDebugInfo.hasTransTrack ? 'true' : 'false'}</span>
+          <span>track: {sequenceDebugInfo.track}</span>
+          <span>plan: {sequenceDebugInfo.plan}</span>
+          <span>index: {sequenceDebugInfo.index}</span>
+          <span>lastEnded: {sequenceDebugInfo.lastEnded}</span>
+          <span>autoPlay: {sequenceDebugInfo.autoPlay}</span>
+          <span>sentence: {sequenceDebugInfo.sentence}</span>
+          <span>time: {sequenceDebugInfo.time.toFixed(3)}</span>
+          <span>pending: {sequenceDebugInfo.pending}</span>
+          <span>playing: {sequenceDebugInfo.playing ? 'true' : 'false'}</span>
+          <span>audio: {sequenceDebugInfo.audio}</span>
+          <span>orig: {sequenceDebugInfo.original}</span>
+          <span>trans: {sequenceDebugInfo.translation}</span>
+        </div>
+      ) : null}
+      <div
+        key="interactive-body"
+        className="player-panel__document-body player-panel__interactive-frame"
+        style={bodyStyle}
+      >
         {showInfoHeader ? (
           <div className="player-panel__player-info-header" aria-hidden="true">
             {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}

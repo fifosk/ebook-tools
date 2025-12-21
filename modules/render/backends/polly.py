@@ -263,34 +263,22 @@ class PollyAudioSynthesizer(AudioSynthesizer):
 
         numbering_str = f"{sentence_number} - {(sentence_number / total_sentences * 100):.2f}%"
 
-        if audio_mode == "1":
-            enqueue("translation", translation_audio_text, target_lang_code, target_language)
-            sequence = ["translation"]
-        elif audio_mode == "2":
+        mode = (audio_mode or "").strip()
+        has_translation = bool(translation_audio_text)
+        has_original = bool(input_sentence and input_sentence.strip())
+        include_translation = has_translation and mode in {"1", "2", "3", "4"}
+        include_original = has_original and mode in {"3", "4", "5"}
+        include_number = mode in {"2", "3"} and include_translation
+
+        if include_number:
             enqueue("number", numbering_str, "en", "English")
-            enqueue("translation", translation_audio_text, target_lang_code, target_language)
-            sequence = ["number", "translation"]
-        elif audio_mode == "3":
-            enqueue("number", numbering_str, "en", "English")
+        if include_original:
             enqueue("input", input_sentence, source_lang_code, input_language)
+        if include_translation:
             enqueue("translation", translation_audio_text, target_lang_code, target_language)
-            sequence = ["number", "input", "translation"]
-        elif audio_mode == "4":
-            enqueue("input", input_sentence, source_lang_code, input_language)
-            enqueue("translation", translation_audio_text, target_lang_code, target_language)
-            sequence = ["input", "translation"]
-        elif audio_mode == "5":
-            enqueue("input", input_sentence, source_lang_code, input_language)
-            sequence = ["input"]
-        else:
-            enqueue("input", input_sentence, source_lang_code, input_language)
-            enqueue("translation", translation_audio_text, target_lang_code, target_language)
-            sequence = ["input", "translation"]
 
         if not tasks:
-            silent_audio = self._change_audio_tempo(
-                AudioSegment.silent(duration=0), tempo
-            )
+            silent_audio = self._change_audio_tempo(AudioSegment.silent(duration=0), tempo)
             return SynthesisResult(audio=silent_audio, voice_metadata={})
 
         worker_count = max(1, min(cfg.get_thread_count(), len(tasks)))
@@ -504,21 +492,60 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                             )
                             segments[key] = AudioSegment.silent(duration=0)
 
-        audio = AudioSegment.silent(duration=0)
-        total_segments = len(sequence)
-        for index, key in enumerate(sequence):
-            audio += segments.get(key, AudioSegment.silent(duration=0))
-            if index < total_segments - 1:
-                audio += silence
+        def _concat_sequence(keys: list[str]) -> AudioSegment:
+            combined = AudioSegment.silent(duration=0)
+            for idx, key in enumerate(keys):
+                combined += segments.get(key, AudioSegment.silent(duration=0))
+                if idx < len(keys) - 1:
+                    combined += silence
+            return combined
 
-        tempo_adjusted = self._change_audio_tempo(audio, tempo)
-        try:
-            metadata = _compute_audio_highlight_metadata(
-                tempo_adjusted, sequence, segments, tempo, segment_texts
-            )
-            _store_audio_metadata(tempo_adjusted, metadata)
-        except Exception:  # pragma: no cover - metadata attachment best effort
-            logger.debug("Failed to compute audio metadata for sentence %s", sentence_number)
+        translation_audio: Optional[AudioSegment] = None
+        original_audio: Optional[AudioSegment] = None
+
+        translation_sequence: list[str] = []
+        if include_translation:
+            if include_number:
+                translation_sequence.append("number")
+            translation_sequence.append("translation")
+            translation_audio = _concat_sequence(translation_sequence)
+
+        original_sequence: list[str] = []
+        if include_original:
+            original_sequence.append("input")
+            original_audio = _concat_sequence(original_sequence)
+
+        tempo_adjusted_translation: Optional[AudioSegment] = None
+        tempo_adjusted_original: Optional[AudioSegment] = None
+        if translation_audio is not None:
+            tempo_adjusted_translation = self._change_audio_tempo(translation_audio, tempo)
+        if original_audio is not None:
+            tempo_adjusted_original = self._change_audio_tempo(original_audio, tempo)
+
+        if tempo_adjusted_translation is not None:
+            try:
+                metadata = _compute_audio_highlight_metadata(
+                    tempo_adjusted_translation,
+                    translation_sequence,
+                    segments,
+                    tempo,
+                    segment_texts,
+                )
+                _store_audio_metadata(tempo_adjusted_translation, metadata)
+            except Exception:  # pragma: no cover - metadata attachment best effort
+                logger.debug("Failed to compute translation audio metadata for sentence %s", sentence_number)
+        if tempo_adjusted_original is not None:
+            try:
+                metadata = _compute_audio_highlight_metadata(
+                    tempo_adjusted_original,
+                    original_sequence,
+                    segments,
+                    tempo,
+                    segment_texts,
+                )
+                _store_audio_metadata(tempo_adjusted_original, metadata)
+            except Exception:  # pragma: no cover - metadata attachment best effort
+                logger.debug("Failed to compute original audio metadata for sentence %s", sentence_number)
 
         normalized_voice_map = {
             role: dict(language_map)
@@ -526,9 +553,22 @@ class PollyAudioSynthesizer(AudioSynthesizer):
             if language_map
         }
 
+        audio_tracks: Dict[str, AudioSegment] = {}
+        if tempo_adjusted_original is not None:
+            audio_tracks["orig"] = tempo_adjusted_original
+        if tempo_adjusted_translation is not None:
+            audio_tracks["translation"] = tempo_adjusted_translation
+
+        primary_audio = (
+            tempo_adjusted_translation
+            or tempo_adjusted_original
+            or self._change_audio_tempo(AudioSegment.silent(duration=0), tempo)
+        )
+
         return SynthesisResult(
-            audio=tempo_adjusted,
+            audio=primary_audio,
             voice_metadata=normalized_voice_map,
+            audio_tracks=audio_tracks or None,
         )
 
     @staticmethod

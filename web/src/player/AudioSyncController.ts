@@ -219,7 +219,7 @@ function startLoop(): void {
   }, 16) as ReturnType<typeof setInterval>;
 }
 
-function setActiveHit(hit: (Hit & { lane?: 'mix' | 'translation' }) | null): void {
+function setActiveHit(hit: (Hit & { lane?: 'mix' | 'translation' | 'original' }) | null): void {
   if (!hit) {
     if (lastHit) {
       lastHit = null;
@@ -236,7 +236,7 @@ function setActiveHit(hit: (Hit & { lane?: 'mix' | 'translation' }) | null): voi
 function clampHighlightToGateTail(
   gate: Gate,
   payload: TimingPayload | undefined,
-  lane: 'mix' | 'translation',
+  lane: 'mix' | 'translation' | 'original',
 ): void {
   if (!payload || !payload.segments.length) {
     setActiveHit(null);
@@ -291,8 +291,12 @@ function applyTime(time: number): void {
     setActiveHit(null);
     return;
   }
-  const trackLane: 'mix' | 'translation' =
-    payload?.trackKind === 'translation_only' ? 'translation' : 'mix';
+  const trackLane: 'mix' | 'translation' | 'original' =
+    payload?.trackKind === 'translation_only'
+      ? 'translation'
+      : payload?.trackKind === 'original_only'
+        ? 'original'
+        : 'mix';
   const trackDuration = timelineBundle.duration + timelineBundle.origin;
   const audioDuration = activeCore ? activeCore.getDuration() : Number.NaN;
   const maxDuration = Number.isFinite(audioDuration) && audioDuration > 0
@@ -300,7 +304,7 @@ function applyTime(time: number): void {
     : trackDuration;
   const clampedTime = Math.min(Math.max(time, 0), maxDuration);
   if (activeGate) {
-    if (trackLane === 'translation') {
+    if (trackLane !== 'mix') {
       if (clampedTime < activeGate.start) {
         setActiveHit(null);
         return;
@@ -323,7 +327,7 @@ function applyTime(time: number): void {
   const localTime = Math.max(0, clampedTime - timelineBundle.origin);
   const index = locateTimelineIndex(localTime);
   if (index === -1) {
-    if (activeGate && trackLane === 'translation' && clampedTime >= (activeGate?.end ?? 0)) {
+    if (activeGate && trackLane !== 'mix' && clampedTime >= (activeGate?.end ?? 0)) {
       clampHighlightToGateTail(activeGate, payload, trackLane);
       return;
     }

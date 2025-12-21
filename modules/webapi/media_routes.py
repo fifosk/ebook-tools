@@ -134,18 +134,26 @@ def _extract_track_path_from_chunks(
 ) -> Optional[str]:
     if not chunks:
         return None
+    track_keys = [track]
+    if track == "translation":
+        track_keys.append("trans")
+    elif track == "orig":
+        track_keys.append("original")
+    elif track == "orig_trans":
+        track_keys.append("mix")
     for entry in chunks:
         if not isinstance(entry, Mapping):
             continue
         entry_chunk_id = str(entry.get("chunk_id") or "")
         if entry_chunk_id != chunk_id:
             continue
-        audio_tracks = entry.get("audio_tracks")
+        audio_tracks = entry.get("audio_tracks") or entry.get("audioTracks")
         if not isinstance(audio_tracks, Mapping):
             continue
-        value = audio_tracks.get(track)
-        if isinstance(value, str) and value.strip():
-            return value.strip()
+        for key in track_keys:
+            value = audio_tracks.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
     return None
 
 
@@ -162,7 +170,13 @@ async def stream_chunk_audio_track(
     """Stream the requested audio track for a generated pipeline chunk."""
 
     normalized_track = (track or "trans").strip().lower()
-    if normalized_track not in {"orig", "trans", "orig_trans"}:
+    if normalized_track in {"translation", "trans"}:
+        normalized_track = "translation"
+    elif normalized_track in {"original"}:
+        normalized_track = "orig"
+    elif normalized_track in {"mix"}:
+        normalized_track = "orig_trans"
+    if normalized_track not in {"orig", "translation", "orig_trans"}:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid track specified.",

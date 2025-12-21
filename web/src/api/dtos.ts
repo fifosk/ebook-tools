@@ -703,21 +703,22 @@ export interface JobTimingEntry {
 }
 
 export interface JobTimingTrackPayload {
-  track: 'mix' | 'translation';
+  track: 'mix' | 'translation' | 'original';
   segments: JobTimingEntry[];
   playback_rate?: number | null;
 }
 
 export interface JobTimingAudioBinding {
-  track: 'mix' | 'translation';
+  track: 'mix' | 'translation' | 'original';
   available?: boolean;
 }
 
 export interface JobTimingResponse {
   job_id: string;
   tracks: {
-    mix: JobTimingTrackPayload;
-    translation: JobTimingTrackPayload;
+    mix?: JobTimingTrackPayload;
+    translation?: JobTimingTrackPayload;
+    original?: JobTimingTrackPayload;
   };
   audio: Record<string, JobTimingAudioBinding>;
   highlighting_policy: string | null;
@@ -725,7 +726,7 @@ export interface JobTimingResponse {
 }
 
 export interface TrackTimingPayload {
-  trackType: 'translated' | 'original_translated';
+  trackType: 'translated' | 'original_translated' | 'original';
   chunkId: string;
   words: WordTiming[];
   pauses: PauseTiming[];
@@ -755,8 +756,9 @@ export interface TimingToken {
 }
 
 export interface TimingIndexResponse {
-  mix: TimingToken[];
-  translation: TimingToken[];
+  mix?: TimingToken[];
+  translation?: TimingToken[];
+  original?: TimingToken[];
   sentences?: Array<{
     sentenceIdx: number;
     startGate?: number;
@@ -836,6 +838,14 @@ export interface ChunkSentenceMetadata {
   image_path?: string | null;
   imagePath?: string | null;
   total_duration?: number | null;
+  start_gate?: number | null;
+  end_gate?: number | null;
+  startGate?: number | null;
+  endGate?: number | null;
+  original_start_gate?: number | null;
+  original_end_gate?: number | null;
+  originalStartGate?: number | null;
+  originalEndGate?: number | null;
   highlight_granularity?: string | null;
   counts?: Record<string, number>;
   phase_durations?: Record<string, number> | null;

@@ -1150,7 +1150,7 @@ async def get_job_timing(
     requested_tracks = {
         key: path
         for key, path in timing_tracks.items()
-        if key in {"mix", "translation"} and isinstance(path, str) and path.strip()
+        if key in {"mix", "translation", "original"} and isinstance(path, str) and path.strip()
     }
     if not requested_tracks:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No timing track available")
@@ -1169,7 +1169,7 @@ async def get_job_timing(
         resolved_paths[track_name] = abs_path
 
     data_cache: Dict[Path, Any] = {}
-    resolved_segments: Dict[str, List[Any]] = {"mix": [], "translation": []}
+    resolved_segments: Dict[str, List[Any]] = {"mix": [], "translation": [], "original": []}
     for track_name, abs_path in resolved_paths.items():
         if abs_path not in data_cache:
             try:
@@ -1246,6 +1246,10 @@ async def get_job_timing(
             "track": "mix",
             "available": "orig_trans" in chunk_audio_keys,
         }
+        audio_summary["orig"] = {
+            "track": "original",
+            "available": "orig" in chunk_audio_keys or "original" in chunk_audio_keys,
+        }
         audio_summary["translation"] = {
             "track": "translation",
             "available": "translation" in chunk_audio_keys or "trans" in chunk_audio_keys,
@@ -1256,21 +1260,19 @@ async def get_job_timing(
         "Cache-Control": "public, max-age=60",
         "ETag": etag,
     }
+    tracks_payload: Dict[str, Any] = {}
+    for track_name, segments in resolved_segments.items():
+        if not segments:
+            continue
+        tracks_payload[track_name] = {
+            "track": track_name,
+            "segments": segments,
+            "playback_rate": playback_rate,
+        }
     return JSONResponse(
         content={
             "job_id": job_id,
-            "tracks": {
-                "mix": {
-                    "track": "mix",
-                    "segments": resolved_segments.get("mix", []),
-                    "playback_rate": playback_rate,
-                },
-                "translation": {
-                    "track": "translation",
-                    "segments": resolved_segments.get("translation", []),
-                    "playback_rate": playback_rate,
-                },
-            },
+            "tracks": tracks_payload,
             "audio": _collect_audio_availability(),
             "highlighting_policy": highlighting_policy,
             "has_estimated_segments": has_estimated_segments,

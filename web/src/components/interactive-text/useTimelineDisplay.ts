@@ -24,6 +24,7 @@ type UseTimelineDisplayArgs = {
   chunk: LiveMediaChunk | null;
   hasTimeline: boolean;
   useCombinedPhases: boolean;
+  activeTimingTrack: 'mix' | 'translation' | 'original';
   audioDuration: number | null;
   chunkTime: number;
   activeSentenceIndex: number;
@@ -35,6 +36,7 @@ export function useTimelineDisplay({
   chunk,
   hasTimeline,
   useCombinedPhases,
+  activeTimingTrack,
   audioDuration,
   chunkTime,
   activeSentenceIndex,
@@ -60,12 +62,18 @@ export function useTimelineDisplay({
       const events = Array.isArray(metadata.timeline) ? metadata.timeline : [];
 
       const originalReveal: number[] = [];
+      const isOriginalTrack = activeTimingTrack === 'original';
 
       const phaseDurations = useCombinedPhases ? metadata.phase_durations ?? null : null;
-      const originalPhaseDuration =
-        phaseDurations && typeof phaseDurations.original === 'number'
-          ? Math.max(phaseDurations.original, 0)
-          : 0;
+      const originalPhaseDuration = (() => {
+        if (phaseDurations && typeof phaseDurations.original === 'number') {
+          return Math.max(phaseDurations.original, 0);
+        }
+        if (originalTokens.length > 0) {
+          return originalTokens.length * 0.35;
+        }
+        return 0;
+      })();
       const gapBeforeTranslation =
         phaseDurations && typeof phaseDurations.gap === 'number'
           ? Math.max(phaseDurations.gap, 0)
@@ -79,7 +87,9 @@ export function useTimelineDisplay({
           ? Math.max(phaseDurations.translation, 0)
           : null;
       const highlightOriginal =
-        useCombinedPhases && originalTokens.length > 0 && originalPhaseDuration > 0;
+        (useCombinedPhases || isOriginalTrack) &&
+        originalTokens.length > 0 &&
+        originalPhaseDuration > 0;
 
       const eventDurationTotal = events.reduce((total, event) => {
         const duration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
@@ -107,6 +117,9 @@ export function useTimelineDisplay({
       const sentenceStart = offset;
 
       const translationPhaseDuration = (() => {
+        if (isOriginalTrack) {
+          return 0;
+        }
         if (translationPhaseDurationOverride !== null && translationPhaseDurationOverride > 0) {
           return translationPhaseDurationOverride;
         }
@@ -124,27 +137,29 @@ export function useTimelineDisplay({
       const translationDurationsRaw: number[] = [];
       let prevTranslationCount = 0;
 
-      events.forEach((event) => {
-        const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
-        if (!(baseDuration > 0)) {
-          return;
-        }
-        const targetTranslationIndex =
-          typeof event.translation_index === 'number' ? Math.max(0, event.translation_index) : prevTranslationCount;
-        const nextTranslationCount = Math.min(
-          translationTokens.length,
-          Math.max(prevTranslationCount, targetTranslationIndex),
-        );
-        const delta = nextTranslationCount - prevTranslationCount;
-        if (delta <= 0) {
-          return;
-        }
-        const perToken = baseDuration / delta;
-        for (let idx = 0; idx < delta; idx += 1) {
-          translationDurationsRaw.push(perToken);
-        }
-        prevTranslationCount = nextTranslationCount;
-      });
+      if (!isOriginalTrack) {
+        events.forEach((event) => {
+          const baseDuration = typeof event.duration === 'number' && event.duration > 0 ? event.duration : 0;
+          if (!(baseDuration > 0)) {
+            return;
+          }
+          const targetTranslationIndex =
+            typeof event.translation_index === 'number' ? Math.max(0, event.translation_index) : prevTranslationCount;
+          const nextTranslationCount = Math.min(
+            translationTokens.length,
+            Math.max(prevTranslationCount, targetTranslationIndex),
+          );
+          const delta = nextTranslationCount - prevTranslationCount;
+          if (delta <= 0) {
+            return;
+          }
+          const perToken = baseDuration / delta;
+          for (let idx = 0; idx < delta; idx += 1) {
+            translationDurationsRaw.push(perToken);
+          }
+          prevTranslationCount = nextTranslationCount;
+        });
+      }
 
       const totalTranslationDurationRaw = translationDurationsRaw.reduce((sum, value) => sum + value, 0);
       const translationSpeechDuration =
@@ -153,7 +168,7 @@ export function useTimelineDisplay({
       const translationPhaseEndAbsolute = translationTrackStart + translationTotalDuration;
 
       let translationRevealTimes: number[] = [];
-      if (translationDurationsRaw.length > 0) {
+      if (!isOriginalTrack && translationDurationsRaw.length > 0) {
         let cumulativeTranslation = 0;
         translationDurationsRaw.forEach((rawDuration) => {
           translationRevealTimes.push(translationTrackStart + cumulativeTranslation);
@@ -161,7 +176,11 @@ export function useTimelineDisplay({
         });
       }
 
-      if (translationRevealTimes.length !== translationTokens.length && translationTokens.length > 0) {
+      if (
+        !isOriginalTrack &&
+        translationRevealTimes.length !== translationTokens.length &&
+        translationTokens.length > 0
+      ) {
         translationRevealTimes = buildUniformRevealTimes(
           translationTokens.length,
           translationTrackStart,
@@ -170,7 +189,7 @@ export function useTimelineDisplay({
       }
 
       const transliterationRevealTimes =
-        transliterationTokens.length > 0
+        !isOriginalTrack && transliterationTokens.length > 0
           ? transliterationTokens.map((_, idx) => {
               if (translationRevealTimes.length === 0) {
                 return translationTrackStart;
@@ -187,19 +206,12 @@ export function useTimelineDisplay({
             })
           : [];
 
-      if (translationRevealTimes.length > 0) {
+      if (!isOriginalTrack && translationRevealTimes.length > 0) {
         translationRevealTimes[0] = translationTrackStart;
         translationRevealTimes[translationRevealTimes.length - 1] = translationPhaseEndAbsolute;
       }
-      if (transliterationRevealTimes.length > 0) {
+      if (!isOriginalTrack && transliterationRevealTimes.length > 0) {
         transliterationRevealTimes[0] = translationTrackStart;
-        transliterationRevealTimes[transliterationRevealTimes.length - 1] = translationPhaseEndAbsolute;
-      }
-
-      if (translationRevealTimes.length > 0) {
-        translationRevealTimes[translationRevealTimes.length - 1] = translationPhaseEndAbsolute;
-      }
-      if (transliterationRevealTimes.length > 0) {
         transliterationRevealTimes[transliterationRevealTimes.length - 1] = translationPhaseEndAbsolute;
       }
 
@@ -210,7 +222,9 @@ export function useTimelineDisplay({
 
       const sentenceDuration = useCombinedPhases
         ? originalPhaseDuration + gapBeforeTranslation + translationTotalDuration
-        : translationTotalDuration;
+        : isOriginalTrack
+          ? originalPhaseDuration
+          : translationTotalDuration;
       const endTime = sentenceStart + sentenceDuration;
 
       result.push({
@@ -281,7 +295,7 @@ export function useTimelineDisplay({
     }
 
     return result;
-  }, [audioDuration, chunk?.sentences, hasTimeline, useCombinedPhases]);
+  }, [activeTimingTrack, audioDuration, chunk?.sentences, hasTimeline, useCombinedPhases]);
 
   const timelineDisplay = useMemo(() => {
     if (!timelineSentences) {

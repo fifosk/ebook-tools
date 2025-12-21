@@ -6,6 +6,8 @@ type CueLayer = 'original' | 'transliteration' | 'translation';
 type UsePlayerShortcutsArgs = {
   canToggleOriginalAudio: boolean;
   onToggleOriginalAudio: () => void;
+  canToggleTranslationAudio: boolean;
+  onToggleTranslationAudio: () => void;
   onToggleCueLayer: (layer: CueLayer) => void;
   onToggleMyLinguist: () => void;
   enableMyLinguist?: boolean;
@@ -26,6 +28,8 @@ type UsePlayerShortcutsResult = {
 export function usePlayerShortcuts({
   canToggleOriginalAudio,
   onToggleOriginalAudio,
+  canToggleTranslationAudio,
+  onToggleTranslationAudio,
   onToggleCueLayer,
   onToggleMyLinguist,
   enableMyLinguist = true,
@@ -131,7 +135,11 @@ export function usePlayerShortcuts({
         return;
       }
       if (key === 'p') {
-        onToggleCueLayer('translation');
+        if (event.shiftKey && canToggleTranslationAudio) {
+          onToggleTranslationAudio();
+        } else {
+          onToggleCueLayer('translation');
+        }
         event.preventDefault();
         return;
       }
@@ -173,12 +181,14 @@ export function usePlayerShortcuts({
     adjustMyLinguistFontScale,
     adjustTranslationSpeed,
     canToggleOriginalAudio,
+    canToggleTranslationAudio,
     enableMyLinguist,
     onNavigate,
     onToggleCueLayer,
     onToggleFullscreen,
     onToggleMyLinguist,
     onToggleOriginalAudio,
+    onToggleTranslationAudio,
     onTogglePlayback,
     onToggleReadingBed,
   ]);

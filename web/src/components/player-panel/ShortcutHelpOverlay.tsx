@@ -4,6 +4,7 @@ type ShortcutHelpOverlayProps = {
   isOpen: boolean;
   onClose: () => void;
   canToggleOriginalAudio: boolean;
+  canToggleTranslationAudio: boolean;
   showMyLinguist?: boolean;
 };
 
@@ -11,6 +12,7 @@ export function ShortcutHelpOverlay({
   isOpen,
   onClose,
   canToggleOriginalAudio,
+  canToggleTranslationAudio,
   showMyLinguist = true,
 }: ShortcutHelpOverlayProps) {
   const shortcutHelpCardRef = useRef<HTMLDivElement | null>(null);
@@ -150,6 +152,11 @@ export function ShortcutHelpOverlay({
               {canToggleOriginalAudio ? (
                 <li>
                   <kbd>Shift</kbd>+<kbd>O</kbd> Toggle original audio
+                </li>
+              ) : null}
+              {canToggleTranslationAudio ? (
+                <li>
+                  <kbd>Shift</kbd>+<kbd>P</kbd> Toggle translation audio
                 </li>
               ) : null}
               <li>

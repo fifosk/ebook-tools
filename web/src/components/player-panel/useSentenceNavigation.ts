@@ -14,6 +14,7 @@ type UseSentenceNavigationArgs = {
   chunks: LiveMediaChunk[];
   mediaAudio: LiveMediaItem[];
   showOriginalAudio: boolean;
+  showTranslationAudio: boolean;
   findMatchingMediaId: (baseId: string | null, type: MediaCategory, available: LiveMediaItem[]) => string | null;
   requestAutoPlay: () => void;
   inlineAudioPlayingRef: MutableRefObject<boolean>;
@@ -43,6 +44,7 @@ export function useSentenceNavigation({
   chunks,
   mediaAudio,
   showOriginalAudio,
+  showTranslationAudio,
   findMatchingMediaId,
   requestAutoPlay,
   inlineAudioPlayingRef,
@@ -302,13 +304,36 @@ export function useSentenceNavigation({
             }
           }
           const combinedDuration = chunk.audioTracks.orig_trans?.duration ?? null;
-          if (showOriginalAudio && typeof combinedDuration === 'number' && Number.isFinite(combinedDuration) && combinedDuration > 0) {
-            return combinedDuration;
-          }
+          const originalDuration = chunk.audioTracks.orig?.duration ?? null;
           const translationDuration =
             chunk.audioTracks.translation?.duration ?? chunk.audioTracks.trans?.duration ?? null;
-          if (typeof translationDuration === 'number' && Number.isFinite(translationDuration) && translationDuration > 0) {
-            return translationDuration;
+          if (showOriginalAudio && !showTranslationAudio) {
+            if (typeof originalDuration === 'number' && Number.isFinite(originalDuration) && originalDuration > 0) {
+              return originalDuration;
+            }
+            if (typeof combinedDuration === 'number' && Number.isFinite(combinedDuration) && combinedDuration > 0) {
+              return combinedDuration;
+            }
+            return null;
+          }
+          if (showTranslationAudio) {
+            if (typeof translationDuration === 'number' && Number.isFinite(translationDuration) && translationDuration > 0) {
+              return translationDuration;
+            }
+            if (typeof combinedDuration === 'number' && Number.isFinite(combinedDuration) && combinedDuration > 0) {
+              return combinedDuration;
+            }
+            if (typeof originalDuration === 'number' && Number.isFinite(originalDuration) && originalDuration > 0) {
+              return originalDuration;
+            }
+          }
+          if (showOriginalAudio) {
+            if (typeof originalDuration === 'number' && Number.isFinite(originalDuration) && originalDuration > 0) {
+              return originalDuration;
+            }
+            if (typeof combinedDuration === 'number' && Number.isFinite(combinedDuration) && combinedDuration > 0) {
+              return combinedDuration;
+            }
           }
           for (const track of Object.values(chunk.audioTracks)) {
             const duration = track?.duration ?? null;
@@ -347,6 +372,7 @@ export function useSentenceNavigation({
       sentenceLookup.max,
       sentenceLookup.min,
       showOriginalAudio,
+      showTranslationAudio,
       onRequestSelection,
     ],
   );

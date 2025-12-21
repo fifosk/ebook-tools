@@ -82,6 +82,8 @@ export function useInlineAudioSelection({
       if (!chunk) {
         return false;
       }
+      const hasAudioTracks =
+        Boolean(chunk.audioTracks) && Object.keys(chunk.audioTracks ?? {}).length > 0;
       const scrollRatio =
         typeof options?.scrollRatio === 'number' ? Math.min(Math.max(options.scrollRatio, 0), 1) : null;
       if (scrollRatio !== null) {
@@ -109,6 +111,8 @@ export function useInlineAudioSelection({
         if (options?.autoPlay) {
           requestAutoPlay();
         }
+      } else if (options?.autoPlay && hasAudioTracks) {
+        requestAutoPlay();
       }
       return true;
     },

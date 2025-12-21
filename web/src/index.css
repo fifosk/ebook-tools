@@ -3656,6 +3656,24 @@ button.link-button:focus {
   color: var(--color-text-secondary);
 }
 
+.player-panel__sequence-debug {
+  align-self: flex-start;
+  margin: 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  max-width: min(90vw, 520px);
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.25);
+}
+
+.player-panel__sequence-debug span {
+  display: block;
+}
+
 .player-panel__interactive-audio-controls {
   display: flex;
   flex-direction: column;

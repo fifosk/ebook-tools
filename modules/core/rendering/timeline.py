@@ -37,10 +37,17 @@ class SentenceTimingSpec:
     punctuation_boost: bool
     policy: Optional[str]
     source: Optional[str]
+    original_word_tokens: Sequence[Mapping[str, Any]] | None = None
+    original_policy: Optional[str] = None
+    original_source: Optional[str] = None
     start_gate: float = 0.0
     end_gate: float = 0.0
+    original_start_gate: float = 0.0
+    original_end_gate: float = 0.0
     pause_before_ms: float = 0.0
     pause_after_ms: float = 0.0
+    original_pause_before_ms: float = 0.0
+    original_pause_after_ms: float = 0.0
     mix_start_gate: float = 0.0
     mix_end_gate: float = 0.0
     validation_metrics: Optional[dict[str, dict[str, float]]] = None
@@ -692,9 +699,201 @@ def build_dual_track_timings(
     }
 
 
+def build_separate_track_timings(
+    sentences: Sequence[SentenceTimingSpec],
+    *,
+    original_duration: float,
+    translation_duration: float,
+) -> dict[str, list[dict[str, Any]]]:
+    """Build ORIGINAL + TRANSLATION timing tracks from per-sentence specifications."""
+
+    original_tokens: list[dict[str, Any]] = []
+    translation_tokens: list[dict[str, Any]] = []
+
+    sentence_original_offsets: dict[int, float] = {}
+    sentence_original_spans: dict[int, float] = {}
+    sentence_translation_offsets: dict[int, float] = {}
+    sentence_translation_spans: dict[int, float] = {}
+
+    original_cursor = 0.0
+    translation_cursor = 0.0
+    for spec in sentences:
+        original_span = max(spec.original_duration, 0.0)
+        translation_span = max(spec.translation_duration, 0.0)
+        sentence_original_offsets[spec.sentence_idx] = original_cursor
+        sentence_original_spans[spec.sentence_idx] = original_span
+        sentence_translation_offsets[spec.sentence_idx] = translation_cursor
+        sentence_translation_spans[spec.sentence_idx] = translation_span
+        original_cursor += original_span
+        translation_cursor += translation_span
+
+    for spec in sentences:
+        translation_target = max(spec.translation_duration, 0.0)
+        original_target = max(spec.original_duration, 0.0)
+
+        translation_policy = spec.policy.strip() if isinstance(spec.policy, str) else None
+        translation_source = spec.source.strip() if isinstance(spec.source, str) else None
+        original_policy = (
+            spec.original_policy.strip() if isinstance(spec.original_policy, str) else None
+        )
+        original_source = (
+            spec.original_source.strip() if isinstance(spec.original_source, str) else None
+        )
+
+        try:
+            pause_before_ms = int(round(float(spec.pause_before_ms)))
+        except (TypeError, ValueError):
+            pause_before_ms = 0
+        if pause_before_ms < 0:
+            pause_before_ms = 0
+        try:
+            pause_after_ms = int(round(float(spec.pause_after_ms)))
+        except (TypeError, ValueError):
+            pause_after_ms = 0
+        if pause_after_ms < 0:
+            pause_after_ms = 0
+
+        try:
+            original_pause_before_ms = int(round(float(spec.original_pause_before_ms)))
+        except (TypeError, ValueError):
+            original_pause_before_ms = 0
+        if original_pause_before_ms < 0:
+            original_pause_before_ms = 0
+        try:
+            original_pause_after_ms = int(round(float(spec.original_pause_after_ms)))
+        except (TypeError, ValueError):
+            original_pause_after_ms = 0
+        if original_pause_after_ms < 0:
+            original_pause_after_ms = 0
+
+        translation_source_tokens = _fit_tokens_to_duration(
+            spec.word_tokens or [], translation_target
+        )
+        if not translation_source_tokens and translation_target > 0:
+            fallback_words = _resolve_word_list(spec.translation_words, spec.translation_text)
+            translation_source_tokens = _char_weighted_tokens(
+                fallback_words,
+                translation_target,
+                pause_before_ms=pause_before_ms,
+                pause_after_ms=pause_after_ms,
+            )
+            translation_policy = "char_weighted"
+            translation_source = "char_weighted_refined"
+
+        original_source_tokens = _fit_tokens_to_duration(
+            spec.original_word_tokens or [], original_target
+        )
+        if not original_source_tokens and original_target > 0:
+            fallback_words = _resolve_word_list(spec.original_words, spec.original_text)
+            original_source_tokens = _char_weighted_tokens(
+                fallback_words,
+                original_target,
+                pause_before_ms=original_pause_before_ms,
+                pause_after_ms=original_pause_after_ms,
+            )
+            original_policy = original_policy or "char_weighted"
+            original_source = original_source or "char_weighted_refined"
+
+        translation_start_gate = sentence_translation_offsets.get(spec.sentence_idx, 0.0)
+        translation_end_gate = translation_start_gate + translation_target
+        translation_word_idx = 0
+        for token in translation_source_tokens:
+            start = translation_start_gate + float(token.get("start", 0.0))
+            end = translation_start_gate + float(token.get("end", start))
+            translation_tokens.append(
+                {
+                    "lane": "trans",
+                    "sentenceIdx": spec.sentence_idx,
+                    "wordIdx": translation_word_idx,
+                    "start": _round_to_precision(start),
+                    "end": _round_to_precision(end),
+                    "text": token.get("text", token.get("word", "")),
+                    "policy": token.get("policy") or translation_policy,
+                    "source": token.get("source") or translation_source,
+                    "start_gate": translation_start_gate,
+                    "end_gate": translation_end_gate,
+                    "startGate": translation_start_gate,
+                    "endGate": translation_end_gate,
+                    "pause_before_ms": pause_before_ms,
+                    "pause_after_ms": pause_after_ms,
+                    "pauseBeforeMs": pause_before_ms,
+                    "pauseAfterMs": pause_after_ms,
+                }
+            )
+            translation_word_idx += 1
+
+        original_start_gate = sentence_original_offsets.get(spec.sentence_idx, 0.0)
+        original_end_gate = original_start_gate + original_target
+        original_word_idx = 0
+        for token in original_source_tokens:
+            start = original_start_gate + float(token.get("start", 0.0))
+            end = original_start_gate + float(token.get("end", start))
+            original_tokens.append(
+                {
+                    "lane": "orig",
+                    "sentenceIdx": spec.sentence_idx,
+                    "wordIdx": original_word_idx,
+                    "start": _round_to_precision(start),
+                    "end": _round_to_precision(end),
+                    "text": token.get("text", token.get("word", "")),
+                    "policy": token.get("policy") or original_policy,
+                    "source": token.get("source") or original_source,
+                    "start_gate": original_start_gate,
+                    "end_gate": original_end_gate,
+                    "startGate": original_start_gate,
+                    "endGate": original_end_gate,
+                    "pause_before_ms": original_pause_before_ms,
+                    "pause_after_ms": original_pause_after_ms,
+                    "pauseBeforeMs": original_pause_before_ms,
+                    "pauseAfterMs": original_pause_after_ms,
+                }
+            )
+            original_word_idx += 1
+
+    original_track = _clamp_track_tokens(
+        original_tokens, max(original_duration, 0.0)
+    )
+    translation_track = _clamp_track_tokens(
+        translation_tokens, max(translation_duration, 0.0)
+    )
+
+    for spec in sentences:
+        sentence_idx = spec.sentence_idx
+        original_subset = [token for token in original_track if token.get("sentenceIdx") == sentence_idx]
+        translation_subset = [token for token in translation_track if token.get("sentenceIdx") == sentence_idx]
+        original_start_offset = sentence_original_offsets.get(sentence_idx, 0.0)
+        original_span = sentence_original_spans.get(sentence_idx, 0.0)
+        translation_start_offset = sentence_translation_offsets.get(sentence_idx, 0.0)
+        translation_span = sentence_translation_spans.get(sentence_idx, 0.0)
+        original_metrics = validate_timing_monotonic(
+            original_subset,
+            start_gate=original_start_offset,
+            end_gate=original_start_offset + original_span,
+        )
+        translation_metrics = validate_timing_monotonic(
+            translation_subset,
+            start_gate=translation_start_offset,
+            end_gate=translation_start_offset + translation_span,
+        )
+        spec.validation_metrics = {
+            "original": original_metrics,
+            "translation": translation_metrics,
+        }
+        for token in original_subset:
+            token["validation"] = original_metrics
+        for token in translation_subset:
+            token["validation"] = translation_metrics
+
+    return {
+        "original": original_track,
+        "translation": translation_track,
+    }
+
+
 __all__ = [
     "SentenceTimingSpec",
     "build_dual_track_timings",
+    "build_separate_track_timings",
     "build_word_events",
     "smooth_token_boundaries",
     "compute_char_weighted_timings",

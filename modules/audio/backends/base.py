@@ -23,6 +23,7 @@ class SynthesisResult:
     voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     metadata: Optional[Mapping[str, Any]] = None
     word_tokens: Optional[Sequence[Mapping[str, float | str]]] = None
+    audio_tracks: Optional[Mapping[str, AudioSegment]] = None
 
     def as_tuple(self) -> tuple[AudioSegment, Mapping[str, Mapping[str, str]]]:
         """Return the synthesized audio and metadata as a tuple."""

@@ -511,11 +511,11 @@ The SPA composes several providers to offer a multi-user dashboard:
 
 ### Word-highlighting metadata flow
 
-1. **Audio synthesis** → `modules/render/audio_pipeline.py` produces (and smooths) `word_tokens`.
-2. **Timeline/exporters** → serialise `timingTracks.translation` into each chunk via `modules/core/rendering/exporters.py`.
+1. **Audio synthesis** → `modules/render/audio_pipeline.py` produces (and smooths) `word_tokens` plus `original_word_tokens`.
+2. **Timeline/exporters** → serialise `timingTracks.translation` and `timingTracks.original` into each chunk via `modules/core/rendering/exporters.py`.
 3. **Persistence** → stores `timingTracks` alongside each `metadata/chunk_XXXX.json` file (no global `timing_index.json`).
 4. **Web API** → `/api/jobs/{job_id}/timing` is best-effort for legacy jobs; modern flows lean on chunk metadata directly.
-5. **Frontend** → `InteractiveTextViewer` hydrates chunk metadata lazily (plus timing tracks when present) and syncs highlights to `<audio>` playback.
+5. **Frontend** → `InteractiveTextViewer` hydrates chunk metadata lazily (plus timing tracks when present) and syncs highlights to `<audio>` playback for the active audio lane.
 6. **Validation** → `scripts/validate_word_timing.py` (plus CI) ensure drift stays below 50 ms with no overlaps.
 
 For live QA you can enable a debug overlay in the browser console:
@@ -527,11 +527,13 @@ window.__HL_DEBUG__ = { enabled: true }; // shows frame/index overlay
 #### Audio generation + word highlighting
 
 Audio narration is synthesised sentence-by-sentence inside
-`modules/render/audio_pipeline.py`. Each worker sends the translated sentence,
-target language, tempo, and voice selection to the configured TTS backend
-(`macos_say` or `gtts` out of the box). The backend returns a
-`pydub.AudioSegment`, which is bundled with the translation and queued for
-persistence. If the backend embeds character timings (some engines expose
+`modules/render/audio_pipeline.py`. Each worker sends the original and
+translated sentence, target language, tempo, and voice selection to the
+configured TTS backend (`macos_say` or `gtts` out of the box). Backends can
+return a `SynthesisResult` that includes separate `orig` and `translation`
+`pydub.AudioSegment` tracks; the pipeline persists both and records per-track
+token timing in `word_tokens` (translation) and `original_word_tokens`
+(original). If the backend embeds character timings (some engines expose
 `char_timings` metadata), the rendering layer converts them into per-word events
 and stores them in the chunk metadata (`metadata/chunk_*.json`). Otherwise the
 renderer falls back to distributing word durations evenly across the sentence.
@@ -551,8 +553,10 @@ whenever a pipeline stage updates metadata: (1) `metadata/job.json`, the compact
 manifest that lists every chunk with its language pair, highlighting policy, and
 media availability; (2) `metadata/chunk_manifest.json`, a helper map used by the
 web UI to lazily fetch the chunk payloads; and (3) `metadata/chunk_XXXX.json`
-files that store the actual sentence timelines, `word_tokens`, diagnostic flags,
-and per-lane audio references. `MetadataLoader` in `modules/metadata_manager.py`
+files that store the actual sentence timelines, `word_tokens`,
+`original_word_tokens`, diagnostic flags, and per-track audio references
+(`audioTracks.orig`, `audioTracks.translation`). `MetadataLoader` in
+`modules/metadata_manager.py`
 abstracts the differences between the chunked format and legacy single-file
 payloads so CLI utilities and the FastAPI routers can read either structure
 without branching. Downstream APIs simply call `MetadataLoader.for_job(job_id)`
@@ -573,11 +577,11 @@ Highlight provenance is controlled via two layers:
   env vars) toggle the heuristic that distributes durations based on character
   counts and adds punctuation-aware padding when real tokens are unavailable.
 
-Each chunk’s `highlighting_summary` records which strategy generated its word
-tokens (`backend`, `forced_alignment`, `char_weighted`, or `uniform`) plus the
-selected WhisperX model when forced alignment ran. Expose those diagnostics in
-dashboards or QA scripts to keep tabs on highlighting drift whenever pipeline
-knobs change.
+Each chunk’s `highlighting_summary` and `original_highlighting_summary` record
+which strategy generated its word tokens (`backend`, `forced_alignment`,
+`char_weighted`, or `uniform`) plus the selected WhisperX model when forced
+alignment ran. Expose those diagnostics in dashboards or QA scripts to keep
+tabs on highlighting drift whenever pipeline knobs change.
 
 #### Frontend user journey
 

@@ -70,6 +70,7 @@ class MediaResultFactory(Protocol):
         translation: str,
         transliteration: str,
         audio_segment: Optional[AudioSegment],
+        audio_tracks: Optional[Mapping[str, AudioSegment]] = None,
         voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
         metadata: Optional[Mapping[str, Any]] = None,
     ) -> "MediaPipelineResult":
@@ -662,6 +663,8 @@ def audio_worker_body(
 
         start_time = time.perf_counter()
         audio_segment: Optional[AudioSegment] = None
+        audio_tracks: Optional[Dict[str, AudioSegment]] = None
+        original_audio_segment: Optional[AudioSegment] = None
         voice_metadata: Mapping[str, Mapping[str, str]] = {}
         metadata: Dict[str, Any] = {}
         backend_word_tokens: Optional[List[Mapping[str, object]]] = None
@@ -684,7 +687,26 @@ def audio_worker_body(
                     tts_executable_path=tts_executable_path,
                 )
                 if isinstance(audio_output, SynthesisResult):
-                    audio_segment = audio_output.audio
+                    raw_tracks = getattr(audio_output, "audio_tracks", None)
+                    if isinstance(raw_tracks, Mapping):
+                        normalized_tracks: Dict[str, AudioSegment] = {}
+                        for raw_key, raw_value in raw_tracks.items():
+                            if not isinstance(raw_key, str) or not isinstance(raw_value, AudioSegment):
+                                continue
+                            key = raw_key.strip().lower()
+                            if not key:
+                                continue
+                            if key in {"trans"}:
+                                key = "translation"
+                            elif key in {"original", "source"}:
+                                key = "orig"
+                            normalized_tracks[key] = raw_value
+                        if normalized_tracks:
+                            audio_tracks = normalized_tracks
+                            audio_segment = normalized_tracks.get("translation")
+                            original_audio_segment = normalized_tracks.get("orig")
+                    if audio_tracks is None:
+                        audio_segment = audio_output.audio
                     voice_metadata = audio_output.voice_metadata
                     raw_metadata = getattr(audio_output, "metadata", None)
                     if isinstance(raw_metadata, Mapping):
@@ -738,6 +760,10 @@ def audio_worker_body(
         translation_text = text_norm.collapse_whitespace(
             translation_task.translation or ""
         )
+        translation_text_display = translation_text
+        translation_track_available = audio_segment is not None and len(audio_segment) > 0
+        if not translation_track_available:
+            translation_text = ""
         try:
             settings_obj = cfg.get_settings()
         except Exception:
@@ -940,8 +966,8 @@ def audio_worker_body(
                 metadata["word_tokens"] = smoothed_tokens
                 word_tokens = smoothed_tokens
 
-        if translation_text:
-            metadata.setdefault("text", translation_text)
+        if translation_text_display:
+            metadata.setdefault("text", translation_text_display)
         metadata.setdefault("sentence_number", translation_task.sentence_number)
         metadata.setdefault("id", str(translation_task.sentence_number))
         metadata.setdefault("t0", 0.0)
@@ -993,9 +1019,202 @@ def audio_worker_body(
                 f"(sentence {translation_task.sentence_number})."
             )
 
+        original_text = text_norm.collapse_whitespace(translation_task.sentence or "")
+        if original_audio_segment is not None and len(original_audio_segment) > 0 and original_text:
+            original_pause_before_ms = 0
+            original_pause_after_ms = 0
+            original_pause_before_ms, original_pause_after_ms = _measure_pause_edges(
+                original_audio_segment
+            )
+            original_language_label = input_language or ""
+            original_language_code = _lookup_language_code(
+                original_language_label, language_codes
+            )
+            original_words = split_highlight_tokens(original_text)
+            original_alignment_policy = "uniform"
+            original_alignment_source = "unavailable"
+            original_alignment_model_used: Optional[str] = None
+            original_word_tokens: List[Dict[str, float | str]] = []
+            original_char_weighted_used = False
+            original_char_weighted_punctuation = False
+            original_duration_hint_cache: Optional[float] = None
+            original_char_weighted_failure_policy: Optional[str] = None
+            original_char_weighted_requested = bool(
+                settings_obj
+                and getattr(settings_obj, "char_weighted_highlighting_default", False)
+            )
+            original_punctuation_boost_enabled = bool(
+                settings_obj
+                and getattr(settings_obj, "char_weighted_punctuation_boost", False)
+            )
+
+            def _apply_original_char_weighted(
+                *,
+                policy_override: Optional[str] = None,
+                use_punctuation: bool = False,
+            ) -> bool:
+                nonlocal original_word_tokens, original_alignment_policy, original_alignment_source
+                nonlocal original_char_weighted_used, original_duration_hint_cache
+                nonlocal original_char_weighted_punctuation
+                if not original_text:
+                    return False
+                if original_duration_hint_cache is None:
+                    original_duration_hint_cache = _resolve_sentence_duration_hint(
+                        original_audio_segment, {}
+                    )
+                duration_hint = original_duration_hint_cache
+                if duration_hint is None or duration_hint <= 0:
+                    return False
+                fallback_words = original_words or [original_text]
+                estimated_tokens = compute_char_weighted_timings(
+                    fallback_words,
+                    duration_hint,
+                    pause_before_ms=original_pause_before_ms,
+                    pause_after_ms=original_pause_after_ms,
+                )
+                if not estimated_tokens:
+                    return False
+                original_word_tokens = estimated_tokens
+                original_char_weighted_used = True
+                if use_punctuation:
+                    original_char_weighted_punctuation = True
+                original_alignment_policy = policy_override or (
+                    "estimated_punct" if use_punctuation else "estimated"
+                )
+                original_alignment_source = "char_weighted_duration"
+                return True
+
+            if original_char_weighted_requested:
+                _apply_original_char_weighted(use_punctuation=original_punctuation_boost_enabled)
+
+            if (
+                not original_word_tokens
+                and original_text
+                and settings_obj
+                and getattr(settings_obj, "forced_alignment_enabled", False)
+            ):
+                backend_candidate = getattr(settings_obj, "alignment_backend", None) or getattr(
+                    settings_obj, "forced_alignment_backend", None
+                )
+                backend_name = backend_candidate.strip() if isinstance(backend_candidate, str) else ""
+                if backend_name:
+                    alignment_model, model_source = _resolve_alignment_model_choice(
+                        settings_obj,
+                        language_label=original_language_label,
+                        iso_code=original_language_code,
+                    )
+                    logger.info(
+                        "Sentence %s original alignment backend=%s model=%s source=%s language=%s (%s)",
+                        translation_task.sentence_number,
+                        backend_name,
+                        alignment_model or "<default>",
+                        model_source,
+                        original_language_label or "?",
+                        original_language_code or "unknown",
+                    )
+                    aligned_tokens, retry_exhausted = _align_with_backend(
+                        audio_segment=original_audio_segment,
+                        text=original_text,
+                        backend=backend_name,
+                        model=alignment_model,
+                    )
+                    if aligned_tokens:
+                        original_word_tokens = aligned_tokens
+                        original_alignment_policy = "forced"
+                        original_alignment_source = "aligner"
+                        original_alignment_model_used = alignment_model
+                        original_char_weighted_failure_policy = None
+                    else:
+                        if retry_exhausted:
+                            original_char_weighted_failure_policy = "retry_failed_align"
+                        else:
+                            original_char_weighted_failure_policy = None
+            if not original_word_tokens and original_text:
+                extracted_tokens, policy, source = _extract_word_tokens(
+                    text=original_text,
+                    audio_segment=original_audio_segment,
+                    metadata={},
+                )
+                original_word_tokens = extracted_tokens
+                original_alignment_policy = policy or "uniform"
+                original_alignment_source = source or "unavailable"
+                if original_word_tokens:
+                    original_char_weighted_failure_policy = None
+            if original_text and (original_char_weighted_requested or not original_word_tokens):
+                if not original_char_weighted_used:
+                    policy_override = original_char_weighted_failure_policy
+                    applied = _apply_original_char_weighted(
+                        policy_override=policy_override,
+                        use_punctuation=original_punctuation_boost_enabled,
+                    )
+                    if not applied and policy_override:
+                        original_alignment_policy = policy_override
+            if (
+                original_word_tokens
+                and settings_obj
+                and getattr(settings_obj, "forced_alignment_enabled", False)
+            ):
+                smoothing_value = getattr(settings_obj, "forced_alignment_smoothing", 0.35)
+                try:
+                    smoothing_factor = float(smoothing_value)
+                except (TypeError, ValueError):
+                    smoothing_factor = 0.35
+                original_word_tokens = smooth_token_boundaries(
+                    original_word_tokens, smoothing=smoothing_factor
+                )
+
+            if original_word_tokens:
+                metadata["original_word_tokens"] = original_word_tokens
+                metadata["originalWordTokens"] = original_word_tokens
+
+            original_total_duration: Optional[float] = None
+            try:
+                original_total_duration = float(original_audio_segment.duration_seconds)
+            except Exception:
+                original_total_duration = None
+            if original_total_duration is None and original_word_tokens:
+                last_token = original_word_tokens[-1]
+                try:
+                    original_total_duration = float(last_token.get("end", 0.0))
+                except (TypeError, ValueError, AttributeError):
+                    original_total_duration = None
+            original_highlight_duration = (
+                original_total_duration if isinstance(original_total_duration, float) else 0.0
+            )
+            original_summary = {
+                "policy": original_alignment_policy,
+                "tempo": tempo,
+                "tokens": len(original_word_tokens),
+                "token_count": len(original_word_tokens),
+                "duration": round(original_highlight_duration, 6)
+                if original_highlight_duration
+                else original_highlight_duration,
+                "source": original_alignment_source,
+                "punctuation_weighting": bool(original_char_weighted_punctuation),
+                "pause_before_ms": original_pause_before_ms,
+                "pause_after_ms": original_pause_after_ms,
+            }
+            if original_char_weighted_used:
+                original_summary["method"] = "char_weighted"
+                original_summary["char_weighted"] = True
+                original_summary["char_weighted_refined"] = True
+            if original_alignment_model_used:
+                original_summary["alignment_model"] = original_alignment_model_used
+            metadata["original_highlighting_summary"] = original_summary
+            metadata["original_highlighting_policy"] = original_alignment_policy
+            metadata["original_pause_before_ms"] = original_pause_before_ms
+            metadata["original_pause_after_ms"] = original_pause_after_ms
+            metadata["originalPauseBeforeMs"] = original_pause_before_ms
+            metadata["originalPauseAfterMs"] = original_pause_after_ms
+
         if audio_segment is not None and metadata.get("word_tokens"):
             try:
                 setattr(audio_segment, "word_tokens", metadata["word_tokens"])
+            except Exception:
+                pass
+        if original_audio_segment is not None and metadata.get("original_word_tokens"):
+            try:
+                setattr(original_audio_segment, "word_tokens", metadata["original_word_tokens"])
             except Exception:
                 pass
 
@@ -1017,6 +1236,7 @@ def audio_worker_body(
             translation=translation_task.translation,
             transliteration=translation_task.transliteration,
             audio_segment=audio_segment,
+            audio_tracks=audio_tracks,
             voice_metadata=voice_metadata,
             metadata=metadata,
         )

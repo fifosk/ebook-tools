@@ -53,7 +53,13 @@ export const DebugOverlay: React.FC<{ audioEl?: HTMLAudioElement | null }> = ({ 
     return null;
   }
 
-  const lane: 'mix' | 'translation' = last?.lane ?? (payload.trackKind === 'translation_only' ? 'translation' : 'mix');
+  const lane: 'mix' | 'translation' | 'original' =
+    last?.lane ??
+    (payload.trackKind === 'translation_only'
+      ? 'translation'
+      : payload.trackKind === 'original_only'
+        ? 'original'
+        : 'mix');
   const tokens = getSentenceTokens(payload, activeGate.sentenceIdx);
 
   const driftInfo = useMemo(() => {

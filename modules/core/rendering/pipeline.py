@@ -70,6 +70,8 @@ class PipelineState:
     video_blocks: List[str] = field(default_factory=list)
     all_audio_segments: Optional[List[AudioSegment]] = None
     current_audio_segments: Optional[List[AudioSegment]] = None
+    all_original_segments: Optional[List[AudioSegment]] = None
+    current_original_segments: Optional[List[AudioSegment]] = None
     all_sentence_metadata: Optional[List[Dict[str, Any]]] = None
     current_sentence_metadata: List[Dict[str, Any]] = field(default_factory=list)
     batch_video_files: List[str] = field(default_factory=list)
@@ -456,6 +458,11 @@ class RenderPipeline:
                 active_translation_pool.shutdown()
 
         if state.written_blocks and not self._should_stop():
+            audio_tracks: Dict[str, List[AudioSegment]] = {}
+            if state.current_original_segments:
+                audio_tracks["orig"] = list(state.current_original_segments)
+            if state.current_audio_segments:
+                audio_tracks["translation"] = list(state.current_audio_segments)
             request = BatchExportRequest(
                 start_sentence=state.current_batch_start,
                 end_sentence=state.current_batch_start + len(state.written_blocks) - 1,
@@ -468,6 +475,7 @@ class RenderPipeline:
                 output_pdf=output_pdf,
                 generate_audio=generate_audio,
                 audio_segments=list(state.current_audio_segments or []),
+                audio_tracks=audio_tracks,
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
                 voice_metadata=self._drain_current_voice_metadata(state),
@@ -571,6 +579,8 @@ class RenderPipeline:
         if generate_audio:
             state.all_audio_segments = []
             state.current_audio_segments = []
+            state.all_original_segments = []
+            state.current_original_segments = []
         return state
 
     def _ensure_translation_client(self):
@@ -733,6 +743,7 @@ class RenderPipeline:
         generate_audio: bool,
         generate_video: bool,
         audio_segment: Optional[AudioSegment],
+        original_audio_segment: Optional[AudioSegment] = None,
         voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None,
     ) -> None:
         written_block, video_block = build_written_and_video_blocks(
@@ -748,11 +759,17 @@ class RenderPipeline:
         self._update_voice_metadata(state, voice_metadata)
         state.written_blocks.append(written_block)
         state.video_blocks.append(video_block)
-        if generate_audio and audio_segment is not None:
-            if state.current_audio_segments is not None:
-                state.current_audio_segments.append(audio_segment)
-            if state.all_audio_segments is not None:
-                state.all_audio_segments.append(audio_segment)
+        if generate_audio:
+            if audio_segment is not None:
+                if state.current_audio_segments is not None:
+                    state.current_audio_segments.append(audio_segment)
+                if state.all_audio_segments is not None:
+                    state.all_audio_segments.append(audio_segment)
+            if original_audio_segment is not None:
+                if state.current_original_segments is not None:
+                    state.current_original_segments.append(original_audio_segment)
+                if state.all_original_segments is not None:
+                    state.all_original_segments.append(original_audio_segment)
 
         metadata_payload: Dict[str, Any] = {
             "sentence_number": sentence_number,
@@ -796,6 +813,11 @@ class RenderPipeline:
             (sentence_number - state.current_batch_start + 1) % sentences_per_file == 0
         )
         if should_flush:
+            audio_tracks: Dict[str, List[AudioSegment]] = {}
+            if state.current_original_segments:
+                audio_tracks["orig"] = list(state.current_original_segments)
+            if state.current_audio_segments:
+                audio_tracks["translation"] = list(state.current_audio_segments)
             request = BatchExportRequest(
                 start_sentence=state.current_batch_start,
                 end_sentence=sentence_number,
@@ -805,6 +827,7 @@ class RenderPipeline:
                 output_pdf=output_pdf,
                 generate_audio=generate_audio,
                 audio_segments=list(state.current_audio_segments or []),
+                audio_tracks=audio_tracks,
                 generate_video=generate_video,
                 video_blocks=list(state.video_blocks),
                 voice_metadata=self._drain_current_voice_metadata(state),
@@ -816,6 +839,8 @@ class RenderPipeline:
             state.video_blocks.clear()
             if state.current_audio_segments is not None:
                 state.current_audio_segments.clear()
+            if state.current_original_segments is not None:
+                state.current_original_segments.clear()
             state.current_sentence_metadata.clear()
             state.current_batch_start = sentence_number + 1
         state.last_target_language = target_language or state.last_target_language
@@ -917,6 +942,7 @@ class RenderPipeline:
                     if candidate:
                         transliteration_result = candidate
                 audio_segment: Optional[AudioSegment] = None
+                original_audio_segment: Optional[AudioSegment] = None
                 voice_metadata: Optional[Mapping[str, Mapping[str, str]]] = None
                 if generate_audio:
                     audio_result = self._maybe_generate_audio(
@@ -929,7 +955,17 @@ class RenderPipeline:
                         total_sentences=total_fully,
                     )
                     if audio_result is not None:
-                        audio_segment = audio_result.audio
+                        raw_tracks = getattr(audio_result, "audio_tracks", None)
+                        has_tracks = isinstance(raw_tracks, Mapping)
+                        if has_tracks:
+                            translation_track = raw_tracks.get("translation") or raw_tracks.get("trans")
+                            original_track = raw_tracks.get("orig") or raw_tracks.get("original")
+                            if isinstance(translation_track, AudioSegment):
+                                audio_segment = translation_track
+                            if isinstance(original_track, AudioSegment):
+                                original_audio_segment = original_track
+                        if audio_segment is None and not has_tracks:
+                            audio_segment = audio_result.audio
                         voice_metadata = audio_result.voice_metadata
                 self._handle_sentence(
                     state=state,
@@ -950,6 +986,7 @@ class RenderPipeline:
                     generate_audio=generate_audio,
                     generate_video=generate_video,
                     audio_segment=audio_segment,
+                    original_audio_segment=original_audio_segment,
                     voice_metadata=voice_metadata,
                 )
                 processed += 1
@@ -2089,14 +2126,28 @@ class RenderPipeline:
                         if candidate:
                             transliteration_result = candidate
                     audio_segment = None
+                    original_audio_segment: Optional[AudioSegment] = None
                     if generate_audio:
-                        audio_segment = item.audio_segment or AudioSegment.silent(
-                            duration=0
-                        )
-                        if state.current_audio_segments is not None:
-                            state.current_audio_segments.append(audio_segment)
-                        if state.all_audio_segments is not None:
-                            state.all_audio_segments.append(audio_segment)
+                        raw_tracks = getattr(item, "audio_tracks", None)
+                        if isinstance(raw_tracks, Mapping):
+                            translation_track = raw_tracks.get("translation") or raw_tracks.get("trans")
+                            original_track = raw_tracks.get("orig") or raw_tracks.get("original")
+                            if isinstance(translation_track, AudioSegment):
+                                audio_segment = translation_track
+                            if isinstance(original_track, AudioSegment):
+                                original_audio_segment = original_track
+                        else:
+                            audio_segment = item.audio_segment
+                        if audio_segment is not None:
+                            if state.current_audio_segments is not None:
+                                state.current_audio_segments.append(audio_segment)
+                            if state.all_audio_segments is not None:
+                                state.all_audio_segments.append(audio_segment)
+                        if original_audio_segment is not None:
+                            if state.current_original_segments is not None:
+                                state.current_original_segments.append(original_audio_segment)
+                            if state.all_original_segments is not None:
+                                state.all_original_segments.append(original_audio_segment)
                     self._update_voice_metadata(state, getattr(item, "voice_metadata", None))
                     written_block, video_block = build_written_and_video_blocks(
                         sentence_number=item.sentence_number,
@@ -2236,6 +2287,11 @@ class RenderPipeline:
                         == 0
                     ) and not pipeline_stop_event.is_set()
                     if should_flush:
+                        audio_tracks: Dict[str, List[AudioSegment]] = {}
+                        if state.current_original_segments:
+                            audio_tracks["orig"] = list(state.current_original_segments)
+                        if state.current_audio_segments:
+                            audio_tracks["translation"] = list(state.current_audio_segments)
                         request = BatchExportRequest(
                             start_sentence=state.current_batch_start,
                             end_sentence=item.sentence_number,
@@ -2246,6 +2302,7 @@ class RenderPipeline:
                             output_pdf=output_pdf,
                             generate_audio=generate_audio,
                             audio_segments=list(state.current_audio_segments or []),
+                            audio_tracks=audio_tracks,
                             generate_video=generate_video,
                             video_blocks=list(state.video_blocks),
                             voice_metadata=self._drain_current_voice_metadata(state),
@@ -2260,6 +2317,8 @@ class RenderPipeline:
                         state.video_blocks.clear()
                         if state.current_audio_segments is not None:
                             state.current_audio_segments.clear()
+                        if state.current_original_segments is not None:
+                            state.current_original_segments.clear()
                         state.current_sentence_metadata.clear()
                         state.current_batch_start = item.sentence_number + 1
                     state.last_target_language = item.target_language or state.last_target_language

@@ -39,6 +39,10 @@ export interface NavigationControlsProps {
   onToggleOriginalAudio?: () => void;
   originalAudioEnabled?: boolean;
   disableOriginalAudioToggle?: boolean;
+  showTranslationAudioToggle?: boolean;
+  onToggleTranslationAudio?: () => void;
+  translationAudioEnabled?: boolean;
+  disableTranslationAudioToggle?: boolean;
   showSubtitleToggle?: boolean;
   onToggleSubtitles?: () => void;
   subtitlesEnabled?: boolean;
@@ -154,6 +158,10 @@ export function NavigationControls({
   onToggleOriginalAudio,
   originalAudioEnabled = false,
   disableOriginalAudioToggle = false,
+  showTranslationAudioToggle = false,
+  onToggleTranslationAudio,
+  translationAudioEnabled = false,
+  disableTranslationAudioToggle = false,
   showSubtitleToggle = false,
   onToggleSubtitles,
   subtitlesEnabled = true,
@@ -257,7 +265,6 @@ export function NavigationControls({
   const fullscreenTestId = context === 'panel' ? 'player-panel-interactive-fullscreen' : undefined;
   const playbackLabel = isPlaying ? 'Pause playback' : 'Play playback';
   const playbackIcon = isPlaying ? '⏸' : '▶';
-  const auxiliaryToggleVariant = showSubtitleToggle ? 'subtitles' : showOriginalAudioToggle ? 'original' : null;
   const originalToggleClassName = [
     'player-panel__nav-button',
     'player-panel__nav-button--audio',
@@ -266,6 +273,14 @@ export function NavigationControls({
   const originalToggleTitle = disableOriginalAudioToggle
     ? 'Original audio will appear after interactive assets regenerate'
     : 'Toggle Original Audio';
+  const translationToggleClassName = [
+    'player-panel__nav-button',
+    'player-panel__nav-button--audio',
+    translationAudioEnabled ? 'player-panel__nav-button--audio-on' : 'player-panel__nav-button--audio-off',
+  ].join(' ');
+  const translationToggleTitle = disableTranslationAudioToggle
+    ? 'Translation audio will appear after interactive assets regenerate'
+    : 'Toggle Translation Audio';
   const subtitleToggleClassName = [
     'player-panel__nav-button',
     'player-panel__nav-button--audio',
@@ -493,7 +508,7 @@ export function NavigationControls({
           >
             <span aria-hidden="true">⏭</span>
           </button>
-          {auxiliaryToggleVariant === 'original' ? (
+          {showOriginalAudioToggle ? (
             <button
               type="button"
               className={originalToggleClassName}
@@ -504,14 +519,32 @@ export function NavigationControls({
               title={originalToggleTitle}
             >
               <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {originalAudioEnabled ? '🎧' : '🎵'}
+                {originalAudioEnabled ? '🎧' : '🔇'}
               </span>
               <span aria-hidden="true" className="player-panel__nav-button-text">
                 Orig
               </span>
             </button>
           ) : null}
-          {auxiliaryToggleVariant === 'subtitles' ? (
+          {showTranslationAudioToggle ? (
+            <button
+              type="button"
+              className={translationToggleClassName}
+              onClick={onToggleTranslationAudio}
+              disabled={disableTranslationAudioToggle}
+              aria-label="Toggle Translation Audio"
+              aria-pressed={translationAudioEnabled}
+              title={translationToggleTitle}
+            >
+              <span aria-hidden="true" className="player-panel__nav-button-icon">
+                {translationAudioEnabled ? '🔊' : '🔈'}
+              </span>
+              <span aria-hidden="true" className="player-panel__nav-button-text">
+                Trans
+              </span>
+            </button>
+          ) : null}
+          {showSubtitleToggle ? (
             <button
               type="button"
               className={subtitleToggleClassName}

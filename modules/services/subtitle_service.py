@@ -388,7 +388,20 @@ class SubtitleService:
                                     tts_backend=tts_backend,
                                     tts_executable_path=tts_executable,
                                 )
-                                audio_segments = [synthesis.audio]
+                                audio_segments: List[AudioSegment] = []
+                                audio_track_segments: Dict[str, List[AudioSegment]] = {}
+                                raw_tracks = getattr(synthesis, "audio_tracks", None)
+                                has_track_payload = isinstance(raw_tracks, Mapping)
+                                if has_track_payload:
+                                    translation_track = raw_tracks.get("translation") or raw_tracks.get("trans")
+                                    original_track = raw_tracks.get("orig") or raw_tracks.get("original")
+                                    if isinstance(translation_track, AudioSegment):
+                                        audio_segments = [translation_track]
+                                        audio_track_segments["translation"] = [translation_track]
+                                    if isinstance(original_track, AudioSegment):
+                                        audio_track_segments["orig"] = [original_track]
+                                if not audio_segments and not has_track_payload:
+                                    audio_segments = [synthesis.audio]
                             except Exception:  # pragma: no cover - defensive fallback
                                 logger.warning(
                                     "Unable to generate TTS audio for subtitle sentence %s",
@@ -396,6 +409,7 @@ class SubtitleService:
                                     exc_info=True,
                                 )
                                 audio_segments = [AudioSegment.silent(duration=0)]
+                                audio_track_segments = {}
 
                             if tracker_local is not None:
                                 tracker_local.record_step_completion(
@@ -412,6 +426,7 @@ class SubtitleService:
                                 output_pdf=False,
                                 generate_audio=True,
                                 audio_segments=audio_segments,
+                                audio_tracks=audio_track_segments,
                                 generate_video=False,
                                 video_blocks=[block],
                             )

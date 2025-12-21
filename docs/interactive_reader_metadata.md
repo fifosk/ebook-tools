@@ -6,14 +6,14 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 
 - **Live job media snapshot.** `useLiveMedia` normalises `/api/pipelines/jobs/{job_id}/media` (and its live variant) into `LiveMediaChunk` records. Each chunk exposes `sentences`, `audioTracks`, and optional `timingTracks` pulled directly from `metadata/chunk_*.json` (`web/src/hooks/useLiveMedia.ts:360-520`).
 - **Sentence images.** When a job enables `add_images`, sentence metadata may include `image` payloads (plus `image_path` / `imagePath`) pointing at PNG files stored under `media/images/<range_fragment>/sentence_XXXXX.png`. The Interactive Reader consumes these fields to render an image reel during playback (`modules/core/rendering/pipeline.py`, `web/src/components/InteractiveTextViewer.tsx:4364-4860`).
-- **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with both `mix` and `translation` tracks plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
+- **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with `translation` and `original` tracks (legacy `mix` only for older jobs) plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
 - **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, sentence timelines, char-weight flags) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
 
 ## 2. Loading & Selection Logic
 
 1. **Chunk selection.** When the user opens a text chunk, `PlayerPanel` passes the matching `LiveMediaChunk` (including `timingTracks`) and inline audio URLs into `InteractiveTextViewer`.
 2. **Timing fetch.** On mount or when `jobId` changes, `InteractiveTextViewer` conditionally calls `fetchJobTiming`. Responses are cached in component state as `jobTimingResponse` (`web/src/components/InteractiveTextViewer.tsx:707-842`).
-3. **Local track candidates.** The viewer inspects `chunk.timingTracks`, filters by the active chunk, and prioritises track types based on the currently selected audio lane (combined `orig_trans` vs translation-only) (`web/src/components/InteractiveTextViewer.tsx:1397-1453`).
+3. **Local track candidates.** The viewer inspects `chunk.timingTracks`, filters by the active chunk, and prioritises track types based on the currently selected audio lane (original vs translation, with legacy `orig_trans` when present) (`web/src/components/InteractiveTextViewer.tsx:1397-1453`).
 4. **Word index construction.** For legacy/local tracks, `buildWordIndex` produces sentence → token indexes (lane, tokenIdx, timestamps) that power fallback highlighting and on-click seeking (`web/src/components/InteractiveTextViewer.tsx:1454-1536`).
 5. **Remote vs local choice.** If the timing API returned usable data, it wins. Otherwise the viewer falls back to the chunk-level track. Flags (`hasRemoteTiming`, `hasLegacyWordSync`) determine whether word sync can run at all (`web/src/components/InteractiveTextViewer.tsx:1531-1557`).
 6. **Payload normalisation.** `buildTimingPayloadFromJobTiming` converts raw API segments into `TimingPayload` objects by bucketing tokens per sentence and sorting them chronologically. The same shape is used for local tracks via `buildTimingPayloadFromWordIndex` (`web/src/components/InteractiveTextViewer.tsx:198-330`, `:1542-1557`).
@@ -36,7 +36,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 
 ## 5. How Metadata Surfaces to Users
 
-- **Inline audio controls.** `InteractiveTextViewer` chooses the most appropriate audio file (`orig_trans` vs `translation`) based on the chosen timing track and whether original-language playback is enabled, ensuring the transcript and audio stay in lock-step (`web/src/components/InteractiveTextViewer.tsx:1380-1441`).
+- **Inline audio controls.** `InteractiveTextViewer` chooses the most appropriate audio file (`translation` vs `original`, with legacy `orig_trans` when present) based on the chosen timing track and whether original-language playback is enabled, ensuring the transcript and audio stay in lock-step. When original audio is selected the viewer suppresses translation/transliteration highlights (`web/src/components/InteractiveTextViewer.tsx:1380-1441`).
 - **Image-assisted playback.** Sentence images are resolved through the same storage URL mechanism as audio (`/storage/jobs/<job_id>/...`). The reel preloads nearby sentences so images appear immediately when scrubbing (`web/src/components/InteractiveTextViewer.tsx:4420-4860`).
 - **Dual-lane transcript.** `TranscriptView` (used across the reader and `MediaSearchPanel`) renders interleaved original/translation lanes, with word buttons highlighting as `timingStore.last` advances. Clicking a word seeks playback to `token.t0`, using fences to avoid re-highlighting earlier tokens mid-seek (`web/src/components/transcript/TranscriptView.tsx:150-218`).
 - **Timeline overlays & subtitles.** Sentence-level `timeline` data (per `chunk.sentences[].timeline`) powers the timeline cards, subtitle exports, and the optional word-progress bars shown in the UI when `hasTimeline` is true (`web/src/components/InteractiveTextViewer.tsx:1010-1375`).
@@ -55,10 +55,11 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
 ## 7. Backend provenance quick reference
 
 - **Audio generation.** `modules/render/audio_pipeline.py` is the source of truth
-  for `word_tokens`. It records whether the tokens came from the TTS backend,
-  WhisperX (`modules/align/backends/whisperx_adapter.py`), or the
-  char-weighted/uniform heuristics and stores that provenance in every sentence’s
-  `highlighting_summary`.
+  for `word_tokens` (translation) and `original_word_tokens` (original). It
+  records whether the tokens came from the TTS backend, WhisperX
+  (`modules/align/backends/whisperx_adapter.py`), or the char-weighted/uniform
+  heuristics and stores that provenance in every sentence’s
+  `highlighting_summary` and `original_highlighting_summary`.
 - **Metadata creation.** `modules/services/job_manager/persistence.py` emits
   `metadata/job.json`, `metadata/chunk_manifest.json`, and the per-chunk payloads
   that the frontend hydrates. Client code should always route through

@@ -6,7 +6,7 @@ import { coerceExportPath } from '../../utils/storageResolver';
 import { formatChunkLabel, isAudioFileType } from './utils';
 import { isCombinedAudioCandidate, isOriginalAudioCandidate } from './helpers';
 
-export type InlineAudioKind = 'translation' | 'combined' | 'other';
+export type InlineAudioKind = 'translation' | 'combined' | 'original' | 'other';
 
 export type InlineAudioOption = {
   url: string;
@@ -26,6 +26,8 @@ type UseInlineAudioOptionsArgs = {
   inlineAudioSelection: string | null;
   showOriginalAudio: boolean;
   setShowOriginalAudio: React.Dispatch<React.SetStateAction<boolean>>;
+  showTranslationAudio: boolean;
+  setShowTranslationAudio: React.Dispatch<React.SetStateAction<boolean>>;
   setInlineAudioSelection: React.Dispatch<React.SetStateAction<string | null>>;
 };
 
@@ -36,10 +38,14 @@ type UseInlineAudioOptionsResult = {
   inlineAudioUnavailable: boolean;
   hasCombinedAudio: boolean;
   canToggleOriginalAudio: boolean;
+  canToggleTranslationAudio: boolean;
   effectiveOriginalAudioEnabled: boolean;
+  effectiveTranslationAudioEnabled: boolean;
   handleOriginalAudioToggle: () => void;
-  activeTimingTrack: 'mix' | 'translation';
+  handleTranslationAudioToggle: () => void;
+  activeTimingTrack: 'mix' | 'translation' | 'original';
   combinedTrackUrl: string | null;
+  originalTrackUrl: string | null;
   translationTrackUrl: string | null;
 };
 
@@ -55,6 +61,8 @@ export function useInlineAudioOptions({
   inlineAudioSelection,
   showOriginalAudio,
   setShowOriginalAudio,
+  showTranslationAudio,
+  setShowTranslationAudio,
   setInlineAudioSelection,
 }: UseInlineAudioOptionsArgs): UseInlineAudioOptionsResult {
   const normalisedJobId = jobId ?? '';
@@ -213,6 +221,8 @@ export function useInlineAudioOptions({
           kind = 'combined';
         } else if (key === 'translation' || key === 'trans') {
           kind = 'translation';
+        } else if (key === 'orig') {
+          kind = 'original';
         }
         register(metadata.url, label, kind);
       });
@@ -230,64 +240,129 @@ export function useInlineAudioOptions({
     resolvedActiveTextChunk,
   ]);
 
-  const hasCombinedAudio = Boolean(
-    activeAudioTracks?.orig_trans?.url || activeAudioTracks?.orig_trans?.path,
-  );
-  const hasLegacyOriginal = Boolean(activeAudioTracks?.orig?.url || activeAudioTracks?.orig?.path);
-  const canToggleOriginalAudio = hasCombinedAudio || hasLegacyOriginal;
-  const effectiveOriginalAudioEnabled = showOriginalAudio && hasCombinedAudio;
-  const visibleInlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
-    if (showOriginalAudio && hasCombinedAudio) {
-      return inlineAudioOptions.filter((option) => option.kind === 'combined');
-    }
-    return inlineAudioOptions.filter((option) => option.kind !== 'combined' || !hasCombinedAudio);
-  }, [hasCombinedAudio, inlineAudioOptions, showOriginalAudio]);
+  const combinedTrackUrl =
+    activeAudioTracks?.orig_trans?.url ?? activeAudioTracks?.orig_trans?.path ?? null;
+  const originalTrackUrl = activeAudioTracks?.orig?.url ?? activeAudioTracks?.orig?.path ?? null;
+  const translationTrackUrl =
+    activeAudioTracks?.translation?.url ??
+    activeAudioTracks?.translation?.path ??
+    activeAudioTracks?.trans?.url ??
+    activeAudioTracks?.trans?.path ??
+    null;
 
-  const inlineAudioUnavailable = visibleInlineAudioOptions.length === 0;
+  const hasOriginalAudio = Boolean(originalTrackUrl);
+  const hasTranslationAudio = Boolean(translationTrackUrl);
+  const hasCombinedAudio = Boolean(combinedTrackUrl) && (!hasOriginalAudio || !hasTranslationAudio);
+  const canToggleOriginalAudio = hasOriginalAudio || hasCombinedAudio;
+  const canToggleTranslationAudio = hasTranslationAudio || hasCombinedAudio;
+  const effectiveOriginalAudioEnabled = showOriginalAudio && canToggleOriginalAudio;
+  const effectiveTranslationAudioEnabled = showTranslationAudio && canToggleTranslationAudio;
+  const visibleInlineAudioOptions = useMemo<InlineAudioOption[]>(() => {
+    if (!showOriginalAudio && !showTranslationAudio) {
+      return [];
+    }
+    return inlineAudioOptions.filter((option) => {
+      if (option.kind === 'combined') {
+        return hasCombinedAudio && (showOriginalAudio || showTranslationAudio);
+      }
+      if (option.kind === 'original') {
+        return showOriginalAudio;
+      }
+      if (option.kind === 'translation') {
+        return showTranslationAudio;
+      }
+      return true;
+    });
+  }, [hasCombinedAudio, inlineAudioOptions, showOriginalAudio, showTranslationAudio]);
+
+  const inlineAudioUnavailable = inlineAudioOptions.length === 0;
   const handleOriginalAudioToggle = useCallback(() => {
-    if (!hasCombinedAudio) {
+    if (!hasOriginalAudio && !hasCombinedAudio) {
       return;
     }
     setShowOriginalAudio((current) => !current);
-  }, [hasCombinedAudio, setShowOriginalAudio]);
-
-  useEffect(() => {
-    if (!hasCombinedAudio && showOriginalAudio) {
-      setShowOriginalAudio(false);
-    }
-  }, [hasCombinedAudio, setShowOriginalAudio, showOriginalAudio]);
-
-  const combinedTrackUrl = activeAudioTracks?.orig_trans?.url ?? null;
-  const translationTrackUrl =
-    activeAudioTracks?.translation?.url ?? activeAudioTracks?.trans?.url ?? null;
-
-  useEffect(() => {
-    if (!hasCombinedAudio) {
+  }, [hasCombinedAudio, hasOriginalAudio, setShowOriginalAudio]);
+  const handleTranslationAudioToggle = useCallback(() => {
+    if (!hasTranslationAudio && !hasCombinedAudio) {
       return;
     }
-    setInlineAudioSelection((current) => {
-      if (showOriginalAudio) {
-        if (combinedTrackUrl && current !== combinedTrackUrl) {
-          return combinedTrackUrl;
-        }
-        return combinedTrackUrl ?? current;
-      }
-      if (combinedTrackUrl && current === combinedTrackUrl) {
-        if (translationTrackUrl) {
-          return translationTrackUrl;
-        }
-        return null;
-      }
-      return current;
-    });
-  }, [combinedTrackUrl, hasCombinedAudio, setInlineAudioSelection, showOriginalAudio, translationTrackUrl]);
+    setShowTranslationAudio((current) => !current);
+  }, [hasCombinedAudio, hasTranslationAudio, setShowTranslationAudio]);
 
-  const activeTimingTrack: 'mix' | 'translation' =
-    combinedTrackUrl &&
-    ((inlineAudioSelection && inlineAudioSelection === combinedTrackUrl) ||
-      (!inlineAudioSelection && effectiveOriginalAudioEnabled))
-      ? 'mix'
-      : 'translation';
+  useEffect(() => {
+    if (!hasCombinedAudio && !hasOriginalAudio && showOriginalAudio) {
+      setShowOriginalAudio(false);
+    }
+  }, [hasCombinedAudio, hasOriginalAudio, setShowOriginalAudio, showOriginalAudio]);
+  useEffect(() => {
+    if (!hasCombinedAudio && !hasTranslationAudio && showTranslationAudio) {
+      setShowTranslationAudio(false);
+    }
+  }, [hasCombinedAudio, hasTranslationAudio, setShowTranslationAudio, showTranslationAudio]);
+
+  useEffect(() => {
+    if (!hasCombinedAudio && !hasOriginalAudio && !hasTranslationAudio) {
+      return;
+    }
+    const preferredOriginalUrl = originalTrackUrl ?? (hasCombinedAudio ? combinedTrackUrl : null) ?? translationTrackUrl;
+    const preferredTranslationUrl =
+      translationTrackUrl ?? (hasCombinedAudio ? combinedTrackUrl : null) ?? originalTrackUrl;
+    setInlineAudioSelection(() => {
+      if (showOriginalAudio && showTranslationAudio) {
+        return preferredTranslationUrl ?? preferredOriginalUrl ?? null;
+      }
+      if (showOriginalAudio) {
+        return preferredOriginalUrl ?? null;
+      }
+      if (showTranslationAudio) {
+        return preferredTranslationUrl ?? null;
+      }
+      return null;
+    });
+  }, [
+    combinedTrackUrl,
+    hasCombinedAudio,
+    hasOriginalAudio,
+    hasTranslationAudio,
+    originalTrackUrl,
+    setInlineAudioSelection,
+    showOriginalAudio,
+    showTranslationAudio,
+    translationTrackUrl,
+  ]);
+
+  const activeTimingTrack: 'mix' | 'translation' | 'original' = (() => {
+    if (inlineAudioSelection) {
+      if (originalTrackUrl && inlineAudioSelection === originalTrackUrl) {
+        return 'original';
+      }
+      if (combinedTrackUrl && inlineAudioSelection === combinedTrackUrl) {
+        return 'mix';
+      }
+      return 'translation';
+    }
+    if (showOriginalAudio && !showTranslationAudio) {
+      if (originalTrackUrl) {
+        return 'original';
+      }
+      if (hasCombinedAudio && combinedTrackUrl) {
+        return 'mix';
+      }
+      return 'translation';
+    }
+    if (showTranslationAudio) {
+      if (translationTrackUrl) {
+        return 'translation';
+      }
+      if (hasCombinedAudio && combinedTrackUrl) {
+        return 'mix';
+      }
+      if (originalTrackUrl) {
+        return 'original';
+      }
+    }
+    return 'translation';
+  })();
 
   return {
     activeAudioTracks,
@@ -296,10 +371,14 @@ export function useInlineAudioOptions({
     inlineAudioUnavailable,
     hasCombinedAudio,
     canToggleOriginalAudio,
+    canToggleTranslationAudio,
     effectiveOriginalAudioEnabled,
+    effectiveTranslationAudioEnabled,
     handleOriginalAudioToggle,
+    handleTranslationAudioToggle,
     activeTimingTrack,
     combinedTrackUrl,
+    originalTrackUrl,
     translationTrackUrl,
   };
 }

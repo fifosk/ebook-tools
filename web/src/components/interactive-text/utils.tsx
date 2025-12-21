@@ -30,9 +30,13 @@ export function containsNonLatinLetters(text: string): boolean {
 }
 
 export function toTrackKind(track: TrackTimingPayload): TrackKind {
-  return track.trackType === 'original_translated'
-    ? 'original_translation_combined'
-    : 'translation_only';
+  if (track.trackType === 'original_translated') {
+    return 'original_translation_combined';
+  }
+  if (track.trackType === 'original') {
+    return 'original_only';
+  }
+  return 'translation_only';
 }
 
 export function renderWithNonLatinBoost(text: string, boostedClassName: string): ReactNode {
@@ -266,7 +270,7 @@ export function buildSentenceGateList(payload?: TimingPayload | null): SentenceG
   if (!payload || !Array.isArray(payload.segments) || payload.segments.length === 0) {
     return [];
   }
-  const isTranslationTrack = payload.trackKind === 'translation_only';
+  const isSingleTrack = payload.trackKind !== 'original_translation_combined';
   const entries: Array<{ token: WordToken; segmentIndex: number }> = [];
   payload.segments.forEach((segment, segmentIndex) => {
     if (!segment || !Array.isArray(segment.tokens)) {
@@ -301,7 +305,7 @@ export function buildSentenceGateList(payload?: TimingPayload | null): SentenceG
     }
     let start = Number(candidate.token.startGate);
     let end = Number(candidate.token.endGate);
-    if (isTranslationTrack) {
+    if (isSingleTrack) {
       const firstWord = group.reduce<number>((min, { token }) => {
         if (token && Number.isFinite(token.t0)) {
           return Math.min(min, Number(token.t0));
@@ -347,7 +351,7 @@ export function buildSentenceGateList(payload?: TimingPayload | null): SentenceG
 
 export function buildTimingPayloadFromJobTiming(
   response: JobTimingResponse,
-  trackName: 'mix' | 'translation',
+  trackName: 'mix' | 'translation' | 'original',
 ): TimingPayload | null {
   if (!response || !response.tracks || !response.tracks[trackName]) {
     return null;
@@ -387,12 +391,6 @@ export function buildTimingPayloadFromJobTiming(
     const canonicalEndGate = normalizeNumber(entry.endGate ?? entry.end_gate);
     let t0 = Math.max(0, rawStart);
     let t1 = Number.isFinite(rawEnd) ? Math.max(rawEnd, t0) : t0;
-    const gateValue = Number(canonicalStartGate);
-    const gateAvailable = Number.isFinite(gateValue);
-    if (trackName === 'translation' && gateAvailable && rawStart >= gateValue - 1e-3) {
-      t0 = Math.max(0, t0 - gateValue);
-      t1 = Math.max(t1 - gateValue, t0);
-    }
     const sentenceIdxCandidate =
       entry.sentenceIdx ?? entry.sentence_id ?? entry.sentenceId ?? entry.id ?? null;
     const sentenceIdxValue = normalizeNumber(sentenceIdxCandidate);
@@ -427,7 +425,9 @@ export function buildTimingPayloadFromJobTiming(
         ? entry.lane === 'orig'
           ? 'orig'
           : 'tran'
-        : 'tran';
+        : trackName === 'original'
+          ? 'orig'
+          : 'tran';
     const tokenId = `${segmentId}-${bucket.tokens.length}`;
     bucket.tokens.push({
       id: tokenId,
@@ -518,7 +518,12 @@ export function buildTimingPayloadFromJobTiming(
 
   const playbackRateValue = Number(trackPayload.playback_rate);
   const payload: TimingPayload = {
-    trackKind: trackName === 'mix' ? 'original_translation_combined' : 'translation_only',
+    trackKind:
+      trackName === 'mix'
+        ? 'original_translation_combined'
+        : trackName === 'original'
+          ? 'original_only'
+          : 'translation_only',
     segments,
   };
   if (Number.isFinite(playbackRateValue) && playbackRateValue > 0) {

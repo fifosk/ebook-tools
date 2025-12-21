@@ -208,6 +208,7 @@ function hasAudioTracks(
 const VALID_TRACK_TYPES: Set<TrackTimingPayload['trackType']> = new Set([
   'translated',
   'original_translated',
+  'original',
 ]);
 
 function normaliseTrackType(value: unknown): TrackTimingPayload['trackType'] | null {
@@ -220,6 +221,9 @@ function normaliseTrackType(value: unknown): TrackTimingPayload['trackType'] | n
   }
   if (raw === 'original-translated' || raw === 'originaltranslated') {
     return 'original_translated';
+  }
+  if (raw === 'original' || raw === 'orig') {
+    return 'original';
   }
   if (raw === 'translation' || raw === 'translated') {
     return 'translated';
@@ -378,7 +382,10 @@ function convertLegacyTimingTracks(record: Record<string, unknown>): TrackTiming
   const translationEntries = Array.isArray(record.translation)
     ? (record.translation as unknown[])
     : null;
-  if (!mixEntries && !translationEntries) {
+  const originalEntries = Array.isArray(record.original)
+    ? (record.original as unknown[])
+    : null;
+  if (!mixEntries && !translationEntries && !originalEntries) {
     return null;
   }
   const chunkId = toStringOrNull(record.chunk_id ?? record.chunkId) ?? '';
@@ -418,6 +425,26 @@ function convertLegacyTimingTracks(record: Record<string, unknown>): TrackTiming
     if (words.length > 0) {
       payloads.push({
         trackType: 'original_translated',
+        chunkId,
+        words,
+        pauses: [],
+        trackOffset,
+        tempoFactor,
+        version,
+      });
+    }
+  }
+  if (Array.isArray(originalEntries) && originalEntries.length > 0) {
+    const words = buildWordTimingsFromLegacyTokens(
+      originalEntries,
+      chunkId,
+      'orig',
+      false,
+      false,
+    );
+    if (words.length > 0) {
+      payloads.push({
+        trackType: 'original',
         chunkId,
         words,
         pauses: [],

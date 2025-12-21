@@ -30,7 +30,7 @@ export type Slide = {
 
 // ---- legacy player timing contracts ---------------------------------------
 
-export type TrackKind = 'translation_only' | 'original_translation_combined';
+export type TrackKind = 'translation_only' | 'original_translation_combined' | 'original_only';
 
 export type WordToken = {
   id: string;
@@ -68,5 +68,5 @@ export type TimingPayload = {
 export type Hit = {
   segIndex: number;
   tokIndex: number;
-  lane?: 'mix' | 'translation';
+  lane?: 'mix' | 'translation' | 'original';
 };

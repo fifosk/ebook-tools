@@ -41,6 +41,7 @@ class MediaPipelineResult:
     translation: str
     transliteration: str
     audio_segment: Optional[AudioSegment]
+    audio_tracks: Optional[Mapping[str, AudioSegment]] = None
     voice_metadata: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
     metadata: Dict[str, Any] = field(default_factory=dict)
 
