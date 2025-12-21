@@ -5,6 +5,7 @@ import {
   ImageNodeAvailabilityRequestPayload,
   ImageNodeAvailabilityResponse,
   PipelineDefaultsResponse,
+  BookContentIndexResponse,
   PipelineFileBrowserResponse,
   PipelineFileEntry,
   PipelineJobActionResponse,
@@ -1152,6 +1153,13 @@ export async function fetchPipelineFiles(): Promise<PipelineFileBrowserResponse>
 export async function fetchPipelineDefaults(): Promise<PipelineDefaultsResponse> {
   const response = await apiFetch('/api/pipelines/defaults');
   return handleResponse<PipelineDefaultsResponse>(response);
+}
+
+export async function fetchBookContentIndex(inputFile: string): Promise<BookContentIndexResponse> {
+  const trimmed = inputFile.trim();
+  const params = new URLSearchParams({ input_file: trimmed });
+  const response = await apiFetch(`/api/pipelines/files/content-index?${params.toString()}`);
+  return handleResponse<BookContentIndexResponse>(response);
 }
 
 export async function checkImageNodeAvailability(

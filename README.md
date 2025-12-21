@@ -555,7 +555,10 @@ media availability; (2) `metadata/chunk_manifest.json`, a helper map used by the
 web UI to lazily fetch the chunk payloads; and (3) `metadata/chunk_XXXX.json`
 files that store the actual sentence timelines, `word_tokens`,
 `original_word_tokens`, diagnostic flags, and per-track audio references
-(`audioTracks.orig`, `audioTracks.translation`). `MetadataLoader` in
+(`audioTracks.orig`, `audioTracks.translation`). Jobs now also persist
+`metadata/content_index.json`, which records chapter ranges derived from the
+EPUB spine/sections for LLM-driven range analysis and future chapter navigation.
+`MetadataLoader` in
 `modules/metadata_manager.py`
 abstracts the differences between the chunked format and legacy single-file
 payloads so CLI utilities and the FastAPI routers can read either structure

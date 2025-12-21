@@ -18,6 +18,17 @@ type BookNarrationLanguageSectionProps = {
   endSentence: string;
   stitchFull: boolean;
   disableProcessingWindow?: boolean;
+  processingMode?: 'range' | 'chapters';
+  chapterOptions?: BookNarrationChapterOption[];
+  selectedChapterIds?: string[];
+  chapterSummary?: string;
+  chaptersLoading?: boolean;
+  chaptersError?: string | null;
+  chaptersDisabled?: boolean;
+  estimatedAudioDurationLabel?: string | null;
+  onProcessingModeChange?: (value: 'range' | 'chapters') => void;
+  onChapterToggle?: (chapterId: string) => void;
+  onChapterClear?: () => void;
   onInputLanguageChange: (value: string) => void;
   onTargetLanguagesChange: (value: string[]) => void;
   onCustomTargetLanguagesChange: (value: string) => void;
@@ -26,6 +37,13 @@ type BookNarrationLanguageSectionProps = {
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
   onStitchFullChange: (value: boolean) => void;
+};
+
+export type BookNarrationChapterOption = {
+  id: string;
+  title: string;
+  startSentence: number;
+  endSentence: number | null;
 };
 
 const BookNarrationLanguageSection = ({
@@ -43,6 +61,17 @@ const BookNarrationLanguageSection = ({
   endSentence,
   stitchFull,
   disableProcessingWindow = false,
+  processingMode = 'range',
+  chapterOptions = [],
+  selectedChapterIds = [],
+  chapterSummary,
+  chaptersLoading = false,
+  chaptersError = null,
+  chaptersDisabled = false,
+  estimatedAudioDurationLabel = null,
+  onProcessingModeChange,
+  onChapterToggle,
+  onChapterClear,
   onInputLanguageChange,
   onTargetLanguagesChange,
   onOllamaModelChange,
@@ -51,6 +80,9 @@ const BookNarrationLanguageSection = ({
   onEndSentenceChange,
   onStitchFullChange
 }: BookNarrationLanguageSectionProps) => {
+  const sentenceRangeDisabled = disableProcessingWindow || processingMode === 'chapters';
+  const showChapterPicker = processingMode === 'chapters';
+  const chapterSelectDisabled = chaptersDisabled || (!chaptersLoading && chapterOptions.length === 0);
   const currentModel = ollamaModel.trim();
   const resolvedModels = llmModels.length ? llmModels : currentModel ? [currentModel] : [];
   const modelOptions = Array.from(new Set([...(currentModel ? [currentModel] : []), ...resolvedModels]));
@@ -138,7 +170,7 @@ const BookNarrationLanguageSection = ({
               type="number"
               min={1}
               value={startSentence}
-              disabled={disableProcessingWindow}
+              disabled={sentenceRangeDisabled}
               onChange={(event) => onStartSentenceChange(Number(event.target.value))}
             />
           </label>
@@ -150,12 +182,98 @@ const BookNarrationLanguageSection = ({
               type="text"
               inputMode="numeric"
               value={endSentence}
-              disabled={disableProcessingWindow}
+              disabled={sentenceRangeDisabled}
               onChange={(event) => onEndSentenceChange(event.target.value)}
               placeholder="Leave blank for full run or enter +100 for the next 100 sentences"
             />
           </label>
         </div>
+        <div className="pipeline-chapter-window" aria-live="polite">
+          <div className="pipeline-chapter-window__header">
+            <span className="pipeline-chapter-window__label">Processing window</span>
+            <div className="pipeline-chapter-window__toggle" role="group" aria-label="Processing window mode">
+              <button
+                type="button"
+                className={`pipeline-chapter-window__toggle-button${
+                  processingMode === 'range' ? ' is-active' : ''
+                }`}
+                onClick={() => onProcessingModeChange?.('range')}
+              >
+                Sentence range
+              </button>
+              <button
+                type="button"
+                className={`pipeline-chapter-window__toggle-button${
+                  processingMode === 'chapters' ? ' is-active' : ''
+                }`}
+                onClick={() => onProcessingModeChange?.('chapters')}
+                disabled={chapterSelectDisabled}
+                title={
+                  chapterSelectDisabled
+                    ? chaptersLoading
+                      ? 'Loading chapters...'
+                      : 'Chapters are not available for this file'
+                    : 'Select chapters'
+                }
+              >
+                Chapters
+              </button>
+            </div>
+          </div>
+          {showChapterPicker ? (
+            <div className="pipeline-chapter-window__panel">
+              {chaptersLoading ? (
+                <span className="form-help-text">Loading chapters…</span>
+              ) : null}
+              {chaptersError ? <span className="form-help-text form-help-text--error">{chaptersError}</span> : null}
+              {!chaptersLoading && chapterOptions.length === 0 && !chaptersError ? (
+                <span className="form-help-text">No chapter data found for this EPUB.</span>
+              ) : null}
+              {chapterOptions.length > 0 ? (
+                <div className="pipeline-chapter-window__list" role="list">
+                  {chapterOptions.map((chapter, index) => {
+                    const range =
+                      typeof chapter.endSentence === 'number'
+                        ? `${chapter.startSentence}-${chapter.endSentence}`
+                        : `${chapter.startSentence}+`;
+                    const checked = selectedChapterIds.includes(chapter.id);
+                    return (
+                      <label
+                        key={chapter.id}
+                        className={`pipeline-chapter-window__option${
+                          checked ? ' is-selected' : ''
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => onChapterToggle?.(chapter.id)}
+                        />
+                        <span className="pipeline-chapter-window__title">
+                          {chapter.title || `Chapter ${index + 1}`}
+                        </span>
+                        <span className="pipeline-chapter-window__range">{range}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {chapterSummary ? <span className="form-help-text">{chapterSummary}</span> : null}
+              {selectedChapterIds.length > 0 ? (
+                <button
+                  type="button"
+                  className="pipeline-chapter-window__clear"
+                  onClick={onChapterClear}
+                >
+                  Clear selection
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+        {estimatedAudioDurationLabel ? (
+          <span className="form-help-text">{estimatedAudioDurationLabel}</span>
+        ) : null}
         <label className="checkbox">
           <input
             type="checkbox"

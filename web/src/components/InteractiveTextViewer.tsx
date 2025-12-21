@@ -87,6 +87,7 @@ type SequenceSegment = {
   end: number;
   sentenceIndex: number;
 };
+type SelectedAudioTrack = SequenceTrack | 'combined';
 
 type SequenceDebugState = {
   enabled?: boolean;
@@ -137,6 +138,8 @@ interface InteractiveTextViewerProps {
   content: string;
   rawContent?: string | null;
   chunk: LiveMediaChunk | null;
+  chunks?: LiveMediaChunk[] | null;
+  activeChunkIndex?: number | null;
   playerMode?: PlayerMode;
   playerFeatures?: PlayerFeatureFlags | null;
   totalSentencesInBook?: number | null;
@@ -196,6 +199,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     content,
     rawContent = null,
     chunk,
+    chunks = null,
+    activeChunkIndex = null,
     playerMode = 'online',
     playerFeatures = null,
     totalSentencesInBook = null,
@@ -519,6 +524,14 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const diagnosticsSignatureRef = useRef<string | null>(null);
   const highlightPolicyRef = useRef<string | null>(null);
   const inlineAudioPlayingRef = useRef(false);
+  const isSeekingRef = useRef(false);
+  const audioTimelineRef = useRef<{
+    played: number;
+    remaining: number;
+    total: number;
+    key: string;
+  } | null>(null);
+  const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
   const [jobTimingResponse, setJobTimingResponse] = useState<JobTimingResponse | null>(null);
   const [timingDiagnostics, setTimingDiagnostics] = useState<{ policy: string | null; estimated: boolean; punctuation?: boolean } | null>(null);
 
@@ -733,6 +746,17 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     return null;
   };
 
+  const resolveDurationValue = (value: unknown): number | null => {
+    const parsed = resolveNumericValue(value);
+    if (parsed === null) {
+      return null;
+    }
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      return null;
+    }
+    return parsed;
+  };
+
   const readSentenceGate = (
     sentence: ChunkSentenceMetadata | null | undefined,
     keys: string[],
@@ -749,6 +773,22 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       }
     }
     return null;
+  };
+
+  const readPhaseDuration = (
+    sentence: ChunkSentenceMetadata | null | undefined,
+    key: string,
+  ): number | null => {
+    if (!sentence) {
+      return null;
+    }
+    const record = sentence as unknown as Record<string, unknown>;
+    const phasePayload = record.phase_durations ?? record.phaseDurations;
+    if (!phasePayload || typeof phasePayload !== 'object') {
+      return null;
+    }
+    const phases = phasePayload as Record<string, unknown>;
+    return resolveDurationValue(phases[key]);
   };
 
   const resolveSentenceGate = (
@@ -773,6 +813,33 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       return null;
     }
     return { start: safeStart, end: safeEnd };
+  };
+
+  const resolveSentenceDuration = (
+    sentence: ChunkSentenceMetadata | null | undefined,
+    track: SelectedAudioTrack,
+  ): number | null => {
+    if (!sentence) {
+      return null;
+    }
+    if (track === 'combined') {
+      const record = sentence as unknown as Record<string, unknown>;
+      return resolveDurationValue(record.total_duration ?? record.totalDuration ?? record.t1);
+    }
+    const gate = resolveSentenceGate(sentence, track);
+    if (gate) {
+      return Math.max(gate.end - gate.start, 0);
+    }
+    const phaseKey = track === 'original' ? 'original' : 'translation';
+    const phaseDuration = readPhaseDuration(sentence, phaseKey);
+    if (phaseDuration !== null) {
+      return phaseDuration;
+    }
+    if (track === 'translation') {
+      const record = sentence as unknown as Record<string, unknown>;
+      return resolveDurationValue(record.total_duration ?? record.totalDuration ?? record.t1);
+    }
+    return null;
   };
 
   const sequencePlan = useMemo<SequenceSegment[]>(() => {
@@ -982,6 +1049,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     translationAudioEnabled,
     translationTrackUrl,
   ]);
+  const effectiveAudioRef = normaliseAudioUrl(effectiveAudioUrl);
 
   const resolvedAudioUrl = useMemo(() => {
     if (!effectiveAudioUrl) {
@@ -1039,6 +1107,223 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
         original: formatSequenceDebugUrl(originalTrackUrl),
         translation: formatSequenceDebugUrl(translationTrackUrl),
       }
+    : null;
+
+  const chunkList = Array.isArray(chunks) ? chunks : [];
+  const resolvedActiveChunkIndex = useMemo(() => {
+    if (typeof activeChunkIndex === 'number' && Number.isFinite(activeChunkIndex)) {
+      return Math.max(Math.trunc(activeChunkIndex), -1);
+    }
+    if (!chunk || chunkList.length === 0) {
+      return -1;
+    }
+    const key =
+      chunk.chunkId ?? chunk.rangeFragment ?? chunk.metadataPath ?? chunk.metadataUrl ?? null;
+    if (!key) {
+      return -1;
+    }
+    return chunkList.findIndex((entry) => {
+      if (!entry) {
+        return false;
+      }
+      return (
+        entry.chunkId === key ||
+        entry.rangeFragment === key ||
+        entry.metadataPath === key ||
+        entry.metadataUrl === key
+      );
+    });
+  }, [activeChunkIndex, chunk, chunkList]);
+
+  const resolveTrackDuration = useCallback(
+    (target: LiveMediaChunk | null | undefined, track: SelectedAudioTrack): number | null => {
+      if (!target) {
+        return null;
+      }
+      const extractDuration = (metadata: AudioTrackMetadata | null | undefined): number | null => {
+        if (!metadata) {
+          return null;
+        }
+        const duration = metadata.duration;
+        if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
+          return duration;
+        }
+        return null;
+      };
+      const tracks = target.audioTracks ?? null;
+      if (tracks) {
+        if (track === 'original') {
+          const value = extractDuration(tracks.orig ?? tracks.original ?? null);
+          if (value !== null) {
+            return value;
+          }
+        } else if (track === 'translation') {
+          const value = extractDuration(tracks.translation ?? tracks.trans ?? null);
+          if (value !== null) {
+            return value;
+          }
+        } else {
+          const value = extractDuration(tracks.orig_trans ?? tracks.combined ?? tracks.mix ?? null);
+          if (value !== null) {
+            return value;
+          }
+        }
+      }
+      if (Array.isArray(target.sentences) && target.sentences.length > 0) {
+        let total = 0;
+        let hasDuration = false;
+        target.sentences.forEach((sentence) => {
+          const duration = resolveSentenceDuration(sentence, track);
+          if (duration !== null) {
+            total += duration;
+            hasDuration = true;
+          }
+        });
+        if (hasDuration && total > 0) {
+          return total;
+        }
+      }
+      return null;
+    },
+    [resolveSentenceDuration],
+  );
+
+  const selectedTracks = useMemo<SelectedAudioTrack[]>(() => {
+    if (sequenceEnabled) {
+      return ['original', 'translation'];
+    }
+    if (effectiveAudioRef && effectiveAudioRef === originalTrackRef) {
+      return ['original'];
+    }
+    if (effectiveAudioRef && effectiveAudioRef === translationTrackRef) {
+      return ['translation'];
+    }
+    if (effectiveAudioRef && effectiveAudioRef === combinedTrackRef) {
+      return ['combined'];
+    }
+    return [];
+  }, [
+    combinedTrackRef,
+    effectiveAudioRef,
+    originalTrackRef,
+    sequenceEnabled,
+    translationTrackRef,
+  ]);
+
+  const audioTimeline = useMemo(() => {
+    if (!chunkList.length || selectedTracks.length === 0) {
+      return null;
+    }
+    if (resolvedActiveChunkIndex < 0 || resolvedActiveChunkIndex >= chunkList.length) {
+      return null;
+    }
+    const sumChunk = (target: LiveMediaChunk | null | undefined) =>
+      selectedTracks.reduce((sum, track) => sum + (resolveTrackDuration(target, track) ?? 0), 0);
+    let total = 0;
+    let before = 0;
+    chunkList.forEach((entry, index) => {
+      const chunkDuration = sumChunk(entry);
+      total += chunkDuration;
+      if (index < resolvedActiveChunkIndex) {
+        before += chunkDuration;
+      }
+    });
+    if (!Number.isFinite(total) || total <= 0) {
+      return null;
+    }
+    const currentChunk = chunkList[resolvedActiveChunkIndex] ?? chunk;
+    const currentChunkDuration = sumChunk(currentChunk);
+    let within = 0;
+    if (sequenceEnabled && sequencePlan.length > 0) {
+      const currentIndex = Math.max(
+        0,
+        Math.min(sequenceIndexRef.current, sequencePlan.length - 1),
+      );
+      const segment = sequencePlan[currentIndex];
+      if (segment) {
+        let elapsed = 0;
+        for (let idx = 0; idx < currentIndex; idx += 1) {
+          const beforeSegment = sequencePlan[idx];
+          if (beforeSegment) {
+            elapsed += Math.max(beforeSegment.end - beforeSegment.start, 0);
+          }
+        }
+        const segmentDuration = Math.max(segment.end - segment.start, 0);
+        const progress = Math.min(
+          Math.max(chunkTime - segment.start, 0),
+          segmentDuration,
+        );
+        within = elapsed + progress;
+      }
+    } else {
+      const rawTime = Number.isFinite(chunkTime) ? chunkTime : 0;
+      within =
+        currentChunkDuration > 0
+          ? Math.min(Math.max(rawTime, 0), currentChunkDuration)
+          : Math.max(rawTime, 0);
+    }
+    const played = Math.min(before + within, total);
+    const remaining = Math.max(total - played, 0);
+    return { played, remaining, total };
+  }, [
+    chunk,
+    chunkList,
+    chunkTime,
+    resolveTrackDuration,
+    resolvedActiveChunkIndex,
+    selectedTracks,
+    sequenceEnabled,
+    sequencePlan,
+  ]);
+
+  const audioTimelineKey = useMemo(() => {
+    if (selectedTracks.length === 0) {
+      return null;
+    }
+    const trackKey = selectedTracks.join('|');
+    return `${jobId ?? 'job'}:${sequenceEnabled ? 'seq' : 'single'}:${trackKey}`;
+  }, [jobId, selectedTracks, sequenceEnabled]);
+
+  const audioTimelineDisplay = useMemo(() => {
+    if (!audioTimeline || !audioTimelineKey) {
+      audioTimelineRef.current = null;
+      return null;
+    }
+    const prev = audioTimelineRef.current;
+    if (!prev || prev.key !== audioTimelineKey) {
+      const next = { ...audioTimeline, key: audioTimelineKey };
+      audioTimelineRef.current = next;
+      return audioTimeline;
+    }
+    let played = audioTimeline.played;
+    let total = Math.max(audioTimeline.total, prev.total);
+    const backwards = played < prev.played;
+    const backstep = prev.played - played;
+    if (backwards && isInlineAudioPlaying && !isSeekingRef.current && backstep < 5) {
+      played = prev.played;
+    }
+    played = Math.max(0, Math.min(played, total));
+    const remaining = Math.max(total - played, 0);
+    const next = { played, remaining, total, key: audioTimelineKey };
+    audioTimelineRef.current = next;
+    return { played, remaining, total };
+  }, [audioTimeline, audioTimelineKey, isInlineAudioPlaying]);
+
+  const formatDurationLabel = (value: number): string => {
+    const total = Math.max(0, Math.trunc(value));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const seconds = total % 60;
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds
+      .toString()
+      .padStart(2, '0')}`;
+  };
+
+  const audioTimelineText = audioTimelineDisplay
+    ? `${formatDurationLabel(audioTimelineDisplay.played)} / ${formatDurationLabel(audioTimelineDisplay.remaining)} remaining`
+    : null;
+  const audioTimelineTitle = audioTimelineDisplay
+    ? `Total ${formatDurationLabel(audioTimelineDisplay.total)}`
     : null;
 
   const findSequenceIndexForSentence = useCallback(
@@ -2064,6 +2349,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
 
   const handleInlineAudioPlay = useCallback(() => {
     inlineAudioPlayingRef.current = true;
+    setIsInlineAudioPlaying(true);
     sequenceAutoPlayRef.current = true;
     pendingChunkAutoPlayRef.current = false;
     pendingChunkAutoPlayKeyRef.current = null;
@@ -2160,6 +2446,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       }
     }
     inlineAudioPlayingRef.current = false;
+    setIsInlineAudioPlaying(false);
     sequenceAutoPlayRef.current = false;
     pendingChunkAutoPlayRef.current = false;
     pendingChunkAutoPlayKeyRef.current = null;
@@ -2178,6 +2465,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   ]);
 
   const handleAudioSeeking = useCallback(() => {
+    isSeekingRef.current = true;
     wordSyncControllerRef.current?.handleSeeking();
   }, []);
 
@@ -2319,6 +2607,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
       pendingChunkAutoPlayKeyRef.current = audioResetKey;
     }
     inlineAudioPlayingRef.current = false;
+    setIsInlineAudioPlaying(false);
     if (progressTimerRef.current !== null) {
       window.clearInterval(progressTimerRef.current);
       progressTimerRef.current = null;
@@ -2412,19 +2701,20 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     };
   }, [audioResetKey, resolvedAudioUrl]);
 
-const handleAudioSeeked = useCallback(() => {
-  wordSyncControllerRef.current?.handleSeeked();
-  const element = audioRef.current;
-  if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
-    return;
-  }
-  setChunkTime(element.currentTime ?? 0);
-  syncSequenceIndexToTime(element.currentTime ?? 0);
-  if (!hasTimeline) {
-    updateSentenceForTime(element.currentTime, element.duration);
-  }
-  emitAudioProgress(element.currentTime);
-}, [emitAudioProgress, hasTimeline, syncSequenceIndexToTime, updateSentenceForTime]);
+  const handleAudioSeeked = useCallback(() => {
+    isSeekingRef.current = false;
+    wordSyncControllerRef.current?.handleSeeked();
+    const element = audioRef.current;
+    if (!element || !Number.isFinite(element.duration) || element.duration <= 0) {
+      return;
+    }
+    setChunkTime(element.currentTime ?? 0);
+    syncSequenceIndexToTime(element.currentTime ?? 0);
+    if (!hasTimeline) {
+      updateSentenceForTime(element.currentTime, element.duration);
+    }
+    emitAudioProgress(element.currentTime);
+  }, [emitAudioProgress, hasTimeline, syncSequenceIndexToTime, updateSentenceForTime]);
   const handleTokenSeek = useCallback(
     (time: number) => {
       if (dictionarySuppressSeekRef.current) {
@@ -2766,9 +3056,21 @@ const handleAudioSeeked = useCallback(() => {
             className="player-panel__interactive-body"
             data-has-badge={showInfoHeader ? 'true' : undefined}
           >
-            {slideIndicator ? (
-              <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
-                {slideIndicator.label}
+            {slideIndicator || audioTimelineText ? (
+              <div className="player-panel__interactive-slide-stack">
+                {slideIndicator ? (
+                  <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
+                    {slideIndicator.label}
+                  </div>
+                ) : null}
+                {audioTimelineText ? (
+                  <div
+                    className="player-panel__interactive-slide-indicator player-panel__interactive-slide-indicator--audio"
+                    title={audioTimelineTitle ?? audioTimelineText}
+                  >
+                    {audioTimelineText}
+                  </div>
+                ) : null}
               </div>
             ) : null}
             {sentenceImageReelNode}

@@ -162,6 +162,13 @@ class PipelineDefaultsResponse(BaseModel):
     config: Dict[str, Any] = Field(default_factory=dict)
 
 
+class BookContentIndexResponse(BaseModel):
+    """Response payload describing inferred chapter ranges for an EPUB."""
+
+    input_file: str
+    content_index: Optional[Dict[str, Any]] = None
+
+
 class ImageNodeAvailabilityRequest(BaseModel):
     """Request payload for image node availability checks."""
 
@@ -684,6 +691,7 @@ class PipelineResponsePayload(BaseModel):
             "image_style_template": getattr(config, "image_style_template", None),
             "image_prompt_batching_enabled": getattr(config, "image_prompt_batching_enabled", None),
             "image_prompt_batch_size": getattr(config, "image_prompt_batch_size", None),
+            "image_prompt_plan_batch_size": getattr(config, "image_prompt_plan_batch_size", None),
             "image_blank_detection_enabled": getattr(config, "image_blank_detection_enabled", None),
         }
         return data
@@ -1430,12 +1438,23 @@ class ChunkSentenceVariant(BaseModel):
     tokens: List[str] = Field(default_factory=list)
 
 
+class ChunkSentenceImagePayload(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    path: Optional[str] = None
+    prompt: Optional[str] = None
+    negative_prompt: Optional[str] = None
+
+
 class ChunkSentenceMetadata(BaseModel):
     sentence_number: Optional[int] = None
     original: ChunkSentenceVariant
     translation: Optional[ChunkSentenceVariant] = None
     transliteration: Optional[ChunkSentenceVariant] = None
     timeline: List[ChunkSentenceTimelineEvent] = Field(default_factory=list)
+    image: Optional[ChunkSentenceImagePayload] = None
+    image_path: Optional[str] = None
+    imagePath: Optional[str] = None
     total_duration: Optional[float] = None
     highlight_granularity: Optional[str] = None
     counts: Dict[str, int] = Field(default_factory=dict)

@@ -28,10 +28,11 @@ import {
   appendAccessToken,
   createExport,
   fetchPipelineStatus,
+  resolveLibraryMediaUrl,
   withBase,
 } from '../api/client';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
-import { resolve as resolveStoragePath } from '../utils/storageResolver';
+import { coerceExportPath, resolve as resolveStoragePath } from '../utils/storageResolver';
 import { downloadWithSaveAs } from '../utils/downloads';
 import {
   buildInteractiveAudioCatalog,
@@ -39,7 +40,11 @@ import {
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
 import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
-import { NavigationControls, type NavigationControlsProps } from './player-panel/NavigationControls';
+import {
+  NavigationControls,
+  type ChapterNavigationEntry,
+  type NavigationControlsProps,
+} from './player-panel/NavigationControls';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
   deriveBaseIdFromReference,
@@ -72,6 +77,61 @@ type ReadingBedOverride = {
   id: string;
   label: string;
   url: string;
+};
+
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return Math.trunc(parsed);
+    }
+  }
+  return null;
+};
+
+const normaliseContentIndexChapters = (payload: unknown): ChapterNavigationEntry[] => {
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+  const record = payload as Record<string, unknown>;
+  const rawChapters = record.chapters;
+  if (!Array.isArray(rawChapters)) {
+    return [];
+  }
+  const chapters: ChapterNavigationEntry[] = [];
+  rawChapters.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const raw = entry as Record<string, unknown>;
+    const start =
+      toFiniteNumber(raw.start_sentence ?? raw.startSentence ?? raw.start) ?? null;
+    if (!start || start <= 0) {
+      return;
+    }
+    const sentenceCount =
+      toFiniteNumber(raw.sentence_count ?? raw.sentenceCount) ?? null;
+    let end = toFiniteNumber(raw.end_sentence ?? raw.endSentence ?? raw.end);
+    if (end === null && sentenceCount !== null) {
+      end = start + Math.max(sentenceCount - 1, 0);
+    }
+    const id =
+      (typeof raw.id === 'string' && raw.id.trim()) || `chapter-${index + 1}`;
+    const title =
+      (typeof raw.title === 'string' && raw.title.trim()) ||
+      (typeof raw.toc_label === 'string' && raw.toc_label.trim()) ||
+      `Chapter ${index + 1}`;
+    chapters.push({
+      id,
+      title,
+      startSentence: start,
+      endSentence: end ?? null,
+    });
+  });
+  return chapters;
 };
 
 const deriveSentenceCountFromChunks = (chunks: LiveMediaChunk[]): number | null => {
@@ -269,6 +329,7 @@ export default function PlayerPanel({
   } = useReadingBedControls({ bedOverride: readingBedOverride, playerMode });
   const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
   const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
+  const [chapterEntries, setChapterEntries] = useState<ChapterNavigationEntry[]>([]);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
   const [jobTranslationLanguage, setJobTranslationLanguage] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -320,6 +381,9 @@ export default function PlayerPanel({
   }, [jobId, origin, playerMode]);
   useEffect(() => {
     setBookSentenceCount(null);
+  }, [jobId]);
+  useEffect(() => {
+    setChapterEntries([]);
   }, [jobId]);
   useEffect(() => {
     setIsExporting(false);
@@ -421,6 +485,91 @@ export default function PlayerPanel({
     };
   }, [bookMetadata, bookSentenceCount, chunks.length, jobId, playerMode]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!jobId) {
+      setChapterEntries([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    const inlineIndex =
+      bookMetadata && typeof bookMetadata === 'object'
+        ? (bookMetadata as Record<string, unknown>).content_index
+        : null;
+    if (inlineIndex) {
+      const chapters = normaliseContentIndexChapters(inlineIndex);
+      if (chapters.length > 0) {
+        setChapterEntries(chapters);
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+
+    const contentIndexUrl =
+      extractMetadataText(bookMetadata, ['content_index_url', 'contentIndexUrl']) ?? null;
+    const contentIndexPath =
+      extractMetadataText(bookMetadata, ['content_index_path', 'contentIndexPath']) ?? null;
+    let targetUrl: string | null = contentIndexUrl;
+    if (playerMode === 'export') {
+      const candidate = contentIndexPath ?? contentIndexUrl;
+      if (candidate) {
+        targetUrl = coerceExportPath(candidate, jobId) ?? candidate;
+      }
+    } else if (!targetUrl && contentIndexPath) {
+      try {
+        if (origin === 'library') {
+          if (contentIndexPath.startsWith('/api/library/') || contentIndexPath.includes('://')) {
+            targetUrl = contentIndexPath;
+          } else {
+            targetUrl = resolveLibraryMediaUrl(jobId, contentIndexPath);
+          }
+        } else {
+          targetUrl = resolveStoragePath(jobId, contentIndexPath);
+        }
+      } catch (error) {
+        const encodedJobId = encodeURIComponent(jobId);
+        const sanitizedPath = contentIndexPath.replace(/^\/+/, '');
+        targetUrl = `/pipelines/jobs/${encodedJobId}/${encodeURI(sanitizedPath)}`;
+        if (import.meta.env.DEV) {
+          console.warn('Unable to resolve content index path', contentIndexPath, error);
+        }
+      }
+    }
+
+    if (!targetUrl || typeof fetch !== 'function') {
+      setChapterEntries([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    (async () => {
+      try {
+        const url = origin === 'library' && playerMode !== 'export' ? appendAccessToken(targetUrl) : targetUrl;
+        const response = await fetch(url, { credentials: 'include' });
+        if (!response.ok) {
+          return;
+        }
+        const payload = await response.json();
+        const chapters = normaliseContentIndexChapters(payload);
+        if (!cancelled) {
+          setChapterEntries(chapters);
+        }
+      } catch (error) {
+        if (import.meta.env.DEV) {
+          console.warn('Unable to load content index', targetUrl, error);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookMetadata, jobId, origin, playerMode]);
+
   const {
     sentenceLookup,
     jobStartSentence,
@@ -446,6 +595,28 @@ export default function PlayerPanel({
   const handleActiveSentenceChange = useCallback((value: number | null) => {
     setActiveSentenceNumber(value);
   }, []);
+
+  const activeChapterId = useMemo(() => {
+    if (!activeSentenceNumber || chapterEntries.length === 0) {
+      return null;
+    }
+    const target = chapterEntries.find((chapter) => {
+      const end = typeof chapter.endSentence === 'number' ? chapter.endSentence : Number.POSITIVE_INFINITY;
+      return activeSentenceNumber >= chapter.startSentence && activeSentenceNumber <= end;
+    });
+    return target?.id ?? null;
+  }, [activeSentenceNumber, chapterEntries]);
+
+  const handleChapterJump = useCallback(
+    (chapterId: string) => {
+      const target = chapterEntries.find((chapter) => chapter.id === chapterId);
+      if (!target) {
+        return;
+      }
+      handleInteractiveSentenceJump(target.startSentence);
+    },
+    [chapterEntries, handleInteractiveSentenceJump],
+  );
 
   useEffect(() => {
     if (!selectionRequest) {
@@ -1514,6 +1685,10 @@ export default function PlayerPanel({
     readingBedTrack: readingBedTrackSelection ?? '',
     readingBedTrackOptions,
     onReadingBedTrackChange: handleReadingBedTrackChange,
+    showChapterJump: chapterEntries.length > 0 && canJumpToSentence,
+    chapters: chapterEntries,
+    activeChapterId,
+    onChapterJump: handleChapterJump,
     showExport: canExport,
     onExport: handleExport,
     exportDisabled: isExporting,
@@ -1566,6 +1741,8 @@ export default function PlayerPanel({
     content: interactiveViewerContent,
     rawContent: interactiveViewerRaw,
     chunk: resolvedActiveTextChunk,
+    chunks,
+    activeChunkIndex: activeTextChunkIndex,
     totalSentencesInBook: bookSentenceCount,
     bookTotalSentences: bookSentenceCount,
     jobStartSentence,

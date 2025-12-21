@@ -26,6 +26,11 @@ export interface PipelineDefaultsResponse {
   config: Record<string, unknown>;
 }
 
+export interface BookContentIndexResponse {
+  input_file: string;
+  content_index: Record<string, unknown> | null;
+}
+
 export interface ImageNodeAvailabilityRequestPayload {
   base_urls: string[];
 }

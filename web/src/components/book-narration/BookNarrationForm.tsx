@@ -21,6 +21,7 @@ import {
 import {
   fetchPipelineDefaults,
   fetchPipelineFiles,
+  fetchBookContentIndex,
   fetchVoiceInventory,
   fetchLlmModels,
   deletePipelineEbook,
@@ -48,7 +49,9 @@ import {
 } from '../../utils/bookMetadataCache';
 import { useLanguagePreferences } from '../../context/LanguageProvider';
 import BookNarrationSourceSection from './BookNarrationSourceSection';
-import BookNarrationLanguageSection from './BookNarrationLanguageSection';
+import BookNarrationLanguageSection, {
+  BookNarrationChapterOption
+} from './BookNarrationLanguageSection';
 import BookNarrationOutputSection from './BookNarrationOutputSection';
 import BookNarrationImageSection from './BookNarrationImageSection';
 import {
@@ -95,6 +98,83 @@ function formatMacOSVoiceLabel(voice: MacOSVoice): string {
   const meta = segments.length > 0 ? ` (${segments.join(', ')})` : '';
   return `${voice.name}${meta}`;
 }
+
+const toFiniteNumber = (value: unknown): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return Math.trunc(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseFloat(value);
+    if (Number.isFinite(parsed)) {
+      return Math.trunc(parsed);
+    }
+  }
+  return null;
+};
+
+const normaliseContentIndexChapters = (payload: unknown): BookNarrationChapterOption[] => {
+  if (!payload || typeof payload !== 'object') {
+    return [];
+  }
+  const record = payload as Record<string, unknown>;
+  const rawChapters = record.chapters;
+  if (!Array.isArray(rawChapters)) {
+    return [];
+  }
+  const chapters: BookNarrationChapterOption[] = [];
+  rawChapters.forEach((entry, index) => {
+    if (!entry || typeof entry !== 'object') {
+      return;
+    }
+    const raw = entry as Record<string, unknown>;
+    const start =
+      toFiniteNumber(raw.start_sentence ?? raw.startSentence ?? raw.start) ?? null;
+    if (!start || start <= 0) {
+      return;
+    }
+    const sentenceCount =
+      toFiniteNumber(raw.sentence_count ?? raw.sentenceCount) ?? null;
+    let end = toFiniteNumber(raw.end_sentence ?? raw.endSentence ?? raw.end);
+    if (end === null && sentenceCount !== null) {
+      end = start + Math.max(sentenceCount - 1, 0);
+    }
+    const id =
+      (typeof raw.id === 'string' && raw.id.trim()) || `chapter-${index + 1}`;
+    const title =
+      (typeof raw.title === 'string' && raw.title.trim()) ||
+      (typeof raw.toc_label === 'string' && raw.toc_label.trim()) ||
+      `Chapter ${index + 1}`;
+    chapters.push({
+      id,
+      title,
+      startSentence: start,
+      endSentence: end ?? null
+    });
+  });
+  return chapters;
+};
+
+const extractContentIndexTotalSentences = (payload: unknown): number | null => {
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  const direct =
+    toFiniteNumber(record.total_sentences ?? record.totalSentences ?? record.sentence_total ?? record.sentenceTotal);
+  if (direct && direct > 0) {
+    return direct;
+  }
+  const alignment = record.alignment;
+  if (alignment && typeof alignment === 'object') {
+    const alignmentRecord = alignment as Record<string, unknown>;
+    const aligned =
+      toFiniteNumber(alignmentRecord.sentence_total ?? alignmentRecord.sentenceTotal ?? alignmentRecord.total_sentences);
+    if (aligned && aligned > 0) {
+      return aligned;
+    }
+  }
+  return null;
+};
 export type BookNarrationFormSection =
   | 'source'
   | 'metadata'
@@ -153,6 +233,7 @@ type FormState = {
   image_style_template: string;
   image_prompt_batching_enabled: boolean;
   image_prompt_batch_size: number;
+  image_prompt_plan_batch_size: number;
   image_prompt_context_sentences: number;
   image_seed_with_previous_image: boolean;
   image_blank_detection_enabled: boolean;
@@ -216,6 +297,7 @@ const DEFAULT_FORM_STATE: FormState = {
   image_style_template: 'comics',
   image_prompt_batching_enabled: true,
   image_prompt_batch_size: 10,
+  image_prompt_plan_batch_size: 50,
   image_prompt_context_sentences: 2,
   image_seed_with_previous_image: false,
   image_blank_detection_enabled: false,
@@ -566,6 +648,11 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
     next.image_prompt_batch_size = Math.min(50, Math.max(1, Math.trunc(imagePromptBatchSize)));
   }
 
+  const imagePromptPlanBatchSize = coerceNumber(config['image_prompt_plan_batch_size']);
+  if (imagePromptPlanBatchSize !== undefined) {
+    next.image_prompt_plan_batch_size = Math.min(50, Math.max(1, Math.trunc(imagePromptPlanBatchSize)));
+  }
+
   const imagePromptContext = coerceNumber(config['image_prompt_context_sentences']);
   if (imagePromptContext !== undefined) {
     next.image_prompt_context_sentences = Math.min(50, Math.max(0, Math.trunc(imagePromptContext)));
@@ -739,6 +826,18 @@ function formatList(items: string[]): string {
   return `${initial}, and ${items[items.length - 1]}`;
 }
 
+const ESTIMATED_AUDIO_SECONDS_PER_SENTENCE = 4.0;
+
+function formatDuration(seconds: number): string {
+  const total = Math.max(0, Math.trunc(seconds));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const remainingSeconds = total % 60;
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
+
 function deriveBaseOutputName(inputPath: string): string {
   if (!inputPath) {
     return '';
@@ -887,6 +986,15 @@ export function BookNarrationForm({
   const [metadataError, setMetadataError] = useState<string | null>(null);
   const metadataLookupIdRef = useRef<number>(0);
   const metadataAutoLookupRef = useRef<string | null>(null);
+  const [chapterOptions, setChapterOptions] = useState<BookNarrationChapterOption[]>([]);
+  const [contentIndexTotalSentences, setContentIndexTotalSentences] = useState<number | null>(null);
+  const [chaptersLoading, setChaptersLoading] = useState<boolean>(false);
+  const [chaptersError, setChaptersError] = useState<string | null>(null);
+  const [chapterSelectionMode, setChapterSelectionMode] = useState<'range' | 'chapters'>('range');
+  const [chapterRangeSelection, setChapterRangeSelection] = useState<{ startIndex: number; endIndex: number } | null>(
+    null
+  );
+  const chapterLookupIdRef = useRef<number>(0);
 
   const sectionMeta = useMemo(() => {
     const base: Record<BookNarrationFormSection, { title: string; description: string }> = {
@@ -916,6 +1024,145 @@ export function BookNarrationForm({
     const withoutTrail = trimmed.replace(/[\\/]+$/, '');
     return withoutTrail.toLowerCase();
   }, []);
+  const chapterIndexLookup = useMemo(() => {
+    const map = new Map<string, number>();
+    chapterOptions.forEach((chapter, index) => {
+      map.set(chapter.id, index);
+    });
+    return map;
+  }, [chapterOptions]);
+  const selectedChapterIds = useMemo(() => {
+    if (!chapterRangeSelection) {
+      return [];
+    }
+    const { startIndex, endIndex } = chapterRangeSelection;
+    if (startIndex < 0 || endIndex < startIndex || startIndex >= chapterOptions.length) {
+      return [];
+    }
+    return chapterOptions.slice(startIndex, endIndex + 1).map((chapter) => chapter.id);
+  }, [chapterOptions, chapterRangeSelection]);
+  const chapterSelection = useMemo(() => {
+    if (!chapterRangeSelection) {
+      return null;
+    }
+    const { startIndex, endIndex } = chapterRangeSelection;
+    const startChapter = chapterOptions[startIndex];
+    const endChapter = chapterOptions[endIndex];
+    if (!startChapter || !endChapter) {
+      return null;
+    }
+    const startSentence = startChapter.startSentence;
+    const endSentence =
+      typeof endChapter.endSentence === 'number' ? endChapter.endSentence : endChapter.startSentence;
+    return {
+      startIndex,
+      endIndex,
+      startSentence,
+      endSentence,
+      count: Math.max(1, endIndex - startIndex + 1)
+    };
+  }, [chapterOptions, chapterRangeSelection]);
+  const chapterSelectionSummary = useMemo(() => {
+    if (chapterSelectionMode !== 'chapters') {
+      return '';
+    }
+    if (chaptersLoading || chaptersError || chapterOptions.length === 0) {
+      return '';
+    }
+    if (!chapterSelection) {
+      return 'Select consecutive chapters to set the processing window.';
+    }
+    const startLabel = chapterOptions[chapterSelection.startIndex]?.title ?? 'Chapter';
+    const endLabel = chapterOptions[chapterSelection.endIndex]?.title ?? 'Chapter';
+    const chapterLabel =
+      chapterSelection.count === 1 ? startLabel : `${startLabel} – ${endLabel}`;
+    return `${chapterLabel} • sentences ${chapterSelection.startSentence}-${chapterSelection.endSentence}`;
+  }, [
+    chapterOptions,
+    chapterSelection,
+    chapterSelectionMode,
+    chaptersError,
+    chaptersLoading
+  ]);
+  const totalSentencesFromIndex = useMemo(() => {
+    if (contentIndexTotalSentences && contentIndexTotalSentences > 0) {
+      return contentIndexTotalSentences;
+    }
+    if (chapterOptions.length === 0) {
+      return null;
+    }
+    let maxSentence = 0;
+    chapterOptions.forEach((chapter) => {
+      const end =
+        typeof chapter.endSentence === 'number' ? chapter.endSentence : chapter.startSentence;
+      if (end > maxSentence) {
+        maxSentence = end;
+      }
+    });
+    return maxSentence > 0 ? maxSentence : null;
+  }, [chapterOptions, contentIndexTotalSentences]);
+  const estimatedSentenceRange = useMemo(() => {
+    if (chapterSelectionMode === 'chapters') {
+      if (!chapterSelection) {
+        return null;
+      }
+      return {
+        start: chapterSelection.startSentence,
+        end: chapterSelection.endSentence
+      };
+    }
+    const start = Math.max(1, Math.trunc(Number(formState.start_sentence)));
+    if (!Number.isFinite(start)) {
+      return null;
+    }
+    let end: number | null = null;
+    try {
+      end = parseEndSentenceInput(
+        formState.end_sentence,
+        start,
+        implicitEndOffsetThreshold
+      );
+    } catch {
+      end = null;
+    }
+    if (end === null) {
+      end = totalSentencesFromIndex;
+    }
+    if (end === null || !Number.isFinite(end)) {
+      return null;
+    }
+    if (end < start) {
+      return null;
+    }
+    return { start, end };
+  }, [
+    chapterSelection,
+    chapterSelectionMode,
+    formState.end_sentence,
+    formState.start_sentence,
+    implicitEndOffsetThreshold,
+    totalSentencesFromIndex
+  ]);
+  const estimatedSentenceCount = useMemo(() => {
+    if (!estimatedSentenceRange) {
+      return null;
+    }
+    const count = Math.max(0, estimatedSentenceRange.end - estimatedSentenceRange.start + 1);
+    return count > 0 ? count : null;
+  }, [estimatedSentenceRange]);
+  const estimatedAudioDurationLabel = useMemo(() => {
+    if (!estimatedSentenceCount) {
+      return null;
+    }
+    const estimatedSeconds = estimatedSentenceCount * ESTIMATED_AUDIO_SECONDS_PER_SENTENCE;
+    if (!Number.isFinite(estimatedSeconds) || estimatedSeconds <= 0) {
+      return null;
+    }
+    const sentenceLabel = estimatedSentenceCount === 1 ? 'sentence' : 'sentences';
+    return `Estimated audio duration: ~${formatDuration(estimatedSeconds)} (${estimatedSentenceCount} ${sentenceLabel}, ${ESTIMATED_AUDIO_SECONDS_PER_SENTENCE.toFixed(
+      1
+    )}s/sentence)`;
+  }, [estimatedSentenceCount]);
   const markUserEditedField = useCallback((key: keyof FormState) => {
     userEditedFieldsRef.current.add(key);
   }, []);
@@ -945,6 +1192,57 @@ export function BookNarrationForm({
     }
     return normalizePath(formState.input_file);
   }, [formState.input_file, isGeneratedSource, normalizePath]);
+  const chaptersDisabled = isGeneratedSource || !formState.input_file.trim();
+
+  useEffect(() => {
+    setChapterRangeSelection(null);
+  }, [normalizedInputForBookMetadataCache]);
+
+  useEffect(() => {
+    const trimmedInput = formState.input_file.trim();
+    if (isGeneratedSource || !trimmedInput) {
+      chapterLookupIdRef.current += 1;
+      setChapterOptions([]);
+      setContentIndexTotalSentences(null);
+      setChaptersLoading(false);
+      setChaptersError(null);
+      return;
+    }
+    const requestId = chapterLookupIdRef.current + 1;
+    chapterLookupIdRef.current = requestId;
+    setChaptersLoading(true);
+    setChaptersError(null);
+    void (async () => {
+      try {
+        const payload = await fetchBookContentIndex(trimmedInput);
+        if (chapterLookupIdRef.current !== requestId) {
+          return;
+        }
+        const chapters = normaliseContentIndexChapters(payload.content_index);
+        const totalSentences = extractContentIndexTotalSentences(payload.content_index);
+        setChapterOptions(chapters);
+        setContentIndexTotalSentences(totalSentences);
+      } catch (error) {
+        if (chapterLookupIdRef.current !== requestId) {
+          return;
+        }
+        const message = error instanceof Error ? error.message : 'Unable to load chapter data.';
+        setChaptersError(message);
+        setChapterOptions([]);
+        setContentIndexTotalSentences(null);
+      } finally {
+        if (chapterLookupIdRef.current === requestId) {
+          setChaptersLoading(false);
+        }
+      }
+    })();
+  }, [formState.input_file, isGeneratedSource]);
+
+  useEffect(() => {
+    if (chaptersDisabled && chapterSelectionMode === 'chapters') {
+      setChapterSelectionMode('range');
+    }
+  }, [chaptersDisabled, chapterSelectionMode]);
 
   const [cachedCoverDataUrl, setCachedCoverDataUrl] = useState<string | null>(null);
   useEffect(() => {
@@ -1773,6 +2071,46 @@ export function BookNarrationForm({
     }
   };
 
+  const handleChapterModeChange = useCallback((mode: 'range' | 'chapters') => {
+    setChapterSelectionMode(mode);
+  }, []);
+
+  const handleChapterToggle = useCallback(
+    (chapterId: string) => {
+      const index = chapterIndexLookup.get(chapterId);
+      if (index === undefined) {
+        return;
+      }
+      setChapterRangeSelection((previous) => {
+        if (!previous) {
+          return { startIndex: index, endIndex: index };
+        }
+        const { startIndex, endIndex } = previous;
+        if (index < startIndex) {
+          return { startIndex: index, endIndex };
+        }
+        if (index > endIndex) {
+          return { startIndex, endIndex: index };
+        }
+        if (startIndex === endIndex && index === startIndex) {
+          return null;
+        }
+        if (index === startIndex) {
+          return { startIndex: startIndex + 1, endIndex };
+        }
+        if (index === endIndex) {
+          return { startIndex, endIndex: endIndex - 1 };
+        }
+        return { startIndex: index, endIndex: index };
+      });
+    },
+    [chapterIndexLookup]
+  );
+
+  const handleChapterClear = useCallback(() => {
+    setChapterRangeSelection(null);
+  }, []);
+
   const updateVoiceOverride = useCallback((languageCode: string, voiceValue: string) => {
     const trimmedCode = languageCode.trim();
     if (!trimmedCode) {
@@ -2283,6 +2621,12 @@ export function BookNarrationForm({
         const normalizedBatchSize = Number.isFinite(rawBatchSize) ? Math.trunc(rawBatchSize) : 10;
         pipelineOverrides.image_prompt_batch_size = Math.min(50, Math.max(1, normalizedBatchSize));
 
+        const rawPromptPlanBatchSize = Number(formState.image_prompt_plan_batch_size);
+        const normalizedPromptPlanBatchSize = Number.isFinite(rawPromptPlanBatchSize)
+          ? Math.trunc(rawPromptPlanBatchSize)
+          : 50;
+        pipelineOverrides.image_prompt_plan_batch_size = Math.min(50, Math.max(1, normalizedPromptPlanBatchSize));
+
         const rawContext = Number(formState.image_prompt_context_sentences);
         const normalizedContext = Number.isFinite(rawContext) ? Math.trunc(rawContext) : 0;
         pipelineOverrides.image_prompt_context_sentences = Math.min(50, Math.max(0, normalizedContext));
@@ -2354,14 +2698,23 @@ export function BookNarrationForm({
         pipelineOverrides.ollama_model = selectedModel;
       }
 
+      const chapterRange =
+        chapterSelectionMode === 'chapters' ? chapterSelection : null;
+      if (!isGeneratedSource && chapterSelectionMode === 'chapters' && !chapterRange) {
+        throw new Error('Select at least one chapter.');
+      }
       const normalizedStartSentence = isGeneratedSource
         ? 1
+        : chapterRange
+        ? chapterRange.startSentence
         : Math.max(1, Math.trunc(Number(formState.start_sentence)));
       if (!Number.isFinite(normalizedStartSentence)) {
         throw new Error('Start sentence must be a valid number.');
       }
       const normalizedEndSentence = isGeneratedSource
         ? null
+        : chapterRange
+        ? chapterRange.endSentence
         : parseEndSentenceInput(
             formState.end_sentence,
             normalizedStartSentence,
@@ -2425,6 +2778,9 @@ export function BookNarrationForm({
   if (normalizedTargetLanguages.length === 0) {
     missingRequirements.push('at least one target language');
   }
+  if (!isGeneratedSource && chapterSelectionMode === 'chapters' && !chapterSelection) {
+    missingRequirements.push('a chapter selection');
+  }
   const targetLanguageSummary =
     normalizedTargetLanguages.length > 0
       ? normalizedTargetLanguages.map((language) => formatLanguageWithFlag(language) || language).join(', ')
@@ -2448,6 +2804,14 @@ export function BookNarrationForm({
       .join(', ') || 'Default';
   const missingRequirementText = formatList(missingRequirements);
   const canBrowseFiles = Boolean(fileOptions);
+  const displayStartSentence =
+    chapterSelectionMode === 'chapters' && chapterSelection
+      ? chapterSelection.startSentence
+      : formState.start_sentence;
+  const displayEndSentence =
+    chapterSelectionMode === 'chapters' && chapterSelection
+      ? String(chapterSelection.endSentence)
+      : formState.end_sentence;
 
   const renderSection = (section: BookNarrationFormSection) => {
     switch (section) {
@@ -2524,10 +2888,21 @@ export function BookNarrationForm({
             llmModelsLoading={isLoadingLlmModels}
             llmModelsError={llmModelError}
             sentencesPerOutputFile={formState.sentences_per_output_file}
-            startSentence={formState.start_sentence}
-            endSentence={formState.end_sentence}
+            startSentence={displayStartSentence}
+            endSentence={displayEndSentence}
             stitchFull={formState.stitch_full}
             disableProcessingWindow={isGeneratedSource}
+            processingMode={chapterSelectionMode}
+            chapterOptions={chapterOptions}
+            selectedChapterIds={selectedChapterIds}
+            chapterSummary={chapterSelectionSummary || undefined}
+            chaptersLoading={chaptersLoading}
+            chaptersError={chaptersError}
+            chaptersDisabled={chaptersDisabled}
+            estimatedAudioDurationLabel={estimatedAudioDurationLabel}
+            onProcessingModeChange={handleChapterModeChange}
+            onChapterToggle={handleChapterToggle}
+            onChapterClear={handleChapterClear}
             onInputLanguageChange={(value) => handleChange('input_language', value)}
             onTargetLanguagesChange={(value) => handleChange('target_languages', value)}
             onCustomTargetLanguagesChange={(value) => handleChange('custom_target_languages', value)}
@@ -2592,6 +2967,7 @@ export function BookNarrationForm({
             imageStyleTemplate={formState.image_style_template}
             imagePromptBatchingEnabled={formState.image_prompt_batching_enabled}
             imagePromptBatchSize={formState.image_prompt_batch_size}
+            imagePromptPlanBatchSize={formState.image_prompt_plan_batch_size}
             imagePromptContextSentences={formState.image_prompt_context_sentences}
             imageSeedWithPreviousImage={formState.image_seed_with_previous_image}
             imageBlankDetectionEnabled={formState.image_blank_detection_enabled}
@@ -2607,6 +2983,7 @@ export function BookNarrationForm({
             onImageStyleTemplateChange={(value) => handleChange('image_style_template', value)}
             onImagePromptBatchingEnabledChange={(value) => handleChange('image_prompt_batching_enabled', value)}
             onImagePromptBatchSizeChange={(value) => handleChange('image_prompt_batch_size', value)}
+            onImagePromptPlanBatchSizeChange={(value) => handleChange('image_prompt_plan_batch_size', value)}
             onImagePromptContextSentencesChange={(value) =>
               handleChange('image_prompt_context_sentences', value)
             }

@@ -15,6 +15,7 @@ type BookNarrationImageSectionProps = {
   imageStyleTemplate: string;
   imagePromptBatchingEnabled: boolean;
   imagePromptBatchSize: number;
+  imagePromptPlanBatchSize: number;
   imagePromptContextSentences: number;
   imageSeedWithPreviousImage: boolean;
   imageBlankDetectionEnabled: boolean;
@@ -30,6 +31,7 @@ type BookNarrationImageSectionProps = {
   onImageStyleTemplateChange: (value: string) => void;
   onImagePromptBatchingEnabledChange: (value: boolean) => void;
   onImagePromptBatchSizeChange: (value: number) => void;
+  onImagePromptPlanBatchSizeChange: (value: number) => void;
   onImagePromptContextSentencesChange: (value: number) => void;
   onImageSeedWithPreviousImageChange: (value: boolean) => void;
   onImageBlankDetectionEnabledChange: (value: boolean) => void;
@@ -163,6 +165,7 @@ const BookNarrationImageSection = ({
   imageStyleTemplate,
   imagePromptBatchingEnabled,
   imagePromptBatchSize,
+  imagePromptPlanBatchSize,
   imagePromptContextSentences,
   imageSeedWithPreviousImage,
   imageBlankDetectionEnabled,
@@ -178,6 +181,7 @@ const BookNarrationImageSection = ({
   onImageStyleTemplateChange,
   onImagePromptBatchingEnabledChange,
   onImagePromptBatchSizeChange,
+  onImagePromptPlanBatchSizeChange,
   onImagePromptContextSentencesChange,
   onImageSeedWithPreviousImageChange,
   onImageBlankDetectionEnabledChange,
@@ -377,12 +381,12 @@ const BookNarrationImageSection = ({
                 checked={imagePromptBatchingEnabled}
                 onChange={(event) => onImagePromptBatchingEnabledChange(event.target.checked)}
               />
-              Group sentences into image batches
+              Group sentences into shared images
             </label>
             {imagePromptBatchingEnabled ? (
               <>
                 <label htmlFor={`${headingId}-image-prompt-batch-size`}>
-                  Sentences per image
+                  Sentences per image (shared image)
                   <input
                     id={`${headingId}-image-prompt-batch-size`}
                     name="image_prompt_batch_size"
@@ -395,12 +399,29 @@ const BookNarrationImageSection = ({
                   />
                 </label>
                 <p className="form-help-text">
-                  Generates one prompt + image per batch and reuses it across the batch in the player (faster, fewer images).
+                  Generates one image per group and reuses it across that sentence range in the player (faster, fewer images).
                 </p>
               </>
             ) : (
               <p className="form-help-text">Generates one prompt + image per sentence (more images, slower).</p>
             )}
+            <label htmlFor={`${headingId}-image-prompt-plan-batch-size`}>
+              LLM prompt batch size (sentences per request)
+              <input
+                id={`${headingId}-image-prompt-plan-batch-size`}
+                name="image_prompt_plan_batch_size"
+                type="number"
+                step={1}
+                min={1}
+                max={50}
+                value={imagePromptPlanBatchSize}
+                onChange={(event) => onImagePromptPlanBatchSizeChange(Number(event.target.value))}
+              />
+            </label>
+            <p className="form-help-text">
+              Controls how many prompt targets the LLM handles per request. Smaller batches start image rendering sooner
+              but increase LLM calls.
+            </p>
             <label htmlFor={`${headingId}-image-prompt-context`}>
               Image prompt context (surrounding sentences)
               <input

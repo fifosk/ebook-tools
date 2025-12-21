@@ -1883,6 +1883,114 @@ section {
   gap: var(--space-xs);
 }
 
+.pipeline-chapter-window {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-sm);
+  background: var(--color-card-alt);
+}
+
+.pipeline-chapter-window__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-xs);
+}
+
+.pipeline-chapter-window__label {
+  font-weight: 600;
+  color: var(--color-text-heading);
+}
+
+.pipeline-chapter-window__toggle {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.pipeline-chapter-window__toggle-button {
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-card-bg);
+  color: var(--color-text-muted);
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.pipeline-chapter-window__toggle-button.is-active {
+  border-color: var(--color-accent);
+  color: var(--color-text-primary);
+  background: var(--color-card);
+  box-shadow: 0 0 0 1px var(--color-accent);
+}
+
+.pipeline-chapter-window__toggle-button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.pipeline-chapter-window__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.pipeline-chapter-window__list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.pipeline-chapter-window__option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.pipeline-chapter-window__option.is-selected {
+  border-color: var(--color-border-strong);
+  background: rgba(14, 165, 233, 0.12);
+}
+
+.pipeline-chapter-window__option input {
+  margin: 0;
+}
+
+.pipeline-chapter-window__title {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.pipeline-chapter-window__range {
+  margin-left: auto;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+.pipeline-chapter-window__clear {
+  align-self: flex-start;
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-card-bg);
+  color: var(--color-text-primary);
+  padding: 0.3rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
 .file-dropzone {
   position: relative;
   border: 2px dashed var(--color-dropzone-border);
@@ -2439,6 +2547,44 @@ button.link-button:focus {
 
 .player-panel__navigation-search .searchPanel {
   width: 100%;
+}
+
+.player-panel__chapter-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-modal-border);
+  background: var(--color-surface-muted);
+  flex: 0 0 auto;
+}
+
+.player-panel__chapter-jump-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.player-panel__chapter-jump-select {
+  height: 1.4rem;
+  min-width: 6rem;
+  max-width: min(10rem, 100%);
+  padding: 0 0.35rem;
+  border-radius: 0.55rem;
+  border: 1px solid var(--color-border-input);
+  background: var(--color-input-bg);
+  color: var(--color-text-primary);
+  font-weight: 650;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.player-panel__chapter-jump-select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border-accent);
+  border-color: var(--color-border-accent);
 }
 
 .player-panel__sentence-jump {
@@ -4754,10 +4900,20 @@ button.link-button:focus {
   max-width: 16rem;
 }
 
-.player-panel__interactive-slide-indicator {
+.player-panel__interactive-slide-stack {
   position: absolute;
   top: 0.4rem;
   right: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  z-index: 1;
+  pointer-events: none;
+  max-width: min(42rem, calc(100vw - 1.5rem));
+}
+
+.player-panel__interactive-slide-indicator {
   padding: 0.2rem 0.55rem;
   border-radius: 999px;
   background: var(--color-surface-muted);
@@ -4766,12 +4922,16 @@ button.link-button:focus {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.01em;
-  z-index: 1;
-  pointer-events: none;
-  max-width: min(42rem, calc(100vw - 1.5rem));
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.player-panel__interactive-slide-indicator--audio {
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(15, 23, 42, 0.5);
 }
 
 .player-panel__interactive-paragraph {

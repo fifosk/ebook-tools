@@ -15,6 +15,8 @@ from PIL import Image, ImageOps
 from modules.library import LibraryNotFoundError, LibrarySync
 
 from ... import config_manager as cfg
+from ...core import ingestion
+from ...core.config import build_pipeline_config
 from ..dependencies import (
     RequestUserContext,
     RuntimeContextProvider,
@@ -25,6 +27,7 @@ from ..dependencies import (
     get_runtime_context_provider,
 )
 from ..schemas import (
+    BookContentIndexResponse,
     PipelineFileBrowserResponse,
     PipelineFileDeleteRequest,
     PipelineFileEntry,
@@ -38,6 +41,42 @@ router = APIRouter()
 _COVER_TARGET_SIZE = (600, 900)
 _COVER_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
 _COVER_ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+@router.get("/files/content-index", response_model=BookContentIndexResponse)
+async def get_book_content_index(
+    input_file: str,
+    context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+):
+    """Return chapter metadata for a selected EPUB file."""
+
+    trimmed = (input_file or "").strip()
+    if not trimmed:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="input_file is required")
+
+    resolved_config = context_provider.resolve_config({})
+    with context_provider.activation({}, {}) as context:
+        resolved_input = cfg.resolve_file_path(trimmed, context.books_dir)
+        if not resolved_input or not resolved_input.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="EPUB file not found")
+
+        pipeline_config = build_pipeline_config(context, resolved_config, overrides={})
+        refined_sentences, _ = ingestion.get_refined_sentences(
+            str(resolved_input),
+            pipeline_config,
+            force_refresh=False,
+            metadata={
+                "mode": "api",
+                "max_words": pipeline_config.max_words,
+            },
+        )
+        content_index = ingestion.build_content_index(
+            str(resolved_input),
+            pipeline_config,
+            refined_sentences,
+        )
+
+    return BookContentIndexResponse(input_file=trimmed, content_index=content_index)
 
 
 def _format_relative_path(path: Path, root: Path) -> str:

@@ -168,6 +168,7 @@ class PipelineConfig:
     image_style_template: str = "photorealistic"
     image_prompt_batching_enabled: bool = True
     image_prompt_batch_size: int = 10
+    image_prompt_plan_batch_size: int = 50
     image_prompt_context_sentences: int = 2
     image_seed_with_previous_image: bool = False
     image_blank_detection_enabled: bool = False
@@ -522,6 +523,14 @@ def build_pipeline_config(
         ),
     )
     image_prompt_batch_size = min(image_prompt_batch_size, 50)
+    image_prompt_plan_batch_size = max(
+        1,
+        _coerce_int(
+            _select_value("image_prompt_plan_batch_size", config, overrides, 50),
+            50,
+        ),
+    )
+    image_prompt_plan_batch_size = min(image_prompt_plan_batch_size, 50)
     image_prompt_context_sentences = max(
         0,
         _coerce_int(
@@ -709,6 +718,7 @@ def build_pipeline_config(
         image_style_template=image_style_template,
         image_prompt_batching_enabled=image_prompt_batching_enabled,
         image_prompt_batch_size=image_prompt_batch_size,
+        image_prompt_plan_batch_size=image_prompt_plan_batch_size,
         image_prompt_context_sentences=image_prompt_context_sentences,
         image_seed_with_previous_image=image_seed_with_previous_image,
         image_blank_detection_enabled=image_blank_detection_enabled,

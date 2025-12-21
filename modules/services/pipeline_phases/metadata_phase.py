@@ -83,6 +83,13 @@ def run_ingestion(
             "max_words": config_result.pipeline_config.max_words,
         },
     )
+    content_index = ingestion.build_content_index(
+        request.inputs.input_file,
+        config_result.pipeline_config,
+        refined_list,
+    )
+    if content_index and not metadata.get("content_index"):
+        metadata.update({"content_index": content_index})
     total_fully = len(refined_list)
     if tracker is not None:
         tracker.publish_progress(

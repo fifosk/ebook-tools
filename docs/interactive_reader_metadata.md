@@ -8,6 +8,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 - **Sentence images.** When a job enables `add_images`, sentence metadata may include `image` payloads (plus `image_path` / `imagePath`) pointing at PNG files stored under `media/images/<range_fragment>/sentence_XXXXX.png`. The Interactive Reader consumes these fields to render an image reel during playback (`modules/core/rendering/pipeline.py`, `web/src/components/InteractiveTextViewer.tsx:4364-4860`).
 - **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with `translation` and `original` tracks (legacy `mix` only for older jobs) plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
 - **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, sentence timelines, char-weight flags) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
+- **Content index.** `metadata/content_index.json` stores chapter ranges (title + sentence boundaries + alignment status) derived from EPUB sections. Jobs expose pointers through `book_metadata.content_index_path` / `content_index_url` so UIs or LLM tools can load chapter-level blocks.
 
 ## 2. Loading & Selection Logic
 
@@ -65,6 +66,7 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   that the frontend hydrates. Client code should always route through
   `MetadataLoader.for_job(job_id)` so the new chunked format and legacy single
   file stay interchangeable.
+- **Content index.** `modules/core/ingestion.py:build_content_index` derives chapter ranges from the EPUB and `PipelineJobPersistence` writes them to `metadata/content_index.json` with the URL pointers stored in `book_metadata`.
 - **Highlight controls.** `EBOOK_HIGHLIGHT_POLICY`,
   `char_weighted_highlighting_default`,
   `char_weighted_punctuation_boost`, and the forced-alignment toggles determine

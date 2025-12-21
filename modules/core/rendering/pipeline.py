@@ -52,6 +52,7 @@ from modules.images.drawthings import (
 )
 from modules.images.prompting import (
     DiffusionPrompt,
+    DiffusionPromptPlan,
     build_sentence_image_negative_prompt,
     build_sentence_image_prompt,
     sentence_to_diffusion_prompt,
@@ -1164,6 +1165,11 @@ class RenderPipeline:
         image_prompt_batch_size = min(image_prompt_batch_size, 50)
         if not image_prompt_batching_enabled:
             image_prompt_batch_size = 1
+        image_prompt_plan_batch_size = max(
+            1,
+            int(getattr(self._config, "image_prompt_plan_batch_size", 50) or 50),
+        )
+        image_prompt_plan_batch_size = min(image_prompt_plan_batch_size, 50)
         image_prompt_batches: list[list[str]] = []
         image_prompt_batch_starts: list[int] = []
         if image_prompt_batch_size > 1 and final_sentence_number >= start_sentence:
@@ -1223,6 +1229,7 @@ class RenderPipeline:
         prompt_plan_future: Optional[concurrent.futures.Future] = None
         prompt_plan_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
         pending_image_keys: set[int] = set()
+        prompt_plan_ready_queue: queue.Queue[list[int]] = queue.Queue()
         translation_thread = None
 
         if image_executor is not None and image_client is not None and generate_images:
@@ -1261,6 +1268,46 @@ class RenderPipeline:
                 nonlocal baseline_seed_image_path
                 nonlocal baseline_seed_relative_path
                 nonlocal baseline_seed_error
+                nonlocal prompt_plan_ready_queue
+
+                def _queue_prompt_keys(keys: list[int]) -> None:
+                    if keys:
+                        prompt_plan_ready_queue.put(keys)
+
+                def _handle_prompt_chunk(
+                    start_idx: int, end_idx: int, plan: DiffusionPromptPlan
+                ) -> None:
+                    nonlocal image_prompt_baseline
+                    nonlocal image_prompt_baseline_notes
+                    nonlocal image_prompt_baseline_source
+                    if end_idx <= start_idx:
+                        return
+                    chunk_len = len(plan.prompts)
+                    if chunk_len <= 0:
+                        return
+                    keys: list[int] = []
+                    for offset in range(chunk_len):
+                        global_index = start_idx + offset
+                        if image_prompt_batch_size > 1:
+                            if global_index >= len(image_prompt_batch_starts):
+                                continue
+                            key = int(image_prompt_batch_starts[global_index])
+                        else:
+                            key = int(start_sentence + global_index)
+                        keys.append(key)
+                    if not keys:
+                        return
+                    with prompt_plan_lock:
+                        for offset, key in enumerate(keys):
+                            image_prompt_plan[key] = plan.prompts[offset]
+                            if offset < len(plan.sources):
+                                image_prompt_sources[key] = str(plan.sources[offset])
+                            else:
+                                image_prompt_sources[key] = "fallback"
+                        image_prompt_baseline = plan.baseline_prompt
+                        image_prompt_baseline_notes = plan.baseline_notes
+                        image_prompt_baseline_source = plan.baseline_source
+                    _queue_prompt_keys(keys)
 
                 prompt_plan_error: Optional[str] = None
                 planned: list[DiffusionPrompt] = []
@@ -1276,6 +1323,8 @@ class RenderPipeline:
                             image_prompt_batches,
                             context_prefix=context_prefix,
                             context_suffix=context_suffix,
+                            chunk_size=image_prompt_plan_batch_size,
+                            on_chunk=_handle_prompt_chunk,
                         )
                         expected = len(image_prompt_batch_starts)
                     else:
@@ -1283,6 +1332,8 @@ class RenderPipeline:
                             target_sentences,
                             context_prefix=context_prefix,
                             context_suffix=context_suffix,
+                            chunk_size=image_prompt_plan_batch_size,
+                            on_chunk=_handle_prompt_chunk,
                         )
                         expected = len(target_sentences)
                     planned = planned_plan.prompts
@@ -1302,6 +1353,9 @@ class RenderPipeline:
                         quality.setdefault("total_batches", expected)
                         quality.setdefault("total_sentences", len(target_sentences))
                         quality.setdefault("prompt_batch_size", image_prompt_batch_size)
+                    if image_prompt_plan_batch_size:
+                        quality = dict(quality)
+                        quality.setdefault("prompt_plan_batch_size", image_prompt_plan_batch_size)
                 except Exception as exc:
                     prompt_plan_error = str(exc)
                     baseline_prompt = DiffusionPrompt(prompt=str(target_sentences[0]).strip() if target_sentences else "")
@@ -1345,6 +1399,8 @@ class RenderPipeline:
                     if image_prompt_batch_size > 1:
                         quality["total_batches"] = len(planned)
                         quality["prompt_batch_size"] = image_prompt_batch_size
+                    if image_prompt_plan_batch_size:
+                        quality["prompt_plan_batch_size"] = image_prompt_plan_batch_size
                     if self._progress is not None:
                         self._progress.record_retry("image", "prompt_plan_error")
                     logger.warning(
@@ -1549,6 +1605,7 @@ class RenderPipeline:
                             "context_window": context_window,
                             "prompt_batching_enabled": bool(image_prompt_batch_size > 1),
                             "prompt_batch_size": int(image_prompt_batch_size),
+                            "prompt_plan_batch_size": int(image_prompt_plan_batch_size),
                             "style_prompt": build_sentence_image_prompt(
                                 "",
                                 style_template=image_style_template,
@@ -1586,6 +1643,8 @@ class RenderPipeline:
                             "start_sentence": payload.get("start_sentence"),
                             "end_sentence": payload.get("end_sentence"),
                             "context_window": payload.get("context_window"),
+                            "prompt_batch_size": payload.get("prompt_batch_size"),
+                            "prompt_plan_batch_size": payload.get("prompt_plan_batch_size"),
                             "status": payload.get("status"),
                             "quality": payload.get("quality") or {},
                             "baseline": {
@@ -1639,7 +1698,6 @@ class RenderPipeline:
         previous_image_future: Optional[concurrent.futures.Future] = None
         previous_image_key_sentence_number: Optional[int] = None
         scheduled_image_keys: set[int] = set()
-        batch_images_prequeued = False
 
         def _submit_sentence_image(
             *,
@@ -1991,20 +2049,34 @@ class RenderPipeline:
             previous_image_future = future
             previous_image_key_sentence_number = image_key_sentence_number
 
+        def _drain_prompt_plan_queue() -> None:
+            while True:
+                try:
+                    keys = prompt_plan_ready_queue.get_nowait()
+                except queue.Empty:
+                    break
+                for key in keys:
+                    pending_image_keys.add(int(key))
+
+        def _pop_ready_image_keys() -> list[int]:
+            if not pending_image_keys:
+                return []
+            with prompt_plan_lock:
+                ready = [key for key in pending_image_keys if key in image_prompt_plan]
+            if not ready:
+                return []
+            for key in ready:
+                pending_image_keys.discard(key)
+            return ready
+
+        def _prompt_plan_has_key(sentence_number: int) -> bool:
+            with prompt_plan_lock:
+                return sentence_number in image_prompt_plan
+
         cancelled = False
         try:
             while state.processed < total_refined:
-                if (
-                    image_prompt_batch_size > 1
-                    and not batch_images_prequeued
-                    and prompt_plan_ready.is_set()
-                    and image_executor is not None
-                    and image_state is not None
-                    and image_client is not None
-                    and not pipeline_stop_event.is_set()
-                ):
-                    pending_image_keys.update(image_prompt_batch_starts)
-                    batch_images_prequeued = True
+                _drain_prompt_plan_queue()
                 if image_futures:
                     done = [future for future in list(image_futures) if future.done()]
                     for future in done:
@@ -2046,14 +2118,9 @@ class RenderPipeline:
                                     audio_tracks=snapshot.get("audio_tracks") or None,
                                     timing_tracks=snapshot.get("timing_tracks") or None,
                                 )
-                if (
-                    prompt_plan_ready.is_set()
-                    and pending_image_keys
-                    and not pipeline_stop_event.is_set()
-                ):
-                    pending_numbers = sorted(pending_image_keys)
-                    pending_image_keys.clear()
-                    for sentence_number in pending_numbers:
+                if pending_image_keys and not pipeline_stop_event.is_set():
+                    ready_numbers = sorted(_pop_ready_image_keys())
+                    for sentence_number in ready_numbers:
                         offset_start = sentence_number - start_sentence
                         if offset_start < 0 or offset_start >= len(target_sentences):
                             continue
@@ -2270,7 +2337,7 @@ class RenderPipeline:
                                 fallback_prompt_text = "Batch narrative:\n" + "\n".join(
                                     f"- {entry}" for entry in batch_items
                                 )
-                        if not prompt_plan_ready.is_set():
+                        if not _prompt_plan_has_key(image_key_sentence_number):
                             pending_image_keys.add(image_key_sentence_number)
                         else:
                             _submit_sentence_image(
@@ -2343,9 +2410,12 @@ class RenderPipeline:
                         prompt_plan_future.result()
                     except Exception:
                         pass
-                pending_numbers = sorted(pending_image_keys)
-                pending_image_keys.clear()
-                for sentence_number in pending_numbers:
+                _drain_prompt_plan_queue()
+                ready_numbers = sorted(_pop_ready_image_keys())
+                if prompt_plan_ready.is_set() and pending_image_keys:
+                    ready_numbers.extend(sorted(pending_image_keys))
+                    pending_image_keys.clear()
+                for sentence_number in ready_numbers:
                     offset_start = sentence_number - start_sentence
                     if offset_start < 0 or offset_start >= len(target_sentences):
                         continue

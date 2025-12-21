@@ -21,7 +21,8 @@ Sentence images are controlled by pipeline config values (and can be overridden 
 - `image_concurrency`: Number of parallel image workers (default: 4).
 - `image_width`, `image_height`: Output resolution (defaults: 512×512).
 - `image_prompt_batching_enabled`: Enables prompt/image batching (default: `true`).
-- `image_prompt_batch_size`: Number of sentences per batch (default: `10`, max: `50`).
+- `image_prompt_batch_size`: Number of sentences per image (default: `10`, max: `50`).
+- `image_prompt_plan_batch_size`: LLM prompt-plan chunk size (default: `50`, max: `50`).
 - `image_style_template`: Visual template used when appending the shared style suffix to scene prompts.
   - Supported: `photorealistic` (default), `comics`, `children_book`, `wireframe`.
   - The selected template also supplies default `image_steps` / `image_cfg_scale` values when not explicitly overridden.
@@ -65,7 +66,7 @@ When clustered rendering is enabled, `generated_files.image_cluster` includes pe
 
 Image prompts are built in two phases:
 
-1. **Prompt plan (LLM):** `modules/images/prompting.py:sentences_to_diffusion_prompt_plan` generates a *consistent* set of scene descriptions for the selected job sentence window. When batching is enabled, the pipeline uses `sentence_batches_to_diffusion_prompt_plan` so each batch gets a single scene prompt that represents the batch narrative. Each entry is **scene only** (no style keywords).
+1. **Prompt plan (LLM):** `modules/images/prompting.py:sentences_to_diffusion_prompt_plan` generates a *consistent* set of scene descriptions for the selected job sentence window. When batching is enabled, the pipeline uses `sentence_batches_to_diffusion_prompt_plan` so each batch gets a single scene prompt that represents the batch narrative. Each entry is **scene only** (no style keywords). Prompt-plan requests are chunked in blocks of up to `image_prompt_plan_batch_size` targets (capped at 50); image generation starts as each chunk completes, so the first prompts can begin rendering before the full plan finishes.
 2. **Style suffix:** `build_sentence_image_prompt(..., style_template=...)` appends the shared style prompt for the selected `image_style_template`. `build_sentence_image_negative_prompt(..., style_template=...)` always adds a negative prompt to suppress blur, artifacts, and accidental text.
 
 For reproducibility, the pipeline derives a stable seed from the sentence text (`stable_diffusion_seed(...)`, MD5-based).

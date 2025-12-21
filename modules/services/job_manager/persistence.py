@@ -305,6 +305,40 @@ class PipelineJobPersistence:
         else:
             book_metadata.pop("job_cover_asset", None)
             book_metadata.pop("job_cover_asset_url", None)
+        raw_content_index = book_metadata.get("content_index")
+        if isinstance(raw_content_index, Mapping):
+            try:
+                content_index_payload = copy.deepcopy(dict(raw_content_index))
+                content_index_path = metadata_root / "content_index.json"
+                content_index_path.write_text(
+                    json.dumps(content_index_payload, indent=2, sort_keys=True),
+                    encoding="utf-8",
+                )
+                relative_path = Path("metadata") / "content_index.json"
+                book_metadata["content_index_path"] = relative_path.as_posix()
+                url_candidate = self._file_locator.resolve_url(
+                    job.job_id, relative_path.as_posix()
+                )
+                if url_candidate:
+                    book_metadata["content_index_url"] = url_candidate
+                chapter_list = content_index_payload.get("chapters")
+                chapter_count = (
+                    len(chapter_list) if isinstance(chapter_list, list) else 0
+                )
+                alignment = None
+                alignment_payload = content_index_payload.get("alignment")
+                if isinstance(alignment_payload, Mapping):
+                    alignment = alignment_payload.get("status")
+                book_metadata["content_index_summary"] = {
+                    "chapter_count": chapter_count,
+                    "alignment": alignment,
+                }
+            except Exception:  # pragma: no cover - defensive logging
+                _LOGGER.debug(
+                    "Unable to persist content index for job %s",
+                    job.job_id,
+                    exc_info=True,
+                )
         result_payload["book_metadata"] = book_metadata
         snapshot.result = result_payload
 

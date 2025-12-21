@@ -6,7 +6,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, Mapping, Optional, Sequence
+from typing import Any, Callable, Mapping, Optional, Sequence
 
 from modules.llm_client_manager import client_scope
 from modules.images.style_templates import IMAGE_STYLE_TEMPLATES, resolve_image_style_template
@@ -749,6 +749,8 @@ def sentences_to_diffusion_prompt_plan(
     context_prefix: Sequence[str] | None = None,
     context_suffix: Sequence[str] | None = None,
     timeout_seconds: int = 240,
+    on_chunk: Callable[[int, int, DiffusionPromptPlan], None] | None = None,
+    chunk_size: Optional[int] = None,
 ) -> DiffusionPromptPlan:
     """Generate a consistent scene-description prompt plan for ``sentences``.
 
@@ -786,8 +788,16 @@ def sentences_to_diffusion_prompt_plan(
         )
 
     total = len(targets)
-    if total <= _PROMPT_MAP_MAX_TARGET_SENTENCES:
-        return _prompt_map_batch(
+    effective_chunk_size = _PROMPT_MAP_MAX_TARGET_SENTENCES
+    if chunk_size is not None:
+        try:
+            effective_chunk_size = int(chunk_size)
+        except (TypeError, ValueError):
+            effective_chunk_size = _PROMPT_MAP_MAX_TARGET_SENTENCES
+    effective_chunk_size = max(1, min(effective_chunk_size, _PROMPT_MAP_MAX_TARGET_SENTENCES))
+
+    if total <= effective_chunk_size:
+        plan = _prompt_map_batch(
             targets,
             context_prefix=context_prefix,
             context_suffix=context_suffix,
@@ -797,8 +807,11 @@ def sentences_to_diffusion_prompt_plan(
             baseline_source=None,
             timeout_seconds=timeout_seconds,
         )
+        if on_chunk is not None:
+            on_chunk(0, total, plan)
+        return plan
 
-    overlap = max(0, min(_PROMPT_MAP_OVERLAP_SENTENCES, total))
+    overlap = max(0, min(_PROMPT_MAP_OVERLAP_SENTENCES, total, max(effective_chunk_size - 1, 0)))
     continuity_bible = ""
     baseline_prompt: DiffusionPrompt | None = None
     baseline_notes = ""
@@ -815,7 +828,7 @@ def sentences_to_diffusion_prompt_plan(
     retry_recovered_unique = 0
     start = 0
     while start < total:
-        end = min(start + _PROMPT_MAP_MAX_TARGET_SENTENCES, total)
+        end = min(start + effective_chunk_size, total)
         before = []
         after = []
         if start == 0 and context_prefix:
@@ -837,6 +850,8 @@ def sentences_to_diffusion_prompt_plan(
             baseline_source=baseline_source,
             timeout_seconds=timeout_seconds,
         )
+        if on_chunk is not None:
+            on_chunk(start, end, plan)
         planned_prompts.extend(plan.prompts)
         planned_sources.extend(plan.sources)
         continuity_bible = plan.continuity_bible
@@ -919,6 +934,8 @@ def sentence_batches_to_diffusion_prompt_plan(
     context_prefix: Sequence[str] | None = None,
     context_suffix: Sequence[str] | None = None,
     timeout_seconds: int = 240,
+    on_chunk: Callable[[int, int, DiffusionPromptPlan], None] | None = None,
+    chunk_size: Optional[int] = None,
 ) -> DiffusionPromptPlan:
     """Generate a diffusion prompt plan for grouped sentences.
 
@@ -939,6 +956,8 @@ def sentence_batches_to_diffusion_prompt_plan(
         context_prefix=context_prefix,
         context_suffix=context_suffix,
         timeout_seconds=timeout_seconds,
+        on_chunk=on_chunk,
+        chunk_size=chunk_size,
     )
 
 
@@ -948,6 +967,7 @@ def sentences_to_diffusion_prompt_map(
     context_prefix: Sequence[str] | None = None,
     context_suffix: Sequence[str] | None = None,
     timeout_seconds: int = 240,
+    chunk_size: Optional[int] = None,
 ) -> list[DiffusionPrompt]:
     """Backward-compatible helper returning only prompts."""
 
@@ -956,5 +976,6 @@ def sentences_to_diffusion_prompt_map(
         context_prefix=context_prefix,
         context_suffix=context_suffix,
         timeout_seconds=timeout_seconds,
+        chunk_size=chunk_size,
     )
     return plan.prompts

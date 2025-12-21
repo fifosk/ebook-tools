@@ -63,7 +63,7 @@ changes (`modules/config/loader.py`, `modules/video/backends/ffmpeg_renderer.py`
 
 When `add_images` is enabled, `RenderPipeline` (`modules/core/rendering/pipeline.py`) generates PNGs in parallel with translation. By default it batches sentences (`image_prompt_batching_enabled=true`, `image_prompt_batch_size=10`) so one image persists for an entire sentence batch in the player. The pipeline:
 
-1. Precomputes a consistent prompt plan for the selected sentence window (`modules/images/prompting.py:sentences_to_diffusion_prompt_plan`). When batching is enabled, the renderer groups sentences into batches and asks for one prompt per batch.
+1. Precomputes a consistent prompt plan for the selected sentence window (`modules/images/prompting.py:sentences_to_diffusion_prompt_plan`). When batching is enabled, the renderer groups sentences into batches and asks for one prompt per batch. Prompt-plan requests are chunked by `image_prompt_plan_batch_size` (capped at 50) and images begin rendering as each chunk completes.
    - Persists the prompt plan to `metadata/image_prompt_plan.json` for debugging/QA.
 2. Appends the selected style template base + negative prompts (`image_style_template`, `build_sentence_image_prompt`, `build_sentence_image_negative_prompt`) to keep the reel visual style consistent.
 3. Calls a Draw Things / AUTOMATIC1111-compatible `txt2img` endpoint via `DrawThingsClient` (`modules/images/drawthings.py`) using the configured diffusion parameters.

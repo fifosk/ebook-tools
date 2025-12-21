@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import sys
 import warnings
+from pathlib import Path
 from typing import Iterable, List, Optional
 
 from bs4 import BeautifulSoup
@@ -36,6 +37,131 @@ _SMART_QUOTE_TRANSLATION = str.maketrans(
 def remove_quotes(text: str) -> str:
     """Normalize smart quotes to their ASCII equivalents instead of stripping."""
     return text.translate(_SMART_QUOTE_TRANSLATION)
+
+
+def _normalize_href(href: str) -> str:
+    cleaned = href.split("#", 1)[0].strip()
+    if cleaned.startswith("./"):
+        cleaned = cleaned[2:]
+    return cleaned.lstrip("/")
+
+
+def _collect_toc_labels(toc: object) -> dict[str, str]:
+    labels: dict[str, str] = {}
+
+    def walk(entry: object) -> None:
+        if entry is None:
+            return
+        if isinstance(entry, (list, tuple)):
+            if (
+                len(entry) == 2
+                and not isinstance(entry[0], (str, bytes))
+                and not isinstance(entry[1], (str, bytes))
+            ):
+                walk(entry[0])
+                walk(entry[1])
+                return
+            for item in entry:
+                walk(item)
+            return
+
+        href = getattr(entry, "href", None)
+        title = getattr(entry, "title", None) or getattr(entry, "label", None)
+        if isinstance(href, str) and isinstance(title, str):
+            key = _normalize_href(href)
+            if key and key not in labels:
+                labels[key] = title.strip()
+
+        children = getattr(entry, "subitems", None) or getattr(entry, "children", None)
+        if children is not None:
+            walk(children)
+
+    walk(toc)
+    return labels
+
+
+def _guess_section_title(
+    soup: BeautifulSoup,
+    item: epub.EpubHtml,
+    toc_labels: dict[str, str],
+    index: int,
+) -> tuple[str, Optional[str]]:
+    href = getattr(item, "file_name", None) or ""
+    toc_label = toc_labels.get(_normalize_href(str(href))) if href else None
+    if toc_label:
+        return toc_label, toc_label
+
+    for tag_name in ("h1", "h2", "h3"):
+        heading = soup.find(tag_name)
+        if heading is not None:
+            text = heading.get_text(separator=" ", strip=True)
+            if text:
+                return text, None
+
+    raw_title = getattr(item, "title", None)
+    if isinstance(raw_title, str) and raw_title.strip():
+        return raw_title.strip(), None
+
+    fallback = Path(str(href)).stem.replace("_", " ").strip()
+    if not fallback:
+        fallback = f"Section {index}"
+    return fallback, None
+
+
+def extract_sections_from_epub(
+    epub_file: str, *, books_dir: Optional[str] = None
+) -> List[dict[str, object]]:
+    """Return ordered text sections extracted from an EPUB file."""
+
+    context = cfg.get_runtime_context(None)
+    base_dir = books_dir or (context.books_dir if context is not None else None)
+    epub_path = cfg.resolve_file_path(epub_file, base_dir)
+    if not epub_path or not epub_path.exists():
+        raise FileNotFoundError(f"EPUB file '{epub_file}' could not be found.")
+
+    try:
+        book = epub.read_epub(str(epub_path))
+    except Exception as exc:  # pragma: no cover - passthrough to main flow
+        logger.error("Error reading EPUB file '%s': %s", epub_path, exc)
+        sys.exit(1)
+
+    toc_labels = _collect_toc_labels(getattr(book, "toc", None))
+    spine_index: dict[str, int] = {}
+    for idx, entry in enumerate(getattr(book, "spine", []) or []):
+        if isinstance(entry, tuple):
+            item_id = entry[0]
+        else:
+            item_id = entry
+        if isinstance(item_id, str) and item_id and item_id not in spine_index:
+            spine_index[item_id] = idx
+
+    sections: List[dict[str, object]] = []
+    section_index = 0
+    for item in book.get_items():
+        if not isinstance(item, epub.EpubHtml):
+            continue
+        soup = BeautifulSoup(item.get_content(), "html.parser")
+        text = soup.get_text(separator=" ", strip=True)
+        if not text:
+            continue
+        section_index += 1
+        href = getattr(item, "file_name", None)
+        if not href:
+            continue
+        title, toc_label = _guess_section_title(soup, item, toc_labels, section_index)
+        entry: dict[str, object] = {
+            "id": f"section-{section_index:04d}",
+            "title": title,
+            "href": str(href),
+            "text": text,
+        }
+        item_id = getattr(item, "get_id", lambda: None)()
+        if isinstance(item_id, str) and item_id in spine_index:
+            entry["spine_index"] = spine_index[item_id]
+        if toc_label:
+            entry["toc_label"] = toc_label
+        sections.append(entry)
+    return sections
 
 
 def extract_text_from_epub(epub_file: str, books_dir: Optional[str] = None) -> str:
@@ -234,6 +360,7 @@ def split_text_into_sentences(
 __all__ = [
     "DEFAULT_EXTEND_SPLIT_WITH_COMMA_SEMICOLON",
     "DEFAULT_MAX_WORDS",
+    "extract_sections_from_epub",
     "extract_text_from_epub",
     "remove_quotes",
     "split_text_into_sentences",

@@ -20,6 +20,13 @@ import {
   normalizeHexColor,
 } from '../../types/interactiveTextTheme';
 
+export type ChapterNavigationEntry = {
+  id: string;
+  title: string;
+  startSentence: number;
+  endSentence?: number | null;
+};
+
 export interface NavigationControlsProps {
   context: 'panel' | 'fullscreen';
   onNavigate: (intent: NavigationIntent) => void;
@@ -103,6 +110,10 @@ export interface NavigationControlsProps {
   jobStartSentence?: number | null;
   bookTotalSentences?: number | null;
   searchPanel?: ReactNode;
+  showChapterJump?: boolean;
+  chapters?: ChapterNavigationEntry[];
+  activeChapterId?: string | null;
+  onChapterJump?: (chapterId: string) => void;
 
   showInteractiveThemeControls?: boolean;
   interactiveTheme?: InteractiveTextTheme | null;
@@ -231,6 +242,10 @@ export function NavigationControls({
   jobStartSentence = null,
   bookTotalSentences = null,
   searchPanel,
+  showChapterJump = false,
+  chapters = [],
+  activeChapterId = null,
+  onChapterJump,
   showInteractiveThemeControls = false,
   interactiveTheme = null,
   onInteractiveThemeChange,
@@ -328,6 +343,7 @@ export function NavigationControls({
   const interactiveSentenceCardSliderId = useId();
   const readingBedSliderId = useId();
   const jumpInputFallbackId = useId();
+  const chapterSelectId = useId();
   const jumpInputId = sentenceJumpInputId ?? jumpInputFallbackId;
   const fontScaleSliderId = useId();
   const myLinguistFontScaleSliderId = useId();
@@ -335,10 +351,28 @@ export function NavigationControls({
   const jumpErrorId = `${jumpInputId}-error`;
   const describedBy =
     sentenceJumpError && showSentenceJump
-      ? jumpErrorId
-      : showSentenceJump && sentenceJumpMin !== null && sentenceJumpMax !== null
-        ? jumpRangeId
-        : undefined;
+    ? jumpErrorId
+    : showSentenceJump && sentenceJumpMin !== null && sentenceJumpMax !== null
+      ? jumpRangeId
+      : undefined;
+  const resolvedChapters = Array.isArray(chapters) ? chapters : [];
+  const shouldShowChapterJump = showChapterJump && resolvedChapters.length > 0;
+  const jobRangeStart = typeof jobStartSentence === 'number' ? jobStartSentence : null;
+  const jobRangeEnd = typeof totalSentencesInBook === 'number' ? totalSentencesInBook : null;
+  const isChapterInJobRange = (chapter: ChapterNavigationEntry) => {
+    if (jobRangeStart === null && jobRangeEnd === null) {
+      return true;
+    }
+    const start = chapter.startSentence;
+    const end = typeof chapter.endSentence === 'number' ? chapter.endSentence : chapter.startSentence;
+    if (jobRangeStart !== null && end < jobRangeStart) {
+      return false;
+    }
+    if (jobRangeEnd !== null && start > jobRangeEnd) {
+      return false;
+    }
+    return true;
+  };
   const fullscreenButtonClassName = ['player-panel__nav-button'];
   if (isFullscreen) {
     fullscreenButtonClassName.push('player-panel__nav-button--fullscreen-active');
@@ -406,6 +440,13 @@ export function NavigationControls({
       event.preventDefault();
       onSentenceJumpSubmit?.();
     }
+  };
+  const handleChapterSelect = (event: ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
+    if (!value) {
+      return;
+    }
+    onChapterJump?.(value);
   };
   const handleFontScaleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const raw = Number.parseFloat(event.target.value);
@@ -646,8 +687,45 @@ export function NavigationControls({
               {nowPlayingText}
             </span>
           ) : null}
-          {searchPanel || showSentenceJump ? (
+          {searchPanel || showSentenceJump || shouldShowChapterJump ? (
             <div className="player-panel__navigation-secondary">
+              {shouldShowChapterJump ? (
+                <div className="player-panel__chapter-jump" data-testid="player-panel-chapter-jump">
+                  <span className="player-panel__chapter-jump-label" aria-hidden="true">
+                    Chapter
+                  </span>
+                  <select
+                    id={chapterSelectId}
+                    className="player-panel__chapter-jump-select"
+                    value={activeChapterId ?? ''}
+                    onChange={handleChapterSelect}
+                    aria-label="Jump to chapter"
+                    disabled={!onChapterJump}
+                  >
+                    <option value="" disabled>
+                      Select
+                    </option>
+                    {resolvedChapters.map((chapter, index) => {
+                      const label = chapter.title?.trim() || `Chapter ${index + 1}`;
+                      const range =
+                        typeof chapter.endSentence === 'number'
+                          ? `${chapter.startSentence}-${chapter.endSentence}`
+                          : `${chapter.startSentence}+`;
+                      const isAvailable = isChapterInJobRange(chapter);
+                      return (
+                        <option
+                          key={chapter.id}
+                          value={chapter.id}
+                          title={`${isAvailable ? '' : 'Outside job range. '}Sentences ${range}`}
+                          disabled={!isAvailable}
+                        >
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              ) : null}
               {searchPanel ? <div className="player-panel__navigation-search">{searchPanel}</div> : null}
               {showSentenceJump ? (
                 <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">

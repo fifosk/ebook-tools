@@ -82,7 +82,7 @@ class PipelineJobManager:
         self._execution = execution_adapter or PipelineExecutionAdapter()
         self._file_locator = file_locator or FileLocator()
         self._persistence = PipelineJobPersistence(self._file_locator)
-        self._metadata_refresher = PipelineJobMetadataRefresher()
+        self._metadata_refresher = PipelineJobMetadataRefresher(self._file_locator)
         self._request_factory = PipelineRequestFactory(
             tracker_factory=ProgressTracker,
             stop_event_factory=threading.Event,
