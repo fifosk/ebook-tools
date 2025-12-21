@@ -46,6 +46,7 @@ import {
   extractMetadataText,
   findChunkIndexForBaseId,
   normaliseBookSentenceCount,
+  resolveChunkBaseId,
   resolveBaseIdFromResult,
 } from './player-panel/helpers';
 import { useCoverArt } from './player-panel/useCoverArt';
@@ -501,8 +502,41 @@ export default function PlayerPanel({
 
   const handleSearchSelection = useCallback(
     (result: MediaSearchResult, category: SearchCategory) => {
+      if (
+        category === 'text' &&
+        canJumpToSentence &&
+        result.job_id === jobId &&
+        typeof result.start_sentence === 'number' &&
+        Number.isFinite(result.start_sentence)
+      ) {
+        const startSentence = Math.trunc(result.start_sentence);
+        const endSentence =
+          typeof result.end_sentence === 'number' && Number.isFinite(result.end_sentence)
+            ? Math.max(Math.trunc(result.end_sentence), startSentence)
+            : startSentence;
+        const ratio =
+          typeof result.offset_ratio === 'number' && Number.isFinite(result.offset_ratio)
+            ? Math.min(Math.max(result.offset_ratio, 0), 1)
+            : null;
+        const span = Math.max(endSentence - startSentence, 0);
+        const targetSentence =
+          ratio !== null ? Math.max(startSentence + Math.round(span * ratio), 1) : Math.max(startSentence, 1);
+        handleInteractiveSentenceJump(targetSentence);
+        return;
+      }
+
       const preferredCategory: MediaCategory | null = category === 'library' ? 'text' : category;
-      const baseId = resolveBaseIdFromResult(result, preferredCategory);
+      let baseId = resolveBaseIdFromResult(result, preferredCategory);
+      if (!baseId) {
+        if (typeof result.chunk_id === 'string' && result.chunk_id.trim()) {
+          baseId = deriveBaseIdFromReference(result.chunk_id) ?? result.chunk_id;
+        } else if (typeof result.range_fragment === 'string' && result.range_fragment.trim()) {
+          baseId = result.range_fragment.trim();
+        } else if (typeof result.chunk_index === 'number' && Number.isFinite(result.chunk_index)) {
+          const chunk = chunks[Math.trunc(result.chunk_index)];
+          baseId = chunk ? resolveChunkBaseId(chunk) ?? null : null;
+        }
+      }
       const offsetRatio = typeof result.offset_ratio === 'number' ? result.offset_ratio : null;
       const approximateTime =
         typeof result.approximate_time_seconds === 'number' ? result.approximate_time_seconds : null;
@@ -537,7 +571,7 @@ export default function PlayerPanel({
 
       setPendingSelection(selection);
     },
-    [jobId, onOpenLibraryItem],
+    [canJumpToSentence, chunks, handleInteractiveSentenceJump, jobId, onOpenLibraryItem],
   );
 
   const getMediaItem = useCallback(
@@ -1526,10 +1560,22 @@ export default function PlayerPanel({
     </>
   );
 
-  const fullscreenNavigationGroup = isInteractiveFullscreen ? (
+  const fullscreenMainControls = isInteractiveFullscreen ? (
     <NavigationControls
       context="fullscreen"
       sentenceJumpInputId={sentenceJumpInputFullscreenId}
+      showPrimaryControls
+      showAdvancedControls={false}
+      {...navigationBaseProps}
+    />
+  ) : null;
+
+  const fullscreenAdvancedControls = isInteractiveFullscreen ? (
+    <NavigationControls
+      context="fullscreen"
+      sentenceJumpInputId={sentenceJumpInputFullscreenId}
+      showPrimaryControls={false}
+      showAdvancedControls
       {...navigationBaseProps}
     />
   ) : null;
@@ -1563,7 +1609,9 @@ export default function PlayerPanel({
     onRequestAdvanceChunk: handleInlineAudioEnded,
     isFullscreen: isInteractiveFullscreen,
     onRequestExitFullscreen: handleExitInteractiveFullscreen,
-    fullscreenControls: isInteractiveFullscreen ? fullscreenNavigationGroup : null,
+    fullscreenControls: isInteractiveFullscreen ? fullscreenMainControls : null,
+    fullscreenAdvancedControls: isInteractiveFullscreen ? fullscreenAdvancedControls : null,
+    shortcutHelpOverlay: isInteractiveFullscreen ? shortcutHelpOverlay : null,
     translationSpeed,
     audioTracks: activeAudioTracks,
     activeTimingTrack,
@@ -1623,7 +1671,7 @@ export default function PlayerPanel({
       prelude={
         <>
           {sentenceJumpDatalist}
-          {shortcutHelpOverlay}
+          {isInteractiveFullscreen ? null : shortcutHelpOverlay}
         </>
       }
       search={searchEnabled ? <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} /> : null}

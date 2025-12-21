@@ -137,6 +137,11 @@ export interface NavigationControlsProps {
 
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
+  showPrimaryControls?: boolean;
+  showAdvancedControls?: boolean;
+  showAdvancedToggle?: boolean;
+  advancedControlsOpen?: boolean;
+  onToggleAdvancedControls?: () => void;
 }
 
 export function NavigationControls({
@@ -249,7 +254,14 @@ export function NavigationControls({
   onReadingBedTrackChange,
   showBackToLibrary = false,
   onBackToLibrary,
+  showPrimaryControls = true,
+  showAdvancedControls = true,
+  showAdvancedToggle = false,
+  advancedControlsOpen = false,
+  onToggleAdvancedControls,
 }: NavigationControlsProps) {
+  const shouldShowPrimaryControls = showPrimaryControls !== false;
+  const shouldShowAdvancedControls = showAdvancedControls !== false;
   const groupClassName = [
     context === 'fullscreen'
       ? 'player-panel__navigation-group player-panel__navigation-group--fullscreen'
@@ -316,6 +328,13 @@ export function NavigationControls({
     fullscreenButtonClassName.push('player-panel__nav-button--fullscreen-active');
   }
   const fullscreenIcon = isFullscreen ? '🗗' : '⛶';
+  const advancedToggleClassName = [
+    'player-panel__nav-button',
+    advancedControlsOpen ? 'player-panel__nav-button--advanced-active' : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const advancedToggleLabel = advancedControlsOpen ? 'Hide advanced controls' : 'Show advanced controls';
   const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
   const formattedSubtitleBackgroundOpacity = `${Math.round(
     Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax),
@@ -403,292 +422,246 @@ export function NavigationControls({
   const openColorPicker = (ref: { current: HTMLInputElement | null }) => {
     ref.current?.click();
   };
-  const sentenceNowPlaying = (() => {
-    if (activeSentenceNumber === null) {
-      return null;
-    }
-    const jobTotal = totalSentencesInBook;
-    const title =
-      jobTotal !== null
-        ? `Playing sentence ${activeSentenceNumber} of ${jobTotal}`
-        : `Playing sentence ${activeSentenceNumber}`;
-
-    const jobPercent = (() => {
-      if (jobStartSentence === null || jobTotal === null) {
-        return null;
-      }
-      const span = Math.max(jobTotal - jobStartSentence, 0);
-      const ratio = span > 0 ? (activeSentenceNumber - jobStartSentence) / span : 1;
-      if (!Number.isFinite(ratio)) {
-        return null;
-      }
-      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
-    })();
-
-    const bookPercent = (() => {
-      if (bookTotalSentences === null) {
-        return null;
-      }
-      const ratio = bookTotalSentences > 0 ? activeSentenceNumber / bookTotalSentences : null;
-      if (ratio === null || !Number.isFinite(ratio)) {
-        return null;
-      }
-      return Math.min(Math.max(Math.round(ratio * 100), 0), 100);
-    })();
-
-    const suffixParts: string[] = [];
-    if (jobPercent !== null) {
-      suffixParts.push(`Job ${jobPercent}%`);
-    }
-    if (bookPercent !== null) {
-      suffixParts.push(`Book ${bookPercent}%`);
-    }
-    if (suffixParts.length === 0) {
-      return {
-        label: `S${activeSentenceNumber}`,
-        title,
-      };
-    }
-    const compactSuffix = suffixParts
-      .map((entry) => entry.replace(/^Job\\s+/i, 'J').replace(/^Book\\s+/i, 'B'))
-      .join(' · ');
-    return {
-      label: `S${activeSentenceNumber} · ${compactSuffix}`,
-      title: `${title} · ${suffixParts.join(' · ')}`,
-    };
-  })();
-
   return (
     <div className={groupClassName}>
-      <div className="player-panel__navigation-row">
-        <div className={navigationClassName} role="group" aria-label="Navigate media items">
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('first')}
-            disabled={disableFirst}
-            aria-label="Go to first item"
-          >
-            <span aria-hidden="true">⏮</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('previous')}
-            disabled={disablePrevious}
-            aria-label="Go to previous item"
-          >
-            <span aria-hidden="true">⏪</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={onTogglePlayback}
-            disabled={disablePlayback}
-            aria-label={playbackLabel}
-            aria-pressed={isPlaying ? 'true' : 'false'}
-          >
-            <span aria-hidden="true">{playbackIcon}</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('next')}
-            disabled={disableNext}
-            aria-label="Go to next item"
-          >
-            <span aria-hidden="true">⏩</span>
-          </button>
-          <button
-            type="button"
-            className="player-panel__nav-button"
-            onClick={() => onNavigate('last')}
-            disabled={disableLast}
-            aria-label="Go to last item"
-          >
-            <span aria-hidden="true">⏭</span>
-          </button>
-          {showOriginalAudioToggle ? (
-            <button
-              type="button"
-              className={originalToggleClassName}
-              onClick={onToggleOriginalAudio}
-              disabled={disableOriginalAudioToggle}
-              aria-label="Toggle Original Audio"
-              aria-pressed={originalAudioEnabled}
-              title={originalToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {originalAudioEnabled ? '🎧' : '🔇'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Orig
-              </span>
-            </button>
-          ) : null}
-          {showTranslationAudioToggle ? (
-            <button
-              type="button"
-              className={translationToggleClassName}
-              onClick={onToggleTranslationAudio}
-              disabled={disableTranslationAudioToggle}
-              aria-label="Toggle Translation Audio"
-              aria-pressed={translationAudioEnabled}
-              title={translationToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {translationAudioEnabled ? '🔊' : '🔈'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Trans
-              </span>
-            </button>
-          ) : null}
-          {showSubtitleToggle ? (
-            <button
-              type="button"
-              className={subtitleToggleClassName}
-              onClick={onToggleSubtitles}
-              disabled={disableSubtitleToggle}
-              aria-label="Toggle Subtitles"
-              aria-pressed={subtitlesEnabled}
-              title={subtitleToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {subtitlesEnabled ? '💬' : '🚫'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Subs
-              </span>
-            </button>
-          ) : null}
-          {showReadingBedToggle ? (
-            <button
-              type="button"
-              className={readingBedToggleClassName}
-              onClick={onToggleReadingBed}
-              disabled={disableReadingBedToggle}
-              aria-label="Toggle reading music"
-              aria-pressed={readingBedEnabled}
-              title={readingBedToggleTitle}
-            >
-              <span aria-hidden="true" className="player-panel__nav-button-icon">
-                {readingBedEnabled ? '🎶' : '♪'}
-              </span>
-              <span aria-hidden="true" className="player-panel__nav-button-text">
-                Music
-              </span>
-            </button>
-          ) : null}
-          {showCueLayerToggles ? (
-            <div
-              className="player-panel__subtitle-flags player-panel__subtitle-flags--controls"
-              role="group"
-              aria-label="Subtitle layers"
-            >
-              {[
-                { key: 'original' as const, label: 'Orig' },
-                { key: 'transliteration' as const, label: 'Translit' },
-                { key: 'translation' as const, label: 'Trans' },
-              ].map((entry) => (
-                <button
-                  key={entry.key}
-                  type="button"
-                  className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
-                  aria-pressed={resolvedCueVisibility[entry.key]}
-                  onClick={() => handleToggleCueLayer(entry.key)}
-                  disabled={disableCueLayerToggles || disableSubtitleToggle}
-                >
-                  {entry.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          {sentenceNowPlaying ? (
-            <span
-              className="player-panel__now-playing player-panel__now-playing--sentence"
-              title={sentenceNowPlaying.title}
-            >
-              {sentenceNowPlaying.label}
-            </span>
-          ) : null}
-          {showBackToLibrary ? (
+      {shouldShowPrimaryControls ? (
+        <div className="player-panel__navigation-row">
+          <div className={navigationClassName} role="group" aria-label="Navigate media items">
             <button
               type="button"
               className="player-panel__nav-button"
-              onClick={onBackToLibrary}
-              aria-label="Back to library"
-              title="Back to Library"
-              disabled={!onBackToLibrary}
+              onClick={() => onNavigate('first')}
+              disabled={disableFirst}
+              aria-label="Go to first item"
             >
-              <span aria-hidden="true">📚</span>
+              <span aria-hidden="true">⏮</span>
             </button>
-          ) : null}
-          <button
-            type="button"
-            className={fullscreenButtonClassName.join(' ')}
-            onClick={onToggleFullscreen}
-            disabled={disableFullscreen}
-            aria-pressed={isFullscreen}
-            aria-label={fullscreenLabel}
-            data-testid={fullscreenTestId}
-          >
-            <span aria-hidden="true">{fullscreenIcon}</span>
-          </button>
-        </div>
-        {nowPlayingText ? (
-          <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
-            {nowPlayingText}
-          </span>
-        ) : null}
-        {showSentenceJump ? (
-          <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
-            {sentenceJumpError ? (
-              <span id={jumpErrorId} className="visually-hidden">
-                {sentenceJumpError}
-              </span>
-            ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
-              <span id={jumpRangeId} className="visually-hidden">
-                Range {sentenceJumpMin}–{sentenceJumpMax}
-              </span>
-            ) : null}
-            <span className="player-panel__sentence-jump-label" aria-hidden="true">
-              Jump
-            </span>
-            <input
-              id={jumpInputId}
-              className="player-panel__sentence-jump-input"
-              type="number"
-              inputMode="numeric"
-              min={sentenceJumpMin ?? undefined}
-              max={sentenceJumpMax ?? undefined}
-              step={1}
-              list={sentenceJumpListId}
-              value={sentenceJumpValue}
-              onChange={handleSentenceInputChange}
-              onKeyDown={handleSentenceInputKeyDown}
-              placeholder="…"
-              aria-label="Jump to sentence"
-              aria-describedby={describedBy}
-              aria-invalid={sentenceJumpError ? 'true' : undefined}
-              disabled={sentenceJumpDisabled}
-              title={
-                sentenceJumpError ??
-                (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
-              }
-            />
             <button
               type="button"
-              className="player-panel__sentence-jump-button"
-              onClick={onSentenceJumpSubmit}
-              disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+              className="player-panel__nav-button"
+              onClick={() => onNavigate('previous')}
+              disabled={disablePrevious}
+              aria-label="Go to previous item"
             >
-              Go
+              <span aria-hidden="true">⏪</span>
+            </button>
+            <button
+              type="button"
+              className="player-panel__nav-button"
+              onClick={onTogglePlayback}
+              disabled={disablePlayback}
+              aria-label={playbackLabel}
+              aria-pressed={isPlaying ? 'true' : 'false'}
+            >
+              <span aria-hidden="true">{playbackIcon}</span>
+            </button>
+            <button
+              type="button"
+              className="player-panel__nav-button"
+              onClick={() => onNavigate('next')}
+              disabled={disableNext}
+              aria-label="Go to next item"
+            >
+              <span aria-hidden="true">⏩</span>
+            </button>
+            <button
+              type="button"
+              className="player-panel__nav-button"
+              onClick={() => onNavigate('last')}
+              disabled={disableLast}
+              aria-label="Go to last item"
+            >
+              <span aria-hidden="true">⏭</span>
+            </button>
+            {showOriginalAudioToggle ? (
+              <button
+                type="button"
+                className={originalToggleClassName}
+                onClick={onToggleOriginalAudio}
+                disabled={disableOriginalAudioToggle}
+                aria-label="Toggle Original Audio"
+                aria-pressed={originalAudioEnabled}
+                title={originalToggleTitle}
+              >
+                <span aria-hidden="true" className="player-panel__nav-button-icon">
+                  {originalAudioEnabled ? '🎧' : '🔇'}
+                </span>
+                <span aria-hidden="true" className="player-panel__nav-button-text">
+                  Orig
+                </span>
+              </button>
+            ) : null}
+            {showTranslationAudioToggle ? (
+              <button
+                type="button"
+                className={translationToggleClassName}
+                onClick={onToggleTranslationAudio}
+                disabled={disableTranslationAudioToggle}
+                aria-label="Toggle Translation Audio"
+                aria-pressed={translationAudioEnabled}
+                title={translationToggleTitle}
+              >
+                <span aria-hidden="true" className="player-panel__nav-button-icon">
+                  {translationAudioEnabled ? '🔊' : '🔈'}
+                </span>
+                <span aria-hidden="true" className="player-panel__nav-button-text">
+                  Trans
+                </span>
+              </button>
+            ) : null}
+            {showSubtitleToggle ? (
+              <button
+                type="button"
+                className={subtitleToggleClassName}
+                onClick={onToggleSubtitles}
+                disabled={disableSubtitleToggle}
+                aria-label="Toggle Subtitles"
+                aria-pressed={subtitlesEnabled}
+                title={subtitleToggleTitle}
+              >
+                <span aria-hidden="true" className="player-panel__nav-button-icon">
+                  {subtitlesEnabled ? '💬' : '🚫'}
+                </span>
+                <span aria-hidden="true" className="player-panel__nav-button-text">
+                  Subs
+                </span>
+              </button>
+            ) : null}
+            {showReadingBedToggle ? (
+              <button
+                type="button"
+                className={readingBedToggleClassName}
+                onClick={onToggleReadingBed}
+                disabled={disableReadingBedToggle}
+                aria-label="Toggle reading music"
+                aria-pressed={readingBedEnabled}
+                title={readingBedToggleTitle}
+              >
+                <span aria-hidden="true" className="player-panel__nav-button-icon">
+                  {readingBedEnabled ? '🎶' : '♪'}
+                </span>
+                <span aria-hidden="true" className="player-panel__nav-button-text">
+                  Music
+                </span>
+              </button>
+            ) : null}
+            {showCueLayerToggles ? (
+              <div
+                className="player-panel__subtitle-flags player-panel__subtitle-flags--controls"
+                role="group"
+                aria-label="Subtitle layers"
+              >
+                <span className="player-panel__subtitle-flag-glyph" aria-hidden="true" title="Subtitle tracks">
+                  CC
+                </span>
+                {[
+                  { key: 'original' as const, label: 'Orig' },
+                  { key: 'transliteration' as const, label: 'Translit' },
+                  { key: 'translation' as const, label: 'Trans' },
+                ].map((entry) => (
+                  <button
+                    key={entry.key}
+                    type="button"
+                    className="player-panel__subtitle-flag player-panel__subtitle-flag--compact"
+                    aria-pressed={resolvedCueVisibility[entry.key]}
+                    onClick={() => handleToggleCueLayer(entry.key)}
+                    disabled={disableCueLayerToggles || disableSubtitleToggle}
+                  >
+                    {entry.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {showBackToLibrary ? (
+              <button
+                type="button"
+                className="player-panel__nav-button"
+                onClick={onBackToLibrary}
+                aria-label="Back to library"
+                title="Back to Library"
+                disabled={!onBackToLibrary}
+              >
+                <span aria-hidden="true">📚</span>
+              </button>
+            ) : null}
+            {showAdvancedToggle && onToggleAdvancedControls ? (
+              <button
+                type="button"
+                className={advancedToggleClassName}
+                onClick={onToggleAdvancedControls}
+                aria-pressed={advancedControlsOpen}
+                aria-label={advancedToggleLabel}
+                title={advancedToggleLabel}
+              >
+                <span aria-hidden="true">🎚</span>
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className={fullscreenButtonClassName.join(' ')}
+              onClick={onToggleFullscreen}
+              disabled={disableFullscreen}
+              aria-pressed={isFullscreen}
+              aria-label={fullscreenLabel}
+              data-testid={fullscreenTestId}
+            >
+              <span aria-hidden="true">{fullscreenIcon}</span>
             </button>
           </div>
-        ) : null}
-      </div>
-      {shouldShowCompactControls ? (
+          {nowPlayingText ? (
+            <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
+              {nowPlayingText}
+            </span>
+          ) : null}
+          {showSentenceJump ? (
+            <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
+              {sentenceJumpError ? (
+                <span id={jumpErrorId} className="visually-hidden">
+                  {sentenceJumpError}
+                </span>
+              ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
+                <span id={jumpRangeId} className="visually-hidden">
+                  Range {sentenceJumpMin}–{sentenceJumpMax}
+                </span>
+              ) : null}
+              <span className="player-panel__sentence-jump-label" aria-hidden="true">
+                Jump
+              </span>
+              <input
+                id={jumpInputId}
+                className="player-panel__sentence-jump-input"
+                type="number"
+                inputMode="numeric"
+                min={sentenceJumpMin ?? undefined}
+                max={sentenceJumpMax ?? undefined}
+                step={1}
+                list={sentenceJumpListId}
+                value={sentenceJumpValue}
+                onChange={handleSentenceInputChange}
+                onKeyDown={handleSentenceInputKeyDown}
+                placeholder="…"
+                aria-label="Jump to sentence"
+                aria-describedby={describedBy}
+                aria-invalid={sentenceJumpError ? 'true' : undefined}
+                disabled={sentenceJumpDisabled}
+                title={
+                  sentenceJumpError ??
+                  (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
+                }
+              />
+              <button
+                type="button"
+                className="player-panel__sentence-jump-button"
+                onClick={onSentenceJumpSubmit}
+                disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+              >
+                Go
+              </button>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {shouldShowAdvancedControls && shouldShowCompactControls ? (
         <div className="player-panel__control-bar" role="group" aria-label="Playback tuning">
           {showTranslationSpeed ? (
             <div className="player-panel__control" data-testid="player-panel-speed">
@@ -1062,7 +1035,7 @@ export function NavigationControls({
           ) : null}
         </div>
       ) : null}
-      {controlsLayout !== 'compact' && showTranslationSpeed ? (
+      {shouldShowAdvancedControls && controlsLayout !== 'compact' && showTranslationSpeed ? (
         <div className="player-panel__nav-speed" data-testid="player-panel-speed">
           <label className="player-panel__nav-speed-label" htmlFor={sliderId}>
             Speed
@@ -1090,7 +1063,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {controlsLayout !== 'compact' && showSubtitleScale ? (
+      {shouldShowAdvancedControls && controlsLayout !== 'compact' && showSubtitleScale ? (
         <div className="player-panel__nav-subtitles" data-testid="player-panel-subtitle-scale">
           <label className="player-panel__nav-subtitles-label" htmlFor={subtitleSliderId}>
             Subtitles
@@ -1118,7 +1091,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {controlsLayout !== 'compact' && showSubtitleBackgroundOpacity ? (
+      {shouldShowAdvancedControls && controlsLayout !== 'compact' && showSubtitleBackgroundOpacity ? (
         <div className="player-panel__nav-subtitle-background" data-testid="player-panel-subtitle-background">
           <label className="player-panel__nav-subtitle-background-label" htmlFor={subtitleBackgroundSliderId}>
             Box
@@ -1147,7 +1120,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showSentenceJump && controlsLayout !== 'compact' ? (
+      {shouldShowAdvancedControls && showSentenceJump && controlsLayout !== 'compact' ? (
         <div className="player-panel__nav-jump">
           <label className="player-panel__nav-speed-label" htmlFor={jumpInputId}>
             Jump to sentence
@@ -1191,7 +1164,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showFontScale && !shouldShowCompactControls ? (
+      {shouldShowAdvancedControls && showFontScale && !shouldShowCompactControls ? (
         <div className="player-panel__nav-font">
           <label className="player-panel__nav-font-label" htmlFor={fontScaleSliderId}>
             Font size
@@ -1218,7 +1191,7 @@ export function NavigationControls({
           </div>
         </div>
       ) : null}
-      {showMyLinguistFontScale && !shouldShowCompactControls ? (
+      {shouldShowAdvancedControls && showMyLinguistFontScale && !shouldShowCompactControls ? (
         <div className="player-panel__nav-font">
           <label className="player-panel__nav-font-label" htmlFor={myLinguistFontScaleSliderId}>
             MyLinguist font

@@ -58,6 +58,7 @@ interface TextStageProps {
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
   fullscreenControls?: ReactNode;
+  fullscreenAdvancedControls?: ReactNode;
 }
 
 interface SelectionInfo {
@@ -177,6 +178,7 @@ export function PlayerPanelStage({
                             isFullscreen={text.isFullscreen}
                             onRequestExitFullscreen={text.onRequestExitFullscreen}
                             fullscreenControls={text.fullscreenControls}
+                            fullscreenAdvancedControls={text.fullscreenAdvancedControls}
                           />
                         ) : (
                           <div className="player-panel__document-status" role="status">

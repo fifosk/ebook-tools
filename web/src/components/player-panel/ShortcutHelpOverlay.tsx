@@ -141,6 +141,9 @@ export function ShortcutHelpOverlay({
               <li>
                 <kbd>R</kbd> Toggle image reel
               </li>
+              <li>
+                <kbd>Shift</kbd>+<kbd>+</kbd>/<kbd>Shift</kbd>+<kbd>-</kbd> Resize image reel
+              </li>
             </ul>
           </section>
           <section className="player-panel__shortcut-help-section" aria-label="Text display">
@@ -199,7 +202,7 @@ export function ShortcutHelpOverlay({
             <h3>Fullscreen</h3>
             <ul>
               <li>
-                <kbd>Shift</kbd>+<kbd>H</kbd> Collapse/expand fullscreen controls
+                <kbd>Shift</kbd>+<kbd>H</kbd> Show/hide advanced controls
               </li>
             </ul>
           </section>

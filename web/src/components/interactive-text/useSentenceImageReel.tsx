@@ -47,7 +47,17 @@ type UseSentenceImageReelArgs = {
 type UseSentenceImageReelResult = {
   sentenceImageReelNode: ReactNode | null;
   activeSentenceImagePath: string | null;
+  reelScale: number;
 };
+
+const REEL_SCALE_STORAGE_KEY = 'player.sentenceImageReelScale';
+const REEL_SCALE_DEFAULT = 1;
+const REEL_SCALE_STEP = 0.1;
+const REEL_SCALE_MIN = 0.7;
+const REEL_SCALE_MAX = 1.6;
+
+const clampReelScale = (value: number) =>
+  Math.min(REEL_SCALE_MAX, Math.max(REEL_SCALE_MIN, value));
 
 const parseBatchStartFromBatchImagePath = (path: string | null): number | null => {
   const candidate = (path ?? '').trim();
@@ -153,6 +163,21 @@ export function useSentenceImageReel({
     return stored === 'true';
   });
 
+  const [reelScale, setReelScale] = useState<number>(() => {
+    if (typeof window === 'undefined') {
+      return REEL_SCALE_DEFAULT;
+    }
+    const stored = window.localStorage.getItem(REEL_SCALE_STORAGE_KEY);
+    if (!stored) {
+      return REEL_SCALE_DEFAULT;
+    }
+    const parsed = Number(stored);
+    if (!Number.isFinite(parsed)) {
+      return REEL_SCALE_DEFAULT;
+    }
+    return clampReelScale(Math.round(parsed * 100) / 100);
+  });
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -163,6 +188,17 @@ export function useSentenceImageReel({
       // ignore
     }
   }, [isSentenceImageReelVisible]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(REEL_SCALE_STORAGE_KEY, String(reelScale));
+    } catch {
+      // ignore
+    }
+  }, [reelScale]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -189,7 +225,22 @@ export function useSentenceImageReel({
       ) {
         return;
       }
-      if (event.key?.toLowerCase() !== 'r') {
+      const key = event.key?.toLowerCase();
+      const code = event.code;
+      const isPlusKey = key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd';
+      const isMinusKey = key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
+
+      if (event.shiftKey && (isPlusKey || isMinusKey)) {
+        event.preventDefault();
+        setReelScale((current) => {
+          const delta = isPlusKey ? REEL_SCALE_STEP : -REEL_SCALE_STEP;
+          const next = clampReelScale(Math.round((current + delta) * 100) / 100);
+          return next;
+        });
+        return;
+      }
+
+      if (key !== 'r') {
         return;
       }
       event.preventDefault();
@@ -350,8 +401,8 @@ export function useSentenceImageReel({
     return Math.max(1, Math.trunc(parsed));
   }, [imagePromptPlanSummary]);
 
-  const reelWindowSize = 11;
-  const reelPrefetchBuffer = 2;
+  const reelWindowSize = 7;
+  const reelPrefetchBuffer = 0;
 
   const promptPlanSentenceRange = useMemo(() => {
     const summary = imagePromptPlanSummary;
@@ -422,9 +473,8 @@ export function useSentenceImageReel({
     [activeImageBatchSize, minSentenceBound, promptPlanSentenceRange],
   );
 
-  const reelSentenceSlots = useMemo(() => {
+  const reelWindowBounds = useMemo(() => {
     const base = Math.max(1, Math.trunc(activeSentenceNumber));
-    const step = 1;
     const rangeStart = promptPlanSentenceRange?.start ?? minSentenceBound;
     const rangeEnd = promptPlanSentenceRange?.end ?? maxSentenceBound ?? chunk?.endSentence ?? base;
     const boundedStart = Math.max(minSentenceBound, rangeStart);
@@ -432,22 +482,38 @@ export function useSentenceImageReel({
       rangeEnd === null
         ? null
         : Math.max(boundedStart, Math.min(rangeEnd, maxSentenceBound ?? rangeEnd));
+    const halfWindow = Math.max(0, Math.floor(reelWindowSize / 2));
 
-    const slots: number[] = [];
-    for (let offset = 0; offset < reelWindowSize; offset += 1) {
-      const candidate = base - offset * step;
-      if (candidate < boundedStart) {
-        continue;
-      }
-      if (boundedEnd !== null && candidate > boundedEnd) {
-        continue;
-      }
-      slots.push(candidate);
+    let windowStart = base - halfWindow;
+    let windowEnd = base + halfWindow;
+
+    if (boundedEnd !== null && windowEnd > boundedEnd) {
+      const overshoot = windowEnd - boundedEnd;
+      windowEnd = boundedEnd;
+      windowStart -= overshoot;
     }
-    if (slots.length === 0) {
-      slots.push(base);
+    if (windowStart < boundedStart) {
+      const overshoot = boundedStart - windowStart;
+      windowStart = boundedStart;
+      windowEnd = boundedEnd !== null ? Math.min(boundedEnd, windowEnd + overshoot) : windowEnd + overshoot;
     }
-    return Array.from(new Set(slots)).sort((a, b) => a - b);
+    if (boundedEnd !== null) {
+      windowEnd = Math.min(windowEnd, boundedEnd);
+    }
+    windowStart = Math.max(windowStart, boundedStart);
+
+    if (boundedEnd !== null && windowStart > boundedEnd) {
+      windowStart = boundedEnd;
+      windowEnd = boundedEnd;
+    }
+
+    return {
+      base,
+      start: Math.max(1, Math.trunc(windowStart)),
+      end: Math.max(1, Math.trunc(windowEnd)),
+      boundedStart,
+      boundedEnd,
+    };
   }, [
     activeSentenceNumber,
     chunk?.endSentence,
@@ -457,23 +523,29 @@ export function useSentenceImageReel({
     reelWindowSize,
   ]);
 
+  const reelSentenceSlots = useMemo(() => {
+    const { base, start, end } = reelWindowBounds;
+    const slots: number[] = [];
+    for (let candidate = start; candidate <= end; candidate += 1) {
+      slots.push(candidate);
+    }
+    if (slots.length === 0) {
+      slots.push(base);
+    }
+    return slots;
+  }, [reelWindowBounds]);
+
   const reelPrefetchSlots = useMemo(() => {
-    const base = Math.max(1, Math.trunc(activeSentenceNumber));
-    const step = 1;
-    const rangeStart = promptPlanSentenceRange?.start ?? minSentenceBound;
-    const rangeEnd = promptPlanSentenceRange?.end ?? maxSentenceBound ?? chunk?.endSentence ?? base;
-    const boundedStart = Math.max(minSentenceBound, rangeStart);
-    const boundedEnd =
-      rangeEnd === null
-        ? null
-        : Math.max(boundedStart, Math.min(rangeEnd, maxSentenceBound ?? rangeEnd));
+    if (reelPrefetchBuffer <= 0) {
+      return [] as number[];
+    }
+    const { start, end, boundedStart, boundedEnd } = reelWindowBounds;
     const visible = new Set(reelSentenceSlots);
     const slots: number[] = [];
-    const trailingSpan = Math.max(0, reelWindowSize - 1);
 
     for (let offset = 1; offset <= reelPrefetchBuffer; offset += 1) {
-      const forward = base + offset * step;
-      const back = base - (trailingSpan + offset) * step;
+      const forward = end + offset;
+      const back = start - offset;
       if (
         forward >= boundedStart &&
         (boundedEnd === null || forward <= boundedEnd) &&
@@ -491,16 +563,7 @@ export function useSentenceImageReel({
     }
 
     return slots;
-  }, [
-    activeSentenceNumber,
-    chunk?.endSentence,
-    maxSentenceBound,
-    minSentenceBound,
-    promptPlanSentenceRange,
-    reelPrefetchBuffer,
-    reelSentenceSlots,
-    reelWindowSize,
-  ]);
+  }, [reelPrefetchBuffer, reelSentenceSlots, reelWindowBounds]);
 
   const chunkSentenceByNumber = useMemo(() => {
     const baseMap = exportSentenceByNumber ? new Map(exportSentenceByNumber) : new Map<number, ChunkSentenceMetadata>();
@@ -1035,7 +1098,9 @@ export function useSentenceImageReel({
     if (!(containerRect.width > 0 && activeRect.width > 0)) {
       return;
     }
-    const offset = activeRect.right - containerRect.right;
+    const containerCenter = containerRect.left + containerRect.width / 2;
+    const activeCenter = activeRect.left + activeRect.width / 2;
+    const offset = activeCenter - containerCenter;
     const maxScroll = Math.max(0, container.scrollWidth - container.clientWidth);
     const target = Math.max(0, Math.min(maxScroll, container.scrollLeft + offset));
     if (Math.abs(container.scrollLeft - target) < 1) {
@@ -1045,7 +1110,7 @@ export function useSentenceImageReel({
       left: target,
       behavior: 'auto',
     });
-  }, [activeSentenceNumber, isFullscreen, isReelEnabled, reelVisibleFrames.length]);
+  }, [activeSentenceNumber, isFullscreen, isReelEnabled, reelScale, reelVisibleFrames.length]);
 
   const resolveReelSentenceSeekTarget = useCallback(
     (sentenceNumber: number) => {
@@ -1204,5 +1269,6 @@ export function useSentenceImageReel({
   return {
     sentenceImageReelNode,
     activeSentenceImagePath,
+    reelScale,
   };
 }

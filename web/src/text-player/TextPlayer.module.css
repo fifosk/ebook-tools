@@ -60,6 +60,7 @@
   letter-spacing: 0.08em;
   font-weight: 600;
   color: rgba(250, 250, 250, 0.45);
+  text-align: center;
 }
 
 .lineContent {
@@ -67,6 +68,8 @@
   flex-wrap: wrap;
   gap: 0.24rem;
   line-height: 1.55;
+  justify-content: center;
+  text-align: center;
 }
 
 .lineContentOriginal,

@@ -1,5 +1,7 @@
 import {
+  cloneElement,
   forwardRef,
+  isValidElement,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -162,6 +164,7 @@ interface InteractiveTextViewerProps {
   isFullscreen?: boolean;
   onRequestExitFullscreen?: () => void;
   fullscreenControls?: ReactNode;
+  fullscreenAdvancedControls?: ReactNode;
   audioTracks?: Record<string, AudioTrackMetadata> | null;
   activeTimingTrack?: 'mix' | 'translation' | 'original';
   originalAudioEnabled?: boolean;
@@ -185,6 +188,7 @@ interface InteractiveTextViewerProps {
   infoCoverVariant?: 'book' | 'subtitles' | 'video' | 'youtube' | 'nas' | 'dub' | 'job' | null;
   bookCoverUrl?: string | null;
   bookCoverAltText?: string | null;
+  shortcutHelpOverlay?: ReactNode;
 }
 
 const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextViewerProps>(function InteractiveTextViewer(
@@ -207,6 +211,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     isFullscreen = false,
     onRequestExitFullscreen,
     fullscreenControls,
+    fullscreenAdvancedControls,
     audioTracks = null,
     activeTimingTrack = 'translation',
     originalAudioEnabled = false,
@@ -230,6 +235,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     infoCoverVariant = null,
     bookCoverUrl = null,
     bookCoverAltText = null,
+    shortcutHelpOverlay = null,
     onActiveSentenceChange,
     onRequestSentenceJump,
     bookTotalSentences = null,
@@ -2535,7 +2541,7 @@ const handleAudioSeeked = useCallback(() => {
 
   const isLibraryMediaOrigin = useLibraryMediaOrigin(chunk);
 
-  const { sentenceImageReelNode, activeSentenceImagePath } = useSentenceImageReel({
+  const { sentenceImageReelNode, activeSentenceImagePath, reelScale } = useSentenceImageReel({
     jobId,
     playerMode,
     chunk,
@@ -2559,6 +2565,13 @@ const handleAudioSeeked = useCallback(() => {
     handleTokenSeek,
     seekInlineAudioToTime,
   });
+
+  const interactiveFrameStyle = useMemo<CSSProperties>(() => {
+    return {
+      ...bodyStyle,
+      '--reel-size-scale': reelScale,
+    } as CSSProperties;
+  }, [bodyStyle, reelScale]);
 
   useMyPainterSentence({
     jobId,
@@ -2596,8 +2609,25 @@ const handleAudioSeeked = useCallback(() => {
 
   const inlineAudioAvailable = Boolean(resolvedAudioUrl || noAudioAvailable);
 
-  const hasFullscreenPanelContent = Boolean(fullscreenControls) || inlineAudioAvailable;
-  const inlineAudioCollapsed = Boolean(isFullscreen && hasFullscreenPanelContent && fullscreenControlsCollapsed);
+  const hasAdvancedControls = Boolean(fullscreenAdvancedControls || inlineAudioAvailable);
+  const hasFullscreenPanelContent = Boolean(fullscreenControls || fullscreenAdvancedControls || inlineAudioAvailable);
+  const inlineAudioCollapsed = Boolean(isFullscreen && fullscreenControlsCollapsed);
+  const handleAdvancedControlsToggle = useCallback(() => {
+    setFullscreenControlsCollapsed((value) => !value);
+  }, []);
+  const resolvedFullscreenControls = useMemo(() => {
+    if (!fullscreenControls) {
+      return null;
+    }
+    if (isValidElement(fullscreenControls)) {
+      return cloneElement(fullscreenControls, {
+        showAdvancedToggle: hasAdvancedControls,
+        advancedControlsOpen: !fullscreenControlsCollapsed,
+        onToggleAdvancedControls: handleAdvancedControlsToggle,
+      });
+    }
+    return fullscreenControls;
+  }, [fullscreenControls, fullscreenControlsCollapsed, handleAdvancedControlsToggle, hasAdvancedControls]);
   const slideIndicator = useSlideIndicator({
     chunk,
     activeSentenceIndex,
@@ -2619,163 +2649,162 @@ const handleAudioSeeked = useCallback(() => {
       <InteractiveFullscreenControls
         isVisible={isFullscreen && hasFullscreenPanelContent}
         collapsed={fullscreenControlsCollapsed}
-        inlineAudioAvailable={inlineAudioAvailable}
-        onCollapsedChange={setFullscreenControlsCollapsed}
+        mainControls={resolvedFullscreenControls}
       >
-        {fullscreenControls}
+        {fullscreenAdvancedControls}
       </InteractiveFullscreenControls>
-      <InlineAudioPlayer
-        audioUrl={resolvedAudioUrl}
-        noAudioAvailable={noAudioAvailable}
-        collapsed={inlineAudioCollapsed}
-        playerRef={attachPlayerCore}
-        mediaRef={attachMediaElement}
-        onPlay={handleInlineAudioPlay}
-        onPause={handleInlineAudioPause}
-        onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleAudioEnded}
-        onSeeked={handleAudioSeeked}
-        onSeeking={handleAudioSeeking}
-        onWaiting={handleAudioWaiting}
-        onStalled={handleAudioStalled}
-        onPlaying={handleAudioPlaying}
-        onRateChange={handleAudioRateChange}
-      />
-      {sequenceDebugInfo ? (
-        <div className="player-panel__sequence-debug">
-          <span>seqEnabled: {sequenceDebugInfo.enabled ? 'true' : 'false'}</span>
-          <span>origEnabled: {sequenceDebugInfo.origEnabled ? 'true' : 'false'}</span>
-          <span>transEnabled: {sequenceDebugInfo.transEnabled ? 'true' : 'false'}</span>
-          <span>hasOrigSeg: {sequenceDebugInfo.hasOrigSeg ? 'true' : 'false'}</span>
-          <span>hasTransSeg: {sequenceDebugInfo.hasTransSeg ? 'true' : 'false'}</span>
-          <span>hasOrigTrack: {sequenceDebugInfo.hasOrigTrack ? 'true' : 'false'}</span>
-          <span>hasTransTrack: {sequenceDebugInfo.hasTransTrack ? 'true' : 'false'}</span>
-          <span>track: {sequenceDebugInfo.track}</span>
-          <span>plan: {sequenceDebugInfo.plan}</span>
-          <span>index: {sequenceDebugInfo.index}</span>
-          <span>lastEnded: {sequenceDebugInfo.lastEnded}</span>
-          <span>autoPlay: {sequenceDebugInfo.autoPlay}</span>
-          <span>sentence: {sequenceDebugInfo.sentence}</span>
-          <span>time: {sequenceDebugInfo.time.toFixed(3)}</span>
-          <span>pending: {sequenceDebugInfo.pending}</span>
-          <span>playing: {sequenceDebugInfo.playing ? 'true' : 'false'}</span>
-          <span>audio: {sequenceDebugInfo.audio}</span>
-          <span>orig: {sequenceDebugInfo.original}</span>
-          <span>trans: {sequenceDebugInfo.translation}</span>
-        </div>
-      ) : null}
-      <div
-        key="interactive-body"
-        className="player-panel__document-body player-panel__interactive-frame"
-        style={bodyStyle}
-      >
-        {showInfoHeader ? (
-          <div className="player-panel__player-info-header" aria-hidden="true">
-            {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
-            {showCoverArt ? (
-              <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
-                <img
-                  className="player-panel__player-info-art-main"
-                  src={resolvedCoverUrl ?? undefined}
-                  alt={coverAltText}
-                  onError={() => setViewportCoverFailed(true)}
-                  loading="lazy"
-                />
-                {showSecondaryCover ? (
-                  <img
-                    className="player-panel__player-info-art-secondary"
-                    src={resolvedSecondaryCoverUrl ?? undefined}
-                    alt=""
-                    aria-hidden="true"
-                    onError={() => setViewportSecondaryCoverFailed(true)}
-                    loading="lazy"
-                  />
-                ) : null}
-              </div>
-            ) : null}
-            {showTextBadge ? (
-              <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
-                <div className="player-panel__interactive-book-badge-text">
-                  {safeInfoTitle ? (
-                    <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
-                  ) : null}
-                  {safeInfoMeta ? (
-                    <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
+        <InlineAudioPlayer
+          audioUrl={resolvedAudioUrl}
+          noAudioAvailable={noAudioAvailable}
+          collapsed={inlineAudioCollapsed}
+          playerRef={attachPlayerCore}
+          mediaRef={attachMediaElement}
+          onPlay={handleInlineAudioPlay}
+          onPause={handleInlineAudioPause}
+          onLoadedMetadata={handleLoadedMetadata}
+          onTimeUpdate={handleTimeUpdate}
+          onEnded={handleAudioEnded}
+          onSeeked={handleAudioSeeked}
+          onSeeking={handleAudioSeeking}
+          onWaiting={handleAudioWaiting}
+          onStalled={handleAudioStalled}
+          onPlaying={handleAudioPlaying}
+          onRateChange={handleAudioRateChange}
+        />
+        {sequenceDebugInfo ? (
+          <div className="player-panel__sequence-debug">
+            <span>seqEnabled: {sequenceDebugInfo.enabled ? 'true' : 'false'}</span>
+            <span>origEnabled: {sequenceDebugInfo.origEnabled ? 'true' : 'false'}</span>
+            <span>transEnabled: {sequenceDebugInfo.transEnabled ? 'true' : 'false'}</span>
+            <span>hasOrigSeg: {sequenceDebugInfo.hasOrigSeg ? 'true' : 'false'}</span>
+            <span>hasTransSeg: {sequenceDebugInfo.hasTransSeg ? 'true' : 'false'}</span>
+            <span>hasOrigTrack: {sequenceDebugInfo.hasOrigTrack ? 'true' : 'false'}</span>
+            <span>hasTransTrack: {sequenceDebugInfo.hasTransTrack ? 'true' : 'false'}</span>
+            <span>track: {sequenceDebugInfo.track}</span>
+            <span>plan: {sequenceDebugInfo.plan}</span>
+            <span>index: {sequenceDebugInfo.index}</span>
+            <span>lastEnded: {sequenceDebugInfo.lastEnded}</span>
+            <span>autoPlay: {sequenceDebugInfo.autoPlay}</span>
+            <span>sentence: {sequenceDebugInfo.sentence}</span>
+            <span>time: {sequenceDebugInfo.time.toFixed(3)}</span>
+            <span>pending: {sequenceDebugInfo.pending}</span>
+            <span>playing: {sequenceDebugInfo.playing ? 'true' : 'false'}</span>
+            <span>audio: {sequenceDebugInfo.audio}</span>
+            <span>orig: {sequenceDebugInfo.original}</span>
+            <span>trans: {sequenceDebugInfo.translation}</span>
           </div>
         ) : null}
         <div
-          ref={containerRef}
-          className="player-panel__interactive-body"
-          data-has-badge={showInfoHeader ? 'true' : undefined}
-          data-testid="player-panel-document"
-          onScroll={handleScroll}
-          onClickCapture={handleLinguistTokenClickCapture}
-          onClick={handleInteractiveBackgroundClick}
-          onPointerDownCapture={handlePointerDownCapture}
-          onPointerMoveCapture={handlePointerMoveCapture}
-          onPointerUpCapture={handlePointerUpCaptureWithSelection}
-          onPointerCancelCapture={handlePointerCancelCapture}
+          key="interactive-body"
+          className="player-panel__document-body player-panel__interactive-frame"
+          style={interactiveFrameStyle}
         >
-          {slideIndicator ? (
-            <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
-              {slideIndicator.label}
+          {showInfoHeader ? (
+            <div className="player-panel__player-info-header" aria-hidden="true">
+              {hasChannelBug ? <PlayerChannelBug glyph={safeInfoGlyph} label={infoGlyphLabel} /> : null}
+              {showCoverArt ? (
+                <div className="player-panel__player-info-art" data-variant={resolvedInfoCoverVariant}>
+                  <img
+                    className="player-panel__player-info-art-main"
+                    src={resolvedCoverUrl ?? undefined}
+                    alt={coverAltText}
+                    onError={() => setViewportCoverFailed(true)}
+                    loading="lazy"
+                  />
+                  {showSecondaryCover ? (
+                    <img
+                      className="player-panel__player-info-art-secondary"
+                      src={resolvedSecondaryCoverUrl ?? undefined}
+                      alt=""
+                      aria-hidden="true"
+                      onError={() => setViewportSecondaryCoverFailed(true)}
+                      loading="lazy"
+                    />
+                  ) : null}
+                </div>
+              ) : null}
+              {showTextBadge ? (
+                <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
+                  <div className="player-panel__interactive-book-badge-text">
+                    {safeInfoTitle ? (
+                      <span className="player-panel__interactive-book-badge-title">{safeInfoTitle}</span>
+                    ) : null}
+                    {safeInfoMeta ? (
+                      <span className="player-panel__interactive-book-badge-meta">{safeInfoMeta}</span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
           ) : null}
-          {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : showTextPlayer ? (
-            <>
-              {sentenceImageReelNode}
-              <TextPlayer
-                sentences={textPlayerSentences ?? []}
-                onSeek={handleTokenSeek}
-                footer={pinnedLinguistBubbleNode}
+          <div
+            className="player-panel__interactive-body"
+            data-has-badge={showInfoHeader ? 'true' : undefined}
+          >
+            {slideIndicator ? (
+              <div className="player-panel__interactive-slide-indicator" title={slideIndicator.label}>
+                {slideIndicator.label}
+              </div>
+            ) : null}
+            {sentenceImageReelNode}
+            <div
+              ref={containerRef}
+              className="player-panel__interactive-text-scroll"
+              data-testid="player-panel-document"
+              onScroll={handleScroll}
+              onClickCapture={handleLinguistTokenClickCapture}
+              onClick={handleInteractiveBackgroundClick}
+              onPointerDownCapture={handlePointerDownCapture}
+              onPointerMoveCapture={handlePointerMoveCapture}
+              onPointerUpCapture={handlePointerUpCaptureWithSelection}
+              onPointerCancelCapture={handlePointerCancelCapture}
+            >
+              {legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0 ? null : showTextPlayer ? (
+                <TextPlayer
+                  sentences={textPlayerSentences ?? []}
+                  onSeek={handleTokenSeek}
+                  footer={pinnedLinguistBubbleNode}
+                />
+              ) : paragraphs.length > 0 ? (
+                <pre className="player-panel__document-text">{content}</pre>
+              ) : chunk ? (
+                <div className="player-panel__document-status" role="status">
+                  Loading interactive chunk…
+                </div>
+              ) : (
+                <div className="player-panel__document-status" role="status">
+                  Text preview will appear once generated.
+                </div>
+              )}
+              {pinnedLinguistBubbleNode && !showTextPlayer ? (
+                <div className="player-panel__my-linguist-dock" aria-label="MyLinguist lookup dock">
+                  {pinnedLinguistBubbleNode}
+                </div>
+              ) : null}
+            </div>
+            {linguistEnabled && linguistBubble && !linguistBubblePinned && hasVisibleCues ? (
+              <MyLinguistBubble
+                bubble={linguistBubble}
+                isPinned={linguistBubblePinned}
+                variant="floating"
+                bubbleRef={linguistBubbleRef}
+                floatingPlacement={linguistBubbleFloatingPlacement}
+                floatingPosition={linguistBubbleFloatingPosition}
+                canNavigatePrev={linguistCanNavigatePrev}
+                canNavigateNext={linguistCanNavigateNext}
+                onTogglePinned={toggleLinguistBubblePinned}
+                onNavigatePrev={() => navigateLinguistWord(-1)}
+                onNavigateNext={() => navigateLinguistWord(1)}
+                onSpeak={handleLinguistSpeak}
+                onSpeakSlow={handleLinguistSpeakSlow}
+                onClose={closeLinguistBubble}
               />
-            </>
-          ) : paragraphs.length > 0 ? (
-            <>
-              {sentenceImageReelNode}
-              <pre className="player-panel__document-text">{content}</pre>
-            </>
-          ) : chunk ? (
-            <div className="player-panel__document-status" role="status">
-              Loading interactive chunk…
-            </div>
-          ) : (
-            <div className="player-panel__document-status" role="status">
-              Text preview will appear once generated.
-            </div>
-          )}
-          {linguistEnabled && linguistBubble && !linguistBubblePinned && hasVisibleCues ? (
-            <MyLinguistBubble
-              bubble={linguistBubble}
-              isPinned={linguistBubblePinned}
-              variant="floating"
-              bubbleRef={linguistBubbleRef}
-              floatingPlacement={linguistBubbleFloatingPlacement}
-              floatingPosition={linguistBubbleFloatingPosition}
-              canNavigatePrev={linguistCanNavigatePrev}
-              canNavigateNext={linguistCanNavigateNext}
-              onTogglePinned={toggleLinguistBubblePinned}
-              onNavigatePrev={() => navigateLinguistWord(-1)}
-              onNavigateNext={() => navigateLinguistWord(1)}
-              onSpeak={handleLinguistSpeak}
-              onSpeakSlow={handleLinguistSpeakSlow}
-              onClose={closeLinguistBubble}
-            />
-          ) : null}
-        {pinnedLinguistBubbleNode && !showTextPlayer ? (
-          <div className="player-panel__my-linguist-dock" aria-label="MyLinguist lookup dock">
-            {pinnedLinguistBubbleNode}
+            ) : null}
           </div>
-        ) : null}
+        </div>
+        {shortcutHelpOverlay}
       </div>
-    </div>
-    </div>
-    <DebugOverlay audioEl={overlayAudioEl} />
+      <DebugOverlay audioEl={overlayAudioEl} />
     </>
   );
 });

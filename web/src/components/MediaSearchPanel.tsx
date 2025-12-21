@@ -178,13 +178,21 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
   const activeQuery = useMemo(() => lastQuery || query.trim(), [lastQuery, query]);
   const trimmedQuery = query.trim();
   const showDropdown = hasSelectedJob && trimmedQuery.length > 0;
+  const applyResultAction = useCallback(
+    (result: MediaSearchResult, category: MediaCategory) => {
+      onResultAction(result, category);
+      setQuery('');
+      setLastQuery('');
+      setResults([]);
+      setError(null);
+      setIsSearching(false);
+    },
+    [onResultAction],
+  );
 
   return (
     <div className={styles.searchPanel} aria-label="Search generated media">
       <form className={styles.searchHeader} onSubmit={handleSubmit}>
-        <label className={styles.searchLabel} htmlFor="media-search-input">
-          Search generated ebooks
-        </label>
         <div className={styles.searchBar}>
           <input
             id="media-search-input"
@@ -195,6 +203,7 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
             onChange={handleInputChange}
             autoComplete="off"
             disabled={!hasSelectedJob}
+            aria-label="Search generated ebooks"
           />
           <button
             type="submit"
@@ -219,10 +228,25 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
               {results.map((result) => {
                 const isLibraryResult = result.source === 'library';
                 const categories: MediaCategory[] = [];
+                const canOpenText =
+                  !isLibraryResult &&
+                  (Boolean(result.base_id) ||
+                    Boolean(result.chunk_id) ||
+                    Boolean(result.range_fragment) ||
+                    typeof result.chunk_index === 'number' ||
+                    typeof result.start_sentence === 'number' ||
+                    typeof result.end_sentence === 'number' ||
+                    typeof result.offset_ratio === 'number' ||
+                    (Array.isArray(result.media?.text) && (result.media?.text?.length ?? 0) > 0));
                 if (isLibraryResult) {
                   categories.push('library');
+                } else if (canOpenText) {
+                  categories.push('text');
                 }
                 BASE_MEDIA_CATEGORIES.forEach((category) => {
+                  if (category === 'text' && categories.includes('text')) {
+                    return;
+                  }
                   if (Array.isArray(result.media?.[category]) && (result.media?.[category]?.length ?? 0) > 0) {
                     categories.push(category);
                   }
@@ -289,12 +313,45 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                   metaText = pipelineMeta;
                 }
 
+                const primaryCategory: MediaCategory | null = categories.includes('text')
+                  ? 'text'
+                  : categories.includes('library')
+                  ? 'library'
+                  : categories.includes('video')
+                  ? 'video'
+                  : null;
+                const isClickable = primaryCategory !== null;
+                const primaryActionLabel =
+                  primaryCategory === 'text'
+                    ? 'Jump to sentence'
+                    : primaryCategory === 'video'
+                    ? 'Play video'
+                    : primaryCategory === 'library'
+                    ? 'Open in Reader'
+                    : undefined;
+
                 return (
                   <article
                     key={`${result.job_id}-${result.chunk_id ?? result.base_id ?? result.snippet}`}
-                    className={`${styles.resultItem} ${isActiveJob ? styles.resultItemActive : ''}`}
+                    className={`${styles.resultItem} ${isActiveJob ? styles.resultItemActive : ''} ${isClickable ? styles.resultItemClickable : ''}`}
                     role="option"
                     aria-selected={isActiveJob}
+                    tabIndex={isClickable ? 0 : -1}
+                    title={primaryActionLabel}
+                    onClick={() => {
+                      if (primaryCategory) {
+                        applyResultAction(result, primaryCategory);
+                      }
+                    }}
+                    onKeyDown={(event) => {
+                      if (!primaryCategory) {
+                        return;
+                      }
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        applyResultAction(result, primaryCategory);
+                      }
+                    }}
                   >
                     <header className={styles.resultHeader}>
                       <div className={styles.resultTitle}>
@@ -312,16 +369,12 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
                             key={category}
                             type="button"
                             className={styles.actionButton}
-                            onClick={() => {
-                              onResultAction(result, category);
-                              setQuery('');
-                              setLastQuery('');
-                              setResults([]);
-                              setError(null);
-                              setIsSearching(false);
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              applyResultAction(result, category);
                             }}
                           >
-                            {category === 'text' ? 'Open text' : null}
+                            {category === 'text' ? 'Jump to sentence' : null}
                             {category === 'video' ? 'Play video' : null}
                             {category === 'library' ? 'Open in Reader' : null}
                           </button>

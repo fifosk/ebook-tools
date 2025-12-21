@@ -157,12 +157,12 @@ export function usePlayerShortcuts({
         event.preventDefault();
         return;
       }
-      if (isPlusKey) {
+      if (isPlusKey && !event.shiftKey) {
         adjustFontScale('increase');
         event.preventDefault();
         return;
       }
-      if (isMinusKey) {
+      if (isMinusKey && !event.shiftKey) {
         adjustFontScale('decrease');
         event.preventDefault();
         return;
