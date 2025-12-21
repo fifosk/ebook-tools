@@ -2053,9 +2053,14 @@ button.link-button:focus {
   color: var(--color-status-success-text);
 }
 
-.image-node-status[data-state='available'] .image-node-status__dot {
+.image-node-status[data-state='available'] .image-node-status__dot,
+.image-node-status[data-state='fallback'] .image-node-status__dot {
   background: var(--color-status-success-text);
   box-shadow: 0 0 0 1px var(--color-status-success-text);
+}
+
+.image-node-status[data-state='fallback'] {
+  color: var(--color-status-success-text);
 }
 
 .image-node-status[data-state='unavailable'] {

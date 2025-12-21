@@ -20,7 +20,7 @@ import {
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
 import { formatModelLabel } from '../utils/modelInfo';
-import { IMAGE_API_NODE_OPTIONS } from '../constants/imageNodes';
+import { IMAGE_API_NODE_OPTIONS, resolveImageNodeLabel } from '../constants/imageNodes';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
 type Props = {
@@ -446,6 +446,21 @@ function buildImageClusterNodes(
       active: activeOverride ?? configuredSet.has(url),
       processed: processed ?? 0,
       avgSecondsPerImage: avgSeconds,
+    });
+  }
+
+  for (const url of configuredUrls) {
+    if (knownUrls.has(url)) {
+      continue;
+    }
+    if (nodes.some((node) => node.baseUrl === url)) {
+      continue;
+    }
+    nodes.push({
+      baseUrl: url,
+      active: configuredSet.has(url),
+      processed: 0,
+      avgSecondsPerImage: null,
     });
   }
 
@@ -1246,17 +1261,6 @@ export function JobProgress({
     () => buildImageClusterNodes(imageClusterSummary, pipelineConfig, imageGenerationEnabled),
     [imageClusterSummary, pipelineConfig, imageGenerationEnabled]
   );
-  const imageNodeLabels = useMemo(() => {
-    const labels = new Map<string, string>();
-    for (const option of IMAGE_API_NODE_OPTIONS) {
-      const normalized = normalizeBaseUrl(option.value);
-      if (normalized) {
-        labels.set(normalized, option.label);
-      }
-    }
-    return labels;
-  }, []);
-
   const [subtitleTab, setSubtitleTab] = useState<SubtitleJobTab>('overview');
   useEffect(() => {
     if (!supportsTvMetadata) {
@@ -1442,7 +1446,7 @@ export function JobProgress({
           <h4>Image cluster</h4>
           <dl className="metadata-grid">
             {imageClusterNodes.map((node) => {
-              const label = imageNodeLabels.get(node.baseUrl) ?? node.baseUrl;
+              const label = resolveImageNodeLabel(node.baseUrl) ?? node.baseUrl;
               const processedCount = typeof node.processed === 'number' ? node.processed : 0;
               const processedLabel = `${processedCount} image${processedCount === 1 ? '' : 's'}`;
               const statusLabel = node.active ? 'Active' : 'Inactive';

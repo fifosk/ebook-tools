@@ -27,7 +27,8 @@ import {
   synthesizeVoicePreview,
   uploadEpubFile,
   lookupBookOpenLibraryMetadataPreview,
-  appendAccessToken
+  appendAccessToken,
+  checkImageNodeAvailability
 } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
@@ -50,7 +51,11 @@ import BookNarrationSourceSection from './BookNarrationSourceSection';
 import BookNarrationLanguageSection from './BookNarrationLanguageSection';
 import BookNarrationOutputSection from './BookNarrationOutputSection';
 import BookNarrationImageSection from './BookNarrationImageSection';
-import { DEFAULT_IMAGE_API_BASE_URLS } from '../../constants/imageNodes';
+import {
+  DEFAULT_IMAGE_API_BASE_URLS,
+  expandImageNodeCandidates,
+  getImageNodeFallbacks
+} from '../../constants/imageNodes';
 import BookNarrationPerformanceSection from './BookNarrationPerformanceSection';
 import BookMetadataSection from './BookMetadataSection';
 import FileSelectionDialog from '../FileSelectionDialog';
@@ -361,6 +366,41 @@ function normalizeBaseUrls(values: string[]): string[] {
     cleaned.push(normalized);
   }
   return cleaned;
+}
+
+async function resolveImageBaseUrlsForSubmission(values: string[]): Promise<string[]> {
+  const normalized = normalizeBaseUrls(values);
+  if (normalized.length === 0) {
+    return normalized;
+  }
+  const candidates = expandImageNodeCandidates(normalized);
+  if (candidates.length === 0) {
+    return normalized;
+  }
+  try {
+    const response = await checkImageNodeAvailability({ base_urls: candidates });
+    const available = new Set<string>();
+    for (const entry of response.nodes ?? []) {
+      if (!entry.available) {
+        continue;
+      }
+      const normalizedUrl = normalizeBaseUrl(entry.base_url);
+      if (normalizedUrl) {
+        available.add(normalizedUrl);
+      }
+    }
+    const resolved = normalized.map((url) => {
+      if (available.has(url)) {
+        return url;
+      }
+      const fallbacks = getImageNodeFallbacks(url);
+      const fallback = fallbacks.find((entry) => available.has(entry));
+      return fallback ?? url;
+    });
+    return normalizeBaseUrls(resolved);
+  } catch {
+    return normalized;
+  }
 }
 
 function extractBookMetadata(config: Record<string, unknown>): Record<string, unknown> | null {
@@ -2249,7 +2289,9 @@ export function BookNarrationForm({
         pipelineOverrides.image_seed_with_previous_image = Boolean(formState.image_seed_with_previous_image);
         pipelineOverrides.image_blank_detection_enabled = Boolean(formState.image_blank_detection_enabled);
 
-        const normalizedImageBaseUrls = normalizeBaseUrls(formState.image_api_base_urls);
+        const normalizedImageBaseUrls = await resolveImageBaseUrlsForSubmission(
+          formState.image_api_base_urls
+        );
         pipelineOverrides.image_api_base_urls = normalizedImageBaseUrls;
         pipelineOverrides.image_api_base_url = normalizedImageBaseUrls[0] ?? '';
 
