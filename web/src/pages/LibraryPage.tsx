@@ -18,6 +18,7 @@ import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
+import { downloadWithSaveAs } from '../utils/downloads';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
 import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
 
@@ -456,19 +457,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
             ? result.download_url
             : withBase(result.download_url);
         const downloadUrl = appendAccessToken(resolved);
-        if (typeof document !== 'undefined') {
-          const anchor = document.createElement('a');
-          anchor.href = downloadUrl;
-          anchor.download = result.filename ?? '';
-          anchor.rel = 'noopener';
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-          return;
-        }
-        if (typeof window !== 'undefined') {
-          window.location.assign(downloadUrl);
-        }
+        await downloadWithSaveAs(downloadUrl, result.filename ?? null);
       } catch (actionError) {
         const message =
           actionError instanceof Error ? actionError.message : 'Unable to export offline player.';
@@ -481,7 +470,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         });
       }
     },
-    [appendAccessToken, createExport, mutating, withBase]
+    [appendAccessToken, createExport, downloadWithSaveAs, mutating, withBase]
   );
 
   const handleReindex = useCallback(async () => {

@@ -10,50 +10,56 @@
   min-width: 56px;
   height: 56px;
   padding: 0 16px 0 10px;
-  border: 0;
+  border: 1px solid var(--color-button-secondary-border);
   border-radius: 999px;
   cursor: pointer;
-  color: white;
-  background: var(--color-button-primary-gradient, linear-gradient(135deg, #62b6ff 0%, #6b4eff 55%, #2d2fff 100%));
-  box-shadow: var(--shadow-modal, 0 18px 44px rgba(0, 0, 0, 0.45));
+  color: var(--color-button-secondary-text);
+  background: var(--color-button-secondary-bg);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   line-height: 1;
-  transition: transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
 }
 
 .launcherButton:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow: var(--shadow-modal, 0 22px 56px rgba(0, 0, 0, 0.5));
-  filter: saturate(1.1);
+  transform: translateY(-1px);
+  border-color: var(--color-button-secondary-hover-border);
+  background: var(--color-button-secondary-hover-bg);
+  color: var(--color-text-heading);
 }
 
 .launcherButton:active {
-  transform: translateY(0) scale(0.99);
+  transform: translateY(0);
+}
+
+.launcherButton:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-border-accent);
 }
 
 .launcherGlyph {
   width: 40px;
   height: 40px;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(6px);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
   text-align: center;
   text-transform: uppercase;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  color: var(--color-text-secondary);
 }
 
 .launcherGlyph svg {
-  width: 22px;
-  height: 22px;
-  color: rgba(255, 255, 255, 0.92);
-  fill: rgba(255, 255, 255, 0.72);
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+  fill: currentColor;
 }
 
 .launcherLabel {
@@ -62,7 +68,7 @@
   font-size: 12px;
   line-height: 1;
   white-space: nowrap;
-  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+  color: var(--color-text-secondary);
 }
 
 .panel {

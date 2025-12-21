@@ -1,4 +1,4 @@
-import { useId, useRef } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
 import type { ChangeEvent, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import type { InteractiveTextTheme } from '../../types/interactiveTextTheme';
 import {
@@ -102,6 +102,7 @@ export interface NavigationControlsProps {
   totalSentencesInBook?: number | null;
   jobStartSentence?: number | null;
   bookTotalSentences?: number | null;
+  searchPanel?: ReactNode;
 
   showInteractiveThemeControls?: boolean;
   interactiveTheme?: InteractiveTextTheme | null;
@@ -142,6 +143,13 @@ export interface NavigationControlsProps {
   showAdvancedToggle?: boolean;
   advancedControlsOpen?: boolean;
   onToggleAdvancedControls?: () => void;
+  showExport?: boolean;
+  exportDisabled?: boolean;
+  exportBusy?: boolean;
+  exportLabel?: string;
+  exportTitle?: string;
+  exportError?: string | null;
+  onExport?: () => void;
 }
 
 export function NavigationControls({
@@ -222,6 +230,7 @@ export function NavigationControls({
   totalSentencesInBook = null,
   jobStartSentence = null,
   bookTotalSentences = null,
+  searchPanel,
   showInteractiveThemeControls = false,
   interactiveTheme = null,
   onInteractiveThemeChange,
@@ -259,6 +268,13 @@ export function NavigationControls({
   showAdvancedToggle = false,
   advancedControlsOpen = false,
   onToggleAdvancedControls,
+  showExport = false,
+  exportDisabled = false,
+  exportBusy = false,
+  exportLabel,
+  exportTitle,
+  exportError = null,
+  onExport,
 }: NavigationControlsProps) {
   const shouldShowPrimaryControls = showPrimaryControls !== false;
   const shouldShowAdvancedControls = showAdvancedControls !== false;
@@ -335,6 +351,8 @@ export function NavigationControls({
     .filter(Boolean)
     .join(' ');
   const advancedToggleLabel = advancedControlsOpen ? 'Hide advanced controls' : 'Show advanced controls';
+  const resolvedExportLabel = exportLabel ?? (exportBusy ? 'Preparing export' : 'Export offline player');
+  const resolvedExportTitle = exportTitle ?? resolvedExportLabel;
   const formattedSpeed = formatTranslationSpeedLabel(translationSpeed);
   const formattedSubtitleBackgroundOpacity = `${Math.round(
     Math.min(Math.max(subtitleBackgroundOpacityPercent, subtitleBackgroundOpacityMin), subtitleBackgroundOpacityMax),
@@ -607,59 +625,84 @@ export function NavigationControls({
             >
               <span aria-hidden="true">{fullscreenIcon}</span>
             </button>
+            {showExport ? (
+              <button
+                type="button"
+                className="player-panel__nav-button player-panel__nav-button--export"
+                onClick={onExport}
+                disabled={exportDisabled || !onExport}
+                aria-label={resolvedExportLabel}
+                title={resolvedExportTitle}
+                aria-busy={exportBusy ? 'true' : undefined}
+              >
+                <span aria-hidden="true" className="player-panel__nav-button-icon">
+                  {exportBusy ? '⏳' : '⬇'}
+                </span>
+              </button>
+            ) : null}
           </div>
           {nowPlayingText ? (
             <span className="player-panel__now-playing" title={nowPlayingTitle ?? nowPlayingText}>
               {nowPlayingText}
             </span>
           ) : null}
-          {showSentenceJump ? (
-            <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
-              {sentenceJumpError ? (
-                <span id={jumpErrorId} className="visually-hidden">
-                  {sentenceJumpError}
-                </span>
-              ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
-                <span id={jumpRangeId} className="visually-hidden">
-                  Range {sentenceJumpMin}–{sentenceJumpMax}
-                </span>
+          {searchPanel || showSentenceJump ? (
+            <div className="player-panel__navigation-secondary">
+              {searchPanel ? <div className="player-panel__navigation-search">{searchPanel}</div> : null}
+              {showSentenceJump ? (
+                <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
+                  {sentenceJumpError ? (
+                    <span id={jumpErrorId} className="visually-hidden">
+                      {sentenceJumpError}
+                    </span>
+                  ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
+                    <span id={jumpRangeId} className="visually-hidden">
+                      Range {sentenceJumpMin}–{sentenceJumpMax}
+                    </span>
+                  ) : null}
+                  <span className="player-panel__sentence-jump-label" aria-hidden="true">
+                    Jump
+                  </span>
+                  <input
+                    id={jumpInputId}
+                    className="player-panel__sentence-jump-input"
+                    type="number"
+                    inputMode="numeric"
+                    min={sentenceJumpMin ?? undefined}
+                    max={sentenceJumpMax ?? undefined}
+                    step={1}
+                    list={sentenceJumpListId}
+                    value={sentenceJumpValue}
+                    onChange={handleSentenceInputChange}
+                    onKeyDown={handleSentenceInputKeyDown}
+                    placeholder="…"
+                    aria-label="Jump to sentence"
+                    aria-describedby={describedBy}
+                    aria-invalid={sentenceJumpError ? 'true' : undefined}
+                    disabled={sentenceJumpDisabled}
+                    title={
+                      sentenceJumpError ??
+                      (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="player-panel__sentence-jump-button"
+                    onClick={onSentenceJumpSubmit}
+                    disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+                  >
+                    Go
+                  </button>
+                </div>
               ) : null}
-              <span className="player-panel__sentence-jump-label" aria-hidden="true">
-                Jump
-              </span>
-              <input
-                id={jumpInputId}
-                className="player-panel__sentence-jump-input"
-                type="number"
-                inputMode="numeric"
-                min={sentenceJumpMin ?? undefined}
-                max={sentenceJumpMax ?? undefined}
-                step={1}
-                list={sentenceJumpListId}
-                value={sentenceJumpValue}
-                onChange={handleSentenceInputChange}
-                onKeyDown={handleSentenceInputKeyDown}
-                placeholder="…"
-                aria-label="Jump to sentence"
-                aria-describedby={describedBy}
-                aria-invalid={sentenceJumpError ? 'true' : undefined}
-                disabled={sentenceJumpDisabled}
-                title={
-                  sentenceJumpError ??
-                  (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
-                }
-              />
-              <button
-                type="button"
-                className="player-panel__sentence-jump-button"
-                onClick={onSentenceJumpSubmit}
-                disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
-              >
-                Go
-              </button>
             </div>
           ) : null}
         </div>
+      ) : null}
+      {shouldShowPrimaryControls && exportError ? (
+        <span className="player-panel__export-error" role="alert">
+          {exportError}
+        </span>
       ) : null}
       {shouldShowAdvancedControls && shouldShowCompactControls ? (
         <div className="player-panel__control-bar" role="group" aria-label="Playback tuning">

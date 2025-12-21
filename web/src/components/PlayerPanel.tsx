@@ -32,6 +32,7 @@ import {
 } from '../api/client';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
 import { resolve as resolveStoragePath } from '../utils/storageResolver';
+import { downloadWithSaveAs } from '../utils/downloads';
 import {
   buildInteractiveAudioCatalog,
   isAudioFileType,
@@ -1336,7 +1337,7 @@ export default function PlayerPanel({
   const isBookLike =
     itemType === 'book' || (jobType ?? '').trim().toLowerCase().includes('book') || Boolean(bookTitle);
   const canExport = playerMode !== 'export' && isBookLike && mediaComplete && (hasInteractiveChunks || hasTextItems);
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     if (!jobId || isExporting) {
       return;
     }
@@ -1347,35 +1348,21 @@ export default function PlayerPanel({
       source_id: jobId,
       player_type: 'interactive-text',
     } as const;
-    createExport(payload)
-      .then((result) => {
-        const resolved =
-          result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
-            ? result.download_url
-            : withBase(result.download_url);
-        const downloadUrl = appendAccessToken(resolved);
-        if (typeof document !== 'undefined') {
-          const anchor = document.createElement('a');
-          anchor.href = downloadUrl;
-          anchor.download = result.filename ?? '';
-          anchor.rel = 'noopener';
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
-          return;
-        }
-        if (typeof window !== 'undefined') {
-          window.location.assign(downloadUrl);
-        }
-      })
-      .catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : 'Unable to export offline player.';
-        setExportError(message);
-      })
-      .finally(() => {
-        setIsExporting(false);
-      });
-  }, [appendAccessToken, createExport, isExporting, jobId, origin, withBase]);
+    try {
+      const result = await createExport(payload);
+      const resolved =
+        result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
+          ? result.download_url
+          : withBase(result.download_url);
+      const downloadUrl = appendAccessToken(resolved);
+      await downloadWithSaveAs(downloadUrl, result.filename ?? null);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to export offline player.';
+      setExportError(message);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [appendAccessToken, createExport, downloadWithSaveAs, isExporting, jobId, origin, withBase]);
   const channelBug = useMemo(() => {
     const normalisedJobType = (jobType ?? '').trim().toLowerCase();
     if (itemType === 'book') {
@@ -1433,30 +1420,14 @@ export default function PlayerPanel({
     ) : null;
 
   const shouldShowBackToLibrary = origin === 'library' && showBackToLibrary;
-  const exportAction = canExport ? (
-    <div className="player-panel__export-action">
-      <button
-        type="button"
-        className="player-panel__nav-button player-panel__nav-button--export"
-        onClick={handleExport}
-        disabled={isExporting}
-        aria-label="Export offline player"
-        title="Export offline player"
-      >
-        <span aria-hidden="true" className="player-panel__nav-button-icon">
-          📦
-        </span>
-        <span aria-hidden="true" className="player-panel__nav-button-text">
-          {isExporting ? 'Preparing export…' : 'Export offline player'}
-        </span>
-      </button>
-      {exportError ? (
-        <span className="player-panel__export-error" role="alert">
-          {exportError}
-        </span>
-      ) : null}
-    </div>
-  ) : null;
+  const panelSearchPanel =
+    searchEnabled && !isInteractiveFullscreen ? (
+      <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} variant="compact" />
+    ) : null;
+  const fullscreenSearchPanel =
+    searchEnabled && isInteractiveFullscreen ? (
+      <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} variant="compact" />
+    ) : null;
 
   const navigationBaseProps = {
     onNavigate: handleNavigatePreservingPlayback,
@@ -1543,6 +1514,13 @@ export default function PlayerPanel({
     readingBedTrack: readingBedTrackSelection ?? '',
     readingBedTrackOptions,
     onReadingBedTrackChange: handleReadingBedTrackChange,
+    showExport: canExport,
+    onExport: handleExport,
+    exportDisabled: isExporting,
+    exportBusy: isExporting,
+    exportLabel: isExporting ? 'Preparing export' : 'Export offline player',
+    exportTitle: isExporting ? 'Preparing export...' : 'Export offline player',
+    exportError,
     activeSentenceNumber,
     totalSentencesInBook: jobEndSentence,
     jobStartSentence,
@@ -1550,14 +1528,12 @@ export default function PlayerPanel({
   } satisfies Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
 
   const navigationGroup = (
-    <>
-      <NavigationControls
-        context="panel"
-        sentenceJumpInputId={sentenceJumpInputId}
-        {...navigationBaseProps}
-      />
-      {exportAction}
-    </>
+    <NavigationControls
+      context="panel"
+      sentenceJumpInputId={sentenceJumpInputId}
+      searchPanel={panelSearchPanel}
+      {...navigationBaseProps}
+    />
   );
 
   const fullscreenMainControls = isInteractiveFullscreen ? (
@@ -1566,6 +1542,7 @@ export default function PlayerPanel({
       sentenceJumpInputId={sentenceJumpInputFullscreenId}
       showPrimaryControls
       showAdvancedControls={false}
+      searchPanel={fullscreenSearchPanel}
       {...navigationBaseProps}
     />
   ) : null;
@@ -1674,7 +1651,6 @@ export default function PlayerPanel({
           {isInteractiveFullscreen ? null : shortcutHelpOverlay}
         </>
       }
-      search={searchEnabled ? <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} /> : null}
       toolbar={navigationGroup}
     >
       {!hasAnyMedia && !isLoading ? (

@@ -59,16 +59,29 @@ export type UseLinguistBubbleArgs = {
 export type UseLinguistBubbleResult = {
   bubble: LinguistBubbleState | null;
   bubblePinned: boolean;
+  bubbleDocked: boolean;
+  bubbleDragging: boolean;
+  bubbleResizing: boolean;
   bubbleRef: MutableRefObject<HTMLDivElement | null>;
   floatingPlacement: LinguistBubbleFloatingPlacement;
   floatingPosition: { top: number; left: number } | null;
+  floatingSize: { width: number; height: number } | null;
   canNavigatePrev: boolean;
   canNavigateNext: boolean;
   onTogglePinned: () => void;
+  onToggleDocked: () => void;
   onClose: () => void;
   onSpeak: () => void;
   onSpeakSlow: () => void;
   onNavigateWord: (delta: -1 | 1) => void;
+  onBubblePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onBubblePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onBubblePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onBubblePointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizeHandlePointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizeHandlePointerMove: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizeHandlePointerUp: (event: ReactPointerEvent<HTMLDivElement>) => void;
+  onResizeHandlePointerCancel: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onTokenClickCapture: (event: ReactMouseEvent<HTMLDivElement>) => void;
   onPointerDownCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onPointerMoveCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -106,9 +119,75 @@ export function useLinguistBubble({
   const linguistSelectionArmedRef = useRef(false);
   const linguistSelectionLookupPendingRef = useRef(false);
   const linguistRequestCounterRef = useRef(0);
+  const loadPinnedPosition = () => {
+    const raw = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.bubblePinnedPosition);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const value = JSON.parse(raw) as { top?: number; left?: number };
+      if (
+        typeof value.top === 'number' &&
+        Number.isFinite(value.top) &&
+        typeof value.left === 'number' &&
+        Number.isFinite(value.left)
+      ) {
+        return { top: value.top, left: value.left };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+  const loadPinnedSize = () => {
+    const raw = loadMyLinguistStored(MY_LINGUIST_STORAGE_KEYS.bubblePinnedSize);
+    if (!raw) {
+      return null;
+    }
+    try {
+      const value = JSON.parse(raw) as { width?: number; height?: number };
+      if (
+        typeof value.width === 'number' &&
+        Number.isFinite(value.width) &&
+        typeof value.height === 'number' &&
+        Number.isFinite(value.height)
+      ) {
+        return { width: value.width, height: value.height };
+      }
+    } catch {
+      return null;
+    }
+    return null;
+  };
+  const linguistManualPositionRef = useRef(false);
+  const linguistPinnedPositionRef = useRef<{ top: number; left: number } | null>(loadPinnedPosition());
+  const linguistPinnedSizeRef = useRef<{ width: number; height: number } | null>(loadPinnedSize());
+  const linguistBubbleDragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startTop: number;
+    startLeft: number;
+    width: number;
+    height: number;
+    containerRect: DOMRect;
+  } | null>(null);
+  const linguistBubbleResizeRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    startWidth: number;
+    startHeight: number;
+    position: { top: number; left: number };
+    containerRect: DOMRect;
+  } | null>(null);
   const [linguistBubble, setLinguistBubble] = useState<LinguistBubbleState | null>(null);
+  const legacyDockedDefault = loadMyLinguistStoredBool(MY_LINGUIST_STORAGE_KEYS.bubblePinned, true);
+  const [linguistBubbleDocked, setLinguistBubbleDocked] = useState<boolean>(() =>
+    loadMyLinguistStoredBool(MY_LINGUIST_STORAGE_KEYS.bubbleDocked, legacyDockedDefault),
+  );
   const [linguistBubblePinned, setLinguistBubblePinned] = useState<boolean>(() =>
-    loadMyLinguistStoredBool(MY_LINGUIST_STORAGE_KEYS.bubblePinned, true),
+    loadMyLinguistStoredBool(MY_LINGUIST_STORAGE_KEYS.bubbleLocked, false),
   );
   const [linguistBubbleFloatingPlacement, setLinguistBubbleFloatingPlacement] =
     useState<LinguistBubbleFloatingPlacement>('above');
@@ -116,6 +195,12 @@ export function useLinguistBubble({
     top: number;
     left: number;
   } | null>(null);
+  const [linguistBubbleFloatingSize, setLinguistBubbleFloatingSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+  const [linguistBubbleDragging, setLinguistBubbleDragging] = useState(false);
+  const [linguistBubbleResizing, setLinguistBubbleResizing] = useState(false);
   const linguistBubblePositionRafRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -124,10 +209,119 @@ export function useLinguistBubble({
     }
   }, [isEnabled]);
 
+ 
+
   const dictionaryPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dictionaryPointerIdRef = useRef<number | null>(null);
   const dictionaryAwaitingResumeRef = useRef(false);
   const dictionaryWasPlayingRef = useRef(false);
+
+  const resolveBubbleContainer = useCallback(() => {
+    const bubbleEl = linguistBubbleRef.current;
+    if (!bubbleEl) {
+      return null;
+    }
+    const offsetParent = bubbleEl.offsetParent;
+    if (offsetParent instanceof HTMLElement) {
+      return offsetParent;
+    }
+    return bubbleEl.parentElement instanceof HTMLElement ? bubbleEl.parentElement : null;
+  }, []);
+
+  const clampBubblePosition = useCallback(
+    (position: { top: number; left: number }, size: { width: number; height: number }, containerRect: DOMRect) => {
+      const margin = 12;
+      const maxLeft = Math.max(margin, containerRect.width - size.width - margin);
+      const maxTop = Math.max(margin, containerRect.height - size.height - margin);
+      const clampedLeft = Math.min(Math.max(position.left, margin), maxLeft);
+      const clampedTop = Math.min(Math.max(position.top, margin), maxTop);
+      return { top: clampedTop, left: clampedLeft };
+    },
+    [],
+  );
+
+  const clampBubbleSize = useCallback(
+    (size: { width: number; height: number }, position: { top: number; left: number }, containerRect: DOMRect) => {
+      const margin = 12;
+      const baseMinWidth = 240;
+      const baseMinHeight = 160;
+      const maxWidth = Math.max(120, containerRect.width - position.left - margin);
+      const maxHeight = Math.max(120, containerRect.height - position.top - margin);
+      const minWidth = Math.min(baseMinWidth, maxWidth);
+      const minHeight = Math.min(baseMinHeight, maxHeight);
+      const width = Math.min(Math.max(size.width, minWidth), maxWidth);
+      const height = Math.min(Math.max(size.height, minHeight), maxHeight);
+      return { width, height };
+    },
+    [],
+  );
+
+  const persistPinnedLayout = useCallback(
+    (position: { top: number; left: number }, size: { width: number; height: number } | null) => {
+      linguistPinnedPositionRef.current = position;
+      linguistPinnedSizeRef.current = size;
+      if (typeof window === 'undefined') {
+        return;
+      }
+      try {
+        window.localStorage.setItem(
+          MY_LINGUIST_STORAGE_KEYS.bubblePinnedPosition,
+          JSON.stringify({ top: Math.round(position.top), left: Math.round(position.left) }),
+        );
+        if (size) {
+          window.localStorage.setItem(
+            MY_LINGUIST_STORAGE_KEYS.bubblePinnedSize,
+            JSON.stringify({ width: Math.round(size.width), height: Math.round(size.height) }),
+          );
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [],
+  );
+
+  const persistPinnedSize = useCallback((size: { width: number; height: number } | null) => {
+    linguistPinnedSizeRef.current = size;
+    if (!size || typeof window === 'undefined') {
+      return;
+    }
+    try {
+      window.localStorage.setItem(
+        MY_LINGUIST_STORAGE_KEYS.bubblePinnedSize,
+        JSON.stringify({ width: Math.round(size.width), height: Math.round(size.height) }),
+      );
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const captureBubbleLayout = useCallback(() => {
+    const bubbleEl = linguistBubbleRef.current;
+    const container = resolveBubbleContainer();
+    if (!bubbleEl || !container) {
+      return null;
+    }
+    const bubbleRect = bubbleEl.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    const width = Number.isFinite(bubbleRect.width) ? bubbleRect.width : null;
+    const height = Number.isFinite(bubbleRect.height) ? bubbleRect.height : null;
+    if (width === null || height === null) {
+      return null;
+    }
+    const position = clampBubblePosition(
+      {
+        top: bubbleRect.top - containerRect.top,
+        left: bubbleRect.left - containerRect.left,
+      },
+      { width, height },
+      containerRect,
+    );
+    return {
+      position,
+      size: { width, height },
+    };
+  }, [clampBubblePosition, resolveBubbleContainer]);
 
   const clearDictionaryTimer = useCallback(() => {
     if (dictionaryPressTimerRef.current === null) {
@@ -304,8 +498,14 @@ export function useLinguistBubble({
     linguistAnchorElementRef.current = null;
     linguistNavigationPendingRef.current = null;
     linguistChunkAdvancePendingRef.current = null;
+    linguistBubbleDragRef.current = null;
+    linguistBubbleResizeRef.current = null;
+    linguistManualPositionRef.current = false;
     setLinguistBubble(null);
+    setLinguistBubbleDragging(false);
+    setLinguistBubbleResizing(false);
     setLinguistBubbleFloatingPosition(null);
+    setLinguistBubbleFloatingSize(null);
   }, []);
 
   const extractLinguistNavigation = useCallback(
@@ -407,6 +607,26 @@ export function useLinguistBubble({
         navigation,
       });
 
+      if (linguistBubbleDocked) {
+        linguistManualPositionRef.current = false;
+        setLinguistBubbleFloatingPosition(null);
+        setLinguistBubbleFloatingSize(null);
+        setLinguistBubbleFloatingPlacement('above');
+      } else if (linguistBubblePinned && linguistPinnedPositionRef.current) {
+        linguistManualPositionRef.current = true;
+        setLinguistBubbleFloatingPlacement('free');
+        setLinguistBubbleFloatingPosition(linguistPinnedPositionRef.current);
+        setLinguistBubbleFloatingSize(linguistPinnedSizeRef.current ?? null);
+      } else if (linguistBubblePinned) {
+        linguistManualPositionRef.current = false;
+        setLinguistBubbleFloatingSize(linguistPinnedSizeRef.current ?? null);
+        setLinguistBubbleFloatingPlacement('above');
+      } else {
+        linguistManualPositionRef.current = false;
+        setLinguistBubbleFloatingSize(linguistPinnedSizeRef.current ?? null);
+        setLinguistBubbleFloatingPlacement('above');
+      }
+
       const page = typeof window !== 'undefined' ? window.location.pathname : null;
       void assistantLookup({
         query: slicedQuery,
@@ -490,6 +710,8 @@ export function useLinguistBubble({
       globalInputLanguage,
       isEnabled,
       jobId,
+      linguistBubbleDocked,
+      linguistBubblePinned,
       resolvedJobOriginalLanguage,
       resolvedJobTranslationLanguage,
     ],
@@ -706,12 +928,254 @@ export function useLinguistBubble({
     openLinguistBubbleForRect(trimmed, rect, 'selection', variantKind, anchorEl);
   }, [containerRef, openLinguistBubbleForRect]);
 
+  const handleBubblePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (linguistBubbleDocked) {
+        return;
+      }
+      if (linguistBubbleResizing) {
+        return;
+      }
+      if (event.button !== 0 || !event.isPrimary) {
+        return;
+      }
+      if (!(event.target instanceof HTMLElement)) {
+        return;
+      }
+      if (event.target.closest('button')) {
+        return;
+      }
+      const bubbleEl = linguistBubbleRef.current;
+      const container = resolveBubbleContainer();
+      if (!bubbleEl || !container) {
+        return;
+      }
+      const bubbleRect = bubbleEl.getBoundingClientRect();
+      const containerRect = container.getBoundingClientRect();
+      if (!Number.isFinite(bubbleRect.width) || !Number.isFinite(bubbleRect.height)) {
+        return;
+      }
+      const position = clampBubblePosition(
+        {
+          top: bubbleRect.top - containerRect.top,
+          left: bubbleRect.left - containerRect.left,
+        },
+        { width: bubbleRect.width, height: bubbleRect.height },
+        containerRect,
+      );
+      linguistManualPositionRef.current = true;
+      setLinguistBubbleDragging(true);
+      setLinguistBubbleFloatingPlacement('free');
+      setLinguistBubbleFloatingPosition(position);
+      setLinguistBubbleFloatingSize({ width: bubbleRect.width, height: bubbleRect.height });
+      linguistBubbleDragRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startTop: position.top,
+        startLeft: position.left,
+        width: bubbleRect.width,
+        height: bubbleRect.height,
+        containerRect,
+      };
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [clampBubblePosition, linguistBubbleDocked, linguistBubbleResizing, resolveBubbleContainer],
+  );
+
+  const handleBubblePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = linguistBubbleDragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return;
+      }
+      const deltaX = event.clientX - drag.startX;
+      const deltaY = event.clientY - drag.startY;
+      const position = clampBubblePosition(
+        {
+          top: drag.startTop + deltaY,
+          left: drag.startLeft + deltaX,
+        },
+        { width: drag.width, height: drag.height },
+        drag.containerRect,
+      );
+      setLinguistBubbleFloatingPosition(position);
+    },
+    [clampBubblePosition],
+  );
+
+  const finishBubbleDrag = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const drag = linguistBubbleDragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) {
+        return;
+      }
+      linguistBubbleDragRef.current = null;
+      setLinguistBubbleDragging(false);
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+      if (!linguistBubblePinned) {
+        return;
+      }
+      const layout = captureBubbleLayout();
+      if (layout) {
+        persistPinnedLayout(layout.position, layout.size);
+      }
+    },
+    [captureBubbleLayout, linguistBubblePinned, persistPinnedLayout],
+  );
+
+  const handleBubblePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!linguistBubbleDragRef.current || linguistBubbleDragRef.current.pointerId !== event.pointerId) {
+        return;
+      }
+      finishBubbleDrag(event);
+    },
+    [finishBubbleDrag],
+  );
+
+  const handleResizeHandlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (linguistBubbleDocked) {
+        return;
+      }
+      if (event.button !== 0 || !event.isPrimary) {
+        return;
+      }
+      const bubbleEl = linguistBubbleRef.current;
+      const container = resolveBubbleContainer();
+      if (!bubbleEl || !container) {
+        return;
+      }
+      const layout = captureBubbleLayout();
+      if (!layout) {
+        return;
+      }
+      linguistManualPositionRef.current = true;
+      linguistBubbleDragRef.current = null;
+      setLinguistBubbleDragging(false);
+      setLinguistBubbleResizing(true);
+      setLinguistBubbleFloatingPlacement('free');
+      setLinguistBubbleFloatingPosition(layout.position);
+      setLinguistBubbleFloatingSize(layout.size);
+      linguistBubbleResizeRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startWidth: layout.size.width,
+        startHeight: layout.size.height,
+        position: layout.position,
+        containerRect: container.getBoundingClientRect(),
+      };
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+    },
+    [captureBubbleLayout, linguistBubbleDocked, resolveBubbleContainer],
+  );
+
+  const handleResizeHandlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const resize = linguistBubbleResizeRef.current;
+      if (!resize || resize.pointerId !== event.pointerId) {
+        return;
+      }
+      const deltaX = event.clientX - resize.startX;
+      const deltaY = event.clientY - resize.startY;
+      const size = clampBubbleSize(
+        { width: resize.startWidth + deltaX, height: resize.startHeight + deltaY },
+        resize.position,
+        resize.containerRect,
+      );
+      setLinguistBubbleFloatingSize(size);
+    },
+    [clampBubbleSize],
+  );
+
+  const finishResize = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const resize = linguistBubbleResizeRef.current;
+      if (!resize || resize.pointerId !== event.pointerId) {
+        return;
+      }
+      linguistBubbleResizeRef.current = null;
+      setLinguistBubbleResizing(false);
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        // ignore
+      }
+      const layout = captureBubbleLayout();
+      if (!layout) {
+        return;
+      }
+      setLinguistBubbleFloatingPosition(layout.position);
+      setLinguistBubbleFloatingSize(layout.size);
+      if (linguistBubblePinned) {
+        persistPinnedLayout(layout.position, layout.size);
+      } else {
+        persistPinnedSize(layout.size);
+      }
+    },
+    [captureBubbleLayout, linguistBubblePinned, persistPinnedLayout, persistPinnedSize],
+  );
+
+  const handleResizeHandlePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!linguistBubbleResizeRef.current || linguistBubbleResizeRef.current.pointerId !== event.pointerId) {
+        return;
+      }
+      finishResize(event);
+    },
+    [finishResize],
+  );
+
   const toggleLinguistBubblePinned = useCallback(() => {
     setLinguistBubblePinned((previous) => {
       const next = !previous;
       if (typeof window !== 'undefined') {
         try {
-          window.localStorage.setItem(MY_LINGUIST_STORAGE_KEYS.bubblePinned, String(next));
+          window.localStorage.setItem(MY_LINGUIST_STORAGE_KEYS.bubbleLocked, String(next));
+        } catch {
+          // ignore
+        }
+      }
+      if (next) {
+        const layout = captureBubbleLayout();
+        if (layout) {
+          linguistManualPositionRef.current = true;
+          setLinguistBubbleFloatingPlacement('free');
+          setLinguistBubbleFloatingPosition(layout.position);
+          setLinguistBubbleFloatingSize(layout.size);
+          persistPinnedLayout(layout.position, layout.size);
+        }
+      } else {
+        linguistManualPositionRef.current = false;
+      }
+      return next;
+    });
+  }, [captureBubbleLayout, persistPinnedLayout]);
+
+  const toggleLinguistBubbleDocked = useCallback(() => {
+    setLinguistBubbleDocked((previous) => {
+      const next = !previous;
+      if (typeof window !== 'undefined') {
+        try {
+          window.localStorage.setItem(MY_LINGUIST_STORAGE_KEYS.bubbleDocked, String(next));
         } catch {
           // ignore
         }
@@ -721,13 +1185,20 @@ export function useLinguistBubble({
   }, []);
 
   const updateLinguistBubbleFloatingPosition = useCallback(() => {
-    if (!linguistBubble || linguistBubblePinned) {
+    if (!linguistBubble || linguistBubbleDocked) {
       setLinguistBubbleFloatingPosition(null);
       setLinguistBubbleFloatingPlacement('above');
       return;
     }
-    const container = containerRef.current;
+    if (linguistBubblePinned && linguistManualPositionRef.current) {
+      return;
+    }
+    if (!linguistBubblePinned && linguistManualPositionRef.current) {
+      return;
+    }
+
     const bubbleEl = linguistBubbleRef.current;
+    const container = resolveBubbleContainer();
     if (!container || !bubbleEl) {
       return;
     }
@@ -749,7 +1220,7 @@ export function useLinguistBubble({
     const halfWidth = bubbleRect.width / 2;
     const minLeft = halfWidth + margin;
     const maxLeft = Math.max(minLeft, containerRect.width - halfWidth - margin);
-    const clampedLeft = Math.min(Math.max(centerX, minLeft), maxLeft);
+    const clampedCenter = Math.min(Math.max(centerX, minLeft), maxLeft);
 
     let placement: LinguistBubbleFloatingPlacement = 'above';
     let top = anchorRect.top - containerRect.top - bubbleRect.height - margin;
@@ -762,15 +1233,36 @@ export function useLinguistBubble({
     }
     top = Math.max(margin, top);
 
+    if (linguistBubblePinned) {
+      const freePosition = clampBubblePosition(
+        { top: Math.round(top), left: Math.round(clampedCenter - halfWidth) },
+        { width: bubbleRect.width, height: bubbleRect.height },
+        containerRect,
+      );
+      linguistManualPositionRef.current = true;
+      setLinguistBubbleFloatingPlacement('free');
+      setLinguistBubbleFloatingSize({ width: bubbleRect.width, height: bubbleRect.height });
+      setLinguistBubbleFloatingPosition(freePosition);
+      persistPinnedLayout(freePosition, { width: bubbleRect.width, height: bubbleRect.height });
+      return;
+    }
+
     setLinguistBubbleFloatingPlacement(placement);
     setLinguistBubbleFloatingPosition((previous) => {
-      const next = { top: Math.round(top), left: Math.round(clampedLeft) };
+      const next = { top: Math.round(top), left: Math.round(clampedCenter) };
       if (!previous || previous.top !== next.top || previous.left !== next.left) {
         return next;
       }
       return previous;
     });
-  }, [containerRef, linguistBubble, linguistBubblePinned]);
+  }, [
+    clampBubblePosition,
+    linguistBubble,
+    linguistBubbleDocked,
+    linguistBubblePinned,
+    persistPinnedLayout,
+    resolveBubbleContainer,
+  ]);
 
   const requestLinguistBubblePositionUpdate = useCallback(() => {
     if (typeof window === 'undefined') {
@@ -837,25 +1329,66 @@ export function useLinguistBubble({
   );
 
   useEffect(() => {
-    if (!linguistBubble || linguistBubblePinned) {
+    if (!linguistBubble || linguistBubbleDocked) {
+      linguistManualPositionRef.current = false;
       setLinguistBubbleFloatingPosition(null);
+      setLinguistBubbleFloatingSize(null);
       setLinguistBubbleFloatingPlacement('above');
       return;
     }
+    if (linguistBubblePinned) {
+      const storedPosition = linguistPinnedPositionRef.current;
+      const storedSize = linguistPinnedSizeRef.current;
+      if (storedPosition) {
+        linguistManualPositionRef.current = true;
+        setLinguistBubbleFloatingPlacement('free');
+        setLinguistBubbleFloatingPosition(storedPosition);
+        setLinguistBubbleFloatingSize(storedSize ?? null);
+        return;
+      }
+      linguistManualPositionRef.current = false;
+      requestLinguistBubblePositionUpdate();
+      return;
+    }
+    linguistManualPositionRef.current = false;
+    setLinguistBubbleFloatingSize(linguistPinnedSizeRef.current ?? null);
     requestLinguistBubblePositionUpdate();
-  }, [linguistBubble, linguistBubblePinned, requestLinguistBubblePositionUpdate]);
+  }, [
+    linguistBubble,
+    linguistBubbleDocked,
+    linguistBubblePinned,
+    requestLinguistBubblePositionUpdate,
+  ]);
 
   useEffect(() => {
-    if (!linguistBubble || linguistBubblePinned) {
+    if (!linguistBubble || linguistBubbleDocked) {
       return;
     }
     if (typeof window === 'undefined') {
       return;
     }
-    const handleResize = () => requestLinguistBubblePositionUpdate();
+    const handleResize = () => {
+      if (linguistBubblePinned) {
+        const layout = captureBubbleLayout();
+        if (layout) {
+          setLinguistBubbleFloatingPosition(layout.position);
+          setLinguistBubbleFloatingSize(layout.size);
+          persistPinnedLayout(layout.position, layout.size);
+        }
+        return;
+      }
+      requestLinguistBubblePositionUpdate();
+    };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [linguistBubble, linguistBubblePinned, requestLinguistBubblePositionUpdate]);
+  }, [
+    captureBubbleLayout,
+    linguistBubble,
+    linguistBubbleDocked,
+    linguistBubblePinned,
+    persistPinnedLayout,
+    requestLinguistBubblePositionUpdate,
+  ]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -1203,7 +1736,7 @@ export function useLinguistBubble({
 
   useEffect(() => {
     const pending = linguistNavigationPendingRef.current;
-    if (!pending || !linguistBubble || linguistBubblePinned) {
+    if (!pending || !linguistBubble || linguistBubblePinned || linguistBubbleDocked) {
       return;
     }
     const tokenEl = findTextPlayerTokenElement(pending);
@@ -1218,6 +1751,7 @@ export function useLinguistBubble({
     findTextPlayerTokenElement,
     linguistBubble,
     linguistBubblePinned,
+    linguistBubbleDocked,
     requestLinguistBubblePositionUpdate,
   ]);
 
@@ -1268,7 +1802,7 @@ export function useLinguistBubble({
     openLinguistBubbleForRect(rawWord, fallbackRect, 'click', variantKind, null, navigation);
     if (sentenceIndex !== activeSentenceIndex) {
       setActiveSentenceIndex(sentenceIndex);
-      if (!linguistBubblePinned) {
+      if (!linguistBubblePinned && !linguistBubbleDocked) {
         linguistNavigationPendingRef.current = navigation;
       }
     }
@@ -1277,6 +1811,7 @@ export function useLinguistBubble({
     containerRef,
     linguistBubble,
     linguistBubblePinned,
+    linguistBubbleDocked,
     linguistSentenceOrder,
     openLinguistBubbleForRect,
     seekInlineAudioToTime,
@@ -1334,16 +1869,29 @@ export function useLinguistBubble({
     return {
       bubble: null,
       bubblePinned: false,
+      bubbleDocked: false,
+      bubbleDragging: false,
+      bubbleResizing: false,
       bubbleRef: linguistBubbleRef,
       floatingPlacement: 'above',
       floatingPosition: null,
+      floatingSize: null,
       canNavigatePrev: false,
       canNavigateNext: false,
       onTogglePinned: noop,
+      onToggleDocked: noop,
       onClose: noop,
       onSpeak: noop,
       onSpeakSlow: noop,
       onNavigateWord: noopNavigate,
+      onBubblePointerDown: noopPointer,
+      onBubblePointerMove: noopPointer,
+      onBubblePointerUp: noopPointer,
+      onBubblePointerCancel: noopPointer,
+      onResizeHandlePointerDown: noopPointer,
+      onResizeHandlePointerMove: noopPointer,
+      onResizeHandlePointerUp: noopPointer,
+      onResizeHandlePointerCancel: noopPointer,
       onTokenClickCapture: noopMouse,
       onPointerDownCapture: noopPointer,
       onPointerMoveCapture: noopPointer,
@@ -1357,16 +1905,29 @@ export function useLinguistBubble({
   return {
     bubble: linguistBubble,
     bubblePinned: linguistBubblePinned,
+    bubbleDocked: linguistBubbleDocked,
+    bubbleDragging: linguistBubbleDragging,
+    bubbleResizing: linguistBubbleResizing,
     bubbleRef: linguistBubbleRef,
     floatingPlacement: linguistBubbleFloatingPlacement,
     floatingPosition: linguistBubbleFloatingPosition,
+    floatingSize: linguistBubbleFloatingSize,
     canNavigatePrev: linguistCanNavigatePrev,
     canNavigateNext: linguistCanNavigateNext,
     onTogglePinned: toggleLinguistBubblePinned,
+    onToggleDocked: toggleLinguistBubbleDocked,
     onClose: closeLinguistBubble,
     onSpeak: handleLinguistSpeak,
     onSpeakSlow: handleLinguistSpeakSlow,
     onNavigateWord: navigateLinguistWord,
+    onBubblePointerDown: handleBubblePointerDown,
+    onBubblePointerMove: handleBubblePointerMove,
+    onBubblePointerUp: finishBubbleDrag,
+    onBubblePointerCancel: handleBubblePointerCancel,
+    onResizeHandlePointerDown: handleResizeHandlePointerDown,
+    onResizeHandlePointerMove: handleResizeHandlePointerMove,
+    onResizeHandlePointerUp: finishResize,
+    onResizeHandlePointerCancel: handleResizeHandlePointerCancel,
     onTokenClickCapture: handleLinguistTokenClickCapture,
     onPointerDownCapture: handlePointerDownCapture,
     onPointerMoveCapture: handlePointerMoveCapture,

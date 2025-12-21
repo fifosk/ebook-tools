@@ -81,7 +81,7 @@ export function SentenceImageReel({
                   <img
                     src={frame.url}
                     alt={sentenceNumber ? `Sentence ${sentenceNumber} illustration` : 'Sentence illustration'}
-                    loading={frame.isActive ? 'eager' : 'lazy'}
+                    loading="eager"
                     decoding="async"
                     onError={() => {
                       if (!sentenceNumber) {

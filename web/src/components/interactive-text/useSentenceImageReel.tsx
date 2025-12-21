@@ -402,7 +402,8 @@ export function useSentenceImageReel({
   }, [imagePromptPlanSummary]);
 
   const reelWindowSize = 7;
-  const reelPrefetchBuffer = 0;
+  const reelPrefetchBuffer = 2;
+  const reelEagerPreloadBuffer = 2;
 
   const promptPlanSentenceRange = useMemo(() => {
     const summary = imagePromptPlanSummary;
@@ -565,6 +566,47 @@ export function useSentenceImageReel({
     return slots;
   }, [reelPrefetchBuffer, reelSentenceSlots, reelWindowBounds]);
 
+  const reelEagerSlots = useMemo(() => {
+    if (reelEagerPreloadBuffer <= 0) {
+      return [] as number[];
+    }
+    const { boundedStart, boundedEnd } = reelWindowBounds;
+    const base = Math.max(1, Math.trunc(activeSentenceNumber));
+    const upperBound = boundedEnd ?? Number.POSITIVE_INFINITY;
+    const slots: number[] = [];
+    for (let offset = 1; offset <= reelEagerPreloadBuffer; offset += 1) {
+      const forward = base + offset;
+      const back = base - offset;
+      if (forward >= boundedStart && forward <= upperBound) {
+        slots.push(forward);
+      }
+      if (back >= boundedStart && back <= upperBound) {
+        slots.push(back);
+      }
+    }
+    return slots;
+  }, [activeSentenceNumber, reelEagerPreloadBuffer, reelWindowBounds]);
+
+  const reelPreloadSlots = useMemo(() => {
+    const merged = new Set<number>();
+    reelSentenceSlots.forEach((value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        merged.add(value);
+      }
+    });
+    reelPrefetchSlots.forEach((value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        merged.add(value);
+      }
+    });
+    reelEagerSlots.forEach((value) => {
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        merged.add(value);
+      }
+    });
+    return Array.from(merged);
+  }, [reelEagerSlots, reelPrefetchSlots, reelSentenceSlots]);
+
   const chunkSentenceByNumber = useMemo(() => {
     const baseMap = exportSentenceByNumber ? new Map(exportSentenceByNumber) : new Map<number, ChunkSentenceMetadata>();
     const entries = chunk?.sentences ?? null;
@@ -636,103 +678,38 @@ export function useSentenceImageReel({
 
   const reelImageInfoCacheRef = useRef<Map<number, SentenceImageInfoResponse>>(new Map());
   const reelImageInfoInflightRef = useRef<Set<number>>(new Set());
+  const reelImageInfoMissingRef = useRef<Set<number>>(new Set());
   const [reelImageInfoVersion, setReelImageInfoVersion] = useState(0);
   const [reelImageRetryTokens, setReelImageRetryTokens] = useState<Record<string, number>>({});
   const reelScrollRef = useRef<HTMLDivElement | null>(null);
   const reelPrefetchCacheRef = useRef<Set<string>>(new Set());
+  const [reelReady, setReelReady] = useState(true);
 
   useEffect(() => {
     reelImageInfoCacheRef.current.clear();
     reelImageInfoInflightRef.current.clear();
     reelPrefetchCacheRef.current.clear();
+    reelImageInfoMissingRef.current.clear();
     setReelImageInfoVersion((value) => value + 1);
     setReelImageRetryTokens({});
   }, [jobId]);
 
   const reelLookupSlots = useMemo(() => {
     const merged = new Set<number>();
-    reelSentenceSlots.forEach((value) => {
-      if (typeof value === 'number' && Number.isFinite(value)) {
-        merged.add(value);
-      }
-    });
-    reelPrefetchSlots.forEach((value) => {
+    reelPreloadSlots.forEach((value) => {
       if (typeof value === 'number' && Number.isFinite(value)) {
         merged.add(value);
       }
     });
     return Array.from(merged);
-  }, [reelPrefetchSlots, reelSentenceSlots]);
-
-  useEffect(() => {
-    if (isExportMode) {
-      return;
-    }
-    if (!jobId) {
-      return;
-    }
-    if (!isReelEnabled) {
-      return;
-    }
-    const cache = reelImageInfoCacheRef.current;
-    const inflight = reelImageInfoInflightRef.current;
-    const required = reelLookupSlots.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
-    if (!required.length) {
-      return;
-    }
-
-    let cancelled = false;
-    const targets = required.filter((sentenceNumber) => {
-      if (chunkSentenceByNumber.has(sentenceNumber)) {
-        return false;
-      }
-      if (cache.has(sentenceNumber) || inflight.has(sentenceNumber)) {
-        return false;
-      }
-      return true;
-    });
-    if (!targets.length) {
-      return;
-    }
-    targets.forEach((sentenceNumber) => {
-      inflight.add(sentenceNumber);
-    });
-    fetchSentenceImageInfoBatch(jobId, targets)
-      .then((items) => {
-        if (cancelled) {
-          return;
-        }
-        let updated = false;
-        items.forEach((info) => {
-          if (!info || typeof info.sentence_number !== 'number' || !Number.isFinite(info.sentence_number)) {
-            return;
-          }
-          cache.set(info.sentence_number, info);
-          updated = true;
-        });
-        if (updated) {
-          setReelImageInfoVersion((value) => value + 1);
-        }
-      })
-      .catch(() => {
-        // ignore
-      })
-      .finally(() => {
-        targets.forEach((sentenceNumber) => {
-          inflight.delete(sentenceNumber);
-        });
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [chunkSentenceByNumber, isExportMode, isReelEnabled, jobId, reelLookupSlots]);
+  }, [reelPreloadSlots]);
 
   const [reelImageFailures, setReelImageFailures] = useState<Record<string, boolean>>({});
   useEffect(() => {
     setReelImageFailures({});
     setReelImageRetryTokens({});
     reelPrefetchCacheRef.current.clear();
+    reelImageInfoMissingRef.current.clear();
   }, [imageRefreshToken, jobId]);
 
   useEffect(() => {
@@ -767,6 +744,14 @@ export function useSentenceImageReel({
       window.clearTimeout(timer);
     };
   }, [isReelEnabled, jobId, reelImageFailures]);
+
+  useEffect(() => {
+    if (!isReelEnabled) {
+      setReelReady(true);
+      return;
+    }
+    setReelReady(false);
+  }, [isReelEnabled, jobId]);
 
   const resolveSentenceImageUrl = useCallback(
     (path: string | null, sentenceNumber?: number | null) => {
@@ -950,6 +935,76 @@ export function useSentenceImageReel({
     ],
   );
 
+  useEffect(() => {
+    if (isExportMode) {
+      return;
+    }
+    if (!jobId) {
+      return;
+    }
+    if (!isReelEnabled) {
+      return;
+    }
+    const cache = reelImageInfoCacheRef.current;
+    const inflight = reelImageInfoInflightRef.current;
+    const required = reelLookupSlots.filter((value): value is number => typeof value === 'number' && Number.isFinite(value));
+    if (!required.length) {
+      return;
+    }
+
+    let cancelled = false;
+    const targets = required.filter((sentenceNumber) => {
+      if (cache.has(sentenceNumber) || inflight.has(sentenceNumber)) {
+        return false;
+      }
+      const path = resolveReelImagePath(sentenceNumber, false);
+      return !path;
+    });
+    if (!targets.length) {
+      return;
+    }
+    targets.forEach((sentenceNumber) => {
+      inflight.add(sentenceNumber);
+    });
+    fetchSentenceImageInfoBatch(jobId, targets)
+      .then((items) => {
+        if (cancelled) {
+          return;
+        }
+        let updated = false;
+        const resolved = new Set<number>();
+        items.forEach((info) => {
+          if (!info || typeof info.sentence_number !== 'number' || !Number.isFinite(info.sentence_number)) {
+            return;
+          }
+          resolved.add(info.sentence_number);
+          cache.set(info.sentence_number, info);
+          reelImageInfoMissingRef.current.delete(info.sentence_number);
+          updated = true;
+        });
+        targets.forEach((sentenceNumber) => {
+          if (!resolved.has(sentenceNumber)) {
+            reelImageInfoMissingRef.current.add(sentenceNumber);
+          }
+        });
+        if (updated || resolved.size !== targets.length) {
+          setReelImageInfoVersion((value) => value + 1);
+        }
+      })
+      .catch(() => {
+        // ignore
+      })
+      .finally(() => {
+        targets.forEach((sentenceNumber) => {
+          inflight.delete(sentenceNumber);
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isExportMode, isReelEnabled, jobId, reelLookupSlots, resolveReelImagePath]);
+
   const reelFrames = useMemo(() => {
     const cache = reelImageInfoCacheRef.current;
     const rangeFragment = chunk?.rangeFragment ?? null;
@@ -1049,11 +1104,11 @@ export function useSentenceImageReel({
     if (!jobId || !isReelEnabled) {
       return;
     }
-    if (!reelPrefetchSlots.length) {
+    if (!reelPreloadSlots.length) {
       return;
     }
     const cache = reelPrefetchCacheRef.current;
-    reelPrefetchSlots.forEach((sentenceNumber) => {
+    reelPreloadSlots.forEach((sentenceNumber) => {
       if (typeof sentenceNumber !== 'number' || !Number.isFinite(sentenceNumber)) {
         return;
       }
@@ -1070,10 +1125,52 @@ export function useSentenceImageReel({
     isReelEnabled,
     jobId,
     reelImageInfoVersion,
-    reelPrefetchSlots,
+    reelPreloadSlots,
     resolveReelImagePath,
     resolveSentenceImageUrl,
   ]);
+
+  useEffect(() => {
+    if (!isReelEnabled || reelReady) {
+      return;
+    }
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setReelReady(true);
+    }, 1200);
+    return () => window.clearTimeout(timeout);
+  }, [isReelEnabled, jobId, reelReady]);
+
+  useEffect(() => {
+    if (!isReelEnabled) {
+      return;
+    }
+    if (reelVisibleFrames.length === 0) {
+      return;
+    }
+    const missing = reelImageInfoMissingRef.current;
+    const ready = reelVisibleFrames.every((frame) => {
+      const sentenceNumber = frame.sentenceNumber;
+      if (!sentenceNumber || !Number.isFinite(sentenceNumber)) {
+        return true;
+      }
+      if (frame.url) {
+        return true;
+      }
+      if (missing.has(sentenceNumber)) {
+        return true;
+      }
+      if (reelImageFailures[String(sentenceNumber)]) {
+        return true;
+      }
+      return false;
+    });
+    if (ready) {
+      setReelReady(true);
+    }
+  }, [isReelEnabled, reelImageFailures, reelImageInfoVersion, reelVisibleFrames]);
 
   useLayoutEffect(() => {
     if (!isReelEnabled) {
@@ -1253,6 +1350,34 @@ export function useSentenceImageReel({
     if (!jobId || !isReelEnabled) {
       return null;
     }
+    if (!reelReady) {
+      return (
+        <div
+          className="player-panel__interactive-image-reel player-panel__interactive-image-reel--loading"
+          aria-live="polite"
+        >
+          <div className="player-panel__interactive-image-reel-strip" role="list" aria-label="Loading sentence images">
+            {Array.from({ length: reelWindowSize }).map((_, index) => (
+              <div
+                key={`loading-${index}`}
+                className="player-panel__interactive-image-reel-slot"
+                role="listitem"
+                aria-hidden="true"
+              >
+                <div className="player-panel__interactive-image-reel-frame player-panel__interactive-image-reel-frame--loading">
+                  <span className="player-panel__interactive-image-reel-placeholder" aria-hidden="true">
+                    ...
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="player-panel__interactive-image-reel-status" role="status">
+            Loading reel...
+          </div>
+        </div>
+      );
+    }
     if (reelVisibleFrames.length === 0) {
       return null;
     }
@@ -1264,7 +1389,15 @@ export function useSentenceImageReel({
         onFrameError={handleReelFrameError}
       />
     );
-  }, [handleReelFrameClick, handleReelFrameError, isReelEnabled, jobId, reelVisibleFrames]);
+  }, [
+    handleReelFrameClick,
+    handleReelFrameError,
+    isReelEnabled,
+    jobId,
+    reelReady,
+    reelVisibleFrames,
+    reelWindowSize,
+  ]);
 
   return {
     sentenceImageReelNode,

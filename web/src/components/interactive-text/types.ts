@@ -73,7 +73,7 @@ export type LinguistBubbleState = {
   navigation: LinguistBubbleNavigation | null;
 };
 
-export type LinguistBubbleFloatingPlacement = 'above' | 'below';
+export type LinguistBubbleFloatingPlacement = 'above' | 'below' | 'free';
 
 export type TimelineVariantRuntime = {
   tokens: string[];

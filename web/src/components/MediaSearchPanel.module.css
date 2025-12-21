@@ -5,16 +5,35 @@
   position: relative;
 }
 
+.searchPanelCompact {
+  flex: 0 1 16rem;
+  min-width: 8rem;
+  max-width: min(18rem, 100%);
+  gap: 0.25rem;
+}
+
 .searchHeader {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
 }
 
+.searchHeaderCompact {
+  gap: 0;
+}
+
 .searchBar {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+.searchBarCompact {
+  gap: 0.35rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-modal-border);
+  background: var(--color-surface-muted);
 }
 
 .searchInput {
@@ -31,6 +50,20 @@
   outline: none;
   border-color: var(--color-accent);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent) 30%, transparent);
+}
+
+.searchInputCompact {
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.searchInputCompact:focus {
+  box-shadow: none;
 }
 
 .searchButton {
@@ -56,6 +89,25 @@
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
 }
 
+.searchButtonCompact {
+  border-radius: 0.55rem;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 750;
+  border: 1px solid var(--color-button-secondary-border);
+  background: var(--color-button-secondary-bg);
+  color: var(--color-button-secondary-text);
+  box-shadow: none;
+}
+
+.searchButtonCompact:not(:disabled):hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--color-button-secondary-hover-border);
+  background: var(--color-button-secondary-hover-bg);
+  color: var(--color-text-heading);
+}
+
 .resultsDropdown {
   position: absolute;
   top: calc(100% + 0.4rem);
@@ -72,6 +124,15 @@
   flex-direction: column;
   gap: 0.6rem;
   z-index: 12;
+}
+
+.resultsDropdownCompact {
+  left: auto;
+  right: 0;
+  width: min(32rem, 92vw);
+  min-width: min(18rem, 92vw);
+  max-height: min(22rem, 70vh);
+  z-index: 20;
 }
 
 .resultsList {

@@ -4,7 +4,14 @@ import { useMediaMemory } from '../hooks/useMediaMemory';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
 import { NavigationControls } from './player-panel/NavigationControls';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
-import { appendAccessToken, fetchSubtitleTvMetadata, fetchYoutubeVideoMetadata, resolveLibraryMediaUrl } from '../api/client';
+import {
+  appendAccessToken,
+  createExport,
+  fetchSubtitleTvMetadata,
+  fetchYoutubeVideoMetadata,
+  resolveLibraryMediaUrl,
+  withBase,
+} from '../api/client';
 import {
   DEFAULT_TRANSLATION_SPEED,
   TRANSLATION_SPEED_MAX,
@@ -16,6 +23,7 @@ import { buildMediaFileId, toVideoFiles } from './player-panel/utils';
 import type { NavigationIntent } from './player-panel/constants';
 import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../api/dtos';
 import { coerceExportPath } from '../utils/storageResolver';
+import { downloadWithSaveAs } from '../utils/downloads';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void };
 
@@ -422,6 +430,8 @@ export default function YoutubeDubPlayer({
   const [playbackSpeed, setPlaybackSpeed] = useState(DEFAULT_TRANSLATION_SPEED);
   const [subtitleScale, setSubtitleScale] = useState(1);
   const [subtitleBackgroundOpacityPercent, setSubtitleBackgroundOpacityPercent] = useState(70);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const pendingAutoplayRef = useRef(false);
   const previousFileCountRef = useRef<number>(videoFiles.length);
   const controlsRef = useRef<PlaybackControls | null>(null);
@@ -943,6 +953,35 @@ export default function YoutubeDubPlayer({
   const disableLast = videoCount === 0 || currentIndex >= videoCount - 1;
   const disablePlayback = videoCount === 0 || !controlsRef.current;
   const disableFullscreen = videoCount === 0;
+  const canExport = !isExportMode && mediaComplete && videoCount > 0;
+  const exportSourceKind = libraryItem ? 'library' : 'job';
+
+  const handleExport = useCallback(async () => {
+    if (!jobId || isExporting || !canExport) {
+      return;
+    }
+    setIsExporting(true);
+    setExportError(null);
+    const payload = {
+      source_kind: exportSourceKind,
+      source_id: jobId,
+      player_type: 'interactive-text',
+    } as const;
+    try {
+      const result = await createExport(payload);
+      const resolved =
+        result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
+          ? result.download_url
+          : withBase(result.download_url);
+      const downloadUrl = appendAccessToken(resolved);
+      await downloadWithSaveAs(downloadUrl, result.filename ?? null);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Unable to export offline player.';
+      setExportError(message);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [appendAccessToken, canExport, createExport, downloadWithSaveAs, exportSourceKind, isExporting, jobId, withBase]);
 
   const handleTranslationSpeedChange = useCallback((value: number) => {
     setPlaybackSpeed(normaliseTranslationSpeed(value));
@@ -1056,6 +1095,13 @@ export default function YoutubeDubPlayer({
           onSubtitleBackgroundOpacityChange={handleSubtitleBackgroundOpacityChange}
           showBackToLibrary={showBackToLibrary}
           onBackToLibrary={onBackToLibrary}
+          showExport={canExport}
+          onExport={handleExport}
+          exportDisabled={isExporting}
+          exportBusy={isExporting}
+          exportLabel={isExporting ? 'Preparing export' : 'Export offline player'}
+          exportTitle={isExporting ? 'Preparing export...' : 'Export offline player'}
+          exportError={exportError}
         />
       }
     >

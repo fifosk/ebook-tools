@@ -16,6 +16,10 @@ export const MY_LINGUIST_STORAGE_KEYS = {
   llmModel: 'ebookTools.myLinguist.llmModel',
   systemPrompt: 'ebookTools.myLinguist.systemPrompt',
   bubblePinned: 'ebookTools.myLinguist.bubblePinned',
+  bubbleDocked: 'ebookTools.myLinguist.bubbleDocked',
+  bubbleLocked: 'ebookTools.myLinguist.bubbleLocked',
+  bubblePinnedPosition: 'ebookTools.myLinguist.bubblePinnedPosition',
+  bubblePinnedSize: 'ebookTools.myLinguist.bubblePinnedSize',
 } as const;
 export const MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE = 'English';
 

@@ -17,6 +17,7 @@ const BASE_MEDIA_CATEGORIES: Array<Exclude<MediaCategory, 'library'>> = ['text',
 interface MediaSearchPanelProps {
   onResultAction: (result: MediaSearchResult, category: MediaCategory) => void;
   currentJobId: string | null;
+  variant?: 'panel' | 'compact';
 }
 
 interface SearchQueueEntry {
@@ -66,7 +67,11 @@ function highlightSnippet(snippet: string, term: string): Array<string | JSX.Ele
   return highlights;
 }
 
-export default function MediaSearchPanel({ onResultAction, currentJobId }: MediaSearchPanelProps) {
+export default function MediaSearchPanel({
+  onResultAction,
+  currentJobId,
+  variant = 'panel',
+}: MediaSearchPanelProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<MediaSearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -190,15 +195,34 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
     [onResultAction],
   );
 
+  const isCompact = variant === 'compact';
+  const panelClassName = [styles.searchPanel, isCompact ? styles.searchPanelCompact : null]
+    .filter(Boolean)
+    .join(' ');
+  const headerClassName = [styles.searchHeader, isCompact ? styles.searchHeaderCompact : null]
+    .filter(Boolean)
+    .join(' ');
+  const barClassName = [styles.searchBar, isCompact ? styles.searchBarCompact : null]
+    .filter(Boolean)
+    .join(' ');
+  const inputClassName = [styles.searchInput, isCompact ? styles.searchInputCompact : null]
+    .filter(Boolean)
+    .join(' ');
+  const buttonClassName = [styles.searchButton, isCompact ? styles.searchButtonCompact : null]
+    .filter(Boolean)
+    .join(' ');
+  const dropdownClassName = [styles.resultsDropdown, isCompact ? styles.resultsDropdownCompact : null]
+    .filter(Boolean)
+    .join(' ');
+
   return (
-    <div className={styles.searchPanel} aria-label="Search generated media">
-      <form className={styles.searchHeader} onSubmit={handleSubmit}>
-        <div className={styles.searchBar}>
+    <div className={panelClassName} aria-label="Search generated media">
+      <form className={headerClassName} onSubmit={handleSubmit}>
+        <div className={barClassName}>
           <input
-            id="media-search-input"
             type="search"
-            className={styles.searchInput}
-            placeholder="Search by keyword, sentence, or phrase…"
+            className={inputClassName}
+            placeholder="Search"
             value={query}
             onChange={handleInputChange}
             autoComplete="off"
@@ -207,10 +231,10 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
           />
           <button
             type="submit"
-            className={styles.searchButton}
+            className={buttonClassName}
             disabled={!hasSelectedJob || (isSearching && activeQuery === query.trim())}
           >
-            Search
+            {isCompact ? 'Go' : 'Search'}
           </button>
         </div>
       </form>
@@ -220,7 +244,7 @@ export default function MediaSearchPanel({ onResultAction, currentJobId }: Media
       ) : null}
 
       {showDropdown ? (
-        <div className={styles.resultsDropdown} role="listbox">
+        <div className={dropdownClassName} role="listbox">
           {isSearching ? <div className={styles.status}>Searching for matches…</div> : null}
           {error ? <div className={styles.error}>{error}</div> : null}
           {!isSearching && !error && hasResults ? (

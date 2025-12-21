@@ -1227,16 +1227,29 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const {
     bubble: linguistBubble,
     bubblePinned: linguistBubblePinned,
+    bubbleDocked: linguistBubbleDocked,
+    bubbleDragging: linguistBubbleDragging,
+    bubbleResizing: linguistBubbleResizing,
     bubbleRef: linguistBubbleRef,
     floatingPlacement: linguistBubbleFloatingPlacement,
     floatingPosition: linguistBubbleFloatingPosition,
+    floatingSize: linguistBubbleFloatingSize,
     canNavigatePrev: linguistCanNavigatePrev,
     canNavigateNext: linguistCanNavigateNext,
     onTogglePinned: toggleLinguistBubblePinned,
+    onToggleDocked: toggleLinguistBubbleDocked,
     onClose: closeLinguistBubble,
     onSpeak: handleLinguistSpeak,
     onSpeakSlow: handleLinguistSpeakSlow,
     onNavigateWord: navigateLinguistWord,
+    onBubblePointerDown: handleBubblePointerDown,
+    onBubblePointerMove: handleBubblePointerMove,
+    onBubblePointerUp: handleBubblePointerUp,
+    onBubblePointerCancel: handleBubblePointerCancel,
+    onResizeHandlePointerDown: handleResizeHandlePointerDown,
+    onResizeHandlePointerMove: handleResizeHandlePointerMove,
+    onResizeHandlePointerUp: handleResizeHandlePointerUp,
+    onResizeHandlePointerCancel: handleResizeHandlePointerCancel,
     onTokenClickCapture: handleLinguistTokenClickCapture,
     onPointerDownCapture: handlePointerDownCapture,
     onPointerMoveCapture: handlePointerMoveCapture,
@@ -1773,11 +1786,11 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   const handleScroll = useCallback(
     (event: UIEvent<HTMLDivElement>) => {
       onScroll?.(event);
-      if (linguistBubble && !linguistBubblePinned) {
+      if (linguistBubble && !linguistBubbleDocked) {
         requestLinguistBubblePositionUpdate();
       }
     },
-    [linguistBubble, linguistBubblePinned, onScroll, requestLinguistBubblePositionUpdate],
+    [linguistBubble, linguistBubbleDocked, onScroll, requestLinguistBubblePositionUpdate],
   );
 
   const exitFullscreen = useCallback(() => {
@@ -2590,20 +2603,32 @@ const handleAudioSeeked = useCallback(() => {
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
     Boolean(textPlayerSentences && textPlayerSentences.length > 0);
   const pinnedLinguistBubbleNode =
-    linguistEnabled && linguistBubble && linguistBubblePinned && hasVisibleCues ? (
+    linguistEnabled && linguistBubble && linguistBubbleDocked && hasVisibleCues ? (
       <MyLinguistBubble
         bubble={linguistBubble}
         isPinned={linguistBubblePinned}
+        isDocked={linguistBubbleDocked}
+        isDragging={linguistBubbleDragging}
+        isResizing={linguistBubbleResizing}
         variant="docked"
         bubbleRef={linguistBubbleRef}
         canNavigatePrev={linguistCanNavigatePrev}
         canNavigateNext={linguistCanNavigateNext}
         onTogglePinned={toggleLinguistBubblePinned}
+        onToggleDocked={toggleLinguistBubbleDocked}
         onNavigatePrev={() => navigateLinguistWord(-1)}
         onNavigateNext={() => navigateLinguistWord(1)}
         onSpeak={handleLinguistSpeak}
         onSpeakSlow={handleLinguistSpeakSlow}
         onClose={closeLinguistBubble}
+        onBubblePointerDown={handleBubblePointerDown}
+        onBubblePointerMove={handleBubblePointerMove}
+        onBubblePointerUp={handleBubblePointerUp}
+        onBubblePointerCancel={handleBubblePointerCancel}
+        onResizeHandlePointerDown={handleResizeHandlePointerDown}
+        onResizeHandlePointerMove={handleResizeHandlePointerMove}
+        onResizeHandlePointerUp={handleResizeHandlePointerUp}
+        onResizeHandlePointerCancel={handleResizeHandlePointerCancel}
       />
     ) : null;
 
@@ -2782,22 +2807,35 @@ const handleAudioSeeked = useCallback(() => {
                 </div>
               ) : null}
             </div>
-            {linguistEnabled && linguistBubble && !linguistBubblePinned && hasVisibleCues ? (
+            {linguistEnabled && linguistBubble && !linguistBubbleDocked && hasVisibleCues ? (
               <MyLinguistBubble
                 bubble={linguistBubble}
                 isPinned={linguistBubblePinned}
+                isDocked={linguistBubbleDocked}
+                isDragging={linguistBubbleDragging}
+                isResizing={linguistBubbleResizing}
                 variant="floating"
                 bubbleRef={linguistBubbleRef}
                 floatingPlacement={linguistBubbleFloatingPlacement}
                 floatingPosition={linguistBubbleFloatingPosition}
+                floatingSize={linguistBubbleFloatingSize}
                 canNavigatePrev={linguistCanNavigatePrev}
                 canNavigateNext={linguistCanNavigateNext}
                 onTogglePinned={toggleLinguistBubblePinned}
+                onToggleDocked={toggleLinguistBubbleDocked}
                 onNavigatePrev={() => navigateLinguistWord(-1)}
                 onNavigateNext={() => navigateLinguistWord(1)}
                 onSpeak={handleLinguistSpeak}
                 onSpeakSlow={handleLinguistSpeakSlow}
                 onClose={closeLinguistBubble}
+                onBubblePointerDown={handleBubblePointerDown}
+                onBubblePointerMove={handleBubblePointerMove}
+                onBubblePointerUp={handleBubblePointerUp}
+                onBubblePointerCancel={handleBubblePointerCancel}
+                onResizeHandlePointerDown={handleResizeHandlePointerDown}
+                onResizeHandlePointerMove={handleResizeHandlePointerMove}
+                onResizeHandlePointerUp={handleResizeHandlePointerUp}
+                onResizeHandlePointerCancel={handleResizeHandlePointerCancel}
               />
             ) : null}
           </div>
