@@ -14,6 +14,7 @@ type BookNarrationOutputSectionProps = {
   description: string;
   generateAudio: boolean;
   audioMode: string;
+  audioBitrateKbps: string;
   selectedVoice: string;
   writtenMode: string;
   outputHtml: boolean;
@@ -22,6 +23,7 @@ type BookNarrationOutputSectionProps = {
   tempo: number;
   generateVideo: boolean;
   availableAudioModes: MenuOption[];
+  availableAudioQualities: MenuOption[];
   availableVoices: MenuOption[];
   availableWrittenModes: MenuOption[];
   languagesForOverride: LanguageEntry[];
@@ -33,6 +35,7 @@ type BookNarrationOutputSectionProps = {
   buildVoiceOptions: (languageLabel: string, languageCode: string | null) => MenuOption[];
   onGenerateAudioChange: (value: boolean) => void;
   onAudioModeChange: (value: string) => void;
+  onAudioBitrateChange: (value: string) => void;
   onSelectedVoiceChange: (value: string) => void;
   onVoiceOverrideChange: (languageCode: string, voiceValue: string) => void;
   onWrittenModeChange: (value: string) => void;
@@ -50,6 +53,7 @@ const BookNarrationOutputSection = ({
   description,
   generateAudio,
   audioMode,
+  audioBitrateKbps,
   selectedVoice,
   writtenMode,
   outputHtml,
@@ -58,6 +62,7 @@ const BookNarrationOutputSection = ({
   tempo,
   generateVideo,
   availableAudioModes,
+  availableAudioQualities,
   availableVoices,
   availableWrittenModes,
   languagesForOverride,
@@ -69,6 +74,7 @@ const BookNarrationOutputSection = ({
   buildVoiceOptions,
   onGenerateAudioChange,
   onAudioModeChange,
+  onAudioBitrateChange,
   onSelectedVoiceChange,
   onVoiceOverrideChange,
   onWrittenModeChange,
@@ -81,6 +87,8 @@ const BookNarrationOutputSection = ({
 }: BookNarrationOutputSectionProps) => {
   const selectedAudioOption =
     availableAudioModes.find((option) => option.value === audioMode) ?? null;
+  const selectedAudioQuality =
+    availableAudioQualities.find((option) => option.value === audioBitrateKbps) ?? null;
   const selectedVoiceOption =
     availableVoices.find((option) => option.value === selectedVoice) ?? null;
   const selectedWrittenOption =
@@ -116,6 +124,21 @@ const BookNarrationOutputSection = ({
         </select>
         {selectedAudioOption?.description ? (
           <p className="form-help-text">{selectedAudioOption.description}</p>
+        ) : null}
+        <label htmlFor={`${headingId}-audio-quality`}>Audio quality</label>
+        <select
+          id={`${headingId}-audio-quality`}
+          value={audioBitrateKbps}
+          onChange={(event) => onAudioBitrateChange(event.target.value)}
+        >
+          {availableAudioQualities.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {selectedAudioQuality?.description ? (
+          <p className="form-help-text">{selectedAudioQuality.description}</p>
         ) : null}
         <label htmlFor={`${headingId}-voice`}>Narration voice</label>
         <select

@@ -14,6 +14,7 @@ from modules import config_manager as cfg
 from modules import output_formatter
 from modules.audio.tts import get_voice_display_name
 from modules.config.loader import get_rendering_config
+from modules.core.config import DEFAULT_AUDIO_BITRATE_KBPS
 from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.core.rendering.timeline import (
     SentenceTimingSpec,
@@ -24,7 +25,7 @@ from modules.render.context import RenderBatchContext
 from modules.render.output_writer import DeferredBatchWriter
 from modules.video.api import VideoService
 from modules.video.slides import SlideRenderOptions
-from modules.audio.highlight import _get_audio_metadata, timeline
+from modules.audio.highlight import _get_audio_metadata
 from modules.text import split_highlight_tokens
 
 
@@ -65,7 +66,78 @@ def _segment_duration(segment: Optional[AudioSegment]) -> float:
         return 0.0
 
 
-def serialize_sentence_chunk(sentence_meta: Mapping[str, Any]) -> Dict[str, Any]:
+def _is_estimated_policy(policy: str) -> bool:
+    return policy.strip().lower().startswith("estimated")
+
+
+def _resolve_highlighting_policy(
+    sentence_specs: Sequence[SentenceTimingSpec],
+) -> Optional[str]:
+    fallback: Optional[str] = None
+    for spec in sentence_specs:
+        for candidate in (spec.policy, spec.original_policy):
+            if not isinstance(candidate, str):
+                continue
+            normalized = candidate.strip()
+            if not normalized:
+                continue
+            if _is_estimated_policy(normalized):
+                return normalized
+            if fallback is None:
+                fallback = normalized
+    return fallback
+
+
+_COMPACT_SENTENCE_DROP_KEYS = {
+    "charWeighted",
+    "endGate",
+    "highlighting_policy",
+    "highlighting_summary",
+    "highlight_granularity",
+    "imagePath",
+    "origWords",
+    "originalEndGate",
+    "originalPauseAfterMs",
+    "originalPauseBeforeMs",
+    "originalStartGate",
+    "originalWordTokens",
+    "original_highlighting_policy",
+    "original_highlighting_summary",
+    "original_pause_after_ms",
+    "original_pause_before_ms",
+    "original_word_tokens",
+    "pauseAfterMs",
+    "pauseBeforeMs",
+    "pause_after_ms",
+    "pause_before_ms",
+    "slide_duration",
+    "slideDuration",
+    "startGate",
+    "timing",
+    "timeline",
+    "timingTracks",
+    "transWords",
+    "word_timing",
+    "word_tokens",
+}
+
+
+def _compact_sentence_payload(payload: Mapping[str, Any]) -> Dict[str, Any]:
+    if not isinstance(payload, Mapping):
+        return {}
+    compact: Dict[str, Any] = {}
+    for key, value in payload.items():
+        if key in _COMPACT_SENTENCE_DROP_KEYS:
+            continue
+        compact[key] = value
+    return compact
+
+
+def serialize_sentence_chunk(
+    sentence_meta: Mapping[str, Any],
+    *,
+    include_timing_tracks: bool = True,
+) -> Dict[str, Any]:
     """
     Normalise sentence-level metadata for chunk payloads.
 
@@ -104,17 +176,18 @@ def serialize_sentence_chunk(sentence_meta: Mapping[str, Any]) -> Dict[str, Any]
     if t1 < t0:
         t1 = t0
 
-    word_events = build_word_events(sentence_meta)
     timing_tracks_payload: Dict[str, Any] = {}
-    if word_events:
-        timing_tracks_payload["translation"] = word_events
-    original_tokens = sentence_meta.get("original_word_tokens")
-    if original_tokens is None:
-        original_tokens = sentence_meta.get("originalWordTokens")
-    if isinstance(original_tokens, Sequence):
-        original_events = build_word_events({"word_tokens": original_tokens})
-        if original_events:
-            timing_tracks_payload["original"] = original_events
+    if include_timing_tracks:
+        word_events = build_word_events(sentence_meta)
+        if word_events:
+            timing_tracks_payload["translation"] = word_events
+        original_tokens = sentence_meta.get("original_word_tokens")
+        if original_tokens is None:
+            original_tokens = sentence_meta.get("originalWordTokens")
+        if isinstance(original_tokens, Sequence):
+            original_events = build_word_events({"word_tokens": original_tokens})
+            if original_events:
+                timing_tracks_payload["original"] = original_events
 
     chunk_entry: Dict[str, Any] = {
         "sentence_id": sentence_id_str,
@@ -285,6 +358,7 @@ class BatchExportContext:
     template_name: Optional[str]
     video_backend: str
     video_backend_settings: Mapping[str, Mapping[str, object]]
+    audio_bitrate_kbps: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -320,6 +394,7 @@ class BatchExportResult:
     sentences: List[Dict[str, object]] = field(default_factory=list)
     audio_tracks: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     timing_tracks: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    highlighting_policy: Optional[str] = None
 
 
 class BatchExporter:
@@ -331,6 +406,19 @@ class BatchExporter:
             backend=context.video_backend,
             backend_settings=context.video_backend_settings,
         )
+
+    def _resolve_audio_bitrate(self) -> Optional[str]:
+        raw_value = getattr(self._context, "audio_bitrate_kbps", None)
+        if raw_value is None:
+            bitrate_kbps = DEFAULT_AUDIO_BITRATE_KBPS
+        else:
+            try:
+                bitrate_kbps = int(raw_value)
+            except (TypeError, ValueError):
+                bitrate_kbps = DEFAULT_AUDIO_BITRATE_KBPS
+        if bitrate_kbps <= 0:
+            bitrate_kbps = DEFAULT_AUDIO_BITRATE_KBPS
+        return f"{bitrate_kbps}k"
 
     def _job_relative_path(self, candidate: Path) -> str:
         path_obj = candidate
@@ -368,33 +456,24 @@ class BatchExporter:
     ) -> Dict[str, object]:
         header, original_text, translation_text, transliteration_text = _parse_sentence_block(block)
 
-        timeline_options = timeline.TimelineBuildOptions(
-            sync_ratio=self._context.sync_ratio,
-            word_highlighting=self._context.word_highlighting,
-            highlight_granularity=self._context.highlight_granularity,
-        )
-        timeline_result = timeline.build(block, audio_segment, timeline_options)
-
-        events_payload: List[Dict[str, object]] = [
-            {
-                "duration": event.duration,
-                "original_index": event.original_index,
-                "translation_index": event.translation_index,
-                "transliteration_index": event.transliteration_index,
-            }
-            for event in timeline_result.events
-        ]
-        raw_timeline_duration = sum(event.duration for event in timeline_result.events)
         if audio_segment is not None:
             audio_duration = float(audio_segment.duration_seconds)
         else:
-            audio_duration = raw_timeline_duration
-        if audio_duration <= 0 and raw_timeline_duration > 0:
-            audio_duration = raw_timeline_duration
+            audio_duration = 0.0
 
         original_tokens = _tokenize_words(original_text)
         translation_units = _split_translation_units(header, translation_text)
         transliteration_tokens = _tokenize_words(transliteration_text)
+        if audio_duration <= 0:
+            fallback_tokens = max(
+                len(original_tokens),
+                len(translation_units),
+                len(transliteration_tokens),
+            )
+            if fallback_tokens > 0:
+                audio_duration = fallback_tokens * 0.35
+            else:
+                audio_duration = 0.5
 
         payload: Dict[str, object] = {
             "sentence_number": sentence_number,
@@ -402,8 +481,6 @@ class BatchExporter:
                 "text": original_text,
                 "tokens": original_tokens,
             },
-            "timeline": events_payload,
-            "highlight_granularity": timeline_result.effective_granularity,
             "total_duration": audio_duration,
         }
 
@@ -428,8 +505,6 @@ class BatchExporter:
             "translation": len(translation_units),
             "transliteration": len(transliteration_tokens),
         }
-        payload["origWords"] = list(original_tokens)
-        payload["transWords"] = list(translation_units)
 
         phase_payload: Dict[str, float] = {}
         if original_phase_duration > 0:
@@ -486,14 +561,11 @@ class BatchExporter:
         meta_payload["pause_before_ms"] = pause_before_ms
         meta_payload["pause_after_ms"] = pause_after_ms
 
-        chunk_entry = serialize_sentence_chunk(meta_payload)
+        chunk_entry = serialize_sentence_chunk(meta_payload, include_timing_tracks=False)
         payload["sentence_id"] = chunk_entry["sentence_id"]
         payload["text"] = chunk_entry["text"]
         payload["t0"] = chunk_entry["t0"]
         payload["t1"] = chunk_entry["t1"]
-        payload["timing"] = chunk_entry["timing"]
-        if "timingTracks" in chunk_entry:
-            payload["timingTracks"] = chunk_entry["timingTracks"]
         payload["word_tokens"] = list(meta_payload.get("word_tokens") or [])
         original_tokens = meta_payload.get("original_word_tokens")
         if original_tokens is None:
@@ -504,10 +576,6 @@ class BatchExporter:
         highlighting_summary = chunk_entry.get("highlighting_summary", {})
         if not isinstance(highlighting_summary, Mapping):
             highlighting_summary = {}
-        payload["charWeighted"] = {
-            "enabled": bool(highlighting_summary.get("char_weighted")),
-            "punctuationBoost": bool(highlighting_summary.get("punctuation_weighting")),
-        }
         policy_value = chunk_entry.get("highlighting_policy") or highlighting_summary.get("policy")
         payload["word_timing"] = {
             "policy": policy_value,
@@ -558,9 +626,6 @@ class BatchExporter:
                     end_gate_value = timing_block.get("t1")
 
         if isinstance(start_gate_value, (int, float)) and isinstance(end_gate_value, (int, float)):
-            slide_duration = max(float(end_gate_value) - float(start_gate_value), 0.0)
-            payload["slide_duration"] = slide_duration
-            payload["slideDuration"] = slide_duration
             payload.setdefault("start_gate", float(start_gate_value))
             payload.setdefault("end_gate", float(end_gate_value))
             payload.setdefault("startGate", float(start_gate_value))
@@ -682,10 +747,6 @@ class BatchExporter:
         video_blocks: List[str] = list(request.video_blocks)
         sentence_payloads: List[Dict[str, object]] = []
         sentence_specs: List[SentenceTimingSpec] = []
-        chunk_timing_tracks: Dict[str, List[Dict[str, Any]]] = {
-            "translation": [],
-            "original": [],
-        }
 
         if orig_track_segments is None and audio_track_segments:
             orig_track_segments = audio_track_segments.get("orig")
@@ -789,7 +850,6 @@ class BatchExporter:
             metadata["original_end_gate"] = original_end_gate
             metadata["originalStartGate"] = original_start_gate
             metadata["originalEndGate"] = original_end_gate
-            sentence_payloads.append(metadata)
             translation_entry = metadata.get("translation") or {}
             original_entry = metadata.get("original") or {}
             original_summary = metadata.get("original_highlighting_summary")
@@ -834,25 +894,7 @@ class BatchExporter:
                     ),
                 )
             sentence_specs.append(spec)
-
-            timing_tracks = metadata.get("timingTracks")
-            if isinstance(timing_tracks, Mapping):
-                for track_name, buffer in chunk_timing_tracks.items():
-                    token_entries = timing_tracks.get(track_name)
-                    if not isinstance(token_entries, list):
-                        continue
-                    for entry in token_entries:
-                        if not isinstance(entry, Mapping):
-                            continue
-                        token_copy = dict(entry)
-                        token_copy.setdefault("sentenceIdx", sentence_number)
-                        if track_name == "translation":
-                            token_copy.setdefault("lane", "trans")
-                        elif track_name == "original":
-                            token_copy.setdefault("lane", "orig")
-                        else:
-                            token_copy.setdefault("lane", token_copy.get("lane") or "trans")
-                        buffer.append(token_copy)
+            sentence_payloads.append(_compact_sentence_payload(metadata))
 
         track_artifacts: Dict[str, Dict[str, Any]] = {}
 
@@ -878,6 +920,7 @@ class BatchExporter:
                 staged_path = writer.stage(Path(created_path))
                 artifacts[kind] = str(staged_path)
 
+            audio_bitrate = self._resolve_audio_bitrate()
             if request.generate_audio and exportable_tracks:
                 for track_key, segments in exportable_tracks.items():
                     if not segments:
@@ -889,7 +932,10 @@ class BatchExporter:
                     normalized_key = "translation" if track_key in {"trans", "translation"} else track_key
                     suffix = "trans" if normalized_key == "translation" else normalized_key
                     audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}_{suffix}.mp3"
-                    combined_track.export(str(audio_filename), format="mp3", bitrate="320k")
+                    if audio_bitrate:
+                        combined_track.export(str(audio_filename), format="mp3", bitrate=audio_bitrate)
+                    else:
+                        combined_track.export(str(audio_filename), format="mp3")
                     staged_audio = writer.stage(audio_filename)
                     staged_path = Path(staged_audio)
                     relative_path = self._job_relative_path(staged_path)
@@ -918,7 +964,10 @@ class BatchExporter:
                 for segment in audio_segments:
                     combined += segment
                 audio_filename = writer.work_dir / f"{range_fragment}_{self._context.base_name}.mp3"
-                combined.export(str(audio_filename), format="mp3", bitrate="320k")
+                if audio_bitrate:
+                    combined.export(str(audio_filename), format="mp3", bitrate=audio_bitrate)
+                else:
+                    combined.export(str(audio_filename), format="mp3")
                 staged_audio = writer.stage(audio_filename)
                 staged_path = Path(staged_audio)
                 relative_path = self._job_relative_path(staged_path)
@@ -992,6 +1041,7 @@ class BatchExporter:
             "translation": _duration_for("translation", translation_duration_fallback),
         }
         timing_tracks: Dict[str, List[Dict[str, Any]]] = {}
+        highlighting_policy = _resolve_highlighting_policy(sentence_specs) if sentence_specs else None
         if sentence_specs:
             timing_tracks = build_separate_track_timings(
                 sentence_specs,
@@ -999,10 +1049,7 @@ class BatchExporter:
                 translation_duration=track_durations["translation"],
             )
         else:
-            timing_tracks = {
-                "original": [dict(token) for token in chunk_timing_tracks["original"]],
-                "translation": [dict(token) for token in chunk_timing_tracks["translation"]],
-            }
+            timing_tracks = {"original": [], "translation": []}
 
         return BatchExportResult(
             chunk_id=chunk_id,
@@ -1013,6 +1060,7 @@ class BatchExporter:
             sentences=sentence_payloads,
             audio_tracks=track_artifacts,
             timing_tracks=timing_tracks,
+            highlighting_policy=highlighting_policy,
         )
 
 
@@ -1034,6 +1082,7 @@ def build_exporter(
     highlight_granularity: str,
     selected_voice: str,
     primary_target_language: str,
+    audio_bitrate_kbps: Optional[int] = None,
     slide_render_options: Optional[SlideRenderOptions],
     template_name: Optional[str],
     video_backend: str,
@@ -1063,6 +1112,7 @@ def build_exporter(
         word_highlighting=word_highlighting,
         highlight_granularity=highlight_granularity,
         selected_voice=selected_voice,
+        audio_bitrate_kbps=audio_bitrate_kbps,
         voice_name=voice_name,
         slide_render_options=slide_render_options,
         template_name=template_name,

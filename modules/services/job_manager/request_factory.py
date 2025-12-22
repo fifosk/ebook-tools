@@ -82,6 +82,7 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
         stitch_full=_coerce_bool(data.get("stitch_full")),
         generate_audio=_coerce_bool(data.get("generate_audio")),
         audio_mode=str(data.get("audio_mode") or ""),
+        audio_bitrate_kbps=_coerce_int(data.get("audio_bitrate_kbps"), 0) or None,
         written_mode=str(data.get("written_mode") or ""),
         selected_voice=str(data.get("selected_voice") or ""),
         output_html=_coerce_bool(data.get("output_html")),
@@ -141,6 +142,14 @@ def _hydrate_request_from_payload(
         and "audio_mode" not in pipeline_overrides
     ):
         pipeline_overrides["audio_mode"] = resolved_audio_mode.strip()
+    resolved_audio_bitrate = inputs_payload.get("audio_bitrate_kbps")
+    if "audio_bitrate_kbps" not in pipeline_overrides:
+        try:
+            bitrate_value = int(resolved_audio_bitrate)
+        except (TypeError, ValueError):
+            bitrate_value = None
+        if bitrate_value and bitrate_value > 0:
+            pipeline_overrides["audio_bitrate_kbps"] = bitrate_value
 
     request = PipelineRequest(
         config=config,

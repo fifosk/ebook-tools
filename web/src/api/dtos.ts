@@ -74,6 +74,7 @@ export interface PipelineInputPayload {
   stitch_full: boolean;
   generate_audio: boolean;
   audio_mode: string;
+  audio_bitrate_kbps?: number | null;
   written_mode: string;
   selected_voice: string;
   voice_overrides?: Record<string, string>;
@@ -155,6 +156,7 @@ export interface JobParameterSnapshot {
   sentences_per_output_file?: number | null;
   llm_model?: string | null;
   audio_mode?: string | null;
+  audio_bitrate_kbps?: number | null;
   selected_voice?: string | null;
   voice_overrides?: Record<string, string>;
   worker_count?: number | null;

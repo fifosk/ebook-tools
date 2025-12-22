@@ -7,7 +7,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 - **Live job media snapshot.** `useLiveMedia` normalises `/api/pipelines/jobs/{job_id}/media` (and its live variant) into `LiveMediaChunk` records. Each chunk exposes `sentences`, `audioTracks`, and optional `timingTracks` pulled directly from `metadata/chunk_*.json` (`web/src/hooks/useLiveMedia.ts:360-520`).
 - **Sentence images.** When a job enables `add_images`, sentence metadata may include `image` payloads (plus `image_path` / `imagePath`) pointing at PNG files stored under `media/images/<range_fragment>/sentence_XXXXX.png`. The Interactive Reader consumes these fields to render an image reel during playback (`modules/core/rendering/pipeline.py`, `web/src/components/InteractiveTextViewer.tsx:4364-4860`).
 - **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with `translation` and `original` tracks (legacy `mix` only for older jobs) plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
-- **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, sentence timelines, char-weight flags) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
+- **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, token arrays, phase durations) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
 - **Content index.** `metadata/content_index.json` stores chapter ranges (title + sentence boundaries + alignment status) derived from EPUB sections. Jobs expose pointers through `book_metadata.content_index_path` / `content_index_url` so UIs or LLM tools can load chapter-level blocks.
 
 ## 2. Loading & Selection Logic
@@ -29,8 +29,8 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 
 ## 4. Visualisation Layers Inside the Viewer
 
-1. **Paragraph & timeline assembly.** The viewer parses the raw chunk text into paragraphs/sentences, builds highlight parts for original/translation/transliteration variants, and reconstructs sentence timelines using per-sentence metadata (phase durations, event lists) from chunk files (`web/src/components/InteractiveTextViewer.tsx:880-1360`).
-2. **Timeline sentences.** Each chunk sentence becomes a `TimelineSentenceRuntime` structure that records token arrays for the three lanes plus derived per-event durations so the “karaoke” overlay can animate bars even when no timing payload is available (`web/src/components/InteractiveTextViewer.tsx:1110-1360`).
+1. **Paragraph & timeline assembly.** The viewer parses the raw chunk text into paragraphs/sentences, builds highlight parts for original/translation/transliteration variants, and reconstructs sentence timelines using per-sentence metadata (phase durations + token counts) from chunk files (`web/src/components/InteractiveTextViewer.tsx:880-1360`).
+2. **Timeline sentences.** Each chunk sentence becomes a `TimelineSentenceRuntime` structure that records token arrays for the three lanes plus derived durations so the “karaoke” overlay can animate bars even when no timing payload is available (`web/src/components/InteractiveTextViewer.tsx:1110-1360`).
 3. **Word Sync controller (legacy).** For older jobs (or when the timing API is unavailable), `WordSyncController` drives DOM-class toggles directly rather than via `TranscriptView`. The controller uses `useMediaClock` to map audio time into track space and still respects fences/diagnostics (`web/src/components/InteractiveTextViewer.tsx:1633-1750`, `web/src/hooks/useLiveMedia.ts:1009-1050`).
 4. **Diagnostics.** Highlight policy info (`highlighting_policy`, `has_estimated_segments`) is stored in `timingDiagnostics` for UI/tooling and also logged to the console in dev builds using `computeTimingMetrics` so engineers can inspect drift/tempo ratios quickly (`web/src/components/InteractiveTextViewer.tsx:1559-1615`). For deeper inspection, `enableHighlightDebugOverlay` paints the current segment/token indexes on screen (`web/src/player/AudioSyncController.ts:316-356`).
 5. **Sentence image reel.** When sentence images are available, the viewer renders a 7-frame “movie reel” strip (3 previous, active, 3 next) above the text tracks. Visibility is toggled with `R` and persisted in `localStorage` as `player.sentenceImageReelVisible`. Clicking a frame jumps the player to that sentence (`web/src/components/InteractiveTextViewer.tsx:4364-4860`).
@@ -40,7 +40,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 - **Inline audio controls.** `InteractiveTextViewer` chooses the most appropriate audio file (`translation` vs `original`, with legacy `orig_trans` when present) based on the chosen timing track and whether original-language playback is enabled, ensuring the transcript and audio stay in lock-step. When original audio is selected the viewer suppresses translation/transliteration highlights (`web/src/components/InteractiveTextViewer.tsx:1380-1441`).
 - **Image-assisted playback.** Sentence images are resolved through the same storage URL mechanism as audio (`/storage/jobs/<job_id>/...`). The reel preloads nearby sentences so images appear immediately when scrubbing (`web/src/components/InteractiveTextViewer.tsx:4420-4860`).
 - **Dual-lane transcript.** `TranscriptView` (used across the reader and `MediaSearchPanel`) renders interleaved original/translation lanes, with word buttons highlighting as `timingStore.last` advances. Clicking a word seeks playback to `token.t0`, using fences to avoid re-highlighting earlier tokens mid-seek (`web/src/components/transcript/TranscriptView.tsx:150-218`).
-- **Timeline overlays & subtitles.** Sentence-level `timeline` data (per `chunk.sentences[].timeline`) powers the timeline cards, subtitle exports, and the optional word-progress bars shown in the UI when `hasTimeline` is true (`web/src/components/InteractiveTextViewer.tsx:1010-1375`).
+- **Timeline overlays.** The sentence timeline overlays are derived from token counts plus phase/total durations; chunk files no longer persist per-sentence `timeline` events (`web/src/components/InteractiveTextViewer.tsx:1010-1375`).
 
 ## 6. Opportunities for Improvement
 
@@ -59,8 +59,9 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   for `word_tokens` (translation) and `original_word_tokens` (original). It
   records whether the tokens came from the TTS backend, WhisperX
   (`modules/align/backends/whisperx_adapter.py`), or the char-weighted/uniform
-  heuristics and stores that provenance in every sentence’s
-  `highlighting_summary` and `original_highlighting_summary`.
+  heuristics; that provenance is preserved in sentence-level summaries and the
+  chunk-level `highlighting_policy` (tokens inside `timingTracks` now keep only
+  timing fields).
 - **Metadata creation.** `modules/services/job_manager/persistence.py` emits
   `metadata/job.json`, `metadata/chunk_manifest.json`, and the per-chunk payloads
   that the frontend hydrates. Client code should always route through
@@ -71,8 +72,8 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   `char_weighted_highlighting_default`,
   `char_weighted_punctuation_boost`, and the forced-alignment toggles determine
   which provenance the reader will see. When QA spots drift, inspect the
-  `highlighting_policy` and `highlighting_summary` fields (via chunk metadata or,
-  when available, `/api/jobs/{job_id}/timing`) before assuming a frontend bug.
+  chunk-level `highlighting_policy` (or `/api/jobs/{job_id}/timing` for legacy
+  aggregates) before assuming a frontend bug.
 
 Update this section whenever the audio worker, metadata artefacts, or highlight
 policies change—most reader regressions trace back to those touch points.

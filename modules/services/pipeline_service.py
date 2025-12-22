@@ -60,6 +60,7 @@ class PipelineInput:
     tempo: float
     book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     voice_overrides: Dict[str, str] = field(default_factory=dict)
+    audio_bitrate_kbps: Optional[int] = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.book_metadata, PipelineMetadata):
@@ -356,6 +357,7 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "debug": config.debug,
         "generate_audio": config.generate_audio,
         "audio_mode": config.audio_mode,
+        "audio_bitrate_kbps": getattr(config, "audio_bitrate_kbps", None),
         "selected_voice": config.selected_voice,
         "audio_api_base_url": config.audio_api_base_url,
         "audio_api_timeout_seconds": config.audio_api_timeout_seconds,

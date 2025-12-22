@@ -484,12 +484,8 @@ def _build_mix_sentence_tokens(spec: SentenceTimingSpec) -> list[dict[str, Any]]
     sentence_tokens = original_tokens + translation_source_tokens
     for token in sentence_tokens:
         token["sentenceIdx"] = spec.sentence_idx
-        token["startGate"] = start_gate
-        token["endGate"] = end_gate
         token["start_gate"] = start_gate
         token["end_gate"] = end_gate
-        token["pauseBeforeMs"] = getattr(spec, "pause_before_ms", 0) or 0
-        token["pauseAfterMs"] = getattr(spec, "pause_after_ms", 0) or 0
         token["pause_before_ms"] = getattr(spec, "pause_before_ms", 0) or 0
         token["pause_after_ms"] = getattr(spec, "pause_after_ms", 0) or 0
         start_val = float(token.get("start", start_gate))
@@ -646,12 +642,8 @@ def build_dual_track_timings(
                     "source": source,
                     "start_gate": gate_start,
                     "end_gate": gate_end,
-                    "startGate": gate_start,
-                    "endGate": gate_end,
                     "pause_before_ms": pause_before_ms,
                     "pause_after_ms": pause_after_ms,
-                    "pauseBeforeMs": pause_before_ms,
-                    "pauseAfterMs": pause_after_ms,
                 }
             )
             translation_word_idx += 1
@@ -739,6 +731,14 @@ def build_separate_track_timings(
         original_source = (
             spec.original_source.strip() if isinstance(spec.original_source, str) else None
         )
+        if translation_policy:
+            spec.policy = translation_policy
+        if translation_source:
+            spec.source = translation_source
+        if original_policy:
+            spec.original_policy = original_policy
+        if original_source:
+            spec.original_source = original_source
 
         try:
             pause_before_ms = int(round(float(spec.pause_before_ms)))
@@ -779,6 +779,8 @@ def build_separate_track_timings(
             )
             translation_policy = "char_weighted"
             translation_source = "char_weighted_refined"
+            spec.policy = translation_policy
+            spec.source = translation_source
 
         original_source_tokens = _fit_tokens_to_duration(
             spec.original_word_tokens or [], original_target
@@ -793,6 +795,8 @@ def build_separate_track_timings(
             )
             original_policy = original_policy or "char_weighted"
             original_source = original_source or "char_weighted_refined"
+            spec.original_policy = original_policy
+            spec.original_source = original_source
 
         translation_start_gate = sentence_translation_offsets.get(spec.sentence_idx, 0.0)
         translation_end_gate = translation_start_gate + translation_target
@@ -807,17 +811,6 @@ def build_separate_track_timings(
                     "wordIdx": translation_word_idx,
                     "start": _round_to_precision(start),
                     "end": _round_to_precision(end),
-                    "text": token.get("text", token.get("word", "")),
-                    "policy": token.get("policy") or translation_policy,
-                    "source": token.get("source") or translation_source,
-                    "start_gate": translation_start_gate,
-                    "end_gate": translation_end_gate,
-                    "startGate": translation_start_gate,
-                    "endGate": translation_end_gate,
-                    "pause_before_ms": pause_before_ms,
-                    "pause_after_ms": pause_after_ms,
-                    "pauseBeforeMs": pause_before_ms,
-                    "pauseAfterMs": pause_after_ms,
                 }
             )
             translation_word_idx += 1
@@ -835,17 +828,6 @@ def build_separate_track_timings(
                     "wordIdx": original_word_idx,
                     "start": _round_to_precision(start),
                     "end": _round_to_precision(end),
-                    "text": token.get("text", token.get("word", "")),
-                    "policy": token.get("policy") or original_policy,
-                    "source": token.get("source") or original_source,
-                    "start_gate": original_start_gate,
-                    "end_gate": original_end_gate,
-                    "startGate": original_start_gate,
-                    "endGate": original_end_gate,
-                    "pause_before_ms": original_pause_before_ms,
-                    "pause_after_ms": original_pause_after_ms,
-                    "pauseBeforeMs": original_pause_before_ms,
-                    "pauseAfterMs": original_pause_after_ms,
                 }
             )
             original_word_idx += 1
@@ -856,33 +838,6 @@ def build_separate_track_timings(
     translation_track = _clamp_track_tokens(
         translation_tokens, max(translation_duration, 0.0)
     )
-
-    for spec in sentences:
-        sentence_idx = spec.sentence_idx
-        original_subset = [token for token in original_track if token.get("sentenceIdx") == sentence_idx]
-        translation_subset = [token for token in translation_track if token.get("sentenceIdx") == sentence_idx]
-        original_start_offset = sentence_original_offsets.get(sentence_idx, 0.0)
-        original_span = sentence_original_spans.get(sentence_idx, 0.0)
-        translation_start_offset = sentence_translation_offsets.get(sentence_idx, 0.0)
-        translation_span = sentence_translation_spans.get(sentence_idx, 0.0)
-        original_metrics = validate_timing_monotonic(
-            original_subset,
-            start_gate=original_start_offset,
-            end_gate=original_start_offset + original_span,
-        )
-        translation_metrics = validate_timing_monotonic(
-            translation_subset,
-            start_gate=translation_start_offset,
-            end_gate=translation_start_offset + translation_span,
-        )
-        spec.validation_metrics = {
-            "original": original_metrics,
-            "translation": translation_metrics,
-        }
-        for token in original_subset:
-            token["validation"] = original_metrics
-        for token in translation_subset:
-            token["validation"] = translation_metrics
 
     return {
         "original": original_track,

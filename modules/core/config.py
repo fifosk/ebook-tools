@@ -20,6 +20,8 @@ from ..epub_parser import (
 from ..video.slides import SlideRenderOptions
 from ..images.style_templates import resolve_image_style_template
 
+DEFAULT_AUDIO_BITRATE_KBPS = 320
+
 
 def _coerce_bool(value: Any, default: bool) -> bool:
     if value is None:
@@ -121,6 +123,7 @@ class PipelineConfig:
     debug: bool = False
     generate_audio: bool = True
     audio_mode: str = "1"
+    audio_bitrate_kbps: int = DEFAULT_AUDIO_BITRATE_KBPS
     selected_voice: str = "gTTS"
     voice_overrides: Mapping[str, str] = field(default_factory=dict)
     tts_backend: str = field(default_factory=get_default_backend_name)
@@ -307,6 +310,15 @@ def build_pipeline_config(
         True,
     )
     audio_mode = str(_select_value("audio_mode", config, overrides, "1") or "1")
+    audio_bitrate_default = _coerce_int(
+        os.environ.get("EBOOK_AUDIO_BITRATE_KBPS"), DEFAULT_AUDIO_BITRATE_KBPS
+    )
+    raw_audio_bitrate = _select_value(
+        "audio_bitrate_kbps", config, overrides, audio_bitrate_default
+    )
+    audio_bitrate_kbps = _coerce_int(raw_audio_bitrate, audio_bitrate_default)
+    if audio_bitrate_kbps <= 0:
+        audio_bitrate_kbps = audio_bitrate_default
     selected_voice = (
         str(_select_value("selected_voice", config, overrides, "gTTS") or "gTTS")
     )
@@ -679,6 +691,7 @@ def build_pipeline_config(
         debug=debug,
         generate_audio=generate_audio,
         audio_mode=audio_mode,
+        audio_bitrate_kbps=audio_bitrate_kbps,
         selected_voice=selected_voice,
         voice_overrides=voice_overrides,
         tts_backend=tts_backend,

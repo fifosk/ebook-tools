@@ -44,12 +44,11 @@ information is inferred later from the rendered audio if a backend embeds
 character timings, otherwise sentence-level durations are used (`modules/render/audio_pipeline.py`).
 
 Timing metadata for highlights therefore originates from the rendering layer,
-not from forced alignment. `modules/core/rendering/timeline.py` inspects the
-per-sentence audio segment, collapses any embedded character timing data into a
-sequence of timeline events, and falls back to evenly distributing tokens when
-necessary. The resulting events are stored alongside the text metadata inside
-`metadata/chunk_*.json`, giving the frontend a declarative description of when
-to reveal words (`modules/core/rendering/exporters.py`).
+not from forced alignment. `modules/core/rendering/timeline.py` collapses any
+embedded character timings into word-level tokens and falls back to evenly
+distributing tokens when necessary. Those per-word offsets are persisted as
+chunk-level `timingTracks`; per-sentence timeline events are no longer stored
+inside `metadata/chunk_*.json` (`modules/core/rendering/exporters.py`).
 
 Video slide rendering uses a comparable pattern. `modules/config/loader.py`
 resolves the selected `video_backend` and optional `video_backend_settings`
@@ -84,8 +83,9 @@ backend tokens, WhisperX (`modules/align/backends/whisperx_adapter.py`),
 char-weighted, or uniform inference. `EBOOK_HIGHLIGHT_POLICY`,
 `char_weighted_highlighting_default`, `char_weighted_punctuation_boost`, and the
 forced-alignment settings determine which strategy is permitted; the resulting
-`highlighting_summary` entries surface via chunk metadata (and `/api/jobs/{job_id}/timing`
-when present) for the frontend and QA tooling.
+`highlighting_policy` summary is stored at the chunk level alongside
+`timingTracks` (and `/api/jobs/{job_id}/timing` when present) for the frontend
+and QA tooling.
 
 ### Backend input processing diagram
 
@@ -149,10 +149,11 @@ modes:
    and stored in `timingStore`. Components subscribe to the store to react to
    highlight changes.
 
-Because the backend emits timeline events per sentence, the frontend does not
-expect forced-alignment-grade precision. If a backend provides detailed word
-timings they are preserved; otherwise tokens are distributed uniformly across
-each sentence duration while maintaining monotonic progression.
+Because the backend no longer emits per-sentence timeline events, the frontend
+derives coarse sentence timelines from token counts plus phase/duration metadata
+when word sync is unavailable. If a backend provides detailed word timings they
+are preserved; otherwise tokens are distributed uniformly across each sentence
+duration while maintaining monotonic progression.
 
 ### Word-highlighting metadata flow
 

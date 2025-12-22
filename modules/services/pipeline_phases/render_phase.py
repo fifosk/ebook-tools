@@ -130,7 +130,19 @@ def build_stitching_artifacts(
             render_result.base_dir,
             f"{range_fragment}_{stitched_basename}.mp3",
         )
-        stitched_audio.export(audio_path_result, format="mp3", bitrate="320k")
+        raw_bitrate = getattr(config_result.pipeline_config, "audio_bitrate_kbps", None)
+        try:
+            bitrate_kbps = int(raw_bitrate)
+        except (TypeError, ValueError):
+            bitrate_kbps = 0
+        if bitrate_kbps > 0:
+            stitched_audio.export(
+                audio_path_result,
+                format="mp3",
+                bitrate=f"{bitrate_kbps}k",
+            )
+        else:
+            stitched_audio.export(audio_path_result, format="mp3")
 
     video_path_result: str | None = None
     if request.inputs.generate_video and render_result.batch_video_files:

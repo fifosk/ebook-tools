@@ -1054,6 +1054,41 @@ def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
     return None
 
 
+def _extract_policy_from_timing_tracks(
+    payload: Mapping[str, Any],
+) -> tuple[Optional[str], bool]:
+    tracks = payload.get("timingTracks") or payload.get("timing_tracks")
+    if not isinstance(tracks, Mapping):
+        tracks = None
+    fallback: Optional[str] = None
+    estimated = False
+    top_level = payload.get("highlighting_policy")
+    if isinstance(top_level, str) and top_level.strip():
+        normalized = top_level.strip()
+        if _is_estimated_policy(normalized):
+            return normalized, True
+        fallback = normalized
+    if not isinstance(tracks, Mapping):
+        return fallback, estimated
+    for entries in tracks.values():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                continue
+            policy = entry.get("policy")
+            if not isinstance(policy, str):
+                continue
+            normalized = policy.strip()
+            if not normalized:
+                continue
+            if _is_estimated_policy(normalized):
+                return normalized, True
+            if fallback is None:
+                fallback = normalized
+    return fallback, estimated
+
+
 def _is_estimated_policy(policy: Optional[str]) -> bool:
     if not isinstance(policy, str):
         return False
@@ -1080,6 +1115,14 @@ def _probe_highlighting_policy(
                     chunk_payload = json.load(handle)
             except (OSError, json.JSONDecodeError):
                 continue
+            if isinstance(chunk_payload, Mapping):
+                policy, estimated = _extract_policy_from_timing_tracks(chunk_payload)
+                if policy:
+                    if estimated:
+                        return policy, True
+                    if fallback_policy is None:
+                        fallback_policy = policy
+                estimated_detected = estimated_detected or estimated
             for entry in _iter_sentence_payloads(chunk_payload):
                 if isinstance(entry, Mapping):
                     policy = _extract_highlighting_policy(entry)

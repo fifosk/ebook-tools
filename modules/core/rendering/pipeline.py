@@ -176,7 +176,7 @@ class _ImageGenerationState:
             sentence_map[number] = entry  # type: ignore[assignment]
 
         with self._lock:
-            self._chunks[result.chunk_id] = {
+            chunk_payload = {
                 "chunk_id": result.chunk_id,
                 "range_fragment": result.range_fragment,
                 "start_sentence": result.start_sentence,
@@ -188,6 +188,10 @@ class _ImageGenerationState:
                 "extra_files": [],
                 "sentence_map": sentence_map,
             }
+            policy = getattr(result, "highlighting_policy", None)
+            if isinstance(policy, str) and policy.strip():
+                chunk_payload["highlighting_policy"] = policy.strip()
+            self._chunks[result.chunk_id] = chunk_payload
             pending = self._pending.pop(result.chunk_id, [])
 
         updated = False
@@ -385,6 +389,7 @@ class RenderPipeline:
             highlight_granularity=self._config.highlight_granularity,
             selected_voice=self._config.selected_voice,
             primary_target_language=target_languages[0] if target_languages else "",
+            audio_bitrate_kbps=getattr(self._config, "audio_bitrate_kbps", None),
             slide_render_options=slide_render_options,
             template_name=self._config.slide_template,
             video_backend=self._config.video_backend,

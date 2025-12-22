@@ -92,6 +92,37 @@ def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
     return None
 
 
+def _is_estimated_policy(policy: Optional[str]) -> bool:
+    if not isinstance(policy, str):
+        return False
+    normalized = policy.strip().lower()
+    return normalized.startswith("estimated")
+
+
+def _extract_policy_from_timing_tracks(payload: Mapping[str, Any]) -> Optional[str]:
+    tracks = payload.get("timingTracks") or payload.get("timing_tracks")
+    if not isinstance(tracks, Mapping):
+        return None
+    fallback: Optional[str] = None
+    for entries in tracks.values():
+        if not isinstance(entries, list):
+            continue
+        for entry in entries:
+            if not isinstance(entry, Mapping):
+                continue
+            policy = entry.get("policy")
+            if not isinstance(policy, str):
+                continue
+            normalized = policy.strip()
+            if not normalized:
+                continue
+            if _is_estimated_policy(normalized):
+                return normalized
+            if fallback is None:
+                fallback = normalized
+    return fallback
+
+
 def resolve_highlighting_policy(job_dir: str | os.PathLike[str]) -> Optional[str]:
     """Inspect chunk metadata files to determine the active highlighting policy."""
 
@@ -100,6 +131,7 @@ def resolve_highlighting_policy(job_dir: str | os.PathLike[str]) -> Optional[str
     if not metadata_dir.exists():
         return None
 
+    fallback_policy: Optional[str] = None
     pattern = metadata_dir / "chunk_*.json"
     for chunk_path in sorted(glob.glob(os.fspath(pattern))):
         try:
@@ -107,12 +139,32 @@ def resolve_highlighting_policy(job_dir: str | os.PathLike[str]) -> Optional[str
                 chunk_payload = json.load(handle)
         except (OSError, json.JSONDecodeError):
             continue
+
+        if isinstance(chunk_payload, Mapping):
+            top_level_policy = chunk_payload.get("highlighting_policy")
+            if isinstance(top_level_policy, str) and top_level_policy.strip():
+                normalized = top_level_policy.strip()
+                if _is_estimated_policy(normalized):
+                    return normalized
+                if fallback_policy is None:
+                    fallback_policy = normalized
+            policy = _extract_policy_from_timing_tracks(chunk_payload)
+            if policy:
+                if _is_estimated_policy(policy):
+                    return policy
+                if fallback_policy is None:
+                    fallback_policy = policy
+
         for entry in _iterate_sentence_entries(chunk_payload):
             if isinstance(entry, Mapping):
                 policy = _extract_highlighting_policy(entry)
                 if policy:
-                    return policy
-    return None
+                    if _is_estimated_policy(policy):
+                        return policy
+                    if fallback_policy is None:
+                        fallback_policy = policy
+
+    return fallback_policy
 
 
 def ensure_timing_manifest(
@@ -306,6 +358,8 @@ class PipelineJobPersistence:
             book_metadata.pop("job_cover_asset", None)
             book_metadata.pop("job_cover_asset_url", None)
         raw_content_index = book_metadata.get("content_index")
+        content_index_written = False
+        content_index_total_sentences: Optional[int] = None
         if isinstance(raw_content_index, Mapping):
             try:
                 content_index_payload = copy.deepcopy(dict(raw_content_index))
@@ -314,6 +368,7 @@ class PipelineJobPersistence:
                     json.dumps(content_index_payload, indent=2, sort_keys=True),
                     encoding="utf-8",
                 )
+                content_index_written = True
                 relative_path = Path("metadata") / "content_index.json"
                 book_metadata["content_index_path"] = relative_path.as_posix()
                 url_candidate = self._file_locator.resolve_url(
@@ -333,6 +388,13 @@ class PipelineJobPersistence:
                     "chapter_count": chapter_count,
                     "alignment": alignment,
                 }
+                total_candidate = content_index_payload.get("total_sentences")
+                try:
+                    total_value = int(total_candidate)
+                except (TypeError, ValueError):
+                    total_value = None
+                if total_value and total_value > 0:
+                    content_index_total_sentences = total_value
             except Exception:  # pragma: no cover - defensive logging
                 _LOGGER.debug(
                     "Unable to persist content index for job %s",
@@ -360,14 +422,31 @@ class PipelineJobPersistence:
             _LOGGER.debug("Unable to persist book metadata", exc_info=True)
 
         sentences = result_payload.get("refined_sentences")
+        wrote_sentences = False
         if isinstance(sentences, list) and sentences:
-            try:
-                (metadata_root / "sentences.json").write_text(
-                    json.dumps(sentences, indent=2),
-                    encoding="utf-8",
-                )
-            except Exception:  # pragma: no cover - defensive logging
-                _LOGGER.debug("Unable to persist refined sentences", exc_info=True)
+            if not content_index_written:
+                try:
+                    (metadata_root / "sentences.json").write_text(
+                        json.dumps(sentences, indent=2),
+                        encoding="utf-8",
+                    )
+                    wrote_sentences = True
+                except Exception:  # pragma: no cover - defensive logging
+                    _LOGGER.debug("Unable to persist refined sentences", exc_info=True)
+            else:
+                wrote_sentences = True
+            if content_index_total_sentences is None:
+                content_index_total_sentences = len(sentences)
+
+        if content_index_total_sentences and content_index_total_sentences > 0:
+            book_metadata.setdefault("total_sentences", content_index_total_sentences)
+            book_metadata.setdefault("book_sentence_count", content_index_total_sentences)
+
+        if wrote_sentences:
+            result_payload.pop("refined_sentences", None)
+            if isinstance(job.result_payload, Mapping):
+                job.result_payload = dict(job.result_payload)
+                job.result_payload.pop("refined_sentences", None)
 
         prompt_plan_summary: Optional[Dict[str, Any]] = None
         prompt_plan_summary_path = metadata_root / "image_prompt_plan_summary.json"
@@ -715,6 +794,11 @@ class PipelineJobPersistence:
                     normalized_timing = copy.deepcopy(dict(timing_tracks_raw))
                     chunk_payload["timingTracks"] = normalized_timing
                     chunk_entry["timing_tracks"] = normalized_timing
+                highlight_policy = chunk_entry.get("highlighting_policy")
+                if isinstance(highlight_policy, str) and highlight_policy.strip():
+                    normalized_policy = highlight_policy.strip()
+                    chunk_payload["highlighting_policy"] = normalized_policy
+                    chunk_entry["highlighting_policy"] = normalized_policy
                 try:
                     self._write_chunk_file(destination, chunk_payload)
                 except Exception:  # pragma: no cover - defensive logging

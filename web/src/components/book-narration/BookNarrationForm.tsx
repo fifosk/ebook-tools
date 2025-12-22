@@ -33,6 +33,7 @@ import {
 } from '../../api/client';
 import {
   AUDIO_MODE_OPTIONS,
+  AUDIO_QUALITY_OPTIONS,
   MenuOption,
   VOICE_OPTIONS,
   WRITTEN_MODE_OPTIONS
@@ -223,6 +224,7 @@ type FormState = {
   stitch_full: boolean;
   generate_audio: boolean;
   audio_mode: string;
+  audio_bitrate_kbps: string;
   written_mode: string;
   selected_voice: string;
   voice_overrides: Record<string, string>;
@@ -287,6 +289,7 @@ const DEFAULT_FORM_STATE: FormState = {
   stitch_full: false,
   generate_audio: true,
   audio_mode: '4',
+  audio_bitrate_kbps: '96',
   written_mode: '4',
   selected_voice: 'gTTS',
   voice_overrides: {},
@@ -586,6 +589,11 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
     next.audio_mode = audioMode;
   }
 
+  const audioBitrate = coerceNumber(config['audio_bitrate_kbps']);
+  if (audioBitrate !== undefined) {
+    next.audio_bitrate_kbps = String(audioBitrate);
+  }
+
   const writtenMode = config['written_mode'];
   if (typeof writtenMode === 'string') {
     next.written_mode = writtenMode;
@@ -826,7 +834,7 @@ function formatList(items: string[]): string {
   return `${initial}, and ${items[items.length - 1]}`;
 }
 
-const ESTIMATED_AUDIO_SECONDS_PER_SENTENCE = 4.0;
+const ESTIMATED_AUDIO_SECONDS_PER_SENTENCE = 6.4;
 
 function formatDuration(seconds: number): string {
   const total = Math.max(0, Math.trunc(seconds));
@@ -1744,6 +1752,11 @@ export function BookNarrationForm({
         typeof prefillParameters.audio_mode === 'string' && prefillParameters.audio_mode.trim()
           ? prefillParameters.audio_mode.trim()
           : previous.audio_mode;
+      const audioBitrate =
+        typeof prefillParameters.audio_bitrate_kbps === 'number' &&
+        Number.isFinite(prefillParameters.audio_bitrate_kbps)
+          ? String(Math.trunc(prefillParameters.audio_bitrate_kbps))
+          : previous.audio_bitrate_kbps;
       const selectedVoice =
         typeof prefillParameters.selected_voice === 'string' && prefillParameters.selected_voice.trim()
           ? prefillParameters.selected_voice.trim()
@@ -1774,6 +1787,7 @@ export function BookNarrationForm({
         end_sentence: endSentence,
         sentences_per_output_file: sentencesPerOutput,
         audio_mode: audioMode,
+        audio_bitrate_kbps: audioBitrate,
         selected_voice: selectedVoice,
         tempo,
         include_transliteration: includeTransliteration,
@@ -2611,6 +2625,10 @@ export function BookNarrationForm({
       if (typeof formState.audio_mode === 'string' && formState.audio_mode.trim()) {
         pipelineOverrides.audio_mode = formState.audio_mode.trim();
       }
+      const audioBitrate = parseOptionalNumberInput(formState.audio_bitrate_kbps);
+      if (audioBitrate !== undefined) {
+        pipelineOverrides.audio_bitrate_kbps = Math.max(32, Math.trunc(audioBitrate));
+      }
       if (formState.add_images) {
         if (typeof formState.image_style_template === 'string' && formState.image_style_template.trim()) {
           pipelineOverrides.image_style_template = formState.image_style_template.trim();
@@ -2741,6 +2759,7 @@ export function BookNarrationForm({
           stitch_full: formState.stitch_full,
           generate_audio: formState.generate_audio,
           audio_mode: formState.audio_mode.trim(),
+          audio_bitrate_kbps: audioBitrate !== undefined ? Math.max(32, Math.trunc(audioBitrate)) : null,
           written_mode: formState.written_mode.trim(),
           selected_voice: formState.selected_voice.trim(),
           voice_overrides: sanitizedVoiceOverrides,
@@ -2917,22 +2936,24 @@ export function BookNarrationForm({
         );
       case 'output':
         return (
-		          <BookNarrationOutputSection
-		            key="output"
-		            headingId="pipeline-card-output"
-		            title={sectionMeta.output.title}
-		            description={sectionMeta.output.description}
-	            generateAudio={formState.generate_audio}
-	            audioMode={formState.audio_mode}
-	            selectedVoice={formState.selected_voice}
-	            writtenMode={formState.written_mode}
-		            outputHtml={formState.output_html}
-		            outputPdf={formState.output_pdf}
-		            includeTransliteration={formState.include_transliteration}
-		            tempo={formState.tempo}
-		            generateVideo={formState.generate_video}
-	            availableAudioModes={availableAudioModes}
-	            availableVoices={availableVoices}
+          <BookNarrationOutputSection
+            key="output"
+            headingId="pipeline-card-output"
+            title={sectionMeta.output.title}
+            description={sectionMeta.output.description}
+            generateAudio={formState.generate_audio}
+            audioMode={formState.audio_mode}
+            audioBitrateKbps={formState.audio_bitrate_kbps}
+            selectedVoice={formState.selected_voice}
+            writtenMode={formState.written_mode}
+            outputHtml={formState.output_html}
+            outputPdf={formState.output_pdf}
+            includeTransliteration={formState.include_transliteration}
+            tempo={formState.tempo}
+            generateVideo={formState.generate_video}
+            availableAudioModes={availableAudioModes}
+            availableAudioQualities={AUDIO_QUALITY_OPTIONS}
+            availableVoices={availableVoices}
             availableWrittenModes={availableWrittenModes}
             languagesForOverride={languagesForOverride}
             voiceOverrides={formState.voice_overrides}
@@ -2943,19 +2964,20 @@ export function BookNarrationForm({
             buildVoiceOptions={buildVoiceOptions}
             onGenerateAudioChange={(value) => handleChange('generate_audio', value)}
             onAudioModeChange={(value) => handleChange('audio_mode', value)}
+            onAudioBitrateChange={(value) => handleChange('audio_bitrate_kbps', value)}
             onSelectedVoiceChange={(value) => handleChange('selected_voice', value)}
-	            onVoiceOverrideChange={updateVoiceOverride}
-	            onWrittenModeChange={(value) => handleChange('written_mode', value)}
-		            onOutputHtmlChange={(value) => handleChange('output_html', value)}
-		            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
-		            onIncludeTransliterationChange={(value) =>
-		              handleChange('include_transliteration', value)
-		            }
-	            onTempoChange={(value) => handleChange('tempo', value)}
-	            onGenerateVideoChange={(value) => handleChange('generate_video', value)}
-	            onPlayVoicePreview={playVoicePreview}
-	          />
-	        );
+            onVoiceOverrideChange={updateVoiceOverride}
+            onWrittenModeChange={(value) => handleChange('written_mode', value)}
+            onOutputHtmlChange={(value) => handleChange('output_html', value)}
+            onOutputPdfChange={(value) => handleChange('output_pdf', value)}
+            onIncludeTransliterationChange={(value) =>
+              handleChange('include_transliteration', value)
+            }
+            onTempoChange={(value) => handleChange('tempo', value)}
+            onGenerateVideoChange={(value) => handleChange('generate_video', value)}
+            onPlayVoicePreview={playVoicePreview}
+          />
+        );
       case 'images':
         return (
           <BookNarrationImageSection

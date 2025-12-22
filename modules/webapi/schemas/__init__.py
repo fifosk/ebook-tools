@@ -140,6 +140,7 @@ class PipelineInputPayload(BaseModel):
     stitch_full: bool = False
     generate_audio: bool = True
     audio_mode: str = "1"
+    audio_bitrate_kbps: Optional[int] = None
     written_mode: str = "4"
     selected_voice: str = "gTTS"
     output_html: bool = False
@@ -736,6 +737,7 @@ class JobParameterSnapshot(BaseModel):
     sentences_per_output_file: Optional[int] = None
     llm_model: Optional[str] = None
     audio_mode: Optional[str] = None
+    audio_bitrate_kbps: Optional[int] = None
     selected_voice: Optional[str] = None
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
     worker_count: Optional[int] = None
@@ -1014,6 +1016,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     end_sentence = _coerce_int(inputs.get("end_sentence"))
     sentences_per_file = _coerce_int(inputs.get("sentences_per_output_file"))
     audio_mode = _coerce_str(inputs.get("audio_mode"))
+    audio_bitrate_kbps = _coerce_int(inputs.get("audio_bitrate_kbps"))
     selected_voice = _coerce_str(inputs.get("selected_voice"))
     voice_overrides = _normalize_voice_overrides(inputs.get("voice_overrides"))
     include_transliteration = _coerce_bool(inputs.get("include_transliteration"))
@@ -1035,6 +1038,9 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         override_audio_mode = _coerce_str(pipeline_overrides.get("audio_mode"))
         if override_audio_mode:
             audio_mode = override_audio_mode
+        override_audio_bitrate = _coerce_int(pipeline_overrides.get("audio_bitrate_kbps"))
+        if override_audio_bitrate is not None:
+            audio_bitrate_kbps = override_audio_bitrate
         override_voice_overrides = _normalize_voice_overrides(
             pipeline_overrides.get("voice_overrides")
         )
@@ -1051,6 +1057,7 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         sentences_per_output_file=sentences_per_file,
         llm_model=llm_model,
         audio_mode=audio_mode,
+        audio_bitrate_kbps=audio_bitrate_kbps,
         selected_voice=selected_voice,
         voice_overrides=voice_overrides,
         include_transliteration=include_transliteration,

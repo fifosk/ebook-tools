@@ -533,10 +533,10 @@ configured TTS backend (`macos_say` or `gtts` out of the box). Backends can
 return a `SynthesisResult` that includes separate `orig` and `translation`
 `pydub.AudioSegment` tracks; the pipeline persists both and records per-track
 token timing in `word_tokens` (translation) and `original_word_tokens`
-(original). If the backend embeds character timings (some engines expose
-`char_timings` metadata), the rendering layer converts them into per-word events
-and stores them in the chunk metadata (`metadata/chunk_*.json`). Otherwise the
-renderer falls back to distributing word durations evenly across the sentence.
+(original). The exporter uses those token timings (or char-weighted fallbacks)
+to build chunk-level `timingTracks`; chunk files store the timing tracks plus
+token arrays and phase/duration metadata, but they no longer persist per-sentence
+`word_tokens` payloads or slide-timeline events.
 
 On the frontend the interactive reader pulls those chunk metadata files, builds
 an in-memory index of tokens, and maps `<audio>` playback time to the nearest
@@ -553,11 +553,13 @@ whenever a pipeline stage updates metadata: (1) `metadata/job.json`, the compact
 manifest that lists every chunk with its language pair, highlighting policy, and
 media availability; (2) `metadata/chunk_manifest.json`, a helper map used by the
 web UI to lazily fetch the chunk payloads; and (3) `metadata/chunk_XXXX.json`
-files that store the actual sentence timelines, `word_tokens`,
-`original_word_tokens`, diagnostic flags, and per-track audio references
-(`audioTracks.orig`, `audioTracks.translation`). Jobs now also persist
-`metadata/content_index.json`, which records chapter ranges derived from the
-EPUB spine/sections for LLM-driven range analysis and future chapter navigation.
+files that store token arrays, image references, per-track audio metadata
+(`audioTracks.orig`, `audioTracks.translation`), and chunk-level `timingTracks`
+for word sync. Jobs now also persist `metadata/content_index.json`,
+which records chapter ranges derived from the EPUB spine/sections for LLM-driven
+range analysis and future chapter navigation.
+`metadata/sentences.json` is only written when no content index is available,
+since the sentence list is otherwise redundant.
 `MetadataLoader` in
 `modules/metadata_manager.py`
 abstracts the differences between the chunked format and legacy single-file
@@ -580,11 +582,10 @@ Highlight provenance is controlled via two layers:
   env vars) toggle the heuristic that distributes durations based on character
   counts and adds punctuation-aware padding when real tokens are unavailable.
 
-Each chunk’s `highlighting_summary` and `original_highlighting_summary` record
-which strategy generated its word tokens (`backend`, `forced_alignment`,
-`char_weighted`, or `uniform`) plus the selected WhisperX model when forced
-alignment ran. Expose those diagnostics in dashboards or QA scripts to keep
-tabs on highlighting drift whenever pipeline knobs change.
+Each chunk now stores a single `highlighting_policy` summary alongside
+`timingTracks` (tokens keep only timing fields). Expose that summary in
+dashboards or QA scripts to keep tabs on highlighting drift whenever pipeline
+knobs change.
 
 #### Frontend user journey
 
@@ -810,6 +811,9 @@ rule. Create the folders manually if they do not already exist.
 ### External tool settings
 - **`ffmpeg_path`**: Path to the FFmpeg binary used by `pydub` and the video
   stitching helpers. Defaults to whatever `ffmpeg` is on your `PATH`.
+- **`audio_bitrate_kbps`**: Target MP3 bitrate (in kbps) for sentence audio and
+  stitched exports. Lower values shrink files at the cost of fidelity
+  (default: 320).
 - **`llm_source`**: Selects which Ollama adapter to use (`local` or `cloud`).
 - **`ollama_url`**: Primary base URL for the active LLM source.
 - **`ollama_local_url`**: Explicit URL for the local Ollama instance used when
@@ -829,10 +833,10 @@ rule. Create the folders manually if they do not already exist.
 
 These values accept overrides through CLI flags (`--ffmpeg-path`,
 `--ollama-url`, `--llm-source`) or the environment variables `FFMPEG_PATH`,
-`OLLAMA_URL`, and `LLM_SOURCE`. You can also provide `OLLAMA_LOCAL_URL` and
-`OLLAMA_CLOUD_URL` to override the per-source endpoints. When both sources are
-configured, the runtime automatically retries the alternate adapter if the
-preferred endpoint is unavailable or rate limited.
+`OLLAMA_URL`, `LLM_SOURCE`, and `EBOOK_AUDIO_BITRATE_KBPS`. You can also
+provide `OLLAMA_LOCAL_URL` and `OLLAMA_CLOUD_URL` to override the per-source
+endpoints. When both sources are configured, the runtime automatically retries
+the alternate adapter if the preferred endpoint is unavailable or rate limited.
 
 Image service settings can also be supplied via `EBOOK_IMAGE_API_BASE_URL`,
 `EBOOK_IMAGE_API_TIMEOUT_SECONDS`, and `EBOOK_IMAGE_CONCURRENCY`.

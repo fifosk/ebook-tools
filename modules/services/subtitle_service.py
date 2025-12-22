@@ -327,6 +327,7 @@ class SubtitleService:
                     highlight_granularity=highlight_granularity,
                     selected_voice=selected_voice,
                     primary_target_language=options.target_language,
+                    audio_bitrate_kbps=getattr(settings, "audio_bitrate_kbps", None),
                     slide_render_options=None,
                     template_name=None,
                     video_backend=video_backend,
