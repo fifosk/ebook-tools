@@ -287,6 +287,7 @@ export default function PlayerPanel({
   const textScrollRef = useRef<HTMLDivElement | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioPlayingRef = useRef(false);
+  const mediaSessionTimeRef = useRef<number | null>(null);
   const hasSkippedInitialRememberRef = useRef(false);
   const updateInlineAudioPlaying = useCallback((next: boolean) => {
     inlineAudioPlayingRef.current = next;
@@ -1349,6 +1350,126 @@ export default function PlayerPanel({
   const handlePanelAdvancedControlsToggle = useCallback(() => {
     setPanelAdvancedControlsOpen((value) => !value);
   }, []);
+  const handleMediaSessionSentenceSkip = useCallback(
+    (direction: -1 | 1) => {
+      if (!canJumpToSentence) {
+        return false;
+      }
+      const fallback = direction > 0 ? jobStartSentence : null;
+      const current = activeSentenceNumber ?? fallback;
+      if (!current || !Number.isFinite(current)) {
+        return false;
+      }
+      const target = Math.trunc(current) + direction;
+      if (jobStartSentence !== null && target < jobStartSentence) {
+        return false;
+      }
+      if (jobEndSentence !== null && target > jobEndSentence) {
+        return false;
+      }
+      handleInteractiveSentenceJump(target);
+      return true;
+    },
+    [
+      activeSentenceNumber,
+      canJumpToSentence,
+      handleInteractiveSentenceJump,
+      jobEndSentence,
+      jobStartSentence,
+    ],
+  );
+  const handleMediaSessionTrackSkip = useCallback(
+    (direction: -1 | 1) => {
+      if (handleMediaSessionSentenceSkip(direction)) {
+        return;
+      }
+      handleNavigatePreservingPlayback(direction > 0 ? 'next' : 'previous');
+    },
+    [handleMediaSessionSentenceSkip, handleNavigatePreservingPlayback],
+  );
+  const handleMediaSessionSeekTo = useCallback(
+    (details: MediaSessionActionDetails) => {
+      const seekTime =
+        typeof details.seekTime === 'number' && Number.isFinite(details.seekTime)
+          ? details.seekTime
+          : null;
+      const current = mediaSessionTimeRef.current;
+      if (seekTime === null || current === null || !Number.isFinite(current)) {
+        return;
+      }
+      if (Math.abs(seekTime - current) < 0.25) {
+        return;
+      }
+      handleMediaSessionTrackSkip(seekTime > current ? 1 : -1);
+    },
+    [handleMediaSessionTrackSkip],
+  );
+
+  useEffect(() => {
+    if (typeof navigator === 'undefined') {
+      return;
+    }
+    const session = navigator.mediaSession;
+    if (!session || typeof session.setActionHandler !== 'function') {
+      return;
+    }
+    const setHandler = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // Ignore unsupported MediaSession actions.
+      }
+    };
+    if (!inlineAudioSelection) {
+      setHandler('play', null);
+      setHandler('pause', null);
+      setHandler('stop', null);
+      setHandler('nexttrack', null);
+      setHandler('previoustrack', null);
+      setHandler('seekforward', null);
+      setHandler('seekbackward', null);
+      setHandler('seekto', null);
+      return;
+    }
+    setHandler('play', () => {
+      handlePlayActiveMedia();
+    });
+    setHandler('pause', () => {
+      handlePauseActiveMedia();
+    });
+    setHandler('stop', () => {
+      handlePauseActiveMedia();
+    });
+    setHandler('nexttrack', () => {
+      handleMediaSessionTrackSkip(1);
+    });
+    setHandler('previoustrack', () => {
+      handleMediaSessionTrackSkip(-1);
+    });
+    setHandler('seekforward', () => {
+      handleMediaSessionTrackSkip(1);
+    });
+    setHandler('seekbackward', () => {
+      handleMediaSessionTrackSkip(-1);
+    });
+    setHandler('seekto', handleMediaSessionSeekTo);
+    return () => {
+      setHandler('play', null);
+      setHandler('pause', null);
+      setHandler('stop', null);
+      setHandler('nexttrack', null);
+      setHandler('previoustrack', null);
+      setHandler('seekforward', null);
+      setHandler('seekbackward', null);
+      setHandler('seekto', null);
+    };
+  }, [
+    handleMediaSessionSeekTo,
+    handleMediaSessionTrackSkip,
+    handlePauseActiveMedia,
+    handlePlayActiveMedia,
+    inlineAudioSelection,
+  ]);
 
   const { showShortcutHelp, setShowShortcutHelp } = usePlayerShortcuts({
     canToggleOriginalAudio,
@@ -1397,11 +1518,14 @@ export default function PlayerPanel({
       if (!audioUrl) {
         return;
       }
+      if (audioUrl === inlineAudioSelection) {
+        mediaSessionTimeRef.current = position;
+      }
       const current = getMediaItem('audio', audioUrl);
       const baseId = current ? deriveBaseId(current) : null;
       rememberPosition({ mediaId: audioUrl, mediaType: 'audio', baseId, position });
     },
-    [deriveBaseId, getMediaItem, rememberPosition],
+    [deriveBaseId, getMediaItem, inlineAudioSelection, rememberPosition],
   );
 
   const getInlineAudioPosition = useCallback(
@@ -1580,6 +1704,148 @@ export default function PlayerPanel({
       : bookAuthor
       ? `Book cover for ${bookAuthor}`
       : 'Book cover preview';
+  const nowPlayingSentenceLabel = useMemo(() => {
+    if (typeof activeSentenceNumber !== 'number' || !Number.isFinite(activeSentenceNumber)) {
+      return null;
+    }
+    const current = Math.max(Math.trunc(activeSentenceNumber), 1);
+    if (typeof jobEndSentence === 'number' && Number.isFinite(jobEndSentence) && jobEndSentence > 0) {
+      const end = Math.max(Math.trunc(jobEndSentence), 1);
+      return `Sentence ${Math.min(current, end)} of ${end}`;
+    }
+    return `Sentence ${current}`;
+  }, [activeSentenceNumber, jobEndSentence]);
+  const nowPlayingBaseTitle = useMemo(() => {
+    if (isSubtitleContext) {
+      const title = subtitleInfo.title?.trim();
+      if (title) {
+        return title;
+      }
+      const meta = subtitleInfo.meta?.trim();
+      if (meta) {
+        return meta;
+      }
+    }
+    const title = bookTitle?.trim();
+    return title || null;
+  }, [bookTitle, isSubtitleContext, subtitleInfo.meta, subtitleInfo.title]);
+  const nowPlayingTitle = useMemo(() => {
+    const base = nowPlayingBaseTitle ?? 'Interactive Reader';
+    if (nowPlayingSentenceLabel) {
+      return `${base} · ${nowPlayingSentenceLabel}`;
+    }
+    return base;
+  }, [nowPlayingBaseTitle, nowPlayingSentenceLabel]);
+  const nowPlayingArtist = useMemo(() => {
+    if (isSubtitleContext) {
+      const meta = subtitleInfo.meta?.trim();
+      return meta || null;
+    }
+    const author = bookAuthor?.trim();
+    return author || null;
+  }, [bookAuthor, isSubtitleContext, subtitleInfo.meta]);
+  const nowPlayingAlbum = useMemo(() => {
+    if (isSubtitleContext) {
+      const title = subtitleInfo.title?.trim();
+      return title || null;
+    }
+    const title = bookTitle?.trim();
+    return title || null;
+  }, [bookTitle, isSubtitleContext, subtitleInfo.title]);
+  const nowPlayingCoverUrl = useMemo(() => {
+    const candidate = isSubtitleContext
+      ? subtitleInfo.coverUrl ?? subtitleInfo.coverSecondaryUrl ?? null
+      : shouldShowCoverImage
+        ? displayCoverUrl
+        : null;
+    if (!candidate) {
+      return null;
+    }
+    if (typeof window === 'undefined') {
+      return candidate;
+    }
+    try {
+      return new URL(candidate, window.location.href).toString();
+    } catch {
+      return candidate;
+    }
+  }, [
+    displayCoverUrl,
+    isSubtitleContext,
+    shouldShowCoverImage,
+    subtitleInfo.coverSecondaryUrl,
+    subtitleInfo.coverUrl,
+  ]);
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || typeof window === 'undefined') {
+      return;
+    }
+    const session = navigator.mediaSession;
+    if (!session) {
+      return;
+    }
+    if (!inlineAudioSelection && !isActiveMediaPlaying) {
+      try {
+        session.metadata = null;
+        session.playbackState = 'none';
+      } catch {
+        // Ignore metadata updates in unsupported environments.
+      }
+      return;
+    }
+    const metadata: MediaMetadataInit = {
+      title: nowPlayingTitle,
+    };
+    if (nowPlayingArtist) {
+      metadata.artist = nowPlayingArtist;
+    }
+    if (nowPlayingAlbum && nowPlayingAlbum !== nowPlayingTitle) {
+      metadata.album = nowPlayingAlbum;
+    }
+    if (nowPlayingCoverUrl) {
+      metadata.artwork = [
+        { src: nowPlayingCoverUrl, sizes: '512x512' },
+        { src: nowPlayingCoverUrl, sizes: '1024x1024' },
+      ];
+    }
+    const Metadata = window.MediaMetadata;
+    const applyMetadata = (payload: MediaMetadataInit) => {
+      if (typeof Metadata === 'function') {
+        session.metadata = new Metadata(payload);
+        return;
+      }
+      session.metadata = payload as unknown as MediaMetadata;
+    };
+    try {
+      applyMetadata(metadata);
+    } catch {
+      if (metadata.artwork) {
+        const { artwork, ...fallback } = metadata;
+        try {
+          applyMetadata(fallback);
+        } catch {
+          try {
+            session.metadata = null;
+          } catch {
+            // Ignore failures to clear metadata.
+          }
+        }
+      }
+    }
+    try {
+      session.playbackState = isActiveMediaPlaying ? 'playing' : 'paused';
+    } catch {
+      // Ignore unsupported playback state updates.
+    }
+  }, [
+    inlineAudioSelection,
+    isActiveMediaPlaying,
+    nowPlayingAlbum,
+    nowPlayingArtist,
+    nowPlayingCoverUrl,
+    nowPlayingSentenceLabel,
+    nowPlayingTitle,
+  ]);
   const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
   const sentenceJumpListId = useId();
   const sentenceJumpInputId = useId();

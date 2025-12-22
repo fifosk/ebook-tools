@@ -88,6 +88,12 @@ export function useCoverArt({
         return null;
       }
 
+      if (trimmed.startsWith('/api/pipelines/')) {
+        return appendAccessToken(trimmed);
+      }
+      if (trimmed.startsWith('/api/jobs/')) {
+        return appendAccessToken(trimmed);
+      }
       if (origin === 'library') {
         if (trimmed.includes('/pipelines/')) {
           return null;

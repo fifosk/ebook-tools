@@ -1721,6 +1721,35 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   }, [resolvedTranslationSpeed, timingPlaybackRate]);
 
   useEffect(() => {
+    if (typeof navigator === 'undefined') {
+      return;
+    }
+    const session = navigator.mediaSession;
+    if (!session || typeof session.setPositionState !== 'function') {
+      return;
+    }
+    const duration =
+      typeof audioDuration === 'number' && Number.isFinite(audioDuration) && audioDuration > 0
+        ? audioDuration
+        : null;
+    if (!resolvedAudioUrl || duration === null) {
+      return;
+    }
+    const safePosition = Number.isFinite(chunkTime)
+      ? Math.min(Math.max(chunkTime, 0), duration)
+      : 0;
+    try {
+      session.setPositionState({
+        duration,
+        position: safePosition,
+        playbackRate: effectivePlaybackRate,
+      });
+    } catch {
+      // Ignore unsupported position state updates.
+    }
+  }, [audioDuration, chunkTime, effectivePlaybackRate, resolvedAudioUrl]);
+
+  useEffect(() => {
     if (!timingPayload) {
       setTimingDiagnostics(null);
       return;

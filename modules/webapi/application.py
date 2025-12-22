@@ -199,6 +199,20 @@ def _default_devserver_origins() -> list[str]:
 
     origins = set(DEFAULT_LOCAL_ORIGINS) | set(DEFAULT_DEVSERVER_ORIGINS)
 
+    def _collect_candidate_hosts() -> set[str]:
+        hosts: set[str] = set()
+        for host in filter(None, {socket.gethostname(), socket.getfqdn()}):
+            trimmed = host.strip()
+            if not trimmed:
+                continue
+            normalized = trimmed.lower()
+            hosts.add(normalized)
+            if "." in normalized:
+                short = normalized.split(".", 1)[0].strip()
+                if short:
+                    hosts.add(short)
+        return hosts
+
     def _collect_candidate_ips() -> set[str]:
         ips: set[str] = set()
         # Preferred approach: infer the outbound interface IP without sending data.
@@ -236,6 +250,12 @@ def _default_devserver_origins() -> list[str]:
         origins.add(f"http://{local_ip}:5173")
         origins.add(f"https://{local_ip}")
         origins.add(f"https://{local_ip}:5173")
+
+    for host in _collect_candidate_hosts():
+        origins.add(f"http://{host}")
+        origins.add(f"http://{host}:5173")
+        origins.add(f"https://{host}")
+        origins.add(f"https://{host}:5173")
 
     return sorted(origins)
 
