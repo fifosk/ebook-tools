@@ -689,90 +689,92 @@ export function NavigationControls({
           ) : null}
           {searchPanel || showSentenceJump || shouldShowChapterJump ? (
             <div className="player-panel__navigation-secondary">
-              {shouldShowChapterJump ? (
-                <div className="player-panel__chapter-jump" data-testid="player-panel-chapter-jump">
-                  <span className="player-panel__chapter-jump-label" aria-hidden="true">
-                    Chapter
-                  </span>
-                  <select
-                    id={chapterSelectId}
-                    className="player-panel__chapter-jump-select"
-                    value={activeChapterId ?? ''}
-                    onChange={handleChapterSelect}
-                    aria-label="Jump to chapter"
-                    disabled={!onChapterJump}
-                  >
-                    <option value="" disabled>
-                      Select
-                    </option>
-                    {resolvedChapters.map((chapter, index) => {
-                      const label = chapter.title?.trim() || `Chapter ${index + 1}`;
-                      const range =
-                        typeof chapter.endSentence === 'number'
-                          ? `${chapter.startSentence}-${chapter.endSentence}`
-                          : `${chapter.startSentence}+`;
-                      const isAvailable = isChapterInJobRange(chapter);
-                      return (
-                        <option
-                          key={chapter.id}
-                          value={chapter.id}
-                          title={`${isAvailable ? '' : 'Outside job range. '}Sentences ${range}`}
-                          disabled={!isAvailable}
-                        >
-                          {label}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </div>
-              ) : null}
-              {searchPanel ? <div className="player-panel__navigation-search">{searchPanel}</div> : null}
-              {showSentenceJump ? (
-                <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
-                  {sentenceJumpError ? (
-                    <span id={jumpErrorId} className="visually-hidden">
-                      {sentenceJumpError}
+              <div className="player-panel__navigation-secondary-group">
+                {shouldShowChapterJump ? (
+                  <div className="player-panel__chapter-jump" data-testid="player-panel-chapter-jump">
+                    <span className="player-panel__chapter-jump-label" aria-hidden="true">
+                      Chapter
                     </span>
-                  ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
-                    <span id={jumpRangeId} className="visually-hidden">
-                      Range {sentenceJumpMin}–{sentenceJumpMax}
+                    <select
+                      id={chapterSelectId}
+                      className="player-panel__chapter-jump-select"
+                      value={activeChapterId ?? ''}
+                      onChange={handleChapterSelect}
+                      aria-label="Jump to chapter"
+                      disabled={!onChapterJump}
+                    >
+                      <option value="" disabled>
+                        Select
+                      </option>
+                      {resolvedChapters.map((chapter, index) => {
+                        const label = chapter.title?.trim() || `Chapter ${index + 1}`;
+                        const range =
+                          typeof chapter.endSentence === 'number'
+                            ? `${chapter.startSentence}-${chapter.endSentence}`
+                            : `${chapter.startSentence}+`;
+                        const isAvailable = isChapterInJobRange(chapter);
+                        return (
+                          <option
+                            key={chapter.id}
+                            value={chapter.id}
+                            title={`${isAvailable ? '' : 'Outside job range. '}Sentences ${range}`}
+                            disabled={!isAvailable}
+                          >
+                            {label}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                ) : null}
+                {searchPanel ? <div className="player-panel__navigation-search">{searchPanel}</div> : null}
+                {showSentenceJump ? (
+                  <div className="player-panel__sentence-jump" data-testid="player-panel-sentence-jump">
+                    {sentenceJumpError ? (
+                      <span id={jumpErrorId} className="visually-hidden">
+                        {sentenceJumpError}
+                      </span>
+                    ) : sentenceJumpMin !== null && sentenceJumpMax !== null ? (
+                      <span id={jumpRangeId} className="visually-hidden">
+                        Range {sentenceJumpMin}–{sentenceJumpMax}
+                      </span>
+                    ) : null}
+                    <span className="player-panel__sentence-jump-label" aria-hidden="true">
+                      Jump
                     </span>
-                  ) : null}
-                  <span className="player-panel__sentence-jump-label" aria-hidden="true">
-                    Jump
-                  </span>
-                  <input
-                    id={jumpInputId}
-                    className="player-panel__sentence-jump-input"
-                    type="number"
-                    inputMode="numeric"
-                    min={sentenceJumpMin ?? undefined}
-                    max={sentenceJumpMax ?? undefined}
-                    step={1}
-                    list={sentenceJumpListId}
-                    value={sentenceJumpValue}
-                    onChange={handleSentenceInputChange}
-                    onKeyDown={handleSentenceInputKeyDown}
-                    placeholder="…"
-                    aria-label="Jump to sentence"
-                    aria-describedby={describedBy}
-                    aria-invalid={sentenceJumpError ? 'true' : undefined}
-                    disabled={sentenceJumpDisabled}
-                    title={
-                      sentenceJumpError ??
-                      (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="player-panel__sentence-jump-button"
-                    onClick={onSentenceJumpSubmit}
-                    disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
-                  >
-                    Go
-                  </button>
-                </div>
-              ) : null}
+                    <input
+                      id={jumpInputId}
+                      className="player-panel__sentence-jump-input"
+                      type="number"
+                      inputMode="numeric"
+                      min={sentenceJumpMin ?? undefined}
+                      max={sentenceJumpMax ?? undefined}
+                      step={1}
+                      list={sentenceJumpListId}
+                      value={sentenceJumpValue}
+                      onChange={handleSentenceInputChange}
+                      onKeyDown={handleSentenceInputKeyDown}
+                      placeholder="…"
+                      aria-label="Jump to sentence"
+                      aria-describedby={describedBy}
+                      aria-invalid={sentenceJumpError ? 'true' : undefined}
+                      disabled={sentenceJumpDisabled}
+                      title={
+                        sentenceJumpError ??
+                        (sentenceJumpPlaceholder ? `Jump (range ${sentenceJumpPlaceholder})` : 'Jump to sentence')
+                      }
+                    />
+                    <button
+                      type="button"
+                      className="player-panel__sentence-jump-button"
+                      onClick={onSentenceJumpSubmit}
+                      disabled={sentenceJumpDisabled || !onSentenceJumpSubmit}
+                    >
+                      Go
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           ) : null}
         </div>

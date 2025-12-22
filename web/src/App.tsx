@@ -1155,27 +1155,21 @@ export function App() {
       >
         <div className="sidebar__header">
           <div className="sidebar__brand">
-            <span className="sidebar__logo-mark" aria-hidden="true">
-              🌐
-            </span>
+            <button
+              type="button"
+              className="sidebar__logo-mark"
+              onClick={handleSidebarToggle}
+              aria-expanded={isSidebarOpen}
+              aria-controls="dashboard-sidebar"
+              aria-label={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+            >
+              <span aria-hidden="true">🌐</span>
+            </button>
             <span className="sidebar__title" aria-label="Language Tools">
               Language Tools
             </span>
           </div>
-          <button
-            type="button"
-            className="sidebar__collapse-toggle"
-            onClick={handleSidebarToggle}
-            aria-expanded={isSidebarOpen}
-            aria-controls="dashboard-sidebar"
-          >
-            <span className="visually-hidden">
-              {isSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
-            </span>
-            <span className="sidebar__collapse-icon" aria-hidden="true">
-              {isSidebarOpen ? '‹' : '›'}
-            </span>
-          </button>
         </div>
         <Sidebar
           selectedView={selectedView}

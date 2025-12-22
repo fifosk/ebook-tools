@@ -272,6 +272,7 @@ export default function PlayerPanel({
   const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState<boolean>(() =>
     resolveStoredInteractiveFullscreenPreference(),
   );
+  const [panelAdvancedControlsOpen, setPanelAdvancedControlsOpen] = useState(false);
   const interactiveFullscreenPreferenceRef = useRef<boolean>(isInteractiveFullscreen);
   const updateInteractiveFullscreenPreference = useCallback((next: boolean) => {
     interactiveFullscreenPreferenceRef.current = next;
@@ -1345,6 +1346,9 @@ export default function PlayerPanel({
       handlePlayActiveMedia();
     }
   }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
+  const handlePanelAdvancedControlsToggle = useCallback(() => {
+    setPanelAdvancedControlsOpen((value) => !value);
+  }, []);
 
   const { showShortcutHelp, setShowShortcutHelp } = usePlayerShortcuts({
     canToggleOriginalAudio,
@@ -1633,6 +1637,8 @@ export default function PlayerPanel({
     translationSpeedMax: TRANSLATION_SPEED_MAX,
     translationSpeedStep: TRANSLATION_SPEED_STEP,
     onTranslationSpeedChange: handleTranslationSpeedChange,
+    showSubtitleScale: false,
+    showSubtitleBackgroundOpacity: false,
     showSentenceJump: canJumpToSentence,
     sentenceJumpValue,
     sentenceJumpMin: sentenceLookup.min,
@@ -1702,12 +1708,29 @@ export default function PlayerPanel({
     bookTotalSentences: bookSentenceCount,
   } satisfies Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
 
+  const hasPanelAdvancedControls = Boolean(
+    navigationBaseProps.showTranslationSpeed ||
+      navigationBaseProps.showSubtitleScale ||
+      navigationBaseProps.showSubtitleBackgroundOpacity ||
+      navigationBaseProps.showFontScale ||
+      navigationBaseProps.showMyLinguistFontScale ||
+      navigationBaseProps.showInteractiveBackgroundOpacity ||
+      navigationBaseProps.showInteractiveSentenceCardOpacity ||
+      navigationBaseProps.showInteractiveThemeControls ||
+      navigationBaseProps.showReadingBedVolume ||
+      navigationBaseProps.showReadingBedTrack,
+  );
+
   const navigationGroup = (
     <NavigationControls
       context="panel"
       sentenceJumpInputId={sentenceJumpInputId}
       searchPanel={panelSearchPanel}
       {...navigationBaseProps}
+      showAdvancedControls={panelAdvancedControlsOpen && hasPanelAdvancedControls}
+      showAdvancedToggle={hasPanelAdvancedControls}
+      advancedControlsOpen={panelAdvancedControlsOpen}
+      onToggleAdvancedControls={hasPanelAdvancedControls ? handlePanelAdvancedControlsToggle : undefined}
     />
   );
 
