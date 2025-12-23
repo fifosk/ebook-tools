@@ -80,7 +80,7 @@ struct InteractivePlayerView: View {
             updateReadingBedPlayback()
         }
         .onDisappear {
-            readingBedCoordinator.pause()
+            readingBedCoordinator.reset()
         }
         #if os(tvOS)
         .onPlayPauseCommand {
@@ -483,7 +483,11 @@ struct InteractivePlayerView: View {
     private func sentenceBinding(entries: [SentenceOption], chunk: InteractiveChunk) -> Binding<Int> {
         Binding(
             get: {
-                selectedSentenceID ?? entries.first?.id ?? 0
+                if let selected = selectedSentenceID,
+                   entries.contains(where: { $0.id == selected }) {
+                    return selected
+                }
+                return entries.first?.id ?? 0
             },
             set: { newValue in
                 selectedSentenceID = newValue

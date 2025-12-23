@@ -59,6 +59,9 @@ struct LibraryPlaybackView: View {
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
         .onDisappear {
+            #if os(tvOS)
+            viewModel.audioCoordinator.reset()
+            #endif
             if scenePhase == .active {
                 nowPlaying.clear()
             }
@@ -298,6 +301,7 @@ struct LibraryPlaybackView: View {
         return nil
     }
 
+    @MainActor
     private func loadEntry() async {
         guard let configuration = appState.configuration else { return }
         activeSentenceIndex = nil
@@ -359,6 +363,7 @@ struct LibraryPlaybackView: View {
             duration: playbackDuration
         )
     }
+
 }
 
 private struct LibraryImageReel: View {

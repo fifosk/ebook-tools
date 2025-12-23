@@ -7,14 +7,27 @@ struct LibraryShellView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     private var isSplitLayout: Bool {
-        #if os(tvOS)
-        return true
-        #else
+        #if !os(tvOS)
         return horizontalSizeClass == .regular
+        #else
+        return false
         #endif
     }
 
     var body: some View {
+        #if os(tvOS)
+        NavigationStack {
+            libraryList(useNavigationLinks: true)
+                .navigationDestination(for: LibraryItem.self) { item in
+                    LibraryPlaybackView(item: item)
+                }
+        }
+        .onAppear {
+            if viewModel.items.isEmpty {
+                Task { await viewModel.load(using: appState) }
+            }
+        }
+        #else
         Group {
             if isSplitLayout {
                 NavigationSplitView {
@@ -41,6 +54,7 @@ struct LibraryShellView: View {
                 selectedItem = newItems.first
             }
         }
+        #endif
     }
 
     @ViewBuilder

@@ -197,7 +197,9 @@ final class AudioPlayerCoordinator: ObservableObject {
                 if self.shouldLoop {
                     self.currentTime = 0
                     self.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-                        self?.play()
+                        Task { @MainActor [weak self] in
+                            self?.play()
+                        }
                     }
                     return
                 }
@@ -245,8 +247,8 @@ final class AudioPlayerCoordinator: ObservableObject {
     }
 
     nonisolated private func tearDownPlayerAsync() {
-        Task { @MainActor in
-            self._tearDownPlayerOnMain()
+        Task { @MainActor [weak self] in
+            self?._tearDownPlayerOnMain()
         }
     }
 
