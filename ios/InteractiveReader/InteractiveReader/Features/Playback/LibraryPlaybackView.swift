@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryPlaybackView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.scenePhase) private var scenePhase
     let item: LibraryItem
 
     @StateObject private var viewModel = InteractivePlayerViewModel()
@@ -50,7 +51,9 @@ struct LibraryPlaybackView: View {
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
         .onDisappear {
-            nowPlaying.clear()
+            if scenePhase == .active {
+                nowPlaying.clear()
+            }
         }
     }
 
@@ -229,7 +232,8 @@ struct LibraryPlaybackView: View {
 
     private func updateNowPlayingPlayback(time: Double) {
         guard !isVideoPreferred else { return }
-        if let sentence = viewModel.activeSentence(at: time) {
+        let highlightTime = viewModel.highlightingTime
+        if let sentence = viewModel.activeSentence(at: highlightTime) {
             let index = sentence.displayIndex ?? sentence.id
             if activeSentenceIndex != index {
                 activeSentenceIndex = index

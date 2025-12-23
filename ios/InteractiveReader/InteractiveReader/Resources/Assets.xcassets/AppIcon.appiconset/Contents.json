@@ -1,6 +1,36 @@
 {
   "images" : [
     {
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "20x20"
+    },
+    {
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "20x20"
+    },
+    {
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "29x29"
+    },
+    {
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "29x29"
+    },
+    {
+      "idiom" : "iphone",
+      "scale" : "2x",
+      "size" : "40x40"
+    },
+    {
+      "idiom" : "iphone",
+      "scale" : "3x",
+      "size" : "40x40"
+    },
+    {
       "filename" : "AppIcon-60@2x.png",
       "idiom" : "iphone",
       "scale" : "2x",
@@ -11,6 +41,21 @@
       "idiom" : "iphone",
       "scale" : "3x",
       "size" : "60x60"
+    },
+    {
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "20x20"
+    },
+    {
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "29x29"
+    },
+    {
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "40x40"
     },
     {
       "filename" : "AppIcon-76.png",
@@ -25,28 +70,15 @@
       "size" : "76x76"
     },
     {
+      "idiom" : "ipad",
+      "scale" : "2x",
+      "size" : "83.5x83.5"
+    },
+    {
       "filename" : "AppIcon-1024.png",
       "idiom" : "ios-marketing",
       "scale" : "1x",
       "size" : "1024x1024"
-    },
-    {
-      "filename" : "AppIcon-tv-400x240.png",
-      "idiom" : "tv",
-      "scale" : "1x",
-      "size" : "400x240"
-    },
-    {
-      "filename" : "AppIcon-tv-400x240@2x.png",
-      "idiom" : "tv",
-      "scale" : "2x",
-      "size" : "400x240"
-    },
-    {
-      "filename" : "AppIcon-tv-1280x768.png",
-      "idiom" : "tv-marketing",
-      "scale" : "1x",
-      "size" : "1280x768"
     }
   ],
   "info" : {

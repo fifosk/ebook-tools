@@ -79,9 +79,9 @@ struct InteractivePlayerView: View {
         }
     }
 
-    @ViewBuilder
     private func sentenceScroller(for chunk: InteractiveChunk) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let highlightTime = audioCoordinator.currentTime
+        return VStack(alignment: .leading, spacing: 12) {
             Text("Interactive transcript")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -90,8 +90,8 @@ struct InteractivePlayerView: View {
                     ForEach(chunk.sentences) { sentence in
                         InteractiveSentenceCard(
                             sentence: sentence,
-                            isActive: sentence.tokens.contains { $0.isActive(at: audioCoordinator.currentTime) },
-                            currentTime: audioCoordinator.currentTime
+                            isActive: sentence.tokens.contains { $0.isActive(at: highlightTime) },
+                            currentTime: highlightTime
                         )
                     }
                 }
@@ -260,3 +260,4 @@ private struct InteractiveSentenceCard: View {
         return "Sentence \(sentence.id)"
     }
 }
+

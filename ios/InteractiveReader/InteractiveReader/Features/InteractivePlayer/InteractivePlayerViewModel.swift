@@ -27,12 +27,14 @@ final class InteractivePlayerViewModel: ObservableObject {
     @Published private(set) var jobContext: JobContext?
     @Published private(set) var selectedChunkID: String?
     @Published private(set) var selectedAudioTrackID: String?
+    @Published private(set) var selectedTimingURL: URL?
     @Published private(set) var mediaResponse: PipelineMediaResponse?
     @Published private(set) var timingResponse: JobTimingResponse?
 
     let audioCoordinator = AudioPlayerCoordinator()
 
     private var mediaResolver: MediaURLResolver?
+    private var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
 
     init() {
         audioCoordinator.onPlaybackEnded = { [weak self] in
@@ -51,6 +53,8 @@ final class InteractivePlayerViewModel: ObservableObject {
         self.jobId = trimmedJobId
         selectedChunkID = nil
         selectedAudioTrackID = nil
+        selectedTimingURL = nil
+        preferredAudioKind = nil
         jobContext = nil
         mediaResponse = nil
         timingResponse = nil
@@ -112,10 +116,14 @@ final class InteractivePlayerViewModel: ObservableObject {
         selectedChunkID = id
         guard let chunk = selectedChunk else {
             audioCoordinator.reset()
+            selectedTimingURL = nil
             return
         }
         if !(chunk.audioOptions.contains { $0.id == selectedAudioTrackID }) {
-            selectedAudioTrackID = chunk.audioOptions.first?.id
+            let preferred = preferredAudioKind.flatMap { kind in
+                chunk.audioOptions.first(where: { $0.kind == kind })
+            }
+            selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
         }
         prepareAudio(for: chunk, autoPlay: autoPlay)
     }
@@ -124,6 +132,9 @@ final class InteractivePlayerViewModel: ObservableObject {
         guard selectedAudioTrackID != id else { return }
         selectedAudioTrackID = id
         guard let chunk = selectedChunk else { return }
+        if let track = chunk.audioOptions.first(where: { $0.id == id }) {
+            preferredAudioKind = track.kind
+        }
         prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaying)
     }
 
@@ -158,6 +169,16 @@ final class InteractivePlayerViewModel: ObservableObject {
         return "Chunks: \(context.chunks.count)"
     }
 
+    var highlightingTime: Double {
+        guard let timingURL = selectedTimingURL else {
+            return audioCoordinator.currentTime
+        }
+        guard let activeURL = audioCoordinator.activeURL, activeURL == timingURL else {
+            return .nan
+        }
+        return audioCoordinator.currentTime
+    }
+
     func resolveMediaURL(for file: PipelineMediaFile) -> URL? {
         guard let jobId, let mediaResolver else { return nil }
         return mediaResolver.resolveFileURL(jobId: jobId, file: file)
@@ -169,6 +190,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     }
 
     func activeSentence(at time: Double) -> InteractiveChunk.Sentence? {
+        guard time.isFinite else { return nil }
         guard let chunk = selectedChunk else { return nil }
         if let match = chunk.sentences.first(where: { $0.contains(time: time) }) {
             return match
@@ -192,7 +214,8 @@ final class InteractivePlayerViewModel: ObservableObject {
             return
         }
         let sorted = entries.sorted { $0.1 < $1.1 }
-        let currentTime = audioCoordinator.currentTime
+        let currentTime = highlightingTime
+        guard currentTime.isFinite else { return }
         let epsilon = 0.05
 
         if forward {
@@ -240,12 +263,19 @@ final class InteractivePlayerViewModel: ObservableObject {
         guard let context = jobContext else { return }
         if let chunk = context.chunks.first(where: { !$0.audioOptions.isEmpty }) ?? context.chunks.first {
             selectedChunkID = chunk.id
-            selectedAudioTrackID = chunk.audioOptions.first?.id
+            if let option = chunk.audioOptions.first {
+                selectedAudioTrackID = option.id
+                preferredAudioKind = option.kind
+            } else {
+                selectedAudioTrackID = nil
+            }
             prepareAudio(for: chunk, autoPlay: false)
         } else {
             selectedChunkID = nil
             selectedAudioTrackID = nil
             audioCoordinator.reset()
+            selectedTimingURL = nil
+            preferredAudioKind = nil
         }
     }
 
@@ -253,9 +283,11 @@ final class InteractivePlayerViewModel: ObservableObject {
         guard let trackID = selectedAudioTrackID,
               let track = chunk.audioOptions.first(where: { $0.id == trackID }) else {
             audioCoordinator.reset()
+            selectedTimingURL = nil
             return
         }
-        audioCoordinator.load(url: track.streamURL, autoPlay: autoPlay)
+        audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
+        selectedTimingURL = track.timingURL ?? track.streamURLs.first
     }
 
     private func handlePlaybackEnded() {
@@ -317,10 +349,23 @@ struct InteractiveChunk: Identifiable {
     }
 
     struct AudioOption: Identifiable {
+        enum Kind: String {
+            case combined
+            case translation
+            case original
+            case other
+        }
+
         let id: String
         let label: String
-        let streamURL: URL
+        let kind: Kind
+        let streamURLs: [URL]
+        let timingURL: URL?
         let duration: Double?
+
+        var primaryURL: URL {
+            streamURLs[0]
+        }
     }
 
     let id: String
@@ -344,6 +389,7 @@ struct WordTimingToken: Identifiable {
     }
 
     func isActive(at time: Double, tolerance: Double = 0.02) -> Bool {
+        guard time.isFinite else { return false }
         let start = startTime - tolerance
         let end = endTime + tolerance
         return time >= start && time <= end
@@ -459,47 +505,134 @@ enum JobContextBuilder {
         chunkFiles: [PipelineMediaFile],
         fallbackFiles: [PipelineMediaFile]
     ) -> [InteractiveChunk.AudioOption] {
-        var options: [InteractiveChunk.AudioOption] = []
-        var seenURLs: Set<String> = []
+        var optionsByKind: [InteractiveChunk.AudioOption.Kind: InteractiveChunk.AudioOption] = [:]
+        var otherOptions: [InteractiveChunk.AudioOption] = []
+        var otherURLKeys: Set<String> = []
 
-        func appendOption(id: String, label: String, url: URL, duration: Double?) {
-            let key = dedupedURLKey(for: url)
-            guard !seenURLs.contains(key) else { return }
-            options.append(
-                InteractiveChunk.AudioOption(
-                    id: id,
-                    label: label,
-                    streamURL: url,
-                    duration: duration
+        func registerOption(
+            kind: InteractiveChunk.AudioOption.Kind,
+            id: String,
+            label: String,
+            urls: [URL],
+            timingURL: URL?,
+            duration: Double?
+        ) {
+            guard let primaryURL = urls.first else { return }
+            if kind == .other {
+                let key = dedupedURLKey(for: primaryURL)
+                guard !otherURLKeys.contains(key) else { return }
+                otherURLKeys.insert(key)
+                otherOptions.append(
+                    InteractiveChunk.AudioOption(
+                        id: id,
+                        label: label,
+                        kind: kind,
+                        streamURLs: urls,
+                        timingURL: timingURL,
+                        duration: duration
+                    )
                 )
+                return
+            }
+            guard optionsByKind[kind] == nil else { return }
+            optionsByKind[kind] = InteractiveChunk.AudioOption(
+                id: id,
+                label: label,
+                kind: kind,
+                streamURLs: urls,
+                timingURL: timingURL,
+                duration: duration
             )
-            seenURLs.insert(key)
         }
 
         for (key, metadata) in chunk.audioTracks {
             guard let url = resolveAudioURL(jobId: jobId, track: metadata, resolver: resolver) else { continue }
-            appendOption(id: "\(chunkID)|\(key)", label: displayName(for: key), url: url, duration: metadata.duration)
+            let kind = audioKind(for: key)
+            registerOption(
+                kind: kind,
+                id: "\(chunkID)|\(key)",
+                label: displayName(for: key),
+                urls: [url],
+                timingURL: url,
+                duration: metadata.duration
+            )
         }
 
         for file in chunkFiles {
             guard let url = resolveFileURL(jobId: jobId, file: file, resolver: resolver) else { continue }
-            appendOption(id: "\(chunkID)|file|\(file.name)", label: labelForAudioFile(file), url: url, duration: nil)
+            let kind = audioKind(for: file)
+            registerOption(
+                kind: kind,
+                id: "\(chunkID)|file|\(file.name)",
+                label: labelForAudioFile(file),
+                urls: [url],
+                timingURL: url,
+                duration: nil
+            )
         }
 
         let matches = matchingAudioFiles(for: chunk, fallbackFiles: fallbackFiles)
         for file in matches {
             guard let url = resolveFileURL(jobId: jobId, file: file, resolver: resolver) else { continue }
-            appendOption(id: "\(chunkID)|fallback|\(file.name)", label: labelForAudioFile(file), url: url, duration: nil)
+            let kind = audioKind(for: file)
+            registerOption(
+                kind: kind,
+                id: "\(chunkID)|fallback|\(file.name)",
+                label: labelForAudioFile(file),
+                urls: [url],
+                timingURL: url,
+                duration: nil
+            )
         }
 
-        if options.isEmpty {
+        if optionsByKind.isEmpty && otherOptions.isEmpty {
             for file in filterAudioFiles(from: fallbackFiles) {
                 guard let url = resolveFileURL(jobId: jobId, file: file, resolver: resolver) else { continue }
-                appendOption(id: "\(chunkID)|global|\(file.name)", label: labelForAudioFile(file), url: url, duration: nil)
+                let kind = audioKind(for: file)
+                registerOption(
+                    kind: kind,
+                    id: "\(chunkID)|global|\(file.name)",
+                    label: labelForAudioFile(file),
+                    urls: [url],
+                    timingURL: url,
+                    duration: nil
+                )
             }
         }
 
-        return options.sorted(by: { $0.label < $1.label })
+        if optionsByKind[.combined] == nil {
+            if let original = optionsByKind[.original], let translation = optionsByKind[.translation] {
+                let combinedDuration: Double?
+                if let originalDuration = original.duration, let translationDuration = translation.duration {
+                    combinedDuration = originalDuration + translationDuration
+                } else {
+                    combinedDuration = translation.duration ?? original.duration
+                }
+                optionsByKind[.combined] = InteractiveChunk.AudioOption(
+                    id: "\(chunkID)|combined",
+                    label: "Original + Translation",
+                    kind: .combined,
+                    streamURLs: [original.primaryURL, translation.primaryURL],
+                    timingURL: translation.primaryURL,
+                    duration: combinedDuration
+                )
+            }
+        }
+
+        var ordered: [InteractiveChunk.AudioOption] = []
+        if let combined = optionsByKind[.combined] {
+            ordered.append(combined)
+        }
+        if let translation = optionsByKind[.translation] {
+            ordered.append(translation)
+        }
+        if let original = optionsByKind[.original] {
+            ordered.append(original)
+        }
+        if !otherOptions.isEmpty {
+            ordered.append(contentsOf: otherOptions.sorted(by: { $0.label < $1.label }))
+        }
+        return ordered
     }
 
     private static func matchingAudioFiles(
@@ -547,7 +680,7 @@ enum JobContextBuilder {
         let rawName = file.relativePath ?? file.path ?? file.name
         let lowercased = rawName.lowercased()
         if lowercased.contains("orig_trans") || lowercased.contains("mix") {
-            return "Original + translation"
+            return "Original + Translation"
         }
         if lowercased.contains("_translation") || lowercased.contains("-translation") {
             return "Translation"
@@ -562,6 +695,34 @@ enum JobContextBuilder {
             return "Original"
         }
         return file.name
+    }
+
+    private static func audioKind(for key: String) -> InteractiveChunk.AudioOption.Kind {
+        let normalized = key.lowercased()
+        if normalized == "orig_trans" || normalized == "mix" {
+            return .combined
+        }
+        if normalized == "translation" || normalized == "trans" {
+            return .translation
+        }
+        if normalized == "orig" || normalized == "original" {
+            return .original
+        }
+        return .other
+    }
+
+    private static func audioKind(for file: PipelineMediaFile) -> InteractiveChunk.AudioOption.Kind {
+        let rawName = (file.relativePath ?? file.path ?? file.name).lowercased()
+        if rawName.contains("orig_trans") || rawName.contains("mix") {
+            return .combined
+        }
+        if rawName.contains("_original") || rawName.contains("-original") || rawName.contains("_orig") || rawName.contains("-orig") {
+            return .original
+        }
+        if rawName.contains("_translation") || rawName.contains("-translation") || rawName.contains("_trans") || rawName.contains("-trans") {
+            return .translation
+        }
+        return .other
     }
 
     private static func dedupedURLKey(for url: URL) -> String {
@@ -584,8 +745,8 @@ enum JobContextBuilder {
 
     private static func displayName(for key: String) -> String {
         switch key.lowercased() {
-        case "orig_trans":
-            return "Original + translation"
+        case "orig_trans", "mix":
+            return "Original + Translation"
         case "translation", "trans":
             return "Translation"
         case "orig", "original":

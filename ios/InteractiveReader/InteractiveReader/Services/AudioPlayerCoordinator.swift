@@ -8,6 +8,7 @@ final class AudioPlayerCoordinator: ObservableObject {
     @Published private(set) var duration: Double = 0
     @Published private(set) var isReady = false
     @Published private(set) var activeURL: URL?
+    @Published private(set) var activeURLs: [URL] = []
     var onPlaybackEnded: (() -> Void)?
 
     private var player: AVPlayer?
@@ -16,27 +17,57 @@ final class AudioPlayerCoordinator: ObservableObject {
     private var statusObservation: NSKeyValueObservation?
     private var failureObserver: NSObjectProtocol?
     private var errorLogObserver: NSObjectProtocol?
+    private var itemURLMap: [ObjectIdentifier: URL] = [:]
+    private var itemOrder: [ObjectIdentifier: Int] = [:]
 
     init() {
         configureAudioSession()
     }
 
     func load(url: URL, autoPlay: Bool = false) {
-        if activeURL == url {
-            if autoPlay {
-                play()
-            }
+        load(urls: [url], autoPlay: autoPlay)
+    }
+
+    func load(urls: [URL], autoPlay: Bool = false) {
+        let sanitized = urls
+        guard !sanitized.isEmpty else {
+            reset()
             return
         }
+        if activeURLs == sanitized {
+            if player?.currentItem == nil {
+                tearDownPlayer()
+            } else {
+                if autoPlay {
+                    play()
+                }
+                return
+            }
+        }
         tearDownPlayer()
-        activeURL = url
-        let item = AVPlayerItem(url: url)
-        let player = AVPlayer(playerItem: item)
+        activeURLs = sanitized
+        activeURL = sanitized.first
+        itemURLMap = [:]
+        let items = sanitized.enumerated().map { index, url -> AVPlayerItem in
+            let item = AVPlayerItem(url: url)
+            let identifier = ObjectIdentifier(item)
+            itemURLMap[identifier] = url
+            itemOrder[identifier] = index
+            return item
+        }
+        let player: AVPlayer
+        if items.count > 1 {
+            player = AVQueuePlayer(items: items)
+        } else {
+            player = AVPlayer(playerItem: items[0])
+        }
         self.player = player
-        observeStatus(for: item)
+        if let first = items.first {
+            observeStatus(for: first)
+            installErrorObservers(for: first)
+        }
         installTimeObserver(on: player)
-        installEndObserver(for: item)
-        installErrorObservers(for: item)
+        installEndObserver(for: player)
         if autoPlay {
             play()
         } else {
@@ -73,6 +104,7 @@ final class AudioPlayerCoordinator: ObservableObject {
         duration = 0
         isReady = false
         activeURL = nil
+        activeURLs = []
         tearDownPlayer()
     }
 
@@ -113,6 +145,7 @@ final class AudioPlayerCoordinator: ObservableObject {
             [weak self] time in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                self.updateActiveURL()
                 self.currentTime = time.seconds
                 if let duration = self.player?.currentItem?.duration, duration.isNumeric {
                     self.duration = duration.seconds
@@ -122,14 +155,32 @@ final class AudioPlayerCoordinator: ObservableObject {
         timeObserverToken = token
     }
 
-    private func installEndObserver(for item: AVPlayerItem) {
+    private func installEndObserver(for player: AVPlayer) {
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
-            object: item,
+            object: nil,
             queue: .main
-        ) { [weak self] _ in
+        ) { [weak self] notification in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                self.updateActiveURL()
+                if let endedItem = notification.object as? AVPlayerItem {
+                    let identifier = ObjectIdentifier(endedItem)
+                    if let index = self.itemOrder[identifier] {
+                        if index < self.activeURLs.count - 1 {
+                            self.currentTime = 0
+                            return
+                        }
+                        self.isPlaying = false
+                        self.currentTime = 0
+                        self.onPlaybackEnded?()
+                        return
+                    }
+                }
+                if let queue = self.player as? AVQueuePlayer, !queue.items().isEmpty {
+                    self.currentTime = 0
+                    return
+                }
                 self.isPlaying = false
                 self.currentTime = 0
                 self.onPlaybackEnded?()
@@ -196,5 +247,18 @@ final class AudioPlayerCoordinator: ObservableObject {
         player = nil
         isPlaying = false
         isReady = false
+        itemURLMap = [:]
+        itemOrder = [:]
+        activeURL = nil
+        activeURLs = []
+    }
+
+    private func updateActiveURL() {
+        guard let item = player?.currentItem else { return }
+        let identifier = ObjectIdentifier(item)
+        guard let url = itemURLMap[identifier] else { return }
+        if activeURL != url {
+            activeURL = url
+        }
     }
 }
