@@ -30,14 +30,20 @@ final class InteractivePlayerViewModel: ObservableObject {
     @Published private(set) var selectedTimingURL: URL?
     @Published private(set) var mediaResponse: PipelineMediaResponse?
     @Published private(set) var timingResponse: JobTimingResponse?
+    @Published private(set) var readingBedCatalog: ReadingBedListResponse?
+    @Published private(set) var readingBedURL: URL?
+    @Published private(set) var selectedReadingBedID: String?
 
     let audioCoordinator = AudioPlayerCoordinator()
 
     private var mediaResolver: MediaURLResolver?
+    private var apiBaseURL: URL?
+    private var authToken: String?
     private var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
     private var audioDurationByURL: [URL: Double] = [:]
     private var chunkMetadataLoaded: Set<String> = []
     private var chunkMetadataLoading: Set<String> = []
+    private let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
 
     init() {
         audioCoordinator.onPlaybackEnded = { [weak self] in
@@ -54,6 +60,8 @@ final class InteractivePlayerViewModel: ObservableObject {
 
         loadState = .loading
         self.jobId = trimmedJobId
+        apiBaseURL = configuration.apiBaseURL
+        authToken = configuration.authToken
         selectedChunkID = nil
         selectedAudioTrackID = nil
         selectedTimingURL = nil
@@ -64,6 +72,9 @@ final class InteractivePlayerViewModel: ObservableObject {
         jobContext = nil
         mediaResponse = nil
         timingResponse = nil
+        readingBedCatalog = nil
+        readingBedURL = nil
+        selectedReadingBedID = nil
         mediaResolver = nil
         audioCoordinator.reset()
 
@@ -78,7 +89,15 @@ final class InteractivePlayerViewModel: ObservableObject {
                 }
             }()
             async let timingTask = client.fetchJobTiming(jobId: trimmedJobId)
+            async let readingBedsTask: ReadingBedListResponse? = {
+                do {
+                    return try await client.fetchReadingBeds()
+                } catch {
+                    return nil
+                }
+            }()
             let (media, timing) = try await (mediaTask, timingTask)
+            let readingBeds = await readingBedsTask
             let resolver: MediaURLResolver
             switch origin {
             case .library:
@@ -108,6 +127,9 @@ final class InteractivePlayerViewModel: ObservableObject {
             mediaResolver = resolver
             mediaResponse = media
             timingResponse = timing
+            readingBedCatalog = readingBeds
+            selectedReadingBedID = nil
+            readingBedURL = resolveReadingBedURL(from: readingBeds, selectedID: nil)
             configureDefaultSelections()
             loadState = .loaded
         } catch is CancellationError {
@@ -194,6 +216,77 @@ final class InteractivePlayerViewModel: ObservableObject {
     func resolvePath(_ path: String) -> URL? {
         guard let jobId, let mediaResolver else { return nil }
         return mediaResolver.resolvePath(jobId: jobId, relativePath: path)
+    }
+
+    func selectReadingBed(id: String?) {
+        let normalized = id?.nonEmptyValue
+        let validID: String?
+        if let normalized,
+           let beds = readingBedCatalog?.beds,
+           beds.contains(where: { $0.id == normalized }) {
+            validID = normalized
+        } else {
+            validID = nil
+        }
+        selectedReadingBedID = validID
+        readingBedURL = resolveReadingBedURL(from: readingBedCatalog, selectedID: validID)
+    }
+
+    private func resolveReadingBedURL(from catalog: ReadingBedListResponse?, selectedID: String?) -> URL? {
+        guard let apiBaseURL else { return nil }
+        let selectedEntry = selectReadingBed(from: catalog, selectedID: selectedID)
+        let rawPath = selectedEntry?.url.nonEmptyValue ?? defaultReadingBedPath
+        guard let url = buildReadingBedURL(from: rawPath, baseURL: apiBaseURL) else { return nil }
+        return appendAccessToken(url, token: authToken)
+    }
+
+    private func selectReadingBed(from catalog: ReadingBedListResponse?, selectedID: String?) -> ReadingBedEntry? {
+        guard let beds = catalog?.beds, !beds.isEmpty else { return nil }
+        if let selectedID,
+           let match = beds.first(where: { $0.id == selectedID }) {
+            return match
+        }
+        if let defaultId = catalog?.defaultId?.nonEmptyValue,
+           let match = beds.first(where: { $0.id == defaultId }) {
+            return match
+        }
+        if let match = beds.first(where: { $0.isDefault == true }) {
+            return match
+        }
+        return beds.first
+    }
+
+    private func buildReadingBedURL(from rawPath: String, baseURL: URL) -> URL? {
+        let trimmed = rawPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let url = URL(string: trimmed), url.scheme != nil {
+            return url
+        }
+        var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) ?? URLComponents()
+        let basePath = components.path
+        let suffix = trimmed.hasPrefix("/") ? String(trimmed.dropFirst()) : trimmed
+        let resolvedPath: String
+        if basePath.isEmpty || basePath == "/" {
+            resolvedPath = "/" + suffix
+        } else if basePath.hasSuffix("/") {
+            resolvedPath = basePath + suffix
+        } else {
+            resolvedPath = basePath + "/" + suffix
+        }
+        components.path = resolvedPath
+        return components.url ?? baseURL.appendingPathComponent(suffix)
+    }
+
+    private func appendAccessToken(_ url: URL, token: String?) -> URL {
+        guard let token, !token.isEmpty else { return url }
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return url }
+        var items = components.queryItems ?? []
+        if items.contains(where: { $0.name == "access_token" }) {
+            return url
+        }
+        items.append(URLQueryItem(name: "access_token", value: token))
+        components.queryItems = items
+        return components.url ?? url
     }
 
     func recordAudioDuration(_ duration: Double, for url: URL?) {
@@ -653,6 +746,7 @@ struct InteractiveChunk: Identifiable {
         let originalTokens: [String]
         let translationTokens: [String]
         let transliterationTokens: [String]
+        let imagePath: String?
         let timingTokens: [WordTimingToken]
         let timeline: [ChunkSentenceTimelineEvent]
         let totalDuration: Double?
@@ -681,6 +775,7 @@ struct InteractiveChunk: Identifiable {
 
     let id: String
     let label: String
+    let rangeFragment: String?
     let rangeDescription: String?
     let startSentence: Int?
     let endSentence: Int?
@@ -763,6 +858,7 @@ enum JobContextBuilder {
         return InteractiveChunk(
             id: chunkID,
             label: label,
+            rangeFragment: chunk.rangeFragment,
             rangeDescription: range,
             startSentence: chunk.startSentence,
             endSentence: chunk.endSentence,
@@ -796,6 +892,7 @@ enum JobContextBuilder {
                     originalTokens: originalTokens,
                     translationTokens: translationTokens,
                     transliterationTokens: transliterationTokens,
+                    imagePath: sentence.imagePath,
                     timingTokens: timingTokens,
                     timeline: sentence.timeline,
                     totalDuration: sentence.totalDuration,
@@ -821,6 +918,7 @@ enum JobContextBuilder {
                 originalTokens: tokens,
                 translationTokens: tokens,
                 transliterationTokens: [],
+                imagePath: nil,
                 timingTokens: timingTokens,
                 timeline: [],
                 totalDuration: nil,

@@ -8,9 +8,10 @@ struct LibraryPlaybackView: View {
     @StateObject private var viewModel = InteractivePlayerViewModel()
     @StateObject private var nowPlaying = NowPlayingCoordinator()
     @State private var activeSentenceIndex: Int?
+    @State private var showImageReel = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: rootSpacing) {
             header
 
             switch viewModel.loadState {
@@ -24,14 +25,22 @@ struct LibraryPlaybackView: View {
                         .frame(maxWidth: .infinity)
                         .aspectRatio(16 / 9, contentMode: .fit)
                 } else if viewModel.jobContext != nil {
-                    InteractivePlayerView(viewModel: viewModel, audioCoordinator: viewModel.audioCoordinator)
+                    InteractivePlayerView(
+                        viewModel: viewModel,
+                        audioCoordinator: viewModel.audioCoordinator,
+                        showImageReel: $showImageReel
+                    )
                 } else {
                     Text("No playable media found for this entry.")
                         .foregroundStyle(.secondary)
                 }
             }
         }
+        #if os(tvOS)
+        .padding(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
+        #else
         .padding()
+        #endif
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle(item.bookTitle)
         .task(id: item.jobId) {
@@ -57,33 +66,52 @@ struct LibraryPlaybackView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            AsyncImage(url: coverURL) { phase in
-                if let image = phase.image {
-                    image.resizable().scaledToFill()
-                } else {
-                    Color.gray.opacity(0.2)
+        HStack(alignment: .top, spacing: headerSpacing) {
+            HStack(alignment: .top, spacing: headerSpacing) {
+                AsyncImage(url: coverURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Color.gray.opacity(0.2)
+                    }
+                }
+                .frame(width: coverWidth, height: coverHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+
+                VStack(alignment: .leading, spacing: headerTextSpacing) {
+                    Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
+                        .font(titleFont)
+                        .lineLimit(titleLineLimit)
+                        .minimumScaleFactor(0.9)
+                        .truncationMode(.tail)
+                    Text(item.author.isEmpty ? "Unknown author" : item.author)
+                        .font(authorFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .foregroundStyle(.secondary)
+                    Text(itemTypeLabel)
+                        .font(metaFont)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.accentColor.opacity(0.2), in: Capsule())
                 }
             }
-            .frame(width: coverWidth, height: coverHeight)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-            )
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
-                    .font(titleFont)
-                Text(item.author.isEmpty ? "Unknown author" : item.author)
-                    .foregroundStyle(.secondary)
-                Text(itemTypeLabel)
-                    .font(.caption)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(Color.accentColor.opacity(0.2), in: Capsule())
+            #if os(tvOS)
+            if showImageReel, !imageReelURLs.isEmpty {
+                Spacer(minLength: 12)
+                LibraryImageReel(urls: imageReelURLs, height: coverHeight)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            } else {
+                Spacer()
             }
+            #else
             Spacer()
+            #endif
         }
     }
 
@@ -118,7 +146,7 @@ struct LibraryPlaybackView: View {
 
     private var coverWidth: CGFloat {
         #if os(tvOS)
-        return 120
+        return 96
         #else
         return 64
         #endif
@@ -126,7 +154,7 @@ struct LibraryPlaybackView: View {
 
     private var coverHeight: CGFloat {
         #if os(tvOS)
-        return 180
+        return 144
         #else
         return 96
         #endif
@@ -134,10 +162,94 @@ struct LibraryPlaybackView: View {
 
     private var titleFont: Font {
         #if os(tvOS)
-        return .title
+        return .title2
         #else
         return .title2
         #endif
+    }
+
+    private var authorFont: Font {
+        #if os(tvOS)
+        return .callout
+        #else
+        return .callout
+        #endif
+    }
+
+    private var metaFont: Font {
+        #if os(tvOS)
+        return .caption2
+        #else
+        return .caption
+        #endif
+    }
+
+    private var titleLineLimit: Int {
+        #if os(tvOS)
+        return 2
+        #else
+        return 3
+        #endif
+    }
+
+    private var rootSpacing: CGFloat {
+        #if os(tvOS)
+        return 12
+        #else
+        return 16
+        #endif
+    }
+
+    private var headerSpacing: CGFloat {
+        #if os(tvOS)
+        return 10
+        #else
+        return 12
+        #endif
+    }
+
+    private var headerTextSpacing: CGFloat {
+        #if os(tvOS)
+        return 4
+        #else
+        return 6
+        #endif
+    }
+
+    private var imageReelURLs: [URL] {
+        guard let chunk = viewModel.selectedChunk else { return [] }
+        let hasExplicitImage = chunk.sentences.contains { sentence in
+            if let rawPath = sentence.imagePath, rawPath.nonEmptyValue != nil {
+                return true
+            }
+            return false
+        }
+        guard hasExplicitImage else { return [] }
+        var urls: [URL] = []
+        var seen: Set<String> = []
+        for sentence in chunk.sentences {
+            guard let path = resolveSentenceImagePath(sentence: sentence, chunk: chunk) else { continue }
+            guard !seen.contains(path) else { continue }
+            seen.insert(path)
+            if let url = viewModel.resolvePath(path) {
+                urls.append(url)
+            }
+            if urls.count >= 7 {
+                break
+            }
+        }
+        return urls
+    }
+
+    private func resolveSentenceImagePath(sentence: InteractiveChunk.Sentence, chunk: InteractiveChunk) -> String? {
+        if let rawPath = sentence.imagePath, let path = rawPath.nonEmptyValue {
+            return path
+        }
+        guard let rangeFragment = chunk.rangeFragment?.nonEmptyValue else { return nil }
+        let sentenceNumber = sentence.displayIndex ?? sentence.id
+        guard sentenceNumber > 0 else { return nil }
+        let padded = String(format: "%05d", sentenceNumber)
+        return "media/images/\(rangeFragment)/sentence_\(padded).png"
     }
 
     private var coverURL: URL? {
@@ -246,5 +358,47 @@ struct LibraryPlaybackView: View {
             position: playbackTime,
             duration: playbackDuration
         )
+    }
+}
+
+private struct LibraryImageReel: View {
+    let urls: [URL]
+    let height: CGFloat
+
+    private let spacing: CGFloat = 8
+    private let maxImages = 7
+    private let minImages = 1
+
+    var body: some View {
+        GeometryReader { proxy in
+            let itemHeight = height
+            let itemWidth = itemHeight * 0.78
+            let maxVisible = max(
+                minImages,
+                min(maxImages, Int((proxy.size.width + spacing) / (itemWidth + spacing)))
+            )
+            let visible = Array(urls.prefix(maxVisible))
+            HStack(spacing: spacing) {
+                ForEach(visible.indices, id: \.self) { index in
+                    AsyncImage(url: visible[index]) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Color.gray.opacity(0.2)
+                        }
+                    }
+                    .frame(width: itemWidth, height: itemHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+        }
+        .frame(height: height)
     }
 }

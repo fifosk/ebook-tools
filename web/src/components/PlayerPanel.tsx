@@ -334,6 +334,8 @@ export default function PlayerPanel({
   const [chapterEntries, setChapterEntries] = useState<ChapterNavigationEntry[]>([]);
   const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
   const [jobTranslationLanguage, setJobTranslationLanguage] = useState<string | null>(null);
+  const [jobScopeStartSentence, setJobScopeStartSentence] = useState<number | null>(null);
+  const [jobScopeEndSentence, setJobScopeEndSentence] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -351,6 +353,8 @@ export default function PlayerPanel({
 
   useEffect(() => {
     if (!jobId || origin === 'library' || playerMode === 'export') {
+      setJobScopeStartSentence(null);
+      setJobScopeEndSentence(null);
       return;
     }
     let cancelled = false;
@@ -367,8 +371,18 @@ export default function PlayerPanel({
         const targetLanguages = Array.isArray(parameters?.target_languages) ? parameters.target_languages : [];
         const firstTarget =
           typeof targetLanguages[0] === 'string' && targetLanguages[0].trim() ? targetLanguages[0].trim() : null;
+        const rawStart = toFiniteNumber(
+          parameters?.start_sentence ?? (parameters as Record<string, unknown> | null)?.startSentence
+        );
+        const rawEnd = toFiniteNumber(
+          parameters?.end_sentence ?? (parameters as Record<string, unknown> | null)?.endSentence
+        );
+        const normalizedStart = rawStart !== null && rawStart > 0 ? rawStart : null;
+        const normalizedEnd = rawEnd !== null && rawEnd > 0 ? rawEnd : null;
         setJobOriginalLanguage(original);
         setJobTranslationLanguage(firstTarget);
+        setJobScopeStartSentence(normalizedStart);
+        setJobScopeEndSentence(normalizedEnd);
       })
       .catch(() => {
         if (cancelled) {
@@ -376,6 +390,8 @@ export default function PlayerPanel({
         }
         setJobOriginalLanguage(null);
         setJobTranslationLanguage(null);
+        setJobScopeStartSentence(null);
+        setJobScopeEndSentence(null);
       });
     return () => {
       cancelled = true;
@@ -383,6 +399,8 @@ export default function PlayerPanel({
   }, [jobId, origin, playerMode]);
   useEffect(() => {
     setBookSentenceCount(null);
+    setJobScopeStartSentence(null);
+    setJobScopeEndSentence(null);
   }, [jobId]);
   useEffect(() => {
     setChapterEntries([]);
@@ -1869,6 +1887,8 @@ export default function PlayerPanel({
     searchEnabled && isInteractiveFullscreen ? (
       <MediaSearchPanel currentJobId={jobId} onResultAction={handleSearchSelection} variant="compact" />
     ) : null;
+  const chapterScopeStart = jobScopeStartSentence ?? jobStartSentence;
+  const chapterScopeEnd = jobScopeEndSentence ?? jobEndSentence;
 
   const navigationBaseProps = {
     onNavigate: handleNavigatePreservingPlayback,
@@ -1969,8 +1989,8 @@ export default function PlayerPanel({
     exportTitle: isExporting ? 'Preparing export...' : 'Export offline player',
     exportError,
     activeSentenceNumber,
-    totalSentencesInBook: jobEndSentence,
-    jobStartSentence,
+    totalSentencesInBook: chapterScopeEnd,
+    jobStartSentence: chapterScopeStart,
     bookTotalSentences: bookSentenceCount,
   } satisfies Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
 

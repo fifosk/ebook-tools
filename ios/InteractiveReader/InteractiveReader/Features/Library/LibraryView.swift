@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(tvOS)
+import UIKit
+#endif
 
 struct LibraryView: View {
     @ObservedObject var viewModel: LibraryViewModel
@@ -15,9 +18,7 @@ struct LibraryView: View {
             header
 
             if let error = viewModel.errorMessage {
-                Label(error, systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.red)
-                    .font(.callout)
+                errorRow(message: error)
                     .padding(.horizontal)
             }
 
@@ -47,14 +48,7 @@ struct LibraryView: View {
             }
             .listStyle(.plain)
             .overlay(alignment: .center) {
-                if viewModel.isLoading {
-                    ProgressView("Loading library…")
-                        .padding()
-                        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                } else if viewModel.filteredItems.isEmpty {
-                    Text("No items found.")
-                        .foregroundStyle(.secondary)
-                }
+                listOverlay
             }
         }
         #if !os(tvOS)
@@ -68,6 +62,25 @@ struct LibraryView: View {
             }
         }
         #endif
+    }
+
+    private func errorRow(message: String) -> some View {
+        Label(message, systemImage: "exclamationmark.triangle.fill")
+            .foregroundStyle(.red)
+            .font(.callout)
+    }
+
+    private var listOverlay: some View {
+        Group {
+            if viewModel.isLoading {
+                ProgressView("Loading library…")
+                    .padding()
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
+            } else if viewModel.filteredItems.isEmpty {
+                Text("No items found.")
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private var header: some View {
@@ -108,5 +121,15 @@ struct LibraryView: View {
             #endif
         }
         .padding(.top, 8)
+        #if os(tvOS)
+        .font(tvOSHeaderFont)
+        #endif
     }
+
+    #if os(tvOS)
+    private var tvOSHeaderFont: Font {
+        let size = UIFont.preferredFont(forTextStyle: .body).pointSize * 0.5
+        return .system(size: size)
+    }
+    #endif
 }

@@ -54,6 +54,20 @@ struct LibraryItem: Decodable, Identifiable {
     let metadata: [String: JSONValue]?
 }
 
+struct ReadingBedEntry: Decodable, Identifiable {
+    let id: String
+    let label: String
+    let url: String
+    let kind: String?
+    let contentType: String?
+    let isDefault: Bool?
+}
+
+struct ReadingBedListResponse: Decodable {
+    let defaultId: String?
+    let beds: [ReadingBedEntry]
+}
+
 extension LibraryItem: Hashable {
     static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool {
         lhs.jobId == rhs.jobId
@@ -258,12 +272,17 @@ struct PipelineMediaChunk: Decodable, Identifiable {
     }
 }
 
+struct ChunkSentenceImage: Decodable {
+    let path: String?
+}
+
 struct ChunkSentenceMetadata: Decodable, Identifiable {
     var id: Int { sentenceNumber ?? UUID().hashValue }
     let sentenceNumber: Int?
     let original: ChunkSentenceVariant
     let translation: ChunkSentenceVariant?
     let transliteration: ChunkSentenceVariant?
+    let imagePath: String?
     let timeline: [ChunkSentenceTimelineEvent]
     let totalDuration: Double?
     let highlightGranularity: String?
@@ -277,6 +296,9 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         case translation
         case transliteration
         case text
+        case image
+        case imagePath = "image_path"
+        case imagePathCamel = "imagePath"
         case timeline
         case totalDuration = "total_duration"
         case highlightGranularity = "highlight_granularity"
@@ -292,6 +314,7 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         self.original = original
         self.translation = translation
         self.transliteration = transliteration
+        imagePath = nil
         timeline = []
         totalDuration = nil
         highlightGranularity = nil
@@ -306,6 +329,7 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
             original = ChunkSentenceVariant(text: textValue, tokens: nil)
             translation = nil
             transliteration = nil
+            imagePath = nil
             timeline = []
             totalDuration = nil
             highlightGranularity = nil
@@ -334,6 +358,12 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
 
         translation = translationValue
         transliteration = transliterationValue
+
+        let imagePayload = try? container.decode(ChunkSentenceImage.self, forKey: .image)
+        let imagePathValue = imagePayload?.path.flatMap { $0.nonEmptyValue }
+            ?? (try? container.decode(String.self, forKey: .imagePath))?.nonEmptyValue
+            ?? (try? container.decode(String.self, forKey: .imagePathCamel))?.nonEmptyValue
+        imagePath = imagePathValue
 
         timeline = (try? container.decode([ChunkSentenceTimelineEvent].self, forKey: .timeline)) ?? []
         if let rawDuration = try? container.decode(Double.self, forKey: .totalDuration) {

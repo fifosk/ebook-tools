@@ -7,10 +7,13 @@ final class AudioPlayerCoordinator: ObservableObject {
     @Published private(set) var currentTime: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var isReady = false
+    @Published private(set) var playbackRate: Double = 1.0
+    @Published private(set) var volume: Double = 1.0
     @Published private(set) var activeURL: URL?
     @Published private(set) var activeURLs: [URL] = []
     var onPlaybackEnded: (() -> Void)?
 
+    private var shouldLoop = false
     private var player: AVPlayer?
     private var timeObserverToken: Any?
     private var endObserver: NSObjectProtocol?
@@ -50,6 +53,7 @@ final class AudioPlayerCoordinator: ObservableObject {
         itemURLMap = [:]
         let items = sanitized.enumerated().map { index, url -> AVPlayerItem in
             let item = AVPlayerItem(url: url)
+            item.audioTimePitchAlgorithm = .timeDomain
             let identifier = ObjectIdentifier(item)
             itemURLMap[identifier] = url
             itemOrder[identifier] = index
@@ -62,6 +66,7 @@ final class AudioPlayerCoordinator: ObservableObject {
             player = AVPlayer(playerItem: items[0])
         }
         self.player = player
+        player.volume = Float(volume)
         if let first = items.first {
             observeStatus(for: first)
             installErrorObservers(for: first)
@@ -77,7 +82,12 @@ final class AudioPlayerCoordinator: ObservableObject {
 
     func play() {
         guard let player = player else { return }
-        player.play()
+        if #available(iOS 10.0, tvOS 10.0, *) {
+            player.playImmediately(atRate: Float(playbackRate))
+        } else {
+            player.play()
+            player.rate = Float(playbackRate)
+        }
         isPlaying = true
     }
 
@@ -88,6 +98,24 @@ final class AudioPlayerCoordinator: ObservableObject {
 
     func togglePlayback() {
         isPlaying ? pause() : play()
+    }
+
+    func setPlaybackRate(_ rate: Double) {
+        guard rate.isFinite, rate > 0 else { return }
+        playbackRate = rate
+        if isPlaying {
+            player?.rate = Float(rate)
+        }
+    }
+
+    func setVolume(_ value: Double) {
+        let clamped = min(max(value, 0), 1)
+        volume = clamped
+        player?.volume = Float(clamped)
+    }
+
+    func setLooping(_ loop: Bool) {
+        shouldLoop = loop
     }
 
     func seek(to time: Double) {
@@ -163,27 +191,25 @@ final class AudioPlayerCoordinator: ObservableObject {
         ) { [weak self] notification in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                self.updateActiveURL()
-                if let endedItem = notification.object as? AVPlayerItem {
-                    let identifier = ObjectIdentifier(endedItem)
-                    if let index = self.itemOrder[identifier] {
-                        if index < self.activeURLs.count - 1 {
-                            self.currentTime = 0
-                            return
-                        }
-                        self.isPlaying = false
-                        self.currentTime = 0
-                        self.onPlaybackEnded?()
-                        return
+                guard let endedItem = notification.object as? AVPlayerItem else { return }
+                let identifier = ObjectIdentifier(endedItem)
+                guard let index = self.itemOrder[identifier] else { return }
+                if self.shouldLoop {
+                    self.currentTime = 0
+                    self.player?.seek(to: .zero, toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
+                        self?.play()
                     }
+                    return
                 }
-                if let queue = self.player as? AVQueuePlayer, !queue.items().isEmpty {
+                self.updateActiveURL()
+                if index < self.activeURLs.count - 1 {
                     self.currentTime = 0
                     return
                 }
                 self.isPlaying = false
                 self.currentTime = 0
                 self.onPlaybackEnded?()
+                return
             }
         }
     }

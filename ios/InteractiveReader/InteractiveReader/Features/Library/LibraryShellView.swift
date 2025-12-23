@@ -58,6 +58,7 @@ struct LibraryShellView: View {
         }
     }
 
+    @ViewBuilder
     private func libraryList(useNavigationLinks: Bool) -> some View {
         LibraryView(
             viewModel: viewModel,

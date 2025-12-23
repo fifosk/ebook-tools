@@ -1,9 +1,33 @@
 import SwiftUI
 
+private enum InteractivePlayerFocusArea: Hashable {
+    case controls
+    case transcript
+}
+
 struct InteractivePlayerView: View {
     @ObservedObject var viewModel: InteractivePlayerViewModel
     let audioCoordinator: AudioPlayerCoordinator
+    let showImageReel: Binding<Bool>?
+    @StateObject private var readingBedCoordinator = AudioPlayerCoordinator()
+    @State private var readingBedEnabled = true
     @State private var scrubbedTime: Double?
+    @State private var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    @State private var selectedSentenceID: Int?
+    @FocusState private var focusedArea: InteractivePlayerFocusArea?
+
+    private let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
+    private let readingBedVolume: Double = 0.08
+
+    init(
+        viewModel: InteractivePlayerViewModel,
+        audioCoordinator: AudioPlayerCoordinator,
+        showImageReel: Binding<Bool>? = nil
+    ) {
+        self._viewModel = ObservedObject(wrappedValue: viewModel)
+        self.audioCoordinator = audioCoordinator
+        self.showImageReel = showImageReel
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -19,8 +43,13 @@ struct InteractivePlayerView: View {
                 InteractiveTranscriptView(
                     viewModel: viewModel,
                     audioCoordinator: audioCoordinator,
-                    chunk: chunk
+                    chunk: chunk,
+                    visibleTracks: visibleTracks
                 )
+                #if os(tvOS)
+                .focusable(true)
+                .focused($focusedArea, equals: .transcript)
+                #endif
             } else {
                 Text("No interactive chunks were returned for this job.")
                     .foregroundStyle(.secondary)
@@ -28,6 +57,47 @@ struct InteractivePlayerView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 12)
+        .onAppear {
+            guard let chunk = viewModel.selectedChunk else { return }
+            applyDefaultTrackSelection(for: chunk)
+            syncSelectedSentence(for: chunk)
+            configureReadingBed()
+        }
+        .onChange(of: viewModel.selectedChunk?.id) { _, _ in
+            guard let chunk = viewModel.selectedChunk else { return }
+            applyDefaultTrackSelection(for: chunk)
+            syncSelectedSentence(for: chunk)
+        }
+        .onChange(of: viewModel.highlightingTime) { _, _ in
+            guard focusedArea != .controls else { return }
+            guard let chunk = viewModel.selectedChunk else { return }
+            syncSelectedSentence(for: chunk)
+        }
+        .onChange(of: viewModel.readingBedURL) { _, _ in
+            configureReadingBed()
+        }
+        .onChange(of: readingBedEnabled) { _, _ in
+            updateReadingBedPlayback()
+        }
+        .onDisappear {
+            readingBedCoordinator.pause()
+        }
+        #if os(tvOS)
+        .onPlayPauseCommand {
+            audioCoordinator.togglePlayback()
+        }
+        .onMoveCommand { direction in
+            guard focusedArea == .transcript else { return }
+            switch direction {
+            case .left:
+                viewModel.skipSentence(forward: false)
+            case .right:
+                viewModel.skipSentence(forward: true)
+            default:
+                break
+            }
+        }
+        #endif
     }
 
     @ViewBuilder
@@ -36,15 +106,23 @@ struct InteractivePlayerView: View {
         let playbackDuration = viewModel.playbackDuration(for: chunk) ?? audioCoordinator.duration
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 12) {
-                chunkPicker()
+                chapterPicker()
+                sentencePicker(for: chunk)
+                textTrackPicker(for: chunk)
                 audioPicker(for: chunk)
+                readingBedPicker()
+                speedPicker()
                 Spacer(minLength: 8)
                 PlaybackButtonRow(
                     coordinator: audioCoordinator,
-                    onPrevious: { viewModel.skipSentence(forward: false) },
-                    onNext: { viewModel.skipSentence(forward: true) }
+                    focusBinding: $focusedArea
                 )
             }
+            #if os(tvOS)
+            .transaction { transaction in
+                transaction.disablesAnimations = true
+            }
+            #endif
             if let range = chunk.rangeDescription {
                 Text(range)
                     .font(.caption2)
@@ -62,18 +140,86 @@ struct InteractivePlayerView: View {
         }
     }
 
+    private func menuLabel(_ text: String, leadingSystemImage: String? = nil) -> some View {
+        HStack(spacing: 6) {
+            if let leadingSystemImage {
+                Image(systemName: leadingSystemImage)
+                    .font(.caption2)
+            }
+            Text(text)
+                .font(.callout)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .minimumScaleFactor(0.85)
+            Image(systemName: "chevron.down")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+    }
+
     @ViewBuilder
-    private func chunkPicker() -> some View {
+    private func chapterPicker() -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Chunk")
+            Text("Chapter")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Picker("Chunk", selection: viewModel.chunkBinding()) {
-                ForEach(viewModel.jobContext?.chunks ?? []) { chunk in
-                    Text(chunk.label).tag(chunk.id)
+            Picker("Chapter", selection: viewModel.chunkBinding()) {
+                let chunks = viewModel.jobContext?.chunks ?? []
+                ForEach(Array(chunks.enumerated()), id: \.element.id) { index, chunk in
+                    Text("Chapter \(index + 1)").tag(chunk.id)
                 }
             }
             .pickerStyle(.menu)
+            .focused($focusedArea, equals: .controls)
+        }
+    }
+
+    @ViewBuilder
+    private func sentencePicker(for chunk: InteractiveChunk) -> some View {
+        let entries = sentenceEntries(for: chunk)
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Sentence")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if entries.isEmpty {
+                Text("No sentences")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Picker("Sentence", selection: sentenceBinding(entries: entries, chunk: chunk)) {
+                    ForEach(entries) { entry in
+                        Text(entry.label).tag(entry.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .focused($focusedArea, equals: .controls)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func textTrackPicker(for chunk: InteractiveChunk) -> some View {
+        let available = availableTracks(for: chunk)
+        let showImageToggle = hasImageReel(for: chunk) && showImageReel != nil
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Text")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Menu {
+                ForEach(available, id: \.self) { kind in
+                    trackToggle(label: trackLabel(kind), kind: kind)
+                }
+                if showImageToggle {
+                    imageReelToggle()
+                }
+            } label: {
+                menuLabel(textTrackSummary(for: chunk))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .focused($focusedArea, equals: .controls)
         }
     }
 
@@ -92,19 +238,11 @@ struct InteractivePlayerView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 6) {
-                        Text(selectedAudioLabel(for: chunk))
-                            .font(.callout)
-                            .lineLimit(1)
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    menuLabel(selectedAudioLabel(for: chunk))
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .focused($focusedArea, equals: .controls)
                 #else
                 Picker("Audio track", selection: viewModel.audioTrackBinding(defaultID: chunk.audioOptions.first?.id)) {
                     ForEach(chunk.audioOptions) { option in
@@ -112,6 +250,7 @@ struct InteractivePlayerView: View {
                     }
                 }
                 .pickerStyle(.menu)
+                .focused($focusedArea, equals: .controls)
                 #endif
             } else {
                 Text("No audio")
@@ -127,12 +266,320 @@ struct InteractivePlayerView: View {
         }
         return chunk.audioOptions.first(where: { $0.id == selectedID })?.label ?? "Audio Mode"
     }
+
+    @ViewBuilder
+    private func speedPicker() -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("Speed")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Menu {
+                ForEach(playbackRates, id: \.self) { rate in
+                    Button {
+                        audioCoordinator.setPlaybackRate(rate)
+                    } label: {
+                        if isCurrentRate(rate) {
+                            Label(playbackRateLabel(rate), systemImage: "checkmark")
+                        } else {
+                            Text(playbackRateLabel(rate))
+                        }
+                    }
+                }
+            } label: {
+                menuLabel(playbackRateLabel(audioCoordinator.playbackRate))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .focused($focusedArea, equals: .controls)
+        }
+    }
+
+    @ViewBuilder
+    private func readingBedPicker() -> some View {
+        if viewModel.readingBedURL != nil {
+            let bedLabel = selectedReadingBedLabel
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Music")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Menu {
+                    Button(action: toggleReadingBed) {
+                        if readingBedEnabled {
+                            Label("Music On", systemImage: "checkmark")
+                        } else {
+                            Text("Music Off")
+                        }
+                    }
+                    Divider()
+                    Button {
+                        viewModel.selectReadingBed(id: nil)
+                    } label: {
+                        if viewModel.selectedReadingBedID == nil {
+                            Label("Default", systemImage: "checkmark")
+                        } else {
+                            Text("Default")
+                        }
+                    }
+                    ForEach(viewModel.readingBedCatalog?.beds ?? []) { bed in
+                        let label = bed.label.isEmpty ? bed.id : bed.label
+                        Button {
+                            viewModel.selectReadingBed(id: bed.id)
+                        } label: {
+                            if bed.id == viewModel.selectedReadingBedID {
+                                Label(label, systemImage: "checkmark")
+                            } else {
+                                Text(label)
+                            }
+                        }
+                    }
+                } label: {
+                    menuLabel(
+                        readingBedSummary(label: bedLabel),
+                        leadingSystemImage: readingBedEnabled ? "music.note.list" : "music.note"
+                    )
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .focused($focusedArea, equals: .controls)
+            }
+        }
+    }
+
+    private func toggleReadingBed() {
+        withAnimation(.none) {
+            readingBedEnabled.toggle()
+        }
+    }
+
+    private var selectedReadingBedLabel: String {
+        if let selectedID = viewModel.selectedReadingBedID,
+           let beds = viewModel.readingBedCatalog?.beds,
+           let match = beds.first(where: { $0.id == selectedID }) {
+            return match.label.isEmpty ? match.id : match.label
+        }
+        return "Default"
+    }
+
+    private func readingBedSummary(label: String) -> String {
+        let state = readingBedEnabled ? "On" : "Off"
+        if label.isEmpty {
+            return state
+        }
+        return "\(state) / \(label)"
+    }
+
+    private func configureReadingBed() {
+        readingBedCoordinator.setLooping(true)
+        readingBedCoordinator.setVolume(readingBedVolume)
+        updateReadingBedPlayback()
+    }
+
+    private func updateReadingBedPlayback() {
+        guard readingBedEnabled, let url = viewModel.readingBedURL else {
+            readingBedCoordinator.pause()
+            return
+        }
+        if readingBedCoordinator.activeURL != url {
+            readingBedCoordinator.load(url: url, autoPlay: true)
+        } else if !readingBedCoordinator.isPlaying {
+            readingBedCoordinator.play()
+        }
+    }
+
+    private func trackLabel(_ kind: TextPlayerVariantKind) -> String {
+        switch kind {
+        case .original:
+            return "Original"
+        case .transliteration:
+            return "Transliteration"
+        case .translation:
+            return "Translation"
+        }
+    }
+
+    private func trackSummaryLabel(_ kind: TextPlayerVariantKind) -> String {
+        switch kind {
+        case .original:
+            return "Original"
+        case .transliteration:
+            return "Translit"
+        case .translation:
+            return "Translation"
+        }
+    }
+
+    private func trackToggle(label: String, kind: TextPlayerVariantKind) -> some View {
+        Button {
+            toggleTrack(kind)
+        } label: {
+            if visibleTracks.contains(kind) {
+                Label(label, systemImage: "checkmark")
+            } else {
+                Text(label)
+            }
+        }
+    }
+
+    private func imageReelToggle() -> some View {
+        let isEnabled = showImageReel?.wrappedValue ?? false
+        return Button {
+            if let showImageReel {
+                showImageReel.wrappedValue.toggle()
+            }
+        } label: {
+            if isEnabled {
+                Label("Images", systemImage: "checkmark")
+            } else {
+                Text("Images")
+            }
+        }
+    }
+
+    private func toggleTrack(_ kind: TextPlayerVariantKind) {
+        withAnimation(.none) {
+            if visibleTracks.contains(kind) {
+                if visibleTracks.count > 1 {
+                    visibleTracks.remove(kind)
+                }
+            } else {
+                visibleTracks.insert(kind)
+            }
+        }
+    }
+
+    private func availableTracks(for chunk: InteractiveChunk) -> [TextPlayerVariantKind] {
+        var available: [TextPlayerVariantKind] = []
+        if chunk.sentences.contains(where: { !$0.originalTokens.isEmpty }) {
+            available.append(.original)
+        }
+        if chunk.sentences.contains(where: { !$0.transliterationTokens.isEmpty }) {
+            available.append(.transliteration)
+        }
+        if chunk.sentences.contains(where: { !$0.translationTokens.isEmpty }) {
+            available.append(.translation)
+        }
+        if available.isEmpty {
+            return [.original]
+        }
+        return available
+    }
+
+    private func hasImageReel(for chunk: InteractiveChunk) -> Bool {
+        chunk.sentences.contains { sentence in
+            if let rawPath = sentence.imagePath, rawPath.nonEmptyValue != nil {
+                return true
+            }
+            return false
+        }
+    }
+
+    private func applyDefaultTrackSelection(for chunk: InteractiveChunk) {
+        visibleTracks = Set(availableTracks(for: chunk))
+        if let showImageReel {
+            showImageReel.wrappedValue = hasImageReel(for: chunk)
+        }
+    }
+
+    private func sentenceBinding(entries: [SentenceOption], chunk: InteractiveChunk) -> Binding<Int> {
+        Binding(
+            get: {
+                selectedSentenceID ?? entries.first?.id ?? 0
+            },
+            set: { newValue in
+                selectedSentenceID = newValue
+                guard let target = entries.first(where: { $0.id == newValue }) else { return }
+                guard let startTime = target.startTime else { return }
+                viewModel.seekPlayback(to: startTime, in: chunk)
+            }
+        )
+    }
+
+    private func sentenceEntries(for chunk: InteractiveChunk) -> [SentenceOption] {
+        let sentences = chunk.sentences
+        if sentences.isEmpty {
+            if let start = chunk.startSentence, let end = chunk.endSentence, start <= end {
+                return (start...end).map { SentenceOption(id: $0, label: "\($0)", startTime: nil) }
+            }
+            return []
+        }
+        var startTimes: [Int: Double] = [:]
+        let activeTimingTrack = viewModel.activeTimingTrack(for: chunk)
+        let useCombinedPhases = viewModel.useCombinedPhases(for: chunk)
+        let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+            sentences: sentences,
+            activeTimingTrack: activeTimingTrack,
+            audioDuration: viewModel.playbackDuration(for: chunk),
+            useCombinedPhases: useCombinedPhases
+        )
+        if let timelineSentences {
+            for runtime in timelineSentences {
+                guard sentences.indices.contains(runtime.index) else { continue }
+                let sentence = sentences[runtime.index]
+                let id = sentence.displayIndex ?? sentence.id
+                startTimes[id] = runtime.startTime
+            }
+        }
+        let entries = sentences.map { sentence -> SentenceOption in
+            let id = sentence.displayIndex ?? sentence.id
+            let label = "\(id)"
+            return SentenceOption(
+                id: id,
+                label: label,
+                startTime: startTimes[id] ?? sentence.startTime
+            )
+        }
+        return entries.sorted { $0.id < $1.id }
+    }
+
+    private func syncSelectedSentence(for chunk: InteractiveChunk) {
+        let time = viewModel.highlightingTime
+        guard time.isFinite else { return }
+        guard let sentence = viewModel.activeSentence(at: time) else { return }
+        let id = sentence.displayIndex ?? sentence.id
+        if selectedSentenceID != id {
+            selectedSentenceID = id
+        }
+    }
+
+    private func textTrackSummary(for chunk: InteractiveChunk) -> String {
+        let available = availableTracks(for: chunk)
+        let visible = available.filter { visibleTracks.contains($0) }
+        var parts = visible.map { trackSummaryLabel($0) }
+        let canShowImages = hasImageReel(for: chunk) && showImageReel != nil
+        if canShowImages, let showImageReel, showImageReel.wrappedValue {
+            parts.append("Images")
+        }
+        let allTextSelected = visible.count == available.count
+        let allSelected = allTextSelected && (!canShowImages || showImageReel?.wrappedValue == true)
+        if allSelected {
+            return "All"
+        }
+        if parts.isEmpty {
+            return "Text"
+        }
+        if parts.count == 1 {
+            return parts[0]
+        }
+        return parts.joined(separator: " + ")
+    }
+
+    private func playbackRateLabel(_ rate: Double) -> String {
+        let rounded = (rate * 100).rounded() / 100
+        let formatted = String(format: rounded.truncatingRemainder(dividingBy: 1) == 0 ? "%.0f" : "%.2f", rounded)
+        return "\(formatted)x"
+    }
+
+    private func isCurrentRate(_ rate: Double) -> Bool {
+        abs(rate - audioCoordinator.playbackRate) < 0.01
+    }
+
 }
 
 private struct InteractiveTranscriptView: View {
     let viewModel: InteractivePlayerViewModel
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let chunk: InteractiveChunk
+    let visibleTracks: Set<TextPlayerVariantKind>
 
     var body: some View {
         let playbackTime = viewModel.playbackTime(for: chunk)
@@ -155,17 +602,18 @@ private struct InteractiveTranscriptView: View {
             audioDuration: durationValue,
             useCombinedPhases: useCombinedPhases
         )
+        let isVariantVisible: (TextPlayerVariantKind) -> Bool = { visibleTracks.contains($0) }
         let timelineDisplay = timelineSentences.flatMap { runtime in
             TextPlayerTimeline.buildTimelineDisplay(
                 timelineSentences: runtime,
                 chunkTime: playbackTime,
                 audioDuration: durationValue,
-                isVariantVisible: { _ in true }
+                isVariantVisible: isVariantVisible
             )
         }
         let staticDisplay = TextPlayerTimeline.buildStaticDisplay(
             sentences: chunk.sentences,
-            isVariantVisible: { _ in true }
+            isVariantVisible: isVariantVisible
         )
         let displaySentences = TextPlayerTimeline.selectActiveSentence(
             from: timelineDisplay?.sentences ?? staticDisplay
@@ -177,6 +625,11 @@ private struct InteractiveTranscriptView: View {
             TextPlayerFrame(sentences: displaySentences)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        #if os(tvOS)
+        .onPlayPauseCommand {
+            audioCoordinator.togglePlayback()
+        }
+        #endif
         .onChange(of: audioCoordinator.duration) { _, newValue in
             viewModel.recordAudioDuration(newValue, for: audioCoordinator.activeURL)
         }
@@ -191,62 +644,36 @@ private struct InteractiveTranscriptView: View {
 
 private struct PlaybackButtonRow: View {
     @ObservedObject var coordinator: AudioPlayerCoordinator
-    let onPrevious: (() -> Void)?
-    let onNext: (() -> Void)?
+    let focusBinding: FocusState<InteractivePlayerFocusArea?>.Binding
 
     var body: some View {
         #if os(tvOS)
         HStack(spacing: 12) {
-            if let onPrevious {
-                Button(action: onPrevious) {
-                    Image(systemName: "backward.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
             Button(action: coordinator.togglePlayback) {
                 Image(systemName: coordinator.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
             }
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
-            if let onNext {
-                Button(action: onNext) {
-                    Image(systemName: "forward.fill")
-                        .font(.title3)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-            }
+            .focused(focusBinding, equals: .controls)
         }
         #else
         HStack(spacing: 12) {
-            if let onPrevious {
-                Button(action: onPrevious) {
-                    Image(systemName: "backward.fill")
-                        .font(.title3)
-                        .padding(8)
-                        .background(.thinMaterial, in: Circle())
-                }
-            }
             Button(action: coordinator.togglePlayback) {
                 Image(systemName: coordinator.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
                     .padding(10)
                     .background(.thinMaterial, in: Circle())
             }
-            if let onNext {
-                Button(action: onNext) {
-                    Image(systemName: "forward.fill")
-                        .font(.title3)
-                        .padding(8)
-                        .background(.thinMaterial, in: Circle())
-                }
-            }
         }
         #endif
     }
+}
+
+private struct SentenceOption: Identifiable {
+    let id: Int
+    let label: String
+    let startTime: Double?
 }
 
 private struct PlaybackScrubberView: View {

@@ -83,6 +83,11 @@ final class APIClient {
         return try decode(LibrarySearchResponse.self, from: data)
     }
 
+    func fetchReadingBeds() async throws -> ReadingBedListResponse {
+        let data = try await sendRequest(path: "/api/reading-beds")
+        return try decode(ReadingBedListResponse.self, from: data)
+    }
+
     func login(username: String, password: String) async throws -> SessionStatusResponse {
         let payload = LoginRequestPayload(username: username, password: password)
         let data = try await sendJSONRequest(path: "/api/auth/login", method: "POST", payload: payload)

@@ -355,8 +355,6 @@ export function NavigationControls({
     : showSentenceJump && sentenceJumpMin !== null && sentenceJumpMax !== null
       ? jumpRangeId
       : undefined;
-  const resolvedChapters = Array.isArray(chapters) ? chapters : [];
-  const shouldShowChapterJump = showChapterJump && resolvedChapters.length > 0;
   const jobRangeStart = typeof jobStartSentence === 'number' ? jobStartSentence : null;
   const jobRangeEnd = typeof totalSentencesInBook === 'number' ? totalSentencesInBook : null;
   const isChapterInJobRange = (chapter: ChapterNavigationEntry) => {
@@ -373,6 +371,13 @@ export function NavigationControls({
     }
     return true;
   };
+  const resolvedChapters = Array.isArray(chapters) ? chapters : [];
+  const scopedChapters = resolvedChapters.filter(isChapterInJobRange);
+  const shouldShowChapterJump = showChapterJump && scopedChapters.length > 0;
+  const resolvedActiveChapterId =
+    activeChapterId && scopedChapters.some((chapter) => chapter.id === activeChapterId)
+      ? activeChapterId
+      : null;
   const fullscreenButtonClassName = ['player-panel__nav-button'];
   if (isFullscreen) {
     fullscreenButtonClassName.push('player-panel__nav-button--fullscreen-active');
@@ -698,7 +703,7 @@ export function NavigationControls({
                     <select
                       id={chapterSelectId}
                       className="player-panel__chapter-jump-select"
-                      value={activeChapterId ?? ''}
+                      value={resolvedActiveChapterId ?? ''}
                       onChange={handleChapterSelect}
                       aria-label="Jump to chapter"
                       disabled={!onChapterJump}
@@ -706,19 +711,17 @@ export function NavigationControls({
                       <option value="" disabled>
                         Select
                       </option>
-                      {resolvedChapters.map((chapter, index) => {
+                      {scopedChapters.map((chapter, index) => {
                         const label = chapter.title?.trim() || `Chapter ${index + 1}`;
                         const range =
                           typeof chapter.endSentence === 'number'
                             ? `${chapter.startSentence}-${chapter.endSentence}`
                             : `${chapter.startSentence}+`;
-                        const isAvailable = isChapterInJobRange(chapter);
                         return (
                           <option
                             key={chapter.id}
                             value={chapter.id}
-                            title={`${isAvailable ? '' : 'Outside job range. '}Sentences ${range}`}
-                            disabled={!isAvailable}
+                            title={`Sentences ${range}`}
                           >
                             {label}
                           </option>
