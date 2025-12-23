@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# sort_code_by_lines.sh — list large source files (Python, JS, TS, HTML, etc.) sorted by line count (desc)
-# Useful to spot refactoring candidates for Codex CLI.
+# sort_code_by_lines.sh — list large source files sorted by line count (desc)
+# Covers Python, JS/TS, Web, and Apple platforms (iOS / iPadOS / tvOS / watchOS)
 
 set -e
 
-echo "🔍 Sorting source files by line count (Python / JS / TS / HTML / JSX / TSX)..."
+echo "🔍 Sorting source files by line count (Python / JS / TS / Web / Swift / Obj-C / Apple UI)..."
 
 find . -type f \( \
     -name "*.py"  -o \
@@ -12,7 +12,14 @@ find . -type f \( \
     -name "*.jsx" -o \
     -name "*.ts"  -o \
     -name "*.tsx" -o \
-    -name "*.html" \
+    -name "*.html" -o \
+    -name "*.swift" -o \
+    -name "*.m" -o \
+    -name "*.mm" -o \
+    -name "*.h" -o \
+    -name "*.storyboard" -o \
+    -name "*.xib" -o \
+    -name "*.xcconfig" \
   \) \
   ! -path "*/venv/*" \
   ! -path "*/.venv/*" \
@@ -21,4 +28,11 @@ find . -type f \( \
   ! -path "*/dist/*" \
   ! -path "*/build/*" \
   ! -path "*/coverage/*" \
-	  | xargs wc -l 2>/dev/null | sort -nr | head -20
+  ! -path "*/DerivedData/*" \
+  ! -path "*/Pods/*" \
+  ! -path "*/.build/*" \
+  ! -path "*.xcodeproj/*" \
+  ! -path "*.xcworkspace/*" \
+| xargs wc -l 2>/dev/null \
+| sort -nr \
+| head -20

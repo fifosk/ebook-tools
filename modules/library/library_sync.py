@@ -6,6 +6,7 @@ import shutil
 import threading
 import time
 import os
+import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Tuple
@@ -967,20 +968,42 @@ class LibrarySync:
         if not item:
             raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
 
-        normalized = Path(relative_path.replace("\\", "/"))
-        if normalized.is_absolute() or any(part == ".." for part in normalized.parts):
-            raise LibraryError("Invalid media path")
-
         job_root = Path(item.library_path).resolve()
-        candidate = (job_root / normalized).resolve()
         library_root = self._library_root.resolve()
-        if library_root not in candidate.parents and candidate != library_root:
-            raise LibraryError("Invalid media path")
-        if not candidate.is_file():
-            raise LibraryNotFoundError(
-                f"Media file {relative_path} not found for job {job_id}"
-            )
-        return candidate
+
+        def resolve_candidate(raw_value: str) -> Optional[Path]:
+            normalized = Path(raw_value.replace("\\", "/"))
+            if normalized.is_absolute() or any(part == ".." for part in normalized.parts):
+                raise LibraryError("Invalid media path")
+            candidate = (job_root / normalized).resolve()
+            if library_root not in candidate.parents and candidate != library_root:
+                raise LibraryError("Invalid media path")
+            if candidate.is_file():
+                return candidate
+            return None
+
+        try:
+            candidate = resolve_candidate(relative_path)
+        except LibraryError:
+            raise
+        if candidate is not None:
+            return candidate
+
+        decoded_once = urllib.parse.unquote(relative_path)
+        decoded_twice = urllib.parse.unquote(decoded_once)
+        for decoded in (decoded_once, decoded_twice):
+            if decoded == relative_path:
+                continue
+            try:
+                candidate = resolve_candidate(decoded)
+            except LibraryError:
+                continue
+            if candidate is not None:
+                return candidate
+
+        raise LibraryNotFoundError(
+            f"Media file {relative_path} not found for job {job_id}"
+        )
 
     def find_cover_asset(self, job_id: str) -> Optional[Path]:
         """Return the cover asset for ``job_id`` if the library stores one."""

@@ -29,7 +29,7 @@ struct JobLoaderView: View {
     }
 
     private var configurationForm: some View {
-        GroupBox("Server configuration") {
+        PlatformGroupBox(label: { Text("Server configuration") }) {
             VStack(alignment: .leading, spacing: 12) {
                 TextField("API base URL", text: $apiBaseURL)
                     .textInputAutocapitalization(.never)

@@ -8,6 +8,7 @@ final class AudioPlayerCoordinator: ObservableObject {
     @Published private(set) var duration: Double = 0
     @Published private(set) var isReady = false
     @Published private(set) var activeURL: URL?
+    var onPlaybackEnded: (() -> Void)?
 
     private var player: AVPlayer?
     private var timeObserverToken: Any?
@@ -27,7 +28,7 @@ final class AudioPlayerCoordinator: ObservableObject {
             }
             return
         }
-        Task { await tearDownPlayer() }
+        tearDownPlayer()
         activeURL = url
         let item = AVPlayerItem(url: url)
         let player = AVPlayer(playerItem: item)
@@ -72,7 +73,7 @@ final class AudioPlayerCoordinator: ObservableObject {
         duration = 0
         isReady = false
         activeURL = nil
-        Task { await tearDownPlayer() }
+        tearDownPlayer()
     }
 
     deinit {
@@ -131,6 +132,7 @@ final class AudioPlayerCoordinator: ObservableObject {
                 guard let self else { return }
                 self.isPlaying = false
                 self.currentTime = 0
+                self.onPlaybackEnded?()
             }
         }
     }
@@ -161,11 +163,8 @@ final class AudioPlayerCoordinator: ObservableObject {
         }
     }
 
-    private func tearDownPlayer() async {
-        // Always hop to the main actor to access actor-isolated state safely.
-        await MainActor.run {
-            self._tearDownPlayerOnMain()
-        }
+    private func tearDownPlayer() {
+        _tearDownPlayerOnMain()
     }
 
     nonisolated private func tearDownPlayerAsync() {

@@ -1,0 +1,27 @@
+Every 2.0s: ./sizes.sh                                                       Mac-Studio.local: 21:29:12
+                                                                                          in 0.507s (0)
+🔍 Sorting source files by line count (Python / JS / TS / HTML / JSX / TSX)...                         
+  140556 total                                                                                         
+    3181 ./web/src/components/InteractiveTextViewer.tsx                                                
+    3133 ./web/src/components/book-narration/BookNarrationForm.tsx                                     
+    2512 ./modules/core/rendering/pipeline.py                                                          
+    2153 ./web/src/components/PlayerPanel.tsx                                                          
+    1945 ./modules/webapi/routes/media_routes.py                                                       
+    1939 ./web/src/components/interactive-text/useLinguistBubble.ts                                    
+    1928 ./web/src/components/JobProgress.tsx                                                          
+    1673 ./modules/webapi/schemas/__init__.py                                                          
+    1448 ./web/src/App.tsx                                                                             
+    1423 ./web/src/api/client.ts                                                                       
+    1407 ./web/src/components/interactive-text/useSentenceImageReel.tsx                                
+    1346 ./web/src/components/player-panel/NavigationControls.tsx                                      
+    1287 ./web/src/hooks/useLiveMedia.ts                                                               
+    1271 ./modules/webapi/routers/subtitles.py                                                         
+    1259 ./modules/render/audio_pipeline.py                                                            
+    1225 ./web/src/pages/VideoDubbingPage.tsx                                                          
+    1224 ./modules/library/sync/file_ops.py                                                            
+    1156 ./web/src/components/VideoPlayer.tsx                                                          
+    1145 ./web/src/components/YoutubeDubPlayer.tsx                                                     
+                                                                                                       
+                                                                                                       
+                                                                                                       
+                                                                                                       

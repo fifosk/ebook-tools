@@ -49,15 +49,49 @@ final class APIClient {
     }
 
     func fetchJobMedia(jobId: String) async throws -> PipelineMediaResponse {
-        let data = try await sendRequest(path: "/api/pipelines/jobs/\(jobId)/media")
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media")
+        return try decode(PipelineMediaResponse.self, from: data)
+    }
+
+    func fetchLibraryMedia(jobId: String) async throws -> PipelineMediaResponse {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendRequest(path: "/api/library/media/\(encoded)")
         return try decode(PipelineMediaResponse.self, from: data)
     }
 
     func fetchJobTiming(jobId: String) async throws -> JobTimingResponse? {
-        guard let data = try await sendRequestAllowingNotFound(path: "/api/jobs/\(jobId)/timing") else {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        guard let data = try await sendRequestAllowingNotFound(path: "/api/jobs/\(encoded)/timing") else {
             return nil
         }
         return try decode(JobTimingResponse.self, from: data)
+    }
+
+    func fetchLibraryItems(query: String? = nil, page: Int = 1, limit: Int = 100) async throws -> LibrarySearchResponse {
+        var components = URLComponents()
+        var items: [URLQueryItem] = [
+            URLQueryItem(name: "page", value: "\(page)"),
+            URLQueryItem(name: "limit", value: "\(limit)"),
+        ]
+        if let query, !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            items.append(URLQueryItem(name: "q", value: query))
+        }
+        components.queryItems = items
+        let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
+        let data = try await sendRequest(path: "/api/library/items\(suffix)")
+        return try decode(LibrarySearchResponse.self, from: data)
+    }
+
+    func login(username: String, password: String) async throws -> SessionStatusResponse {
+        let payload = LoginRequestPayload(username: username, password: password)
+        let data = try await sendJSONRequest(path: "/api/auth/login", method: "POST", payload: payload)
+        return try decode(SessionStatusResponse.self, from: data)
+    }
+
+    func fetchSessionStatus() async throws -> SessionStatusResponse {
+        let data = try await sendRequest(path: "/api/auth/session")
+        return try decode(SessionStatusResponse.self, from: data)
     }
 
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
@@ -71,15 +105,21 @@ final class APIClient {
         }
     }
 
-    private func sendRequest(path: String) async throws -> Data {
+    private func sendRequest(path: String, method: String = "GET", body: Data? = nil, contentType: String? = nil) async throws -> Data {
         guard !Task.isCancelled else {
             throw APIClientError.cancelled
         }
 
         let requestURL = buildURL(with: path)
         var request = URLRequest(url: requestURL)
-        request.httpMethod = "GET"
+        request.httpMethod = method
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let body {
+            request.httpBody = body
+        }
+        if let contentType {
+            request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        }
         if let token = configuration.authToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -105,6 +145,12 @@ final class APIClient {
             throw APIClientError.httpError(httpResponse.statusCode, message)
         }
         return data
+    }
+
+    private func sendJSONRequest<T: Encodable>(path: String, method: String, payload: T) async throws -> Data {
+        let encoder = JSONEncoder()
+        let data = try encoder.encode(payload)
+        return try await sendRequest(path: path, method: method, body: data, contentType: "application/json")
     }
 
     private func sendRequestAllowingNotFound(path: String) async throws -> Data? {
@@ -145,6 +191,17 @@ final class APIClient {
 
     private func buildURL(with path: String) -> URL {
         var normalizedPath = path
+        var query: String?
+        var fragment: String?
+
+        if let fragmentRange = normalizedPath.range(of: "#") {
+            fragment = String(normalizedPath[fragmentRange.upperBound...])
+            normalizedPath = String(normalizedPath[..<fragmentRange.lowerBound])
+        }
+        if let queryRange = normalizedPath.range(of: "?") {
+            query = String(normalizedPath[queryRange.upperBound...])
+            normalizedPath = String(normalizedPath[..<queryRange.lowerBound])
+        }
         if !normalizedPath.hasPrefix("/") {
             normalizedPath = "/" + normalizedPath
         }
@@ -156,6 +213,12 @@ final class APIClient {
         }
         let trimmed = normalizedPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         components.path = basePath + trimmed
+        if let query {
+            components.percentEncodedQuery = query
+        }
+        if let fragment {
+            components.fragment = fragment
+        }
         return components.url ?? configuration.apiBaseURL.appendingPathComponent(trimmed)
     }
 }

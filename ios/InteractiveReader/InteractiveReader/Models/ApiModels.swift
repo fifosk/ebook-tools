@@ -1,9 +1,92 @@
 import Foundation
 
+struct SessionUserPayload: Decodable {
+    let username: String
+    let role: String
+    let email: String?
+    let firstName: String?
+    let lastName: String?
+    let lastLogin: String?
+}
+
+struct SessionStatusResponse: Decodable {
+    let token: String
+    let user: SessionUserPayload
+}
+
+struct LoginRequestPayload: Encodable {
+    let username: String
+    let password: String
+}
+
+struct LibrarySearchResponse: Decodable {
+    let total: Int
+    let page: Int
+    let limit: Int
+    let view: String
+    let items: [LibraryItem]
+    let groups: [LibraryGroup]?
+}
+
+struct LibraryGroup: Decodable, Identifiable {
+    var id: String { "\(title ?? "untitled")-\(count ?? items?.count ?? 0)" }
+    let title: String?
+    let items: [LibraryItem]?
+    let count: Int?
+}
+
+struct LibraryItem: Decodable, Identifiable {
+    var id: String { jobId }
+    let jobId: String
+    let author: String
+    let bookTitle: String
+    let itemType: String
+    let genre: String?
+    let language: String
+    let status: String
+    let mediaCompleted: Bool
+    let createdAt: String
+    let updatedAt: String
+    let libraryPath: String
+    let coverPath: String?
+    let isbn: String?
+    let sourcePath: String?
+    let metadata: [String: JSONValue]?
+}
+
+extension LibraryItem: Hashable {
+    static func == (lhs: LibraryItem, rhs: LibraryItem) -> Bool {
+        lhs.jobId == rhs.jobId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(jobId)
+    }
+}
+
 struct PipelineMediaResponse: Decodable {
     let media: [String: [PipelineMediaFile]]
     let chunks: [PipelineMediaChunk]
     let complete: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case media
+        case chunks
+        case complete
+    }
+
+    init(media: [String: [PipelineMediaFile]] = [:], chunks: [PipelineMediaChunk] = [], complete: Bool = false) {
+        self.media = media
+        self.chunks = chunks
+        self.complete = complete
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        media = (try? container.decode([String: [PipelineMediaFile]].self, forKey: .media)) ?? [:]
+        chunks = (try? container.decode([PipelineMediaChunk].self, forKey: .chunks)) ?? []
+        complete = (try? container.decode(Bool.self, forKey: .complete)) ?? false
+    }
 }
 
 struct PipelineMediaFile: Decodable, Identifiable {
@@ -35,6 +118,62 @@ struct PipelineMediaFile: Decodable, Identifiable {
         case endSentence = "end_sentence"
         case type
     }
+
+    init(
+        name: String,
+        url: String?,
+        size: Double?,
+        updatedAt: Date?,
+        source: String,
+        relativePath: String?,
+        path: String?,
+        chunkID: String?,
+        rangeFragment: String?,
+        startSentence: Int?,
+        endSentence: Int?,
+        type: String?
+    ) {
+        self.name = name
+        self.url = url
+        self.size = size
+        self.updatedAt = updatedAt
+        self.source = source
+        self.relativePath = relativePath
+        self.path = path
+        self.chunkID = chunkID
+        self.rangeFragment = rangeFragment
+        self.startSentence = startSentence
+        self.endSentence = endSentence
+        self.type = type
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        name = (try? container.decode(String.self, forKey: .name)) ?? "media"
+        url = try? container.decode(String.self, forKey: .url)
+        if let sizeValue = try? container.decode(Double.self, forKey: .size) {
+            size = sizeValue
+        } else if let sizeValue = try? container.decode(Int.self, forKey: .size) {
+            size = Double(sizeValue)
+        } else {
+            size = nil
+        }
+        if let dateValue = try? container.decode(Date.self, forKey: .updatedAt) {
+            updatedAt = dateValue
+        } else if let dateString = try? container.decode(String.self, forKey: .updatedAt) {
+            updatedAt = ISO8601DateFormatter.withFractionalSeconds.date(from: dateString)
+        } else {
+            updatedAt = nil
+        }
+        source = (try? container.decode(String.self, forKey: .source)) ?? "completed"
+        relativePath = try? container.decode(String.self, forKey: .relativePath)
+        path = try? container.decode(String.self, forKey: .path)
+        chunkID = try? container.decode(String.self, forKey: .chunkID)
+        rangeFragment = try? container.decode(String.self, forKey: .rangeFragment)
+        startSentence = try? container.decode(Int.self, forKey: .startSentence)
+        endSentence = try? container.decode(Int.self, forKey: .endSentence)
+        type = try? container.decode(String.self, forKey: .type)
+    }
 }
 
 struct PipelineMediaChunk: Decodable, Identifiable {
@@ -62,6 +201,44 @@ struct PipelineMediaChunk: Decodable, Identifiable {
         case sentenceCount = "sentence_count"
         case audioTracks = "audio_tracks"
     }
+
+    init(
+        chunkID: String?,
+        rangeFragment: String?,
+        startSentence: Int?,
+        endSentence: Int?,
+        files: [PipelineMediaFile],
+        sentences: [ChunkSentenceMetadata],
+        metadataPath: String?,
+        metadataURL: String?,
+        sentenceCount: Int?,
+        audioTracks: [String: AudioTrackMetadata]
+    ) {
+        self.chunkID = chunkID
+        self.rangeFragment = rangeFragment
+        self.startSentence = startSentence
+        self.endSentence = endSentence
+        self.files = files
+        self.sentences = sentences
+        self.metadataPath = metadataPath
+        self.metadataURL = metadataURL
+        self.sentenceCount = sentenceCount
+        self.audioTracks = audioTracks
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        chunkID = try? container.decode(String.self, forKey: .chunkID)
+        rangeFragment = try? container.decode(String.self, forKey: .rangeFragment)
+        startSentence = try? container.decode(Int.self, forKey: .startSentence)
+        endSentence = try? container.decode(Int.self, forKey: .endSentence)
+        files = (try? container.decode([PipelineMediaFile].self, forKey: .files)) ?? []
+        sentences = (try? container.decode([ChunkSentenceMetadata].self, forKey: .sentences)) ?? []
+        metadataPath = try? container.decode(String.self, forKey: .metadataPath)
+        metadataURL = try? container.decode(String.self, forKey: .metadataURL)
+        sentenceCount = try? container.decode(Int.self, forKey: .sentenceCount)
+        audioTracks = (try? container.decode([String: AudioTrackMetadata].self, forKey: .audioTracks)) ?? [:]
+    }
 }
 
 struct ChunkSentenceMetadata: Decodable, Identifiable {
@@ -76,12 +253,74 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         case original
         case translation
         case transliteration
+        case text
+    }
+
+    init(sentenceNumber: Int?, original: ChunkSentenceVariant, translation: ChunkSentenceVariant?, transliteration: ChunkSentenceVariant?) {
+        self.sentenceNumber = sentenceNumber
+        self.original = original
+        self.translation = translation
+        self.transliteration = transliteration
+    }
+
+    init(from decoder: Decoder) throws {
+        if let singleContainer = try? decoder.singleValueContainer(),
+           let textValue = try? singleContainer.decode(String.self) {
+            sentenceNumber = nil
+            original = ChunkSentenceVariant(text: textValue, tokens: nil)
+            translation = nil
+            transliteration = nil
+            return
+        }
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sentenceNumber = try? container.decode(Int.self, forKey: .sentenceNumber)
+
+        let originalValue = try? container.decode(ChunkSentenceVariant.self, forKey: .original)
+        let translationValue = try? container.decode(ChunkSentenceVariant.self, forKey: .translation)
+        let transliterationValue = try? container.decode(ChunkSentenceVariant.self, forKey: .transliteration)
+
+        if let originalValue {
+            original = originalValue
+        } else if let translationValue {
+            original = translationValue
+        } else if let textValue = try? container.decode(String.self, forKey: .text) {
+            original = ChunkSentenceVariant(text: textValue, tokens: nil)
+        } else {
+            original = ChunkSentenceVariant(text: "", tokens: nil)
+        }
+
+        translation = translationValue
+        transliteration = transliterationValue
     }
 }
 
 struct ChunkSentenceVariant: Decodable {
     let text: String
     let tokens: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case text
+        case tokens
+    }
+
+    init(text: String, tokens: [String]?) {
+        self.text = text
+        self.tokens = tokens
+    }
+
+    init(from decoder: Decoder) throws {
+        if let singleContainer = try? decoder.singleValueContainer(),
+           let textValue = try? singleContainer.decode(String.self) {
+            text = textValue
+            tokens = nil
+            return
+        }
+
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        text = (try? container.decode(String.self, forKey: .text)) ?? ""
+        tokens = try? container.decode([String].self, forKey: .tokens)
+    }
 }
 
 struct AudioTrackMetadata: Decodable {
@@ -175,4 +414,51 @@ struct JobTimingEntry: Decodable, Identifiable {
         case pauseBefore = "pause_before_ms"
         case pauseAfter = "pause_after_ms"
     }
+}
+
+enum JSONValue: Decodable, Hashable {
+    case string(String)
+    case number(Double)
+    case bool(Bool)
+    case object([String: JSONValue])
+    case array([JSONValue])
+    case null
+
+    init(from decoder: Decoder) throws {
+        if let container = try? decoder.singleValueContainer() {
+            if container.decodeNil() {
+                self = .null
+                return
+            }
+            if let value = try? container.decode(Bool.self) {
+                self = .bool(value)
+                return
+            }
+            if let value = try? container.decode(Double.self) {
+                self = .number(value)
+                return
+            }
+            if let value = try? container.decode(String.self) {
+                self = .string(value)
+                return
+            }
+            if let value = try? container.decode([String: JSONValue].self) {
+                self = .object(value)
+                return
+            }
+            if let value = try? container.decode([JSONValue].self) {
+                self = .array(value)
+                return
+            }
+        }
+        self = .null
+    }
+}
+
+private extension ISO8601DateFormatter {
+    static let withFractionalSeconds: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
 }

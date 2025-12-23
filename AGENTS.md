@@ -8,7 +8,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 - **CLI / Orchestration:** `ebook-tools.py` and `scripts/` house helper commands for running pipelines locally.
 - **Frontend:** `web/` contains the Vite application. Source files live under `web/src/`, while built assets default to `web/dist/`.
 - **Offline exports:** `modules/services/export_service.py` builds offline player bundles for completed jobs/library entries via `/api/exports`, using the export player entry at `web/export.html` + `web/src/export-player/` (built with `vite build --mode export` into `web/export-dist`, override via `EBOOK_EXPORT_PLAYER_ROOT`). Export archives land under `storage/exports` (override via `EBOOK_EXPORT_ROOT`).
-- **iOS Client:** `ios/InteractiveReader/` hosts a SwiftUI app that talks directly to `/api/pipelines/jobs/{job_id}/media` and `/api/jobs/{job_id}/timing` so the interactive reader experience can run on devices, mimicking the frontend storage resolver (`/storage/jobs/<job_id>/…` or an explicit override).
+- **Apple Clients:** `ios/InteractiveReader/` now ships iOS/iPadOS + tvOS targets that authenticate via `/api/auth/login`, list Library entries from `/api/library/items`, and play library media via `/api/library/media/{job_id}` plus `/api/jobs/{job_id}/timing`. Shared SwiftUI flows live under `Features/Auth`, `Features/Library`, and `Features/Playback`, with the tvOS target configured through `InteractiveReader/Supporting/Info-tvOS.plist`.
 - **Frontend Book Flows:** `web/src/pages/NewImmersiveBookPage.tsx` unifies the submission and settings experience behind the sidebar entry “Narrate Ebook,” sharing language state with `web/src/pages/CreateBookPage.tsx` and `web/src/components/book-narration/BookNarrationForm.tsx` via `web/src/context/LanguageProvider.tsx`. `CreateBookPage` now submits a managed `book` job via `/api/books/jobs`, first generating a seed EPUB with the LLM and then running the standard pipeline with the same Narrate Ebook form settings.
 - **Search:** `modules/webapi/routes.py` exposes `/api/pipelines/search`, which now requires a `job_id` query parameter, scans that job's persisted chunks for snippets surfaced in the frontend `MediaSearchPanel`, and falls back to library metadata when the pipeline job has already been archived.
 - **Audio Voices:** `modules/webapi/routers/audio.py` serves `/api/audio/voices` for language-specific voice inventories and `/api/audio` for preview synthesis consumed by the `BookNarrationForm` voice picker.
@@ -34,6 +34,7 @@ This repository powers the ebook-tools platform, bundling a FastAPI backend, bac
 ## Common Workflows
 - Create a virtual environment and install dependencies with `pip install -e .[dev]`.
 - Start the API for local development with `uvicorn modules.webapi.application:create_app --factory --reload`.
+- `scripts/run-webapi.sh` starts a second HTTP listener for Apple TV on port 8001 by default; set `EBOOK_API_TV_HTTP_PORT=0` (optional `EBOOK_API_TV_HTTP_HOST`) to disable or override.
 - Run the test suite via `pytest` from the repository root.
 - Library storage defaults to `/Volumes/Data/Video/Library`; override via `library_root` in `config/config.local.json` or the `LIBRARY_ROOT` environment variable when running services locally.
 

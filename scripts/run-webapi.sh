@@ -55,6 +55,8 @@ if [ "$NEEDS_HOST" = true ]; then
   set -- --host 0.0.0.0 "$@"
 fi
 
+BASE_ARGS=("$@")
+
 HTTPS_ENABLED=false
 HTTPS_REQUESTED_VIA_ENV=false
 DEFAULT_CERT_PATH="${REPO_ROOT}/conf/certs/dev.crt"
@@ -108,14 +110,102 @@ else
   fi
 fi
 
+MAIN_ARGS=("$@")
+
+extract_arg_value() {
+  local flag="$1"
+  shift
+  local expect_value=false
+  for arg in "$@"; do
+    if [ "$expect_value" = true ]; then
+      echo "$arg"
+      return 0
+    fi
+    case "$arg" in
+      "$flag")
+        expect_value=true
+        ;;
+      "$flag="*)
+        echo "${arg#*=}"
+        return 0
+        ;;
+    esac
+  done
+  return 1
+}
+
+MAIN_HOST="$(extract_arg_value --host "${BASE_ARGS[@]}" || true)"
+if [ -z "$MAIN_HOST" ]; then
+  MAIN_HOST="0.0.0.0"
+fi
+
+MAIN_PORT="$(extract_arg_value --port "${BASE_ARGS[@]}" || true)"
+if [ -z "$MAIN_PORT" ]; then
+  MAIN_PORT="8000"
+fi
+
+TV_HTTP_PORT="${EBOOK_API_TV_HTTP_PORT-8001}"
+TV_HTTP_HOST="${EBOOK_API_TV_HTTP_HOST:-$MAIN_HOST}"
+
 if command -v poetry >/dev/null 2>&1; then
-  exec poetry run python -m modules.webapi "$@"
+  RUNNER=(poetry run python -m modules.webapi)
 elif command -v pipenv >/dev/null 2>&1; then
-  exec pipenv run python -m modules.webapi "$@"
+  RUNNER=(pipenv run python -m modules.webapi)
 else
   PYTHON_BIN="python"
   if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     PYTHON_BIN="python3"
   fi
-  exec "$PYTHON_BIN" -m modules.webapi "$@"
+  RUNNER=("$PYTHON_BIN" -m modules.webapi)
 fi
+
+TV_HTTP_PID=""
+if [ -n "$TV_HTTP_PORT" ]; then
+  TV_HTTP_PORT_LOWER="$(printf '%s' "$TV_HTTP_PORT" | tr '[:upper:]' '[:lower:]')"
+  case "$TV_HTTP_PORT_LOWER" in
+    ""|0|false|off|no|disable|disabled)
+      TV_HTTP_PORT=""
+      ;;
+  esac
+fi
+
+if [ -n "$TV_HTTP_PORT" ]; then
+  if ! printf '%s' "$TV_HTTP_PORT" | grep -Eq '^[0-9]+$'; then
+    echo "EBOOK_API_TV_HTTP_PORT must be a numeric port, got '$TV_HTTP_PORT'." >&2
+    exit 1
+  fi
+  if [ "$TV_HTTP_PORT" = "$MAIN_PORT" ]; then
+    echo "EBOOK_API_TV_HTTP_PORT matches the main API port ($MAIN_PORT); skipping Apple TV HTTP server." >&2
+  else
+    TV_ARGS=()
+    skip_next=false
+    for arg in "${BASE_ARGS[@]}"; do
+      if [ "$skip_next" = true ]; then
+        skip_next=false
+        continue
+      fi
+      case "$arg" in
+        --host|--port|--ssl-certfile|--ssl-keyfile|--ssl-keyfile-password)
+          skip_next=true
+          continue
+          ;;
+        --host=*|--port=*|--ssl-certfile=*|--ssl-keyfile=*|--ssl-keyfile-password=*)
+          continue
+          ;;
+      esac
+      TV_ARGS+=("$arg")
+    done
+    TV_ARGS+=(--host "$TV_HTTP_HOST" --port "$TV_HTTP_PORT")
+    echo "Starting Apple TV HTTP API on ${TV_HTTP_HOST}:${TV_HTTP_PORT}." >&2
+    EBOOK_USE_RAMDISK=0 "${RUNNER[@]}" "${TV_ARGS[@]}" &
+    TV_HTTP_PID=$!
+    trap 'if [ -n "${TV_HTTP_PID}" ] && kill -0 "${TV_HTTP_PID}" 2>/dev/null; then kill "${TV_HTTP_PID}"; fi' EXIT INT TERM
+  fi
+fi
+
+if [ -n "$TV_HTTP_PID" ]; then
+  "${RUNNER[@]}" "${MAIN_ARGS[@]}"
+  exit $?
+fi
+
+exec "${RUNNER[@]}" "${MAIN_ARGS[@]}"

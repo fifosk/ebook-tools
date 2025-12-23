@@ -72,7 +72,9 @@ struct InteractivePlayerView: View {
 
             PlaybackControlsView(
                 coordinator: audioCoordinator,
-                scrubbedTime: $scrubbedTime
+                scrubbedTime: $scrubbedTime,
+                onPrevious: { viewModel.skipSentence(forward: false) },
+                onNext: { viewModel.skipSentence(forward: true) }
             )
         }
     }
@@ -102,16 +104,34 @@ struct InteractivePlayerView: View {
 private struct PlaybackControlsView: View {
     @ObservedObject var coordinator: AudioPlayerCoordinator
     @Binding var scrubbedTime: Double?
+    let onPrevious: (() -> Void)?
+    let onNext: (() -> Void)?
     @State private var isEditing = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 16) {
+                if let onPrevious {
+                    Button(action: onPrevious) {
+                        Image(systemName: "backward.fill")
+                            .font(.title3)
+                            .padding(10)
+                            .background(.thinMaterial, in: Circle())
+                    }
+                }
                 Button(action: coordinator.togglePlayback) {
                     Image(systemName: coordinator.isPlaying ? "pause.fill" : "play.fill")
                         .font(.title2)
                         .padding(12)
                         .background(.thinMaterial, in: Circle())
+                }
+                if let onNext {
+                    Button(action: onNext) {
+                        Image(systemName: "forward.fill")
+                            .font(.title3)
+                            .padding(10)
+                            .background(.thinMaterial, in: Circle())
+                    }
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Elapsed: \(formatTime(currentValue))")
@@ -125,6 +145,12 @@ private struct PlaybackControlsView: View {
 
             let upperBound = max(coordinator.duration, scrubbedTime ?? coordinator.currentTime, 0.1)
 
+            #if os(tvOS)
+            // tvOS does not support Slider. Show a progress bar instead.
+            ProgressView(value: min(currentValue / max(upperBound, 0.0001), 1.0))
+                .progressViewStyle(.linear)
+                .tint(.accentColor)
+            #else
             Slider(
                 value: Binding(
                     get: { scrubbedTime ?? coordinator.currentTime },
@@ -135,6 +161,7 @@ private struct PlaybackControlsView: View {
                 in: 0...upperBound,
                 onEditingChanged: handleEditingChanged
             )
+            #endif
         }
     }
 
@@ -189,7 +216,19 @@ private struct InteractiveSentenceCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(isActive ? Color.accentColor.opacity(0.1) : Color(.secondarySystemBackground))
+                .fill(
+                    isActive ? Color.accentColor.opacity(0.1) : {
+                        #if os(iOS) || os(visionOS)
+                        Color(UIColor.secondarySystemBackground)
+                        #elseif os(tvOS)
+                        Color.secondary.opacity(0.15)
+                        #elseif os(macOS)
+                        Color(nsColor: .underPageBackgroundColor)
+                        #else
+                        Color.secondary.opacity(0.15)
+                        #endif
+                    }()
+                )
         )
     }
 
