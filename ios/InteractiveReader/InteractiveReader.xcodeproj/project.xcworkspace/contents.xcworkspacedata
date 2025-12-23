@@ -7,4 +7,7 @@
    <FileRef
       location = "group:TVOSAdapters.swift">
    </FileRef>
+   <FileRef
+      location = "group:TextPlayerModels.swift">
+   </FileRef>
 </Workspace>

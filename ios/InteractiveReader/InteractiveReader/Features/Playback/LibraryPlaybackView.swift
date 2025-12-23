@@ -10,30 +10,29 @@ struct LibraryPlaybackView: View {
     @State private var activeSentenceIndex: Int?
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                header
+        VStack(alignment: .leading, spacing: 16) {
+            header
 
-                switch viewModel.loadState {
-                case .idle, .loading:
-                    loadingView
-                case let .error(message):
-                    errorView(message: message)
-                case .loaded:
-                    if isVideoPreferred, let videoURL {
-                        VideoPlayerView(videoURL: videoURL, subtitleURL: subtitleURL)
-                            .frame(maxWidth: .infinity)
-                            .aspectRatio(16 / 9, contentMode: .fit)
-                    } else if viewModel.jobContext != nil {
-                        InteractivePlayerView(viewModel: viewModel, audioCoordinator: viewModel.audioCoordinator)
-                    } else {
-                        Text("No playable media found for this entry.")
-                            .foregroundStyle(.secondary)
-                    }
+            switch viewModel.loadState {
+            case .idle, .loading:
+                loadingView
+            case let .error(message):
+                errorView(message: message)
+            case .loaded:
+                if isVideoPreferred, let videoURL {
+                    VideoPlayerView(videoURL: videoURL, subtitleURL: subtitleURL)
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                } else if viewModel.jobContext != nil {
+                    InteractivePlayerView(viewModel: viewModel, audioCoordinator: viewModel.audioCoordinator)
+                } else {
+                    Text("No playable media found for this entry.")
+                        .foregroundStyle(.secondary)
                 }
             }
-            .padding()
         }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .navigationTitle(item.bookTitle)
         .task(id: item.jobId) {
             await loadEntry()
@@ -58,7 +57,7 @@ struct LibraryPlaybackView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 16) {
+        HStack(alignment: .top, spacing: 12) {
             AsyncImage(url: coverURL) { phase in
                 if let image = phase.image {
                     image.resizable().scaledToFill()
@@ -119,17 +118,17 @@ struct LibraryPlaybackView: View {
 
     private var coverWidth: CGFloat {
         #if os(tvOS)
-        return 140
+        return 120
         #else
-        return 84
+        return 64
         #endif
     }
 
     private var coverHeight: CGFloat {
         #if os(tvOS)
-        return 200
+        return 180
         #else
-        return 120
+        return 96
         #endif
     }
 
@@ -240,10 +239,12 @@ struct LibraryPlaybackView: View {
                 updateNowPlayingMetadata()
             }
         }
+        let playbackDuration = viewModel.selectedChunk.flatMap { viewModel.playbackDuration(for: $0) } ?? viewModel.audioCoordinator.duration
+        let playbackTime = highlightTime.isFinite ? highlightTime : time
         nowPlaying.updatePlaybackState(
             isPlaying: viewModel.audioCoordinator.isPlaying,
-            position: time,
-            duration: viewModel.audioCoordinator.duration
+            position: playbackTime,
+            duration: playbackDuration
         )
     }
 }

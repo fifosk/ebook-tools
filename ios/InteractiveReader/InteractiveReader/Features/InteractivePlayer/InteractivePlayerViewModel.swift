@@ -35,6 +35,9 @@ final class InteractivePlayerViewModel: ObservableObject {
 
     private var mediaResolver: MediaURLResolver?
     private var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
+    private var audioDurationByURL: [URL: Double] = [:]
+    private var chunkMetadataLoaded: Set<String> = []
+    private var chunkMetadataLoading: Set<String> = []
 
     init() {
         audioCoordinator.onPlaybackEnded = { [weak self] in
@@ -55,6 +58,9 @@ final class InteractivePlayerViewModel: ObservableObject {
         selectedAudioTrackID = nil
         selectedTimingURL = nil
         preferredAudioKind = nil
+        audioDurationByURL = [:]
+        chunkMetadataLoaded = []
+        chunkMetadataLoading = []
         jobContext = nil
         mediaResponse = nil
         timingResponse = nil
@@ -126,6 +132,9 @@ final class InteractivePlayerViewModel: ObservableObject {
             selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
         }
         prepareAudio(for: chunk, autoPlay: autoPlay)
+        Task { [weak self] in
+            await self?.loadChunkMetadataIfNeeded(for: chunk.id)
+        }
     }
 
     func selectAudioTrack(id: String) {
@@ -170,13 +179,11 @@ final class InteractivePlayerViewModel: ObservableObject {
     }
 
     var highlightingTime: Double {
-        guard let timingURL = selectedTimingURL else {
+        guard let chunk = selectedChunk else {
             return audioCoordinator.currentTime
         }
-        guard let activeURL = audioCoordinator.activeURL, activeURL == timingURL else {
-            return .nan
-        }
-        return audioCoordinator.currentTime
+        let time = playbackTime(for: chunk)
+        return time.isFinite ? time : audioCoordinator.currentTime
     }
 
     func resolveMediaURL(for file: PipelineMediaFile) -> URL? {
@@ -189,9 +196,164 @@ final class InteractivePlayerViewModel: ObservableObject {
         return mediaResolver.resolvePath(jobId: jobId, relativePath: path)
     }
 
+    func recordAudioDuration(_ duration: Double, for url: URL?) {
+        guard let url else { return }
+        guard duration.isFinite, duration > 0 else { return }
+        audioDurationByURL[url] = duration
+    }
+
+    func playbackTime(for chunk: InteractiveChunk) -> Double {
+        let baseTime = audioCoordinator.currentTime
+        guard let track = selectedAudioOption(for: chunk) else { return baseTime }
+        let urls = track.streamURLs
+        guard urls.count > 1, let activeURL = audioCoordinator.activeURL,
+              let activeIndex = urls.firstIndex(of: activeURL) else {
+            return baseTime
+        }
+        let offset = urls.prefix(activeIndex).reduce(0.0) { partial, url in
+            partial + (durationForURL(url, in: chunk) ?? 0)
+        }
+        return offset + baseTime
+    }
+
+    func playbackDuration(for chunk: InteractiveChunk) -> Double? {
+        guard let track = selectedAudioOption(for: chunk) else {
+            return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
+        }
+        if track.streamURLs.count == 1 {
+            if let duration = track.duration, duration > 0 {
+                return duration
+            }
+            if let cached = durationForURL(track.primaryURL, in: chunk), cached > 0 {
+                return cached
+            }
+            return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
+        }
+        let summed = track.streamURLs.compactMap { durationForURL($0, in: chunk) }.reduce(0, +)
+        if summed > 0 {
+            return summed
+        }
+        if let duration = track.duration, duration > 0 {
+            return duration
+        }
+        return nil
+    }
+
+    func timelineDuration(for chunk: InteractiveChunk) -> Double? {
+        guard let track = selectedAudioOption(for: chunk) else {
+            return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
+        }
+        if track.streamURLs.count > 1 {
+            let durations = track.streamURLs.map { durationForURL($0, in: chunk) }
+            let hasMissing = durations.contains(where: { value in
+                guard let value else { return true }
+                return value <= 0
+            })
+            guard !hasMissing else { return nil }
+            let total = durations.compactMap { $0 }.reduce(0, +)
+            return total > 0 ? total : nil
+        }
+        if let duration = track.duration, duration > 0 {
+            return duration
+        }
+        if let cached = durationForURL(track.primaryURL, in: chunk), cached > 0 {
+            return cached
+        }
+        return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
+    }
+
+    func activeTimingTrack(for chunk: InteractiveChunk) -> TextPlayerTimingTrack {
+        guard let track = selectedAudioOption(for: chunk) else { return .translation }
+        switch track.kind {
+        case .combined:
+            return .mix
+        case .original:
+            return .original
+        case .translation:
+            return .translation
+        case .other:
+            return .translation
+        }
+    }
+
+    func useCombinedPhases(for chunk: InteractiveChunk) -> Bool {
+        activeTimingTrack(for: chunk) == .mix
+    }
+
+    private func selectedAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
+        guard let selectedID = selectedAudioTrackID else {
+            return chunk.audioOptions.first
+        }
+        return chunk.audioOptions.first(where: { $0.id == selectedID }) ?? chunk.audioOptions.first
+    }
+
+    private func durationForURL(_ url: URL, in chunk: InteractiveChunk) -> Double? {
+        if let cached = audioDurationByURL[url], cached > 0 {
+            return cached
+        }
+        let matchingOptions = chunk.audioOptions.filter { $0.primaryURL == url }
+        if let option = matchingOptions.first(where: { $0.kind != .combined }), let duration = option.duration, duration > 0 {
+            return duration
+        }
+        if let option = matchingOptions.first, let duration = option.duration, duration > 0 {
+            return duration
+        }
+        return nil
+    }
+
+    func seekPlayback(to time: Double, in chunk: InteractiveChunk) {
+        guard let track = selectedAudioOption(for: chunk) else {
+            audioCoordinator.seek(to: time)
+            return
+        }
+        let urls = track.streamURLs
+        guard urls.count > 1 else {
+            audioCoordinator.seek(to: time)
+            return
+        }
+        let durations = urls.map { durationForURL($0, in: chunk) ?? 0 }
+        var remaining = time
+        var targetIndex = 0
+        for (index, duration) in durations.enumerated() {
+            if duration <= 0 {
+                continue
+            }
+            if remaining <= duration || index == durations.count - 1 {
+                targetIndex = index
+                break
+            }
+            remaining -= duration
+            targetIndex = index + 1
+        }
+        if targetIndex >= urls.count {
+            targetIndex = urls.count - 1
+        }
+        let targetURL = urls[targetIndex]
+        if audioCoordinator.activeURL != targetURL {
+            let subset = Array(urls[targetIndex...])
+            audioCoordinator.load(urls: subset, autoPlay: audioCoordinator.isPlaying)
+        }
+        audioCoordinator.seek(to: remaining)
+    }
+
     func activeSentence(at time: Double) -> InteractiveChunk.Sentence? {
         guard time.isFinite else { return nil }
         guard let chunk = selectedChunk else { return nil }
+        if let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+            sentences: chunk.sentences,
+            activeTimingTrack: activeTimingTrack(for: chunk),
+            audioDuration: playbackDuration(for: chunk),
+            useCombinedPhases: useCombinedPhases(for: chunk)
+        ),
+        let display = TextPlayerTimeline.buildTimelineDisplay(
+            timelineSentences: timelineSentences,
+            chunkTime: time,
+            audioDuration: playbackDuration(for: chunk),
+            isVariantVisible: { _ in true }
+        ),
+        chunk.sentences.indices.contains(display.activeIndex) {
+            return chunk.sentences[display.activeIndex]
+        }
         if let match = chunk.sentences.first(where: { $0.contains(time: time) }) {
             return match
         }
@@ -206,21 +368,32 @@ final class InteractivePlayerViewModel: ObservableObject {
 
     func skipSentence(forward: Bool) {
         guard let chunk = selectedChunk else { return }
-        let entries = chunk.sentences.compactMap { sentence -> (InteractiveChunk.Sentence, Double)? in
-            guard let start = sentence.startTime else { return nil }
-            return (sentence, start)
-        }
-        if entries.isEmpty {
-            return
-        }
-        let sorted = entries.sorted { $0.1 < $1.1 }
-        let currentTime = highlightingTime
+        let currentTime = highlightingTime.isFinite ? highlightingTime : audioCoordinator.currentTime
         guard currentTime.isFinite else { return }
         let epsilon = 0.05
+        let sorted: [(Int, Double)] = {
+            if let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+                sentences: chunk.sentences,
+                activeTimingTrack: activeTimingTrack(for: chunk),
+                audioDuration: playbackDuration(for: chunk),
+                useCombinedPhases: useCombinedPhases(for: chunk)
+            ) {
+                return timelineSentences.map { ($0.index, $0.startTime) }.sorted { $0.1 < $1.1 }
+            }
+            let entries = chunk.sentences.compactMap { sentence -> (Int, Double)? in
+                guard let start = sentence.startTime else { return nil }
+                return (sentence.id, start)
+            }
+            return entries.sorted { $0.1 < $1.1 }
+        }()
+
+        if sorted.isEmpty {
+            return
+        }
 
         if forward {
             if let next = sorted.first(where: { $0.1 > currentTime + epsilon }) {
-                audioCoordinator.seek(to: next.1)
+                seekPlayback(to: next.1, in: chunk)
                 return
             }
             if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
@@ -228,7 +401,7 @@ final class InteractivePlayerViewModel: ObservableObject {
             }
         } else {
             if let previous = sorted.last(where: { $0.1 < currentTime - epsilon }) {
-                audioCoordinator.seek(to: previous.1)
+                seekPlayback(to: previous.1, in: chunk)
                 return
             }
             if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
@@ -270,6 +443,9 @@ final class InteractivePlayerViewModel: ObservableObject {
                 selectedAudioTrackID = nil
             }
             prepareAudio(for: chunk, autoPlay: false)
+            Task { [weak self] in
+                await self?.loadChunkMetadataIfNeeded(for: chunk.id)
+            }
         } else {
             selectedChunkID = nil
             selectedAudioTrackID = nil
@@ -288,6 +464,87 @@ final class InteractivePlayerViewModel: ObservableObject {
         }
         audioCoordinator.load(urls: track.streamURLs, autoPlay: autoPlay)
         selectedTimingURL = track.timingURL ?? track.streamURLs.first
+    }
+
+    private func loadChunkMetadataIfNeeded(for chunkID: String) async {
+        guard let jobId, let resolver = mediaResolver else { return }
+        guard let currentMediaResponse = mediaResponse else { return }
+        guard !chunkMetadataLoaded.contains(chunkID) else { return }
+        guard !chunkMetadataLoading.contains(chunkID) else { return }
+
+        guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else { return }
+        let chunk = currentMediaResponse.chunks[index]
+        if !chunk.sentences.isEmpty {
+            chunkMetadataLoaded.insert(chunkID)
+            return
+        }
+        let metadataPath = chunk.metadataURL ?? chunk.metadataPath
+        guard let metadataPath,
+              let url = resolver.resolvePath(jobId: jobId, relativePath: metadataPath) else {
+            return
+        }
+
+        chunkMetadataLoading.insert(chunkID)
+        defer { chunkMetadataLoading.remove(chunkID) }
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let sentences: [ChunkSentenceMetadata]
+            if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: data) {
+                sentences = payload.sentences
+            } else if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: data) {
+                sentences = payload
+            } else {
+                return
+            }
+            guard !sentences.isEmpty else { return }
+
+            var updatedChunks = currentMediaResponse.chunks
+            let updatedChunk = PipelineMediaChunk(
+                chunkID: chunk.chunkID,
+                rangeFragment: chunk.rangeFragment,
+                startSentence: chunk.startSentence,
+                endSentence: chunk.endSentence,
+                files: chunk.files,
+                sentences: sentences,
+                metadataPath: chunk.metadataPath,
+                metadataURL: chunk.metadataURL,
+                sentenceCount: chunk.sentenceCount ?? sentences.count,
+                audioTracks: chunk.audioTracks
+            )
+            updatedChunks[index] = updatedChunk
+            let refreshedMedia = PipelineMediaResponse(
+                media: currentMediaResponse.media,
+                chunks: updatedChunks,
+                complete: currentMediaResponse.complete
+            )
+            let context = try JobContextBuilder.build(
+                jobId: jobId,
+                media: refreshedMedia,
+                timing: timingResponse,
+                resolver: resolver
+            )
+            mediaResponse = refreshedMedia
+            jobContext = context
+            chunkMetadataLoaded.insert(chunkID)
+        } catch {
+            return
+        }
+    }
+
+    private func resolveChunkIndex(_ chunkID: String, chunks: [PipelineMediaChunk]) -> Int? {
+        if let index = chunks.firstIndex(where: { $0.chunkID == chunkID }) {
+            return index
+        }
+        if chunkID.hasPrefix("chunk-") {
+            let raw = chunkID.replacingOccurrences(of: "chunk-", with: "")
+            if let index = Int(raw), chunks.indices.contains(index) {
+                return index
+            }
+        }
+        return nil
     }
 
     private func handlePlaybackEnded() {
@@ -345,7 +602,14 @@ struct InteractiveChunk: Identifiable {
         let displayIndex: Int?
         let originalText: String
         let translationText: String
-        let tokens: [WordTimingToken]
+        let transliterationText: String?
+        let originalTokens: [String]
+        let translationTokens: [String]
+        let transliterationTokens: [String]
+        let timingTokens: [WordTimingToken]
+        let timeline: [ChunkSentenceTimelineEvent]
+        let totalDuration: Double?
+        let phaseDurations: ChunkSentencePhaseDurations?
     }
 
     struct AudioOption: Identifiable {
@@ -469,13 +733,26 @@ enum JobContextBuilder {
                 let explicitIndex = sentence.sentenceNumber
                 let derivedIndex = chunk.startSentence.map { $0 + offset }
                 let sentenceIndex = explicitIndex ?? derivedIndex ?? offset
-                let tokens = groupedTokens[sentenceIndex] ?? []
+                let timingTokens = groupedTokens[sentenceIndex] ?? []
+                let originalText = sentence.original.text
+                let translationText = sentence.translation?.text ?? originalText
+                let transliterationText = sentence.transliteration?.text
+                let originalTokens = normaliseTokens(text: originalText, tokens: sentence.original.tokens)
+                let translationTokens = normaliseTokens(text: translationText, tokens: sentence.translation?.tokens)
+                let transliterationTokens = normaliseTokens(text: transliterationText ?? "", tokens: sentence.transliteration?.tokens)
                 return InteractiveChunk.Sentence(
                     id: sentenceIndex,
                     displayIndex: explicitIndex ?? derivedIndex,
-                    originalText: sentence.original.text,
-                    translationText: sentence.translation?.text ?? sentence.original.text,
-                    tokens: tokens
+                    originalText: originalText,
+                    translationText: translationText,
+                    transliterationText: transliterationText,
+                    originalTokens: originalTokens,
+                    translationTokens: translationTokens,
+                    transliterationTokens: transliterationTokens,
+                    timingTokens: timingTokens,
+                    timeline: sentence.timeline,
+                    totalDuration: sentence.totalDuration,
+                    phaseDurations: sentence.phaseDurations
                 )
             }
         }
@@ -485,16 +762,35 @@ enum JobContextBuilder {
         }
 
         return (start...end).map { sentenceIndex in
-            let tokens = groupedTokens[sentenceIndex] ?? []
-            let text = tokens.map { $0.displayText }.joined(separator: " ").trimmingCharacters(in: .whitespaces)
+            let timingTokens = groupedTokens[sentenceIndex] ?? []
+            let tokens = timingTokens.map { $0.displayText }.filter { !$0.isEmpty }
+            let text = tokens.joined(separator: " ").trimmingCharacters(in: .whitespaces)
             return InteractiveChunk.Sentence(
                 id: sentenceIndex,
                 displayIndex: sentenceIndex,
                 originalText: text,
                 translationText: text,
-                tokens: tokens
+                transliterationText: nil,
+                originalTokens: tokens,
+                translationTokens: tokens,
+                transliterationTokens: [],
+                timingTokens: timingTokens,
+                timeline: [],
+                totalDuration: nil,
+                phaseDurations: nil
             )
         }
+    }
+
+    private static func normaliseTokens(text: String, tokens: [String]?) -> [String] {
+        if let tokens, !tokens.isEmpty {
+            return tokens.filter { !$0.isEmpty }
+        }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return [] }
+        return trimmed
+            .split(whereSeparator: { $0.isWhitespace })
+            .map { String($0) }
     }
 
     private static func buildAudioOptions(
@@ -778,13 +1074,13 @@ extension WordTimingToken {
 
 extension InteractiveChunk.Sentence {
     var startTime: Double? {
-        guard !tokens.isEmpty else { return nil }
-        return tokens.map(\.startTime).min()
+        guard !timingTokens.isEmpty else { return nil }
+        return timingTokens.map(\.startTime).min()
     }
 
     var endTime: Double? {
-        guard !tokens.isEmpty else { return nil }
-        return tokens.map(\.endTime).max()
+        guard !timingTokens.isEmpty else { return nil }
+        return timingTokens.map(\.endTime).max()
     }
 
     func contains(time: Double) -> Bool {

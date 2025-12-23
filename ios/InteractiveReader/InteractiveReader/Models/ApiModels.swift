@@ -89,6 +89,23 @@ struct PipelineMediaResponse: Decodable {
     }
 }
 
+struct ChunkMetadataPayload: Decodable {
+    let sentences: [ChunkSentenceMetadata]
+
+    enum CodingKeys: String, CodingKey {
+        case sentences
+    }
+
+    init(sentences: [ChunkSentenceMetadata] = []) {
+        self.sentences = sentences
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sentences = (try? container.decode([ChunkSentenceMetadata].self, forKey: .sentences)) ?? []
+    }
+}
+
 struct PipelineMediaFile: Decodable, Identifiable {
     let id = UUID()
     let name: String
@@ -247,13 +264,27 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
     let original: ChunkSentenceVariant
     let translation: ChunkSentenceVariant?
     let transliteration: ChunkSentenceVariant?
+    let timeline: [ChunkSentenceTimelineEvent]
+    let totalDuration: Double?
+    let highlightGranularity: String?
+    let counts: [String: Int]
+    let phaseDurations: ChunkSentencePhaseDurations?
 
     enum CodingKeys: String, CodingKey {
         case sentenceNumber = "sentence_number"
+        case sentenceNumberCamel = "sentenceNumber"
         case original
         case translation
         case transliteration
         case text
+        case timeline
+        case totalDuration = "total_duration"
+        case highlightGranularity = "highlight_granularity"
+        case counts
+        case phaseDurations = "phase_durations"
+        case totalDurationCamel = "totalDuration"
+        case highlightGranularityCamel = "highlightGranularity"
+        case phaseDurationsCamel = "phaseDurations"
     }
 
     init(sentenceNumber: Int?, original: ChunkSentenceVariant, translation: ChunkSentenceVariant?, transliteration: ChunkSentenceVariant?) {
@@ -261,6 +292,11 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
         self.original = original
         self.translation = translation
         self.transliteration = transliteration
+        timeline = []
+        totalDuration = nil
+        highlightGranularity = nil
+        counts = [:]
+        phaseDurations = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -270,11 +306,17 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
             original = ChunkSentenceVariant(text: textValue, tokens: nil)
             translation = nil
             transliteration = nil
+            timeline = []
+            totalDuration = nil
+            highlightGranularity = nil
+            counts = [:]
+            phaseDurations = nil
             return
         }
 
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        sentenceNumber = try? container.decode(Int.self, forKey: .sentenceNumber)
+        sentenceNumber = (try? container.decode(Int.self, forKey: .sentenceNumber))
+            ?? (try? container.decode(Int.self, forKey: .sentenceNumberCamel))
 
         let originalValue = try? container.decode(ChunkSentenceVariant.self, forKey: .original)
         let translationValue = try? container.decode(ChunkSentenceVariant.self, forKey: .translation)
@@ -292,6 +334,20 @@ struct ChunkSentenceMetadata: Decodable, Identifiable {
 
         translation = translationValue
         transliteration = transliterationValue
+
+        timeline = (try? container.decode([ChunkSentenceTimelineEvent].self, forKey: .timeline)) ?? []
+        if let rawDuration = try? container.decode(Double.self, forKey: .totalDuration) {
+            totalDuration = rawDuration
+        } else if let rawDuration = try? container.decode(Double.self, forKey: .totalDurationCamel) {
+            totalDuration = rawDuration
+        } else {
+            totalDuration = nil
+        }
+        highlightGranularity = (try? container.decode(String.self, forKey: .highlightGranularity))
+            ?? (try? container.decode(String.self, forKey: .highlightGranularityCamel))
+        counts = (try? container.decode([String: Int].self, forKey: .counts)) ?? [:]
+        phaseDurations = (try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurations))
+            ?? (try? container.decode(ChunkSentencePhaseDurations.self, forKey: .phaseDurationsCamel))
     }
 }
 
@@ -320,6 +376,59 @@ struct ChunkSentenceVariant: Decodable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         text = (try? container.decode(String.self, forKey: .text)) ?? ""
         tokens = try? container.decode([String].self, forKey: .tokens)
+    }
+}
+
+struct ChunkSentenceTimelineEvent: Decodable {
+    let duration: Double
+    let originalIndex: Int
+    let translationIndex: Int
+    let transliterationIndex: Int
+
+    enum CodingKeys: String, CodingKey {
+        case duration
+        case originalIndex = "original_index"
+        case translationIndex = "translation_index"
+        case transliterationIndex = "transliteration_index"
+        case originalIndexCamel = "originalIndex"
+        case translationIndexCamel = "translationIndex"
+        case transliterationIndexCamel = "transliterationIndex"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        duration = (try? container.decode(Double.self, forKey: .duration)) ?? 0
+        originalIndex = (try? container.decode(Int.self, forKey: .originalIndex))
+            ?? (try? container.decode(Int.self, forKey: .originalIndexCamel))
+            ?? 0
+        translationIndex = (try? container.decode(Int.self, forKey: .translationIndex))
+            ?? (try? container.decode(Int.self, forKey: .translationIndexCamel))
+            ?? 0
+        transliterationIndex = (try? container.decode(Int.self, forKey: .transliterationIndex))
+            ?? (try? container.decode(Int.self, forKey: .transliterationIndexCamel))
+            ?? 0
+    }
+}
+
+struct ChunkSentencePhaseDurations: Decodable {
+    let original: Double?
+    let translation: Double?
+    let gap: Double?
+    let tail: Double?
+
+    enum CodingKeys: String, CodingKey {
+        case original
+        case translation
+        case gap
+        case tail
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        original = try? container.decode(Double.self, forKey: .original)
+        translation = try? container.decode(Double.self, forKey: .translation)
+        gap = try? container.decode(Double.self, forKey: .gap)
+        tail = try? container.decode(Double.self, forKey: .tail)
     }
 }
 
