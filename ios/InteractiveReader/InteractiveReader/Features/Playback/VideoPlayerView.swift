@@ -35,10 +35,16 @@ struct VideoPlayerView: View {
         .onAppear {
             coordinator.load(url: videoURL)
             loadSubtitles()
+            #if !os(tvOS)
+            coordinator.play()
+            #endif
         }
         .onChange(of: videoURL) { _, newURL in
             coordinator.load(url: newURL)
             loadSubtitles()
+            #if !os(tvOS)
+            coordinator.play()
+            #endif
         }
     }
 

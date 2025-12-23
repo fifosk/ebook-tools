@@ -112,7 +112,14 @@ final class NowPlayingCoordinator: ObservableObject {
         #endif
     }
 
-    func updateMetadata(title: String, artist: String?, album: String?, artworkURL: URL?) {
+    func updateMetadata(
+        title: String,
+        artist: String?,
+        album: String?,
+        artworkURL: URL?,
+        queueIndex: Int? = nil,
+        queueCount: Int? = nil
+    ) {
         #if canImport(MediaPlayer)
         metadata[MPMediaItemPropertyTitle] = title
         if let artist {
@@ -120,6 +127,16 @@ final class NowPlayingCoordinator: ObservableObject {
         }
         if let album {
             metadata[MPMediaItemPropertyAlbumTitle] = album
+        }
+        if let queueIndex, queueIndex >= 0 {
+            metadata[MPNowPlayingInfoPropertyPlaybackQueueIndex] = queueIndex
+        } else {
+            metadata.removeValue(forKey: MPNowPlayingInfoPropertyPlaybackQueueIndex)
+        }
+        if let queueCount, queueCount > 0 {
+            metadata[MPNowPlayingInfoPropertyPlaybackQueueCount] = queueCount
+        } else {
+            metadata.removeValue(forKey: MPNowPlayingInfoPropertyPlaybackQueueCount)
         }
         applyNowPlaying()
 

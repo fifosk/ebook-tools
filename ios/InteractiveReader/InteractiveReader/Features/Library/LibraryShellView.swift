@@ -91,10 +91,7 @@ struct LibraryShellView: View {
 
     private func coverURL(for item: LibraryItem) -> URL? {
         guard let apiBaseURL = appState.apiBaseURL else { return nil }
-        let resolver = MediaURLResolver(origin: .library(apiBaseURL: apiBaseURL, accessToken: appState.authToken))
-        if let coverPath = item.coverPath, let url = resolver.resolvePath(jobId: item.jobId, relativePath: coverPath) {
-            return url
-        }
-        return nil
+        let resolver = LibraryCoverResolver(apiBaseURL: apiBaseURL, accessToken: appState.authToken)
+        return resolver.resolveCoverURL(for: item)
     }
 }

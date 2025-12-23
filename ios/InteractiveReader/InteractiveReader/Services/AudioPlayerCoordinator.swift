@@ -82,6 +82,7 @@ final class AudioPlayerCoordinator: ObservableObject {
 
     func play() {
         guard let player = player else { return }
+        configureAudioSession()
         if #available(iOS 10.0, tvOS 10.0, *) {
             player.playImmediately(atRate: Float(playbackRate))
         } else {
@@ -143,7 +144,11 @@ final class AudioPlayerCoordinator: ObservableObject {
     private func configureAudioSession() {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .spokenAudio, options: [.mixWithOthers])
+        var options: AVAudioSession.CategoryOptions = [.allowAirPlay, .allowBluetooth]
+        if #available(iOS 10.0, *) {
+            options.insert(.allowBluetoothA2DP)
+        }
+        try? session.setCategory(.playback, mode: .spokenAudio, options: options)
         try? session.setActive(true)
         #endif
     }

@@ -3,11 +3,14 @@ import SwiftUI
 struct LibraryPlaybackView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.scenePhase) private var scenePhase
+    #if !os(tvOS)
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    #endif
     let item: LibraryItem
 
     @StateObject private var viewModel = InteractivePlayerViewModel()
     @StateObject private var nowPlaying = NowPlayingCoordinator()
-    @State private var activeSentenceIndex: Int?
+    @State private var sentenceIndexTracker = SentenceIndexTracker()
     @State private var showImageReel = true
 
     var body: some View {
@@ -46,16 +49,16 @@ struct LibraryPlaybackView: View {
         .task(id: item.jobId) {
             await loadEntry()
         }
-        .onChange(of: viewModel.audioCoordinator.currentTime) { _, newValue in
+        .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in
             updateNowPlayingPlayback(time: newValue)
         }
-        .onChange(of: viewModel.audioCoordinator.isPlaying) { _, _ in
+        .onReceive(viewModel.audioCoordinator.$isPlaying) { _ in
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
-        .onChange(of: viewModel.audioCoordinator.duration) { _, _ in
+        .onReceive(viewModel.audioCoordinator.$duration) { _ in
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
-        .onChange(of: viewModel.audioCoordinator.isReady) { _, _ in
+        .onReceive(viewModel.audioCoordinator.$isReady) { _ in
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
         }
         .onDisappear {
@@ -68,43 +71,11 @@ struct LibraryPlaybackView: View {
         }
     }
 
+    @ViewBuilder
     private var header: some View {
+        #if os(tvOS)
         HStack(alignment: .top, spacing: headerSpacing) {
-            HStack(alignment: .top, spacing: headerSpacing) {
-                AsyncImage(url: coverURL) { phase in
-                    if let image = phase.image {
-                        image.resizable().scaledToFill()
-                    } else {
-                        Color.gray.opacity(0.2)
-                    }
-                }
-                .frame(width: coverWidth, height: coverHeight)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
-                )
-
-                VStack(alignment: .leading, spacing: headerTextSpacing) {
-                    Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
-                        .font(titleFont)
-                        .lineLimit(titleLineLimit)
-                        .minimumScaleFactor(0.9)
-                        .truncationMode(.tail)
-                    Text(item.author.isEmpty ? "Unknown author" : item.author)
-                        .font(authorFont)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                        .foregroundStyle(.secondary)
-                    Text(itemTypeLabel)
-                        .font(metaFont)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(Color.accentColor.opacity(0.2), in: Capsule())
-                }
-            }
-
-            #if os(tvOS)
+            headerInfo
             if showImageReel, !imageReelURLs.isEmpty {
                 Spacer(minLength: 12)
                 LibraryImageReel(urls: imageReelURLs, height: coverHeight)
@@ -112,9 +83,64 @@ struct LibraryPlaybackView: View {
             } else {
                 Spacer()
             }
-            #else
-            Spacer()
-            #endif
+        }
+        #else
+        if horizontalSizeClass == .regular {
+            HStack(alignment: .top, spacing: headerSpacing) {
+                headerInfo
+                if showImageReel, !imageReelURLs.isEmpty {
+                    Spacer(minLength: 12)
+                    LibraryImageReel(urls: imageReelURLs, height: coverHeight)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                } else {
+                    Spacer()
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: headerSpacing) {
+                headerInfo
+                if showImageReel, !imageReelURLs.isEmpty {
+                    LibraryImageReel(urls: imageReelURLs, height: coverHeight)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        #endif
+    }
+
+    private var headerInfo: some View {
+        HStack(alignment: .top, spacing: headerSpacing) {
+            AsyncImage(url: coverURL) { phase in
+                if let image = phase.image {
+                    image.resizable().scaledToFill()
+                } else {
+                    Color.gray.opacity(0.2)
+                }
+            }
+            .frame(width: coverWidth, height: coverHeight)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+            )
+
+            VStack(alignment: .leading, spacing: headerTextSpacing) {
+                Text(item.bookTitle.isEmpty ? "Untitled" : item.bookTitle)
+                    .font(titleFont)
+                    .lineLimit(titleLineLimit)
+                    .minimumScaleFactor(0.9)
+                    .truncationMode(.tail)
+                Text(item.author.isEmpty ? "Unknown author" : item.author)
+                    .font(authorFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .foregroundStyle(.secondary)
+                Text(itemTypeLabel)
+                    .font(metaFont)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.2), in: Capsule())
+            }
         }
     }
 
@@ -256,10 +282,9 @@ struct LibraryPlaybackView: View {
     }
 
     private var coverURL: URL? {
-        guard let path = item.coverPath else { return nil }
         guard let apiBaseURL = appState.apiBaseURL else { return nil }
-        let resolver = MediaURLResolver(origin: .library(apiBaseURL: apiBaseURL, accessToken: appState.authToken))
-        return resolver.resolvePath(jobId: item.jobId, relativePath: path)
+        let resolver = LibraryCoverResolver(apiBaseURL: apiBaseURL, accessToken: appState.authToken)
+        return resolver.resolveCoverURL(for: item)
     }
 
     private var hasInteractiveChunks: Bool {
@@ -304,14 +329,24 @@ struct LibraryPlaybackView: View {
     @MainActor
     private func loadEntry() async {
         guard let configuration = appState.configuration else { return }
-        activeSentenceIndex = nil
+        sentenceIndexTracker.value = nil
         await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
         if isVideoPreferred {
             nowPlaying.clear()
         } else {
             configureNowPlaying()
-            updateNowPlayingMetadata()
+            updateNowPlayingMetadata(sentenceIndex: sentenceIndexTracker.value)
             updateNowPlayingPlayback(time: viewModel.audioCoordinator.currentTime)
+            #if os(tvOS)
+            if viewModel.jobContext != nil {
+                viewModel.audioCoordinator.play()
+            }
+            #endif
+            #if !os(tvOS)
+            if viewModel.jobContext != nil {
+                viewModel.audioCoordinator.play()
+            }
+            #endif
         }
     }
 
@@ -323,25 +358,29 @@ struct LibraryPlaybackView: View {
             onPrevious: { viewModel.skipSentence(forward: false) },
             onSeek: { viewModel.audioCoordinator.seek(to: $0) },
             onToggle: { viewModel.audioCoordinator.togglePlayback() },
-            onSkipForward: {
-                viewModel.skipSentence(forward: true)
-            },
-            onSkipBackward: {
-                viewModel.skipSentence(forward: false)
-            },
-            skipIntervalSeconds: 15
+            onSkipForward: nil,
+            onSkipBackward: nil
         )
     }
 
-    private func updateNowPlayingMetadata() {
-        let sentence = activeSentenceIndex.map { "Sentence \($0)" }
+    private func updateNowPlayingMetadata(sentenceIndex: Int?) {
+        let totalSentences = totalSentenceCount
+        let sentence = sentenceIndex.flatMap { index -> String? in
+            guard index > 0 else { return nil }
+            if let totalSentences, totalSentences > 0 {
+                return "Sentence \(index) of \(totalSentences)"
+            }
+            return "Sentence \(index)"
+        }
         let baseTitle = item.bookTitle.isEmpty ? "Interactive Reader" : item.bookTitle
         let title = sentence.map { "\(baseTitle) · \($0)" } ?? baseTitle
         nowPlaying.updateMetadata(
             title: title,
             artist: item.author.isEmpty ? nil : item.author,
             album: item.bookTitle.isEmpty ? nil : item.bookTitle,
-            artworkURL: coverURL
+            artworkURL: coverURL,
+            queueIndex: sentenceIndex.map { max($0 - 1, 0) },
+            queueCount: totalSentences
         )
     }
 
@@ -350,9 +389,9 @@ struct LibraryPlaybackView: View {
         let highlightTime = viewModel.highlightingTime
         if let sentence = viewModel.activeSentence(at: highlightTime) {
             let index = sentence.displayIndex ?? sentence.id
-            if activeSentenceIndex != index {
-                activeSentenceIndex = index
-                updateNowPlayingMetadata()
+            if sentenceIndexTracker.value != index {
+                sentenceIndexTracker.value = index
+                updateNowPlayingMetadata(sentenceIndex: index)
             }
         }
         let playbackDuration = viewModel.selectedChunk.flatMap { viewModel.playbackDuration(for: $0) } ?? viewModel.audioCoordinator.duration
@@ -364,6 +403,23 @@ struct LibraryPlaybackView: View {
         )
     }
 
+    private var totalSentenceCount: Int? {
+        guard let context = viewModel.jobContext else { return nil }
+        var total = 0
+        for chunk in context.chunks {
+            if let start = chunk.startSentence, let end = chunk.endSentence, end >= start {
+                total += end - start + 1
+            } else if !chunk.sentences.isEmpty {
+                total += chunk.sentences.count
+            }
+        }
+        return total > 0 ? total : nil
+    }
+
+}
+
+private final class SentenceIndexTracker {
+    var value: Int?
 }
 
 private struct LibraryImageReel: View {

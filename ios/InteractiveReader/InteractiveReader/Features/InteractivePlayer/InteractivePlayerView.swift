@@ -7,13 +7,16 @@ private enum InteractivePlayerFocusArea: Hashable {
 
 struct InteractivePlayerView: View {
     @ObservedObject var viewModel: InteractivePlayerViewModel
-    let audioCoordinator: AudioPlayerCoordinator
+    @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let showImageReel: Binding<Bool>?
-    @StateObject private var readingBedCoordinator = AudioPlayerCoordinator()
+    @State private var readingBedCoordinator = AudioPlayerCoordinator()
     @State private var readingBedEnabled = true
     @State private var scrubbedTime: Double?
     @State private var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     @State private var selectedSentenceID: Int?
+    #if os(tvOS)
+    @State private var didSetInitialFocus = false
+    #endif
     @FocusState private var focusedArea: InteractivePlayerFocusArea?
 
     private let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
@@ -25,7 +28,7 @@ struct InteractivePlayerView: View {
         showImageReel: Binding<Bool>? = nil
     ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
-        self.audioCoordinator = audioCoordinator
+        self._audioCoordinator = ObservedObject(wrappedValue: audioCoordinator)
         self.showImageReel = showImageReel
     }
 
@@ -62,6 +65,14 @@ struct InteractivePlayerView: View {
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
             configureReadingBed()
+            #if os(tvOS)
+            if !didSetInitialFocus {
+                didSetInitialFocus = true
+                Task { @MainActor in
+                    focusedArea = .transcript
+                }
+            }
+            #endif
         }
         .onChange(of: viewModel.selectedChunk?.id) { _, _ in
             guard let chunk = viewModel.selectedChunk else { return }
@@ -71,12 +82,18 @@ struct InteractivePlayerView: View {
         .onChange(of: viewModel.highlightingTime) { _, _ in
             guard focusedArea != .controls else { return }
             guard let chunk = viewModel.selectedChunk else { return }
+            if audioCoordinator.isPlaying {
+                return
+            }
             syncSelectedSentence(for: chunk)
         }
         .onChange(of: viewModel.readingBedURL) { _, _ in
             configureReadingBed()
         }
         .onChange(of: readingBedEnabled) { _, _ in
+            updateReadingBedPlayback()
+        }
+        .onChange(of: audioCoordinator.isPlaying) { _, _ in
             updateReadingBedPlayback()
         }
         .onDisappear {
@@ -115,7 +132,9 @@ struct InteractivePlayerView: View {
                 Spacer(minLength: 8)
                 PlaybackButtonRow(
                     coordinator: audioCoordinator,
-                    focusBinding: $focusedArea
+                    focusBinding: $focusedArea,
+                    onPrevious: { viewModel.skipSentence(forward: false) },
+                    onNext: { viewModel.skipSentence(forward: true) }
                 )
             }
             #if os(tvOS)
@@ -379,6 +398,10 @@ struct InteractivePlayerView: View {
             readingBedCoordinator.pause()
             return
         }
+        guard audioCoordinator.isPlaying else {
+            readingBedCoordinator.pause()
+            return
+        }
         if readingBedCoordinator.activeURL != url {
             readingBedCoordinator.load(url: url, autoPlay: true)
         } else if !readingBedCoordinator.isPlaying {
@@ -474,7 +497,13 @@ struct InteractivePlayerView: View {
     }
 
     private func applyDefaultTrackSelection(for chunk: InteractiveChunk) {
-        visibleTracks = Set(availableTracks(for: chunk))
+        let available = Set(availableTracks(for: chunk))
+        if visibleTracks.isEmpty {
+            visibleTracks = available
+        } else {
+            let intersection = visibleTracks.intersection(available)
+            visibleTracks = intersection.isEmpty ? available : intersection
+        }
         if let showImageReel {
             showImageReel.wrappedValue = hasImageReel(for: chunk)
         }
@@ -649,10 +678,21 @@ private struct InteractiveTranscriptView: View {
 private struct PlaybackButtonRow: View {
     @ObservedObject var coordinator: AudioPlayerCoordinator
     let focusBinding: FocusState<InteractivePlayerFocusArea?>.Binding
+    let onPrevious: (() -> Void)?
+    let onNext: (() -> Void)?
 
     var body: some View {
         #if os(tvOS)
         HStack(spacing: 12) {
+            if let onPrevious {
+                Button(action: onPrevious) {
+                    Image(systemName: "backward.end.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .focused(focusBinding, equals: .controls)
+            }
             Button(action: coordinator.togglePlayback) {
                 Image(systemName: coordinator.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
@@ -660,14 +700,39 @@ private struct PlaybackButtonRow: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .focused(focusBinding, equals: .controls)
+            if let onNext {
+                Button(action: onNext) {
+                    Image(systemName: "forward.end.fill")
+                        .font(.title3)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .focused(focusBinding, equals: .controls)
+            }
         }
         #else
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
+            if let onPrevious {
+                Button(action: onPrevious) {
+                    Image(systemName: "backward.end.fill")
+                        .font(.title3)
+                        .padding(8)
+                        .background(.thinMaterial, in: Circle())
+                }
+            }
             Button(action: coordinator.togglePlayback) {
                 Image(systemName: coordinator.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
                     .padding(10)
                     .background(.thinMaterial, in: Circle())
+            }
+            if let onNext {
+                Button(action: onNext) {
+                    Image(systemName: "forward.end.fill")
+                        .font(.title3)
+                        .padding(8)
+                        .background(.thinMaterial, in: Circle())
+                }
             }
         }
         #endif

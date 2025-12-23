@@ -201,3 +201,200 @@ struct MediaURLResolver {
     }
 }
 
+struct LibraryCoverResolver {
+    let apiBaseURL: URL
+    let accessToken: String?
+
+    func resolveCoverURL(for item: LibraryItem) -> URL? {
+        let resolver = MediaURLResolver(origin: .library(apiBaseURL: apiBaseURL, accessToken: accessToken))
+        for candidate in coverCandidates(for: item) {
+            let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard trimmed.nonEmptyValue != nil else { continue }
+            guard !trimmed.contains("/pipelines/") else { continue }
+            if let url = resolveCandidate(trimmed, jobId: item.jobId, resolver: resolver) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    private func coverCandidates(for item: LibraryItem) -> [String] {
+        var candidates: [String] = []
+        var seen = Set<String>()
+
+        func addCandidate(_ value: String?) {
+            guard let trimmed = value?.nonEmptyValue else { return }
+            guard !seen.contains(trimmed) else { return }
+            seen.insert(trimmed)
+            candidates.append(trimmed)
+        }
+
+        let isVideoItem = item.itemType == "video"
+        let isSubtitleItem = item.itemType == "narrated_subtitle"
+        let metadata = item.metadata
+
+        if isVideoItem || isSubtitleItem {
+            appendTvCandidates(from: metadata, add: addCandidate)
+        }
+
+        addCandidate(item.coverPath)
+
+        if let metadata {
+            if let bookMetadata = extractBookMetadata(from: metadata) {
+                addCandidate(bookMetadata["job_cover_asset"]?.stringValue)
+                addCandidate(bookMetadata["book_cover_file"]?.stringValue)
+                addCandidate(bookMetadata["job_cover_asset_url"]?.stringValue)
+            }
+            addCandidate(metadata["job_cover_asset"]?.stringValue)
+        }
+
+        if !(isVideoItem || isSubtitleItem) {
+            appendTvCandidates(from: metadata, add: addCandidate)
+        }
+
+        return candidates
+    }
+
+    private func appendTvCandidates(from metadata: [String: JSONValue]?, add: (String?) -> Void) {
+        guard let metadata else { return }
+        guard let tvMetadata = extractTvMediaMetadata(from: metadata) else { return }
+        add(resolveTvImage(from: tvMetadata, path: "episode"))
+        add(resolveTvImage(from: tvMetadata, path: "show"))
+        add(resolveYoutubeThumbnail(from: tvMetadata))
+    }
+
+    private func extractBookMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        if let direct = metadata["book_metadata"]?.objectValue {
+            return direct
+        }
+        if let result = metadata["result"]?.objectValue,
+           let nested = result["book_metadata"]?.objectValue {
+            return nested
+        }
+        return nil
+    }
+
+    private func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        let paths: [[String]] = [
+            ["result", "youtube_dub", "media_metadata"],
+            ["result", "subtitle", "metadata", "media_metadata"],
+            ["request", "media_metadata"],
+            ["media_metadata"]
+        ]
+        for path in paths {
+            if let value = nestedValue(metadata, path: path)?.objectValue {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func resolveTvImage(from tvMetadata: [String: JSONValue], path: String) -> String? {
+        guard let section = tvMetadata[path]?.objectValue else { return nil }
+        guard let imageValue = section["image"] else { return nil }
+        if let direct = imageValue.stringValue {
+            return direct
+        }
+        if let imageObject = imageValue.objectValue {
+            return imageObject["medium"]?.stringValue ?? imageObject["original"]?.stringValue
+        }
+        return nil
+    }
+
+    private func resolveYoutubeThumbnail(from tvMetadata: [String: JSONValue]) -> String? {
+        guard let youtube = tvMetadata["youtube"]?.objectValue else { return nil }
+        return youtube["thumbnail"]?.stringValue
+    }
+
+    private func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
+        var current: JSONValue = .object(source)
+        for key in path {
+            guard let object = current.objectValue, let next = object[key] else { return nil }
+            current = next
+        }
+        return current
+    }
+
+    private func resolveCandidate(_ candidate: String, jobId: String, resolver: MediaURLResolver) -> URL? {
+        let normalized = normalizeCandidate(candidate)
+        if let url = URL(string: normalized), url.scheme != nil {
+            if shouldAppendAccessToken(for: url) {
+                return resolver.resolvePath(jobId: jobId, relativePath: normalized)
+            }
+            return url
+        }
+        return resolver.resolvePath(jobId: jobId, relativePath: normalized)
+    }
+
+    private func shouldAppendAccessToken(for url: URL) -> Bool {
+        guard let host = url.host?.lowercased(),
+              let apiHost = apiBaseURL.host?.lowercased() else { return false }
+        return host == apiHost
+    }
+
+    private func normalizeCandidate(_ candidate: String) -> String {
+        let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        if trimmed.hasPrefix("//") {
+            return "https:" + trimmed
+        }
+        let lower = trimmed.lowercased()
+        if !lower.contains("://"), isYoutubeHostPath(lower) {
+            return "https://" + trimmed
+        }
+        if let url = URL(string: trimmed),
+           let scheme = url.scheme?.lowercased(),
+           scheme == "http",
+           shouldUpgradeToHTTPS(for: url),
+           var components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.scheme = "https"
+            return components.string ?? trimmed
+        }
+        return trimmed
+    }
+
+    private func shouldUpgradeToHTTPS(for url: URL) -> Bool {
+        guard let host = url.host?.lowercased() else { return false }
+        return isYoutubeHost(host)
+    }
+
+    private func isYoutubeHostPath(_ value: String) -> Bool {
+        let host = value.split(separator: "/").first.map(String.init) ?? value
+        return isYoutubeHost(host)
+    }
+
+    private func isYoutubeHost(_ host: String) -> Bool {
+        let normalized = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.hasSuffix("ytimg.com")
+            || normalized.hasSuffix("youtube.com")
+            || normalized.hasSuffix("youtu.be")
+    }
+}
+
+private extension JSONValue {
+    var objectValue: [String: JSONValue]? {
+        if case let .object(value) = self {
+            return value
+        }
+        return nil
+    }
+
+    var stringValue: String? {
+        switch self {
+        case let .string(value):
+            return value.nonEmptyValue
+        case let .number(value):
+            guard value.isFinite else { return nil }
+            return String(value).nonEmptyValue
+        case let .array(values):
+            for value in values {
+                if let string = value.stringValue {
+                    return string
+                }
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
+}
