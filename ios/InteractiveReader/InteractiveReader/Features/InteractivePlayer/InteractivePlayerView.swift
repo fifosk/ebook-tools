@@ -418,17 +418,35 @@ private struct TextPlayerVariantView: View {
 
     private var tokenLine: Text {
         var result = Text("")
-        for index in variant.tokens.indices {
+        let displayIndices = shouldReverseTokens
+            ? Array(variant.tokens.indices.reversed())
+            : Array(variant.tokens.indices)
+        for (position, index) in displayIndices.enumerated() {
             let token = variant.tokens[index]
             let tokenState = tokenState(for: index)
             let color = tokenColor(for: tokenState)
             let segment = Text(token).foregroundColor(color)
             result = result + segment
-            if index < variant.tokens.count - 1 {
+            if position < displayIndices.count - 1 {
                 result = result + Text(" ").foregroundColor(color)
             }
         }
         return result
+    }
+
+    private var shouldReverseTokens: Bool {
+        guard variant.kind == .translation else { return false }
+        return variant.tokens.contains(where: containsRTLCharacters)
+    }
+
+    private func containsRTLCharacters(_ value: String) -> Bool {
+        for scalar in value.unicodeScalars {
+            let point = scalar.value
+            if (0x0590...0x08FF).contains(point) || (0xFB1D...0xFEFF).contains(point) {
+                return true
+            }
+        }
+        return false
     }
 
     private func tokenState(for index: Int) -> TokenState {

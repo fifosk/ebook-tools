@@ -206,7 +206,9 @@ final class InteractivePlayerViewModel: ObservableObject {
         let baseTime = audioCoordinator.currentTime
         guard let track = selectedAudioOption(for: chunk) else { return baseTime }
         let urls = track.streamURLs
-        guard urls.count > 1, let activeURL = audioCoordinator.activeURL,
+        guard urls.count > 1,
+              useCombinedPhases(for: chunk),
+              let activeURL = audioCoordinator.activeURL,
               let activeIndex = urls.firstIndex(of: activeURL) else {
             return baseTime
         }
@@ -221,6 +223,9 @@ final class InteractivePlayerViewModel: ObservableObject {
             return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
         }
         if track.streamURLs.count == 1 {
+            if let activeDuration = activeTrackDuration(for: track) {
+                return activeDuration
+            }
             if let duration = track.duration, duration > 0 {
                 return duration
             }
@@ -229,14 +234,21 @@ final class InteractivePlayerViewModel: ObservableObject {
             }
             return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
         }
-        let summed = track.streamURLs.compactMap { durationForURL($0, in: chunk) }.reduce(0, +)
-        if summed > 0 {
-            return summed
+        if useCombinedPhases(for: chunk) {
+            let summed = track.streamURLs.compactMap { durationForURL($0, in: chunk) }.reduce(0, +)
+            if summed > 0 {
+                return summed
+            }
+            if let duration = track.duration, duration > 0 {
+                return duration
+            }
+            return nil
         }
-        if let duration = track.duration, duration > 0 {
-            return duration
+        if let activeURL = audioCoordinator.activeURL,
+           let activeDuration = durationForURL(activeURL, in: chunk), activeDuration > 0 {
+            return activeDuration
         }
-        return nil
+        return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
     }
 
     func timelineDuration(for chunk: InteractiveChunk) -> Double? {
@@ -244,14 +256,24 @@ final class InteractivePlayerViewModel: ObservableObject {
             return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
         }
         if track.streamURLs.count > 1 {
-            let durations = track.streamURLs.map { durationForURL($0, in: chunk) }
-            let hasMissing = durations.contains(where: { value in
-                guard let value else { return true }
-                return value <= 0
-            })
-            guard !hasMissing else { return nil }
-            let total = durations.compactMap { $0 }.reduce(0, +)
-            return total > 0 ? total : nil
+            if useCombinedPhases(for: chunk) {
+                let durations = track.streamURLs.map { durationForURL($0, in: chunk) }
+                let hasMissing = durations.contains(where: { value in
+                    guard let value else { return true }
+                    return value <= 0
+                })
+                guard !hasMissing else { return nil }
+                let total = durations.compactMap { $0 }.reduce(0, +)
+                return total > 0 ? total : nil
+            }
+            if let activeURL = audioCoordinator.activeURL,
+               let activeDuration = durationForURL(activeURL, in: chunk), activeDuration > 0 {
+                return activeDuration
+            }
+            return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
+        }
+        if let activeDuration = activeTrackDuration(for: track) {
+            return activeDuration
         }
         if let duration = track.duration, duration > 0 {
             return duration
@@ -266,6 +288,15 @@ final class InteractivePlayerViewModel: ObservableObject {
         guard let track = selectedAudioOption(for: chunk) else { return .translation }
         switch track.kind {
         case .combined:
+            if track.streamURLs.count > 1 {
+                if let activeURL = audioCoordinator.activeURL {
+                    if activeURL == track.streamURLs.first {
+                        return .original
+                    }
+                    return .translation
+                }
+                return .original
+            }
             return .mix
         case .original:
             return .original
@@ -277,7 +308,8 @@ final class InteractivePlayerViewModel: ObservableObject {
     }
 
     func useCombinedPhases(for chunk: InteractiveChunk) -> Bool {
-        activeTimingTrack(for: chunk) == .mix
+        guard let track = selectedAudioOption(for: chunk) else { return false }
+        return track.kind == .combined && track.streamURLs.count == 1
     }
 
     private func selectedAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
@@ -301,6 +333,17 @@ final class InteractivePlayerViewModel: ObservableObject {
         return nil
     }
 
+    private func activeTrackDuration(for track: InteractiveChunk.AudioOption) -> Double? {
+        guard track.streamURLs.count == 1,
+              let activeURL = audioCoordinator.activeURL,
+              activeURL == track.primaryURL else {
+            return nil
+        }
+        let duration = audioCoordinator.duration
+        guard duration.isFinite, duration > 0 else { return nil }
+        return duration
+    }
+
     func seekPlayback(to time: Double, in chunk: InteractiveChunk) {
         guard let track = selectedAudioOption(for: chunk) else {
             audioCoordinator.seek(to: time)
@@ -308,6 +351,10 @@ final class InteractivePlayerViewModel: ObservableObject {
         }
         let urls = track.streamURLs
         guard urls.count > 1 else {
+            audioCoordinator.seek(to: time)
+            return
+        }
+        if !useCombinedPhases(for: chunk) {
             audioCoordinator.seek(to: time)
             return
         }
