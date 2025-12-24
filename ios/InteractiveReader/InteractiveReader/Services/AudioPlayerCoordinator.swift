@@ -144,10 +144,7 @@ final class AudioPlayerCoordinator: ObservableObject {
     private func configureAudioSession() {
         #if os(iOS)
         let session = AVAudioSession.sharedInstance()
-        var options: AVAudioSession.CategoryOptions = [.allowAirPlay, .allowBluetooth]
-        if #available(iOS 10.0, *) {
-            options.insert(.allowBluetoothA2DP)
-        }
+        let options: AVAudioSession.CategoryOptions = [.allowAirPlay]
         try? session.setCategory(.playback, mode: .spokenAudio, options: options)
         try? session.setActive(true)
         #endif

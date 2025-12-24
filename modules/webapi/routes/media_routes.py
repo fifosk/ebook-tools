@@ -32,6 +32,7 @@ from ...images.prompting import (
     sentence_batches_to_diffusion_prompt_plan,
     sentence_to_diffusion_prompt,
 )
+from ...images.visual_prompting import GLOBAL_NEGATIVE_CANON, VisualPromptOrchestrator
 from ...images.style_templates import normalize_image_style_template
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
@@ -460,6 +461,101 @@ def _resolve_job_image_style_template(job_root: Path) -> str:
     return normalize_image_style_template(style_value)
 
 
+def _resolve_job_image_prompt_pipeline(job_root: Path) -> str:
+    manifest_path = job_root / "metadata" / "job.json"
+    if not manifest_path.exists():
+        return "prompt_plan"
+    try:
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except Exception:
+        return "prompt_plan"
+    if not isinstance(payload, Mapping):
+        return "prompt_plan"
+    request_payload = payload.get("request")
+    if not isinstance(request_payload, Mapping):
+        return "prompt_plan"
+    pipeline_overrides = request_payload.get("pipeline_overrides")
+    config_payload = request_payload.get("config")
+    raw_value = None
+    if isinstance(pipeline_overrides, Mapping):
+        raw_value = pipeline_overrides.get("image_prompt_pipeline")
+    if raw_value is None and isinstance(config_payload, Mapping):
+        raw_value = config_payload.get("image_prompt_pipeline")
+    normalized = str(raw_value or "prompt_plan").strip().lower()
+    if normalized in {"visual_canon", "visual-canon", "canon"}:
+        return "visual_canon"
+    return "prompt_plan"
+
+
+def _resolve_visual_canon_prompt(
+    *,
+    job_root: Path,
+    sentence_number: int,
+    sentence_text: str,
+) -> tuple[str, str]:
+    metadata_root = job_root / "metadata"
+    book_metadata: dict[str, Any] = {}
+    content_index_payload: Optional[Mapping[str, Any]] = None
+
+    canon_path = metadata_root / "visual_canon.json"
+    if not canon_path.exists():
+        raise ValueError("Visual canon missing for this job.")
+
+    book_path = metadata_root / "book.json"
+    if book_path.exists():
+        try:
+            loaded = json.loads(book_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, Mapping):
+                book_metadata = dict(loaded)
+        except Exception:
+            book_metadata = {}
+
+    content_index_path = metadata_root / "content_index.json"
+    if content_index_path.exists():
+        try:
+            loaded = json.loads(content_index_path.read_text(encoding="utf-8"))
+            if isinstance(loaded, Mapping):
+                content_index_payload = dict(loaded)
+        except Exception:
+            content_index_payload = None
+
+    scenes_root = metadata_root / "scenes"
+    if not scenes_root.exists() or not any(scenes_root.glob("*.json")):
+        raise ValueError("Scene metadata missing for visual canon prompts.")
+
+    total_sentences = None
+    if content_index_payload:
+        total_candidate = content_index_payload.get("total_sentences")
+        try:
+            total_sentences = int(total_candidate)
+        except (TypeError, ValueError):
+            total_sentences = None
+    if total_sentences is None:
+        for key in ("total_sentences", "book_sentence_count"):
+            try:
+                total_sentences = int(book_metadata.get(key))
+            except (TypeError, ValueError):
+                total_sentences = None
+            if total_sentences:
+                break
+    if not total_sentences:
+        raise ValueError("Total sentence count unavailable for visual canon prompt.")
+
+    dummy_sentences = [""] * total_sentences
+    orchestrator = VisualPromptOrchestrator(
+        job_root=job_root,
+        book_metadata=book_metadata,
+        full_sentences=dummy_sentences,
+        content_index=content_index_payload,
+    )
+    orchestrator.prepare()
+    result = orchestrator.build_sentence_prompt(
+        sentence_number=sentence_number,
+        sentence_text=sentence_text,
+    )
+    return result.positive_prompt, result.negative_prompt
+
+
 def _resolve_job_path(job_root: Path, relative_path: str) -> Path:
     normalized = relative_path.replace("\\", "/").strip()
     if not normalized:
@@ -723,6 +819,7 @@ async def regenerate_sentence_image(
         job_manager=job_manager,
     )
     style_template = _resolve_job_image_style_template(job_root)
+    prompt_pipeline = _resolve_job_image_prompt_pipeline(job_root)
 
     config = cfg.load_configuration(verbose=False)
     base_urls = normalize_drawthings_base_urls(
@@ -774,46 +871,82 @@ async def regenerate_sentence_image(
         context_count = _coerce_int_default(config.get("image_prompt_context_sentences"), 2)
     context_count = max(0, min(int(context_count), 50))
 
-    if use_llm_prompt or not prompt:
-        loader = MetadataLoader(job_root)
-        batch_start, batch_end = _extract_sentence_image_batch_range(sentence_entry)
-        if batch_start is not None and batch_end is not None:
-            batch_texts = await run_in_threadpool(
-                _collect_sentence_range_texts,
-                loader=loader,
-                job_root=job_root,
-                start_sentence=batch_start,
-                end_sentence=batch_end,
-            )
-            plan = await run_in_threadpool(
-                sentence_batches_to_diffusion_prompt_plan,
-                [batch_texts],
-            )
-            diffusion = plan.prompts[0] if plan.prompts else None
-            if diffusion is None:
-                sentence_text = _extract_sentence_text(sentence_entry) or ""
-                diffusion = await run_in_threadpool(sentence_to_diffusion_prompt, sentence_text, context_sentences=())
-        else:
-            sentence_text = _extract_sentence_text(sentence_entry) or ""
-            context_texts = await run_in_threadpool(
-                _collect_context_sentence_texts,
-                loader=loader,
-                job_root=job_root,
-                sentence_number=sentence_number,
-                count=context_count,
-            )
-            diffusion = await run_in_threadpool(
-                sentence_to_diffusion_prompt,
-                sentence_text,
-                context_sentences=context_texts,
-            )
+    sentence_text = _extract_sentence_text(sentence_entry) or ""
+    if prompt_pipeline == "visual_canon":
         if use_llm_prompt or not prompt:
-            prompt = (diffusion.prompt or "").strip() or (_extract_sentence_text(sentence_entry) or "").strip()
+            try:
+                prompt, negative_prompt = await run_in_threadpool(
+                    _resolve_visual_canon_prompt,
+                    job_root=job_root,
+                    sentence_number=sentence_number,
+                    sentence_text=sentence_text,
+                )
+            except Exception as exc:
+                LOGGER.warning(
+                    "Unable to rebuild visual canon prompt: %s",
+                    exc,
+                    extra={
+                        "event": "webapi.image.visual_canon.error",
+                        "attributes": {"error": str(exc)},
+                        "console_suppress": True,
+                    },
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="visual canon prompt is unavailable for this job",
+                ) from exc
+        if not prompt:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="visual canon prompt missing for this sentence",
+            )
         if not negative_prompt:
-            negative_prompt = (diffusion.negative_prompt or "").strip()
+            negative_prompt = GLOBAL_NEGATIVE_CANON
+        prompt_full = prompt
+        negative_full = negative_prompt
+    else:
+        if use_llm_prompt or not prompt:
+            loader = MetadataLoader(job_root)
+            batch_start, batch_end = _extract_sentence_image_batch_range(sentence_entry)
+            if batch_start is not None and batch_end is not None:
+                batch_texts = await run_in_threadpool(
+                    _collect_sentence_range_texts,
+                    loader=loader,
+                    job_root=job_root,
+                    start_sentence=batch_start,
+                    end_sentence=batch_end,
+                )
+                plan = await run_in_threadpool(
+                    sentence_batches_to_diffusion_prompt_plan,
+                    [batch_texts],
+                )
+                diffusion = plan.prompts[0] if plan.prompts else None
+                if diffusion is None:
+                    diffusion = await run_in_threadpool(
+                        sentence_to_diffusion_prompt,
+                        sentence_text,
+                        context_sentences=(),
+                    )
+            else:
+                context_texts = await run_in_threadpool(
+                    _collect_context_sentence_texts,
+                    loader=loader,
+                    job_root=job_root,
+                    sentence_number=sentence_number,
+                    count=context_count,
+                )
+                diffusion = await run_in_threadpool(
+                    sentence_to_diffusion_prompt,
+                    sentence_text,
+                    context_sentences=context_texts,
+                )
+            if use_llm_prompt or not prompt:
+                prompt = (diffusion.prompt or "").strip() or sentence_text.strip()
+            if not negative_prompt:
+                negative_prompt = (diffusion.negative_prompt or "").strip()
 
-    prompt_full = _ensure_prompt_suffix(prompt, style_template=style_template)
-    negative_full = _ensure_negative_suffix(negative_prompt, style_template=style_template)
+        prompt_full = _ensure_prompt_suffix(prompt, style_template=style_template)
+        negative_full = _ensure_negative_suffix(negative_prompt, style_template=style_template)
 
     client, _available_urls, unavailable_urls = resolve_drawthings_client(
         base_urls=base_urls,

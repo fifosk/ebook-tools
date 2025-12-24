@@ -169,6 +169,7 @@ class PipelineConfig:
     image_cfg_scale: float = 7.0
     image_sampler_name: Optional[str] = None
     image_style_template: str = "photorealistic"
+    image_prompt_pipeline: str = "prompt_plan"
     image_prompt_batching_enabled: bool = True
     image_prompt_batch_size: int = 10
     image_prompt_plan_batch_size: int = 50
@@ -498,6 +499,19 @@ def build_pipeline_config(
         _select_value("image_style_template", config, overrides, None)
     )
     image_style_template = image_style.template_id
+    image_prompt_pipeline_raw = _normalize_optional_str(
+        _select_value(
+            "image_prompt_pipeline",
+            config,
+            overrides,
+            os.environ.get("EBOOK_IMAGE_PROMPT_PIPELINE") or "prompt_plan",
+        )
+    )
+    normalized_pipeline = str(image_prompt_pipeline_raw or "prompt_plan").strip().lower()
+    if normalized_pipeline in {"visual_canon", "visual-canon", "canon"}:
+        image_prompt_pipeline = "visual_canon"
+    else:
+        image_prompt_pipeline = "prompt_plan"
     image_width = max(64, _coerce_int(_select_value("image_width", config, overrides, 512), 512))
     image_height = max(64, _coerce_int(_select_value("image_height", config, overrides, 512), 512))
     image_steps_default = max(1, int(image_style.default_steps))
@@ -729,6 +743,7 @@ def build_pipeline_config(
         image_cfg_scale=image_cfg_scale,
         image_sampler_name=image_sampler_name,
         image_style_template=image_style_template,
+        image_prompt_pipeline=image_prompt_pipeline,
         image_prompt_batching_enabled=image_prompt_batching_enabled,
         image_prompt_batch_size=image_prompt_batch_size,
         image_prompt_plan_batch_size=image_prompt_plan_batch_size,

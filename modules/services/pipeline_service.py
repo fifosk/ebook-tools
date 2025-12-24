@@ -380,6 +380,7 @@ def _serialize_pipeline_config(config: PipelineConfig) -> Dict[str, Any]:
         "image_cfg_scale": config.image_cfg_scale,
         "image_sampler_name": config.image_sampler_name,
         "image_style_template": getattr(config, "image_style_template", None),
+        "image_prompt_pipeline": getattr(config, "image_prompt_pipeline", None),
         "image_prompt_batching_enabled": getattr(config, "image_prompt_batching_enabled", None),
         "image_prompt_batch_size": getattr(config, "image_prompt_batch_size", None),
         "image_prompt_plan_batch_size": getattr(config, "image_prompt_plan_batch_size", None),

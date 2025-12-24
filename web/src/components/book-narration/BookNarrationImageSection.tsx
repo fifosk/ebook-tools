@@ -12,6 +12,7 @@ type BookNarrationImageSectionProps = {
   title: string;
   description: string;
   addImages: boolean;
+  imagePromptPipeline: string;
   imageStyleTemplate: string;
   imagePromptBatchingEnabled: boolean;
   imagePromptBatchSize: number;
@@ -28,6 +29,7 @@ type BookNarrationImageSectionProps = {
   imageSamplerName: string;
   imageApiTimeoutSeconds: string;
   onAddImagesChange: (value: boolean) => void;
+  onImagePromptPipelineChange: (value: string) => void;
   onImageStyleTemplateChange: (value: string) => void;
   onImagePromptBatchingEnabledChange: (value: boolean) => void;
   onImagePromptBatchSizeChange: (value: number) => void;
@@ -111,6 +113,19 @@ const IMAGE_STYLE_OPTIONS: ImageStyleOption[] = [
   }
 ];
 
+const IMAGE_PROMPT_PIPELINE_OPTIONS = [
+  {
+    id: 'prompt_plan',
+    label: 'Prompt plan',
+    description: 'Uses the style template and prompt plan batching to craft diffusion prompts.'
+  },
+  {
+    id: 'visual_canon',
+    label: 'Visual canon',
+    description: 'Builds a visual canon + scene map for continuity and uses per-sentence deltas.'
+  }
+];
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -162,6 +177,7 @@ const BookNarrationImageSection = ({
   title,
   description,
   addImages,
+  imagePromptPipeline,
   imageStyleTemplate,
   imagePromptBatchingEnabled,
   imagePromptBatchSize,
@@ -178,6 +194,7 @@ const BookNarrationImageSection = ({
   imageSamplerName,
   imageApiTimeoutSeconds,
   onAddImagesChange,
+  onImagePromptPipelineChange,
   onImageStyleTemplateChange,
   onImagePromptBatchingEnabledChange,
   onImagePromptBatchSizeChange,
@@ -194,6 +211,11 @@ const BookNarrationImageSection = ({
   onImageSamplerNameChange,
   onImageApiTimeoutSecondsChange
 }: BookNarrationImageSectionProps) => {
+  const promptPipelineValue = imagePromptPipeline === 'visual_canon' ? 'visual_canon' : 'prompt_plan';
+  const promptPipelineMeta =
+    IMAGE_PROMPT_PIPELINE_OPTIONS.find((option) => option.id === promptPipelineValue) ??
+    IMAGE_PROMPT_PIPELINE_OPTIONS[0];
+  const usesVisualCanon = promptPipelineValue === 'visual_canon';
   const style =
     IMAGE_STYLE_OPTIONS.find((option) => option.id === imageStyleTemplate) ??
     IMAGE_STYLE_OPTIONS[0];
@@ -328,6 +350,28 @@ const BookNarrationImageSection = ({
         </label>
         {addImages ? (
           <>
+            <label htmlFor={`${headingId}-image-prompt-pipeline`}>
+              Prompt pipeline
+              <select
+                id={`${headingId}-image-prompt-pipeline`}
+                name="image_prompt_pipeline"
+                value={promptPipelineValue}
+                onChange={(event) => onImagePromptPipelineChange(event.target.value)}
+              >
+                {IMAGE_PROMPT_PIPELINE_OPTIONS.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="form-help-text">{promptPipelineMeta.description}</p>
+            {usesVisualCanon ? (
+              <p className="form-help-text">
+                Visual canon ignores style templates, prompt batching, prompt context, and seed-from-previous settings;
+                it renders sequential img2img frames per scene.
+              </p>
+            ) : null}
             <label htmlFor={`${headingId}-image-style-template`}>
               Style template
               <select

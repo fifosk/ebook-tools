@@ -14,39 +14,10 @@ struct LibraryPlaybackView: View {
     @State private var showImageReel = true
 
     var body: some View {
-        VStack(alignment: .leading, spacing: rootSpacing) {
-            header
-
-            switch viewModel.loadState {
-            case .idle, .loading:
-                loadingView
-            case let .error(message):
-                errorView(message: message)
-            case .loaded:
-                if isVideoPreferred, let videoURL {
-                    VideoPlayerView(videoURL: videoURL, subtitleURL: subtitleURL)
-                        .frame(maxWidth: .infinity)
-                        .aspectRatio(16 / 9, contentMode: .fit)
-                } else if viewModel.jobContext != nil {
-                    InteractivePlayerView(
-                        viewModel: viewModel,
-                        audioCoordinator: viewModel.audioCoordinator,
-                        showImageReel: $showImageReel
-                    )
-                } else {
-                    Text("No playable media found for this entry.")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        #if os(tvOS)
-        .padding(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
-        #else
-        .padding()
-        #endif
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        bodyContent
         .navigationTitle(item.bookTitle)
         .task(id: item.jobId) {
+            @MainActor in
             await loadEntry()
         }
         .onReceive(viewModel.audioCoordinator.$currentTime) { newValue in
@@ -70,6 +41,91 @@ struct LibraryPlaybackView: View {
             }
         }
     }
+
+    @ViewBuilder
+    private var bodyContent: some View {
+        #if os(tvOS)
+        if isVideoPreferred {
+            tvVideoBody
+        } else {
+            standardBody
+        }
+        #else
+        standardBody
+        #endif
+    }
+
+    private var standardBody: some View {
+        VStack(alignment: .leading, spacing: rootSpacing) {
+            header
+
+            switch viewModel.loadState {
+            case .idle, .loading:
+                loadingView
+            case let .error(message):
+                errorView(message: message)
+            case .loaded:
+                if isVideoPreferred, let videoURL {
+                    VideoPlayerView(
+                        videoURL: videoURL,
+                        subtitleTracks: subtitleTracks,
+                        metadata: videoMetadata,
+                        autoPlay: true,
+                        nowPlaying: nowPlaying
+                    )
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                } else if viewModel.jobContext != nil {
+                    InteractivePlayerView(
+                        viewModel: viewModel,
+                        audioCoordinator: viewModel.audioCoordinator,
+                        showImageReel: $showImageReel
+                    )
+                } else {
+                    Text("No playable media found for this entry.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        #if os(tvOS)
+        .padding(EdgeInsets(top: 8, leading: 16, bottom: 12, trailing: 16))
+        #else
+        .padding()
+        #endif
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
+    #if os(tvOS)
+    private var tvVideoBody: some View {
+        ZStack {
+            switch viewModel.loadState {
+            case .idle, .loading:
+                loadingView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case let .error(message):
+                errorView(message: message)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case .loaded:
+                if let videoURL {
+                    VideoPlayerView(
+                        videoURL: videoURL,
+                        subtitleTracks: subtitleTracks,
+                        metadata: videoMetadata,
+                        autoPlay: true,
+                        nowPlaying: nowPlaying
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    Text("No playable media found for this entry.")
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+        }
+        .ignoresSafeArea()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+    #endif
 
     @ViewBuilder
     private var header: some View {
@@ -313,17 +369,46 @@ struct LibraryPlaybackView: View {
         return nil
     }
 
-    private var subtitleURL: URL? {
-        guard let files = viewModel.mediaResponse?.media["text"] else { return nil }
+    private var subtitleTracks: [VideoSubtitleTrack] {
+        guard let files = viewModel.mediaResponse?.media["text"] else { return [] }
+        var tracks: [VideoSubtitleTrack] = []
+        var seen: Set<String> = []
         for file in files {
-            let name = (file.relativePath ?? file.path ?? file.name).lowercased()
-            if name.hasSuffix(".vtt") || name.hasSuffix(".srt") {
-                if let url = viewModel.resolveMediaURL(for: file) {
-                    return url
-                }
+            guard let url = viewModel.resolveMediaURL(for: file) else { continue }
+            let sourcePath = file.relativePath ?? file.path ?? file.name
+            let format = SubtitleParser.format(for: sourcePath)
+            guard format != .unknown else { continue }
+            let id = (sourcePath.nonEmptyValue ?? url.absoluteString)
+            guard !seen.contains(id) else { continue }
+            seen.insert(id)
+            let label = subtitleTrackLabel(for: file, fallback: "Subtitle \(tracks.count + 1)")
+            tracks.append(VideoSubtitleTrack(id: id, url: url, format: format, label: label))
+        }
+        return tracks
+    }
+
+    private func subtitleTrackLabel(for file: PipelineMediaFile, fallback: String) -> String {
+        let raw = (file.name.nonEmptyValue ?? file.relativePath?.nonEmptyValue ?? file.path?.nonEmptyValue)
+        let filename = raw?.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? fallback
+        if let dotIndex = filename.lastIndex(of: ".") {
+            let stem = filename[..<dotIndex]
+            if !stem.isEmpty {
+                return String(stem)
             }
         }
-        return nil
+        return filename
+    }
+
+    private var videoMetadata: VideoPlaybackMetadata {
+        let title = item.bookTitle.isEmpty ? "Video" : item.bookTitle
+        let subtitle = item.author.isEmpty ? nil : item.author
+        return VideoPlaybackMetadata(
+            title: title,
+            subtitle: subtitle,
+            artist: subtitle,
+            album: item.bookTitle.isEmpty ? nil : item.bookTitle,
+            artworkURL: coverURL
+        )
     }
 
     @MainActor

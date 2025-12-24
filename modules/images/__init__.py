@@ -11,6 +11,10 @@ from .drawthings import (
     probe_drawthings_base_urls,
     resolve_drawthings_client,
 )
+from .visual_prompting import (
+    GLOBAL_NEGATIVE_CANON,
+    VisualPromptOrchestrator,
+)
 
 __all__ = [
     "DrawThingsClient",
@@ -19,7 +23,9 @@ __all__ = [
     "DrawThingsImageRequest",
     "DrawThingsImageToImageRequest",
     "DrawThingsClientLike",
+    "GLOBAL_NEGATIVE_CANON",
     "normalize_drawthings_base_urls",
     "probe_drawthings_base_urls",
     "resolve_drawthings_client",
+    "VisualPromptOrchestrator",
 ]

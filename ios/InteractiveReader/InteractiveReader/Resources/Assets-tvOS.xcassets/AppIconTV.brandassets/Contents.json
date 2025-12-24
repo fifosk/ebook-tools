@@ -1,0 +1,11 @@
+{
+  "properties" : {
+    "primaryAppIcon" : "App Icon",
+    "topShelfImage" : "Top Shelf Image",
+    "topShelfImageWide" : "Top Shelf Image Wide"
+  },
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

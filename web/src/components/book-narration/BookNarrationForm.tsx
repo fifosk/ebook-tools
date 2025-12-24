@@ -232,6 +232,7 @@ type FormState = {
   output_pdf: boolean;
   generate_video: boolean;
   add_images: boolean;
+  image_prompt_pipeline: string;
   image_style_template: string;
   image_prompt_batching_enabled: boolean;
   image_prompt_batch_size: number;
@@ -262,6 +263,7 @@ type FormState = {
 
 type ImageDefaults = {
   add_images: boolean;
+  image_prompt_pipeline?: string;
   image_style_template: string;
   image_prompt_context_sentences: number;
   image_width: string;
@@ -270,6 +272,7 @@ type ImageDefaults = {
 
 const IMAGE_DEFAULT_FIELDS = new Set<keyof FormState>([
   'add_images',
+  'image_prompt_pipeline',
   'image_style_template',
   'image_prompt_context_sentences',
   'image_width',
@@ -297,6 +300,7 @@ const DEFAULT_FORM_STATE: FormState = {
   output_pdf: false,
   generate_video: false,
   add_images: false,
+  image_prompt_pipeline: 'prompt_plan',
   image_style_template: 'comics',
   image_prompt_batching_enabled: true,
   image_prompt_batch_size: 10,
@@ -451,6 +455,23 @@ function normalizeBaseUrls(values: string[]): string[] {
     cleaned.push(normalized);
   }
   return cleaned;
+}
+
+function normalizeImagePromptPipeline(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  if (normalized === 'visual_canon' || normalized === 'visual-canon' || normalized === 'canon') {
+    return 'visual_canon';
+  }
+  if (normalized === 'prompt_plan' || normalized === 'prompt-plan' || normalized === 'plan') {
+    return 'prompt_plan';
+  }
+  return 'prompt_plan';
 }
 
 async function resolveImageBaseUrlsForSubmission(values: string[]): Promise<string[]> {
@@ -639,6 +660,11 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
   const addImages = config['add_images'];
   if (typeof addImages === 'boolean') {
     next.add_images = addImages;
+  }
+
+  const imagePromptPipeline = normalizeImagePromptPipeline(config['image_prompt_pipeline']);
+  if (imagePromptPipeline) {
+    next.image_prompt_pipeline = imagePromptPipeline;
   }
 
   const imageStyleTemplate = config['image_style_template'];
@@ -915,6 +941,14 @@ export function BookNarrationForm({
       };
       if (!hasPrefillAddImages && !edited.has('add_images') && state.add_images !== imageDefaults.add_images) {
         merge({ add_images: imageDefaults.add_images });
+      }
+      const defaultPromptPipeline = normalizeImagePromptPipeline(imageDefaults.image_prompt_pipeline);
+      if (
+        defaultPromptPipeline &&
+        !edited.has('image_prompt_pipeline') &&
+        state.image_prompt_pipeline !== defaultPromptPipeline
+      ) {
+        merge({ image_prompt_pipeline: defaultPromptPipeline });
       }
       if (!edited.has('image_style_template') && state.image_style_template !== imageDefaults.image_style_template) {
         merge({ image_style_template: imageDefaults.image_style_template });
@@ -1831,6 +1865,9 @@ export function BookNarrationForm({
             if (editedImageFields.has('add_images')) {
               restored.add_images = previous.add_images;
             }
+            if (editedImageFields.has('image_prompt_pipeline')) {
+              restored.image_prompt_pipeline = previous.image_prompt_pipeline;
+            }
             if (editedImageFields.has('image_style_template')) {
               restored.image_style_template = previous.image_style_template;
             }
@@ -2630,6 +2667,8 @@ export function BookNarrationForm({
         pipelineOverrides.audio_bitrate_kbps = Math.max(32, Math.trunc(audioBitrate));
       }
       if (formState.add_images) {
+        pipelineOverrides.image_prompt_pipeline =
+          normalizeImagePromptPipeline(formState.image_prompt_pipeline) ?? 'prompt_plan';
         if (typeof formState.image_style_template === 'string' && formState.image_style_template.trim()) {
           pipelineOverrides.image_style_template = formState.image_style_template.trim();
         }
@@ -2986,6 +3025,7 @@ export function BookNarrationForm({
             title={sectionMeta.images.title}
             description={sectionMeta.images.description}
             addImages={formState.add_images}
+            imagePromptPipeline={formState.image_prompt_pipeline}
             imageStyleTemplate={formState.image_style_template}
             imagePromptBatchingEnabled={formState.image_prompt_batching_enabled}
             imagePromptBatchSize={formState.image_prompt_batch_size}
@@ -3002,6 +3042,7 @@ export function BookNarrationForm({
             imageSamplerName={formState.image_sampler_name}
             imageApiTimeoutSeconds={formState.image_api_timeout_seconds}
             onAddImagesChange={(value) => handleChange('add_images', value)}
+            onImagePromptPipelineChange={(value) => handleChange('image_prompt_pipeline', value)}
             onImageStyleTemplateChange={(value) => handleChange('image_style_template', value)}
             onImagePromptBatchingEnabledChange={(value) => handleChange('image_prompt_batching_enabled', value)}
             onImagePromptBatchSizeChange={(value) => handleChange('image_prompt_batch_size', value)}

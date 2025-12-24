@@ -61,6 +61,7 @@ from modules.images.prompting import (
     sentences_to_diffusion_prompt_plan,
     stable_diffusion_seed,
 )
+from modules.images.visual_prompting import VisualPromptOrchestrator
 
 
 @dataclass
@@ -148,6 +149,7 @@ class _SentenceImageResult:
     relative_path: str
     prompt: str
     negative_prompt: str
+    extra: dict[str, Any] = field(default_factory=dict)
 
 
 class _ImageGenerationState:
@@ -222,8 +224,10 @@ class _ImageGenerationState:
                             continue
                         preserved[key] = value
 
+                extra_payload = image.extra if isinstance(image.extra, dict) else {}
                 image_payload: dict[str, Any] = {
                     **preserved,
+                    **extra_payload,
                     "path": image.relative_path,
                     "prompt": image.prompt,
                 }
@@ -439,6 +443,7 @@ class RenderPipeline:
                     exporter=exporter,
                     base_dir=base_dir,
                     base_name=base_name,
+                    book_metadata=book_metadata,
                     full_sentences=refined_list,
                     sentences=selected_sentences,
                     start_sentence=start_sentence,
@@ -1004,6 +1009,7 @@ class RenderPipeline:
         exporter: BatchExporter,
         base_dir: str,
         base_name: str,
+        book_metadata: Mapping[str, Any],
         full_sentences: Sequence[str],
         sentences: Sequence[str],
         start_sentence: int,
@@ -1060,12 +1066,21 @@ class RenderPipeline:
         image_executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
         image_futures: set[concurrent.futures.Future] = set()
         image_client: Optional[DrawThingsClientLike] = None
+        visual_prompt_orchestrator: Optional[VisualPromptOrchestrator] = None
         image_base_urls = list(self._config.image_api_base_urls or ())
         if not image_base_urls and self._config.image_api_base_url:
             image_base_urls.append(self._config.image_api_base_url)
         image_cluster_nodes: list[dict[str, object]] = []
         image_cluster_available: list[str] = []
         image_cluster_unavailable: list[str] = []
+        image_prompt_pipeline = str(
+            getattr(self._config, "image_prompt_pipeline", "prompt_plan") or "prompt_plan"
+        ).strip().lower()
+        use_visual_canon_pipeline = image_prompt_pipeline in {"visual_canon", "visual-canon", "canon"}
+        final_sentence_number = start_sentence + max(total_refined - 1, 0)
+        base_dir_path = Path(base_dir)
+        media_root = _resolve_media_root(base_dir_path)
+        job_root = _resolve_job_root(media_root)
         if generate_images:
             image_state = _ImageGenerationState()
             state.image_state = image_state
@@ -1101,13 +1116,23 @@ class RenderPipeline:
                     image_client = None
             else:
                 logger.warning(
-                    "Image generation enabled but image_api_base_url(s) are not configured."
+                    "Image generation enabled but image_api_base_url(s) are not configured.",
+                    extra={
+                        "event": "pipeline.image.missing_base_url",
+                        "attributes": {
+                            "image_prompt_pipeline": image_prompt_pipeline,
+                            "image_api_base_url": self._config.image_api_base_url,
+                            "image_api_base_urls": list(self._config.image_api_base_urls or ()),
+                            "add_images": bool(generate_images),
+                        },
+                        "console_suppress": True,
+                    },
                 )
                 if self._progress is not None:
                     self._progress.record_retry("image", "missing_base_url")
 
             if image_client is not None:
-                max_workers = max(1, int(self._config.image_concurrency or 1))
+                max_workers = 1 if use_visual_canon_pipeline else max(1, int(self._config.image_concurrency or 1))
                 image_executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)
 
             if image_base_urls:
@@ -1154,10 +1179,55 @@ class RenderPipeline:
         if generate_images and image_cluster_nodes:
             _update_image_cluster_stats()
 
+        if generate_images and use_visual_canon_pipeline:
+            if job_root is None:
+                logger.warning(
+                    "Visual canon pipeline enabled but job root is unavailable; skipping image prompting.",
+                    extra={
+                        "event": "pipeline.image.visual_canon.missing_job_root",
+                        "console_suppress": True,
+                    },
+                )
+                use_visual_canon_pipeline = False
+            elif image_client is not None:
+                content_index_payload = None
+                raw_content_index = book_metadata.get("content_index")
+                if isinstance(raw_content_index, Mapping):
+                    content_index_payload = dict(raw_content_index)
+                else:
+                    content_index_path = job_root / "metadata" / "content_index.json"
+                    if content_index_path.exists():
+                        try:
+                            loaded = json.loads(content_index_path.read_text(encoding="utf-8"))
+                            if isinstance(loaded, Mapping):
+                                content_index_payload = dict(loaded)
+                        except Exception:
+                            content_index_payload = None
+                try:
+                    visual_prompt_orchestrator = VisualPromptOrchestrator(
+                        job_root=job_root,
+                        book_metadata=book_metadata,
+                        full_sentences=full_sentences,
+                        content_index=content_index_payload,
+                        scope_start_sentence=start_sentence,
+                        scope_end_sentence=final_sentence_number,
+                        lazy_scenes=True,
+                    )
+                    visual_prompt_orchestrator.prepare()
+                except Exception as exc:
+                    logger.warning(
+                        "Unable to prepare visual canon prompts: %s",
+                        exc,
+                        extra={
+                            "event": "pipeline.image.visual_canon.error",
+                            "attributes": {"error": str(exc)},
+                            "console_suppress": True,
+                        },
+                    )
+                    visual_prompt_orchestrator = None
+                    use_visual_canon_pipeline = False
+
         target_sentences = [str(entry) for entry in (sentences or ())]
-        base_dir_path = Path(base_dir)
-        media_root = _resolve_media_root(base_dir_path)
-        final_sentence_number = start_sentence + max(total_refined - 1, 0)
         prompt_context_window = max(0, int(getattr(self._config, "image_prompt_context_sentences", 0) or 0))
         recent_prompt_sentences: deque[str] = deque(maxlen=prompt_context_window)
         image_prompt_batching_enabled = bool(
@@ -1169,6 +1239,14 @@ class RenderPipeline:
         )
         image_prompt_batch_size = min(image_prompt_batch_size, 50)
         if not image_prompt_batching_enabled:
+            image_prompt_batch_size = 1
+        if use_visual_canon_pipeline:
+            if image_prompt_batch_size != 1:
+                logger.info(
+                    "Visual canon prompting forces image_prompt_batch_size=1 (was %s).",
+                    image_prompt_batch_size,
+                )
+            image_prompt_batching_enabled = False
             image_prompt_batch_size = 1
         image_prompt_plan_batch_size = max(
             1,
@@ -1227,7 +1305,7 @@ class RenderPipeline:
         baseline_seed_image_path: Optional[Path] = None
         baseline_seed_relative_path: Optional[str] = None
         baseline_seed_error: Optional[str] = None
-        img2img_capability = {"enabled": image_seed_with_previous_image}
+        img2img_capability = {"enabled": True if use_visual_canon_pipeline else image_seed_with_previous_image}
         img2img_capability_lock = threading.Lock()
         prompt_plan_lock = threading.Lock()
         prompt_plan_ready = threading.Event()
@@ -1237,7 +1315,7 @@ class RenderPipeline:
         prompt_plan_ready_queue: queue.Queue[list[int]] = queue.Queue()
         translation_thread = None
 
-        if image_executor is not None and image_client is not None and generate_images:
+        if image_executor is not None and image_client is not None and generate_images and not use_visual_canon_pipeline:
             context_window = max(
                 0,
                 int(getattr(self._config, "image_prompt_context_sentences", 0) or 0),
@@ -1675,6 +1753,8 @@ class RenderPipeline:
 
             prompt_plan_executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
             prompt_plan_future = prompt_plan_executor.submit(_build_prompt_plan)
+        elif use_visual_canon_pipeline:
+            prompt_plan_ready.set()
 
         target_sequence = build_target_sequence(
             target_languages,
@@ -1708,6 +1788,7 @@ class RenderPipeline:
             *,
             sentence_number: int,
             sentence_for_prompt: str,
+            sentence_text: str,
             context_sentences: tuple[str, ...] = (),
         ) -> None:
             nonlocal previous_image_future
@@ -1773,6 +1854,7 @@ class RenderPipeline:
             def _generate_image(
                 *,
                 sentence_for_prompt: str = sentence_for_prompt,
+                sentence_text: str = sentence_text,
                 context_sentences: tuple[str, ...] = context_sentences,
                 image_key_sentence_number: int = image_key_sentence_number,
                 applies_sentence_numbers: tuple[int, ...] = applies_sentence_numbers,
@@ -1790,85 +1872,121 @@ class RenderPipeline:
             ) -> list[_SentenceImageResult]:
                 success = False
                 try:
-                    diffusion = image_prompt_plan.get(image_key_sentence_number)
-                    if diffusion is None:
-                        diffusion = DiffusionPrompt(prompt=str(sentence_for_prompt).strip())
-                    scene_description = (diffusion.prompt or "").strip() or (sentence_for_prompt or "").strip()
-                    negative = (diffusion.negative_prompt or "").strip()
-                    current_source = image_prompt_sources.get(image_key_sentence_number) or ""
-                    baseline_scene = (baseline_prompt.prompt or "").strip()
-                    baseline_negative = (baseline_prompt.negative_prompt or "").strip()
-
-                    with img2img_capability_lock:
-                        allow_img2img = bool(img2img_capability.get("enabled"))
-
-                    use_baseline_fallback = (
-                        allow_img2img
-                        and current_source == "fallback"
-                        and previous_seed_future is None
-                        and bool(baseline_scene)
-                    )
-                    if use_baseline_fallback:
-                        scene_description = baseline_scene
-                        negative = baseline_negative
-                    prompt_full = build_sentence_image_prompt(
-                        scene_description,
-                        style_template=image_style_template,
-                    )
-                    negative_full = build_sentence_image_negative_prompt(
-                        negative,
-                        style_template=image_style_template,
-                    )
-                    seed_source = image_prompt_seed_sources.get(image_key_sentence_number)
-                    if use_baseline_fallback and baseline_scene:
-                        seed = stable_diffusion_seed(baseline_scene)
+                    prompt_extra: dict[str, Any] = {}
+                    denoise_strength = 0.5
+                    if visual_prompt_orchestrator is not None:
+                        prompt_result = visual_prompt_orchestrator.build_sentence_prompt(
+                            sentence_number=image_key_sentence_number,
+                            sentence_text=sentence_text,
+                        )
+                        prompt_full = prompt_result.positive_prompt
+                        negative_full = prompt_result.negative_prompt
+                        with img2img_capability_lock:
+                            allow_img2img = bool(img2img_capability.get("enabled"))
+                        if prompt_result.generation_mode != "img2img":
+                            allow_img2img = False
+                        elif not allow_img2img:
+                            raise ValueError("txt2img used mid-scene")
+                        seed = stable_diffusion_seed(prompt_full or sentence_text)
+                        seed_image_path = prompt_result.init_image
+                        denoise_strength = float(prompt_result.denoise_strength)
+                        init_relative = (
+                            _job_relative_path(seed_image_path, base_dir=base_dir_path)
+                            if seed_image_path is not None
+                            else None
+                        )
+                        prompt_extra = {
+                            "scene_id": prompt_result.scene_id,
+                            "sentence_index": int(prompt_result.sentence_index),
+                            "sentence_delta": prompt_result.sentence_delta,
+                            "generation_mode": prompt_result.generation_mode,
+                            "init_image": init_relative,
+                            "denoise_strength": denoise_strength,
+                            "reuse_previous_image": bool(prompt_result.reuse_previous_image),
+                        }
                     else:
-                        seed = stable_diffusion_seed(seed_source or sentence_for_prompt)
+                        diffusion = image_prompt_plan.get(image_key_sentence_number)
+                        if diffusion is None:
+                            diffusion = DiffusionPrompt(prompt=str(sentence_for_prompt).strip())
+                        scene_description = (diffusion.prompt or "").strip() or (sentence_for_prompt or "").strip()
+                        negative = (diffusion.negative_prompt or "").strip()
+                        current_source = image_prompt_sources.get(image_key_sentence_number) or ""
+                        baseline_scene = (baseline_prompt.prompt or "").strip()
+                        baseline_negative = (baseline_prompt.negative_prompt or "").strip()
 
-                    seed_image_path: Optional[Path] = None
-                    if allow_img2img and previous_seed_future is not None:
-                        try:
-                            previous_seed_future.result()
-                            if image_prompt_batch_size > 1:
-                                candidate = (
-                                    media_root
-                                    / "images"
-                                    / "batches"
-                                    / f"batch_{previous_key_sentence_number:05d}.png"
-                                )
-                            else:
-                                prev_offset = max(previous_key_sentence_number - start_sentence, 0)
-                                prev_chunk_start = start_sentence + (
-                                    prev_offset // max(1, sentences_per_file)
-                                ) * max(1, sentences_per_file)
-                                prev_chunk_end = min(
-                                    prev_chunk_start + max(1, sentences_per_file) - 1,
-                                    final_sentence_number,
-                                )
-                                prev_range_fragment = output_formatter.format_sentence_range(
-                                    prev_chunk_start, prev_chunk_end, total_fully
-                                )
-                                candidate = (
-                                    media_root
-                                    / "images"
-                                    / prev_range_fragment
-                                    / f"sentence_{previous_key_sentence_number:05d}.png"
-                                )
-                            if candidate.exists():
-                                seed_image_path = candidate
-                        except Exception:
-                            seed_image_path = None
+                        with img2img_capability_lock:
+                            allow_img2img = bool(img2img_capability.get("enabled"))
 
-                    if (
-                        seed_image_path is None
-                        and allow_img2img
-                        and baseline_seed_image_path is not None
-                        and baseline_seed_image_path.exists()
-                    ):
-                        seed_image_path = baseline_seed_image_path
+                        use_baseline_fallback = (
+                            allow_img2img
+                            and current_source == "fallback"
+                            and previous_seed_future is None
+                            and bool(baseline_scene)
+                        )
+                        if use_baseline_fallback:
+                            scene_description = baseline_scene
+                            negative = baseline_negative
+                        prompt_full = build_sentence_image_prompt(
+                            scene_description,
+                            style_template=image_style_template,
+                        )
+                        negative_full = build_sentence_image_negative_prompt(
+                            negative,
+                            style_template=image_style_template,
+                        )
+                        seed_source = image_prompt_seed_sources.get(image_key_sentence_number)
+                        if use_baseline_fallback and baseline_scene:
+                            seed = stable_diffusion_seed(baseline_scene)
+                        else:
+                            seed = stable_diffusion_seed(seed_source or sentence_for_prompt)
+
+                        seed_image_path = None
+                        if allow_img2img and previous_seed_future is not None:
+                            try:
+                                previous_seed_future.result()
+                                if image_prompt_batch_size > 1:
+                                    candidate = (
+                                        media_root
+                                        / "images"
+                                        / "batches"
+                                        / f"batch_{previous_key_sentence_number:05d}.png"
+                                    )
+                                else:
+                                    prev_offset = max(previous_key_sentence_number - start_sentence, 0)
+                                    prev_chunk_start = start_sentence + (
+                                        prev_offset // max(1, sentences_per_file)
+                                    ) * max(1, sentences_per_file)
+                                    prev_chunk_end = min(
+                                        prev_chunk_start + max(1, sentences_per_file) - 1,
+                                        final_sentence_number,
+                                    )
+                                    prev_range_fragment = output_formatter.format_sentence_range(
+                                        prev_chunk_start, prev_chunk_end, total_fully
+                                    )
+                                    candidate = (
+                                        media_root
+                                        / "images"
+                                        / prev_range_fragment
+                                        / f"sentence_{previous_key_sentence_number:05d}.png"
+                                    )
+                                if candidate.exists():
+                                    seed_image_path = candidate
+                            except Exception:
+                                seed_image_path = None
+
+                        if (
+                            seed_image_path is None
+                            and allow_img2img
+                            and baseline_seed_image_path is not None
+                            and baseline_seed_image_path.exists()
+                        ):
+                            seed_image_path = baseline_seed_image_path
 
                     blank_detection_enabled = bool(
                         getattr(self._config, "image_blank_detection_enabled", False)
+                    )
+                    visual_img2img_required = (
+                        visual_prompt_orchestrator is not None and seed_image_path is not None
                     )
                     max_image_retries = 2
                     images_dir.mkdir(parents=True, exist_ok=True)
@@ -1917,7 +2035,7 @@ class RenderPipeline:
                                         prompt=prompt_full,
                                         negative_prompt=negative_full,
                                         init_image=seed_image_path.read_bytes(),
-                                        denoising_strength=0.5,
+                                        denoising_strength=denoise_strength,
                                         width=int(self._config.image_width or 512),
                                         height=int(self._config.image_height or 512),
                                         steps=int(self._config.image_steps or 24),
@@ -1935,6 +2053,11 @@ class RenderPipeline:
                                     ):
                                         with img2img_capability_lock:
                                             img2img_capability["enabled"] = False
+                                        if visual_prompt_orchestrator is not None:
+                                            visual_prompt_orchestrator.mark_img2img_unavailable()
+                                            raise
+                                    if visual_prompt_orchestrator is not None:
+                                        raise
                                     image_bytes = _txt2img()
                             else:
                                 image_bytes = _txt2img()
@@ -1955,7 +2078,8 @@ class RenderPipeline:
                                 ):
                                     if self._progress is not None:
                                         self._progress.record_retry("image", "blank_image")
-                                    seed_image_path = None
+                                    if not visual_img2img_required:
+                                        seed_image_path = None
                                     continue
                                 output = io.BytesIO()
                                 converted.save(output, format="PNG")
@@ -1966,13 +2090,26 @@ class RenderPipeline:
                             if attempt < max_image_retries:
                                 if self._progress is not None:
                                     self._progress.record_retry("image", "invalid_image_bytes")
-                                seed_image_path = None
+                                if not visual_img2img_required:
+                                    seed_image_path = None
                                 continue
                             break
 
                     if last_raw_bytes is not None:
                         image_path.write_bytes(last_raw_bytes)
                     relative_path = _job_relative_path(image_path, base_dir=base_dir_path)
+                    if visual_prompt_orchestrator is not None:
+                        try:
+                            visual_prompt_orchestrator.record_image_path(
+                                sentence_number=image_key_sentence_number,
+                                relative_path=relative_path,
+                                image_path=image_path,
+                            )
+                        except Exception:
+                            logger.debug(
+                                "Unable to record visual canon scene image path.",
+                                exc_info=True,
+                            )
                     results: list[_SentenceImageResult] = []
                     for sentence_number in applies_sentence_numbers:
                         offset = max(sentence_number - start_sentence, 0)
@@ -1997,6 +2134,7 @@ class RenderPipeline:
                                 relative_path=relative_path,
                                 prompt=prompt_full,
                                 negative_prompt=negative_full,
+                                extra=dict(prompt_extra),
                             )
                         )
                     success = True
@@ -2123,7 +2261,7 @@ class RenderPipeline:
                                     audio_tracks=snapshot.get("audio_tracks") or None,
                                     timing_tracks=snapshot.get("timing_tracks") or None,
                                 )
-                if pending_image_keys and not pipeline_stop_event.is_set():
+                if pending_image_keys and not pipeline_stop_event.is_set() and not use_visual_canon_pipeline:
                     ready_numbers = sorted(_pop_ready_image_keys())
                     for sentence_number in ready_numbers:
                         offset_start = sentence_number - start_sentence
@@ -2146,6 +2284,7 @@ class RenderPipeline:
                         _submit_sentence_image(
                             sentence_number=sentence_number,
                             sentence_for_prompt=fallback_prompt_text,
+                            sentence_text=str(target_sentences[offset_start]).strip(),
                         )
                 if pipeline_stop_event.is_set() and not buffered_results:
                     cancelled = state.processed < total_refined
@@ -2342,14 +2481,15 @@ class RenderPipeline:
                                 fallback_prompt_text = "Batch narrative:\n" + "\n".join(
                                     f"- {entry}" for entry in batch_items
                                 )
-                        if not _prompt_plan_has_key(image_key_sentence_number):
-                            pending_image_keys.add(image_key_sentence_number)
-                        else:
+                        if use_visual_canon_pipeline or _prompt_plan_has_key(image_key_sentence_number):
                             _submit_sentence_image(
                                 sentence_number=image_key_sentence_number,
                                 sentence_for_prompt=fallback_prompt_text,
+                                sentence_text=str(item.sentence or "").strip(),
                                 context_sentences=context_sentences,
                             )
+                        else:
+                            pending_image_keys.add(image_key_sentence_number)
 
                     recent_prompt_sentences.append(str(sentence_for_prompt or "").strip())
 
@@ -2408,6 +2548,7 @@ class RenderPipeline:
                 and image_executor is not None
                 and image_state is not None
                 and image_client is not None
+                and not use_visual_canon_pipeline
                 and not pipeline_stop_event.is_set()
             ):
                 if prompt_plan_future is not None and not prompt_plan_ready.is_set():
@@ -2441,6 +2582,7 @@ class RenderPipeline:
                     _submit_sentence_image(
                         sentence_number=sentence_number,
                         sentence_for_prompt=fallback_prompt_text,
+                        sentence_text=str(target_sentences[offset_start]).strip(),
                     )
         except KeyboardInterrupt:
             console_warning(

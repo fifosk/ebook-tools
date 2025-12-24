@@ -27,8 +27,8 @@ final class NowPlayingCoordinator: ObservableObject {
     func configureRemoteCommands(
         onPlay: @escaping () -> Void,
         onPause: @escaping () -> Void,
-        onNext: @escaping () -> Void,
-        onPrevious: @escaping () -> Void,
+        onNext: (() -> Void)?,
+        onPrevious: (() -> Void)?,
         onSeek: @escaping (Double) -> Void,
         onToggle: (() -> Void)? = nil,
         onSkipForward: (() -> Void)? = nil,
@@ -97,8 +97,8 @@ final class NowPlayingCoordinator: ObservableObject {
         center.playCommand.isEnabled = true
         center.pauseCommand.isEnabled = true
         center.togglePlayPauseCommand.isEnabled = true
-        center.nextTrackCommand.isEnabled = true
-        center.previousTrackCommand.isEnabled = true
+        center.nextTrackCommand.isEnabled = onNext != nil
+        center.previousTrackCommand.isEnabled = onPrevious != nil
         center.changePlaybackPositionCommand.isEnabled = true
         let skipInterval = max(skipIntervalSeconds, 1)
         center.skipForwardCommand.isEnabled = onSkipForward != nil
@@ -118,7 +118,8 @@ final class NowPlayingCoordinator: ObservableObject {
         album: String?,
         artworkURL: URL?,
         queueIndex: Int? = nil,
-        queueCount: Int? = nil
+        queueCount: Int? = nil,
+        mediaType: MPNowPlayingInfoMediaType? = nil
     ) {
         #if canImport(MediaPlayer)
         metadata[MPMediaItemPropertyTitle] = title
@@ -127,6 +128,11 @@ final class NowPlayingCoordinator: ObservableObject {
         }
         if let album {
             metadata[MPMediaItemPropertyAlbumTitle] = album
+        }
+        if let mediaType {
+            metadata[MPNowPlayingInfoPropertyMediaType] = mediaType.rawValue
+        } else {
+            metadata.removeValue(forKey: MPNowPlayingInfoPropertyMediaType)
         }
         if let queueIndex, queueIndex >= 0 {
             metadata[MPNowPlayingInfoPropertyPlaybackQueueIndex] = queueIndex

@@ -13,15 +13,26 @@ final class VideoPlayerCoordinator: ObservableObject {
     private var timeControlObservation: NSKeyValueObservation?
     private var endObserver: NSObjectProtocol?
 
-    func load(url: URL) {
+    func load(url: URL, autoPlay: Bool = false) {
         tearDownPlayer()
+        currentTime = 0
+        duration = 0
+        isPlaying = false
+        configureAudioSession()
         let item = AVPlayerItem(url: url)
         let player = AVPlayer(playerItem: item)
+        #if os(iOS)
+        player.allowsExternalPlayback = true
+        player.usesExternalPlaybackWhileExternalScreenIsActive = true
+        #endif
         self.player = player
         observeStatus(for: item)
         observeTimeControl(for: player)
         installTimeObserver(on: player)
         installEndObserver(for: item)
+        if autoPlay {
+            play()
+        }
     }
 
     func playerInstance() -> AVPlayer? {
@@ -29,11 +40,36 @@ final class VideoPlayerCoordinator: ObservableObject {
     }
 
     func play() {
+        configureAudioSession()
         player?.play()
     }
 
     func pause() {
         player?.pause()
+    }
+
+    func togglePlayback() {
+        guard let player = player else {
+            play()
+            return
+        }
+        if player.timeControlStatus == .playing || player.rate > 0 {
+            pause()
+        } else {
+            play()
+        }
+    }
+
+    func seek(to time: Double) {
+        guard let player = player else { return }
+        let clamped = max(0, min(time, duration))
+        let cmTime = CMTime(seconds: clamped, preferredTimescale: 600)
+        player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
+        currentTime = clamped
+    }
+
+    func skip(by delta: Double) {
+        seek(to: currentTime + delta)
     }
 
     func reset() {
@@ -93,6 +129,15 @@ final class VideoPlayerCoordinator: ObservableObject {
         timeObserverToken = token
     }
 
+    private func configureAudioSession() {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        let options: AVAudioSession.CategoryOptions = [.allowAirPlay]
+        try? session.setCategory(.playback, mode: .moviePlayback, options: options)
+        try? session.setActive(true)
+        #endif
+    }
+
     private func installEndObserver(for item: AVPlayerItem) {
         endObserver = NotificationCenter.default.addObserver(
             forName: .AVPlayerItemDidPlayToEndTime,
@@ -120,4 +165,3 @@ final class VideoPlayerCoordinator: ObservableObject {
         player = nil
     }
 }
-
