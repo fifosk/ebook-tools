@@ -12,6 +12,9 @@ struct LibraryPlaybackView: View {
     @StateObject private var nowPlaying = NowPlayingCoordinator()
     @State private var sentenceIndexTracker = SentenceIndexTracker()
     @State private var showImageReel = true
+    #if !os(tvOS)
+    @State private var showVideoPlayer = false
+    #endif
 
     var body: some View {
         bodyContent
@@ -66,6 +69,7 @@ struct LibraryPlaybackView: View {
                 errorView(message: message)
             case .loaded:
                 if isVideoPreferred, let videoURL {
+                    #if os(tvOS)
                     VideoPlayerView(
                         videoURL: videoURL,
                         subtitleTracks: subtitleTracks,
@@ -75,6 +79,11 @@ struct LibraryPlaybackView: View {
                     )
                         .frame(maxWidth: .infinity)
                         .aspectRatio(16 / 9, contentMode: .fit)
+                    #else
+                    videoPreview
+                        .frame(maxWidth: .infinity)
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                    #endif
                 } else if viewModel.jobContext != nil {
                     InteractivePlayerView(
                         viewModel: viewModel,
@@ -93,6 +102,23 @@ struct LibraryPlaybackView: View {
         .padding()
         #endif
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        #if !os(tvOS)
+        .fullScreenCover(isPresented: $showVideoPlayer) {
+            if let videoURL {
+                VideoPlayerView(
+                    videoURL: videoURL,
+                    subtitleTracks: subtitleTracks,
+                    metadata: videoMetadata,
+                    autoPlay: true,
+                    nowPlaying: nowPlaying
+                )
+                .ignoresSafeArea()
+            } else {
+                Color.black
+                    .ignoresSafeArea()
+            }
+        }
+        #endif
     }
 
     #if os(tvOS)
@@ -124,6 +150,38 @@ struct LibraryPlaybackView: View {
         }
         .ignoresSafeArea()
         .toolbar(.hidden, for: .navigationBar)
+    }
+    #endif
+
+    #if !os(tvOS)
+    private var videoPreview: some View {
+        Button {
+            showVideoPlayer = true
+        } label: {
+            ZStack {
+                if let coverURL {
+                    AsyncImage(url: coverURL) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Color.black.opacity(0.2)
+                        }
+                    }
+                } else {
+                    Color.black.opacity(0.2)
+                }
+                Color.black.opacity(0.35)
+                VStack(spacing: 10) {
+                    Image(systemName: "play.fill")
+                        .font(.system(size: 34, weight: .semibold))
+                    Text("Play Video")
+                        .font(.headline)
+                }
+                .foregroundStyle(.white)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(.plain)
     }
     #endif
 

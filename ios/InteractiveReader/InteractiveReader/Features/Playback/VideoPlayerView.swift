@@ -1,6 +1,9 @@
 import AVKit
 import SwiftUI
 import Foundation
+#if os(tvOS)
+import UIKit
+#endif
 
 #if canImport(MediaPlayer)
 import MediaPlayer
@@ -39,38 +42,39 @@ struct VideoPlayerView: View {
             if let player = coordinator.playerInstance() {
                 VideoPlayerControllerView(
                     player: player,
-                    overlay: VideoPlayerOverlayView(
-                        cues: cues,
-                        currentTime: coordinator.currentTime,
-                        duration: coordinator.duration,
-                        subtitleError: subtitleError,
-                        tracks: orderedTracks,
-                        selectedTrack: $selectedTrack,
-                        subtitleVisibility: $subtitleVisibility,
-                        showSubtitleSettings: $showSubtitleSettings,
-                        showTVControls: $showTVControls,
-                        scrubberValue: $scrubberValue,
-                        isScrubbing: $isScrubbing,
-                        metadata: metadata,
-                        isPlaying: coordinator.isPlaying,
-                        onPlayPause: {
-                            handleUserInteraction()
-                            coordinator.togglePlayback()
-                        },
-                        onSkipForward: {
-                            handleUserInteraction()
-                            coordinator.skip(by: 15)
-                        },
-                        onSkipBackward: {
-                            handleUserInteraction()
-                            coordinator.skip(by: -15)
-                        },
-                        onSeek: { time in
-                            handleUserInteraction()
-                            coordinator.seek(to: time)
-                        },
-                        onUserInteraction: handleUserInteraction
-                    )
+                    onShowControls: handleUserInteraction
+                )
+                VideoPlayerOverlayView(
+                    cues: cues,
+                    currentTime: coordinator.currentTime,
+                    duration: coordinator.duration,
+                    subtitleError: subtitleError,
+                    tracks: orderedTracks,
+                    selectedTrack: $selectedTrack,
+                    subtitleVisibility: $subtitleVisibility,
+                    showSubtitleSettings: $showSubtitleSettings,
+                    showTVControls: $showTVControls,
+                    scrubberValue: $scrubberValue,
+                    isScrubbing: $isScrubbing,
+                    metadata: metadata,
+                    isPlaying: coordinator.isPlaying,
+                    onPlayPause: {
+                        handleUserInteraction()
+                        coordinator.togglePlayback()
+                    },
+                    onSkipForward: {
+                        handleUserInteraction()
+                        coordinator.skip(by: 15)
+                    },
+                    onSkipBackward: {
+                        handleUserInteraction()
+                        coordinator.skip(by: -15)
+                    },
+                    onSeek: { time in
+                        handleUserInteraction()
+                        coordinator.seek(to: time)
+                    },
+                    onUserInteraction: handleUserInteraction
                 )
             } else {
                 ProgressView("Preparing video…")
@@ -251,7 +255,7 @@ struct VideoPlayerView: View {
         controlsHideTask?.cancel()
         guard shouldAutoHideControls else { return }
         controlsHideTask = Task {
-            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            try? await Task.sleep(nanoseconds: 8_000_000_000)
             await MainActor.run {
                 if shouldAutoHideControls {
                     withAnimation(.easeInOut(duration: 0.2)) {
@@ -289,6 +293,9 @@ private struct VideoPlayerOverlayView: View {
     let onSkipBackward: () -> Void
     let onSeek: (Double) -> Void
     let onUserInteraction: () -> Void
+    #if !os(tvOS)
+    @Environment(\.dismiss) private var dismiss
+    #endif
     #if os(tvOS)
     @FocusState private var focusedControl: TVFocusTarget?
     #endif
@@ -310,16 +317,21 @@ private struct VideoPlayerOverlayView: View {
                 showSubtitleSettings = false
             }
         }
-        .onChange(of: showTVControls) { _, visible in
-            if visible && !showSubtitleSettings {
+        .onAppear {
+            if showTVControls {
                 focusedControl = .playPause
             }
         }
         .onChange(of: showSubtitleSettings) { _, isVisible in
-            if isVisible {
-                focusedControl = nil
-            } else if showTVControls {
+            if !isVisible, showTVControls {
                 focusedControl = .playPause
+            }
+        }
+        .onChange(of: showTVControls) { _, isVisible in
+            if isVisible {
+                focusedControl = .playPause
+            } else {
+                focusedControl = nil
             }
         }
         #endif
@@ -347,16 +359,11 @@ private struct VideoPlayerOverlayView: View {
             .onPlayPauseCommand {
                 onPlayPause()
                 onUserInteraction()
-                focusedControl = .playPause
-            }
-            .onAppear {
-                focusedControl = .playPause
             }
         } else {
             VStack(spacing: 16) {
                 Spacer()
                 subtitleStack
-                tvBottomBar
             }
             .padding(.horizontal, 60)
             .padding(.bottom, 36)
@@ -364,13 +371,9 @@ private struct VideoPlayerOverlayView: View {
             .onTapGesture {
                 onUserInteraction()
             }
-            .onMoveCommand { _ in
-                onUserInteraction()
-            }
             .onPlayPauseCommand {
                 onPlayPause()
                 onUserInteraction()
-                focusedControl = .playPause
             }
         }
     }
@@ -432,6 +435,15 @@ private struct VideoPlayerOverlayView: View {
     @ViewBuilder
     private var topBar: some View {
         HStack(alignment: .top, spacing: 12) {
+            #if !os(tvOS)
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.caption.weight(.semibold))
+                    .padding(8)
+                    .background(.black.opacity(0.45), in: Circle())
+                    .foregroundStyle(.white)
+            }
+            #endif
             if hasMetadata {
                 metadataView
             }
@@ -489,13 +501,17 @@ private struct VideoPlayerOverlayView: View {
     #if os(tvOS)
     private var tvControls: some View {
         HStack(spacing: 14) {
-            tvControlButton(systemName: "gobackward.15", focusTarget: .skipBackward, action: onSkipBackward)
-            tvControlButton(systemName: isPlaying ? "pause.fill" : "play.fill", focusTarget: .playPause, action: onPlayPause)
-            tvControlButton(systemName: "goforward.15", focusTarget: .skipForward, action: onSkipForward)
+            tvControlButton(systemName: "gobackward.15", action: onSkipBackward)
+                .focused($focusedControl, equals: .skipBackward)
+            tvControlButton(systemName: isPlaying ? "pause.fill" : "play.fill", action: onPlayPause)
+                .focused($focusedControl, equals: .playPause)
+            tvControlButton(systemName: "goforward.15", action: onSkipForward)
+                .focused($focusedControl, equals: .skipForward)
             if hasTracks {
-                tvControlButton(systemName: "captions.bubble", label: "Options", focusTarget: .captions) {
+                tvControlButton(systemName: "captions.bubble", label: "Options") {
                     showSubtitleSettings = true
                 }
+                .focused($focusedControl, equals: .captions)
             }
         }
     }
@@ -503,7 +519,6 @@ private struct VideoPlayerOverlayView: View {
     private func tvControlButton(
         systemName: String,
         label: String? = nil,
-        focusTarget: TVFocusTarget,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -519,7 +534,6 @@ private struct VideoPlayerOverlayView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 12))
-        .focused($focusedControl, equals: focusTarget)
     }
 
     private var tvBottomBar: some View {
@@ -540,7 +554,6 @@ private struct VideoPlayerOverlayView: View {
                     TVScrubber(
                         value: $scrubberValue,
                         range: 0...max(duration, 1),
-                        isFocused: focusedControl == .scrubber,
                         onEditingChanged: { editing in
                             isScrubbing = editing
                             onUserInteraction()
@@ -550,8 +563,6 @@ private struct VideoPlayerOverlayView: View {
                         },
                         onUserInteraction: onUserInteraction
                     )
-                    .focusable(true)
-                    .focused($focusedControl, equals: .scrubber)
                     Text(formattedTime(duration))
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.8))
@@ -590,14 +601,6 @@ private struct VideoPlayerOverlayView: View {
         }
     }
 
-    private enum TVFocusTarget: Hashable {
-        case playPause
-        case skipBackward
-        case skipForward
-        case captions
-        case scrubber
-    }
-
     private var displayTime: Double {
         isScrubbing ? scrubberValue : currentTime
     }
@@ -632,14 +635,21 @@ private struct VideoPlayerOverlayView: View {
 }
 
 #if os(tvOS)
+private enum TVFocusTarget: Hashable {
+    case playPause
+    case skipBackward
+    case skipForward
+    case captions
+}
+
 private struct TVScrubber: View {
     @Binding var value: Double
     let range: ClosedRange<Double>
-    let isFocused: Bool
     let onEditingChanged: (Bool) -> Void
     let onCommit: (Double) -> Void
     let onUserInteraction: () -> Void
 
+    @FocusState private var isFocused: Bool
     @State private var commitTask: Task<Void, Never>?
     @State private var isEditing = false
 
@@ -665,6 +675,8 @@ private struct TVScrubber: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .frame(height: 24)
+        .focusable(true)
+        .focused($isFocused)
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(isFocused ? Color.white.opacity(0.8) : .clear, lineWidth: 1)
@@ -824,14 +836,14 @@ private struct SubtitleSettingsPanel: View {
 
 private struct VideoPlayerControllerView: UIViewControllerRepresentable {
     let player: AVPlayer
-    let overlay: VideoPlayerOverlayView
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator()
-    }
+    let onShowControls: () -> Void
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
+        #if os(tvOS)
+        let controller = FocusablePlayerViewController()
+        #else
         let controller = AVPlayerViewController()
+        #endif
         controller.player = player
         #if os(tvOS)
         controller.showsPlaybackControls = false
@@ -845,30 +857,36 @@ private struct VideoPlayerControllerView: UIViewControllerRepresentable {
             controller.canStartPictureInPictureAutomaticallyFromInline = true
         }
         #endif
-        let hosting = UIHostingController(rootView: overlay)
-        hosting.view.backgroundColor = .clear
-        hosting.view.translatesAutoresizingMaskIntoConstraints = false
-        if let overlayView = controller.contentOverlayView {
-            controller.addChild(hosting)
-            overlayView.addSubview(hosting.view)
-            NSLayoutConstraint.activate([
-                hosting.view.leadingAnchor.constraint(equalTo: overlayView.leadingAnchor),
-                hosting.view.trailingAnchor.constraint(equalTo: overlayView.trailingAnchor),
-                hosting.view.topAnchor.constraint(equalTo: overlayView.topAnchor),
-                hosting.view.bottomAnchor.constraint(equalTo: overlayView.bottomAnchor)
-            ])
-            hosting.didMove(toParent: controller)
-        }
-        context.coordinator.hostingController = hosting
+        #if os(tvOS)
+        controller.onShowControls = onShowControls
+        #endif
         return controller
     }
 
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
         controller.player = player
-        context.coordinator.hostingController?.rootView = overlay
-    }
-
-    final class Coordinator {
-        var hostingController: UIHostingController<VideoPlayerOverlayView>?
+        #if os(tvOS)
+        if let controller = controller as? FocusablePlayerViewController {
+            controller.onShowControls = onShowControls
+        }
+        #endif
     }
 }
+
+#if os(tvOS)
+private final class FocusablePlayerViewController: AVPlayerViewController {
+    var onShowControls: (() -> Void)?
+
+    override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+        for press in presses {
+            switch press.type {
+            case .select, .playPause, .upArrow, .downArrow, .leftArrow, .rightArrow:
+                onShowControls?()
+            default:
+                break
+            }
+        }
+        super.pressesBegan(presses, with: event)
+    }
+}
+#endif
