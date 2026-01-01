@@ -101,7 +101,11 @@ struct JobLoaderView: View {
             }
         case .loaded:
             if let _ = viewModel.jobContext {
-                InteractivePlayerView(viewModel: viewModel, audioCoordinator: viewModel.audioCoordinator)
+                InteractivePlayerView(
+                    viewModel: viewModel,
+                    audioCoordinator: viewModel.audioCoordinator,
+                    showsScrubber: false
+                )
                     .frame(maxWidth: .infinity)
             } else {
                 Text("No interactive content available.")

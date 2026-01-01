@@ -99,6 +99,29 @@ final class APIClient {
         return try decode(SessionStatusResponse.self, from: data)
     }
 
+    func assistantLookup(query: String, inputLanguage: String, lookupLanguage: String) async throws -> AssistantLookupResponse {
+        let payload = AssistantLookupRequest(
+            query: query,
+            inputLanguage: inputLanguage,
+            lookupLanguage: lookupLanguage
+        )
+        let data = try await sendJSONRequest(path: "/api/assistant/lookup", method: "POST", payload: payload)
+        return try decode(AssistantLookupResponse.self, from: data)
+    }
+
+    func synthesizeAudio(text: String, language: String?) async throws -> Data {
+        let payload = AudioSynthesisRequest(text: text, voice: nil, speed: nil, language: language)
+        let encoder = JSONEncoder()
+        let body = try encoder.encode(payload)
+        return try await sendRequest(
+            path: "/api/audio",
+            method: "POST",
+            body: body,
+            contentType: "application/json",
+            accept: "audio/mpeg"
+        )
+    }
+
     private func decode<T: Decodable>(_ type: T.Type, from data: Data) throws -> T {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
@@ -110,7 +133,13 @@ final class APIClient {
         }
     }
 
-    private func sendRequest(path: String, method: String = "GET", body: Data? = nil, contentType: String? = nil) async throws -> Data {
+    private func sendRequest(
+        path: String,
+        method: String = "GET",
+        body: Data? = nil,
+        contentType: String? = nil,
+        accept: String = "application/json"
+    ) async throws -> Data {
         guard !Task.isCancelled else {
             throw APIClientError.cancelled
         }
@@ -118,7 +147,7 @@ final class APIClient {
         let requestURL = buildURL(with: path)
         var request = URLRequest(url: requestURL)
         request.httpMethod = method
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(accept, forHTTPHeaderField: "Accept")
         if let body {
             request.httpBody = body
         }

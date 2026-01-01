@@ -18,7 +18,7 @@ struct LibraryPlaybackView: View {
 
     var body: some View {
         bodyContent
-        .navigationTitle(item.bookTitle)
+        .navigationTitle(navigationTitleText)
         .task(id: item.jobId) {
             @MainActor in
             await loadEntry()
@@ -43,6 +43,14 @@ struct LibraryPlaybackView: View {
                 nowPlaying.clear()
             }
         }
+    }
+
+    private var navigationTitleText: String {
+        shouldHideNavigationTitle ? "" : item.bookTitle
+    }
+
+    private var shouldHideNavigationTitle: Bool {
+        viewModel.jobContext != nil && !isVideoPreferred
     }
 
     @ViewBuilder
@@ -88,7 +96,10 @@ struct LibraryPlaybackView: View {
                     InteractivePlayerView(
                         viewModel: viewModel,
                         audioCoordinator: viewModel.audioCoordinator,
-                        showImageReel: $showImageReel
+                        showImageReel: $showImageReel,
+                        showsScrubber: showsScrubber,
+                        linguistInputLanguage: linguistInputLanguage,
+                        linguistLookupLanguage: linguistLookupLanguage
                     )
                 } else {
                     Text("No playable media found for this entry.")
@@ -287,6 +298,26 @@ struct LibraryPlaybackView: View {
         }
     }
 
+    private var showsScrubber: Bool {
+        item.itemType == "video"
+    }
+
+    private var linguistInputLanguage: String {
+        metadataString(for: [
+            "input_language",
+            "original_language",
+            "book_language"
+        ]) ?? item.language
+    }
+
+    private var linguistLookupLanguage: String {
+        metadataString(for: [
+            "target_language",
+            "translation_language",
+            "language"
+        ]) ?? item.language
+    }
+
     private var coverWidth: CGFloat {
         #if os(tvOS)
         return 96
@@ -357,6 +388,16 @@ struct LibraryPlaybackView: View {
         #else
         return 6
         #endif
+    }
+
+    private func metadataString(for keys: [String]) -> String? {
+        guard let metadata = item.metadata else { return nil }
+        for key in keys {
+            if let value = metadata[key]?.stringValue {
+                return value
+            }
+        }
+        return nil
     }
 
     private var imageReelURLs: [URL] {
@@ -604,5 +645,26 @@ private struct LibraryImageReel: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         }
         .frame(height: height)
+    }
+}
+
+private extension JSONValue {
+    var stringValue: String? {
+        switch self {
+        case let .string(value):
+            return value.nonEmptyValue
+        case let .number(value):
+            guard value.isFinite else { return nil }
+            return String(value).nonEmptyValue
+        case let .array(values):
+            for value in values {
+                if let string = value.stringValue {
+                    return string
+                }
+            }
+            return nil
+        default:
+            return nil
+        }
     }
 }

@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 private enum InteractivePlayerFocusArea: Hashable {
@@ -9,11 +10,19 @@ struct InteractivePlayerView: View {
     @ObservedObject var viewModel: InteractivePlayerViewModel
     @ObservedObject var audioCoordinator: AudioPlayerCoordinator
     let showImageReel: Binding<Bool>?
+    let showsScrubber: Bool
+    let linguistInputLanguage: String
+    let linguistLookupLanguage: String
     @State private var readingBedCoordinator = AudioPlayerCoordinator()
     @State private var readingBedEnabled = true
     @State private var scrubbedTime: Double?
     @State private var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
     @State private var selectedSentenceID: Int?
+    @State private var linguistSelection: TextPlayerWordSelection?
+    @State private var linguistBubble: MyLinguistBubbleState?
+    @State private var linguistLookupTask: Task<Void, Never>?
+    @State private var linguistSpeechTask: Task<Void, Never>?
+    @StateObject private var pronunciationSpeaker = PronunciationSpeaker()
     #if os(tvOS)
     @State private var didSetInitialFocus = false
     #endif
@@ -25,11 +34,17 @@ struct InteractivePlayerView: View {
     init(
         viewModel: InteractivePlayerViewModel,
         audioCoordinator: AudioPlayerCoordinator,
-        showImageReel: Binding<Bool>? = nil
+        showImageReel: Binding<Bool>? = nil,
+        showsScrubber: Bool = true,
+        linguistInputLanguage: String = "",
+        linguistLookupLanguage: String = "English"
     ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self._audioCoordinator = ObservedObject(wrappedValue: audioCoordinator)
         self.showImageReel = showImageReel
+        self.showsScrubber = showsScrubber
+        self.linguistInputLanguage = linguistInputLanguage
+        self.linguistLookupLanguage = linguistLookupLanguage
     }
 
     var body: some View {
@@ -41,18 +56,7 @@ struct InteractivePlayerView: View {
             }
 
             if let chunk = viewModel.selectedChunk {
-                controlBar(chunk)
-                Divider()
-                InteractiveTranscriptView(
-                    viewModel: viewModel,
-                    audioCoordinator: audioCoordinator,
-                    chunk: chunk,
-                    visibleTracks: visibleTracks
-                )
-                #if os(tvOS)
-                .focusable(true)
-                .focused($focusedArea, equals: .transcript)
-                #endif
+                interactiveContent(for: chunk)
             } else {
                 Text("No interactive chunks were returned for this job.")
                     .foregroundStyle(.secondary)
@@ -76,6 +80,7 @@ struct InteractivePlayerView: View {
         }
         .onChange(of: viewModel.selectedChunk?.id) { _, _ in
             guard let chunk = viewModel.selectedChunk else { return }
+            clearLinguistState()
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
         }
@@ -93,11 +98,18 @@ struct InteractivePlayerView: View {
         .onChange(of: readingBedEnabled) { _, _ in
             updateReadingBedPlayback()
         }
-        .onChange(of: audioCoordinator.isPlaying) { _, _ in
+        .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
             updateReadingBedPlayback()
+            if isPlaying {
+                clearLinguistState()
+            }
+        }
+        .onChange(of: visibleTracks) { _, _ in
+            clearLinguistState()
         }
         .onDisappear {
             readingBedCoordinator.reset()
+            clearLinguistState()
         }
         #if os(tvOS)
         .onPlayPauseCommand {
@@ -105,15 +117,67 @@ struct InteractivePlayerView: View {
         }
         .onMoveCommand { direction in
             guard focusedArea == .transcript else { return }
+            guard let chunk = viewModel.selectedChunk else { return }
             switch direction {
             case .left:
-                viewModel.skipSentence(forward: false)
+                if audioCoordinator.isPlaying {
+                    viewModel.skipSentence(forward: false)
+                } else {
+                    handleWordNavigation(-1, in: chunk)
+                }
             case .right:
-                viewModel.skipSentence(forward: true)
+                if audioCoordinator.isPlaying {
+                    viewModel.skipSentence(forward: true)
+                } else {
+                    handleWordNavigation(1, in: chunk)
+                }
+            case .up:
+                if !audioCoordinator.isPlaying {
+                    handleTrackNavigation(-1, in: chunk)
+                }
+            case .down:
+                if !audioCoordinator.isPlaying {
+                    handleTrackNavigation(1, in: chunk)
+                }
             default:
                 break
             }
         }
+        .onTapGesture {
+            guard focusedArea == .transcript else { return }
+            guard let chunk = viewModel.selectedChunk else { return }
+            handleLinguistLookup(in: chunk)
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private func interactiveContent(for chunk: InteractiveChunk) -> some View {
+        let transcriptSentences = transcriptSentences(for: chunk)
+        controlBar(chunk)
+        Divider()
+        InteractiveTranscriptView(
+            viewModel: viewModel,
+            audioCoordinator: audioCoordinator,
+            sentences: transcriptSentences,
+            selection: linguistSelection,
+            bubble: linguistBubble,
+            onNavigateWord: { delta in
+                handleWordNavigation(delta, in: chunk)
+            },
+            onNavigateTrack: { delta in
+                handleTrackNavigation(delta, in: chunk)
+            },
+            onLookup: {
+                handleLinguistLookup(in: chunk)
+            },
+            onCloseBubble: {
+                closeLinguistBubble()
+            }
+        )
+        #if os(tvOS)
+        .focusable(true)
+        .focused($focusedArea, equals: .transcript)
         #endif
     }
 
@@ -147,15 +211,17 @@ struct InteractivePlayerView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
-            PlaybackScrubberView(
-                coordinator: audioCoordinator,
-                currentTime: playbackTime,
-                duration: playbackDuration,
-                scrubbedTime: $scrubbedTime,
-                onSeek: { target in
-                    viewModel.seekPlayback(to: target, in: chunk)
-                }
-            )
+            if showsScrubber {
+                PlaybackScrubberView(
+                    coordinator: audioCoordinator,
+                    currentTime: playbackTime,
+                    duration: playbackDuration,
+                    scrubbedTime: $scrubbedTime,
+                    onSeek: { target in
+                        viewModel.seekPlayback(to: target, in: chunk)
+                    }
+                )
+            }
         }
     }
 
@@ -606,15 +672,7 @@ struct InteractivePlayerView: View {
         abs(rate - audioCoordinator.playbackRate) < 0.01
     }
 
-}
-
-private struct InteractiveTranscriptView: View {
-    let viewModel: InteractivePlayerViewModel
-    @ObservedObject var audioCoordinator: AudioPlayerCoordinator
-    let chunk: InteractiveChunk
-    let visibleTracks: Set<TextPlayerVariantKind>
-
-    var body: some View {
+    private func transcriptSentences(for chunk: InteractiveChunk) -> [TextPlayerSentenceDisplay] {
         let playbackTime = viewModel.playbackTime(for: chunk)
         let activeTimingTrack = viewModel.activeTimingTrack(for: chunk)
         let useCombinedPhases = viewModel.useCombinedPhases(for: chunk)
@@ -648,14 +706,394 @@ private struct InteractiveTranscriptView: View {
             sentences: chunk.sentences,
             isVariantVisible: isVariantVisible
         )
-        let displaySentences = TextPlayerTimeline.selectActiveSentence(
+        return TextPlayerTimeline.selectActiveSentence(
             from: timelineDisplay?.sentences ?? staticDisplay
         )
-        VStack(alignment: .leading, spacing: 8) {
-            Text("Interactive transcript")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            TextPlayerFrame(sentences: displaySentences)
+    }
+
+    private func activeSentenceDisplay(for chunk: InteractiveChunk) -> TextPlayerSentenceDisplay? {
+        transcriptSentences(for: chunk).first
+    }
+
+    private func preferredNavigationKind(for chunk: InteractiveChunk) -> TextPlayerVariantKind {
+        switch viewModel.activeTimingTrack(for: chunk) {
+        case .original:
+            return .original
+        case .translation, .mix:
+            return .translation
+        }
+    }
+
+    private func preferredNavigationVariant(
+        for sentence: TextPlayerSentenceDisplay,
+        chunk: InteractiveChunk
+    ) -> TextPlayerVariantDisplay? {
+        let preferredKind = preferredNavigationKind(for: chunk)
+        if let preferred = sentence.variants.first(where: { $0.kind == preferredKind }) {
+            return preferred
+        }
+        if let translation = sentence.variants.first(where: { $0.kind == .translation }) {
+            return translation
+        }
+        if let original = sentence.variants.first(where: { $0.kind == .original }) {
+            return original
+        }
+        if let transliteration = sentence.variants.first(where: { $0.kind == .transliteration }) {
+            return transliteration
+        }
+        return sentence.variants.first
+    }
+
+    private func resolvedSelection(for chunk: InteractiveChunk) -> TextPlayerWordSelection? {
+        guard let sentence = activeSentenceDisplay(for: chunk) else { return nil }
+        if let selection = linguistSelection,
+           selection.sentenceIndex == sentence.index,
+           let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
+           variant.tokens.indices.contains(selection.tokenIndex) {
+            return selection
+        }
+        guard let variant = preferredNavigationVariant(for: sentence, chunk: chunk),
+              !variant.tokens.isEmpty else {
+            return nil
+        }
+        let fallbackIndex = variant.currentIndex ?? 0
+        let clampedIndex = max(0, min(fallbackIndex, variant.tokens.count - 1))
+        return TextPlayerWordSelection(
+            sentenceIndex: sentence.index,
+            variantKind: variant.kind,
+            tokenIndex: clampedIndex
+        )
+    }
+
+    private func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
+        }
+        guard let sentence = activeSentenceDisplay(for: chunk),
+              let selection = resolvedSelection(for: chunk),
+              let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
+            return
+        }
+        let nextIndex = selection.tokenIndex + delta
+        let resolvedIndex = variant.tokens.indices.contains(nextIndex) ? nextIndex : selection.tokenIndex
+        linguistSelection = TextPlayerWordSelection(
+            sentenceIndex: sentence.index,
+            variantKind: selection.variantKind,
+            tokenIndex: resolvedIndex
+        )
+        linguistBubble = nil
+    }
+
+    private func handleTrackNavigation(_ delta: Int, in chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
+        }
+        guard let sentence = activeSentenceDisplay(for: chunk) else { return }
+        let variants = sentence.variants
+        guard !variants.isEmpty else { return }
+        let currentSelection = resolvedSelection(for: chunk)
+        let currentIndex: Int = {
+            if let currentSelection,
+               let index = variants.firstIndex(where: { $0.kind == currentSelection.variantKind }) {
+                return index
+            }
+            let preferredKind = preferredNavigationKind(for: chunk)
+            if let preferredIndex = variants.firstIndex(where: { $0.kind == preferredKind }) {
+                return preferredIndex
+            }
+            return 0
+        }()
+        let nextIndex = (currentIndex + delta + variants.count) % variants.count
+        let targetVariant = variants[nextIndex]
+        let fallbackIndex = targetVariant.currentIndex ?? 0
+        let preferredTokenIndex = currentSelection?.tokenIndex ?? fallbackIndex
+        let clampedIndex = max(0, min(preferredTokenIndex, max(0, targetVariant.tokens.count - 1)))
+        linguistSelection = TextPlayerWordSelection(
+            sentenceIndex: sentence.index,
+            variantKind: targetVariant.kind,
+            tokenIndex: clampedIndex
+        )
+        linguistBubble = nil
+    }
+
+    private func handleLinguistLookup(in chunk: InteractiveChunk) {
+        if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
+        }
+        guard let sentence = activeSentenceDisplay(for: chunk),
+              let selection = resolvedSelection(for: chunk),
+              let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }),
+              variant.tokens.indices.contains(selection.tokenIndex) else {
+            return
+        }
+        let rawToken = variant.tokens[selection.tokenIndex]
+        guard let query = sanitizeLookupQuery(rawToken) else { return }
+        linguistSelection = selection
+        startLinguistLookup(query: query, variantKind: selection.variantKind)
+    }
+
+    private func startLinguistLookup(query: String, variantKind: TextPlayerVariantKind) {
+        linguistLookupTask?.cancel()
+        linguistBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
+        let inputLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lookupLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let preferredLanguage = pronunciationLanguage(for: variantKind, inputLanguage: inputLanguage, lookupLanguage: lookupLanguage)
+        let fallbackLanguage = resolveSpeechLanguage(preferredLanguage ?? "")
+        startPronunciation(text: query, apiLanguage: preferredLanguage, fallbackLanguage: fallbackLanguage)
+        linguistLookupTask = Task { @MainActor in
+            do {
+                let response = try await viewModel.lookupAssistant(
+                    query: query,
+                    inputLanguage: inputLanguage,
+                    lookupLanguage: lookupLanguage.isEmpty ? "English" : lookupLanguage
+                )
+                linguistBubble = MyLinguistBubbleState(
+                    query: query,
+                    status: .ready,
+                    answer: response.answer,
+                    model: response.model
+                )
+            } catch {
+                guard !Task.isCancelled else { return }
+                linguistBubble = MyLinguistBubbleState(
+                    query: query,
+                    status: .error(error.localizedDescription),
+                    answer: nil,
+                    model: nil
+                )
+            }
+        }
+    }
+
+    private func clearLinguistState() {
+        linguistLookupTask?.cancel()
+        linguistLookupTask = nil
+        linguistSpeechTask?.cancel()
+        linguistSpeechTask = nil
+        linguistBubble = nil
+        linguistSelection = nil
+        pronunciationSpeaker.stop()
+    }
+
+    private func closeLinguistBubble() {
+        linguistLookupTask?.cancel()
+        linguistLookupTask = nil
+        linguistSpeechTask?.cancel()
+        linguistSpeechTask = nil
+        linguistBubble = nil
+        pronunciationSpeaker.stop()
+    }
+
+    private func sanitizeLookupQuery(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stripped = trimmed.trimmingCharacters(in: .punctuationCharacters.union(.symbols))
+        let normalized = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? nil : normalized
+    }
+
+    private func pronunciationLanguage(
+        for variantKind: TextPlayerVariantKind,
+        inputLanguage: String,
+        lookupLanguage: String
+    ) -> String? {
+        let preferred: String
+        switch variantKind {
+        case .translation:
+            preferred = lookupLanguage
+        case .original, .transliteration:
+            preferred = inputLanguage
+        }
+        let trimmed = preferred.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func resolveSpeechLanguage(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = trimmed.replacingOccurrences(of: "_", with: "-")
+        if normalized.contains("-") || normalized.count <= 3 {
+            return normalized
+        }
+        switch normalized.lowercased() {
+        case "english":
+            return "en-US"
+        case "japanese":
+            return "ja-JP"
+        case "spanish":
+            return "es-ES"
+        case "french":
+            return "fr-FR"
+        case "german":
+            return "de-DE"
+        case "italian":
+            return "it-IT"
+        case "portuguese":
+            return "pt-PT"
+        case "chinese":
+            return "zh-CN"
+        case "korean":
+            return "ko-KR"
+        case "russian":
+            return "ru-RU"
+        case "arabic":
+            return "ar-SA"
+        case "hindi":
+            return "hi-IN"
+        default:
+            return nil
+        }
+    }
+
+    private func startPronunciation(text: String, apiLanguage: String?, fallbackLanguage: String?) {
+        linguistSpeechTask?.cancel()
+        pronunciationSpeaker.stop()
+        linguistSpeechTask = Task { @MainActor in
+            do {
+                let data = try await viewModel.synthesizePronunciation(text: text, language: apiLanguage)
+                guard !Task.isCancelled else { return }
+                pronunciationSpeaker.playAudio(data)
+            } catch {
+                guard !Task.isCancelled else { return }
+                if let fallbackLanguage {
+                    pronunciationSpeaker.speakFallback(text, language: fallbackLanguage)
+                }
+            }
+        }
+    }
+
+}
+
+private struct TextPlayerWordSelection: Equatable {
+    let sentenceIndex: Int
+    let variantKind: TextPlayerVariantKind
+    let tokenIndex: Int
+}
+
+private enum MyLinguistBubbleStatus: Equatable {
+    case loading
+    case ready
+    case error(String)
+}
+
+private struct MyLinguistBubbleState: Equatable {
+    let query: String
+    let status: MyLinguistBubbleStatus
+    let answer: String?
+    let model: String?
+}
+
+private struct MyLinguistBubbleView: View {
+    let bubble: MyLinguistBubbleState
+    let onClose: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Text("MyLinguist")
+                    .font(.headline)
+                Spacer(minLength: 8)
+                if let model = bubble.model, !model.isEmpty {
+                    Text("Model: \(model)")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                        .padding(6)
+                        .background(.black.opacity(0.3), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Text(bubble.query)
+                .font(.title3.weight(.semibold))
+                .lineLimit(2)
+                .minimumScaleFactor(0.8)
+
+            bubbleContent
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(bubbleBackground)
+        .overlay(
+            RoundedRectangle(cornerRadius: bubbleCornerRadius)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: bubbleCornerRadius))
+    }
+
+    @ViewBuilder
+    private var bubbleContent: some View {
+        switch bubble.status {
+        case .loading:
+            HStack(spacing: 8) {
+                ProgressView()
+                    .progressViewStyle(.circular)
+                Text("Looking up...")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+        case let .error(message):
+            Text(message)
+                .font(.callout)
+                .foregroundStyle(.red)
+        case .ready:
+            ScrollView {
+                Text(bubble.answer ?? "")
+                    .font(.callout)
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: bubbleMaxHeight)
+        }
+    }
+
+    private var bubbleBackground: Color {
+        Color.black.opacity(0.75)
+    }
+
+    private var bubbleCornerRadius: CGFloat {
+        #if os(tvOS)
+        return 18
+        #else
+        return 14
+        #endif
+    }
+
+    private var bubbleMaxHeight: CGFloat {
+        #if os(tvOS)
+        return 220
+        #else
+        return 180
+        #endif
+    }
+}
+
+private struct InteractiveTranscriptView: View {
+    let viewModel: InteractivePlayerViewModel
+    @ObservedObject var audioCoordinator: AudioPlayerCoordinator
+    let sentences: [TextPlayerSentenceDisplay]
+    let selection: TextPlayerWordSelection?
+    let bubble: MyLinguistBubbleState?
+    let onNavigateWord: (Int) -> Void
+    let onNavigateTrack: (Int) -> Void
+    let onLookup: () -> Void
+    let onCloseBubble: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            TextPlayerFrame(sentences: sentences, selection: selection)
+                .frame(maxWidth: .infinity, alignment: .top)
+            #if !os(tvOS)
+                .contentShape(Rectangle())
+                .gesture(swipeGesture)
+                .onLongPressGesture(minimumDuration: 0.4, perform: onLookup)
+            #endif
+
+            if let bubble {
+                MyLinguistBubbleView(bubble: bubble, onClose: onCloseBubble)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         #if os(tvOS)
@@ -672,6 +1110,82 @@ private struct InteractiveTranscriptView: View {
         .onAppear {
             viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
         }
+    }
+
+    #if !os(tvOS)
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                if abs(horizontal) > abs(vertical) {
+                    if horizontal < 0 {
+                        onNavigateWord(1)
+                    } else if horizontal > 0 {
+                        onNavigateWord(-1)
+                    }
+                } else {
+                    if vertical < 0 {
+                        onNavigateTrack(-1)
+                    } else if vertical > 0 {
+                        onNavigateTrack(1)
+                    }
+                }
+            }
+    }
+    #endif
+}
+
+private final class PronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDelegate {
+    private let synthesizer = AVSpeechSynthesizer()
+    private var audioPlayer: AVAudioPlayer?
+
+    func playAudio(_ data: Data) {
+        stop()
+        configureAudioSession()
+        do {
+            let player = try AVAudioPlayer(data: data)
+            player.delegate = self
+            player.prepareToPlay()
+            player.play()
+            audioPlayer = player
+        } catch {
+            audioPlayer = nil
+        }
+    }
+
+    func speakFallback(_ text: String, language: String?) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        stop()
+        configureAudioSession()
+        let utterance = AVSpeechUtterance(string: trimmed)
+        if let language, let voice = AVSpeechSynthesisVoice(language: language) {
+            utterance.voice = voice
+        }
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate
+        synthesizer.speak(utterance)
+    }
+
+    func stop() {
+        if synthesizer.isSpeaking {
+            synthesizer.stopSpeaking(at: .immediate)
+        }
+        audioPlayer?.stop()
+        audioPlayer = nil
+    }
+
+    func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        audioPlayer = nil
+    }
+
+    private func configureAudioSession() {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        let options: AVAudioSession.CategoryOptions = [.allowAirPlay]
+        try? session.setCategory(.playback, mode: .spokenAudio, options: options)
+        try? session.setActive(true)
+        #endif
     }
 }
 
@@ -806,6 +1320,7 @@ private struct PlaybackScrubberView: View {
 
 private struct TextPlayerFrame: View {
     let sentences: [TextPlayerSentenceDisplay]
+    let selection: TextPlayerWordSelection?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -816,7 +1331,7 @@ private struct TextPlayerFrame: View {
                     .frame(maxWidth: .infinity)
             } else {
                 ForEach(sentences) { sentence in
-                    TextPlayerSentenceView(sentence: sentence)
+                    TextPlayerSentenceView(sentence: sentence, selection: selection)
                 }
             }
         }
@@ -837,11 +1352,16 @@ private struct TextPlayerFrame: View {
 
 private struct TextPlayerSentenceView: View {
     let sentence: TextPlayerSentenceDisplay
+    let selection: TextPlayerWordSelection?
 
     var body: some View {
         VStack(spacing: 8) {
             ForEach(sentence.variants) { variant in
-                TextPlayerVariantView(variant: variant, sentenceState: sentence.state)
+                TextPlayerVariantView(
+                    variant: variant,
+                    sentenceState: sentence.state,
+                    selectedTokenIndex: selectedTokenIndex(for: variant)
+                )
             }
         }
         .padding(.vertical, 10)
@@ -875,11 +1395,18 @@ private struct TextPlayerSentenceView: View {
             return 1.0
         }
     }
+
+    private func selectedTokenIndex(for variant: TextPlayerVariantDisplay) -> Int? {
+        guard let selection, selection.sentenceIndex == sentence.index else { return nil }
+        guard selection.variantKind == variant.kind else { return nil }
+        return selection.tokenIndex
+    }
 }
 
 private struct TextPlayerVariantView: View {
     let variant: TextPlayerVariantDisplay
     let sentenceState: TextPlayerSentenceState
+    let selectedTokenIndex: Int?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -888,10 +1415,18 @@ private struct TextPlayerVariantView: View {
                 .foregroundStyle(TextPlayerTheme.lineLabel)
                 .textCase(.uppercase)
                 .tracking(1.2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .allowsTightening(true)
                 .frame(maxWidth: .infinity)
             tokenLine
                 .font(lineFont)
                 .multilineTextAlignment(.center)
+                .lineLimit(nil)
+                .minimumScaleFactor(0.65)
+                .allowsTightening(true)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
                 .frame(maxWidth: .infinity)
         }
     }
@@ -913,18 +1448,30 @@ private struct TextPlayerVariantView: View {
     }
 
     private var tokenLine: Text {
-        var result = Text("")
+        Text(tokenAttributedString)
+    }
+
+    private var tokenAttributedString: AttributedString {
+        var result = AttributedString("")
         let displayIndices = shouldReverseTokens
             ? Array(variant.tokens.indices.reversed())
             : Array(variant.tokens.indices)
         for (position, index) in displayIndices.enumerated() {
             let token = variant.tokens[index]
             let tokenState = tokenState(for: index)
-            let color = tokenColor(for: tokenState)
-            let segment = Text(token).foregroundColor(color)
-            result = result + segment
+            let baseColor = tokenColor(for: tokenState)
+            var segment = AttributedString(token)
+            if index == selectedTokenIndex {
+                segment.foregroundColor = TextPlayerTheme.selectionText
+                segment.backgroundColor = TextPlayerTheme.selectionGlow
+            } else {
+                segment.foregroundColor = baseColor
+            }
+            result.append(segment)
             if position < displayIndices.count - 1 {
-                result = result + Text(" ").foregroundColor(color)
+                var space = AttributedString(" ")
+                space.foregroundColor = baseColor
+                result.append(space)
             }
         }
         return result
@@ -1017,6 +1564,8 @@ private enum TextPlayerTheme {
     static let translation = Color(red: 0.204, green: 0.827, blue: 0.6)
     static let transliteration = Color(red: 0.176, green: 0.831, blue: 0.749)
     static let progress = Color(red: 1.0, green: 0.549, blue: 0.0)
+    static let selectionGlow = Color(red: 1.0, green: 0.549, blue: 0.0).opacity(0.6)
+    static let selectionText = Color.black
     static let originalCurrent = Color.white
     static let translationCurrent = Color(red: 0.996, green: 0.941, blue: 0.541)
     static let transliterationCurrent = Color(red: 0.996, green: 0.976, blue: 0.765)

@@ -19,6 +19,32 @@ struct LoginRequestPayload: Encodable {
     let password: String
 }
 
+struct AssistantLookupRequest: Encodable {
+    let query: String
+    let inputLanguage: String
+    let lookupLanguage: String
+
+    enum CodingKeys: String, CodingKey {
+        case query
+        case inputLanguage = "input_language"
+        case lookupLanguage = "lookup_language"
+    }
+}
+
+struct AssistantLookupResponse: Decodable {
+    let answer: String
+    let model: String
+    let tokenUsage: [String: Int]?
+    let source: String?
+}
+
+struct AudioSynthesisRequest: Encodable {
+    let text: String
+    let voice: String?
+    let speed: Int?
+    let language: String?
+}
+
 struct LibrarySearchResponse: Decodable {
     let total: Int
     let page: Int

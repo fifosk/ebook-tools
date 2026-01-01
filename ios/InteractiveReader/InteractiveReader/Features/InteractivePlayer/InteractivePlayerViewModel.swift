@@ -39,6 +39,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     private var mediaResolver: MediaURLResolver?
     private var apiBaseURL: URL?
     private var authToken: String?
+    private var apiConfiguration: APIClientConfiguration?
     private var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
     private var audioDurationByURL: [URL: Double] = [:]
     private var chunkMetadataLoaded: Set<String> = []
@@ -62,6 +63,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         self.jobId = trimmedJobId
         apiBaseURL = configuration.apiBaseURL
         authToken = configuration.authToken
+        apiConfiguration = configuration
         selectedChunkID = nil
         selectedAudioTrackID = nil
         selectedTimingURL = nil
@@ -167,6 +169,26 @@ final class InteractivePlayerViewModel: ObservableObject {
             preferredAudioKind = track.kind
         }
         prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaying)
+    }
+
+    func lookupAssistant(query: String, inputLanguage: String, lookupLanguage: String) async throws -> AssistantLookupResponse {
+        guard let configuration = apiConfiguration else {
+            throw AssistantLookupError.missingConfiguration
+        }
+        let client = APIClient(configuration: configuration)
+        return try await client.assistantLookup(
+            query: query,
+            inputLanguage: inputLanguage,
+            lookupLanguage: lookupLanguage
+        )
+    }
+
+    func synthesizePronunciation(text: String, language: String?) async throws -> Data {
+        guard let configuration = apiConfiguration else {
+            throw PronunciationError.missingConfiguration
+        }
+        let client = APIClient(configuration: configuration)
+        return try await client.synthesizeAudio(text: text, language: language)
     }
 
     var selectedChunk: InteractiveChunk? {
@@ -693,6 +715,22 @@ final class InteractivePlayerViewModel: ObservableObject {
             return
         }
         selectChunk(id: nextChunk.id, autoPlay: true)
+    }
+
+    private enum AssistantLookupError: LocalizedError {
+        case missingConfiguration
+
+        var errorDescription: String? {
+            "Assistant lookup is not configured."
+        }
+    }
+
+    private enum PronunciationError: LocalizedError {
+        case missingConfiguration
+
+        var errorDescription: String? {
+            "Pronunciation audio is not configured."
+        }
     }
 }
 
