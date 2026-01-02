@@ -36,6 +36,9 @@ struct InteractivePlayerView: View {
     @State private var linguistSpeechTask: Task<Void, Never>?
     @State private var isMenuVisible = false
     @State private var frozenTranscriptSentences: [TextPlayerSentenceDisplay]?
+    @State private var isShortcutHelpPinned = false
+    @State private var isShortcutHelpModifierActive = false
+    @State private var readingBedPauseTask: Task<Void, Never>?
     #if os(iOS)
     @State private var trackFontScale: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 2.0 : 1.0
     #else
@@ -50,6 +53,7 @@ struct InteractivePlayerView: View {
 
     private let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
     private let readingBedVolume: Double = 0.08
+    private let readingBedPauseDelayNanos: UInt64 = 250_000_000
     private let trackFontScaleStep: CGFloat = 0.1
     private let linguistFontScaleMin: CGFloat = 0.8
     private let linguistFontScaleMax: CGFloat = 1.6
@@ -116,17 +120,19 @@ struct InteractivePlayerView: View {
                     }
                 }
             }
-            .onTapGesture {
-                guard focusedArea == .transcript else { return }
-                guard let chunk = viewModel.selectedChunk else { return }
-                handleLinguistLookup(in: chunk)
-            }
         #else
         baseContent
         #endif
     }
 
     private var baseContent: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            playerContent
+        }
+    }
+
+    private var playerContent: some View {
         ZStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 12) {
                 if let chunk = viewModel.selectedChunk {
@@ -141,6 +147,8 @@ struct InteractivePlayerView: View {
             if let chunk = viewModel.selectedChunk {
                 menuOverlay(for: chunk)
             }
+            trackpadSwipeLayer
+            shortcutHelpOverlay
             keyboardShortcutLayer
         }
         #if !os(tvOS)
@@ -167,8 +175,10 @@ struct InteractivePlayerView: View {
             clearLinguistState()
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
-            if isMenuVisible {
+            if isMenuVisible && !audioCoordinator.isPlaying {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
+            } else {
+                frozenTranscriptSentences = nil
             }
         }
         .onChange(of: viewModel.highlightingTime) { _, _ in
@@ -187,23 +197,40 @@ struct InteractivePlayerView: View {
             updateReadingBedPlayback()
         }
         .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
-            updateReadingBedPlayback()
+            handleNarrationPlaybackChange(isPlaying: isPlaying)
             if isPlaying {
                 clearLinguistState()
+            }
+            if isPlaying {
+                frozenTranscriptSentences = nil
+            } else if isMenuVisible, let chunk = viewModel.selectedChunk {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
             }
         }
         .onChange(of: visibleTracks) { _, _ in
             clearLinguistState()
+            if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            }
         }
         .onChange(of: isMenuVisible) { _, visible in
             guard let chunk = viewModel.selectedChunk else { return }
-            if visible {
+            if visible && !audioCoordinator.isPlaying {
                 frozenTranscriptSentences = transcriptSentences(for: chunk)
             } else {
                 frozenTranscriptSentences = nil
             }
+            updateReadingBedPlayback()
+        }
+        .onChange(of: readingBedCoordinator.isPlaying) { _, isPlaying in
+            guard !isPlaying else { return }
+            guard readingBedEnabled else { return }
+            guard audioCoordinator.isPlaybackRequested else { return }
+            updateReadingBedPlayback()
         }
         .onDisappear {
+            readingBedPauseTask?.cancel()
+            readingBedPauseTask = nil
             readingBedCoordinator.reset()
             clearLinguistState()
         }
@@ -215,6 +242,10 @@ struct InteractivePlayerView: View {
         #else
         return false
         #endif
+    }
+
+    private var isShortcutHelpVisible: Bool {
+        isShortcutHelpPinned || isShortcutHelpModifierActive
     }
 
     @ViewBuilder
@@ -231,6 +262,7 @@ struct InteractivePlayerView: View {
             linguistFontScale: linguistFontScale,
             canIncreaseLinguistFont: linguistFontScale < linguistFontScaleMax - 0.001,
             canDecreaseLinguistFont: linguistFontScale > linguistFontScaleMin + 0.001,
+            focusedArea: $focusedArea,
             onNavigateWord: { delta in
                 handleWordNavigation(delta, in: chunk)
             },
@@ -242,6 +274,9 @@ struct InteractivePlayerView: View {
             },
             onHideMenu: {
                 hideMenu()
+            },
+            onLookup: {
+                handleLinguistLookup(in: chunk)
             },
             onLookupToken: { sentenceIndex, variantKind, tokenIndex, token in
                 handleLinguistLookup(
@@ -257,10 +292,6 @@ struct InteractivePlayerView: View {
                 closeLinguistBubble()
             }
         )
-        #if os(tvOS)
-        .focusable(!isMenuVisible)
-        .focused($focusedArea, equals: .transcript)
-        #endif
     }
 
     @ViewBuilder
@@ -309,11 +340,43 @@ struct InteractivePlayerView: View {
                 onToggleTranslationAudio: { toggleAudioTrack(.translation) },
                 onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
                 onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
+                onToggleShortcutHelp: { toggleShortcutHelp() },
+                onOptionKeyDown: { showShortcutHelpModifier() },
+                onOptionKeyUp: { hideShortcutHelpModifier() },
                 onShowMenu: { showMenu() },
                 onHideMenu: { hideMenu() }
             )
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    @ViewBuilder
+    private var trackpadSwipeLayer: some View {
+        #if os(iOS)
+        if isPad {
+            TrackpadSwipeHandler(
+                onSwipeDown: { showMenu() },
+                onSwipeUp: { hideMenu() }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityHidden(true)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    @ViewBuilder
+    private var shortcutHelpOverlay: some View {
+        #if os(iOS)
+        if isPad, isShortcutHelpVisible {
+            ShortcutHelpOverlayView(onDismiss: { dismissShortcutHelp() })
+                .transition(.opacity)
+                .zIndex(4)
         }
         #else
         EmptyView()
@@ -555,26 +618,153 @@ struct InteractivePlayerView: View {
         .padding(.vertical, 6)
     }
 
+    private var scopedChapterEntries: [ChapterNavigationEntry] {
+        let chapters = viewModel.chapterEntries
+        guard !chapters.isEmpty else { return [] }
+        let bounds = jobSentenceBounds
+        return chapters.filter { chapter in
+            let end = effectiveChapterEnd(for: chapter, boundsEnd: bounds.end)
+            if let startBound = bounds.start, end < startBound {
+                return false
+            }
+            if let endBound = bounds.end, chapter.startSentence > endBound {
+                return false
+            }
+            return true
+        }
+    }
+
+    private var selectedChapterRange: SentenceRange? {
+        let chapters = scopedChapterEntries
+        guard let chapter = activeChapter(in: chapters) else { return nil }
+        return chapterRange(for: chapter, bounds: jobSentenceBounds)
+    }
+
+    private var jobSentenceBounds: (start: Int?, end: Int?) {
+        guard let context = viewModel.jobContext else { return (nil, nil) }
+        var minValue: Int?
+        var maxValue: Int?
+        for chunk in context.chunks {
+            if let start = chunk.startSentence {
+                var end = chunk.endSentence ?? start
+                if chunk.endSentence == nil {
+                    let derivedEnd = chunk.sentences
+                        .map { $0.displayIndex ?? $0.id }
+                        .max() ?? start
+                    end = max(end, derivedEnd)
+                }
+                minValue = min(minValue ?? start, start)
+                maxValue = max(maxValue ?? end, end)
+                continue
+            }
+            for sentence in chunk.sentences {
+                let id = sentence.displayIndex ?? sentence.id
+                guard id > 0 else { continue }
+                minValue = min(minValue ?? id, id)
+                maxValue = max(maxValue ?? id, id)
+            }
+        }
+        return (minValue, maxValue)
+    }
+
+    private func chapterBinding(entries: [ChapterNavigationEntry]) -> Binding<String> {
+        Binding(
+            get: {
+                activeChapter(in: entries)?.id ?? entries.first?.id ?? ""
+            },
+            set: { newValue in
+                guard let target = entries.first(where: { $0.id == newValue }) else { return }
+                selectedSentenceID = target.startSentence
+                viewModel.jumpToSentence(target.startSentence, autoPlay: audioCoordinator.isPlaying)
+            }
+        )
+    }
+
+    private func chapterLabel(_ chapter: ChapterNavigationEntry, index: Int) -> String {
+        let title = chapter.title.nonEmptyValue ?? "Chapter \(index + 1)"
+        let range = chapterRangeLabel(for: chapter)
+        if range.isEmpty {
+            return title
+        }
+        return "\(title) • \(range)"
+    }
+
+    private func chapterRangeLabel(for chapter: ChapterNavigationEntry) -> String {
+        if let end = chapter.endSentence {
+            if end > chapter.startSentence {
+                return "\(chapter.startSentence)-\(end)"
+            }
+            return "\(chapter.startSentence)"
+        }
+        return "\(chapter.startSentence)+"
+    }
+
+    private func activeChapter(in chapters: [ChapterNavigationEntry]) -> ChapterNavigationEntry? {
+        guard !chapters.isEmpty else { return nil }
+        guard let sentenceID = selectedSentenceID else { return chapters.first }
+        let boundsEnd = jobSentenceBounds.end
+        for chapter in chapters {
+            let end = effectiveChapterEnd(for: chapter, boundsEnd: boundsEnd)
+            if sentenceID >= chapter.startSentence && sentenceID <= end {
+                return chapter
+            }
+        }
+        return chapters.first
+    }
+
+    private func chapterRange(
+        for chapter: ChapterNavigationEntry,
+        bounds: (start: Int?, end: Int?)
+    ) -> SentenceRange? {
+        let effectiveEnd = effectiveChapterEnd(for: chapter, boundsEnd: bounds.end)
+        let start = max(chapter.startSentence, bounds.start ?? chapter.startSentence)
+        let end = min(effectiveEnd, bounds.end ?? effectiveEnd)
+        guard end >= start else { return nil }
+        return SentenceRange(start: start, end: end)
+    }
+
+    private func effectiveChapterEnd(for chapter: ChapterNavigationEntry, boundsEnd: Int?) -> Int {
+        if let end = chapter.endSentence {
+            return max(end, chapter.startSentence)
+        }
+        if let boundsEnd {
+            return max(boundsEnd, chapter.startSentence)
+        }
+        return chapter.startSentence
+    }
+
     @ViewBuilder
     private func chapterPicker() -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Chapter")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            Picker("Chapter", selection: viewModel.chunkBinding()) {
-                let chunks = viewModel.jobContext?.chunks ?? []
-                ForEach(Array(chunks.enumerated()), id: \.element.id) { index, chunk in
-                    Text("Chapter \(index + 1)").tag(chunk.id)
+            let chapters = scopedChapterEntries
+            if chapters.isEmpty {
+                Picker("Chapter", selection: viewModel.chunkBinding()) {
+                    let chunks = viewModel.jobContext?.chunks ?? []
+                    ForEach(Array(chunks.enumerated()), id: \.element.id) { index, chunk in
+                        Text("Chapter \(index + 1)").tag(chunk.id)
+                    }
                 }
+                .pickerStyle(.menu)
+                .focused($focusedArea, equals: .controls)
+            } else {
+                Picker("Chapter", selection: chapterBinding(entries: chapters)) {
+                    ForEach(Array(chapters.enumerated()), id: \.element.id) { index, chapter in
+                        Text(chapterLabel(chapter, index: index)).tag(chapter.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .focused($focusedArea, equals: .controls)
             }
-            .pickerStyle(.menu)
-            .focused($focusedArea, equals: .controls)
         }
     }
 
     @ViewBuilder
     private func sentencePicker(for chunk: InteractiveChunk) -> some View {
-        let entries = sentenceEntries(for: chunk)
+        let chapterRange = selectedChapterRange
+        let entries = sentenceEntries(for: chunk, chapterRange: chapterRange)
         VStack(alignment: .leading, spacing: 4) {
             Text("Sentence")
                 .font(.caption)
@@ -584,7 +774,7 @@ struct InteractivePlayerView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Picker("Sentence", selection: sentenceBinding(entries: entries, chunk: chunk)) {
+                Picker("Sentence", selection: sentenceBinding(entries: entries, chunk: chunk, chapterRange: chapterRange)) {
                     ForEach(entries) { entry in
                         Text(entry.label).tag(entry.id)
                     }
@@ -770,18 +960,39 @@ struct InteractivePlayerView: View {
         updateReadingBedPlayback()
     }
 
+    private func handleNarrationPlaybackChange(isPlaying: Bool) {
+        readingBedPauseTask?.cancel()
+        readingBedPauseTask = nil
+        if isPlaying {
+            updateReadingBedPlayback()
+            return
+        }
+        if !audioCoordinator.isPlaybackRequested {
+            updateReadingBedPlayback()
+            return
+        }
+        readingBedPauseTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: readingBedPauseDelayNanos)
+            guard !Task.isCancelled else { return }
+            updateReadingBedPlayback()
+        }
+    }
+
     private func updateReadingBedPlayback() {
         guard readingBedEnabled, let url = viewModel.readingBedURL else {
             readingBedCoordinator.pause()
             return
         }
-        guard audioCoordinator.isPlaying else {
+        guard audioCoordinator.isPlaybackRequested else {
             readingBedCoordinator.pause()
             return
         }
-        if readingBedCoordinator.activeURL != url {
+        if readingBedCoordinator.activeURL == url && readingBedCoordinator.isPlaying {
+            return
+        }
+        if readingBedCoordinator.activeURL != url || readingBedCoordinator.activeURL == nil {
             readingBedCoordinator.load(url: url, autoPlay: true)
-        } else if !readingBedCoordinator.isPlaying {
+        } else {
             readingBedCoordinator.play()
         }
     }
@@ -939,7 +1150,11 @@ struct InteractivePlayerView: View {
         }
     }
 
-    private func sentenceBinding(entries: [SentenceOption], chunk: InteractiveChunk) -> Binding<Int> {
+    private func sentenceBinding(
+        entries: [SentenceOption],
+        chunk: InteractiveChunk,
+        chapterRange: SentenceRange?
+    ) -> Binding<Int> {
         Binding(
             get: {
                 if let selected = selectedSentenceID,
@@ -950,6 +1165,10 @@ struct InteractivePlayerView: View {
             },
             set: { newValue in
                 selectedSentenceID = newValue
+                if chapterRange != nil {
+                    viewModel.jumpToSentence(newValue, autoPlay: audioCoordinator.isPlaying)
+                    return
+                }
                 guard let target = entries.first(where: { $0.id == newValue }) else { return }
                 guard let startTime = target.startTime else { return }
                 viewModel.seekPlayback(to: startTime, in: chunk)
@@ -957,7 +1176,13 @@ struct InteractivePlayerView: View {
         )
     }
 
-    private func sentenceEntries(for chunk: InteractiveChunk) -> [SentenceOption] {
+    private func sentenceEntries(for chunk: InteractiveChunk, chapterRange: SentenceRange?) -> [SentenceOption] {
+        if let chapterRange {
+            guard chapterRange.end >= chapterRange.start else { return [] }
+            return (chapterRange.start...chapterRange.end).map { sentenceIndex in
+                SentenceOption(id: sentenceIndex, label: "\(sentenceIndex)", startTime: nil)
+            }
+        }
         let sentences = chunk.sentences
         if sentences.isEmpty {
             if let start = chunk.startSentence, let end = chunk.endSentence, start <= end {
@@ -1209,9 +1434,19 @@ struct InteractivePlayerView: View {
               variant.tokens.indices.contains(selection.tokenIndex) else {
             return
         }
-        let rawToken = variant.tokens[selection.tokenIndex]
+        guard let lookupIndex = nearestLookupTokenIndex(
+            in: variant.tokens,
+            startingAt: selection.tokenIndex
+        ) else {
+            return
+        }
+        let rawToken = variant.tokens[lookupIndex]
         guard let query = sanitizeLookupQuery(rawToken) else { return }
-        linguistSelection = selection
+        linguistSelection = TextPlayerWordSelection(
+            sentenceIndex: sentence.index,
+            variantKind: selection.variantKind,
+            tokenIndex: lookupIndex
+        )
         startLinguistLookup(query: query, variantKind: selection.variantKind)
     }
 
@@ -1294,11 +1529,49 @@ struct InteractivePlayerView: View {
         }
     }
 
+    private func toggleShortcutHelp() {
+        isShortcutHelpPinned.toggle()
+    }
+
+    private func showShortcutHelpModifier() {
+        isShortcutHelpModifierActive = true
+    }
+
+    private func hideShortcutHelpModifier() {
+        isShortcutHelpModifierActive = false
+    }
+
+    private func dismissShortcutHelp() {
+        isShortcutHelpPinned = false
+    }
+
     private func sanitizeLookupQuery(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let stripped = trimmed.trimmingCharacters(in: .punctuationCharacters.union(.symbols))
         let normalized = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
         return normalized.isEmpty ? nil : normalized
+    }
+
+    private func nearestLookupTokenIndex(in tokens: [String], startingAt index: Int) -> Int? {
+        guard !tokens.isEmpty else { return nil }
+        let clamped = max(0, min(index, tokens.count - 1))
+        if sanitizeLookupQuery(tokens[clamped]) != nil {
+            return clamped
+        }
+        if tokens.count == 1 {
+            return nil
+        }
+        for offset in 1..<tokens.count {
+            let forward = clamped + offset
+            if forward < tokens.count, sanitizeLookupQuery(tokens[forward]) != nil {
+                return forward
+            }
+            let backward = clamped - offset
+            if backward >= 0, sanitizeLookupQuery(tokens[backward]) != nil {
+                return backward
+            }
+        }
+        return nil
     }
 
     private func pronunciationLanguage(
@@ -1550,10 +1823,12 @@ private struct InteractiveTranscriptView: View {
     let linguistFontScale: CGFloat
     let canIncreaseLinguistFont: Bool
     let canDecreaseLinguistFont: Bool
+    @FocusState.Binding var focusedArea: InteractivePlayerFocusArea?
     let onNavigateWord: (Int) -> Void
     let onNavigateTrack: (Int) -> Void
     let onShowMenu: () -> Void
     let onHideMenu: () -> Void
+    let onLookup: () -> Void
     let onLookupToken: (Int, TextPlayerVariantKind, Int, String) -> Void
     let onIncreaseLinguistFont: () -> Void
     let onDecreaseLinguistFont: () -> Void
@@ -1583,7 +1858,14 @@ private struct InteractiveTranscriptView: View {
                 onTokenLookup: onLookupToken,
                 fontScale: trackFontScale
             )
-                .frame(maxWidth: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .top)
+            .contentShape(Rectangle())
+            .focusable(!isMenuVisible)
+            .focused($focusedArea, equals: .transcript)
+            .onTapGesture {
+                onLookup()
+            }
+            .accessibilityAddTraits(.isButton)
 
             if let bubble {
                 MyLinguistBubbleView(
@@ -1830,6 +2112,11 @@ private struct SentenceOption: Identifiable {
     let id: Int
     let label: String
     let startTime: Double?
+}
+
+private struct SentenceRange: Equatable {
+    let start: Int
+    let end: Int
 }
 
 private struct PlaybackScrubberView: View {
@@ -2093,7 +2380,187 @@ private struct TokenWordView: View {
     }
 }
 
+private struct ShortcutHelpOverlayView: View {
+    let onDismiss: () -> Void
+
+    private let sections: [ShortcutHelpSection] = [
+        ShortcutHelpSection(
+            title: "Playback",
+            items: [
+                ShortcutHelpItem(keys: "Space", action: "Play or pause")
+            ]
+        ),
+        ShortcutHelpSection(
+            title: "Navigation",
+            items: [
+                ShortcutHelpItem(keys: "Left Arrow", action: "Previous sentence"),
+                ShortcutHelpItem(keys: "Right Arrow", action: "Next sentence"),
+                ShortcutHelpItem(keys: "Ctrl + Left Arrow", action: "Previous word"),
+                ShortcutHelpItem(keys: "Ctrl + Right Arrow", action: "Next word"),
+                ShortcutHelpItem(keys: "Down Arrow", action: "Show menu"),
+                ShortcutHelpItem(keys: "Up Arrow", action: "Hide menu")
+            ]
+        ),
+        ShortcutHelpSection(
+            title: "Text Tracks",
+            items: [
+                ShortcutHelpItem(keys: "O", action: "Toggle original line"),
+                ShortcutHelpItem(keys: "I", action: "Toggle transliteration line"),
+                ShortcutHelpItem(keys: "P", action: "Toggle translation line")
+            ]
+        ),
+        ShortcutHelpSection(
+            title: "Audio Tracks",
+            items: [
+                ShortcutHelpItem(keys: "Shift + O", action: "Toggle original audio"),
+                ShortcutHelpItem(keys: "Shift + P", action: "Toggle translation audio")
+            ]
+        ),
+        ShortcutHelpSection(
+            title: "Font Size",
+            items: [
+                ShortcutHelpItem(keys: "+ / -", action: "Track font size"),
+                ShortcutHelpItem(keys: "Ctrl + +/-", action: "MyLinguist font size")
+            ]
+        ),
+        ShortcutHelpSection(
+            title: "Help",
+            items: [
+                ShortcutHelpItem(keys: "H", action: "Toggle this overlay"),
+                ShortcutHelpItem(keys: "Option (hold)", action: "Show shortcuts overlay")
+            ]
+        )
+    ]
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.55)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onDismiss()
+                }
+            VStack(alignment: .leading, spacing: 16) {
+                HStack {
+                    Text("Keyboard Shortcuts")
+                        .font(.title3.weight(.semibold))
+                    Spacer()
+                    Button(action: onDismiss) {
+                        Image(systemName: "xmark")
+                            .font(.caption.weight(.semibold))
+                            .padding(6)
+                            .background(.black.opacity(0.3), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(sections) { section in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(section.title)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                ForEach(section.items) { item in
+                                    HStack(alignment: .top, spacing: 12) {
+                                        Text(item.keys)
+                                            .font(.callout.monospaced())
+                                            .frame(width: 170, alignment: .leading)
+                                        Text(item.action)
+                                            .font(.callout)
+                                        Spacer(minLength: 0)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                .frame(maxHeight: 360)
+            }
+            .padding(20)
+            .frame(maxWidth: 520)
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+        }
+    }
+
+    private struct ShortcutHelpSection: Identifiable {
+        let id = UUID()
+        let title: String
+        let items: [ShortcutHelpItem]
+    }
+
+    private struct ShortcutHelpItem: Identifiable {
+        let id = UUID()
+        let keys: String
+        let action: String
+    }
+}
+
 #if os(iOS)
+private struct TrackpadSwipeHandler: UIViewRepresentable {
+    let onSwipeDown: () -> Void
+    let onSwipeUp: () -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onSwipeDown: onSwipeDown, onSwipeUp: onSwipeUp)
+    }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = TrackpadSwipeView()
+        view.backgroundColor = .clear
+        let pan = UIPanGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handlePan(_:)))
+        pan.cancelsTouchesInView = false
+        if #available(iOS 13.4, *) {
+            pan.allowedScrollTypesMask = [.continuous, .discrete]
+            pan.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+        }
+        view.addGestureRecognizer(pan)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+
+    private final class TrackpadSwipeView: UIView {
+        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+            guard let event else { return nil }
+            guard let touches = event.allTouches, !touches.isEmpty else { return nil }
+            let hasPointer = touches.contains { touch in
+                if #available(iOS 13.4, *) {
+                    return touch.type == .indirectPointer || touch.type == .indirect
+                }
+                return false
+            }
+            return hasPointer ? self : nil
+        }
+    }
+
+    final class Coordinator: NSObject {
+        private let onSwipeDown: () -> Void
+        private let onSwipeUp: () -> Void
+        private let threshold: CGFloat = 24
+
+        init(onSwipeDown: @escaping () -> Void, onSwipeUp: @escaping () -> Void) {
+            self.onSwipeDown = onSwipeDown
+            self.onSwipeUp = onSwipeUp
+        }
+
+        @objc func handlePan(_ gesture: UIPanGestureRecognizer) {
+            guard gesture.state == .ended || gesture.state == .cancelled else { return }
+            let translation = gesture.translation(in: gesture.view)
+            let horizontal = translation.x
+            let vertical = translation.y
+            guard abs(vertical) > abs(horizontal) else { return }
+            if vertical > threshold {
+                onSwipeDown()
+            } else if vertical < -threshold {
+                onSwipeUp()
+            }
+        }
+    }
+}
+
 private struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onPlayPause: () -> Void
     let onPrevious: () -> Void
@@ -2109,6 +2576,9 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onToggleTranslationAudio: () -> Void
     let onIncreaseLinguistFont: () -> Void
     let onDecreaseLinguistFont: () -> Void
+    let onToggleShortcutHelp: () -> Void
+    let onOptionKeyDown: () -> Void
+    let onOptionKeyUp: () -> Void
     let onShowMenu: () -> Void
     let onHideMenu: () -> Void
 
@@ -2128,6 +2598,9 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onToggleTranslationAudio = onToggleTranslationAudio
         controller.onIncreaseLinguistFont = onIncreaseLinguistFont
         controller.onDecreaseLinguistFont = onDecreaseLinguistFont
+        controller.onToggleShortcutHelp = onToggleShortcutHelp
+        controller.onOptionKeyDown = onOptionKeyDown
+        controller.onOptionKeyUp = onOptionKeyUp
         controller.onShowMenu = onShowMenu
         controller.onHideMenu = onHideMenu
         return controller
@@ -2148,6 +2621,9 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onToggleTranslationAudio = onToggleTranslationAudio
         uiViewController.onIncreaseLinguistFont = onIncreaseLinguistFont
         uiViewController.onDecreaseLinguistFont = onDecreaseLinguistFont
+        uiViewController.onToggleShortcutHelp = onToggleShortcutHelp
+        uiViewController.onOptionKeyDown = onOptionKeyDown
+        uiViewController.onOptionKeyUp = onOptionKeyUp
         uiViewController.onShowMenu = onShowMenu
         uiViewController.onHideMenu = onHideMenu
     }
@@ -2167,8 +2643,12 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onToggleTranslationAudio: (() -> Void)?
         var onIncreaseLinguistFont: (() -> Void)?
         var onDecreaseLinguistFont: (() -> Void)?
+        var onToggleShortcutHelp: (() -> Void)?
+        var onOptionKeyDown: (() -> Void)?
+        var onOptionKeyUp: (() -> Void)?
         var onShowMenu: (() -> Void)?
         var onHideMenu: (() -> Void)?
+        private var isOptionKeyDown = false
 
         override var canBecomeFirstResponder: Bool {
             true
@@ -2188,6 +2668,8 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.control], action: #selector(handleNextWord)),
                 makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleShowMenu)),
                 makeCommand(input: UIKeyCommand.inputUpArrow, action: #selector(handleHideMenu)),
+                makeCommand(input: "h", action: #selector(handleToggleHelp)),
+                makeCommand(input: "h", modifiers: [.shift], action: #selector(handleToggleHelp)),
                 makeCommand(input: "o", action: #selector(handleToggleOriginal)),
                 makeCommand(input: "o", modifiers: [.shift], action: #selector(handleToggleOriginalAudio)),
                 makeCommand(input: "i", action: #selector(handleToggleTransliteration)),
@@ -2262,12 +2744,40 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
             onDecreaseLinguistFont?()
         }
 
+        @objc private func handleToggleHelp() {
+            onToggleShortcutHelp?()
+        }
+
         @objc private func handleShowMenu() {
             onShowMenu?()
         }
 
         @objc private func handleHideMenu() {
             onHideMenu?()
+        }
+
+        override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+            if shouldHandleOptionKey(presses), !isOptionKeyDown {
+                isOptionKeyDown = true
+                onOptionKeyDown?()
+            }
+            super.pressesBegan(presses, with: event)
+        }
+
+        override func pressesEnded(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+            if shouldHandleOptionKey(presses), isOptionKeyDown {
+                isOptionKeyDown = false
+                onOptionKeyUp?()
+            }
+            super.pressesEnded(presses, with: event)
+        }
+
+        override func pressesCancelled(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
+            if isOptionKeyDown {
+                isOptionKeyDown = false
+                onOptionKeyUp?()
+            }
+            super.pressesCancelled(presses, with: event)
         }
 
         private func makeCommand(
@@ -2278,6 +2788,21 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
             let command = UIKeyCommand(input: input, modifierFlags: modifiers, action: action)
             command.wantsPriorityOverSystemBehavior = true
             return command
+        }
+
+        private func shouldHandleOptionKey(_ presses: Set<UIPress>) -> Bool {
+            for press in presses {
+                guard let key = press.key else { continue }
+                if key.keyCode == .keyboardLeftAlt || key.keyCode == .keyboardRightAlt {
+                    return true
+                }
+                if (key.characters ?? "").isEmpty,
+                   (key.charactersIgnoringModifiers ?? "").isEmpty,
+                   key.modifierFlags.contains(.alternate) {
+                    return true
+                }
+            }
+            return false
         }
     }
 }

@@ -30,6 +30,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     @Published private(set) var selectedTimingURL: URL?
     @Published private(set) var mediaResponse: PipelineMediaResponse?
     @Published private(set) var timingResponse: JobTimingResponse?
+    @Published private(set) var chapterEntries: [ChapterNavigationEntry] = []
     @Published private(set) var readingBedCatalog: ReadingBedListResponse?
     @Published private(set) var readingBedURL: URL?
     @Published private(set) var selectedReadingBedID: String?
@@ -44,6 +45,7 @@ final class InteractivePlayerViewModel: ObservableObject {
     private var audioDurationByURL: [URL: Double] = [:]
     private var chunkMetadataLoaded: Set<String> = []
     private var chunkMetadataLoading: Set<String> = []
+    private var pendingSentenceJump: PendingSentenceJump?
     private let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
 
     init() {
@@ -74,11 +76,13 @@ final class InteractivePlayerViewModel: ObservableObject {
         jobContext = nil
         mediaResponse = nil
         timingResponse = nil
+        chapterEntries = []
         readingBedCatalog = nil
         readingBedURL = nil
         selectedReadingBedID = nil
         mediaResolver = nil
         audioCoordinator.reset()
+        pendingSentenceJump = nil
 
         do {
             let client = APIClient(configuration: configuration)
@@ -156,6 +160,7 @@ final class InteractivePlayerViewModel: ObservableObject {
             selectedAudioTrackID = preferred?.id ?? chunk.audioOptions.first?.id
         }
         prepareAudio(for: chunk, autoPlay: autoPlay)
+        attemptPendingSentenceJump(in: chunk)
         Task { [weak self] in
             await self?.loadChunkMetadataIfNeeded(for: chunk.id)
         }
@@ -168,7 +173,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         if let track = chunk.audioOptions.first(where: { $0.id == id }) {
             preferredAudioKind = track.kind
         }
-        prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaying)
+        prepareAudio(for: chunk, autoPlay: audioCoordinator.isPlaybackRequested)
     }
 
     func lookupAssistant(query: String, inputLanguage: String, lookupLanguage: String) async throws -> AssistantLookupResponse {
@@ -493,7 +498,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         let targetURL = urls[targetIndex]
         if audioCoordinator.activeURL != targetURL {
             let subset = Array(urls[targetIndex...])
-            audioCoordinator.load(urls: subset, autoPlay: audioCoordinator.isPlaying)
+            audioCoordinator.load(urls: subset, autoPlay: audioCoordinator.isPlaybackRequested)
         }
         audioCoordinator.seek(to: remaining)
     }
@@ -559,7 +564,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 return
             }
             if let nextChunk = jobContext?.nextChunk(after: chunk.id) {
-                selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaying)
+                selectChunk(id: nextChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
             }
         } else {
             if let previous = sorted.last(where: { $0.1 < currentTime - epsilon }) {
@@ -567,8 +572,59 @@ final class InteractivePlayerViewModel: ObservableObject {
                 return
             }
             if let previousChunk = jobContext?.previousChunk(before: chunk.id) {
-                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaying)
+                selectChunk(id: previousChunk.id, autoPlay: audioCoordinator.isPlaybackRequested)
             }
+        }
+    }
+
+    func jumpToSentence(_ sentenceNumber: Int, autoPlay: Bool = false) {
+        guard let context = jobContext else { return }
+        guard sentenceNumber > 0 else { return }
+        guard let targetChunk = resolveChunk(containing: sentenceNumber, in: context) else { return }
+        pendingSentenceJump = PendingSentenceJump(chunkID: targetChunk.id, sentenceNumber: sentenceNumber)
+        selectChunk(id: targetChunk.id, autoPlay: autoPlay)
+        attemptPendingSentenceJump(in: targetChunk)
+        if selectedChunkID == targetChunk.id {
+            Task { [weak self] in
+                await self?.loadChunkMetadataIfNeeded(for: targetChunk.id)
+            }
+        }
+    }
+
+    @MainActor
+    func updateChapterIndex(from metadata: [String: JSONValue]?) async {
+        chapterEntries = []
+        guard let metadata else { return }
+        let metadataRoot = extractBookMetadata(from: metadata) ?? metadata
+        let inlineIndex = metadataValue(metadataRoot, keys: ["content_index", "contentIndex"])
+            ?? metadataValue(metadata, keys: ["content_index", "contentIndex"])
+        if let inlineIndex,
+           let chapters = parseContentIndex(from: inlineIndex),
+           !chapters.isEmpty {
+            chapterEntries = chapters
+            return
+        }
+        guard let jobId, let resolver = mediaResolver else { return }
+        let urlCandidate = metadataString(metadataRoot, keys: ["content_index_url", "contentIndexUrl"])
+            ?? metadataString(metadata, keys: ["content_index_url", "contentIndexUrl"])
+        let pathCandidate = metadataString(metadataRoot, keys: ["content_index_path", "contentIndexPath"])
+            ?? metadataString(metadata, keys: ["content_index_path", "contentIndexPath"])
+        guard let target = urlCandidate ?? pathCandidate,
+              let url = resolver.resolvePath(jobId: jobId, relativePath: target) else {
+            return
+        }
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            guard !Task.isCancelled else { return }
+            let decoder = JSONDecoder()
+            let payload = try decoder.decode(JSONValue.self, from: data)
+            guard let chapters = parseContentIndex(from: payload),
+                  !chapters.isEmpty else {
+                return
+            }
+            chapterEntries = chapters
+        } catch {
+            return
         }
     }
 
@@ -578,7 +634,7 @@ final class InteractivePlayerViewModel: ObservableObject {
                 self.selectedChunkID ?? self.jobContext?.chunks.first?.id ?? ""
             },
             set: { newValue in
-                self.selectChunk(id: newValue, autoPlay: self.audioCoordinator.isPlaying)
+                self.selectChunk(id: newValue, autoPlay: self.audioCoordinator.isPlaybackRequested)
             }
         )
     }
@@ -690,6 +746,9 @@ final class InteractivePlayerViewModel: ObservableObject {
             )
             mediaResponse = refreshedMedia
             jobContext = context
+            if let updatedChunk = context.chunk(withID: chunkID) {
+                attemptPendingSentenceJump(in: updatedChunk)
+            }
             chunkMetadataLoaded.insert(chunkID)
         } catch {
             return
@@ -715,6 +774,173 @@ final class InteractivePlayerViewModel: ObservableObject {
             return
         }
         selectChunk(id: nextChunk.id, autoPlay: true)
+    }
+
+    private func resolveChunk(containing sentenceNumber: Int, in context: JobContext) -> InteractiveChunk? {
+        if let match = context.chunks.first(where: { chunk in
+            chunk.sentences.contains { sentence in
+                let id = sentence.displayIndex ?? sentence.id
+                return id == sentenceNumber
+            }
+        }) {
+            return match
+        }
+        return context.chunks.first(where: { chunk in
+            guard let start = chunk.startSentence, let end = chunk.endSentence else { return false }
+            return sentenceNumber >= start && sentenceNumber <= end
+        })
+    }
+
+    private func attemptPendingSentenceJump(in chunk: InteractiveChunk) {
+        guard let pending = pendingSentenceJump, pending.chunkID == chunk.id else { return }
+        guard let startTime = startTimeForSentence(pending.sentenceNumber, in: chunk) else { return }
+        pendingSentenceJump = nil
+        seekPlayback(to: startTime, in: chunk)
+    }
+
+    private func startTimeForSentence(_ sentenceNumber: Int, in chunk: InteractiveChunk) -> Double? {
+        let activeTimingTrack = activeTimingTrack(for: chunk)
+        let useCombinedPhases = useCombinedPhases(for: chunk)
+        let timelineSentences = TextPlayerTimeline.buildTimelineSentences(
+            sentences: chunk.sentences,
+            activeTimingTrack: activeTimingTrack,
+            audioDuration: playbackDuration(for: chunk),
+            useCombinedPhases: useCombinedPhases
+        )
+        if let timelineSentences {
+            for runtime in timelineSentences {
+                guard chunk.sentences.indices.contains(runtime.index) else { continue }
+                let sentence = chunk.sentences[runtime.index]
+                let id = sentence.displayIndex ?? sentence.id
+                if id == sentenceNumber {
+                    return runtime.startTime
+                }
+            }
+        }
+        if let sentence = chunk.sentences.first(where: { ( $0.displayIndex ?? $0.id ) == sentenceNumber }) {
+            return sentence.startTime
+        }
+        return nil
+    }
+
+    private func extractBookMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        if let direct = objectValue(metadata["book_metadata"]) {
+            return direct
+        }
+        if let result = objectValue(metadata["result"]),
+           let nested = objectValue(result["book_metadata"]) {
+            return nested
+        }
+        return nil
+    }
+
+    private func parseContentIndex(from value: JSONValue) -> [ChapterNavigationEntry]? {
+        guard let object = objectValue(value),
+              let chaptersValue = object["chapters"],
+              let chaptersArray = arrayValue(chaptersValue) else {
+            return nil
+        }
+        var entries: [ChapterNavigationEntry] = []
+        entries.reserveCapacity(chaptersArray.count)
+        for (index, entryValue) in chaptersArray.enumerated() {
+            guard let entry = objectValue(entryValue) else { continue }
+            let start = intValue(entry["start_sentence"])
+                ?? intValue(entry["startSentence"])
+                ?? intValue(entry["start"])
+            guard let start, start > 0 else { continue }
+            let sentenceCount = intValue(entry["sentence_count"]) ?? intValue(entry["sentenceCount"])
+            var end = intValue(entry["end_sentence"])
+                ?? intValue(entry["endSentence"])
+                ?? intValue(entry["end"])
+            if end == nil, let count = sentenceCount {
+                end = start + max(count - 1, 0)
+            }
+            if let endValue = end, endValue < start {
+                end = start
+            }
+            let id = stringValue(entry["id"]) ?? "chapter-\(index + 1)"
+            let title = stringValue(entry["title"])
+                ?? stringValue(entry["toc_label"])
+                ?? stringValue(entry["tocLabel"])
+                ?? stringValue(entry["name"])
+                ?? "Chapter \(index + 1)"
+            entries.append(
+                ChapterNavigationEntry(
+                    id: id,
+                    title: title,
+                    startSentence: start,
+                    endSentence: end
+                )
+            )
+        }
+        return entries
+    }
+
+    private func metadataValue(_ metadata: [String: JSONValue], keys: [String]) -> JSONValue? {
+        for key in keys {
+            if let value = metadata[key] {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func metadataString(_ metadata: [String: JSONValue], keys: [String]) -> String? {
+        for key in keys {
+            if let value = metadata[key], let string = stringValue(value) {
+                return string
+            }
+        }
+        return nil
+    }
+
+    private func objectValue(_ value: JSONValue?) -> [String: JSONValue]? {
+        guard case let .object(object) = value else { return nil }
+        return object
+    }
+
+    private func arrayValue(_ value: JSONValue?) -> [JSONValue]? {
+        guard case let .array(array) = value else { return nil }
+        return array
+    }
+
+    private func stringValue(_ value: JSONValue?) -> String? {
+        switch value {
+        case let .string(raw):
+            return raw.nonEmptyValue
+        case let .number(raw):
+            guard raw.isFinite else { return nil }
+            return String(raw).nonEmptyValue
+        case let .array(values):
+            for value in values {
+                if let string = stringValue(value) {
+                    return string
+                }
+            }
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    private func intValue(_ value: JSONValue?) -> Int? {
+        switch value {
+        case let .number(raw):
+            guard raw.isFinite else { return nil }
+            return Int(raw.rounded())
+        case let .string(raw):
+            let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return nil }
+            if let parsed = Int(trimmed) {
+                return parsed
+            }
+            if let parsed = Double(trimmed), parsed.isFinite {
+                return Int(parsed.rounded())
+            }
+            return nil
+        default:
+            return nil
+        }
     }
 
     private enum AssistantLookupError: LocalizedError {
@@ -772,6 +998,18 @@ struct JobContext {
         guard chunks.indices.contains(previousIndex) else { return nil }
         return chunks[previousIndex]
     }
+}
+
+struct ChapterNavigationEntry: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let startSentence: Int
+    let endSentence: Int?
+}
+
+private struct PendingSentenceJump {
+    let chunkID: String
+    let sentenceNumber: Int
 }
 
 struct InteractiveChunk: Identifiable {

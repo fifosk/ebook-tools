@@ -85,39 +85,13 @@ struct LibraryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                TextField("Search library", text: $viewModel.query)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .focused($isSearchFocused)
-                    .submitLabel(.search)
-                    .onSubmit(onRefresh)
-                Button(action: onRefresh) {
-                    Image(systemName: "magnifyingglass")
-                }
-                .disabled(viewModel.isLoading)
-            }
-            .padding(.horizontal)
-
-            Picker("Filter", selection: $viewModel.activeFilter) {
-                ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
-                    Text(filter.rawValue).tag(filter)
-                }
-            }
             #if os(tvOS)
-            .pickerStyle(.automatic)
+            headerButtons
+            searchRow
+            filterPicker
             #else
-            .pickerStyle(.segmented)
-            #endif
-            .padding(.horizontal)
-
-            #if os(tvOS)
-            HStack(spacing: 16) {
-                Button("Refresh", action: onRefresh)
-                    .disabled(viewModel.isLoading)
-                Button("Sign Out", action: onSignOut)
-            }
-            .padding(.horizontal)
+            searchRow
+            filterPicker
             #endif
         }
         .padding(.top, 8)
@@ -125,6 +99,47 @@ struct LibraryView: View {
         .font(tvOSHeaderFont)
         #endif
     }
+
+    private var searchRow: some View {
+        HStack(spacing: 8) {
+            TextField("Search library", text: $viewModel.query)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .focused($isSearchFocused)
+                .submitLabel(.search)
+                .onSubmit(onRefresh)
+            Button(action: onRefresh) {
+                Image(systemName: "magnifyingglass")
+            }
+            .disabled(viewModel.isLoading)
+        }
+        .padding(.horizontal)
+    }
+
+    private var filterPicker: some View {
+        Picker("Filter", selection: $viewModel.activeFilter) {
+            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
+                Text(filter.rawValue).tag(filter)
+            }
+        }
+        #if os(tvOS)
+        .pickerStyle(.automatic)
+        #else
+        .pickerStyle(.segmented)
+        #endif
+        .padding(.horizontal)
+    }
+
+    #if os(tvOS)
+    private var headerButtons: some View {
+        HStack(spacing: 16) {
+            Button("Refresh", action: onRefresh)
+                .disabled(viewModel.isLoading)
+            Button("Sign Out", action: onSignOut)
+        }
+        .padding(.horizontal)
+    }
+    #endif
 
     #if os(tvOS)
     private var tvOSHeaderFont: Font {

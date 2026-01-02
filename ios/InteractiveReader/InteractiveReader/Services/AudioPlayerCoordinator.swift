@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class AudioPlayerCoordinator: ObservableObject {
     @Published private(set) var isPlaying = false
+    @Published private(set) var isPlaybackRequested = false
     @Published private(set) var currentTime: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var isReady = false
@@ -18,13 +19,17 @@ final class AudioPlayerCoordinator: ObservableObject {
     private var timeObserverToken: Any?
     private var endObserver: NSObjectProtocol?
     private var statusObservation: NSKeyValueObservation?
+    private var timeControlObservation: NSKeyValueObservation?
     private var failureObserver: NSObjectProtocol?
     private var errorLogObserver: NSObjectProtocol?
+    private var interruptionObserver: NSObjectProtocol?
+    private var shouldResumeAfterInterruption = false
     private var itemURLMap: [ObjectIdentifier: URL] = [:]
     private var itemOrder: [ObjectIdentifier: Int] = [:]
 
     init() {
         configureAudioSession()
+        installInterruptionObserver()
     }
 
     func load(url: URL, autoPlay: Bool = false) {
@@ -37,11 +42,12 @@ final class AudioPlayerCoordinator: ObservableObject {
             reset()
             return
         }
+        let shouldAutoPlay = autoPlay || isPlaybackRequested
         if activeURLs == sanitized {
             if player?.currentItem == nil {
                 tearDownPlayer()
             } else {
-                if autoPlay {
+                if shouldAutoPlay {
                     play()
                 }
                 return
@@ -67,13 +73,15 @@ final class AudioPlayerCoordinator: ObservableObject {
         }
         self.player = player
         player.volume = Float(volume)
+        observeTimeControlStatus(for: player)
         if let first = items.first {
             observeStatus(for: first)
             installErrorObservers(for: first)
         }
         installTimeObserver(on: player)
         installEndObserver(for: player)
-        if autoPlay {
+        isPlaybackRequested = shouldAutoPlay
+        if shouldAutoPlay {
             play()
         } else {
             isPlaying = false
@@ -83,6 +91,7 @@ final class AudioPlayerCoordinator: ObservableObject {
     func play() {
         guard let player = player else { return }
         configureAudioSession()
+        isPlaybackRequested = true
         if #available(iOS 10.0, tvOS 10.0, *) {
             player.playImmediately(atRate: Float(playbackRate))
         } else {
@@ -95,10 +104,11 @@ final class AudioPlayerCoordinator: ObservableObject {
     func pause() {
         player?.pause()
         isPlaying = false
+        isPlaybackRequested = false
     }
 
     func togglePlayback() {
-        isPlaying ? pause() : play()
+        isPlaybackRequested ? pause() : play()
     }
 
     func setPlaybackRate(_ rate: Double) {
@@ -134,19 +144,53 @@ final class AudioPlayerCoordinator: ObservableObject {
         isReady = false
         activeURL = nil
         activeURLs = []
+        isPlaybackRequested = false
         tearDownPlayer()
     }
 
     deinit {
+        if let observer = interruptionObserver {
+            NotificationCenter.default.removeObserver(observer)
+            interruptionObserver = nil
+        }
         tearDownPlayerAsync()
     }
 
     private func configureAudioSession() {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         let session = AVAudioSession.sharedInstance()
         let options: AVAudioSession.CategoryOptions = [.allowAirPlay]
         try? session.setCategory(.playback, mode: .spokenAudio, options: options)
         try? session.setActive(true)
+        #endif
+    }
+
+    private func installInterruptionObserver() {
+        #if os(iOS) || os(tvOS)
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] notification in
+            guard let self else { return }
+            let info = notification.userInfo
+            let rawType = info?[AVAudioSessionInterruptionTypeKey] as? UInt
+            let type = rawType.flatMap { AVAudioSession.InterruptionType(rawValue: $0) }
+            switch type {
+            case .began:
+                self.shouldResumeAfterInterruption = self.isPlaying
+                self.isPlaying = false
+            case .ended:
+                let optionsValue = info?[AVAudioSessionInterruptionOptionKey] as? UInt
+                let options = optionsValue.flatMap { AVAudioSession.InterruptionOptions(rawValue: $0) } ?? []
+                if self.shouldResumeAfterInterruption && options.contains(.shouldResume) {
+                    self.play()
+                }
+                self.shouldResumeAfterInterruption = false
+            default:
+                break
+            }
+        }
         #endif
     }
 
@@ -164,6 +208,24 @@ final class AudioPlayerCoordinator: ObservableObject {
                     self.isReady = false
                     self.isPlaying = false
                 default:
+                    break
+                }
+            }
+        }
+    }
+
+    private func observeTimeControlStatus(for player: AVPlayer) {
+        timeControlObservation = player.observe(\.timeControlStatus, options: [.new, .initial]) { [weak self] player, _ in
+            guard let self else { return }
+            Task { @MainActor in
+                switch player.timeControlStatus {
+                case .playing:
+                    self.isPlaying = true
+                case .paused:
+                    self.isPlaying = false
+                case .waitingToPlayAtSpecifiedRate:
+                    break
+                @unknown default:
                     break
                 }
             }
@@ -211,6 +273,7 @@ final class AudioPlayerCoordinator: ObservableObject {
                     return
                 }
                 self.isPlaying = false
+                self.isPlaybackRequested = false
                 self.currentTime = 0
                 self.onPlaybackEnded?()
                 return
@@ -273,6 +336,7 @@ final class AudioPlayerCoordinator: ObservableObject {
             errorLogObserver = nil
         }
         statusObservation = nil
+        timeControlObservation = nil
         player?.pause()
         player = nil
         isPlaying = false

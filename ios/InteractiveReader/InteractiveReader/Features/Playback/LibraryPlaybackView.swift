@@ -53,6 +53,10 @@ struct LibraryPlaybackView: View {
         viewModel.jobContext != nil && !isVideoPreferred
     }
 
+    private var shouldUseInteractiveBackground: Bool {
+        viewModel.jobContext != nil && !isVideoPreferred
+    }
+
     @ViewBuilder
     private var bodyContent: some View {
         #if os(tvOS)
@@ -116,6 +120,11 @@ struct LibraryPlaybackView: View {
         .padding()
         #endif
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background {
+            if shouldUseInteractiveBackground {
+                Color.black.ignoresSafeArea()
+            }
+        }
         #if !os(tvOS)
         .fullScreenCover(isPresented: $showVideoPlayer) {
             if let videoURL {
@@ -527,6 +536,7 @@ struct LibraryPlaybackView: View {
         guard let configuration = appState.configuration else { return }
         sentenceIndexTracker.value = nil
         await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
+        await viewModel.updateChapterIndex(from: item.metadata)
         if isVideoPreferred {
             nowPlaying.clear()
         } else {
