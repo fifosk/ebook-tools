@@ -68,7 +68,9 @@ struct LibraryPlaybackView: View {
 
     private var standardBody: some View {
         VStack(alignment: .leading, spacing: rootSpacing) {
-            header
+            if isVideoPreferred {
+                header
+            }
 
             switch viewModel.loadState {
             case .idle, .loading:
@@ -99,7 +101,8 @@ struct LibraryPlaybackView: View {
                         showImageReel: $showImageReel,
                         showsScrubber: showsScrubber,
                         linguistInputLanguage: linguistInputLanguage,
-                        linguistLookupLanguage: linguistLookupLanguage
+                        linguistLookupLanguage: linguistLookupLanguage,
+                        headerInfo: interactiveHeaderInfo
                     )
                 } else {
                     Text("No playable media found for this entry.")
@@ -316,6 +319,15 @@ struct LibraryPlaybackView: View {
             "translation_language",
             "language"
         ]) ?? item.language
+    }
+
+    private var interactiveHeaderInfo: InteractivePlayerHeaderInfo {
+        InteractivePlayerHeaderInfo(
+            title: item.bookTitle.isEmpty ? "Untitled" : item.bookTitle,
+            author: item.author.isEmpty ? "Unknown author" : item.author,
+            itemTypeLabel: itemTypeLabel,
+            coverURL: coverURL
+        )
     }
 
     private var coverWidth: CGFloat {

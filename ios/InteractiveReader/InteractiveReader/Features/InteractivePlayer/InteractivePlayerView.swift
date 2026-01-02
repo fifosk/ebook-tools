@@ -1,9 +1,19 @@
 import AVFoundation
 import SwiftUI
+#if os(iOS) || os(tvOS)
+import UIKit
+#endif
 
 private enum InteractivePlayerFocusArea: Hashable {
     case controls
     case transcript
+}
+
+struct InteractivePlayerHeaderInfo: Equatable {
+    let title: String
+    let author: String
+    let itemTypeLabel: String
+    let coverURL: URL?
 }
 
 struct InteractivePlayerView: View {
@@ -13,6 +23,8 @@ struct InteractivePlayerView: View {
     let showsScrubber: Bool
     let linguistInputLanguage: String
     let linguistLookupLanguage: String
+    let linguistExplanationLanguage: String
+    let headerInfo: InteractivePlayerHeaderInfo?
     @State private var readingBedCoordinator = AudioPlayerCoordinator()
     @State private var readingBedEnabled = true
     @State private var scrubbedTime: Double?
@@ -22,6 +34,14 @@ struct InteractivePlayerView: View {
     @State private var linguistBubble: MyLinguistBubbleState?
     @State private var linguistLookupTask: Task<Void, Never>?
     @State private var linguistSpeechTask: Task<Void, Never>?
+    @State private var isMenuVisible = false
+    @State private var frozenTranscriptSentences: [TextPlayerSentenceDisplay]?
+    #if os(iOS)
+    @State private var trackFontScale: CGFloat = UIDevice.current.userInterfaceIdiom == .pad ? 2.0 : 1.0
+    #else
+    @State private var trackFontScale: CGFloat = 1.0
+    #endif
+    @State private var linguistFontScale: CGFloat = 1.2
     @StateObject private var pronunciationSpeaker = PronunciationSpeaker()
     #if os(tvOS)
     @State private var didSetInitialFocus = false
@@ -30,6 +50,10 @@ struct InteractivePlayerView: View {
 
     private let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
     private let readingBedVolume: Double = 0.08
+    private let trackFontScaleStep: CGFloat = 0.1
+    private let linguistFontScaleMin: CGFloat = 0.8
+    private let linguistFontScaleMax: CGFloat = 1.6
+    private let linguistFontScaleStep: CGFloat = 0.05
 
     init(
         viewModel: InteractivePlayerViewModel,
@@ -37,7 +61,9 @@ struct InteractivePlayerView: View {
         showImageReel: Binding<Bool>? = nil,
         showsScrubber: Bool = true,
         linguistInputLanguage: String = "",
-        linguistLookupLanguage: String = "English"
+        linguistLookupLanguage: String = "English",
+        linguistExplanationLanguage: String = "English",
+        headerInfo: InteractivePlayerHeaderInfo? = nil
     ) {
         self._viewModel = ObservedObject(wrappedValue: viewModel)
         self._audioCoordinator = ObservedObject(wrappedValue: audioCoordinator)
@@ -45,23 +71,81 @@ struct InteractivePlayerView: View {
         self.showsScrubber = showsScrubber
         self.linguistInputLanguage = linguistInputLanguage
         self.linguistLookupLanguage = linguistLookupLanguage
+        self.linguistExplanationLanguage = linguistExplanationLanguage
+        self.headerInfo = headerInfo
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let summary = viewModel.highlightingSummary {
-                Text(summary)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+        #if os(tvOS)
+        baseContent
+            .onPlayPauseCommand {
+                audioCoordinator.togglePlayback()
             }
+            .applyIf(!isMenuVisible) { view in
+                view.onMoveCommand { direction in
+                    guard focusedArea == .transcript else { return }
+                    guard let chunk = viewModel.selectedChunk else { return }
+                    switch direction {
+                    case .left:
+                        if audioCoordinator.isPlaying {
+                            viewModel.skipSentence(forward: false)
+                        } else {
+                            handleWordNavigation(-1, in: chunk)
+                        }
+                    case .right:
+                        if audioCoordinator.isPlaying {
+                            viewModel.skipSentence(forward: true)
+                        } else {
+                            handleWordNavigation(1, in: chunk)
+                        }
+                    case .up:
+                        if !audioCoordinator.isPlaying {
+                            handleTrackNavigation(-1, in: chunk)
+                        }
+                    case .down:
+                        showMenu()
+                    default:
+                        break
+                    }
+                }
+            }
+            .applyIf(isMenuVisible) { view in
+                view.onMoveCommand { direction in
+                    if direction == .up {
+                        hideMenu()
+                    }
+                }
+            }
+            .onTapGesture {
+                guard focusedArea == .transcript else { return }
+                guard let chunk = viewModel.selectedChunk else { return }
+                handleLinguistLookup(in: chunk)
+            }
+        #else
+        baseContent
+        #endif
+    }
+
+    private var baseContent: some View {
+        ZStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let chunk = viewModel.selectedChunk {
+                    interactiveContent(for: chunk)
+                } else {
+                    Text("No interactive chunks were returned for this job.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if let chunk = viewModel.selectedChunk {
-                interactiveContent(for: chunk)
-            } else {
-                Text("No interactive chunks were returned for this job.")
-                    .foregroundStyle(.secondary)
+                menuOverlay(for: chunk)
             }
+            keyboardShortcutLayer
         }
+        #if !os(tvOS)
+        .simultaneousGesture(menuToggleGesture, including: .subviews)
+        #endif
         .padding(.horizontal)
         .padding(.vertical, 12)
         .onAppear {
@@ -83,8 +167,12 @@ struct InteractivePlayerView: View {
             clearLinguistState()
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
+            if isMenuVisible {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            }
         }
         .onChange(of: viewModel.highlightingTime) { _, _ in
+            guard !isMenuVisible else { return }
             guard focusedArea != .controls else { return }
             guard let chunk = viewModel.selectedChunk else { return }
             if audioCoordinator.isPlaying {
@@ -107,78 +195,301 @@ struct InteractivePlayerView: View {
         .onChange(of: visibleTracks) { _, _ in
             clearLinguistState()
         }
+        .onChange(of: isMenuVisible) { _, visible in
+            guard let chunk = viewModel.selectedChunk else { return }
+            if visible {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            } else {
+                frozenTranscriptSentences = nil
+            }
+        }
         .onDisappear {
             readingBedCoordinator.reset()
             clearLinguistState()
         }
-        #if os(tvOS)
-        .onPlayPauseCommand {
-            audioCoordinator.togglePlayback()
-        }
-        .onMoveCommand { direction in
-            guard focusedArea == .transcript else { return }
-            guard let chunk = viewModel.selectedChunk else { return }
-            switch direction {
-            case .left:
-                if audioCoordinator.isPlaying {
-                    viewModel.skipSentence(forward: false)
-                } else {
-                    handleWordNavigation(-1, in: chunk)
-                }
-            case .right:
-                if audioCoordinator.isPlaying {
-                    viewModel.skipSentence(forward: true)
-                } else {
-                    handleWordNavigation(1, in: chunk)
-                }
-            case .up:
-                if !audioCoordinator.isPlaying {
-                    handleTrackNavigation(-1, in: chunk)
-                }
-            case .down:
-                if !audioCoordinator.isPlaying {
-                    handleTrackNavigation(1, in: chunk)
-                }
-            default:
-                break
-            }
-        }
-        .onTapGesture {
-            guard focusedArea == .transcript else { return }
-            guard let chunk = viewModel.selectedChunk else { return }
-            handleLinguistLookup(in: chunk)
-        }
+    }
+
+    private var isPad: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
         #endif
     }
 
     @ViewBuilder
     private func interactiveContent(for chunk: InteractiveChunk) -> some View {
-        let transcriptSentences = transcriptSentences(for: chunk)
-        controlBar(chunk)
-        Divider()
+        let transcriptSentences = frozenTranscriptSentences ?? transcriptSentences(for: chunk)
         InteractiveTranscriptView(
             viewModel: viewModel,
             audioCoordinator: audioCoordinator,
             sentences: transcriptSentences,
             selection: linguistSelection,
             bubble: linguistBubble,
+            isMenuVisible: isMenuVisible,
+            trackFontScale: trackFontScale,
+            linguistFontScale: linguistFontScale,
+            canIncreaseLinguistFont: linguistFontScale < linguistFontScaleMax - 0.001,
+            canDecreaseLinguistFont: linguistFontScale > linguistFontScaleMin + 0.001,
             onNavigateWord: { delta in
                 handleWordNavigation(delta, in: chunk)
             },
             onNavigateTrack: { delta in
                 handleTrackNavigation(delta, in: chunk)
             },
-            onLookup: {
-                handleLinguistLookup(in: chunk)
+            onShowMenu: {
+                showMenu()
             },
+            onHideMenu: {
+                hideMenu()
+            },
+            onLookupToken: { sentenceIndex, variantKind, tokenIndex, token in
+                handleLinguistLookup(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    token: token
+                )
+            },
+            onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
+            onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
             onCloseBubble: {
                 closeLinguistBubble()
             }
         )
         #if os(tvOS)
-        .focusable(true)
+        .focusable(!isMenuVisible)
         .focused($focusedArea, equals: .transcript)
         #endif
+    }
+
+    @ViewBuilder
+    private func menuOverlay(for chunk: InteractiveChunk) -> some View {
+        if isMenuVisible {
+            let reelURLs = imageReelURLs(for: chunk)
+            VStack(alignment: .leading, spacing: 12) {
+                menuDragHandle
+                if let headerInfo {
+                    menuHeader(info: headerInfo, reelURLs: reelURLs)
+                }
+                if let summary = viewModel.highlightingSummary {
+                    Text(summary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                controlBar(chunk)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(menuBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 6)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .accessibilityAddTraits(.isModal)
+            .zIndex(2)
+        }
+    }
+
+    @ViewBuilder
+    private var keyboardShortcutLayer: some View {
+        #if os(iOS)
+        if isPad {
+            KeyboardCommandHandler(
+                onPlayPause: { audioCoordinator.togglePlayback() },
+                onPrevious: { viewModel.skipSentence(forward: false) },
+                onNext: { viewModel.skipSentence(forward: true) },
+                onPreviousWord: { handleWordNavigation(-1, in: viewModel.selectedChunk) },
+                onNextWord: { handleWordNavigation(1, in: viewModel.selectedChunk) },
+                onIncreaseFont: { adjustTrackFontScale(by: trackFontScaleStep) },
+                onDecreaseFont: { adjustTrackFontScale(by: -trackFontScaleStep) },
+                onToggleOriginal: { toggleTrackIfAvailable(.original) },
+                onToggleTransliteration: { toggleTrackIfAvailable(.transliteration) },
+                onToggleTranslation: { toggleTrackIfAvailable(.translation) },
+                onToggleOriginalAudio: { toggleAudioTrack(.original) },
+                onToggleTranslationAudio: { toggleAudioTrack(.translation) },
+                onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
+                onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
+                onShowMenu: { showMenu() },
+                onHideMenu: { hideMenu() }
+            )
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    private var menuDragHandle: some View {
+        #if os(tvOS)
+        EmptyView()
+        #else
+        Capsule()
+            .fill(Color.white.opacity(0.25))
+            .frame(width: 36, height: 4)
+            .frame(maxWidth: .infinity)
+            .padding(.top, 2)
+            .contentShape(Rectangle())
+        #endif
+    }
+
+    #if !os(tvOS)
+    private var menuToggleGesture: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(vertical) > abs(horizontal) else { return }
+                if vertical > 24 {
+                    showMenu()
+                } else if vertical < -24 {
+                    hideMenu()
+                }
+            }
+    }
+    #endif
+
+    private func showMenu() {
+        guard !isMenuVisible else { return }
+        guard viewModel.selectedChunk != nil else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            isMenuVisible = true
+        }
+        #if os(tvOS)
+        focusedArea = .controls
+        #endif
+    }
+
+    private func hideMenu() {
+        guard isMenuVisible else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            isMenuVisible = false
+        }
+        #if os(tvOS)
+        focusedArea = .transcript
+        #endif
+    }
+
+    @ViewBuilder
+    private func menuHeader(info: InteractivePlayerHeaderInfo, reelURLs: [URL]) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            if let coverURL = info.coverURL {
+                AsyncImage(url: coverURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Color.gray.opacity(0.2)
+                    }
+                }
+                .frame(width: menuCoverWidth, height: menuCoverHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(info.title.isEmpty ? "Untitled" : info.title)
+                    .font(menuTitleFont)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                Text(info.author.isEmpty ? "Unknown author" : info.author)
+                    .font(menuAuthorFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                    .foregroundStyle(.secondary)
+                Text(info.itemTypeLabel)
+                    .font(menuMetaFont)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.accentColor.opacity(0.2), in: Capsule())
+            }
+            if !reelURLs.isEmpty {
+                Spacer(minLength: 12)
+                InteractivePlayerImageReel(urls: reelURLs, height: menuCoverHeight)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+        }
+    }
+
+    private var menuCoverWidth: CGFloat {
+        #if os(tvOS)
+        return 96
+        #else
+        return 64
+        #endif
+    }
+
+    private var menuCoverHeight: CGFloat {
+        #if os(tvOS)
+        return 144
+        #else
+        return 96
+        #endif
+    }
+
+    private var menuTitleFont: Font {
+        #if os(tvOS)
+        return .title2
+        #else
+        return .title3
+        #endif
+    }
+
+    private var menuAuthorFont: Font {
+        #if os(tvOS)
+        return .callout
+        #else
+        return .callout
+        #endif
+    }
+
+    private var menuMetaFont: Font {
+        #if os(tvOS)
+        return .caption2
+        #else
+        return .caption
+        #endif
+    }
+
+    @ViewBuilder
+    private var menuBackground: some View {
+        #if os(tvOS)
+        Color.black.opacity(0.78)
+        #else
+        Rectangle()
+            .fill(.ultraThinMaterial)
+        #endif
+    }
+
+    private func imageReelURLs(for chunk: InteractiveChunk) -> [URL] {
+        guard let showImageReel, showImageReel.wrappedValue else { return [] }
+        guard hasImageReel(for: chunk) else { return [] }
+        var urls: [URL] = []
+        var seen: Set<String> = []
+        for sentence in chunk.sentences {
+            guard let path = resolveSentenceImagePath(sentence: sentence, chunk: chunk) else { continue }
+            guard !seen.contains(path) else { continue }
+            seen.insert(path)
+            if let url = viewModel.resolvePath(path) {
+                urls.append(url)
+            }
+            if urls.count >= 7 {
+                break
+            }
+        }
+        return urls
+    }
+
+    private func resolveSentenceImagePath(sentence: InteractiveChunk.Sentence, chunk: InteractiveChunk) -> String? {
+        if let rawPath = sentence.imagePath, let path = rawPath.nonEmptyValue {
+            return path
+        }
+        guard let rangeFragment = chunk.rangeFragment?.nonEmptyValue else { return nil }
+        let sentenceNumber = sentence.displayIndex ?? sentence.id
+        guard sentenceNumber > 0 else { return nil }
+        let padded = String(format: "%05d", sentenceNumber)
+        return "media/images/\(rangeFragment)/sentence_\(padded).png"
     }
 
     @ViewBuilder
@@ -536,6 +847,59 @@ struct InteractivePlayerView: View {
         }
     }
 
+    private func toggleTrackIfAvailable(_ kind: TextPlayerVariantKind) {
+        guard let chunk = viewModel.selectedChunk else { return }
+        let available = availableTracks(for: chunk)
+        guard available.contains(kind) else { return }
+        toggleTrack(kind)
+    }
+
+    private func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk?) {
+        guard let chunk else { return }
+        handleWordNavigation(delta, in: chunk)
+    }
+
+    private func toggleAudioTrack(_ kind: InteractiveChunk.AudioOption.Kind) {
+        guard let chunk = viewModel.selectedChunk else { return }
+        let options = chunk.audioOptions
+        guard !options.isEmpty else { return }
+        let selectedID = viewModel.selectedAudioTrackID
+        let currentOption = selectedID.flatMap { id in
+            options.first(where: { $0.id == id })
+        } ?? options.first
+
+        let targetOption = options.first(where: { $0.kind == kind })
+        let combinedOption = options.first(where: { $0.kind == .combined })
+        let originalOption = options.first(where: { $0.kind == .original })
+        let translationOption = options.first(where: { $0.kind == .translation })
+
+        let fallbackOption: InteractiveChunk.AudioOption? = {
+            switch kind {
+            case .original:
+                return translationOption ?? combinedOption ?? options.first(where: { $0.kind != .original }) ?? options.first
+            case .translation:
+                return originalOption ?? combinedOption ?? options.first(where: { $0.kind != .translation }) ?? options.first
+            case .combined, .other:
+                return options.first
+            }
+        }()
+
+        if let targetOption {
+            if currentOption?.id == targetOption.id {
+                if let fallbackOption, fallbackOption.id != targetOption.id {
+                    viewModel.selectAudioTrack(id: fallbackOption.id)
+                }
+            } else {
+                viewModel.selectAudioTrack(id: targetOption.id)
+            }
+            return
+        }
+
+        if let combinedOption, currentOption?.id != combinedOption.id {
+            viewModel.selectAudioTrack(id: combinedOption.id)
+        }
+    }
+
     private func availableTracks(for chunk: InteractiveChunk) -> [TextPlayerVariantKind] {
         var available: [TextPlayerVariantKind] = []
         if chunk.sentences.contains(where: { !$0.originalTokens.isEmpty }) {
@@ -631,6 +995,7 @@ struct InteractivePlayerView: View {
     }
 
     private func syncSelectedSentence(for chunk: InteractiveChunk) {
+        guard !isMenuVisible else { return }
         let time = viewModel.highlightingTime
         guard time.isFinite else { return }
         guard let sentence = viewModel.activeSentence(at: time) else { return }
@@ -816,6 +1181,24 @@ struct InteractivePlayerView: View {
         linguistBubble = nil
     }
 
+    private func handleLinguistLookup(
+        sentenceIndex: Int,
+        variantKind: TextPlayerVariantKind,
+        tokenIndex: Int,
+        token: String
+    ) {
+        if audioCoordinator.isPlaying {
+            audioCoordinator.pause()
+        }
+        guard let query = sanitizeLookupQuery(token) else { return }
+        linguistSelection = TextPlayerWordSelection(
+            sentenceIndex: sentenceIndex,
+            variantKind: variantKind,
+            tokenIndex: tokenIndex
+        )
+        startLinguistLookup(query: query, variantKind: variantKind)
+    }
+
     private func handleLinguistLookup(in chunk: InteractiveChunk) {
         if audioCoordinator.isPlaying {
             audioCoordinator.pause()
@@ -835,17 +1218,27 @@ struct InteractivePlayerView: View {
     private func startLinguistLookup(query: String, variantKind: TextPlayerVariantKind) {
         linguistLookupTask?.cancel()
         linguistBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
-        let inputLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let lookupLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let preferredLanguage = pronunciationLanguage(for: variantKind, inputLanguage: inputLanguage, lookupLanguage: lookupLanguage)
-        let fallbackLanguage = resolveSpeechLanguage(preferredLanguage ?? "")
-        startPronunciation(text: query, apiLanguage: preferredLanguage, fallbackLanguage: fallbackLanguage)
+        let originalLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let translationLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let explanationLanguage = linguistExplanationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let inputLanguage = lookupInputLanguage(
+            for: variantKind,
+            originalLanguage: originalLanguage,
+            translationLanguage: translationLanguage
+        )
+        let pronunciationLanguage = pronunciationLanguage(
+            for: variantKind,
+            inputLanguage: originalLanguage,
+            lookupLanguage: translationLanguage
+        )
+        let fallbackLanguage = resolveSpeechLanguage(pronunciationLanguage ?? "")
+        startPronunciation(text: query, apiLanguage: pronunciationLanguage, fallbackLanguage: fallbackLanguage)
         linguistLookupTask = Task { @MainActor in
             do {
                 let response = try await viewModel.lookupAssistant(
                     query: query,
                     inputLanguage: inputLanguage,
-                    lookupLanguage: lookupLanguage.isEmpty ? "English" : lookupLanguage
+                    lookupLanguage: explanationLanguage.isEmpty ? "English" : explanationLanguage
                 )
                 linguistBubble = MyLinguistBubbleState(
                     query: query,
@@ -884,6 +1277,23 @@ struct InteractivePlayerView: View {
         pronunciationSpeaker.stop()
     }
 
+    private func adjustTrackFontScale(by delta: CGFloat) {
+        #if os(iOS)
+        guard isPad else { return }
+        let updated = min(max(trackFontScale + delta, 1.0), 3.0)
+        if updated != trackFontScale {
+            trackFontScale = updated
+        }
+        #endif
+    }
+
+    private func adjustLinguistFontScale(by delta: CGFloat) {
+        let updated = min(max(linguistFontScale + delta, linguistFontScaleMin), linguistFontScaleMax)
+        if updated != linguistFontScale {
+            linguistFontScale = updated
+        }
+    }
+
     private func sanitizeLookupQuery(_ value: String) -> String? {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         let stripped = trimmed.trimmingCharacters(in: .punctuationCharacters.union(.symbols))
@@ -896,15 +1306,28 @@ struct InteractivePlayerView: View {
         inputLanguage: String,
         lookupLanguage: String
     ) -> String? {
-        let preferred: String
-        switch variantKind {
-        case .translation:
-            preferred = lookupLanguage
-        case .original, .transliteration:
-            preferred = inputLanguage
-        }
+        let preferred = lookupInputLanguage(
+            for: variantKind,
+            originalLanguage: inputLanguage,
+            translationLanguage: lookupLanguage
+        )
         let trimmed = preferred.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
+    }
+
+    private func lookupInputLanguage(
+        for variantKind: TextPlayerVariantKind,
+        originalLanguage: String,
+        translationLanguage: String
+    ) -> String {
+        let resolvedOriginal = originalLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let resolvedTranslation = translationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        switch variantKind {
+        case .translation:
+            return resolvedTranslation.isEmpty ? resolvedOriginal : resolvedTranslation
+        case .original, .transliteration:
+            return resolvedOriginal.isEmpty ? resolvedTranslation : resolvedOriginal
+        }
     }
 
     private func resolveSpeechLanguage(_ value: String) -> String? {
@@ -984,6 +1407,11 @@ private struct MyLinguistBubbleState: Equatable {
 
 private struct MyLinguistBubbleView: View {
     let bubble: MyLinguistBubbleState
+    let fontScale: CGFloat
+    let canIncreaseFont: Bool
+    let canDecreaseFont: Bool
+    let onIncreaseFont: () -> Void
+    let onDecreaseFont: () -> Void
     let onClose: () -> Void
 
     var body: some View {
@@ -997,6 +1425,7 @@ private struct MyLinguistBubbleView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
+                fontSizeControls
                 Button(action: onClose) {
                     Image(systemName: "xmark")
                         .font(.caption.weight(.semibold))
@@ -1007,7 +1436,7 @@ private struct MyLinguistBubbleView: View {
             }
 
             Text(bubble.query)
-                .font(.title3.weight(.semibold))
+                .font(queryFont)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
 
@@ -1031,22 +1460,62 @@ private struct MyLinguistBubbleView: View {
                 ProgressView()
                     .progressViewStyle(.circular)
                 Text("Looking up...")
-                    .font(.callout)
+                    .font(bodyFont)
                     .foregroundStyle(.secondary)
             }
         case let .error(message):
             Text(message)
-                .font(.callout)
+                .font(bodyFont)
                 .foregroundStyle(.red)
         case .ready:
             ScrollView {
                 Text(bubble.answer ?? "")
-                    .font(.callout)
+                    .font(bodyFont)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(maxHeight: bubbleMaxHeight)
         }
+    }
+
+    private var fontSizeControls: some View {
+        HStack(spacing: 4) {
+            Button(action: onDecreaseFont) {
+                Text("A-")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.3), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canDecreaseFont)
+            Button(action: onIncreaseFont) {
+                Text("A+")
+                    .font(.caption.weight(.semibold))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .background(.black.opacity(0.3), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canIncreaseFont)
+        }
+    }
+
+    private var queryFont: Font {
+        scaledFont(textStyle: .title3, weight: .semibold)
+    }
+
+    private var bodyFont: Font {
+        scaledFont(textStyle: .callout, weight: .regular)
+    }
+
+    private func scaledFont(textStyle: UIFont.TextStyle, weight: Font.Weight) -> Font {
+        #if os(iOS) || os(tvOS)
+        let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
+        return .system(size: baseSize * fontScale, weight: weight)
+        #else
+        return .system(size: 16 * fontScale, weight: weight)
+        #endif
     }
 
     private var bubbleBackground: Color {
@@ -1076,40 +1545,98 @@ private struct InteractiveTranscriptView: View {
     let sentences: [TextPlayerSentenceDisplay]
     let selection: TextPlayerWordSelection?
     let bubble: MyLinguistBubbleState?
+    let isMenuVisible: Bool
+    let trackFontScale: CGFloat
+    let linguistFontScale: CGFloat
+    let canIncreaseLinguistFont: Bool
+    let canDecreaseLinguistFont: Bool
     let onNavigateWord: (Int) -> Void
     let onNavigateTrack: (Int) -> Void
-    let onLookup: () -> Void
+    let onShowMenu: () -> Void
+    let onHideMenu: () -> Void
+    let onLookupToken: (Int, TextPlayerVariantKind, Int, String) -> Void
+    let onIncreaseLinguistFont: () -> Void
+    let onDecreaseLinguistFont: () -> Void
     let onCloseBubble: () -> Void
 
     var body: some View {
+        transcriptContent
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .onChange(of: audioCoordinator.duration) { _, newValue in
+                viewModel.recordAudioDuration(newValue, for: audioCoordinator.activeURL)
+            }
+            .onChange(of: audioCoordinator.activeURL) { _, _ in
+                viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
+            }
+            .onAppear {
+                viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
+            }
+    }
+
+    @ViewBuilder
+    private var transcriptContent: some View {
+        #if os(tvOS)
         VStack(alignment: .leading, spacing: 12) {
-            TextPlayerFrame(sentences: sentences, selection: selection)
+            TextPlayerFrame(
+                sentences: sentences,
+                selection: selection,
+                onTokenLookup: onLookupToken,
+                fontScale: trackFontScale
+            )
                 .frame(maxWidth: .infinity, alignment: .top)
-            #if !os(tvOS)
-                .contentShape(Rectangle())
-                .gesture(swipeGesture)
-                .onLongPressGesture(minimumDuration: 0.4, perform: onLookup)
-            #endif
 
             if let bubble {
-                MyLinguistBubbleView(bubble: bubble, onClose: onCloseBubble)
+                MyLinguistBubbleView(
+                    bubble: bubble,
+                    fontScale: linguistFontScale,
+                    canIncreaseFont: canIncreaseLinguistFont,
+                    canDecreaseFont: canDecreaseLinguistFont,
+                    onIncreaseFont: onIncreaseLinguistFont,
+                    onDecreaseFont: onDecreaseLinguistFont,
+                    onClose: onCloseBubble
+                )
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        #if os(tvOS)
-        .onPlayPauseCommand {
-            audioCoordinator.togglePlayback()
+        #else
+        GeometryReader { proxy in
+            let availableHeight = proxy.size.height
+            let textHeight = bubble == nil ? availableHeight : availableHeight * 0.7
+            VStack(alignment: .leading, spacing: 12) {
+                TextPlayerFrame(
+                    sentences: sentences,
+                    selection: selection,
+                    onTokenLookup: onLookupToken,
+                    fontScale: trackFontScale
+                )
+                    .frame(
+                        maxWidth: .infinity,
+                        minHeight: textHeight,
+                        maxHeight: textHeight,
+                        alignment: .top
+                    )
+                    .contentShape(Rectangle())
+                    .gesture(swipeGesture)
+
+                if let bubble {
+                    MyLinguistBubbleView(
+                        bubble: bubble,
+                        fontScale: linguistFontScale,
+                        canIncreaseFont: canIncreaseLinguistFont,
+                        canDecreaseFont: canDecreaseLinguistFont,
+                        onIncreaseFont: onIncreaseLinguistFont,
+                        onDecreaseFont: onDecreaseLinguistFont,
+                        onClose: onCloseBubble
+                    )
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: max(availableHeight - textHeight, 0),
+                            maxHeight: max(availableHeight - textHeight, 0),
+                            alignment: .top
+                        )
+                }
+            }
         }
         #endif
-        .onChange(of: audioCoordinator.duration) { _, newValue in
-            viewModel.recordAudioDuration(newValue, for: audioCoordinator.activeURL)
-        }
-        .onChange(of: audioCoordinator.activeURL) { _, _ in
-            viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
-        }
-        .onAppear {
-            viewModel.recordAudioDuration(audioCoordinator.duration, for: audioCoordinator.activeURL)
-        }
     }
 
     #if !os(tvOS)
@@ -1125,10 +1652,14 @@ private struct InteractiveTranscriptView: View {
                         onNavigateWord(-1)
                     }
                 } else {
-                    if vertical < 0 {
-                        onNavigateTrack(-1)
-                    } else if vertical > 0 {
-                        onNavigateTrack(1)
+                    if vertical > 0 {
+                        onShowMenu()
+                    } else if vertical < 0 {
+                        if isMenuVisible {
+                            onHideMenu()
+                        } else {
+                            onNavigateTrack(-1)
+                        }
                     }
                 }
             }
@@ -1253,6 +1784,48 @@ private struct PlaybackButtonRow: View {
     }
 }
 
+private struct InteractivePlayerImageReel: View {
+    let urls: [URL]
+    let height: CGFloat
+
+    private let spacing: CGFloat = 8
+    private let maxImages = 7
+    private let minImages = 1
+
+    var body: some View {
+        GeometryReader { proxy in
+            let itemHeight = height
+            let itemWidth = itemHeight * 0.78
+            let maxVisible = max(
+                minImages,
+                min(maxImages, Int((proxy.size.width + spacing) / (itemWidth + spacing)))
+            )
+            let visible = Array(urls.prefix(maxVisible))
+            HStack(spacing: spacing) {
+                ForEach(visible.indices, id: \.self) { index in
+                    AsyncImage(url: visible[index]) { phase in
+                        if let image = phase.image {
+                            image
+                                .resizable()
+                                .scaledToFill()
+                        } else {
+                            Color.gray.opacity(0.2)
+                        }
+                    }
+                    .frame(width: itemWidth, height: itemHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                    )
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+        }
+        .frame(height: height)
+    }
+}
+
 private struct SentenceOption: Identifiable {
     let id: Int
     let label: String
@@ -1321,6 +1894,8 @@ private struct PlaybackScrubberView: View {
 private struct TextPlayerFrame: View {
     let sentences: [TextPlayerSentenceDisplay]
     let selection: TextPlayerWordSelection?
+    let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
+    let fontScale: CGFloat
 
     var body: some View {
         VStack(spacing: 10) {
@@ -1331,7 +1906,12 @@ private struct TextPlayerFrame: View {
                     .frame(maxWidth: .infinity)
             } else {
                 ForEach(sentences) { sentence in
-                    TextPlayerSentenceView(sentence: sentence, selection: selection)
+                    TextPlayerSentenceView(
+                        sentence: sentence,
+                        selection: selection,
+                        onTokenLookup: onTokenLookup,
+                        fontScale: fontScale
+                    )
                 }
             }
         }
@@ -1353,6 +1933,8 @@ private struct TextPlayerFrame: View {
 private struct TextPlayerSentenceView: View {
     let sentence: TextPlayerSentenceDisplay
     let selection: TextPlayerWordSelection?
+    let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
+    let fontScale: CGFloat
 
     var body: some View {
         VStack(spacing: 8) {
@@ -1360,7 +1942,11 @@ private struct TextPlayerSentenceView: View {
                 TextPlayerVariantView(
                     variant: variant,
                     sentenceState: sentence.state,
-                    selectedTokenIndex: selectedTokenIndex(for: variant)
+                    selectedTokenIndex: selectedTokenIndex(for: variant),
+                    fontScale: fontScale,
+                    onTokenLookup: { tokenIndex, token in
+                        onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
+                    }
                 )
             }
         }
@@ -1403,10 +1989,306 @@ private struct TextPlayerSentenceView: View {
     }
 }
 
+private struct TokenFlowLayout: Layout {
+    let itemSpacing: CGFloat
+    let lineSpacing: CGFloat
+
+    private struct Line {
+        var indices: [Int] = []
+        var width: CGFloat = 0
+        var height: CGFloat = 0
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .greatestFiniteMagnitude
+        let lines = buildLines(maxWidth: maxWidth, subviews: subviews)
+        let maxLineWidth = lines.map(\.width).max() ?? 0
+        let totalHeight = lines.reduce(0) { $0 + $1.height }
+            + lineSpacing * max(0, CGFloat(lines.count - 1))
+        return CGSize(width: min(maxWidth, maxLineWidth), height: totalHeight)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        guard bounds.width > 0 else { return }
+        let lines = buildLines(maxWidth: bounds.width, subviews: subviews)
+        var y = bounds.minY
+        for line in lines {
+            let lineWidth = line.width
+            let xStart = bounds.minX + max(0, (bounds.width - lineWidth) / 2)
+            var x = xStart
+            for index in line.indices {
+                let subview = subviews[index]
+                let size = subview.sizeThatFits(.unspecified)
+                let origin = CGPoint(x: x, y: y + (line.height - size.height) / 2)
+                subview.place(at: origin, proposal: ProposedViewSize(width: size.width, height: size.height))
+                x += size.width + itemSpacing
+            }
+            y += line.height + lineSpacing
+        }
+    }
+
+    private func buildLines(maxWidth: CGFloat, subviews: Subviews) -> [Line] {
+        guard !subviews.isEmpty else { return [] }
+        let effectiveWidth = maxWidth > 0 ? maxWidth : .greatestFiniteMagnitude
+        var lines: [Line] = []
+        var current = Line()
+        for index in subviews.indices {
+            let size = subviews[index].sizeThatFits(.unspecified)
+            let itemWidth = size.width
+            if current.indices.isEmpty {
+                current.indices = [index]
+                current.width = itemWidth
+                current.height = size.height
+                continue
+            }
+            if current.width + itemSpacing + itemWidth <= effectiveWidth {
+                current.indices.append(index)
+                current.width += itemSpacing + itemWidth
+                current.height = max(current.height, size.height)
+            } else {
+                lines.append(current)
+                current = Line(indices: [index], width: itemWidth, height: size.height)
+            }
+        }
+        if !current.indices.isEmpty {
+            lines.append(current)
+        }
+        return lines
+    }
+}
+
+private struct TokenWordView: View {
+    let text: String
+    let color: Color
+    let isSelected: Bool
+    let horizontalPadding: CGFloat
+    let verticalPadding: CGFloat
+    let cornerRadius: CGFloat
+    let onDoubleTap: (() -> Void)?
+
+    var body: some View {
+        Text(text)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .allowsTightening(true)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .foregroundStyle(isSelected ? TextPlayerTheme.selectionText : color)
+            .background(
+                Group {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: cornerRadius)
+                            .fill(TextPlayerTheme.selectionGlow)
+                    }
+                }
+            )
+            #if !os(tvOS)
+            .simultaneousGesture(
+                TapGesture(count: 2)
+                    .onEnded {
+                        onDoubleTap?()
+                    }
+            )
+            #endif
+    }
+}
+
+#if os(iOS)
+private struct KeyboardCommandHandler: UIViewControllerRepresentable {
+    let onPlayPause: () -> Void
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+    let onPreviousWord: () -> Void
+    let onNextWord: () -> Void
+    let onIncreaseFont: () -> Void
+    let onDecreaseFont: () -> Void
+    let onToggleOriginal: () -> Void
+    let onToggleTransliteration: () -> Void
+    let onToggleTranslation: () -> Void
+    let onToggleOriginalAudio: () -> Void
+    let onToggleTranslationAudio: () -> Void
+    let onIncreaseLinguistFont: () -> Void
+    let onDecreaseLinguistFont: () -> Void
+    let onShowMenu: () -> Void
+    let onHideMenu: () -> Void
+
+    func makeUIViewController(context: Context) -> KeyCommandController {
+        let controller = KeyCommandController()
+        controller.onPlayPause = onPlayPause
+        controller.onPrevious = onPrevious
+        controller.onNext = onNext
+        controller.onPreviousWord = onPreviousWord
+        controller.onNextWord = onNextWord
+        controller.onIncreaseFont = onIncreaseFont
+        controller.onDecreaseFont = onDecreaseFont
+        controller.onToggleOriginal = onToggleOriginal
+        controller.onToggleTransliteration = onToggleTransliteration
+        controller.onToggleTranslation = onToggleTranslation
+        controller.onToggleOriginalAudio = onToggleOriginalAudio
+        controller.onToggleTranslationAudio = onToggleTranslationAudio
+        controller.onIncreaseLinguistFont = onIncreaseLinguistFont
+        controller.onDecreaseLinguistFont = onDecreaseLinguistFont
+        controller.onShowMenu = onShowMenu
+        controller.onHideMenu = onHideMenu
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: KeyCommandController, context: Context) {
+        uiViewController.onPlayPause = onPlayPause
+        uiViewController.onPrevious = onPrevious
+        uiViewController.onNext = onNext
+        uiViewController.onPreviousWord = onPreviousWord
+        uiViewController.onNextWord = onNextWord
+        uiViewController.onIncreaseFont = onIncreaseFont
+        uiViewController.onDecreaseFont = onDecreaseFont
+        uiViewController.onToggleOriginal = onToggleOriginal
+        uiViewController.onToggleTransliteration = onToggleTransliteration
+        uiViewController.onToggleTranslation = onToggleTranslation
+        uiViewController.onToggleOriginalAudio = onToggleOriginalAudio
+        uiViewController.onToggleTranslationAudio = onToggleTranslationAudio
+        uiViewController.onIncreaseLinguistFont = onIncreaseLinguistFont
+        uiViewController.onDecreaseLinguistFont = onDecreaseLinguistFont
+        uiViewController.onShowMenu = onShowMenu
+        uiViewController.onHideMenu = onHideMenu
+    }
+
+    final class KeyCommandController: UIViewController {
+        var onPlayPause: (() -> Void)?
+        var onPrevious: (() -> Void)?
+        var onNext: (() -> Void)?
+        var onPreviousWord: (() -> Void)?
+        var onNextWord: (() -> Void)?
+        var onIncreaseFont: (() -> Void)?
+        var onDecreaseFont: (() -> Void)?
+        var onToggleOriginal: (() -> Void)?
+        var onToggleTransliteration: (() -> Void)?
+        var onToggleTranslation: (() -> Void)?
+        var onToggleOriginalAudio: (() -> Void)?
+        var onToggleTranslationAudio: (() -> Void)?
+        var onIncreaseLinguistFont: (() -> Void)?
+        var onDecreaseLinguistFont: (() -> Void)?
+        var onShowMenu: (() -> Void)?
+        var onHideMenu: (() -> Void)?
+
+        override var canBecomeFirstResponder: Bool {
+            true
+        }
+
+        override func viewDidAppear(_ animated: Bool) {
+            super.viewDidAppear(animated)
+            becomeFirstResponder()
+        }
+
+        override var keyCommands: [UIKeyCommand]? {
+            let commands = [
+                makeCommand(input: " ", action: #selector(handlePlayPause)),
+                makeCommand(input: UIKeyCommand.inputLeftArrow, action: #selector(handlePrevious)),
+                makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleNext)),
+                makeCommand(input: UIKeyCommand.inputLeftArrow, modifiers: [.control], action: #selector(handlePreviousWord)),
+                makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.control], action: #selector(handleNextWord)),
+                makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleShowMenu)),
+                makeCommand(input: UIKeyCommand.inputUpArrow, action: #selector(handleHideMenu)),
+                makeCommand(input: "o", action: #selector(handleToggleOriginal)),
+                makeCommand(input: "o", modifiers: [.shift], action: #selector(handleToggleOriginalAudio)),
+                makeCommand(input: "i", action: #selector(handleToggleTransliteration)),
+                makeCommand(input: "i", modifiers: [.shift], action: #selector(handleToggleTransliteration)),
+                makeCommand(input: "p", action: #selector(handleToggleTranslation)),
+                makeCommand(input: "p", modifiers: [.shift], action: #selector(handleToggleTranslationAudio)),
+                makeCommand(input: "=", modifiers: [.control], action: #selector(handleIncreaseLinguistFont)),
+                makeCommand(input: "=", modifiers: [.control, .shift], action: #selector(handleIncreaseLinguistFont)),
+                makeCommand(input: "+", modifiers: [.control], action: #selector(handleIncreaseLinguistFont)),
+                makeCommand(input: "-", modifiers: [.control], action: #selector(handleDecreaseLinguistFont)),
+                makeCommand(input: "=", modifiers: [], action: #selector(handleIncreaseFont)),
+                makeCommand(input: "=", modifiers: [.shift], action: #selector(handleIncreaseFont)),
+                makeCommand(input: "+", modifiers: [], action: #selector(handleIncreaseFont)),
+                makeCommand(input: "-", modifiers: [], action: #selector(handleDecreaseFont)),
+            ]
+            return commands
+        }
+
+        @objc private func handlePlayPause() {
+            onPlayPause?()
+        }
+
+        @objc private func handlePrevious() {
+            onPrevious?()
+        }
+
+        @objc private func handleNext() {
+            onNext?()
+        }
+
+        @objc private func handlePreviousWord() {
+            onPreviousWord?()
+        }
+
+        @objc private func handleNextWord() {
+            onNextWord?()
+        }
+
+        @objc private func handleIncreaseFont() {
+            onIncreaseFont?()
+        }
+
+        @objc private func handleDecreaseFont() {
+            onDecreaseFont?()
+        }
+
+        @objc private func handleToggleOriginal() {
+            onToggleOriginal?()
+        }
+
+        @objc private func handleToggleTransliteration() {
+            onToggleTransliteration?()
+        }
+
+        @objc private func handleToggleTranslation() {
+            onToggleTranslation?()
+        }
+
+        @objc private func handleToggleOriginalAudio() {
+            onToggleOriginalAudio?()
+        }
+
+        @objc private func handleToggleTranslationAudio() {
+            onToggleTranslationAudio?()
+        }
+
+        @objc private func handleIncreaseLinguistFont() {
+            onIncreaseLinguistFont?()
+        }
+
+        @objc private func handleDecreaseLinguistFont() {
+            onDecreaseLinguistFont?()
+        }
+
+        @objc private func handleShowMenu() {
+            onShowMenu?()
+        }
+
+        @objc private func handleHideMenu() {
+            onHideMenu?()
+        }
+
+        private func makeCommand(
+            input: String,
+            modifiers: UIKeyModifierFlags = [],
+            action: Selector
+        ) -> UIKeyCommand {
+            let command = UIKeyCommand(input: input, modifierFlags: modifiers, action: action)
+            command.wantsPriorityOverSystemBehavior = true
+            return command
+        }
+    }
+}
+#endif
+
 private struct TextPlayerVariantView: View {
     let variant: TextPlayerVariantDisplay
     let sentenceState: TextPlayerSentenceState
     let selectedTokenIndex: Int?
+    let fontScale: CGFloat
+    let onTokenLookup: ((Int, String) -> Void)?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -1419,15 +2301,10 @@ private struct TextPlayerVariantView: View {
                 .minimumScaleFactor(0.7)
                 .allowsTightening(true)
                 .frame(maxWidth: .infinity)
-            tokenLine
+            tokenFlow
                 .font(lineFont)
-                .multilineTextAlignment(.center)
-                .lineLimit(nil)
-                .minimumScaleFactor(0.65)
-                .allowsTightening(true)
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
                 .frame(maxWidth: .infinity)
+                .layoutPriority(1)
         }
     }
 
@@ -1435,7 +2312,7 @@ private struct TextPlayerVariantView: View {
         #if os(tvOS)
         return .caption
         #else
-        return .caption2
+        return .caption
         #endif
     }
 
@@ -1443,38 +2320,80 @@ private struct TextPlayerVariantView: View {
         #if os(tvOS)
         return sentenceState == .active ? .title2 : .title3
         #else
-        return sentenceState == .active ? .title3 : .body
+        #if os(iOS)
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            let textStyle: UIFont.TextStyle = sentenceState == .active ? .title1 : .title2
+            let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
+            return .system(size: baseSize * fontScale)
+        }
+        #endif
+        return sentenceState == .active ? .title : .title2
         #endif
     }
 
-    private var tokenLine: Text {
-        Text(tokenAttributedString)
-    }
-
-    private var tokenAttributedString: AttributedString {
-        var result = AttributedString("")
-        let displayIndices = shouldReverseTokens
-            ? Array(variant.tokens.indices.reversed())
-            : Array(variant.tokens.indices)
-        for (position, index) in displayIndices.enumerated() {
-            let token = variant.tokens[index]
-            let tokenState = tokenState(for: index)
-            let baseColor = tokenColor(for: tokenState)
-            var segment = AttributedString(token)
-            if index == selectedTokenIndex {
-                segment.foregroundColor = TextPlayerTheme.selectionText
-                segment.backgroundColor = TextPlayerTheme.selectionGlow
-            } else {
-                segment.foregroundColor = baseColor
-            }
-            result.append(segment)
-            if position < displayIndices.count - 1 {
-                var space = AttributedString(" ")
-                space.foregroundColor = baseColor
-                result.append(space)
+    private var tokenFlow: some View {
+        TokenFlowLayout(itemSpacing: tokenItemSpacing, lineSpacing: tokenLineSpacing) {
+            ForEach(displayTokenIndices, id: \.self) { index in
+                let token = variant.tokens[index]
+                TokenWordView(
+                    text: token,
+                    color: tokenColor(for: tokenState(for: index)),
+                    isSelected: index == selectedTokenIndex,
+                    horizontalPadding: tokenHorizontalPadding,
+                    verticalPadding: tokenVerticalPadding,
+                    cornerRadius: tokenCornerRadius,
+                    onDoubleTap: {
+                        onTokenLookup?(index, token)
+                    }
+                )
             }
         }
-        return result
+    }
+
+    private var displayTokenIndices: [Int] {
+        shouldReverseTokens
+            ? Array(variant.tokens.indices.reversed())
+            : Array(variant.tokens.indices)
+    }
+
+    private var tokenItemSpacing: CGFloat {
+        #if os(tvOS)
+        return 10
+        #else
+        return 8
+        #endif
+    }
+
+    private var tokenLineSpacing: CGFloat {
+        #if os(tvOS)
+        return 8
+        #else
+        return 6
+        #endif
+    }
+
+    private var tokenHorizontalPadding: CGFloat {
+        #if os(tvOS)
+        return 4
+        #else
+        return 3
+        #endif
+    }
+
+    private var tokenVerticalPadding: CGFloat {
+        #if os(tvOS)
+        return 2
+        #else
+        return 1
+        #endif
+    }
+
+    private var tokenCornerRadius: CGFloat {
+        #if os(tvOS)
+        return 6
+        #else
+        return 4
+        #endif
     }
 
     private var shouldReverseTokens: Bool {
@@ -1551,6 +2470,17 @@ private struct TextPlayerVariantView: View {
         case past
         case current
         case future
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func applyIf<T: View>(_ condition: Bool, transform: (Self) -> T) -> some View {
+        if condition {
+            transform(self)
+        } else {
+            self
+        }
     }
 }
 
