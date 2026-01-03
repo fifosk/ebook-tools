@@ -139,20 +139,35 @@ enum SubtitleParser {
                 let start = parseTimecode(parts[0].trimmingCharacters(in: .whitespaces))
                 let end = parseTimecode(parts[1].split(separator: " ").first.map(String.init) ?? "")
                 index += 1
-                var textLines: [String] = []
+                var lineEntries: [(text: String, spans: [VideoSubtitleSpan]?)] = []
                 while index < lines.count {
                     let textLine = lines[index]
                     if textLine.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                         break
                     }
-                    textLines.append(stripMarkup(textLine))
+                    lineEntries.append(parseMarkupLine(textLine))
                     index += 1
                 }
                 if let start, let end {
-                    let text = textLines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+                    let text = lineEntries
+                        .map(\.text)
+                        .joined(separator: "\n")
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
                     if !text.isEmpty {
-                        let lines = buildPlainLines(from: text)
-                        cues.append(VideoSubtitleCue(start: start, end: end, text: text, spans: nil, lines: lines))
+                        let usesSpans = lineEntries.contains { $0.spans != nil }
+                        let resolvedSpans: [VideoSubtitleSpan]? = usesSpans
+                            ? mergeLineSpans(lineEntries)
+                            : nil
+                        let lines = buildLines(from: text, spans: resolvedSpans)
+                        cues.append(
+                            VideoSubtitleCue(
+                                start: start,
+                                end: end,
+                                text: text,
+                                spans: resolvedSpans,
+                                lines: lines
+                            )
+                        )
                     }
                 }
             } else {
@@ -217,6 +232,185 @@ enum SubtitleParser {
             }
         }
         return cues
+    }
+
+    private struct SrtStyle: Equatable {
+        var colorHex: String? = nil
+        var isBold: Bool = false
+        var scale: Double = 1.0
+    }
+
+    private static func parseMarkupLine(
+        _ value: String
+    ) -> (text: String, spans: [VideoSubtitleSpan]?) {
+        guard value.contains("<") else { return (value, nil) }
+        var spans: [VideoSubtitleSpan] = []
+        var buffer = ""
+        var styleStack: [SrtStyle] = [SrtStyle()]
+        var hasStyle = false
+
+        func currentStyle() -> SrtStyle {
+            styleStack.last ?? SrtStyle()
+        }
+
+        func flushBuffer() {
+            guard !buffer.isEmpty else { return }
+            let resolved = decodeHtmlEntities(buffer)
+            if !resolved.isEmpty {
+                let style = currentStyle()
+                spans.append(
+                    VideoSubtitleSpan(
+                        text: resolved,
+                        colorHex: style.colorHex,
+                        isBold: style.isBold,
+                        scale: style.scale
+                    )
+                )
+            }
+            buffer.removeAll(keepingCapacity: true)
+        }
+
+        var index = value.startIndex
+        while index < value.endIndex {
+            let char = value[index]
+            if char == "<", let close = value[index...].firstIndex(of: ">") {
+                let rawTag = value[value.index(after: index)..<close]
+                let tag = rawTag.trimmingCharacters(in: .whitespacesAndNewlines)
+                let lowerTag = tag.lowercased()
+                flushBuffer()
+                if lowerTag.hasPrefix("br") {
+                    spans.append(
+                        VideoSubtitleSpan(
+                            text: "\n",
+                            colorHex: currentStyle().colorHex,
+                            isBold: currentStyle().isBold,
+                            scale: currentStyle().scale
+                        )
+                    )
+                } else if lowerTag.hasPrefix("/") {
+                    let name = lowerTag.dropFirst()
+                    if (name.hasPrefix("b") || name.hasPrefix("font")) && styleStack.count > 1 {
+                        styleStack.removeLast()
+                    }
+                } else if lowerTag.hasPrefix("b") {
+                    var next = currentStyle()
+                    next.isBold = true
+                    styleStack.append(next)
+                    hasStyle = true
+                } else if lowerTag.hasPrefix("font") {
+                    var next = currentStyle()
+                    if let attributes = parseFontAttributes(tag) {
+                        if let color = attributes.colorHex {
+                            next.colorHex = color
+                        }
+                        if let scale = attributes.scale, scale > 0 {
+                            next.scale = scale
+                        }
+                    }
+                    styleStack.append(next)
+                    hasStyle = true
+                }
+                index = value.index(after: close)
+                continue
+            }
+            buffer.append(char)
+            index = value.index(after: index)
+        }
+        flushBuffer()
+
+        if !hasStyle {
+            return (stripMarkup(value), nil)
+        }
+        let text = spans.map(\.text).joined()
+        return (text, spans.isEmpty ? nil : spans)
+    }
+
+    private static func parseFontAttributes(
+        _ tag: String
+    ) -> (colorHex: String?, scale: Double?)? {
+        let trimmed = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.lowercased().hasPrefix("font") else { return nil }
+        let rawAttributes = trimmed.dropFirst(4)
+        let parts = rawAttributes.split(whereSeparator: { $0.isWhitespace })
+        var colorHex: String?
+        var scale: Double?
+        for part in parts {
+            let pair = part.split(separator: "=", maxSplits: 1).map(String.init)
+            guard pair.count == 2 else { continue }
+            let key = pair[0].lowercased()
+            let value = trimQuotes(pair[1])
+            if key == "color" {
+                colorHex = normalizeHexColor(value)
+            } else if key == "size" {
+                if let size = Double(value) {
+                    let baseSize = 3.0
+                    scale = max(0.1, size / baseSize)
+                }
+            }
+        }
+        return (colorHex, scale)
+    }
+
+    private static func normalizeHexColor(_ value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let hex = trimmed.hasPrefix("#") ? String(trimmed.dropFirst()) : trimmed
+        guard hex.count == 6 else { return nil }
+        let allowed = CharacterSet(charactersIn: "0123456789ABCDEF")
+        guard hex.unicodeScalars.allSatisfy({ allowed.contains($0) }) else { return nil }
+        return "#\(hex)"
+    }
+
+    private static func trimQuotes(_ value: String) -> String {
+        var trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix("\""), trimmed.hasSuffix("\""), trimmed.count >= 2 {
+            trimmed.removeFirst()
+            trimmed.removeLast()
+        } else if trimmed.hasPrefix("'"), trimmed.hasSuffix("'"), trimmed.count >= 2 {
+            trimmed.removeFirst()
+            trimmed.removeLast()
+        }
+        return trimmed
+    }
+
+    private static func decodeHtmlEntities(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .replacingOccurrences(of: "&#39;", with: "'")
+            .replacingOccurrences(of: "&apos;", with: "'")
+    }
+
+    private static func mergeLineSpans(
+        _ entries: [(text: String, spans: [VideoSubtitleSpan]?)]
+    ) -> [VideoSubtitleSpan] {
+        var merged: [VideoSubtitleSpan] = []
+        for (index, entry) in entries.enumerated() {
+            if let spans = entry.spans, !spans.isEmpty {
+                merged.append(contentsOf: spans)
+            } else if !entry.text.isEmpty {
+                merged.append(
+                    VideoSubtitleSpan(
+                        text: entry.text,
+                        colorHex: nil,
+                        isBold: false,
+                        scale: 1.0
+                    )
+                )
+            }
+            if index < entries.count - 1 {
+                merged.append(
+                    VideoSubtitleSpan(
+                        text: "\n",
+                        colorHex: nil,
+                        isBold: false,
+                        scale: 1.0
+                    )
+                )
+            }
+        }
+        return merged
     }
 
     private static func parseASSLines(

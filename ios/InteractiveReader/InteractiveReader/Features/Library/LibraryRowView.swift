@@ -6,6 +6,7 @@ import UIKit
 struct LibraryRowView: View {
     let item: LibraryItem
     let coverURL: URL?
+    let resumeStatus: ResumeStatus
 
     var body: some View {
         HStack(spacing: rowSpacing) {
@@ -47,6 +48,14 @@ struct LibraryRowView: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(Color.accentColor.opacity(0.15), in: Capsule())
+                    Text(resumeStatus.label)
+                        .font(metaFont)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(resumeStatus.foreground)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(resumeStatus.background, in: Capsule())
                 }
             }
 
@@ -157,4 +166,44 @@ struct LibraryRowView: View {
         return .system(size: size)
     }
     #endif
+}
+
+extension LibraryRowView {
+    struct ResumeStatus: Equatable {
+        let label: String
+        let foreground: Color
+        let background: Color
+
+        static func none() -> ResumeStatus {
+            ResumeStatus(
+                label: "Resume: none",
+                foreground: .secondary,
+                background: Color.secondary.opacity(0.15)
+            )
+        }
+
+        static func local(label: String) -> ResumeStatus {
+            ResumeStatus(
+                label: label,
+                foreground: .orange,
+                background: Color.orange.opacity(0.2)
+            )
+        }
+
+        static func cloud(label: String) -> ResumeStatus {
+            ResumeStatus(
+                label: label,
+                foreground: .blue,
+                background: Color.blue.opacity(0.2)
+            )
+        }
+
+        static func both(label: String) -> ResumeStatus {
+            ResumeStatus(
+                label: label,
+                foreground: .green,
+                background: Color.green.opacity(0.2)
+            )
+        }
+    }
 }

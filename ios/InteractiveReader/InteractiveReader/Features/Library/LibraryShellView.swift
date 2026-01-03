@@ -84,7 +84,8 @@ struct LibraryShellView: View {
                 appState.signOut()
             },
             onSelect: { selectedItem = $0 },
-            coverResolver: coverURL(for:)
+            coverResolver: coverURL(for:),
+            resumeUserId: resumeUserId
         )
         .navigationTitle("Library")
     }
@@ -93,5 +94,9 @@ struct LibraryShellView: View {
         guard let apiBaseURL = appState.apiBaseURL else { return nil }
         let resolver = LibraryCoverResolver(apiBaseURL: apiBaseURL, accessToken: appState.authToken)
         return resolver.resolveCoverURL(for: item)
+    }
+
+    private var resumeUserId: String? {
+        appState.session?.user.username.nonEmptyValue ?? appState.lastUsername.nonEmptyValue
     }
 }

@@ -76,6 +76,162 @@ def _normalize_audio_track_entry(value: Any) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _normalize_language_label(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return trimmed or None
+    if isinstance(value, list):
+        for entry in value:
+            if isinstance(entry, str):
+                trimmed = entry.strip()
+                if trimmed:
+                    return trimmed
+    return None
+
+
+def _normalize_language_list(value: Any) -> list[str]:
+    if isinstance(value, list):
+        return [entry.strip() for entry in value if isinstance(entry, str) and entry.strip()]
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return [trimmed] if trimmed else []
+    return []
+
+
+def _read_language_key(section: Mapping[str, Any], key: str) -> Any:
+    if key in section:
+        return section.get(key)
+    camel = "".join(
+        [part if idx == 0 else part.capitalize() for idx, part in enumerate(key.split("_"))]
+    )
+    if camel in section:
+        return section.get(camel)
+    return None
+
+
+def _iter_language_sections(payload: Any) -> list[Mapping[str, Any]]:
+    if not isinstance(payload, Mapping):
+        return []
+    sections: list[Mapping[str, Any]] = [payload]
+    for key in ("inputs", "options", "config", "metadata"):
+        candidate = payload.get(key)
+        if isinstance(candidate, Mapping):
+            sections.append(candidate)
+    return sections
+
+
+def _extract_language_context(
+    payloads: tuple[Any, ...],
+) -> tuple[Optional[str], Optional[str], Optional[str], list[str]]:
+    input_language: Optional[str] = None
+    original_language: Optional[str] = None
+    target_language: Optional[str] = None
+    target_languages: list[str] = []
+    media_language: Optional[str] = None
+    for payload in payloads:
+        for section in _iter_language_sections(payload):
+            if input_language is None:
+                input_language = _normalize_language_label(
+                    _read_language_key(section, "input_language")
+                    or _read_language_key(section, "original_language")
+                    or _read_language_key(section, "source_language")
+                    or _read_language_key(section, "translation_source_language")
+                )
+            if original_language is None:
+                original_language = _normalize_language_label(
+                    _read_language_key(section, "original_language")
+                )
+            if not target_languages:
+                target_languages = _normalize_language_list(
+                    _read_language_key(section, "target_languages")
+                    or _read_language_key(section, "target_language")
+                    or _read_language_key(section, "translation_language")
+                )
+            if target_language is None:
+                target_language = _normalize_language_label(
+                    _read_language_key(section, "target_language")
+                    or _read_language_key(section, "translation_language")
+                )
+        if media_language is None and isinstance(payload, Mapping):
+            media_metadata = payload.get("media_metadata")
+            if isinstance(media_metadata, Mapping):
+                media_language = _normalize_language_label(
+                    media_metadata.get("language")
+                    or media_metadata.get("source_language")
+                    or media_metadata.get("original_language")
+                    or media_metadata.get("input_language")
+                )
+                if media_language is None:
+                    show = media_metadata.get("show")
+                    if isinstance(show, Mapping):
+                        media_language = _normalize_language_label(show.get("language"))
+    if original_language is None:
+        original_language = input_language
+    if input_language is None and media_language is not None:
+        input_language = media_language
+        if original_language is None:
+            original_language = media_language
+    if target_language is None and target_languages:
+        target_language = target_languages[0]
+    if target_language and not target_languages:
+        target_languages = [target_language]
+    return input_language, original_language, target_language, target_languages
+
+
+def _set_if_blank(metadata: Dict[str, Any], key: str, value: Optional[str]) -> None:
+    if value is None:
+        return
+    trimmed = value.strip()
+    if not trimmed:
+        return
+    existing = metadata.get(key)
+    if isinstance(existing, str) and existing.strip():
+        return
+    metadata[key] = trimmed
+
+
+def _set_list_if_blank(metadata: Dict[str, Any], key: str, values: list[str]) -> None:
+    if not values:
+        return
+    cleaned = [value.strip() for value in values if isinstance(value, str) and value.strip()]
+    if not cleaned:
+        return
+    existing = metadata.get(key)
+    if isinstance(existing, list) and any(
+        isinstance(entry, str) and entry.strip() for entry in existing
+    ):
+        return
+    if isinstance(existing, str) and existing.strip():
+        return
+    metadata[key] = cleaned
+
+
+def _apply_language_metadata(
+    book_metadata: Dict[str, Any],
+    request_payload: Mapping[str, Any] | None,
+    resume_context: Mapping[str, Any] | None,
+    result_payload: Mapping[str, Any] | None,
+) -> None:
+    subtitle_metadata: Optional[Mapping[str, Any]] = None
+    if isinstance(result_payload, Mapping):
+        subtitle_section = result_payload.get("subtitle")
+        if isinstance(subtitle_section, Mapping):
+            metadata_section = subtitle_section.get("metadata")
+            if isinstance(metadata_section, Mapping):
+                subtitle_metadata = metadata_section
+
+    input_language, original_language, target_language, target_languages = _extract_language_context(
+        (
+            request_payload,
+            resume_context,
+            subtitle_metadata,
+        )
+    )
+    _set_if_blank(book_metadata, "input_language", input_language)
+    _set_if_blank(book_metadata, "original_language", original_language or input_language)
+    _set_if_blank(book_metadata, "target_language", target_language)
+    _set_if_blank(book_metadata, "translation_language", target_language)
+    _set_list_if_blank(book_metadata, "target_languages", target_languages)
 
 
 def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:
@@ -349,6 +505,12 @@ class PipelineJobPersistence:
             book_metadata = dict(raw_book_metadata)
         else:
             book_metadata = {}
+        _apply_language_metadata(
+            book_metadata,
+            snapshot.request_payload if isinstance(snapshot.request_payload, Mapping) else None,
+            snapshot.resume_context if isinstance(snapshot.resume_context, Mapping) else None,
+            result_payload,
+        )
 
         cover_asset = self._mirror_cover_asset(job.job_id, metadata_root, book_metadata)
         if cover_asset:

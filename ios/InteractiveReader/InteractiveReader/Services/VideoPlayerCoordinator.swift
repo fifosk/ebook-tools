@@ -115,7 +115,7 @@ final class VideoPlayerCoordinator: ObservableObject {
 
     private func installTimeObserver(on player: AVPlayer) {
         let token = player.addPeriodicTimeObserver(
-            forInterval: CMTime(seconds: 0.25, preferredTimescale: 600),
+            forInterval: CMTime(seconds: 0.1, preferredTimescale: 600),
             queue: .main
         ) { [weak self] time in
             guard let self else { return }

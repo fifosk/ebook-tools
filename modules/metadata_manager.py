@@ -718,8 +718,10 @@ def infer_metadata(
     _METADATA_CACHE[cache_key] = metadata.copy()
 
     logger.info(
-        "Metadata inference result: title='%(book_title)s', author='%(book_author)s', year='%(book_year)s'",
-        metadata,
+        "Metadata inference result: title=%s, author=%s, year=%s",
+        metadata.get("book_title"),
+        metadata.get("book_author"),
+        metadata.get("book_year"),
     )
     return metadata
 

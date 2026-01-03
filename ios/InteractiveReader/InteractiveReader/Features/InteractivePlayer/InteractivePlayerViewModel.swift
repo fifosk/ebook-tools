@@ -231,7 +231,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         guard let chunk = selectedChunk else {
             return audioCoordinator.currentTime
         }
-        let time = playbackTime(for: chunk)
+        let time = usesCombinedQueue(for: chunk) ? audioCoordinator.currentTime : playbackTime(for: chunk)
         return time.isFinite ? time : audioCoordinator.currentTime
     }
 
@@ -325,9 +325,11 @@ final class InteractivePlayerViewModel: ObservableObject {
     func playbackTime(for chunk: InteractiveChunk) -> Double {
         let baseTime = audioCoordinator.currentTime
         guard let track = selectedAudioOption(for: chunk) else { return baseTime }
+        if usesCombinedQueue(for: chunk) {
+            return combinedQueuePlaybackTime(for: chunk)
+        }
         let urls = track.streamURLs
         guard urls.count > 1,
-              useCombinedPhases(for: chunk),
               let activeURL = audioCoordinator.activeURL,
               let activeIndex = urls.firstIndex(of: activeURL) else {
             return baseTime
@@ -355,20 +357,74 @@ final class InteractivePlayerViewModel: ObservableObject {
             return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
         }
         if useCombinedPhases(for: chunk) {
-            let summed = track.streamURLs.compactMap { durationForURL($0, in: chunk) }.reduce(0, +)
-            if summed > 0 {
+            let durations = track.streamURLs.map { durationForURL($0, in: chunk) }
+            let summed = durations.compactMap { $0 }.reduce(0, +)
+            if durations.allSatisfy({ ($0 ?? 0) > 0 }), summed > 0 {
                 return summed
+            }
+            if let fallback = fallbackDuration(for: chunk, kind: .combined), fallback > 0 {
+                return fallback
             }
             if let duration = track.duration, duration > 0 {
                 return duration
             }
-            return nil
+            return summed > 0 ? summed : nil
+        }
+        if let activeDuration = currentItemDuration(for: track) {
+            return activeDuration
         }
         if let activeURL = audioCoordinator.activeURL,
            let activeDuration = durationForURL(activeURL, in: chunk), activeDuration > 0 {
             return activeDuration
         }
         return audioCoordinator.duration > 0 ? audioCoordinator.duration : nil
+    }
+
+    func combinedPlaybackDuration(for chunk: InteractiveChunk) -> Double? {
+        guard let track = selectedAudioOption(for: chunk) else {
+            return playbackDuration(for: chunk)
+        }
+        guard track.kind == .combined, track.streamURLs.count > 1 else {
+            return playbackDuration(for: chunk)
+        }
+        let originalDuration = combinedTrackDuration(kind: .original, in: chunk)
+        let translationDuration = combinedTrackDuration(kind: .translation, in: chunk)
+        if let originalDuration, let translationDuration {
+            return originalDuration + translationDuration
+        }
+        if let duration = track.duration, duration > 0 {
+            return duration
+        }
+        if let originalDuration {
+            return originalDuration
+        }
+        if let translationDuration {
+            return translationDuration
+        }
+        let durations = track.streamURLs.map { durationForURL($0, in: chunk) }
+        let total = durations.compactMap { $0 }.reduce(0, +)
+        if durations.allSatisfy({ ($0 ?? 0) > 0 }), total > 0 {
+            return total
+        }
+        if let fallback = fallbackDuration(for: chunk, kind: .combined), fallback > 0 {
+            return fallback
+        }
+        return total > 0 ? total : nil
+    }
+
+    func combinedQueuePlaybackTime(for chunk: InteractiveChunk) -> Double {
+        let baseTime = audioCoordinator.currentTime
+        guard let track = selectedAudioOption(for: chunk) else { return baseTime }
+        guard track.kind == .combined, track.streamURLs.count > 1 else { return baseTime }
+        guard let activeURL = audioCoordinator.activeURL,
+              let activeIndex = track.streamURLs.firstIndex(of: activeURL) else {
+            return baseTime
+        }
+        guard activeIndex > 0 else { return baseTime }
+        let originalDuration = combinedTrackDuration(kind: .original, in: chunk)
+            ?? durationForURL(track.streamURLs.first ?? activeURL, in: chunk)
+            ?? 0
+        return max(0, originalDuration) + baseTime
     }
 
     func timelineDuration(for chunk: InteractiveChunk) -> Double? {
@@ -378,13 +434,17 @@ final class InteractivePlayerViewModel: ObservableObject {
         if track.streamURLs.count > 1 {
             if useCombinedPhases(for: chunk) {
                 let durations = track.streamURLs.map { durationForURL($0, in: chunk) }
-                let hasMissing = durations.contains(where: { value in
-                    guard let value else { return true }
-                    return value <= 0
-                })
-                guard !hasMissing else { return nil }
                 let total = durations.compactMap { $0 }.reduce(0, +)
+                if durations.allSatisfy({ ($0 ?? 0) > 0 }), total > 0 {
+                    return total
+                }
+                if let fallback = fallbackDuration(for: chunk, kind: .combined), fallback > 0 {
+                    return fallback
+                }
                 return total > 0 ? total : nil
+            }
+            if let activeDuration = currentItemDuration(for: track) {
+                return activeDuration
             }
             if let activeURL = audioCoordinator.activeURL,
                let activeDuration = durationForURL(activeURL, in: chunk), activeDuration > 0 {
@@ -432,6 +492,11 @@ final class InteractivePlayerViewModel: ObservableObject {
         return track.kind == .combined && track.streamURLs.count == 1
     }
 
+    func usesCombinedQueue(for chunk: InteractiveChunk) -> Bool {
+        guard let track = selectedAudioOption(for: chunk) else { return false }
+        return track.kind == .combined && track.streamURLs.count > 1
+    }
+
     private func selectedAudioOption(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption? {
         guard let selectedID = selectedAudioTrackID else {
             return chunk.audioOptions.first
@@ -440,15 +505,69 @@ final class InteractivePlayerViewModel: ObservableObject {
     }
 
     private func durationForURL(_ url: URL, in chunk: InteractiveChunk) -> Double? {
-        if let cached = audioDurationByURL[url], cached > 0 {
-            return cached
-        }
         let matchingOptions = chunk.audioOptions.filter { $0.primaryURL == url }
         if let option = matchingOptions.first(where: { $0.kind != .combined }), let duration = option.duration, duration > 0 {
             return duration
         }
         if let option = matchingOptions.first, let duration = option.duration, duration > 0 {
             return duration
+        }
+        if let option = matchingOptions.first,
+           let fallback = fallbackDuration(for: chunk, kind: option.kind),
+           fallback > 0 {
+            return fallback
+        }
+        if let cached = audioDurationByURL[url], cached > 0 {
+            return cached
+        }
+        return nil
+    }
+
+    private func durationForOption(
+        kind: InteractiveChunk.AudioOption.Kind,
+        in chunk: InteractiveChunk
+    ) -> Double? {
+        guard let option = chunk.audioOptions.first(where: { $0.kind == kind }) else {
+            return nil
+        }
+        if let duration = option.duration, duration > 0 {
+            return duration
+        }
+        return nil
+    }
+
+    private func combinedTrackDuration(
+        kind: InteractiveChunk.AudioOption.Kind,
+        in chunk: InteractiveChunk
+    ) -> Double? {
+        guard let option = chunk.audioOptions.first(where: { $0.kind == kind }) else {
+            return nil
+        }
+        if let duration = option.duration, duration > 0 {
+            return duration
+        }
+        let total = chunk.sentences.reduce(0.0) { partial, sentence in
+            let value: Double? = {
+                switch kind {
+                case .original:
+                    return sentence.phaseDurations?.original
+                case .translation:
+                    return sentence.phaseDurations?.translation
+                case .combined, .other:
+                    return nil
+                }
+            }()
+            guard let value, value > 0 else { return partial }
+            return partial + value
+        }
+        if total > 0 {
+            return total
+        }
+        if let fallback = fallbackDuration(for: chunk, kind: kind), fallback > 0 {
+            return fallback
+        }
+        if let cached = audioDurationByURL[option.primaryURL], cached > 0 {
+            return cached
         }
         return nil
     }
@@ -464,6 +583,61 @@ final class InteractivePlayerViewModel: ObservableObject {
         return duration
     }
 
+    private func currentItemDuration(for track: InteractiveChunk.AudioOption) -> Double? {
+        guard let activeURL = audioCoordinator.activeURL,
+              track.streamURLs.contains(activeURL) else {
+            return nil
+        }
+        let duration = audioCoordinator.duration
+        guard duration.isFinite, duration > 0 else { return nil }
+        return duration
+    }
+
+    func fallbackDuration(
+        for chunk: InteractiveChunk,
+        kind: InteractiveChunk.AudioOption.Kind
+    ) -> Double? {
+        func sumPhase(
+            _ keyPath: KeyPath<ChunkSentencePhaseDurations, Double?>,
+            allowTotalFallback: Bool
+        ) -> Double? {
+            var total = 0.0
+            var hasValue = false
+            for sentence in chunk.sentences {
+                if let phase = sentence.phaseDurations,
+                   let value = phase[keyPath: keyPath],
+                   value > 0 {
+                    total += value
+                    hasValue = true
+                    continue
+                }
+                if allowTotalFallback,
+                   let totalDuration = sentence.totalDuration,
+                   totalDuration > 0 {
+                    total += totalDuration
+                    hasValue = true
+                }
+            }
+            return hasValue ? total : nil
+        }
+
+        switch kind {
+        case .original:
+            return sumPhase(\.original, allowTotalFallback: false)
+        case .translation:
+            return sumPhase(\.translation, allowTotalFallback: true)
+        case .combined:
+            let original = sumPhase(\.original, allowTotalFallback: false)
+            let translation = sumPhase(\.translation, allowTotalFallback: true)
+            if let original, let translation {
+                return original + translation
+            }
+            return translation ?? original
+        case .other:
+            return nil
+        }
+    }
+
     func seekPlayback(to time: Double, in chunk: InteractiveChunk) {
         guard let track = selectedAudioOption(for: chunk) else {
             audioCoordinator.seek(to: time)
@@ -474,7 +648,7 @@ final class InteractivePlayerViewModel: ObservableObject {
             audioCoordinator.seek(to: time)
             return
         }
-        if !useCombinedPhases(for: chunk) {
+        if !usesCombinedQueue(for: chunk) {
             audioCoordinator.seek(to: time)
             return
         }
@@ -1087,15 +1261,28 @@ enum JobContextBuilder {
             token.sentenceIndex ?? -1
         }
         let globalAudioFiles = media.media["audio"] ?? []
+        var fallbackStart = 1
         let chunks = media.chunks.enumerated().map { index, chunk in
-            buildChunk(
+            let effectiveStart = chunk.startSentence
+                ?? chunk.sentences.first?.sentenceNumber
+                ?? fallbackStart
+            let built = buildChunk(
                 chunk,
                 index: index,
                 jobId: jobId,
                 groupedTokens: groupedTokens,
                 resolver: resolver,
-                audioFiles: globalAudioFiles
+                audioFiles: globalAudioFiles,
+                fallbackStart: effectiveStart
             )
+            if let end = chunk.endSentence {
+                fallbackStart = end + 1
+            } else if let start = chunk.startSentence, !chunk.sentences.isEmpty {
+                fallbackStart = start + chunk.sentences.count
+            } else if !chunk.sentences.isEmpty {
+                fallbackStart = effectiveStart + chunk.sentences.count
+            }
+            return built
         }
         return JobContext(
             jobId: jobId,
@@ -1111,11 +1298,12 @@ enum JobContextBuilder {
         jobId: String,
         groupedTokens: [Int: [WordTimingToken]],
         resolver: MediaURLResolver,
-        audioFiles: [PipelineMediaFile]
+        audioFiles: [PipelineMediaFile],
+        fallbackStart: Int
     ) -> InteractiveChunk {
         let chunkID = chunk.chunkID ?? "chunk-\(index)"
         let label = chunkID
-        let sentences = buildSentences(for: chunk, groupedTokens: groupedTokens)
+        let sentences = buildSentences(for: chunk, groupedTokens: groupedTokens, fallbackStart: fallbackStart)
         let chunkAudioFiles = filterAudioFiles(from: chunk.files)
         let audioOptions = buildAudioOptions(
             for: chunk,
@@ -1145,13 +1333,15 @@ enum JobContextBuilder {
 
     private static func buildSentences(
         for chunk: PipelineMediaChunk,
-        groupedTokens: [Int: [WordTimingToken]]
+        groupedTokens: [Int: [WordTimingToken]],
+        fallbackStart: Int
     ) -> [InteractiveChunk.Sentence] {
         if !chunk.sentences.isEmpty {
+            let baseIndex = chunk.startSentence ?? fallbackStart
             return chunk.sentences.enumerated().map { offset, sentence in
                 let explicitIndex = sentence.sentenceNumber
-                let derivedIndex = chunk.startSentence.map { $0 + offset }
-                let sentenceIndex = explicitIndex ?? derivedIndex ?? offset
+                let derivedIndex = baseIndex + offset
+                let sentenceIndex = explicitIndex ?? derivedIndex
                 let timingTokens = groupedTokens[sentenceIndex] ?? []
                 let originalText = sentence.original.text
                 let translationText = sentence.translation?.text ?? originalText

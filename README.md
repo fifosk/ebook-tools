@@ -558,6 +558,9 @@ files that store token arrays, image references, per-track audio metadata
 for word sync. Jobs now also persist `metadata/content_index.json`,
 which records chapter ranges derived from the EPUB spine/sections for LLM-driven
 range analysis and future chapter navigation.
+Book-level metadata includes explicit `input_language`/`original_language` plus
+`target_language`/`translation_language`/`target_languages` labels so clients can
+label tracks and select the right voices during lookups.
 `metadata/sentences.json` is only written when no content index is available,
 since the sentence list is otherwise redundant.
 `MetadataLoader` in

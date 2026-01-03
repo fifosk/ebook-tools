@@ -145,6 +145,9 @@ struct InteractivePlayerView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
             if let chunk = viewModel.selectedChunk {
+                playerInfoOverlay(for: chunk)
+            }
+            if let chunk = viewModel.selectedChunk {
                 menuOverlay(for: chunk)
             }
             trackpadSwipeLayer
@@ -154,8 +157,6 @@ struct InteractivePlayerView: View {
         #if !os(tvOS)
         .simultaneousGesture(menuToggleGesture, including: .subviews)
         #endif
-        .padding(.horizontal)
-        .padding(.vertical, 12)
         .onAppear {
             guard let chunk = viewModel.selectedChunk else { return }
             applyDefaultTrackSelection(for: chunk)
@@ -244,6 +245,14 @@ struct InteractivePlayerView: View {
         #endif
     }
 
+    private var isTV: Bool {
+        #if os(tvOS)
+        return true
+        #else
+        return false
+        #endif
+    }
+
     private var isShortcutHelpVisible: Bool {
         isShortcutHelpPinned || isShortcutHelpModifierActive
     }
@@ -292,6 +301,7 @@ struct InteractivePlayerView: View {
                 closeLinguistBubble()
             }
         )
+        .padding(.top, infoHeaderReservedHeight)
     }
 
     @ViewBuilder
@@ -473,6 +483,304 @@ struct InteractivePlayerView: View {
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
+    }
+
+    private func playerInfoOverlay(for chunk: InteractiveChunk) -> some View {
+        let variant = resolveInfoVariant()
+        let label = headerInfo?.itemTypeLabel.isEmpty == false ? headerInfo?.itemTypeLabel : "Job"
+        let slideLabel = slideIndicatorLabel(for: chunk)
+        let timelineLabel = audioTimelineLabel(for: chunk)
+        return HStack(alignment: .top, spacing: 12) {
+            PlayerChannelBugView(variant: variant, label: label)
+            if let headerInfo {
+                infoBadgeView(info: headerInfo)
+            }
+            Spacer(minLength: 12)
+            if slideLabel != nil || timelineLabel != nil {
+                VStack(alignment: .trailing, spacing: 6) {
+                    if let slideLabel {
+                        slideIndicatorView(label: slideLabel)
+                    }
+                    if let timelineLabel {
+                        audioTimelineView(label: timelineLabel)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 6)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .allowsHitTesting(false)
+        .zIndex(1)
+    }
+
+    private func infoBadgeView(info: InteractivePlayerHeaderInfo) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            if let coverURL = info.coverURL {
+                AsyncImage(url: coverURL) { phase in
+                    if let image = phase.image {
+                        image.resizable().scaledToFill()
+                    } else {
+                        Color.black.opacity(0.35)
+                    }
+                }
+                .frame(width: infoCoverWidth, height: infoCoverHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                )
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.title.isEmpty ? "Untitled" : info.title)
+                    .font(infoTitleFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                if !info.author.isEmpty {
+                    Text(info.author)
+                        .font(infoMetaFont)
+                        .foregroundStyle(Color.white.opacity(0.75))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+            }
+        }
+    }
+
+    private func slideIndicatorView(label: String) -> some View {
+        Text(label)
+            .font(infoIndicatorFont)
+            .foregroundStyle(Color.white.opacity(0.85))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.6))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
+    }
+
+    private func audioTimelineView(label: String) -> some View {
+        Text(label)
+            .font(infoIndicatorFont)
+            .foregroundStyle(Color.white.opacity(0.75))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.5))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
+            )
+    }
+
+    private var infoCoverWidth: CGFloat {
+        PlayerInfoMetrics.coverWidth(isTV: isTV)
+    }
+
+    private var infoCoverHeight: CGFloat {
+        PlayerInfoMetrics.coverHeight(isTV: isTV)
+    }
+
+    private var infoTitleFont: Font {
+        #if os(tvOS)
+        return .headline
+        #else
+        return .subheadline.weight(.semibold)
+        #endif
+    }
+
+    private var infoMetaFont: Font {
+        #if os(tvOS)
+        return .callout
+        #else
+        return .caption
+        #endif
+    }
+
+    private var infoIndicatorFont: Font {
+        #if os(tvOS)
+        return .callout.weight(.semibold)
+        #else
+        return .caption.weight(.semibold)
+        #endif
+    }
+
+    private var infoHeaderReservedHeight: CGFloat {
+        #if os(tvOS)
+        return PlayerInfoMetrics.badgeHeight(isTV: true) + 24
+        #else
+        return PlayerInfoMetrics.badgeHeight(isTV: false) + (isPad ? 20 : 16)
+        #endif
+    }
+
+    private func resolveInfoVariant() -> PlayerChannelVariant {
+        let rawLabel = (headerInfo?.itemTypeLabel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = rawLabel.lowercased()
+        if lower.contains("subtitle") {
+            return .subtitles
+        }
+        if lower.contains("video") {
+            return .video
+        }
+        if lower.contains("book") || headerInfo?.author.isEmpty == false || headerInfo?.title.isEmpty == false {
+            return .book
+        }
+        return .job
+    }
+
+    private func slideIndicatorLabel(for chunk: InteractiveChunk) -> String? {
+        guard let currentSentence = currentSentenceNumber(for: chunk) else { return nil }
+        let jobBounds = jobSentenceBounds
+        let jobStart = jobBounds.start ?? 1
+        let jobEnd = jobBounds.end
+        let displayCurrent = jobEnd.map { min(currentSentence, $0) } ?? currentSentence
+
+        var label = jobEnd != nil
+            ? "Playing sentence \(displayCurrent) of \(jobEnd ?? displayCurrent)"
+            : "Playing sentence \(displayCurrent)"
+
+        var suffixParts: [String] = []
+        if let jobEnd {
+            let span = max(jobEnd - jobStart, 0)
+            let ratio = span > 0 ? Double(displayCurrent - jobStart) / Double(span) : 1
+            if ratio.isFinite {
+                let percent = min(max(Int(round(ratio * 100)), 0), 100)
+                suffixParts.append("Job \(percent)%")
+            }
+        }
+        if let bookTotal = bookTotalSentences(jobEnd: jobEnd) {
+            let ratio = bookTotal > 0 ? Double(displayCurrent) / Double(bookTotal) : 1
+            if ratio.isFinite {
+                let percent = min(max(Int(round(ratio * 100)), 0), 100)
+                suffixParts.append("Book \(percent)%")
+            }
+        }
+        if !suffixParts.isEmpty {
+            label += " · " + suffixParts.joined(separator: " · ")
+        }
+        return label
+    }
+
+    private func audioTimelineLabel(for chunk: InteractiveChunk) -> String? {
+        guard let metrics = audioTimelineMetrics(for: chunk) else { return nil }
+        let played = formatDurationLabel(metrics.played)
+        let remaining = formatDurationLabel(metrics.remaining)
+        return "\(played) / \(remaining) remaining"
+    }
+
+    private func audioTimelineMetrics(
+        for chunk: InteractiveChunk
+    ) -> (played: Double, remaining: Double, total: Double)? {
+        guard let context = viewModel.jobContext else { return nil }
+        let chunks = context.chunks
+        guard let currentIndex = chunks.firstIndex(where: { $0.id == chunk.id }) else { return nil }
+        let preferredKind = selectedAudioKind(for: chunk)
+        let total = chunks.reduce(0.0) { partial, entry in
+            partial + resolvedAudioDuration(for: entry, preferredKind: preferredKind, isCurrent: entry.id == chunk.id)
+        }
+        guard total > 0 else { return nil }
+        let before = chunks.prefix(currentIndex).reduce(0.0) { partial, entry in
+            partial + resolvedAudioDuration(for: entry, preferredKind: preferredKind, isCurrent: false)
+        }
+        let currentDuration = resolvedAudioDuration(for: chunk, preferredKind: preferredKind, isCurrent: true)
+        let usesCombinedQueue = preferredKind == .combined && viewModel.usesCombinedQueue(for: chunk)
+        let currentTime = max(
+            usesCombinedQueue ? viewModel.combinedQueuePlaybackTime(for: chunk) : viewModel.playbackTime(for: chunk),
+            0
+        )
+        let within = currentDuration > 0 ? min(currentTime, currentDuration) : currentTime
+        let played = min(before + within, total)
+        let remaining = max(total - played, 0)
+        return (played, remaining, total)
+    }
+
+    private func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {
+        if let selectedID = viewModel.selectedAudioTrackID,
+           let option = chunk.audioOptions.first(where: { $0.id == selectedID }) {
+            return option.kind
+        }
+        return chunk.audioOptions.first?.kind
+    }
+
+    private func resolvedAudioDuration(
+        for chunk: InteractiveChunk,
+        preferredKind: InteractiveChunk.AudioOption.Kind?,
+        isCurrent: Bool
+    ) -> Double {
+        let usesCombinedQueue = preferredKind == .combined && viewModel.usesCombinedQueue(for: chunk)
+        if isCurrent {
+            if usesCombinedQueue,
+               let duration = viewModel.combinedPlaybackDuration(for: chunk) {
+                return max(duration, 0)
+            }
+            if let duration = viewModel.timelineDuration(for: chunk) ?? viewModel.playbackDuration(for: chunk) {
+                return max(duration, 0)
+            }
+        }
+        if usesCombinedQueue,
+           let duration = viewModel.combinedPlaybackDuration(for: chunk) {
+            return max(duration, 0)
+        }
+        let option = chunk.audioOptions.first(where: { $0.kind == preferredKind }) ?? chunk.audioOptions.first
+        if let duration = option?.duration, duration > 0 {
+            return duration
+        }
+        if preferredKind == .combined,
+           let fallback = viewModel.fallbackDuration(for: chunk, kind: .combined),
+           fallback > 0 {
+            return fallback
+        }
+        if let option,
+           let fallback = viewModel.fallbackDuration(for: chunk, kind: option.kind),
+           fallback > 0 {
+            return fallback
+        }
+        let sentenceSum = chunk.sentences.compactMap { $0.totalDuration }.reduce(0, +)
+        if sentenceSum > 0 {
+            return sentenceSum
+        }
+        return 0
+    }
+
+    private func formatDurationLabel(_ value: Double) -> String {
+        let total = max(0, Int(value.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    private func currentSentenceNumber(for chunk: InteractiveChunk) -> Int? {
+        if let active = activeSentenceDisplay(for: chunk) {
+            if let number = active.sentenceNumber {
+                return number
+            }
+            if let start = chunk.startSentence {
+                return start + max(active.index, 0)
+            }
+            return active.index + 1
+        }
+        return nil
+    }
+
+    private func bookTotalSentences(jobEnd: Int?) -> Int? {
+        if !viewModel.chapterEntries.isEmpty {
+            var maxEnd: Int?
+            for chapter in viewModel.chapterEntries {
+                let candidate = chapter.endSentence ?? chapter.startSentence
+                maxEnd = maxEnd.map { max($0, candidate) } ?? candidate
+            }
+            return maxEnd
+        }
+        return jobEnd
     }
 
     private var menuCoverWidth: CGFloat {
@@ -1263,7 +1571,7 @@ struct InteractivePlayerView: View {
     }
 
     private func transcriptSentences(for chunk: InteractiveChunk) -> [TextPlayerSentenceDisplay] {
-        let playbackTime = viewModel.playbackTime(for: chunk)
+        let playbackTime = viewModel.highlightingTime
         let activeTimingTrack = viewModel.activeTimingTrack(for: chunk)
         let useCombinedPhases = viewModel.useCombinedPhases(for: chunk)
         let playbackDuration = viewModel.playbackDuration(for: chunk) ?? audioCoordinator.duration

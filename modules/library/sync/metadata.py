@@ -570,6 +570,49 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
     def _format_episode_code(season: int, episode: int) -> str:
         return f"S{season:02d}E{episode:02d}"
 
+    def _set_if_blank(key: str, value: Optional[str]) -> None:
+        if value is None:
+            return
+        trimmed = value.strip()
+        if not trimmed:
+            return
+        current = metadata.get(key)
+        if isinstance(current, str) and current.strip():
+            return
+        metadata[key] = trimmed
+        book_metadata = metadata.get("book_metadata")
+        if isinstance(book_metadata, Mapping):
+            nested = dict(book_metadata)
+            existing = nested.get(key)
+            if not (isinstance(existing, str) and existing.strip()):
+                nested[key] = trimmed
+                metadata["book_metadata"] = nested
+
+    def _extract_input_language() -> Optional[str]:
+        for section in (resume_context, request_section):
+            if not isinstance(section, Mapping):
+                continue
+            for key in (
+                "input_language",
+                "original_language",
+                "source_language",
+                "translation_source_language",
+            ):
+                candidate = section.get(key)
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+            media_metadata = section.get("media_metadata")
+            if isinstance(media_metadata, Mapping):
+                candidate = media_metadata.get("language") or media_metadata.get("source_language")
+                if isinstance(candidate, str) and candidate.strip():
+                    return candidate.strip()
+                show = media_metadata.get("show")
+                if isinstance(show, Mapping):
+                    candidate = show.get("language")
+                    if isinstance(candidate, str) and candidate.strip():
+                        return candidate.strip()
+        return None
+
     language = None
     if isinstance(dub_section, Mapping):
         language = dub_section.get("language")
@@ -583,6 +626,11 @@ def apply_video_defaults(metadata: Dict[str, Any], job_root: Path) -> None:
         metadata.setdefault("target_language", normalized_language)
         metadata.setdefault("translation_language", normalized_language)
         metadata.setdefault("target_languages", [normalized_language])
+
+    input_language = _extract_input_language()
+    if input_language:
+        _set_if_blank("input_language", input_language)
+        _set_if_blank("original_language", input_language)
 
     video_path: Optional[str] = None
     if isinstance(dub_section, Mapping):

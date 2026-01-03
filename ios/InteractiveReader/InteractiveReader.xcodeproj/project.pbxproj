@@ -31,9 +31,12 @@
 		F3C1A2B4D5E6F7A8B9C0D1E4 /* Color+Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C1A2B4D5E6F7A8B9C0D1E2 /* Color+Hex.swift */; };
 		1798B1642EF9F1A00092A8AF /* StorageResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2702F914D000A1D9A1 /* StorageResolver.swift */; };
 		1798B1652EF9F1A00092A8AF /* InteractivePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */; };
+		C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
 		F0E83C6F391E4B33886B6788 /* TextPlayerTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */; };
 		1798B1662EF9F1A00092A8AF /* ApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2402F914D000A1D9A1 /* ApiModels.swift */; };
 		1798B1672EF9F1A00092A8AF /* String+Extras.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2802F914D000A1D9A1 /* String+Extras.swift */; };
+		A5B6C7D8E9F0123456789A12 /* PlaybackResumeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */; };
+		A5B6C7D8E9F0123456789A13 /* PlaybackResumeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */; };
 		1798B1682EF9F1A00092A8AF /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2A02F914D000A1D9A1 /* Preview Assets.xcassets */; };
 		1798B1692EF9F1A00092A8AF /* Assets-tvOS.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = F3C1A2B4D5E6F7A8B9C0D210 /* Assets-tvOS.xcassets */; };
 		1798B16B2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1798B16A2EFA07720092A8AF /* PlatformGroupBox.swift */; };
@@ -50,6 +53,7 @@
 		6FDC3A3002F914D000A1D9A1 /* InteractiveReaderApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2002F914D000A1D9A1 /* InteractiveReaderApp.swift */; };
 		6FDC3A3102F914D000A1D9A1 /* JobLoaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2102F914D000A1D9A1 /* JobLoaderView.swift */; };
 		6FDC3A3202F914D000A1D9A1 /* InteractivePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */; };
+		C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
 		6FDC3A3302F914D000A1D9A1 /* InteractivePlayerViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2302F914D000A1D9A1 /* InteractivePlayerViewModel.swift */; };
 		C4071804A8944B53824E2B45 /* TextPlayerTimeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */; };
 		6FDC3A3402F914D000A1D9A1 /* ApiModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6FDC3A2402F914D000A1D9A1 /* ApiModels.swift */; };
@@ -86,6 +90,7 @@
 		6FDC3A2202F914D000A1D9A1 /* InteractivePlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerView.swift; sourceTree = "<group>"; };
 		6FDC3A2302F914D000A1D9A1 /* InteractivePlayerViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InteractivePlayerViewModel.swift; sourceTree = "<group>"; };
 		B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPlayerTimeline.swift; sourceTree = "<group>"; };
+		C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerChannelBugView.swift; sourceTree = "<group>"; };
 		6FDC3A2402F914D000A1D9A1 /* ApiModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApiModels.swift; sourceTree = "<group>"; };
 		6FDC3A2502F914D000A1D9A1 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
 		6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioPlayerCoordinator.swift; sourceTree = "<group>"; };
@@ -105,6 +110,8 @@
 		EACAFCD435FB4D46926CB3F5 /* LibraryShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryShellView.swift; sourceTree = "<group>"; };
 		F0090F34EFAD42D0BD98A51D /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibraryView.swift; sourceTree = "<group>"; };
 		FF4AB40AF77346D8BFBD4677 /* Info-tvOS.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-tvOS.plist"; sourceTree = "<group>"; };
+		A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackResumeStore.swift; sourceTree = "<group>"; };
+		A5B6C7D8E9F0123456789A11 /* InteractiveReader.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = InteractiveReader.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -202,6 +209,7 @@
 			children = (
 				6FDC3A062F914D000A1D9A1 /* JobLoader */,
 				6FDC3A072F914D000A1D9A1 /* InteractivePlayer */,
+				C0A1B2C3D4E5F60718293A4E /* Shared */,
 				1B35D2C80F014B58809F6996 /* Auth */,
 				1BC179E753F14AFCA4C06B67 /* Library */,
 				399FA7B84B6D428481E553DB /* Playback */,
@@ -227,6 +235,14 @@
 			path = InteractivePlayer;
 			sourceTree = "<group>";
 		};
+		C0A1B2C3D4E5F60718293A4E /* Shared */ = {
+			isa = PBXGroup;
+			children = (
+				C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */,
+			);
+			path = Shared;
+			sourceTree = "<group>";
+		};
 		6FDC3A082F914D000A1D9A1 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -240,6 +256,7 @@
 			children = (
 				6FDC3A2502F914D000A1D9A1 /* APIClient.swift */,
 				6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */,
+				A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */,
 				9DA71448DFFD40C7929AE6AF /* NowPlayingCoordinator.swift */,
 				CC2B612A42FC410590D84E0A /* VideoPlayerCoordinator.swift */,
 			);
@@ -282,6 +299,7 @@
 			children = (
 				6FDC3A2B02F914D000A1D9A1 /* Info.plist */,
 				FF4AB40AF77346D8BFBD4677 /* Info-tvOS.plist */,
+				A5B6C7D8E9F0123456789A11 /* InteractiveReader.entitlements */,
 			);
 			path = Supporting;
 			sourceTree = "<group>";
@@ -398,6 +416,7 @@
 				4E9A28EAACDA4C5FAC653CBF /* SubtitleOverlayView.swift in Sources */,
 				F3C1A2B4D5E6F7A8B9C0D1E7 /* SubtitleVisibility.swift in Sources */,
 				8E98B03FD5094BDD99935269 /* NowPlayingCoordinator.swift in Sources */,
+				A5B6C7D8E9F0123456789A12 /* PlaybackResumeStore.swift in Sources */,
 				B643F5DE4A944A73AA8E986E /* VideoPlayerCoordinator.swift in Sources */,
 				9217A4BA1C534A748FADF81B /* MediaURLResolver.swift in Sources */,
 				1798B16B2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */,
@@ -405,6 +424,7 @@
 				F3C1A2B4D5E6F7A8B9C0D1E3 /* Color+Hex.swift in Sources */,
 				6FDC3A3702F914D000A1D9A1 /* StorageResolver.swift in Sources */,
 				6FDC3A3202F914D000A1D9A1 /* InteractivePlayerView.swift in Sources */,
+				C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */,
 				6FDC3A3402F914D000A1D9A1 /* ApiModels.swift in Sources */,
 				6FDC3A3802F914D000A1D9A1 /* String+Extras.swift in Sources */,
 			);
@@ -433,6 +453,7 @@
 				1798B15F2EF9F1A00092A8AF /* SubtitleOverlayView.swift in Sources */,
 				F3C1A2B4D5E6F7A8B9C0D1E8 /* SubtitleVisibility.swift in Sources */,
 				1798B1602EF9F1A00092A8AF /* NowPlayingCoordinator.swift in Sources */,
+				A5B6C7D8E9F0123456789A13 /* PlaybackResumeStore.swift in Sources */,
 				1798B1612EF9F1A00092A8AF /* VideoPlayerCoordinator.swift in Sources */,
 				1798B1622EF9F1A00092A8AF /* MediaURLResolver.swift in Sources */,
 				1798B16C2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */,
@@ -440,6 +461,7 @@
 				F3C1A2B4D5E6F7A8B9C0D1E4 /* Color+Hex.swift in Sources */,
 				1798B1642EF9F1A00092A8AF /* StorageResolver.swift in Sources */,
 				1798B1652EF9F1A00092A8AF /* InteractivePlayerView.swift in Sources */,
+				C0A1B2C3D4E5F60718293A4D /* PlayerChannelBugView.swift in Sources */,
 				1798B1662EF9F1A00092A8AF /* ApiModels.swift in Sources */,
 				1798B1672EF9F1A00092A8AF /* String+Extras.swift in Sources */,
 			);
@@ -453,6 +475,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconTV;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -596,6 +619,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -622,6 +646,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -647,6 +672,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIconTV;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = InteractiveReader/Supporting/InteractiveReader.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
