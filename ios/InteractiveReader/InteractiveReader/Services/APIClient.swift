@@ -54,6 +54,12 @@ final class APIClient {
         return try decode(PipelineMediaResponse.self, from: data)
     }
 
+    func fetchJobMediaLive(jobId: String) async throws -> PipelineMediaResponse {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)/media/live")
+        return try decode(PipelineMediaResponse.self, from: data)
+    }
+
     func fetchLibraryMedia(jobId: String) async throws -> PipelineMediaResponse {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
         let data = try await sendRequest(path: "/api/library/media/\(encoded)")
@@ -66,6 +72,22 @@ final class APIClient {
             return nil
         }
         return try decode(JobTimingResponse.self, from: data)
+    }
+
+    func fetchSubtitleTvMetadata(jobId: String) async throws -> SubtitleTvMetadataResponse? {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        guard let data = try await sendRequestAllowingNotFound(path: "/api/subtitles/jobs/\(encoded)/metadata/tv") else {
+            return nil
+        }
+        return try decode(SubtitleTvMetadataResponse.self, from: data)
+    }
+
+    func fetchYoutubeVideoMetadata(jobId: String) async throws -> YoutubeVideoMetadataResponse? {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        guard let data = try await sendRequestAllowingNotFound(path: "/api/subtitles/jobs/\(encoded)/metadata/youtube") else {
+            return nil
+        }
+        return try decode(YoutubeVideoMetadataResponse.self, from: data)
     }
 
     func fetchLibraryItems(query: String? = nil, page: Int = 1, limit: Int = 100) async throws -> LibrarySearchResponse {
@@ -81,6 +103,17 @@ final class APIClient {
         let suffix = components.percentEncodedQuery.map { "?\($0)" } ?? ""
         let data = try await sendRequest(path: "/api/library/items\(suffix)")
         return try decode(LibrarySearchResponse.self, from: data)
+    }
+
+    func fetchPipelineJobs() async throws -> PipelineJobListResponse {
+        let data = try await sendRequest(path: "/api/pipelines/jobs")
+        return try decode(PipelineJobListResponse.self, from: data)
+    }
+
+    func fetchPipelineStatus(jobId: String) async throws -> PipelineStatusResponse {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)")
+        return try decode(PipelineStatusResponse.self, from: data)
     }
 
     func fetchReadingBeds() async throws -> ReadingBedListResponse {

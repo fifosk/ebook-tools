@@ -80,6 +80,66 @@ struct LibraryItem: Decodable, Identifiable {
     let metadata: [String: JSONValue]?
 }
 
+enum PipelineJobStatus: String, Decodable {
+    case pending
+    case running
+    case pausing
+    case paused
+    case completed
+    case failed
+    case cancelled
+}
+
+struct ProgressSnapshotPayload: Decodable {
+    let completed: Int
+    let total: Int?
+    let elapsed: Double
+    let speed: Double
+    let eta: Double?
+}
+
+struct ProgressEventPayload: Decodable {
+    let eventType: String
+    let timestamp: Double
+    let metadata: [String: JSONValue]
+    let snapshot: ProgressSnapshotPayload
+    let error: String?
+}
+
+struct PipelineStatusResponse: Decodable, Identifiable, Hashable {
+    var id: String { jobId }
+    let jobId: String
+    let jobType: String
+    let status: PipelineJobStatus
+    let createdAt: String
+    let startedAt: String?
+    let completedAt: String?
+    let result: JSONValue?
+    let error: String?
+    let latestEvent: ProgressEventPayload?
+    let tuning: [String: JSONValue]?
+    let userId: String?
+    let userRole: String?
+    let generatedFiles: [String: JSONValue]?
+    let parameters: JSONValue?
+    let mediaCompleted: Bool?
+    let retrySummary: [String: [String: Int]]?
+    let jobLabel: String?
+    let imageGeneration: [String: JSONValue]?
+
+    static func == (lhs: PipelineStatusResponse, rhs: PipelineStatusResponse) -> Bool {
+        lhs.jobId == rhs.jobId
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(jobId)
+    }
+}
+
+struct PipelineJobListResponse: Decodable {
+    let jobs: [PipelineStatusResponse]
+}
+
 struct ReadingBedEntry: Decodable, Identifiable {
     let id: String
     let label: String
@@ -92,6 +152,32 @@ struct ReadingBedEntry: Decodable, Identifiable {
 struct ReadingBedListResponse: Decodable {
     let defaultId: String?
     let beds: [ReadingBedEntry]
+}
+
+struct SubtitleTvMetadataParse: Decodable {
+    let series: String
+    let season: Int
+    let episode: Int
+    let pattern: String
+}
+
+struct SubtitleTvMetadataResponse: Decodable {
+    let jobId: String
+    let sourceName: String?
+    let parsed: SubtitleTvMetadataParse?
+    let mediaMetadata: [String: JSONValue]?
+}
+
+struct YoutubeVideoMetadataParse: Decodable {
+    let videoId: String
+    let pattern: String
+}
+
+struct YoutubeVideoMetadataResponse: Decodable {
+    let jobId: String
+    let sourceName: String?
+    let parsed: YoutubeVideoMetadataParse?
+    let youtubeMetadata: [String: JSONValue]?
 }
 
 extension LibraryItem: Hashable {

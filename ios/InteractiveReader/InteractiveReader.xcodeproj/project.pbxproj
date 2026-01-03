@@ -71,6 +71,18 @@
 		D6CA6C00E95343CEAD94AEE8 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C52CBAA7D2D4EEA82595A11 /* RootView.swift */; };
 		E6902EDD69D94B3B85BA16D2 /* LibraryPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59436E996D4F461495E34AD4 /* LibraryPlaybackView.swift */; };
 		ED1E894786624B1EAF5ADB8F /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0090F34EFAD42D0BD98A51D /* LibraryView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70821 /* JobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */; };
+		C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70823 /* JobRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70825 /* JSONValue+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */; };
+		C8D9E0F1A2B3C4D5E6F70826 /* PipelineJobStatus+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */; };
+		C8D9E0F1A2B3C4D5E6F70831 /* JobsViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */; };
+		C8D9E0F1A2B3C4D5E6F70832 /* JobsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70833 /* JobRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70834 /* JobPlaybackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */; };
+		C8D9E0F1A2B3C4D5E6F70835 /* JSONValue+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */; };
+		C8D9E0F1A2B3C4D5E6F70836 /* PipelineJobStatus+Helpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -112,6 +124,12 @@
 		FF4AB40AF77346D8BFBD4677 /* Info-tvOS.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info-tvOS.plist"; sourceTree = "<group>"; };
 		A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackResumeStore.swift; sourceTree = "<group>"; };
 		A5B6C7D8E9F0123456789A11 /* InteractiveReader.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = InteractiveReader.entitlements; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsViewModel.swift; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobsView.swift; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobRowView.swift; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JobPlaybackView.swift; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JSONValue+Helpers.swift"; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PipelineJobStatus+Helpers.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -153,10 +171,21 @@
 			path = Library;
 			sourceTree = "<group>";
 		};
+		C8D9E0F1A2B3C4D5E6F70810 /* Jobs */ = {
+			isa = PBXGroup;
+			children = (
+				C8D9E0F1A2B3C4D5E6F70802 /* JobsView.swift */,
+				C8D9E0F1A2B3C4D5E6F70801 /* JobsViewModel.swift */,
+				C8D9E0F1A2B3C4D5E6F70803 /* JobRowView.swift */,
+			);
+			path = Jobs;
+			sourceTree = "<group>";
+		};
 		399FA7B84B6D428481E553DB /* Playback */ = {
 			isa = PBXGroup;
 			children = (
 				59436E996D4F461495E34AD4 /* LibraryPlaybackView.swift */,
+				C8D9E0F1A2B3C4D5E6F70804 /* JobPlaybackView.swift */,
 				E6BC125536804A63B0BD4619 /* VideoPlayerView.swift */,
 				61EDAE75211A49A18DC32515 /* SubtitleOverlayView.swift */,
 				F3C1A2B4D5E6F7A8B9C0D1E6 /* SubtitleVisibility.swift */,
@@ -212,6 +241,7 @@
 				C0A1B2C3D4E5F60718293A4E /* Shared */,
 				1B35D2C80F014B58809F6996 /* Auth */,
 				1BC179E753F14AFCA4C06B67 /* Library */,
+				C8D9E0F1A2B3C4D5E6F70810 /* Jobs */,
 				399FA7B84B6D428481E553DB /* Playback */,
 			);
 			path = Features;
@@ -270,6 +300,8 @@
 				6FDC3A2802F914D000A1D9A1 /* String+Extras.swift */,
 				F3C1A2B4D5E6F7A8B9C0D1E2 /* Color+Hex.swift */,
 				B44D6C5028734F099599CFC6 /* MediaURLResolver.swift */,
+				C8D9E0F1A2B3C4D5E6F70805 /* JSONValue+Helpers.swift */,
+				C8D9E0F1A2B3C4D5E6F70806 /* PipelineJobStatus+Helpers.swift */,
 				11B853B91F6A48DCA58660A7 /* SubtitleParser.swift */,
 			);
 			path = Utilities;
@@ -412,6 +444,10 @@
 				274889EEFEFC4A7EAB66B3D9 /* LibraryViewModel.swift in Sources */,
 				533B070A4B9041978D07C7A1 /* LibraryRowView.swift in Sources */,
 				E6902EDD69D94B3B85BA16D2 /* LibraryPlaybackView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70824 /* JobPlaybackView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70822 /* JobsView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70823 /* JobRowView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70821 /* JobsViewModel.swift in Sources */,
 				D079469EF5C746E3929B197D /* VideoPlayerView.swift in Sources */,
 				4E9A28EAACDA4C5FAC653CBF /* SubtitleOverlayView.swift in Sources */,
 				F3C1A2B4D5E6F7A8B9C0D1E7 /* SubtitleVisibility.swift in Sources */,
@@ -419,6 +455,8 @@
 				A5B6C7D8E9F0123456789A12 /* PlaybackResumeStore.swift in Sources */,
 				B643F5DE4A944A73AA8E986E /* VideoPlayerCoordinator.swift in Sources */,
 				9217A4BA1C534A748FADF81B /* MediaURLResolver.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70825 /* JSONValue+Helpers.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70826 /* PipelineJobStatus+Helpers.swift in Sources */,
 				1798B16B2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */,
 				2CB5F4FB2432438F9366E006 /* SubtitleParser.swift in Sources */,
 				F3C1A2B4D5E6F7A8B9C0D1E3 /* Color+Hex.swift in Sources */,
@@ -449,6 +487,10 @@
 				1798B15B2EF9F1A00092A8AF /* LibraryViewModel.swift in Sources */,
 				1798B15C2EF9F1A00092A8AF /* LibraryRowView.swift in Sources */,
 				1798B15D2EF9F1A00092A8AF /* LibraryPlaybackView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70834 /* JobPlaybackView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70832 /* JobsView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70833 /* JobRowView.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70831 /* JobsViewModel.swift in Sources */,
 				1798B15E2EF9F1A00092A8AF /* VideoPlayerView.swift in Sources */,
 				1798B15F2EF9F1A00092A8AF /* SubtitleOverlayView.swift in Sources */,
 				F3C1A2B4D5E6F7A8B9C0D1E8 /* SubtitleVisibility.swift in Sources */,
@@ -456,6 +498,8 @@
 				A5B6C7D8E9F0123456789A13 /* PlaybackResumeStore.swift in Sources */,
 				1798B1612EF9F1A00092A8AF /* VideoPlayerCoordinator.swift in Sources */,
 				1798B1622EF9F1A00092A8AF /* MediaURLResolver.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70835 /* JSONValue+Helpers.swift in Sources */,
+				C8D9E0F1A2B3C4D5E6F70836 /* PipelineJobStatus+Helpers.swift in Sources */,
 				1798B16C2EFA07720092A8AF /* PlatformGroupBox.swift in Sources */,
 				1798B1632EF9F1A00092A8AF /* SubtitleParser.swift in Sources */,
 				F3C1A2B4D5E6F7A8B9C0D1E4 /* Color+Hex.swift in Sources */,

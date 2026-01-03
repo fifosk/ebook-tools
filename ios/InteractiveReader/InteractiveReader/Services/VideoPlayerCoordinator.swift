@@ -7,6 +7,8 @@ final class VideoPlayerCoordinator: ObservableObject {
     @Published private(set) var duration: Double = 0
     @Published private(set) var isPlaying: Bool = false
 
+    var onPlaybackEnded: (() -> Void)?
+
     private var player: AVPlayer?
     private var timeObserverToken: Any?
     private var statusObservation: NSKeyValueObservation?
@@ -145,7 +147,9 @@ final class VideoPlayerCoordinator: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.isPlaying = false
+                guard let self else { return }
+                self.isPlaying = false
+                self.onPlaybackEnded?()
             }
         }
     }

@@ -3441,7 +3441,7 @@ private struct TextPlayerVariantView: View {
         let baseSize = UIFont.preferredFont(forTextStyle: textStyle).pointSize
         return .system(size: baseSize * fontScale)
         #else
-        return sentenceState == .active ? .title : .title2
+        return sentenceState == .active ? .title2 : .title3
         #endif
     }
 
@@ -3626,3 +3626,11 @@ private enum TextPlayerTheme {
     static let translationCurrent = Color(red: 0.996, green: 0.941, blue: 0.541)
     static let transliterationCurrent = Color(red: 0.996, green: 0.976, blue: 0.765)
 }
+
+#if os(iOS) || os(tvOS)
+private extension UIFont.TextStyle {
+    static var title: UIFont.TextStyle {
+        .title1
+    }
+}
+#endif

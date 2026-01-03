@@ -592,7 +592,6 @@ struct LibraryPlaybackView: View {
             guard let url = viewModel.resolveMediaURL(for: file) else { continue }
             let sourcePath = file.relativePath ?? file.path ?? file.name
             let format = SubtitleParser.format(for: sourcePath)
-            guard format != .unknown else { continue }
             let id = (sourcePath.nonEmptyValue ?? url.absoluteString)
             guard !seen.contains(id) else { continue }
             seen.insert(id)
@@ -1024,33 +1023,5 @@ private struct LibraryImageReel: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
         }
         .frame(height: height)
-    }
-}
-
-private extension JSONValue {
-    var objectValue: [String: JSONValue]? {
-        if case let .object(value) = self {
-            return value
-        }
-        return nil
-    }
-
-    var stringValue: String? {
-        switch self {
-        case let .string(value):
-            return value.nonEmptyValue
-        case let .number(value):
-            guard value.isFinite else { return nil }
-            return String(value).nonEmptyValue
-        case let .array(values):
-            for value in values {
-                if let string = value.stringValue {
-                    return string
-                }
-            }
-            return nil
-        default:
-            return nil
-        }
     }
 }

@@ -41,12 +41,15 @@ final class InteractivePlayerViewModel: ObservableObject {
     private var apiBaseURL: URL?
     private var authToken: String?
     private var apiConfiguration: APIClientConfiguration?
+    private var mediaOrigin: MediaOrigin = .job
     private var preferredAudioKind: InteractiveChunk.AudioOption.Kind?
     private var audioDurationByURL: [URL: Double] = [:]
     private var chunkMetadataLoaded: Set<String> = []
     private var chunkMetadataLoading: Set<String> = []
     private var pendingSentenceJump: PendingSentenceJump?
     private let defaultReadingBedPath = "/assets/reading-beds/lost-in-the-pages.mp3"
+    private var liveUpdateTask: Task<Void, Never>?
+    private let liveUpdateInterval: UInt64 = 4_000_000_000
 
     init() {
         audioCoordinator.onPlaybackEnded = { [weak self] in
@@ -54,7 +57,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         }
     }
 
-    func loadJob(jobId: String, configuration: APIClientConfiguration, origin: MediaOrigin = .job) async {
+    func loadJob(jobId: String, configuration: APIClientConfiguration, origin: MediaOrigin = .job, preferLiveMedia: Bool = false) async {
         let trimmedJobId = jobId.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedJobId.isEmpty else {
             loadState = .error("Enter a job identifier before loading.")
@@ -66,6 +69,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         apiBaseURL = configuration.apiBaseURL
         authToken = configuration.authToken
         apiConfiguration = configuration
+        mediaOrigin = origin
         selectedChunkID = nil
         selectedAudioTrackID = nil
         selectedTimingURL = nil
@@ -83,6 +87,7 @@ final class InteractivePlayerViewModel: ObservableObject {
         mediaResolver = nil
         audioCoordinator.reset()
         pendingSentenceJump = nil
+        stopLiveUpdates()
 
         do {
             let client = APIClient(configuration: configuration)
@@ -91,6 +96,9 @@ final class InteractivePlayerViewModel: ObservableObject {
                 case .library:
                     return try await client.fetchLibraryMedia(jobId: trimmedJobId)
                 case .job:
+                    if preferLiveMedia {
+                        return try await client.fetchJobMediaLive(jobId: trimmedJobId)
+                    }
                     return try await client.fetchJobMedia(jobId: trimmedJobId)
                 }
             }()
@@ -143,6 +151,111 @@ final class InteractivePlayerViewModel: ObservableObject {
         } catch {
             loadState = .error(error.localizedDescription)
         }
+    }
+
+    func startLiveUpdates() {
+        guard mediaOrigin == .job else { return }
+        guard apiConfiguration != nil else { return }
+        stopLiveUpdates()
+        liveUpdateTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                await self.refreshLiveMedia()
+                if self.mediaResponse?.complete == true {
+                    break
+                }
+                try? await Task.sleep(nanoseconds: liveUpdateInterval)
+            }
+        }
+    }
+
+    func stopLiveUpdates() {
+        liveUpdateTask?.cancel()
+        liveUpdateTask = nil
+    }
+
+    private func refreshLiveMedia() async {
+        guard mediaOrigin == .job else { return }
+        guard let configuration = apiConfiguration, let jobId, let resolver = mediaResolver else { return }
+        let client = APIClient(configuration: configuration)
+        do {
+            let liveMedia = try await client.fetchJobMediaLive(jobId: jobId)
+            guard shouldApplyLiveUpdate(current: mediaResponse, incoming: liveMedia) else { return }
+            let mergedMedia = mergeLiveMedia(current: mediaResponse, incoming: liveMedia)
+            let context = try JobContextBuilder.build(
+                jobId: jobId,
+                media: mergedMedia,
+                timing: timingResponse,
+                resolver: resolver
+            )
+            mediaResponse = mergedMedia
+            jobContext = context
+            if let selectedChunkID, context.chunk(withID: selectedChunkID) != nil {
+                return
+            }
+            configureDefaultSelections()
+        } catch {
+            return
+        }
+    }
+
+    private func shouldApplyLiveUpdate(current: PipelineMediaResponse?, incoming: PipelineMediaResponse) -> Bool {
+        guard let current else { return true }
+        if current.complete != incoming.complete {
+            return true
+        }
+        if current.chunks.count != incoming.chunks.count {
+            return true
+        }
+        let currentKeys = Set(current.media.keys)
+        let incomingKeys = Set(incoming.media.keys)
+        if currentKeys != incomingKeys {
+            return true
+        }
+        for (key, incomingFiles) in incoming.media {
+            if (current.media[key]?.count ?? 0) != incomingFiles.count {
+                return true
+            }
+        }
+        return false
+    }
+
+    private func mergeLiveMedia(
+        current: PipelineMediaResponse?,
+        incoming: PipelineMediaResponse
+    ) -> PipelineMediaResponse {
+        guard let current else { return incoming }
+        var currentByKey: [String: PipelineMediaChunk] = [:]
+        for (index, chunk) in current.chunks.enumerated() {
+            currentByKey[chunkKey(chunk, fallback: index)] = chunk
+        }
+        let mergedChunks = incoming.chunks.enumerated().map { index, chunk -> PipelineMediaChunk in
+            let key = chunkKey(chunk, fallback: index)
+            guard let existing = currentByKey[key],
+                  chunk.sentences.isEmpty,
+                  !existing.sentences.isEmpty else {
+                return chunk
+            }
+            return PipelineMediaChunk(
+                chunkID: chunk.chunkID,
+                rangeFragment: chunk.rangeFragment,
+                startSentence: chunk.startSentence,
+                endSentence: chunk.endSentence,
+                files: chunk.files,
+                sentences: existing.sentences,
+                metadataPath: chunk.metadataPath ?? existing.metadataPath,
+                metadataURL: chunk.metadataURL ?? existing.metadataURL,
+                sentenceCount: chunk.sentenceCount ?? existing.sentenceCount,
+                audioTracks: chunk.audioTracks.isEmpty ? existing.audioTracks : chunk.audioTracks
+            )
+        }
+        return PipelineMediaResponse(media: incoming.media, chunks: mergedChunks, complete: incoming.complete)
+    }
+
+    private func chunkKey(_ chunk: PipelineMediaChunk, fallback: Int) -> String {
+        chunk.chunkID
+            ?? chunk.rangeFragment
+            ?? "chunk-\(fallback)"
     }
 
     func selectChunk(id: String, autoPlay: Bool = false) {

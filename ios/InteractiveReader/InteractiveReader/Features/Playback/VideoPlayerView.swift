@@ -22,6 +22,11 @@ struct VideoPlaybackMetadata {
     let channelLabel: String
 }
 
+struct VideoSegmentOption: Identifiable, Hashable {
+    let id: String
+    let label: String
+}
+
 struct VideoPlayerView: View {
     @EnvironmentObject var appState: AppState
     @Environment(\.dismiss) private var dismiss
@@ -36,14 +41,21 @@ struct VideoPlayerView: View {
     let linguistInputLanguage: String
     let linguistLookupLanguage: String
     let linguistExplanationLanguage: String
+    let segmentOptions: [VideoSegmentOption]
+    let selectedSegmentID: String?
+    let onSelectSegment: ((String) -> Void)?
+    let jobProgressLabel: String?
+    let jobRemainingLabel: String?
     let onPlaybackProgress: ((Double, Bool) -> Void)?
+    let onPlaybackEnded: ((Double) -> Void)?
 
     @StateObject private var coordinator = VideoPlayerCoordinator()
     @State private var cues: [VideoSubtitleCue] = []
     @State private var subtitleError: String?
     @State private var selectedTrack: VideoSubtitleTrack?
-    @State private var subtitleCache: [URL: [VideoSubtitleCue]] = [:]
+    @State private var subtitleCache: [String: [VideoSubtitleCue]] = [:]
     @State private var subtitleTask: Task<Void, Never>?
+    @State private var subtitleLoadToken = UUID()
     @State private var subtitleVisibility = SubtitleVisibility()
     @State private var showSubtitleSettings = false
     @State private var showTVControls = true
@@ -91,7 +103,13 @@ struct VideoPlayerView: View {
         linguistInputLanguage: String = "",
         linguistLookupLanguage: String = "English",
         linguistExplanationLanguage: String = "English",
-        onPlaybackProgress: ((Double, Bool) -> Void)? = nil
+        segmentOptions: [VideoSegmentOption] = [],
+        selectedSegmentID: String? = nil,
+        onSelectSegment: ((String) -> Void)? = nil,
+        jobProgressLabel: String? = nil,
+        jobRemainingLabel: String? = nil,
+        onPlaybackProgress: ((Double, Bool) -> Void)? = nil,
+        onPlaybackEnded: ((Double) -> Void)? = nil
     ) {
         self.videoURL = videoURL
         self.subtitleTracks = subtitleTracks
@@ -103,7 +121,13 @@ struct VideoPlayerView: View {
         self.linguistInputLanguage = linguistInputLanguage
         self.linguistLookupLanguage = linguistLookupLanguage
         self.linguistExplanationLanguage = linguistExplanationLanguage
+        self.segmentOptions = segmentOptions
+        self.selectedSegmentID = selectedSegmentID
+        self.onSelectSegment = onSelectSegment
+        self.jobProgressLabel = jobProgressLabel
+        self.jobRemainingLabel = jobRemainingLabel
         self.onPlaybackProgress = onPlaybackProgress
+        self.onPlaybackEnded = onPlaybackEnded
     }
 
     var body: some View {
@@ -130,6 +154,10 @@ struct VideoPlayerView: View {
                     scrubberValue: $scrubberValue,
                     isScrubbing: $isScrubbing,
                     metadata: metadata,
+                    segmentOptions: segmentOptions,
+                    selectedSegmentID: selectedSegmentID,
+                    jobProgressLabel: jobProgressLabel,
+                    jobRemainingLabel: jobRemainingLabel,
                     subtitleFontScale: subtitleFontScale,
                     isPlaying: coordinator.isPlaying,
                     subtitleSelection: subtitleSelection,
@@ -191,6 +219,10 @@ struct VideoPlayerView: View {
                     onDecreaseSubtitleLinguistFont: {
                         adjustSubtitleLinguistFontScale(by: -subtitleLinguistFontScaleStep)
                     },
+                    onSelectSegment: { id in
+                        showSubtitleSettings = false
+                        onSelectSegment?(id)
+                    },
                     onCloseSubtitleBubble: {
                         closeSubtitleBubble()
                     },
@@ -244,6 +276,13 @@ struct VideoPlayerView: View {
         }
         #endif
         .onAppear {
+            coordinator.onPlaybackEnded = { [weak coordinator] in
+                guard let coordinator else { return }
+                let duration = coordinator.duration.isFinite && coordinator.duration > 0
+                    ? coordinator.duration
+                    : coordinator.currentTime
+                onPlaybackEnded?(duration)
+            }
             pendingResumeTime = resumeTime
             coordinator.load(url: videoURL, autoPlay: autoPlay && resumeTime == nil)
             configureNowPlaying()
@@ -256,12 +295,18 @@ struct VideoPlayerView: View {
             scheduleControlsAutoHide()
             applyPendingResumeIfPossible()
         }
+        .onDisappear {
+            coordinator.onPlaybackEnded = nil
+        }
         .onChange(of: videoURL) { _, newURL in
+            subtitleSelection = nil
+            subtitleCache.removeAll()
             pendingResumeTime = resumeTime
             coordinator.load(url: newURL, autoPlay: autoPlay && resumeTime == nil)
             updateNowPlayingMetadata()
             updateNowPlayingPlayback()
             selectDefaultTrackIfNeeded()
+            loadSubtitles()
             scrubberValue = 0
             isScrubbing = false
             showTVControls = true
@@ -280,6 +325,7 @@ struct VideoPlayerView: View {
         }
         .onChange(of: subtitleTracks) { _, _ in
             selectDefaultTrackIfNeeded()
+            loadSubtitles()
         }
         .onChange(of: selectedTrack?.id) { _, _ in
             loadSubtitles()
@@ -373,9 +419,20 @@ struct VideoPlayerView: View {
             selectedTrack = orderedTracks.first
             return
         }
-        if !orderedTracks.contains(where: { $0.id == current.id }) {
-            selectedTrack = orderedTracks.first
+        if let replacement = orderedTracks.first(where: { $0.id == current.id }) {
+            if replacement.url != current.url {
+                selectedTrack = replacement
+                loadSubtitles()
+            }
+            return
         }
+        if let labelMatch = orderedTracks.first(where: {
+            $0.format == current.format && $0.label.localizedCaseInsensitiveCompare(current.label) == .orderedSame
+        }) {
+            selectedTrack = labelMatch
+            return
+        }
+        selectedTrack = orderedTracks.first
     }
 
     private func loadSubtitles() {
@@ -387,27 +444,36 @@ struct VideoPlayerView: View {
         closeSubtitleBubble()
         guard let track = selectedTrack else {
             cues = []
+            subtitleError = nil
             return
         }
-        if let cached = subtitleCache[track.url] {
+        if let cached = subtitleCache[track.id] {
             cues = cached
+            subtitleError = nil
             return
         }
         cues = []
+        let loadToken = UUID()
+        subtitleLoadToken = loadToken
         subtitleTask = Task {
             do {
-                let (data, _) = try await URLSession.shared.data(from: track.url)
+                var request = URLRequest(url: track.url)
+                request.cachePolicy = .reloadIgnoringLocalCacheData
+                let (data, _) = try await URLSession.shared.data(for: request)
                 let content = String(data: data, encoding: .utf8) ?? ""
                 let parsed = SubtitleParser.parse(from: content, format: track.format)
                 await MainActor.run {
-                    subtitleCache[track.url] = parsed
+                    guard subtitleLoadToken == loadToken else { return }
+                    subtitleCache[track.id] = parsed
                     cues = parsed
+                    subtitleError = nil
                     if !coordinator.isPlaying {
                         syncSubtitleSelectionIfNeeded(force: true)
                     }
                 }
             } catch {
                 await MainActor.run {
+                    guard subtitleLoadToken == loadToken else { return }
                     subtitleError = "Unable to load subtitles"
                 }
             }
@@ -485,6 +551,11 @@ struct VideoPlayerView: View {
             return
         }
         if !coordinator.isPlaying {
+            if !showTVControls {
+                onPlaybackProgress?(coordinator.currentTime, coordinator.isPlaying)
+                dismiss()
+                return
+            }
             coordinator.play()
             withAnimation(.easeInOut(duration: 0.2)) {
                 showTVControls = false
@@ -1054,6 +1125,10 @@ private struct VideoPlayerOverlayView: View {
     @Binding var scrubberValue: Double
     @Binding var isScrubbing: Bool
     let metadata: VideoPlaybackMetadata
+    let segmentOptions: [VideoSegmentOption]
+    let selectedSegmentID: String?
+    let jobProgressLabel: String?
+    let jobRemainingLabel: String?
     let subtitleFontScale: CGFloat
     let isPlaying: Bool
     let subtitleSelection: VideoSubtitleWordSelection?
@@ -1079,6 +1154,7 @@ private struct VideoPlayerOverlayView: View {
     let onSubtitleTokenSeek: (VideoSubtitleTokenReference) -> Void
     let onIncreaseSubtitleLinguistFont: () -> Void
     let onDecreaseSubtitleLinguistFont: () -> Void
+    let onSelectSegment: ((String) -> Void)?
     let onCloseSubtitleBubble: () -> Void
     let onUserInteraction: () -> Void
     #if !os(tvOS)
@@ -1284,7 +1360,7 @@ private struct VideoPlayerOverlayView: View {
         #else
         stack
         #endif
-        if let subtitleError {
+        if let subtitleError, cues.isEmpty {
             Text(subtitleError)
                 .font(.caption)
                 .foregroundStyle(.white)
@@ -1309,6 +1385,9 @@ private struct VideoPlayerOverlayView: View {
                 tracks: tracks,
                 selectedTrack: $selectedTrack,
                 visibility: $subtitleVisibility,
+                segmentOptions: segmentOptions,
+                selectedSegmentID: selectedSegmentID,
+                onSelectSegment: onSelectSegment,
                 onClose: { showSubtitleSettings = false }
             )
             .frame(maxWidth: 680)
@@ -1321,6 +1400,9 @@ private struct VideoPlayerOverlayView: View {
             tracks: tracks,
             selectedTrack: $selectedTrack,
             visibility: $subtitleVisibility,
+            segmentOptions: segmentOptions,
+            selectedSegmentID: selectedSegmentID,
+            onSelectSegment: onSelectSegment,
             onClose: { showSubtitleSettings = false }
         )
         .padding(.horizontal, 24)
@@ -1331,6 +1413,7 @@ private struct VideoPlayerOverlayView: View {
     @ViewBuilder
     private var topBar: some View {
         let timelineLabel = videoTimelineLabel
+        let segmentLabel = segmentHeaderLabel
         let shouldShowHeaderInfo = !isHeaderCollapsed
         if isPad {
             VStack(alignment: .leading, spacing: 8) {
@@ -1346,7 +1429,7 @@ private struct VideoPlayerOverlayView: View {
                     #endif
                     Spacer(minLength: 12)
                     HStack(spacing: 8) {
-                        if hasTracks {
+                        if hasOptions {
                             subtitleButton
                         }
                     }
@@ -1357,6 +1440,9 @@ private struct VideoPlayerOverlayView: View {
                     }
                     Spacer(minLength: 12)
                     VStack(alignment: .trailing, spacing: 6) {
+                        if let segmentLabel, shouldShowHeaderInfo {
+                            videoTimelineView(label: segmentLabel)
+                        }
                         if let timelineLabel, shouldShowHeaderInfo {
                             videoTimelineView(label: timelineLabel)
                         }
@@ -1383,8 +1469,11 @@ private struct VideoPlayerOverlayView: View {
 
                 Spacer(minLength: 12)
 
-                if timelineLabel != nil || hasTracks || !isTV {
+                if timelineLabel != nil || hasOptions || !isTV {
                     VStack(alignment: .trailing, spacing: 6) {
+                        if let segmentLabel, shouldShowHeaderInfo {
+                            videoTimelineView(label: segmentLabel)
+                        }
                         if let timelineLabel, shouldShowHeaderInfo {
                             videoTimelineView(label: timelineLabel)
                         }
@@ -1392,7 +1481,7 @@ private struct VideoPlayerOverlayView: View {
                         tvControls
                         #else
                         HStack(spacing: 8) {
-                            if hasTracks {
+                            if hasOptions {
                                 subtitleButton
                             }
                             headerToggleButton
@@ -1477,11 +1566,17 @@ private struct VideoPlayerOverlayView: View {
     #if os(tvOS)
     private var infoHeaderOverlay: some View {
         let timelineLabel = videoTimelineLabel
+        let segmentLabel = segmentHeaderLabel
         return HStack(alignment: .top, spacing: 12) {
             infoHeaderContent
             Spacer(minLength: 12)
-            if let timelineLabel {
-                videoTimelineView(label: timelineLabel)
+            VStack(alignment: .trailing, spacing: 6) {
+                if let segmentLabel {
+                    videoTimelineView(label: segmentLabel)
+                }
+                if let timelineLabel {
+                    videoTimelineView(label: timelineLabel)
+                }
             }
         }
         .padding(.top, 6)
@@ -1512,7 +1607,30 @@ private struct VideoPlayerOverlayView: View {
         guard duration.isFinite, duration > 0, currentTime.isFinite else { return nil }
         let played = min(max(currentTime, 0), duration)
         let remaining = max(duration - played, 0)
-        return "\(formatDurationLabel(played)) / \(formatDurationLabel(remaining)) remaining"
+        let base = "\(formatDurationLabel(played)) / \(formatDurationLabel(remaining)) remaining"
+        if let jobRemainingLabel {
+            return "\(base) · \(jobRemainingLabel)"
+        }
+        return base
+    }
+
+    private var segmentHeaderLabel: String? {
+        let chunkLabel: String?
+        if segmentOptions.count > 1 {
+            if let selectedSegmentID,
+               let index = segmentOptions.firstIndex(where: { $0.id == selectedSegmentID }) {
+                chunkLabel = "Chunk \(index + 1) / \(segmentOptions.count)"
+            } else {
+                chunkLabel = "Chunk 1 / \(segmentOptions.count)"
+            }
+        } else {
+            chunkLabel = nil
+        }
+        guard let chunkLabel else { return nil }
+        if let jobProgressLabel {
+            return "\(jobProgressLabel) · \(chunkLabel)"
+        }
+        return chunkLabel
     }
 
     private func formatDurationLabel(_ value: Double) -> String {
@@ -1524,11 +1642,12 @@ private struct VideoPlayerOverlayView: View {
     }
 
     private var subtitleButton: some View {
-        Button {
+        let labelText = hasTracks ? selectedTrackLabel : "Options"
+        return Button {
             showSubtitleSettings = true
         } label: {
             Label(
-                selectedTrackLabel,
+                labelText,
                 systemImage: "captions.bubble"
             )
             .labelStyle(.titleAndIcon)
@@ -1576,7 +1695,7 @@ private struct VideoPlayerOverlayView: View {
                 action: onSkipForward
             )
                 .focused($focusTarget, equals: .control(.skipForward))
-            if hasTracks {
+            if hasOptions {
                 tvControlButton(
                     systemName: "captions.bubble",
                     label: "Options",
@@ -1758,6 +1877,14 @@ private struct VideoPlayerOverlayView: View {
 
     private var hasTracks: Bool {
         !tracks.isEmpty
+    }
+
+    private var hasSegmentOptions: Bool {
+        segmentOptions.count > 1
+    }
+
+    private var hasOptions: Bool {
+        hasTracks || hasSegmentOptions
     }
 
     private var hasInfoBadge: Bool {
@@ -1954,6 +2081,9 @@ private struct SubtitleSettingsPanel: View {
     let tracks: [VideoSubtitleTrack]
     @Binding var selectedTrack: VideoSubtitleTrack?
     @Binding var visibility: SubtitleVisibility
+    let segmentOptions: [VideoSegmentOption]
+    let selectedSegmentID: String?
+    let onSelectSegment: ((String) -> Void)?
     let onClose: () -> Void
 
     var body: some View {
@@ -1969,6 +2099,24 @@ private struct SubtitleSettingsPanel: View {
             }
             Divider()
                 .overlay(Color.white.opacity(0.25))
+
+            if segmentOptions.count > 1 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Chunks")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                    ForEach(segmentOptions) { segment in
+                        Button {
+                            onSelectSegment?(segment.id)
+                        } label: {
+                            trackRow(label: segment.label, selected: segment.id == selectedSegmentID)
+                        }
+                    }
+                }
+
+                Divider()
+                    .overlay(Color.white.opacity(0.25))
+            }
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Tracks")

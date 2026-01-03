@@ -4,15 +4,15 @@ import SwiftUI
 import UIKit
 #endif
 
-struct LibraryView: View {
-    @ObservedObject var viewModel: LibraryViewModel
+struct JobsView: View {
+    @EnvironmentObject var appState: AppState
+    @ObservedObject var viewModel: JobsViewModel
     let useNavigationLinks: Bool
     let onRefresh: () -> Void
     let onSignOut: () -> Void
-    let onSelect: ((LibraryItem) -> Void)?
-    let coverResolver: (LibraryItem) -> URL?
-    let resumeUserId: String?
+    let onSelect: ((PipelineStatusResponse) -> Void)?
     let sectionPicker: AnyView?
+    let resumeUserId: String?
 
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
@@ -28,38 +28,25 @@ struct LibraryView: View {
             }
 
             List {
-                ForEach(viewModel.filteredItems) { item in
-                    if useNavigationLinks {
-                        NavigationLink(value: item) {
-                            LibraryRowView(
-                                item: item,
-                                coverURL: coverResolver(item),
-                                resumeStatus: resumeStatus(for: item)
-                            )
-                        }
-                    } else {
-                        #if os(tvOS)
-                        Button {
-                            onSelect?(item)
-                        } label: {
-                            LibraryRowView(
-                                item: item,
-                                coverURL: coverResolver(item),
-                                resumeStatus: resumeStatus(for: item)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        #else
-                        LibraryRowView(
-                            item: item,
-                            coverURL: coverResolver(item),
-                            resumeStatus: resumeStatus(for: item)
-                        )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                onSelect?(item)
-                            }
-                        #endif
+                if viewModel.activeJobs.isEmpty {
+                    Section("Active jobs") {
+                        Text("No active jobs.")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Section("Active jobs") {
+                        jobRows(viewModel.activeJobs)
+                    }
+                }
+
+                if viewModel.finishedJobs.isEmpty {
+                    Section("Finished jobs") {
+                        Text("No finished jobs yet.")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Section("Finished jobs") {
+                        jobRows(viewModel.finishedJobs)
                     }
                 }
             }
@@ -70,6 +57,9 @@ struct LibraryView: View {
         }
         .onAppear {
             refreshResumeStatus()
+            #if os(tvOS)
+            viewModel.startAutoRefresh(using: appState)
+            #endif
         }
         .onChange(of: resumeUserId) { _, _ in
             refreshResumeStatus()
@@ -83,6 +73,11 @@ struct LibraryView: View {
                 iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
             }
         }
+        #if os(tvOS)
+        .onDisappear {
+            viewModel.stopAutoRefresh()
+        }
+        #endif
         #if !os(tvOS)
         .toolbar {
             ToolbarItemGroup(placement: .topBarLeading) {
@@ -98,6 +93,32 @@ struct LibraryView: View {
         #endif
     }
 
+    @ViewBuilder
+    private func jobRows(_ jobs: [PipelineStatusResponse]) -> some View {
+        ForEach(jobs) { job in
+            if useNavigationLinks {
+                NavigationLink(value: job) {
+                    JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                }
+            } else {
+                #if os(tvOS)
+                Button {
+                    onSelect?(job)
+                } label: {
+                    JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                }
+                .buttonStyle(.plain)
+                #else
+                JobRowView(job: job, resumeStatus: resumeStatus(for: job))
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        onSelect?(job)
+                    }
+                #endif
+            }
+        }
+    }
+
     private func errorRow(message: String) -> some View {
         Label(message, systemImage: "exclamationmark.triangle.fill")
             .foregroundStyle(.red)
@@ -107,11 +128,11 @@ struct LibraryView: View {
     private var listOverlay: some View {
         Group {
             if viewModel.isLoading {
-                ProgressView("Loading library…")
+                ProgressView("Loading jobs…")
                     .padding()
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
-            } else if viewModel.filteredItems.isEmpty {
-                Text("No items found.")
+            } else if viewModel.filteredJobs.isEmpty {
+                Text("No jobs found.")
                     .foregroundStyle(.secondary)
             }
         }
@@ -140,7 +161,7 @@ struct LibraryView: View {
 
     private var searchRow: some View {
         HStack(spacing: 8) {
-            TextField("Search library", text: $viewModel.query)
+            TextField("Search jobs", text: $viewModel.query)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .focused($isSearchFocused)
@@ -156,7 +177,7 @@ struct LibraryView: View {
 
     private var filterPicker: some View {
         Picker("Filter", selection: $viewModel.activeFilter) {
-            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
+            ForEach(JobsViewModel.JobFilter.allCases) { filter in
                 Text(filter.rawValue).tag(filter)
             }
         }
@@ -254,8 +275,8 @@ struct LibraryView: View {
         }
     }
 
-    private func resumeStatus(for item: LibraryItem) -> LibraryRowView.ResumeStatus {
-        guard let availability = resumeAvailability[item.jobId] else {
+    private func resumeStatus(for job: PipelineStatusResponse) -> LibraryRowView.ResumeStatus {
+        guard let availability = resumeAvailability[job.jobId] else {
             return .none()
         }
         let localEntry = availability.hasLocal ? availability.localEntry : nil
