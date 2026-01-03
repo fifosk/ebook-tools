@@ -47,9 +47,7 @@ struct LibraryPlaybackView: View {
         }
         .onDisappear {
             persistResumeOnExit()
-            #if os(tvOS)
             viewModel.audioCoordinator.reset()
-            #endif
             if scenePhase == .active {
                 nowPlaying.clear()
             }
@@ -382,7 +380,9 @@ struct LibraryPlaybackView: View {
             title: item.bookTitle.isEmpty ? "Untitled" : item.bookTitle,
             author: item.author.isEmpty ? "Unknown author" : item.author,
             itemTypeLabel: itemTypeLabel,
-            coverURL: coverURL
+            coverURL: coverURL,
+            secondaryCoverURL: secondaryCoverURL,
+            languageFlags: languageFlags
         )
     }
 
@@ -545,6 +545,19 @@ struct LibraryPlaybackView: View {
         return resolver.resolveCoverURL(for: item)
     }
 
+    private var secondaryCoverURL: URL? {
+        guard let apiBaseURL = appState.apiBaseURL else { return nil }
+        let resolver = LibraryCoverResolver(apiBaseURL: apiBaseURL, accessToken: appState.authToken)
+        return resolver.resolveSecondaryCoverURL(for: item)
+    }
+
+    private var languageFlags: [LanguageFlagEntry] {
+        LanguageFlagResolver.resolveFlags(
+            originalLanguage: linguistInputLanguage,
+            translationLanguage: linguistLookupLanguage
+        )
+    }
+
     private var hasInteractiveChunks: Bool {
         guard let chunks = viewModel.jobContext?.chunks else { return false }
         return chunks.contains { !$0.sentences.isEmpty || $0.startSentence != nil || $0.endSentence != nil }
@@ -619,6 +632,8 @@ struct LibraryPlaybackView: View {
             artist: subtitle,
             album: item.bookTitle.isEmpty ? nil : item.bookTitle,
             artworkURL: coverURL,
+            secondaryArtworkURL: secondaryCoverURL,
+            languageFlags: languageFlags,
             channelVariant: channelVariant,
             channelLabel: channelLabel
         )

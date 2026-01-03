@@ -218,6 +218,17 @@ struct LibraryCoverResolver {
         return nil
     }
 
+    func resolveSecondaryCoverURL(for item: LibraryItem) -> URL? {
+        guard let metadata = item.metadata else { return nil }
+        guard let tvMetadata = extractTvMediaMetadata(from: metadata) else { return nil }
+        let resolver = MediaURLResolver(origin: .library(apiBaseURL: apiBaseURL, accessToken: accessToken))
+        let episode = resolveTvImage(from: tvMetadata, path: "episode")
+        let show = resolveTvImage(from: tvMetadata, path: "show")
+        let primary = episode ?? show
+        guard let show, let primary, show != primary else { return nil }
+        return resolveCandidate(show, jobId: item.jobId, resolver: resolver)
+    }
+
     private func coverCandidates(for item: LibraryItem) -> [String] {
         var candidates: [String] = []
         var seen = Set<String>()

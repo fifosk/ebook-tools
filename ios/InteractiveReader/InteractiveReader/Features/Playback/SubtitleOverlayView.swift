@@ -15,6 +15,7 @@ struct VideoSubtitleTokenReference: Equatable {
     let lineIndex: Int
     let tokenIndex: Int
     let token: String
+    let seekTime: Double?
 }
 
 struct VideoSubtitleDisplayLine: Identifiable {
@@ -221,6 +222,13 @@ struct SubtitleOverlayView: View {
     let fontScale: CGFloat
     let selection: VideoSubtitleWordSelection?
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
+    let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
+    let onResetFont: (() -> Void)?
+    let onMagnify: ((CGFloat) -> Void)?
+
+    #if os(iOS)
+    @State private var magnifyStartScale: CGFloat?
+    #endif
 
     var body: some View {
         if let display = VideoSubtitleDisplayBuilder.build(
@@ -228,18 +236,33 @@ struct SubtitleOverlayView: View {
             time: currentTime,
             visibility: visibility
         ) {
-            VStack(spacing: 8) {
-                ForEach(display.lines) { line in
-                    SubtitleTokenLineView(
-                        line: line,
-                        highlightStart: display.highlightStart,
-                        highlightEnd: display.highlightEnd,
-                        currentTime: currentTime,
-                        selection: selection,
-                        fontScale: clampedFontScale,
-                        onTokenLookup: onTokenLookup
-                    )
+            ZStack(alignment: .topTrailing) {
+                VStack(spacing: 8) {
+                    ForEach(display.lines) { line in
+                        SubtitleTokenLineView(
+                            line: line,
+                            highlightStart: display.highlightStart,
+                            highlightEnd: display.highlightEnd,
+                            currentTime: currentTime,
+                            selection: selection,
+                            fontScale: clampedFontScale,
+                            onTokenLookup: onTokenLookup,
+                            onTokenSeek: onTokenSeek
+                        )
+                    }
                 }
+                #if os(iOS)
+                if let onResetFont {
+                    Button(action: onResetFont) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.caption2.weight(.semibold))
+                            .padding(6)
+                            .background(.black.opacity(0.4), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Reset subtitle size")
+                }
+                #endif
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -247,12 +270,32 @@ struct SubtitleOverlayView: View {
             .padding(.bottom, 24)
             .frame(maxWidth: .infinity)
             .transition(.opacity)
+            #if os(iOS)
+            .simultaneousGesture(magnifyGesture, including: .gesture)
+            #endif
         }
     }
 
     private var clampedFontScale: CGFloat {
         max(0.7, min(fontScale, 2.0))
     }
+
+    #if os(iOS)
+    private var magnifyGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                guard let onMagnify else { return }
+                if magnifyStartScale == nil {
+                    magnifyStartScale = clampedFontScale
+                }
+                let startScale = magnifyStartScale ?? clampedFontScale
+                onMagnify(startScale * value)
+            }
+            .onEnded { _ in
+                magnifyStartScale = nil
+            }
+    }
+    #endif
 }
 
 private struct SubtitleTokenLineView: View {
@@ -263,6 +306,7 @@ private struct SubtitleTokenLineView: View {
     let selection: VideoSubtitleWordSelection?
     let fontScale: CGFloat
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
+    let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
 
     var body: some View {
         TokenFlowLayout(itemSpacing: tokenItemSpacing, lineSpacing: tokenLineSpacing) {
@@ -276,12 +320,22 @@ private struct SubtitleTokenLineView: View {
                     horizontalPadding: tokenHorizontalPadding,
                     verticalPadding: tokenVerticalPadding,
                     cornerRadius: tokenCornerRadius,
-                    onDoubleTap: {
+                    onTap: {
+                        onTokenSeek?(VideoSubtitleTokenReference(
+                            lineKind: line.kind,
+                            lineIndex: line.index,
+                            tokenIndex: index,
+                            token: token,
+                            seekTime: tokenSeekTime(for: index)
+                        ))
+                    },
+                    onLookup: {
                         onTokenLookup?(VideoSubtitleTokenReference(
                             lineKind: line.kind,
                             lineIndex: line.index,
                             tokenIndex: index,
-                            token: token
+                            token: token,
+                            seekTime: tokenSeekTime(for: index)
                         ))
                     }
                 )
@@ -393,6 +447,12 @@ private struct SubtitleTokenLineView: View {
         }
     }
 
+    private func tokenSeekTime(for index: Int) -> Double? {
+        guard line.revealTimes.indices.contains(index) else { return nil }
+        let value = line.revealTimes[index]
+        return value.isFinite ? value : nil
+    }
+
     private var tokenItemSpacing: CGFloat {
         #if os(tvOS)
         return 10
@@ -457,7 +517,8 @@ private struct SubtitleTokenWordView: View {
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
     let cornerRadius: CGFloat
-    let onDoubleTap: () -> Void
+    let onTap: () -> Void
+    let onLookup: () -> Void
 
     var body: some View {
         Text(text)
@@ -477,12 +538,29 @@ private struct SubtitleTokenWordView: View {
                 }
             )
             #if !os(tvOS)
-            .simultaneousGesture(
-                TapGesture(count: 2)
-                    .onEnded(onDoubleTap)
-            )
+            .gesture(tokenTapGesture)
+            #endif
+            #if os(iOS)
+            .contextMenu {
+                Button("Look Up") {
+                    DictionaryLookupPresenter.show(term: text)
+                }
+                Button("Copy") {
+                    UIPasteboard.general.string = text
+                }
+            }
             #endif
     }
+
+    #if !os(tvOS)
+    private var tokenTapGesture: some Gesture {
+        let doubleTap = TapGesture(count: 2)
+            .onEnded(onLookup)
+        let singleTap = TapGesture(count: 1)
+            .onEnded(onTap)
+        return doubleTap.exclusively(before: singleTap)
+    }
+    #endif
 
     private var tokenFont: Font {
         #if os(tvOS)
@@ -494,6 +572,38 @@ private struct SubtitleTokenWordView: View {
         #endif
     }
 }
+
+#if os(iOS)
+private enum DictionaryLookupPresenter {
+    static func show(term: String) {
+        let trimmed = term.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        let controller = UIReferenceLibraryViewController(term: trimmed)
+        guard let presenter = topViewController() else { return }
+        presenter.present(controller, animated: true)
+    }
+
+    private static func topViewController() -> UIViewController? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        let windows = scenes.flatMap { $0.windows }
+        let root = windows.first(where: { $0.isKeyWindow })?.rootViewController
+        return topViewController(from: root)
+    }
+
+    private static func topViewController(from root: UIViewController?) -> UIViewController? {
+        if let presented = root?.presentedViewController {
+            return topViewController(from: presented)
+        }
+        if let navigation = root as? UINavigationController {
+            return topViewController(from: navigation.visibleViewController)
+        }
+        if let tab = root as? UITabBarController {
+            return topViewController(from: tab.selectedViewController)
+        }
+        return root
+    }
+}
+#endif
 
 private struct TokenFlowLayout: Layout {
     let itemSpacing: CGFloat

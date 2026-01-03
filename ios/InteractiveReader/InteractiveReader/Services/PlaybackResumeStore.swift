@@ -504,7 +504,7 @@ final class PlaybackResumeStore {
             return "restricted"
         case .couldNotDetermine:
             return "unknown"
-        @unknown default:
+        default:
             return "unknown"
         }
     }

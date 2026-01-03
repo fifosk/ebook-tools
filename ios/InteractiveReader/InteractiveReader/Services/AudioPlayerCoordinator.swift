@@ -172,23 +172,25 @@ final class AudioPlayerCoordinator: ObservableObject {
             object: AVAudioSession.sharedInstance(),
             queue: .main
         ) { [weak self] notification in
-            guard let self else { return }
-            let info = notification.userInfo
-            let rawType = info?[AVAudioSessionInterruptionTypeKey] as? UInt
-            let type = rawType.flatMap { AVAudioSession.InterruptionType(rawValue: $0) }
-            switch type {
-            case .began:
-                self.shouldResumeAfterInterruption = self.isPlaying
-                self.isPlaying = false
-            case .ended:
-                let optionsValue = info?[AVAudioSessionInterruptionOptionKey] as? UInt
-                let options = optionsValue.flatMap { AVAudioSession.InterruptionOptions(rawValue: $0) } ?? []
-                if self.shouldResumeAfterInterruption && options.contains(.shouldResume) {
-                    self.play()
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let info = notification.userInfo
+                let rawType = info?[AVAudioSessionInterruptionTypeKey] as? UInt
+                let type = rawType.flatMap { AVAudioSession.InterruptionType(rawValue: $0) }
+                switch type {
+                case .began:
+                    self.shouldResumeAfterInterruption = self.isPlaying
+                    self.isPlaying = false
+                case .ended:
+                    let optionsValue = info?[AVAudioSessionInterruptionOptionKey] as? UInt
+                    let options = optionsValue.flatMap { AVAudioSession.InterruptionOptions(rawValue: $0) } ?? []
+                    if self.shouldResumeAfterInterruption && options.contains(.shouldResume) {
+                        self.play()
+                    }
+                    self.shouldResumeAfterInterruption = false
+                default:
+                    break
                 }
-                self.shouldResumeAfterInterruption = false
-            default:
-                break
             }
         }
         #endif
