@@ -7,6 +7,10 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+if [ -z "${JOB_STORAGE_DIR:-}" ]; then
+  export JOB_STORAGE_DIR="${REPO_ROOT}/storage"
+fi
+
 USER_STORE_PATH="${REPO_ROOT}/config/users/users.json"
 USER_SAMPLE_PATH="${REPO_ROOT}/config/users/users.sample.json"
 

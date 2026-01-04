@@ -983,23 +983,51 @@ final class InteractivePlayerViewModel: ObservableObject {
             chunkMetadataLoaded.insert(chunkID)
             return
         }
-        let metadataPath = chunk.metadataURL ?? chunk.metadataPath
-        guard let metadataPath,
-              let url = resolver.resolvePath(jobId: jobId, relativePath: metadataPath) else {
-            return
+        let metadataURL = chunk.metadataURL?.nonEmptyValue
+        let metadataPath = chunk.metadataPath?.nonEmptyValue
+        var preferPathFirst = false
+        if let metadataURL,
+           let url = URL(string: metadataURL),
+           url.scheme?.lowercased() == "https",
+           let apiBaseURL = apiConfiguration?.apiBaseURL,
+           apiBaseURL.scheme?.lowercased() == "http",
+           metadataPath != nil {
+            preferPathFirst = true
         }
+        var candidates: [String] = []
+        if preferPathFirst {
+            if let metadataPath { candidates.append(metadataPath) }
+            if let metadataURL, metadataURL != metadataPath { candidates.append(metadataURL) }
+        } else {
+            if let metadataURL { candidates.append(metadataURL) }
+            if let metadataPath, metadataPath != metadataURL { candidates.append(metadataPath) }
+        }
+        guard !candidates.isEmpty else { return }
 
         chunkMetadataLoading.insert(chunkID)
         defer { chunkMetadataLoading.remove(chunkID) }
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
+            var payloadData: Data? = nil
+            for candidate in candidates {
+                guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else { continue }
+                var request = URLRequest(url: url)
+                request.setValue("application/json", forHTTPHeaderField: "Accept")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200..<300).contains(httpResponse.statusCode) else {
+                    continue
+                }
+                payloadData = data
+                break
+            }
+            guard let payloadData else { return }
             let decoder = JSONDecoder()
             decoder.keyDecodingStrategy = .convertFromSnakeCase
             let sentences: [ChunkSentenceMetadata]
-            if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: data) {
+            if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: payloadData) {
                 sentences = payload.sentences
-            } else if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: data) {
+            } else if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: payloadData) {
                 sentences = payload
             } else {
                 return
@@ -1508,7 +1536,10 @@ enum JobContextBuilder {
 
     private static func normaliseTokens(text: String, tokens: [String]?) -> [String] {
         if let tokens, !tokens.isEmpty {
-            return tokens.filter { !$0.isEmpty }
+            let filtered = tokens.filter { !$0.isEmpty }
+            if !filtered.isEmpty {
+                return filtered
+            }
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }

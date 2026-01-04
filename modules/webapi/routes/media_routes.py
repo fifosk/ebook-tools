@@ -2018,9 +2018,25 @@ async def _download_job_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found") from exc
 
     if not resolved_path.exists() or not resolved_path.is_file():
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+        resolved_path = _resolve_alternate_job_path(job_id, filename) or resolved_path
+        if not resolved_path.exists() or not resolved_path.is_file():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
 
     return _stream_local_file(resolved_path, range_header)
+
+
+def _resolve_alternate_job_path(job_id: str, filename: str) -> Optional[Path]:
+    """Try a repo-root storage directory when the primary locator misses."""
+
+    try:
+        repo_root = cfg.SCRIPT_DIR.parent
+        candidate_root = repo_root / "storage"
+        if not candidate_root.exists():
+            return None
+        alternate_locator = FileLocator(storage_dir=candidate_root)
+        return alternate_locator.resolve_path(job_id, filename)
+    except Exception:
+        return None
 
 
 def _resolve_cover_download_path(filename: str) -> Path:

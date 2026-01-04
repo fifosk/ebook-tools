@@ -17,6 +17,9 @@ extension PipelineJobStatus {
 
 extension PipelineStatusResponse {
     var isFinishedForDisplay: Bool {
+        if status.isActive {
+            return false
+        }
         if status.isFinished {
             return true
         }

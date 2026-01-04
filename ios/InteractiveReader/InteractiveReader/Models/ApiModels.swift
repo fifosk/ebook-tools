@@ -251,14 +251,14 @@ struct PipelineMediaFile: Decodable, Identifiable {
         case name
         case url
         case size
-        case updatedAt = "updated_at"
+        case updatedAt
         case source
-        case relativePath = "relative_path"
+        case relativePath
         case path
-        case chunkID = "chunk_id"
-        case rangeFragment = "range_fragment"
-        case startSentence = "start_sentence"
-        case endSentence = "end_sentence"
+        case chunkID = "chunkId"
+        case rangeFragment
+        case startSentence
+        case endSentence
         case type
     }
 
@@ -333,16 +333,16 @@ struct PipelineMediaChunk: Decodable, Identifiable {
     let audioTracks: [String: AudioTrackMetadata]
 
     enum CodingKeys: String, CodingKey {
-        case chunkID = "chunk_id"
-        case rangeFragment = "range_fragment"
-        case startSentence = "start_sentence"
-        case endSentence = "end_sentence"
+        case chunkID = "chunkId"
+        case rangeFragment
+        case startSentence
+        case endSentence
         case files
         case sentences
-        case metadataPath = "metadata_path"
-        case metadataURL = "metadata_url"
-        case sentenceCount = "sentence_count"
-        case audioTracks = "audio_tracks"
+        case metadataPath
+        case metadataURL = "metadataUrl"
+        case sentenceCount
+        case audioTracks
     }
 
     init(

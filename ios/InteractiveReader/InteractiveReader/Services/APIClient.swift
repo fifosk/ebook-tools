@@ -116,7 +116,7 @@ final class APIClient {
 
     func fetchPipelineStatus(jobId: String) async throws -> PipelineStatusResponse {
         let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
-        let data = try await sendRequest(path: "/api/pipelines/jobs/\(encoded)")
+        let data = try await sendRequest(path: "/api/pipelines/\(encoded)")
         return try decode(PipelineStatusResponse.self, from: data)
     }
 

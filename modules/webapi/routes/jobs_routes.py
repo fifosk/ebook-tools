@@ -266,6 +266,21 @@ async def get_pipeline_status(
     return PipelineStatusResponse.from_job(job)
 
 
+@router.get("/jobs/{job_id}", response_model=PipelineStatusResponse, include_in_schema=False)
+async def get_pipeline_status_legacy(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+):
+    """Legacy alias for /api/pipelines/{job_id}."""
+
+    return await get_pipeline_status(
+        job_id=job_id,
+        pipeline_service=pipeline_service,
+        request_user=request_user,
+    )
+
+
 @router.post("/jobs/{job_id}/pause", response_model=PipelineJobActionResponse)
 async def pause_job(
     job_id: str,

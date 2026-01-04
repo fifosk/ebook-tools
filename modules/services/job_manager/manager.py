@@ -683,8 +683,44 @@ class PipelineJobManager:
             job = self._jobs.get(job_id)
             if job is not None:
                 return job
-        metadata = self._store.get(job_id)
+        try:
+            metadata = self._store.get(job_id)
+        except KeyError:
+            metadata = self._load_metadata_from_disk(job_id)
+            if metadata is None:
+                raise
+            try:
+                self._store.save(metadata)
+            except Exception:  # pragma: no cover - best effort cache
+                logger.debug("Failed to cache job metadata for %s", job_id, exc_info=True)
         return self._persistence.build_job(metadata)
+
+    def _load_metadata_from_disk(self, job_id: str) -> Optional[PipelineJobMetadata]:
+        """Load job metadata from disk when the store misses the job."""
+
+        candidates: list[Path] = []
+        try:
+            candidates.append(self._file_locator.resolve_metadata_path(job_id, "job.json"))
+        except Exception:
+            pass
+
+        try:
+            repo_root = cfg.SCRIPT_DIR.parent
+            candidates.append(repo_root / "storage" / job_id / "metadata" / "job.json")
+        except Exception:
+            pass
+
+        for path in candidates:
+            try:
+                if not path.exists():
+                    continue
+                payload = path.read_text(encoding="utf-8")
+                return PipelineJobMetadata.from_json(payload)
+            except Exception:  # pragma: no cover - defensive fallback
+                logger.debug("Failed to load job metadata from %s", path, exc_info=True)
+                continue
+
+        return None
 
     def _assert_job_access(
         self,

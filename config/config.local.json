@@ -10,6 +10,7 @@
     }
   },
   "library_root": "/Volumes/Data/Video/Library",
+  "job_storage_dir": "/Users/fifo/Projects/ebook-tools/storage",
   "ebooks_dir": "/Users/fifo/Projects/ebook-tools/books",
   "forced_alignment_enabled": true,
   "char_weighted_highlighting_default": true,

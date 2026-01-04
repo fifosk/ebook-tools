@@ -31,6 +31,7 @@ struct InteractivePlayerView: View {
     @State private var readingBedEnabled = true
     @State private var scrubbedTime: Double?
     @State private var visibleTracks: Set<TextPlayerVariantKind> = [.original, .translation, .transliteration]
+    @State private var hasCustomTrackSelection = false
     @State private var selectedSentenceID: Int?
     @State private var linguistSelection: TextPlayerWordSelection?
     @State private var linguistBubble: MyLinguistBubbleState?
@@ -193,6 +194,10 @@ struct InteractivePlayerView: View {
             } else {
                 frozenTranscriptSentences = nil
             }
+        }
+        .onChange(of: trackAvailabilitySignature) { _, _ in
+            guard let chunk = viewModel.selectedChunk else { return }
+            applyDefaultTrackSelection(for: chunk)
         }
         .onChange(of: viewModel.highlightingTime) { _, _ in
             guard !isMenuVisible else { return }
@@ -1433,6 +1438,7 @@ struct InteractivePlayerView: View {
                 visibleTracks.insert(kind)
             }
         }
+        hasCustomTrackSelection = true
     }
 
     private func toggleTrackIfAvailable(_ kind: TextPlayerVariantKind) {
@@ -1516,15 +1522,18 @@ struct InteractivePlayerView: View {
 
     private func applyDefaultTrackSelection(for chunk: InteractiveChunk) {
         let available = Set(availableTracks(for: chunk))
-        if visibleTracks.isEmpty {
+        if !hasCustomTrackSelection || visibleTracks.isEmpty {
             visibleTracks = available
-        } else {
-            let intersection = visibleTracks.intersection(available)
-            visibleTracks = intersection.isEmpty ? available : intersection
         }
         if let showImageReel {
             showImageReel.wrappedValue = hasImageReel(for: chunk)
         }
+    }
+
+    private var trackAvailabilitySignature: String {
+        guard let chunk = viewModel.selectedChunk else { return "" }
+        let available = availableTracks(for: chunk)
+        return available.map(\.rawValue).sorted().joined(separator: "|")
     }
 
     private func sentenceBinding(
@@ -3468,9 +3477,7 @@ private struct TextPlayerVariantView: View {
     }
 
     private var displayTokenIndices: [Int] {
-        shouldReverseTokens
-            ? Array(variant.tokens.indices.reversed())
-            : Array(variant.tokens.indices)
+        Array(variant.tokens.indices)
     }
 
     private var tokenItemSpacing: CGFloat {
@@ -3520,21 +3527,6 @@ private struct TextPlayerVariantView: View {
         }
         let value = seekTimes[index]
         return value.isFinite ? value : nil
-    }
-
-    private var shouldReverseTokens: Bool {
-        guard variant.kind == .translation else { return false }
-        return variant.tokens.contains(where: containsRTLCharacters)
-    }
-
-    private func containsRTLCharacters(_ value: String) -> Bool {
-        for scalar in value.unicodeScalars {
-            let point = scalar.value
-            if (0x0590...0x08FF).contains(point) || (0xFB1D...0xFEFF).contains(point) {
-                return true
-            }
-        }
-        return false
     }
 
     private func tokenState(for index: Int) -> TokenState {

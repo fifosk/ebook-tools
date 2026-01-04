@@ -376,9 +376,7 @@ private struct SubtitleTokenLineView: View {
     }
 
     private var displayTokenIndices: [Int] {
-        shouldReverseTokens
-            ? Array(line.tokens.indices.reversed())
-            : Array(line.tokens.indices)
+        Array(line.tokens.indices)
     }
 
     private func isSelectedToken(_ index: Int) -> Bool {
@@ -493,20 +491,6 @@ private struct SubtitleTokenLineView: View {
         #endif
     }
 
-    private var shouldReverseTokens: Bool {
-        guard line.kind == .translation else { return false }
-        return line.tokens.contains(where: containsRTLCharacters)
-    }
-
-    private func containsRTLCharacters(_ value: String) -> Bool {
-        for scalar in value.unicodeScalars {
-            let point = scalar.value
-            if (0x0590...0x08FF).contains(point) || (0xFB1D...0xFEFF).contains(point) {
-                return true
-            }
-        }
-        return false
-    }
 }
 
 private struct SubtitleTokenWordView: View {
