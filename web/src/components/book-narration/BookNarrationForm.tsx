@@ -285,7 +285,7 @@ const DEFAULT_FORM_STATE: FormState = {
   input_language: 'English',
   target_languages: ['Arabic'],
   custom_target_languages: '',
-  ollama_model: 'kimi-k2:1t-cloud',
+  ollama_model: 'kimi-k2-thinking:cloud',
   sentences_per_output_file: 1,
   start_sentence: 1,
   end_sentence: '',

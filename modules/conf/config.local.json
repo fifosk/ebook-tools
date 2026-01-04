@@ -6,7 +6,7 @@
     "target_languages": [
         "Arabic"
     ],
-    "ollama_model": "kimi-k2:1t-cloud",
+    "ollama_model": "kimi-k2-thinking:cloud",
     "generate_audio": true,
     "generate_video": false,
     "sentences_per_output_file": 1,

@@ -8,6 +8,7 @@ struct LibraryPlaybackView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
     let item: LibraryItem
+    @Binding var autoPlayOnLoad: Bool
 
     @StateObject private var viewModel = InteractivePlayerViewModel()
     @StateObject private var nowPlaying = NowPlayingCoordinator()
@@ -25,6 +26,11 @@ struct LibraryPlaybackView: View {
     #if !os(tvOS)
     @State private var showVideoPlayer = false
     #endif
+
+    init(item: LibraryItem, autoPlayOnLoad: Binding<Bool> = .constant(true)) {
+        self.item = item
+        self._autoPlayOnLoad = autoPlayOnLoad
+    }
 
     var body: some View {
         bodyContent
@@ -382,7 +388,8 @@ struct LibraryPlaybackView: View {
             itemTypeLabel: itemTypeLabel,
             coverURL: coverURL,
             secondaryCoverURL: secondaryCoverURL,
-            languageFlags: languageFlags
+            languageFlags: languageFlags,
+            translationModel: translationModelLabel
         )
     }
 
@@ -558,6 +565,10 @@ struct LibraryPlaybackView: View {
         )
     }
 
+    private var translationModelLabel: String? {
+        metadataString(for: ["llm_model", "ollama_model"])?.nonEmptyValue
+    }
+
     private var hasInteractiveChunks: Bool {
         guard let chunks = viewModel.jobContext?.chunks else { return false }
         return chunks.contains { !$0.sentences.isEmpty || $0.startSentence != nil || $0.endSentence != nil }
@@ -633,6 +644,7 @@ struct LibraryPlaybackView: View {
             artworkURL: coverURL,
             secondaryArtworkURL: secondaryCoverURL,
             languageFlags: languageFlags,
+            translationModel: translationModelLabel,
             channelVariant: channelVariant,
             channelLabel: channelLabel
         )
@@ -642,6 +654,8 @@ struct LibraryPlaybackView: View {
     private func loadEntry() async {
         guard let configuration = appState.configuration else { return }
         resetResumeState()
+        let shouldAutoPlay = autoPlayOnLoad
+        autoPlayOnLoad = false
         resumeDecisionPending = true
         sentenceIndexTracker.value = nil
         await viewModel.loadJob(jobId: item.jobId, configuration: configuration, origin: .library)
@@ -665,7 +679,9 @@ struct LibraryPlaybackView: View {
             return
         }
         resumeDecisionPending = false
-        startPlaybackFromBeginning()
+        if shouldAutoPlay {
+            startPlaybackFromBeginning()
+        }
     }
 
     private func configureNowPlaying() {

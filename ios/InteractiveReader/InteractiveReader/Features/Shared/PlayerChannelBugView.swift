@@ -3,6 +3,13 @@ import SwiftUI
 import UIKit
 #endif
 
+enum MyLinguistPreferences {
+    static let lookupLanguageKey = "mylinguist.lookupLanguage"
+    static let llmModelKey = "mylinguist.llmModel"
+    static let defaultLookupLanguage = "English"
+    static let defaultLlmModel = "gpt-oss:120b-cloud"
+}
+
 enum PlayerChannelVariant {
     case book
     case subtitles
@@ -255,6 +262,23 @@ enum LanguageFlagResolver {
                 accessibilityLabel: "Translation language: \(translationLabel)"
             )
         ]
+    }
+
+    static func flagEntry(for language: String?, role: LanguageFlagRole = .translation) -> LanguageFlagEntry {
+        let label = resolveLanguageLabel(for: language)
+        return LanguageFlagEntry(
+            role: role,
+            emoji: resolveFlag(for: language) ?? defaultFlag,
+            label: label,
+            accessibilityLabel: label
+        )
+    }
+
+    static func availableLanguageLabels() -> [String] {
+        let unique = Set(languageNameMap.values)
+        return unique.sorted { left, right in
+            left.localizedCaseInsensitiveCompare(right) == .orderedAscending
+        }
     }
 
     private static func resolveFlag(for language: String?) -> String? {
@@ -609,6 +633,7 @@ enum LanguageFlagResolver {
 
 struct PlayerLanguageFlagRow: View {
     let flags: [LanguageFlagEntry]
+    let modelLabel: String?
     let isTV: Bool
 
     var body: some View {
@@ -619,6 +644,9 @@ struct PlayerLanguageFlagRow: View {
                     if index < orderedFlags.count - 1 {
                         LanguageConnectorBadge(label: connectorLabel, isTV: isTV)
                     }
+                }
+                if let modelBadgeLabel {
+                    LanguageModelBadge(label: modelBadgeLabel, isTV: isTV)
                 }
             }
         }
@@ -639,6 +667,14 @@ struct PlayerLanguageFlagRow: View {
 
     private var connectorLabel: String {
         "to"
+    }
+
+    private var modelBadgeLabel: String? {
+        guard let modelLabel = modelLabel?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !modelLabel.isEmpty else {
+            return nil
+        }
+        return "using [\(modelLabel)]"
     }
 
     private var shouldShowLabel: Bool {
@@ -783,6 +819,37 @@ private struct LanguageConnectorBadge: View {
                     .fill(Color.black.opacity(0.45))
                     .overlay(
                         Capsule().stroke(Color.white.opacity(0.16), lineWidth: 1)
+                    )
+            )
+            .accessibilityLabel(label)
+    }
+
+    private var labelFont: Font {
+        #if os(tvOS)
+        return .caption.weight(.semibold)
+        #else
+        return .caption2.weight(.semibold)
+        #endif
+    }
+}
+
+private struct LanguageModelBadge: View {
+    let label: String
+    let isTV: Bool
+
+    var body: some View {
+        Text(label)
+            .font(labelFont)
+            .foregroundStyle(Color.white.opacity(0.7))
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.55))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1)
                     )
             )
             .accessibilityLabel(label)

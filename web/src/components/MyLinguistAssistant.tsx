@@ -40,7 +40,7 @@ const STORAGE_KEYS = {
 } as const;
 
 const DEFAULT_LOOKUP_LANGUAGE = 'English';
-const DEFAULT_LLM_MODEL = 'kimi-k2:1t-cloud';
+const DEFAULT_LLM_MODEL = 'gpt-oss:120b-cloud';
 const EMPTY_SENTINEL = '__EMPTY__';
 
 function nowId(prefix: string): string {

@@ -23,11 +23,13 @@ struct AssistantLookupRequest: Encodable {
     let query: String
     let inputLanguage: String
     let lookupLanguage: String
+    let llmModel: String?
 
     enum CodingKeys: String, CodingKey {
         case query
         case inputLanguage = "input_language"
         case lookupLanguage = "lookup_language"
+        case llmModel = "llm_model"
     }
 }
 
@@ -36,6 +38,10 @@ struct AssistantLookupResponse: Decodable {
     let model: String
     let tokenUsage: [String: Int]?
     let source: String?
+}
+
+struct LLMModelListResponse: Decodable {
+    let models: [String]
 }
 
 struct AudioSynthesisRequest: Encodable {

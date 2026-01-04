@@ -136,14 +136,25 @@ final class APIClient {
         return try decode(SessionStatusResponse.self, from: data)
     }
 
-    func assistantLookup(query: String, inputLanguage: String, lookupLanguage: String) async throws -> AssistantLookupResponse {
+    func assistantLookup(
+        query: String,
+        inputLanguage: String,
+        lookupLanguage: String,
+        llmModel: String? = nil
+    ) async throws -> AssistantLookupResponse {
         let payload = AssistantLookupRequest(
             query: query,
             inputLanguage: inputLanguage,
-            lookupLanguage: lookupLanguage
+            lookupLanguage: lookupLanguage,
+            llmModel: llmModel
         )
         let data = try await sendJSONRequest(path: "/api/assistant/lookup", method: "POST", payload: payload)
         return try decode(AssistantLookupResponse.self, from: data)
+    }
+
+    func fetchLlmModels() async throws -> LLMModelListResponse {
+        let data = try await sendRequest(path: "/api/pipelines/llm-models")
+        return try decode(LLMModelListResponse.self, from: data)
     }
 
     func synthesizeAudio(text: String, language: String?) async throws -> Data {

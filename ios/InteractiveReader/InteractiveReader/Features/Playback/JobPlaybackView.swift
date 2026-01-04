@@ -9,6 +9,7 @@ struct JobPlaybackView: View {
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     #endif
     let job: PipelineStatusResponse
+    @Binding var autoPlayOnLoad: Bool
 
     @StateObject private var viewModel = InteractivePlayerViewModel()
     @StateObject private var nowPlaying = NowPlayingCoordinator()
@@ -36,6 +37,11 @@ struct JobPlaybackView: View {
     #endif
 
     private let jobRefreshInterval: UInt64 = 6_000_000_000
+
+    init(job: PipelineStatusResponse, autoPlayOnLoad: Binding<Bool> = .constant(true)) {
+        self.job = job
+        self._autoPlayOnLoad = autoPlayOnLoad
+    }
 
     var body: some View {
         bodyContent
@@ -431,6 +437,7 @@ struct JobPlaybackView: View {
             artworkURL: coverURL,
             secondaryArtworkURL: secondaryCoverURL,
             languageFlags: languageFlags,
+            translationModel: translationModelLabel,
             channelVariant: jobVariant,
             channelLabel: channelLabel
         )
@@ -692,7 +699,8 @@ struct JobPlaybackView: View {
             itemTypeLabel: itemTypeLabel,
             coverURL: coverURL,
             secondaryCoverURL: secondaryCoverURL,
-            languageFlags: languageFlags
+            languageFlags: languageFlags,
+            translationModel: translationModelLabel
         )
     }
 
@@ -701,6 +709,10 @@ struct JobPlaybackView: View {
             originalLanguage: linguistInputLanguage.nonEmptyValue,
             translationLanguage: linguistLookupLanguage.nonEmptyValue
         )
+    }
+
+    private var translationModelLabel: String? {
+        metadataString(for: ["llm_model", "ollama_model"])?.nonEmptyValue
     }
 
     private var coverURL: URL? {
@@ -913,6 +925,8 @@ struct JobPlaybackView: View {
         guard let configuration = appState.configuration else { return }
         sentenceIndex = nil
         resetResumeState()
+        let shouldAutoPlay = autoPlayOnLoad
+        autoPlayOnLoad = false
         activeVideoSegmentID = nil
         completedSegmentDurations = [:]
         segmentDurations = [:]
@@ -948,7 +962,9 @@ struct JobPlaybackView: View {
             return
         }
         resumeDecisionPending = false
-        startPlaybackFromBeginning()
+        if shouldAutoPlay {
+            startPlaybackFromBeginning()
+        }
         await refreshJobStatus()
         startJobRefresh()
         if currentJob.status.isActive {

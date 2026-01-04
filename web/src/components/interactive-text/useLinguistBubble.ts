@@ -13,6 +13,7 @@ import { speakText } from '../../utils/ttsPlayback';
 import {
   DICTIONARY_LOOKUP_LONG_PRESS_MS,
   MY_LINGUIST_BUBBLE_MAX_CHARS,
+  MY_LINGUIST_DEFAULT_LLM_MODEL,
   MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE,
   MY_LINGUIST_STORAGE_KEYS,
 } from './constants';
@@ -586,7 +587,8 @@ export function useLinguistBubble({
             : null;
       const resolvedInputLanguage = (jobPreferredInputLanguage ?? storedInputLanguage).trim() || globalInputLanguage;
       const resolvedLookupLanguage = storedLookupLanguage.trim() || MY_LINGUIST_DEFAULT_LOOKUP_LANGUAGE;
-      const resolvedModel = storedModel && storedModel.trim() ? storedModel.trim() : null;
+      const resolvedModel =
+        storedModel === null ? MY_LINGUIST_DEFAULT_LLM_MODEL : storedModel.trim() ? storedModel.trim() : null;
       const modelLabel = resolvedModel ?? 'Auto';
       const resolvedPrompt =
         storedPrompt && storedPrompt.trim()

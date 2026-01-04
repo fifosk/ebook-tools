@@ -16,6 +16,7 @@ struct InteractivePlayerHeaderInfo: Equatable {
     let coverURL: URL?
     let secondaryCoverURL: URL?
     let languageFlags: [LanguageFlagEntry]
+    let translationModel: String?
 }
 
 struct InteractivePlayerView: View {
@@ -37,8 +38,14 @@ struct InteractivePlayerView: View {
     @State private var linguistBubble: MyLinguistBubbleState?
     @State private var linguistLookupTask: Task<Void, Never>?
     @State private var linguistSpeechTask: Task<Void, Never>?
+    @State private var linguistAutoLookupTask: Task<Void, Never>?
+    @AppStorage(MyLinguistPreferences.lookupLanguageKey) private var storedLookupLanguage: String = ""
+    @AppStorage(MyLinguistPreferences.llmModelKey) private var storedLlmModel: String =
+        MyLinguistPreferences.defaultLlmModel
+    @State private var availableLlmModels: [String] = []
+    @State private var didLoadLlmModels = false
     @State private var isMenuVisible = false
-    @State private var isHeaderCollapsed = false
+    @AppStorage("player.headerCollapsed") private var isHeaderCollapsed = false
     @State private var frozenTranscriptSentences: [TextPlayerSentenceDisplay]?
     @State private var isShortcutHelpPinned = false
     @State private var isShortcutHelpModifierActive = false
@@ -56,6 +63,7 @@ struct InteractivePlayerView: View {
     private let playbackRates: [Double] = [0.7, 0.85, 1.0, 1.15, 1.3, 1.5]
     private let readingBedVolume: Double = 0.08
     private let readingBedPauseDelayNanos: UInt64 = 250_000_000
+    private let linguistAutoLookupDelayNanos: UInt64 = 1_000_000_000
     private let trackFontScaleStep: CGFloat = 0.1
     private let trackFontScaleMin: CGFloat = 1.0
     private let trackFontScaleMax: CGFloat = 3.0
@@ -99,8 +107,14 @@ struct InteractivePlayerView: View {
             }
             .applyIf(!isMenuVisible) { view in
                 view.onMoveCommand { direction in
-                    guard focusedArea == .transcript else { return }
                     guard let chunk = viewModel.selectedChunk else { return }
+                    if focusedArea == .controls {
+                        if direction == .down {
+                            focusedArea = .transcript
+                        }
+                        return
+                    }
+                    guard focusedArea == .transcript else { return }
                     switch direction {
                     case .left:
                         if audioCoordinator.isPlaying {
@@ -115,11 +129,17 @@ struct InteractivePlayerView: View {
                             handleWordNavigation(1, in: chunk)
                         }
                     case .up:
-                        if !audioCoordinator.isPlaying {
+                        if audioCoordinator.isPlaying {
+                            focusedArea = .controls
+                        } else {
                             handleTrackNavigation(-1, in: chunk)
                         }
                     case .down:
-                        showMenu()
+                        if audioCoordinator.isPlaying {
+                            showMenu()
+                        } else {
+                            handleTrackNavigation(1, in: chunk)
+                        }
                     default:
                         break
                     }
@@ -156,7 +176,7 @@ struct InteractivePlayerView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
 
-            if let chunk = viewModel.selectedChunk, shouldShowHeaderOverlay {
+            if let chunk = viewModel.selectedChunk, (shouldShowHeaderOverlay || isTV) {
                 playerInfoOverlay(for: chunk)
             }
             if let chunk = viewModel.selectedChunk {
@@ -171,6 +191,7 @@ struct InteractivePlayerView: View {
         .simultaneousGesture(menuToggleGesture, including: .subviews)
         #endif
         .onAppear {
+            loadLlmModelsIfNeeded()
             guard let chunk = viewModel.selectedChunk else { return }
             applyDefaultTrackSelection(for: chunk)
             syncSelectedSentence(for: chunk)
@@ -283,6 +304,12 @@ struct InteractivePlayerView: View {
             sentences: transcriptSentences,
             selection: linguistSelection,
             bubble: linguistBubble,
+            lookupLanguage: resolvedLookupLanguage,
+            lookupLanguageOptions: lookupLanguageOptions,
+            onLookupLanguageChange: { storedLookupLanguage = $0 },
+            llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
+            llmModelOptions: llmModelOptions,
+            onLlmModelChange: { storedLlmModel = $0 },
             isMenuVisible: isMenuVisible,
             trackFontScale: trackFontScale,
             linguistFontScale: linguistFontScale,
@@ -369,10 +396,27 @@ struct InteractivePlayerView: View {
         if isPad {
             KeyboardCommandHandler(
                 onPlayPause: { audioCoordinator.togglePlayback() },
-                onPrevious: { viewModel.skipSentence(forward: false) },
-                onNext: { viewModel.skipSentence(forward: true) },
+                onPrevious: {
+                    if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: false)
+                    } else {
+                        handleWordNavigation(-1, in: viewModel.selectedChunk)
+                    }
+                },
+                onNext: {
+                    if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: true)
+                    } else {
+                        handleWordNavigation(1, in: viewModel.selectedChunk)
+                    }
+                },
                 onPreviousWord: { handleWordNavigation(-1, in: viewModel.selectedChunk) },
                 onNextWord: { handleWordNavigation(1, in: viewModel.selectedChunk) },
+                onLookup: {
+                    guard !audioCoordinator.isPlaying else { return }
+                    guard let chunk = viewModel.selectedChunk else { return }
+                    handleLinguistLookup(in: chunk)
+                },
                 onIncreaseFont: { adjustTrackFontScale(by: trackFontScaleStep) },
                 onDecreaseFont: { adjustTrackFontScale(by: -trackFontScaleStep) },
                 onToggleOriginal: { toggleTrackIfAvailable(.original) },
@@ -385,8 +429,20 @@ struct InteractivePlayerView: View {
                 onToggleShortcutHelp: { toggleShortcutHelp() },
                 onOptionKeyDown: { showShortcutHelpModifier() },
                 onOptionKeyUp: { hideShortcutHelpModifier() },
-                onShowMenu: { showMenu() },
-                onHideMenu: { hideMenu() }
+                onShowMenu: {
+                    if audioCoordinator.isPlaying {
+                        showMenu()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleTrackNavigation(1, in: chunk)
+                    }
+                },
+                onHideMenu: {
+                    if audioCoordinator.isPlaying {
+                        hideMenu()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleTrackNavigation(-1, in: chunk)
+                    }
+                }
             )
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
@@ -522,27 +578,35 @@ struct InteractivePlayerView: View {
         let label = headerInfo?.itemTypeLabel.isEmpty == false ? headerInfo?.itemTypeLabel : "Job"
         let slideLabel = slideIndicatorLabel(for: chunk)
         let timelineLabel = audioTimelineLabel(for: chunk)
+        let showHeaderContent = !isHeaderCollapsed
         return HStack(alignment: .top, spacing: 12) {
-            PlayerChannelBugView(variant: variant, label: label)
-            if let headerInfo {
-                infoBadgeView(info: headerInfo)
+            if showHeaderContent {
+                PlayerChannelBugView(variant: variant, label: label)
+                if let headerInfo {
+                    infoBadgeView(info: headerInfo)
+                }
             }
             Spacer(minLength: 12)
-            if slideLabel != nil || timelineLabel != nil {
+            if showHeaderContent || isTV {
                 VStack(alignment: .trailing, spacing: 6) {
-                    if let slideLabel {
-                        slideIndicatorView(label: slideLabel)
+                    if showHeaderContent {
+                        if let slideLabel {
+                            slideIndicatorView(label: slideLabel)
+                        }
+                        if let timelineLabel {
+                            audioTimelineView(label: timelineLabel)
+                        }
                     }
-                    if let timelineLabel {
-                        audioTimelineView(label: timelineLabel)
-                    }
+                    #if os(tvOS)
+                    tvHeaderTogglePill
+                    #endif
                 }
             }
         }
         .padding(.horizontal, 6)
         .padding(.top, 6)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .allowsHitTesting(false)
+        .allowsHitTesting(isTV)
         .zIndex(1)
     }
 
@@ -570,7 +634,11 @@ struct InteractivePlayerView: View {
                         .minimumScaleFactor(0.85)
                 }
                 if !info.languageFlags.isEmpty {
-                    PlayerLanguageFlagRow(flags: info.languageFlags, isTV: isTV)
+                    PlayerLanguageFlagRow(
+                        flags: info.languageFlags,
+                        modelLabel: info.translationModel,
+                        isTV: isTV
+                    )
                 }
             }
         }
@@ -651,7 +719,7 @@ struct InteractivePlayerView: View {
     }
 
     private var transcriptTopPadding: CGFloat {
-        #if os(iOS)
+        #if os(iOS) || os(tvOS)
         return isHeaderCollapsed ? 8 : infoHeaderReservedHeight
         #else
         return infoHeaderReservedHeight
@@ -659,11 +727,7 @@ struct InteractivePlayerView: View {
     }
 
     private var shouldShowHeaderOverlay: Bool {
-        #if os(iOS)
         return !isHeaderCollapsed
-        #else
-        return true
-        #endif
     }
 
     @ViewBuilder
@@ -688,6 +752,22 @@ struct InteractivePlayerView: View {
         EmptyView()
         #endif
     }
+
+    #if os(tvOS)
+    private var tvHeaderTogglePill: some View {
+        Button(action: toggleHeaderCollapsed) {
+            Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.6), in: Capsule())
+                .foregroundStyle(.white)
+        }
+        .buttonStyle(.plain)
+        .focused($focusedArea, equals: .controls)
+        .accessibilityLabel(isHeaderCollapsed ? "Show header" : "Hide header")
+    }
+    #endif
 
     private func toggleHeaderCollapsed() {
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -949,6 +1029,9 @@ struct InteractivePlayerView: View {
                 audioPicker(for: chunk)
                 readingBedPicker()
                 speedPicker()
+                #if os(tvOS)
+                trackFontControls
+                #endif
                 Spacer(minLength: 8)
                 PlaybackButtonRow(
                     coordinator: audioCoordinator,
@@ -980,6 +1063,42 @@ struct InteractivePlayerView: View {
             }
         }
     }
+
+    #if os(tvOS)
+    private var trackFontControls: some View {
+        let canDecrease = trackFontScale > trackFontScaleMin + 0.001
+        let canIncrease = trackFontScale < trackFontScaleMax - 0.001
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("Text Size")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack(spacing: 6) {
+                Button(action: { adjustTrackFontScale(by: -trackFontScaleStep) }) {
+                    Text("A-")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(.black.opacity(0.3), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canDecrease)
+                .focused($focusedArea, equals: .controls)
+
+                Button(action: { adjustTrackFontScale(by: trackFontScaleStep) }) {
+                    Text("A+")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .background(.black.opacity(0.3), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .disabled(!canIncrease)
+                .focused($focusedArea, equals: .controls)
+            }
+        }
+    }
+
+    #endif
 
     private func menuLabel(_ text: String, leadingSystemImage: String? = nil) -> some View {
         HStack(spacing: 6) {
@@ -1757,7 +1876,7 @@ struct InteractivePlayerView: View {
             variantKind: selection.variantKind,
             tokenIndex: resolvedIndex
         )
-        linguistBubble = nil
+        scheduleAutoLinguistLookup(in: chunk)
     }
 
     private func handleTrackNavigation(_ delta: Int, in chunk: InteractiveChunk) {
@@ -1789,7 +1908,7 @@ struct InteractivePlayerView: View {
             variantKind: targetVariant.kind,
             tokenIndex: clampedIndex
         )
-        linguistBubble = nil
+        scheduleAutoLinguistLookup(in: chunk)
     }
 
     private func handleLinguistLookup(
@@ -1861,15 +1980,17 @@ struct InteractivePlayerView: View {
 
     private func startLinguistLookup(query: String, variantKind: TextPlayerVariantKind) {
         linguistLookupTask?.cancel()
+        linguistAutoLookupTask?.cancel()
         linguistBubble = MyLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
         let originalLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let translationLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let explanationLanguage = linguistExplanationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let explanationLanguage = resolvedLookupLanguage
         let inputLanguage = lookupInputLanguage(
             for: variantKind,
             originalLanguage: originalLanguage,
             translationLanguage: translationLanguage
         )
+        let selectedModel = resolvedLlmModel
         let pronunciationLanguage = pronunciationLanguage(
             for: variantKind,
             inputLanguage: originalLanguage,
@@ -1882,7 +2003,8 @@ struct InteractivePlayerView: View {
                 let response = try await viewModel.lookupAssistant(
                     query: query,
                     inputLanguage: inputLanguage,
-                    lookupLanguage: explanationLanguage.isEmpty ? "English" : explanationLanguage
+                    lookupLanguage: explanationLanguage,
+                    llmModel: selectedModel
                 )
                 linguistBubble = MyLinguistBubbleState(
                     query: query,
@@ -1902,11 +2024,81 @@ struct InteractivePlayerView: View {
         }
     }
 
+    private var resolvedLookupLanguage: String {
+        let trimmed = storedLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        let fallback = linguistExplanationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        return fallback.isEmpty ? MyLinguistPreferences.defaultLookupLanguage : fallback
+    }
+
+    private var resolvedLlmModel: String? {
+        let trimmed = storedLlmModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return MyLinguistPreferences.defaultLlmModel
+        }
+        return trimmed
+    }
+
+    private var lookupLanguageOptions: [String] {
+        var seen: Set<String> = []
+        var options: [String] = []
+        let preferred = [
+            resolvedLookupLanguage,
+            linguistExplanationLanguage,
+            linguistLookupLanguage,
+            linguistInputLanguage,
+            MyLinguistPreferences.defaultLookupLanguage
+        ]
+        for value in preferred {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let label = LanguageFlagResolver.flagEntry(for: trimmed).label
+            let key = label.lowercased()
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            options.append(label)
+        }
+        for label in LanguageFlagResolver.availableLanguageLabels() {
+            let key = label.lowercased()
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            options.append(label)
+        }
+        return options
+    }
+
+    private var llmModelOptions: [String] {
+        var models = availableLlmModels
+        let defaultModel = MyLinguistPreferences.defaultLlmModel
+        if !models.contains(defaultModel) {
+            models.insert(defaultModel, at: 0)
+        }
+        if models.isEmpty {
+            models = [defaultModel]
+        }
+        return models
+    }
+
+    private func loadLlmModelsIfNeeded() {
+        guard !didLoadLlmModels else { return }
+        didLoadLlmModels = true
+        Task { @MainActor in
+            let models = await viewModel.fetchLlmModels()
+            if !models.isEmpty {
+                availableLlmModels = models
+            }
+        }
+    }
+
     private func clearLinguistState() {
         linguistLookupTask?.cancel()
         linguistLookupTask = nil
         linguistSpeechTask?.cancel()
         linguistSpeechTask = nil
+        linguistAutoLookupTask?.cancel()
+        linguistAutoLookupTask = nil
         linguistBubble = nil
         linguistSelection = nil
         pronunciationSpeaker.stop()
@@ -1917,8 +2109,25 @@ struct InteractivePlayerView: View {
         linguistLookupTask = nil
         linguistSpeechTask?.cancel()
         linguistSpeechTask = nil
+        linguistAutoLookupTask?.cancel()
+        linguistAutoLookupTask = nil
         linguistBubble = nil
         pronunciationSpeaker.stop()
+    }
+
+    private func scheduleAutoLinguistLookup(in chunk: InteractiveChunk) {
+        guard linguistBubble != nil else { return }
+        guard !audioCoordinator.isPlaying else { return }
+        linguistAutoLookupTask?.cancel()
+        let chunkID = chunk.id
+        linguistAutoLookupTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: linguistAutoLookupDelayNanos)
+            guard !Task.isCancelled else { return }
+            guard !audioCoordinator.isPlaying else { return }
+            guard linguistBubble != nil else { return }
+            guard viewModel.selectedChunk?.id == chunkID else { return }
+            handleLinguistLookup(in: chunk)
+        }
     }
 
     private func adjustTrackFontScale(by delta: CGFloat) {
@@ -2107,6 +2316,12 @@ private struct MyLinguistBubbleView: View {
     let fontScale: CGFloat
     let canIncreaseFont: Bool
     let canDecreaseFont: Bool
+    let lookupLanguage: String
+    let lookupLanguageOptions: [String]
+    let onLookupLanguageChange: (String) -> Void
+    let llmModel: String
+    let llmModelOptions: [String]
+    let onLlmModelChange: (String) -> Void
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onClose: () -> Void
@@ -2117,11 +2332,8 @@ private struct MyLinguistBubbleView: View {
                 Text("MyLinguist")
                     .font(.headline)
                 Spacer(minLength: 8)
-                if let model = bubble.model, !model.isEmpty {
-                    Text("Model: \(model)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                lookupLanguageMenu
+                modelMenu
                 fontSizeControls
                 Button(action: onClose) {
                     Image(systemName: "xmark")
@@ -2150,6 +2362,59 @@ private struct MyLinguistBubbleView: View {
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: bubbleCornerRadius))
+        .frame(maxWidth: bubbleWidth, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
+    }
+
+    private var lookupLanguageMenu: some View {
+        let entry = LanguageFlagResolver.flagEntry(for: lookupLanguage)
+        return Menu {
+            ForEach(lookupLanguageOptions, id: \.self) { language in
+                let option = LanguageFlagResolver.flagEntry(for: language)
+                Button {
+                    onLookupLanguageChange(option.label)
+                } label: {
+                    if option.label == entry.label {
+                        Label("\(option.emoji) \(option.label)", systemImage: "checkmark")
+                    } else {
+                        Text("\(option.emoji) \(option.label)")
+                    }
+                }
+            }
+        } label: {
+            Text(entry.emoji)
+                .font(.caption)
+                .padding(6)
+                .background(.black.opacity(0.3), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Lookup language")
+    }
+
+    private var modelMenu: some View {
+        Menu {
+            ForEach(llmModelOptions, id: \.self) { model in
+                Button {
+                    onLlmModelChange(model)
+                } label: {
+                    if model == llmModel {
+                        Label(model, systemImage: "checkmark")
+                    } else {
+                        Text(model)
+                    }
+                }
+            }
+        } label: {
+            Text(llmModel)
+                .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.3), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Lookup model")
     }
 
     @ViewBuilder
@@ -2240,6 +2505,22 @@ private struct MyLinguistBubbleView: View {
         return 180
         #endif
     }
+
+    private var bubbleWidth: CGFloat {
+        #if os(iOS) || os(tvOS)
+        return UIScreen.main.bounds.width * 0.66
+        #else
+        return 420
+        #endif
+    }
+}
+
+private struct InteractiveBubbleHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
 }
 
 private struct InteractiveTranscriptView: View {
@@ -2248,6 +2529,12 @@ private struct InteractiveTranscriptView: View {
     let sentences: [TextPlayerSentenceDisplay]
     let selection: TextPlayerWordSelection?
     let bubble: MyLinguistBubbleState?
+    let lookupLanguage: String
+    let lookupLanguageOptions: [String]
+    let onLookupLanguageChange: (String) -> Void
+    let llmModel: String
+    let llmModelOptions: [String]
+    let onLlmModelChange: (String) -> Void
     let isMenuVisible: Bool
     let trackFontScale: CGFloat
     let linguistFontScale: CGFloat
@@ -2272,6 +2559,7 @@ private struct InteractiveTranscriptView: View {
     @State private var trackMagnifyStartScale: CGFloat?
     @State private var bubbleMagnifyStartScale: CGFloat?
     #endif
+    @State private var bubbleHeight: CGFloat = 0
 
     var body: some View {
         transcriptContent
@@ -2289,40 +2577,57 @@ private struct InteractiveTranscriptView: View {
 
     @ViewBuilder
     private var transcriptContent: some View {
-        #if os(tvOS)
-        let stackSpacing: CGFloat = bubble == nil ? 12 : 10
-        VStack(alignment: .leading, spacing: stackSpacing) {
-            TextPlayerFrame(
-                sentences: sentences,
-                selection: selection,
-                onTokenLookup: onLookupToken,
-                onTokenSeek: onSeekToken,
-                fontScale: trackFontScale
-            )
-                .frame(maxWidth: .infinity, alignment: .top)
-                .contentShape(Rectangle())
-                .focusable(!isMenuVisible)
-                .focused($focusedArea, equals: .transcript)
-                .onTapGesture {
-                    onLookup()
-                }
-                .accessibilityAddTraits(.isButton)
-
-            if let bubble {
-                MyLinguistBubbleView(
-                    bubble: bubble,
-                    fontScale: linguistFontScale,
-                    canIncreaseFont: canIncreaseLinguistFont,
-                    canDecreaseFont: canDecreaseLinguistFont,
-                    onIncreaseFont: onIncreaseLinguistFont,
-                    onDecreaseFont: onDecreaseLinguistFont,
-                    onClose: onCloseBubble
-                )
-            }
-        }
-        #else
         GeometryReader { proxy in
-            let stackSpacing: CGFloat = bubble == nil ? 12 : (isPad ? 0 : 6)
+            let availableHeight = proxy.size.height
+            let stackSpacing: CGFloat = bubble == nil ? 12 : (isTV ? 10 : (isPad ? 0 : 6))
+            let minBubbleReserve: CGFloat = availableHeight * (isTV ? 0.3 : (isPad ? 0.35 : 0.4))
+            let bubbleReserve = bubble == nil ? 0 : max(bubbleHeight + stackSpacing, minBubbleReserve)
+            let preferredTextHeight = (isPad && bubble != nil) ? availableHeight * 0.7 : availableHeight
+            let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
+
+            #if os(tvOS)
+            VStack(alignment: .leading, spacing: stackSpacing) {
+                TextPlayerFrame(
+                    sentences: sentences,
+                    selection: selection,
+                    onTokenLookup: onLookupToken,
+                    onTokenSeek: onSeekToken,
+                    fontScale: trackFontScale
+                )
+                    .frame(maxWidth: .infinity, maxHeight: textHeight, alignment: .top)
+                    .contentShape(Rectangle())
+                    .focusable(!isMenuVisible)
+                    .focused($focusedArea, equals: .transcript)
+                    .onTapGesture {
+                        onLookup()
+                    }
+                    .accessibilityAddTraits(.isButton)
+
+                if let bubble {
+                    MyLinguistBubbleView(
+                        bubble: bubble,
+                        fontScale: linguistFontScale,
+                        canIncreaseFont: canIncreaseLinguistFont,
+                        canDecreaseFont: canDecreaseLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseLinguistFont,
+                        onDecreaseFont: onDecreaseLinguistFont,
+                        onClose: onCloseBubble
+                    )
+                    .background(GeometryReader { bubbleProxy in
+                        Color.clear.preference(
+                            key: InteractiveBubbleHeightKey.self,
+                            value: bubbleProxy.size.height
+                        )
+                    })
+                }
+            }
+            #else
             if isPhone {
                 ZStack(alignment: .bottom) {
                     TextPlayerFrame(
@@ -2332,7 +2637,11 @@ private struct InteractiveTranscriptView: View {
                         onTokenSeek: onSeekToken,
                         fontScale: trackFontScale
                     )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .frame(
+                            maxWidth: .infinity,
+                            maxHeight: bubble == nil ? .infinity : textHeight,
+                            alignment: .top
+                        )
                         .contentShape(Rectangle())
                         .gesture(swipeGesture)
                         .simultaneousGesture(doubleTapGesture, including: .gesture)
@@ -2344,19 +2653,29 @@ private struct InteractiveTranscriptView: View {
                             fontScale: linguistFontScale,
                             canIncreaseFont: canIncreaseLinguistFont,
                             canDecreaseFont: canDecreaseLinguistFont,
+                            lookupLanguage: lookupLanguage,
+                            lookupLanguageOptions: lookupLanguageOptions,
+                            onLookupLanguageChange: onLookupLanguageChange,
+                            llmModel: llmModel,
+                            llmModelOptions: llmModelOptions,
+                            onLlmModelChange: onLlmModelChange,
                             onIncreaseFont: onIncreaseLinguistFont,
                             onDecreaseFont: onDecreaseLinguistFont,
                             onClose: onCloseBubble
                         )
-                            .frame(maxWidth: .infinity, alignment: .top)
-                            .padding(.horizontal)
-                            .padding(.bottom, 6)
-                            .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        .padding(.horizontal)
+                        .padding(.bottom, 6)
+                        .background(GeometryReader { bubbleProxy in
+                            Color.clear.preference(
+                                key: InteractiveBubbleHeightKey.self,
+                                value: bubbleProxy.size.height
+                            )
+                        })
+                        .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                     }
                 }
             } else {
-                let availableHeight = proxy.size.height
-                let textHeight = bubble == nil ? availableHeight : availableHeight * 0.7
                 VStack(alignment: .leading, spacing: stackSpacing) {
                     TextPlayerFrame(
                         sentences: sentences,
@@ -2382,17 +2701,32 @@ private struct InteractiveTranscriptView: View {
                             fontScale: linguistFontScale,
                             canIncreaseFont: canIncreaseLinguistFont,
                             canDecreaseFont: canDecreaseLinguistFont,
+                            lookupLanguage: lookupLanguage,
+                            lookupLanguageOptions: lookupLanguageOptions,
+                            onLookupLanguageChange: onLookupLanguageChange,
+                            llmModel: llmModel,
+                            llmModelOptions: llmModelOptions,
+                            onLlmModelChange: onLlmModelChange,
                             onIncreaseFont: onIncreaseLinguistFont,
                             onDecreaseFont: onDecreaseLinguistFont,
                             onClose: onCloseBubble
                         )
-                            .frame(maxWidth: .infinity, alignment: .top)
-                            .simultaneousGesture(bubbleMagnifyGesture, including: .all)
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        .background(GeometryReader { bubbleProxy in
+                            Color.clear.preference(
+                                key: InteractiveBubbleHeightKey.self,
+                                value: bubbleProxy.size.height
+                            )
+                        })
+                        .simultaneousGesture(bubbleMagnifyGesture, including: .all)
                     }
                 }
             }
+            #endif
         }
-        #endif
+        .onPreferenceChange(InteractiveBubbleHeightKey.self) { value in
+            bubbleHeight = value
+        }
     }
 
     #if !os(tvOS)
@@ -2464,6 +2798,14 @@ private struct InteractiveTranscriptView: View {
     private var isPad: Bool {
         #if os(iOS)
         return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
+        #endif
+    }
+
+    private var isTV: Bool {
+        #if os(tvOS)
+        return true
         #else
         return false
         #endif
@@ -2963,6 +3305,7 @@ private enum DictionaryLookupPresenter {
 }
 #endif
 
+
 private struct ShortcutHelpOverlayView: View {
     let onDismiss: () -> Void
 
@@ -2976,12 +3319,15 @@ private struct ShortcutHelpOverlayView: View {
         ShortcutHelpSection(
             title: "Navigation",
             items: [
-                ShortcutHelpItem(keys: "Left Arrow", action: "Previous sentence"),
-                ShortcutHelpItem(keys: "Right Arrow", action: "Next sentence"),
+                ShortcutHelpItem(keys: "Left Arrow (playing)", action: "Previous sentence"),
+                ShortcutHelpItem(keys: "Right Arrow (playing)", action: "Next sentence"),
+                ShortcutHelpItem(keys: "Left / Right Arrow (paused)", action: "Previous or next word"),
                 ShortcutHelpItem(keys: "Ctrl + Left Arrow", action: "Previous word"),
                 ShortcutHelpItem(keys: "Ctrl + Right Arrow", action: "Next word"),
-                ShortcutHelpItem(keys: "Down Arrow", action: "Show menu"),
-                ShortcutHelpItem(keys: "Up Arrow", action: "Hide menu")
+                ShortcutHelpItem(keys: "Enter", action: "Lookup word"),
+                ShortcutHelpItem(keys: "Down Arrow (playing)", action: "Show menu"),
+                ShortcutHelpItem(keys: "Up Arrow (playing)", action: "Hide menu"),
+                ShortcutHelpItem(keys: "Up / Down Arrow (paused)", action: "Switch track")
             ]
         ),
         ShortcutHelpSection(
@@ -3161,6 +3507,7 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
     let onNext: () -> Void
     let onPreviousWord: () -> Void
     let onNextWord: () -> Void
+    let onLookup: () -> Void
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onToggleOriginal: () -> Void
@@ -3183,6 +3530,7 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onNext = onNext
         controller.onPreviousWord = onPreviousWord
         controller.onNextWord = onNextWord
+        controller.onLookup = onLookup
         controller.onIncreaseFont = onIncreaseFont
         controller.onDecreaseFont = onDecreaseFont
         controller.onToggleOriginal = onToggleOriginal
@@ -3206,6 +3554,7 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onNext = onNext
         uiViewController.onPreviousWord = onPreviousWord
         uiViewController.onNextWord = onNextWord
+        uiViewController.onLookup = onLookup
         uiViewController.onIncreaseFont = onIncreaseFont
         uiViewController.onDecreaseFont = onDecreaseFont
         uiViewController.onToggleOriginal = onToggleOriginal
@@ -3228,6 +3577,7 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
         var onNext: (() -> Void)?
         var onPreviousWord: (() -> Void)?
         var onNextWord: (() -> Void)?
+        var onLookup: (() -> Void)?
         var onIncreaseFont: (() -> Void)?
         var onDecreaseFont: (() -> Void)?
         var onToggleOriginal: (() -> Void)?
@@ -3260,6 +3610,8 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
                 makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleNext)),
                 makeCommand(input: UIKeyCommand.inputLeftArrow, modifiers: [.control], action: #selector(handlePreviousWord)),
                 makeCommand(input: UIKeyCommand.inputRightArrow, modifiers: [.control], action: #selector(handleNextWord)),
+                makeCommand(input: "\r", action: #selector(handleLookup)),
+                makeCommand(input: "\n", action: #selector(handleLookup)),
                 makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleShowMenu)),
                 makeCommand(input: UIKeyCommand.inputUpArrow, action: #selector(handleHideMenu)),
                 makeCommand(input: "h", action: #selector(handleToggleHelp)),
@@ -3300,6 +3652,10 @@ private struct KeyboardCommandHandler: UIViewControllerRepresentable {
 
         @objc private func handleNextWord() {
             onNextWord?()
+        }
+
+        @objc private func handleLookup() {
+            onLookup?()
         }
 
         @objc private func handleIncreaseFont() {

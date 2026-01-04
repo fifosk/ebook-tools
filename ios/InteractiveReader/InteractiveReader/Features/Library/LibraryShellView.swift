@@ -6,6 +6,8 @@ struct LibraryShellView: View {
     @StateObject private var jobsViewModel = JobsViewModel()
     @State private var selectedItem: LibraryItem?
     @State private var selectedJob: PipelineStatusResponse?
+    @State private var libraryAutoPlay = false
+    @State private var jobsAutoPlay = false
     @State private var activeSection: BrowseSection = .library
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
@@ -87,7 +89,7 @@ struct LibraryShellView: View {
         switch activeSection {
         case .library:
             if let selectedItem {
-                LibraryPlaybackView(item: selectedItem)
+                LibraryPlaybackView(item: selectedItem, autoPlayOnLoad: $libraryAutoPlay)
             } else {
                 VStack(spacing: 12) {
                     Text("Select a library entry")
@@ -99,7 +101,7 @@ struct LibraryShellView: View {
             }
         case .jobs:
             if let selectedJob {
-                JobPlaybackView(job: selectedJob)
+                JobPlaybackView(job: selectedJob, autoPlayOnLoad: $jobsAutoPlay)
             } else {
                 VStack(spacing: 12) {
                     Text("Select a job")
@@ -129,7 +131,10 @@ struct LibraryShellView: View {
                     onSignOut: {
                         appState.signOut()
                     },
-                    onSelect: { selectedItem = $0 },
+                    onSelect: { item in
+                        selectedItem = item
+                        libraryAutoPlay = true
+                    },
                     coverResolver: coverURL(for:),
                     resumeUserId: resumeUserId,
                     sectionPicker: sectionPickerForHeader
@@ -144,7 +149,10 @@ struct LibraryShellView: View {
                     onSignOut: {
                         appState.signOut()
                     },
-                    onSelect: { selectedJob = $0 },
+                    onSelect: { job in
+                        selectedJob = job
+                        jobsAutoPlay = true
+                    },
                     sectionPicker: sectionPickerForHeader,
                     resumeUserId: resumeUserId
                 )
@@ -189,8 +197,10 @@ struct LibraryShellView: View {
         switch newValue {
         case .library:
             jobsViewModel.stopAutoRefresh()
+            jobsAutoPlay = false
         case .jobs:
             jobsViewModel.startAutoRefresh(using: appState)
+            libraryAutoPlay = false
         }
     }
 }

@@ -140,7 +140,9 @@ export default function VideoDubbingOptionsPanel({
               </option>
             ))}
           </select>
-          <p className={styles.fieldHint}>Model used when translating subtitles before TTS (defaults to kimi).</p>
+          <p className={styles.fieldHint}>
+            Model used when translating subtitles before TTS (defaults to kimi-k2-thinking:cloud).
+          </p>
           {isLoadingModels ? <p className={styles.status}>Loading models…</p> : null}
           {modelError ? <p className={styles.error}>{modelError}</p> : null}
         </label>

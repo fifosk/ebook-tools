@@ -18,6 +18,7 @@ struct VideoPlaybackMetadata {
     let artworkURL: URL?
     let secondaryArtworkURL: URL?
     let languageFlags: [LanguageFlagEntry]
+    let translationModel: String?
     let channelVariant: PlayerChannelVariant
     let channelLabel: String
 }
@@ -59,7 +60,7 @@ struct VideoPlayerView: View {
     @State private var subtitleVisibility = SubtitleVisibility()
     @State private var showSubtitleSettings = false
     @State private var showTVControls = true
-    @State private var isHeaderCollapsed = false
+    @AppStorage("player.headerCollapsed") private var isHeaderCollapsed = false
     @State private var scrubberValue: Double = 0
     @State private var isScrubbing = false
     @State private var controlsHideTask: Task<Void, Never>?
@@ -72,6 +73,12 @@ struct VideoPlayerView: View {
     @State private var subtitleBubble: VideoLinguistBubbleState?
     @State private var subtitleLookupTask: Task<Void, Never>?
     @State private var subtitleSpeechTask: Task<Void, Never>?
+    @State private var subtitleAutoLookupTask: Task<Void, Never>?
+    @AppStorage(MyLinguistPreferences.lookupLanguageKey) private var storedLookupLanguage: String = ""
+    @AppStorage(MyLinguistPreferences.llmModelKey) private var storedLlmModel: String =
+        MyLinguistPreferences.defaultLlmModel
+    @State private var availableLlmModels: [String] = []
+    @State private var didLoadLlmModels = false
     @State private var subtitleActiveCueID: UUID?
     @State private var isManualSubtitleNavigation = false
     @State private var pendingResumeTime: Double?
@@ -89,6 +96,7 @@ struct VideoPlayerView: View {
     private let subtitleLinguistFontScaleMin: CGFloat = 0.8
     private let subtitleLinguistFontScaleMax: CGFloat = 1.6
     private let subtitleLinguistFontScaleStep: CGFloat = 0.05
+    private let subtitleAutoLookupDelayNanos: UInt64 = 1_000_000_000
 
     private static var defaultSubtitleFontScale: CGFloat {
         #if os(tvOS)
@@ -173,6 +181,12 @@ struct VideoPlayerView: View {
                     isPlaying: coordinator.isPlaying,
                     subtitleSelection: subtitleSelection,
                     subtitleBubble: subtitleBubble,
+                    lookupLanguage: resolvedLookupLanguage,
+                    lookupLanguageOptions: lookupLanguageOptions,
+                    onLookupLanguageChange: { storedLookupLanguage = $0 },
+                    llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
+                    llmModelOptions: llmModelOptions,
+                    onLlmModelChange: { storedLlmModel = $0 },
                     subtitleLinguistFontScale: subtitleLinguistFontScale,
                     canIncreaseSubtitleLinguistFont: canIncreaseSubtitleLinguistFont,
                     canDecreaseSubtitleLinguistFont: canDecreaseSubtitleLinguistFont,
@@ -259,6 +273,10 @@ struct VideoPlayerView: View {
                         },
                         onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
                         onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
+                        onLookup: {
+                            guard !coordinator.isPlaying else { return }
+                            handleSubtitleLookup()
+                        },
                         onIncreaseFont: { adjustSubtitleFontScale(by: subtitleFontScaleStep) },
                         onDecreaseFont: { adjustSubtitleFontScale(by: -subtitleFontScaleStep) },
                         onToggleOriginal: { toggleSubtitleVisibility(.original) },
@@ -288,6 +306,7 @@ struct VideoPlayerView: View {
         #endif
         .onAppear {
             isTearingDown = false
+            loadLlmModelsIfNeeded()
             coordinator.onPlaybackEnded = { [weak coordinator] in
                 guard let coordinator else { return }
                 let duration = coordinator.duration.isFinite && coordinator.duration > 0
@@ -551,11 +570,9 @@ struct VideoPlayerView: View {
     }
 
     private func toggleHeaderCollapsed() {
-        #if os(iOS)
         withAnimation(.easeInOut(duration: 0.2)) {
             isHeaderCollapsed.toggle()
         }
-        #endif
     }
 
     #if os(tvOS)
@@ -866,6 +883,7 @@ struct VideoPlayerView: View {
             lineIndex: line.index,
             tokenIndex: nextIndex
         )
+        scheduleAutoSubtitleLookup()
     }
 
     private func handleSubtitleTrackNavigation(_ delta: Int) -> Bool {
@@ -892,6 +910,7 @@ struct VideoPlayerView: View {
             lineIndex: line.index,
             tokenIndex: resolvedIndex
         )
+        scheduleAutoSubtitleLookup()
         return moved
     }
 
@@ -981,6 +1000,7 @@ struct VideoPlayerView: View {
             lineIndex: token.lineIndex,
             tokenIndex: token.tokenIndex
         )
+        scheduleAutoSubtitleLookup()
         if let seekTime = token.seekTime, seekTime.isFinite {
             coordinator.seek(to: seekTime)
             return
@@ -992,15 +1012,17 @@ struct VideoPlayerView: View {
 
     private func startSubtitleLookup(query: String, lineKind: VideoSubtitleLineKind) {
         subtitleLookupTask?.cancel()
+        subtitleAutoLookupTask?.cancel()
         subtitleBubble = VideoLinguistBubbleState(query: query, status: .loading, answer: nil, model: nil)
         let originalLanguage = linguistInputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let translationLanguage = linguistLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        let explanationLanguage = linguistExplanationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        let explanationLanguage = resolvedLookupLanguage
         let inputLanguage = lookupInputLanguage(
             for: lineKind,
             originalLanguage: originalLanguage,
             translationLanguage: translationLanguage
         )
+        let selectedModel = resolvedLlmModel
         let pronunciationLanguage = inputLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedPronunciationLanguage = pronunciationLanguage.isEmpty ? nil : pronunciationLanguage
         let fallbackLanguage = resolveSpeechLanguage(resolvedPronunciationLanguage ?? "")
@@ -1024,7 +1046,8 @@ struct VideoPlayerView: View {
                 let response = try await client.assistantLookup(
                     query: query,
                     inputLanguage: inputLanguage,
-                    lookupLanguage: explanationLanguage.isEmpty ? "English" : explanationLanguage
+                    lookupLanguage: explanationLanguage,
+                    llmModel: selectedModel
                 )
                 subtitleBubble = VideoLinguistBubbleState(
                     query: query,
@@ -1044,13 +1067,102 @@ struct VideoPlayerView: View {
         }
     }
 
+    private var resolvedLookupLanguage: String {
+        let trimmed = storedLookupLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        let fallback = linguistExplanationLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
+        return fallback.isEmpty ? MyLinguistPreferences.defaultLookupLanguage : fallback
+    }
+
+    private var resolvedLlmModel: String? {
+        let trimmed = storedLlmModel.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return MyLinguistPreferences.defaultLlmModel
+        }
+        return trimmed
+    }
+
+    private var lookupLanguageOptions: [String] {
+        var seen: Set<String> = []
+        var options: [String] = []
+        let preferred = [
+            resolvedLookupLanguage,
+            linguistExplanationLanguage,
+            linguistLookupLanguage,
+            linguistInputLanguage,
+            MyLinguistPreferences.defaultLookupLanguage
+        ]
+        for value in preferred {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { continue }
+            let label = LanguageFlagResolver.flagEntry(for: trimmed).label
+            let key = label.lowercased()
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            options.append(label)
+        }
+        for label in LanguageFlagResolver.availableLanguageLabels() {
+            let key = label.lowercased()
+            guard !seen.contains(key) else { continue }
+            seen.insert(key)
+            options.append(label)
+        }
+        return options
+    }
+
+    private var llmModelOptions: [String] {
+        var models = availableLlmModels
+        let defaultModel = MyLinguistPreferences.defaultLlmModel
+        if !models.contains(defaultModel) {
+            models.insert(defaultModel, at: 0)
+        }
+        if models.isEmpty {
+            models = [defaultModel]
+        }
+        return models
+    }
+
+    private func loadLlmModelsIfNeeded() {
+        guard !didLoadLlmModels else { return }
+        didLoadLlmModels = true
+        Task { @MainActor in
+            guard let configuration = appState.configuration else { return }
+            let client = APIClient(configuration: configuration)
+            do {
+                let response = try await client.fetchLlmModels()
+                if !response.models.isEmpty {
+                    availableLlmModels = response.models
+                }
+            } catch {
+                return
+            }
+        }
+    }
+
     private func closeSubtitleBubble() {
         subtitleLookupTask?.cancel()
         subtitleLookupTask = nil
         subtitleSpeechTask?.cancel()
         subtitleSpeechTask = nil
+        subtitleAutoLookupTask?.cancel()
+        subtitleAutoLookupTask = nil
         subtitleBubble = nil
         pronunciationSpeaker.stop()
+    }
+
+    private func scheduleAutoSubtitleLookup() {
+        guard subtitleBubble != nil else { return }
+        guard !coordinator.isPlaying else { return }
+        subtitleAutoLookupTask?.cancel()
+        subtitleAutoLookupTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: subtitleAutoLookupDelayNanos)
+            guard !Task.isCancelled else { return }
+            guard subtitleBubble != nil else { return }
+            guard !coordinator.isPlaying else { return }
+            handleSubtitleLookup()
+        }
     }
 
     private func startSubtitlePronunciation(text: String, apiLanguage: String?, fallbackLanguage: String?) {
@@ -1236,6 +1348,12 @@ private struct VideoPlayerOverlayView: View {
     let isPlaying: Bool
     let subtitleSelection: VideoSubtitleWordSelection?
     let subtitleBubble: VideoLinguistBubbleState?
+    let lookupLanguage: String
+    let lookupLanguageOptions: [String]
+    let onLookupLanguageChange: (String) -> Void
+    let llmModel: String
+    let llmModelOptions: [String]
+    let onLlmModelChange: (String) -> Void
     let subtitleLinguistFontScale: CGFloat
     let canIncreaseSubtitleLinguistFont: Bool
     let canDecreaseSubtitleLinguistFont: Bool
@@ -1379,6 +1497,12 @@ private struct VideoPlayerOverlayView: View {
                     fontScale: subtitleLinguistFontScale,
                     canIncreaseFont: canIncreaseSubtitleLinguistFont,
                     canDecreaseFont: canDecreaseSubtitleLinguistFont,
+                    lookupLanguage: lookupLanguage,
+                    lookupLanguageOptions: lookupLanguageOptions,
+                    onLookupLanguageChange: onLookupLanguageChange,
+                    llmModel: llmModel,
+                    llmModelOptions: llmModelOptions,
+                    onLlmModelChange: onLlmModelChange,
                     onIncreaseFont: onIncreaseSubtitleLinguistFont,
                     onDecreaseFont: onDecreaseSubtitleLinguistFont,
                     onResetFont: onResetSubtitleBubbleFont,
@@ -1386,6 +1510,21 @@ private struct VideoPlayerOverlayView: View {
                     onMagnify: onSetSubtitleBubbleFont
                 )
                 .padding(.bottom, 6)
+                #if os(tvOS)
+                .focusSection()
+                .focused($focusTarget, equals: .bubble)
+                .onMoveCommand { direction in
+                    guard focusTarget == .bubble else { return }
+                    switch direction {
+                    case .up:
+                        focusTarget = .control(.header)
+                    case .down:
+                        focusTarget = .subtitles
+                    default:
+                        break
+                    }
+                }
+                #endif
             }
             SubtitleOverlayView(
                 cues: cues,
@@ -1435,8 +1574,14 @@ private struct VideoPlayerOverlayView: View {
                         showTVControls = true
                         focusTarget = .control(.playPause)
                     } else {
-                        _ = onNavigateSubtitleTrack(-1)
-                        focusTarget = .subtitles
+                        let moved = onNavigateSubtitleTrack(-1)
+                        if moved {
+                            focusTarget = .subtitles
+                        } else if subtitleBubble != nil {
+                            focusTarget = .bubble
+                        } else {
+                            focusTarget = .control(.header)
+                        }
                     }
                 case .down:
                     if isPlaying {
@@ -1518,8 +1663,45 @@ private struct VideoPlayerOverlayView: View {
         let timelineLabel = videoTimelineLabel
         let segmentLabel = segmentHeaderLabel
         let shouldShowHeaderInfo = !isHeaderCollapsed
-        if isPad {
-            VStack(alignment: .leading, spacing: 8) {
+        Group {
+            if isPad {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
+                        #if !os(tvOS)
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark")
+                                .font(.caption.weight(.semibold))
+                                .padding(8)
+                                .background(.black.opacity(0.45), in: Circle())
+                                .foregroundStyle(.white)
+                        }
+                        #endif
+                        Spacer(minLength: 12)
+                        HStack(spacing: 8) {
+                            if hasOptions {
+                                subtitleButton
+                            }
+                        }
+                    }
+                    HStack(alignment: .top, spacing: 12) {
+                        if shouldShowHeaderInfo {
+                            infoHeaderContent
+                        }
+                        Spacer(minLength: 12)
+                        VStack(alignment: .trailing, spacing: 6) {
+                            if let segmentLabel, shouldShowHeaderInfo {
+                                videoTimelineView(label: segmentLabel)
+                            }
+                            if let timelineLabel, shouldShowHeaderInfo {
+                                videoTimelineView(label: timelineLabel)
+                            }
+                            headerToggleButton
+                        }
+                    }
+                }
+                .padding(.top, 10 + iPadHeaderOffset)
+                .padding(.horizontal, 12)
+            } else {
                 HStack(alignment: .top, spacing: 12) {
                     #if !os(tvOS)
                     Button(action: { dismiss() }) {
@@ -1530,72 +1712,42 @@ private struct VideoPlayerOverlayView: View {
                             .foregroundStyle(.white)
                     }
                     #endif
-                    Spacer(minLength: 12)
-                    HStack(spacing: 8) {
-                        if hasOptions {
-                            subtitleButton
-                        }
-                    }
-                }
-                HStack(alignment: .top, spacing: 12) {
                     if shouldShowHeaderInfo {
                         infoHeaderContent
                     }
+
                     Spacer(minLength: 12)
-                    VStack(alignment: .trailing, spacing: 6) {
-                        if let segmentLabel, shouldShowHeaderInfo {
-                            videoTimelineView(label: segmentLabel)
-                        }
-                        if let timelineLabel, shouldShowHeaderInfo {
-                            videoTimelineView(label: timelineLabel)
-                        }
-                        headerToggleButton
-                    }
-                }
-            }
-            .padding(.top, 10 + iPadHeaderOffset)
-            .padding(.horizontal, 12)
-        } else {
-            HStack(alignment: .top, spacing: 12) {
-                #if !os(tvOS)
-                Button(action: { dismiss() }) {
-                    Image(systemName: "xmark")
-                        .font(.caption.weight(.semibold))
-                        .padding(8)
-                        .background(.black.opacity(0.45), in: Circle())
-                        .foregroundStyle(.white)
-                }
-                #endif
-                if shouldShowHeaderInfo {
-                    infoHeaderContent
-                }
 
-                Spacer(minLength: 12)
-
-                if timelineLabel != nil || hasOptions || !isTV {
-                    VStack(alignment: .trailing, spacing: 6) {
-                        if let segmentLabel, shouldShowHeaderInfo {
-                            videoTimelineView(label: segmentLabel)
-                        }
-                        if let timelineLabel, shouldShowHeaderInfo {
-                            videoTimelineView(label: timelineLabel)
-                        }
-                        #if os(tvOS)
-                        tvControls
-                        #else
-                        HStack(spacing: 8) {
-                            if hasOptions {
-                                subtitleButton
+                    if timelineLabel != nil || hasOptions || !isTV {
+                        VStack(alignment: .trailing, spacing: 6) {
+                            if let segmentLabel, shouldShowHeaderInfo {
+                                videoTimelineView(label: segmentLabel)
                             }
-                            headerToggleButton
+                            if let timelineLabel, shouldShowHeaderInfo {
+                                videoTimelineView(label: timelineLabel)
+                            }
+                            #if os(tvOS)
+                            tvControls
+                            #else
+                            HStack(spacing: 8) {
+                                if hasOptions {
+                                    subtitleButton
+                                }
+                                headerToggleButton
+                            }
+                            #endif
                         }
-                        #endif
                     }
                 }
+                .padding(.top, 10)
+                .padding(.horizontal, 12)
             }
-            .padding(.top, 10)
-            .padding(.horizontal, 12)
         }
+        .background(headerBackgroundStyle, in: RoundedRectangle(cornerRadius: headerBackgroundCornerRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: headerBackgroundCornerRadius)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
     }
 
     private var infoHeaderContent: some View {
@@ -1660,32 +1812,54 @@ private struct VideoPlayerOverlayView: View {
                         .minimumScaleFactor(0.85)
                 }
                 if !metadata.languageFlags.isEmpty {
-                    PlayerLanguageFlagRow(flags: metadata.languageFlags, isTV: isTV)
+                    PlayerLanguageFlagRow(
+                        flags: metadata.languageFlags,
+                        modelLabel: metadata.translationModel,
+                        isTV: isTV
+                    )
                 }
             }
         }
     }
 
     #if os(tvOS)
+    @ViewBuilder
     private var infoHeaderOverlay: some View {
-        let timelineLabel = videoTimelineLabel
-        let segmentLabel = segmentHeaderLabel
-        return HStack(alignment: .top, spacing: 12) {
-            infoHeaderContent
-            Spacer(minLength: 12)
-            VStack(alignment: .trailing, spacing: 6) {
-                if let segmentLabel {
-                    videoTimelineView(label: segmentLabel)
+        let showHeaderContent = !isHeaderCollapsed
+        if showHeaderContent || isTV {
+            let timelineLabel = videoTimelineLabel
+            let segmentLabel = segmentHeaderLabel
+            HStack(alignment: .top, spacing: 12) {
+                if showHeaderContent {
+                    infoHeaderContent
                 }
-                if let timelineLabel {
-                    videoTimelineView(label: timelineLabel)
+                Spacer(minLength: 12)
+                if showHeaderContent || isTV {
+                    VStack(alignment: .trailing, spacing: 6) {
+                        if showHeaderContent {
+                            if let segmentLabel {
+                                videoTimelineView(label: segmentLabel)
+                            }
+                            if let timelineLabel {
+                                videoTimelineView(label: timelineLabel)
+                            }
+                        }
+                        if isTV {
+                            tvHeaderTogglePill
+                        }
+                    }
                 }
             }
+            .padding(.top, 6)
+            .padding(.horizontal, 6)
+            .background(headerBackgroundStyle, in: RoundedRectangle(cornerRadius: headerBackgroundCornerRadius))
+            .overlay(
+                RoundedRectangle(cornerRadius: headerBackgroundCornerRadius)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .allowsHitTesting(isTV)
         }
-        .padding(.top, 6)
-        .padding(.horizontal, 6)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .allowsHitTesting(false)
     }
     #endif
 
@@ -1777,6 +1951,31 @@ private struct VideoPlayerOverlayView: View {
     }
 
     #if os(tvOS)
+    private var tvHeaderTogglePill: some View {
+        Button(action: onToggleHeaderCollapsed) {
+            Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.6), in: Capsule())
+                .foregroundStyle(.white)
+        }
+        .buttonStyle(.plain)
+        .focused($focusTarget, equals: .control(.header))
+        .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
+        .onMoveCommand { direction in
+            if direction == .down {
+                if !isPlaying, subtitleBubble != nil {
+                    focusTarget = .bubble
+                } else {
+                    focusTarget = showTVControls ? .control(.playPause) : .subtitles
+                }
+            }
+        }
+    }
+    #endif
+
+    #if os(tvOS)
     private var tvControls: some View {
         HStack(spacing: 14) {
             tvControlButton(
@@ -1802,6 +2001,7 @@ private struct VideoPlayerOverlayView: View {
                 tvControlButton(
                     systemName: "captions.bubble",
                     label: "Options",
+                    font: .callout.weight(.semibold),
                     isFocused: focusTarget == .control(.captions)
                 ) {
                     showSubtitleSettings = true
@@ -1812,6 +2012,12 @@ private struct VideoPlayerOverlayView: View {
         .onMoveCommand { direction in
             guard !showSubtitleSettings else { return }
             if direction == .up {
+                if isPlaying {
+                    focusTarget = .control(.header)
+                } else {
+                    focusTarget = .subtitles
+                }
+            } else if direction == .down {
                 focusTarget = .subtitles
             }
         }
@@ -1820,6 +2026,7 @@ private struct VideoPlayerOverlayView: View {
     private func tvControlButton(
         systemName: String,
         label: String? = nil,
+        font: Font? = nil,
         prominent: Bool = false,
         isFocused: Bool = false,
         action: @escaping () -> Void
@@ -1832,7 +2039,7 @@ private struct VideoPlayerOverlayView: View {
                 Image(systemName: systemName)
             }
         }
-        .font(.title3.weight(.semibold))
+        .font(font ?? .title3.weight(.semibold))
         .foregroundStyle(.white)
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
@@ -2026,6 +2233,26 @@ private struct VideoPlayerOverlayView: View {
         #endif
     }
 
+    private var headerBackgroundStyle: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(white: 0.18).opacity(0.7),
+                Color(white: 0.12).opacity(0.45),
+                Color(white: 0.08).opacity(0.2)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
+    private var headerBackgroundCornerRadius: CGFloat {
+        #if os(tvOS)
+        return 18
+        #else
+        return 14
+        #endif
+    }
+
     private var isTV: Bool {
         #if os(tvOS)
         return true
@@ -2065,11 +2292,13 @@ private enum TVFocusTarget: Hashable {
     case skipBackward
     case skipForward
     case captions
+    case header
     case scrubber
 }
 
 private enum VideoPlayerFocusTarget: Hashable {
     case subtitles
+    case bubble
     case control(TVFocusTarget)
 }
 
@@ -2305,6 +2534,12 @@ private struct VideoLinguistBubbleView: View {
     let fontScale: CGFloat
     let canIncreaseFont: Bool
     let canDecreaseFont: Bool
+    let lookupLanguage: String
+    let lookupLanguageOptions: [String]
+    let onLookupLanguageChange: (String) -> Void
+    let llmModel: String
+    let llmModelOptions: [String]
+    let onLlmModelChange: (String) -> Void
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onResetFont: (() -> Void)?
@@ -2321,11 +2556,8 @@ private struct VideoLinguistBubbleView: View {
                 Text("MyLinguist")
                     .font(.headline)
                 Spacer(minLength: 8)
-                if let model = bubble.model, !model.isEmpty {
-                    Text("Model: \(model)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                lookupLanguageMenu
+                modelMenu
                 fontSizeControls
                 #if os(iOS)
                 if let onResetFont {
@@ -2352,6 +2584,9 @@ private struct VideoLinguistBubbleView: View {
                 .font(queryFont)
                 .lineLimit(2)
                 .minimumScaleFactor(0.8)
+                #if os(iOS)
+                .textSelection(.enabled)
+                #endif
 
             bubbleContent
         }
@@ -2363,6 +2598,8 @@ private struct VideoLinguistBubbleView: View {
                 .stroke(Color.white.opacity(0.12), lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: bubbleCornerRadius))
+        .frame(maxWidth: bubbleWidth, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: .center)
         #if os(iOS)
         .simultaneousGesture(bubbleMagnifyGesture, including: .gesture)
         #endif
@@ -2406,9 +2643,63 @@ private struct VideoLinguistBubbleView: View {
                     .font(bodyFont)
                     .foregroundStyle(.primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    #if os(iOS)
+                    .textSelection(.enabled)
+                    #endif
             }
             .frame(maxHeight: bubbleMaxHeight)
         }
+    }
+
+    private var lookupLanguageMenu: some View {
+        let entry = LanguageFlagResolver.flagEntry(for: lookupLanguage)
+        return Menu {
+            ForEach(lookupLanguageOptions, id: \.self) { language in
+                let option = LanguageFlagResolver.flagEntry(for: language)
+                Button {
+                    onLookupLanguageChange(option.label)
+                } label: {
+                    if option.label == entry.label {
+                        Label("\(option.emoji) \(option.label)", systemImage: "checkmark")
+                    } else {
+                        Text("\(option.emoji) \(option.label)")
+                    }
+                }
+            }
+        } label: {
+            Text(entry.emoji)
+                .font(.caption)
+                .padding(6)
+                .background(.black.opacity(0.3), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Lookup language")
+    }
+
+    private var modelMenu: some View {
+        Menu {
+            ForEach(llmModelOptions, id: \.self) { model in
+                Button {
+                    onLlmModelChange(model)
+                } label: {
+                    if model == llmModel {
+                        Label(model, systemImage: "checkmark")
+                    } else {
+                        Text(model)
+                    }
+                }
+            }
+        } label: {
+            Text(llmModel)
+                .font(.caption2)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(.black.opacity(0.3), in: Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Lookup model")
     }
 
     private var fontSizeControls: some View {
@@ -2470,6 +2761,14 @@ private struct VideoLinguistBubbleView: View {
         return 180
         #endif
     }
+
+    private var bubbleWidth: CGFloat {
+        #if os(iOS) || os(tvOS)
+        return UIScreen.main.bounds.width * 0.66
+        #else
+        return 420
+        #endif
+    }
 }
 
 #if os(iOS)
@@ -2490,6 +2789,7 @@ private struct VideoShortcutHelpOverlayView: View {
             items: [
                 ShortcutHelpItem(keys: "Left / Right Arrow (paused)", action: "Previous or next word"),
                 ShortcutHelpItem(keys: "Up / Down Arrow (paused)", action: "Switch subtitle line"),
+                ShortcutHelpItem(keys: "Enter", action: "Lookup word"),
                 ShortcutHelpItem(keys: "O", action: "Toggle original line"),
                 ShortcutHelpItem(keys: "I", action: "Toggle transliteration line"),
                 ShortcutHelpItem(keys: "P", action: "Toggle translation line"),
@@ -2587,6 +2887,7 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
     let onSkipForward: () -> Void
     let onNavigateLineUp: () -> Void
     let onNavigateLineDown: () -> Void
+    let onLookup: () -> Void
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onToggleOriginal: () -> Void
@@ -2603,6 +2904,7 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         controller.onSkipForward = onSkipForward
         controller.onNavigateLineUp = onNavigateLineUp
         controller.onNavigateLineDown = onNavigateLineDown
+        controller.onLookup = onLookup
         controller.onIncreaseFont = onIncreaseFont
         controller.onDecreaseFont = onDecreaseFont
         controller.onToggleOriginal = onToggleOriginal
@@ -2620,6 +2922,7 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         uiViewController.onSkipForward = onSkipForward
         uiViewController.onNavigateLineUp = onNavigateLineUp
         uiViewController.onNavigateLineDown = onNavigateLineDown
+        uiViewController.onLookup = onLookup
         uiViewController.onIncreaseFont = onIncreaseFont
         uiViewController.onDecreaseFont = onDecreaseFont
         uiViewController.onToggleOriginal = onToggleOriginal
@@ -2636,6 +2939,7 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
         var onSkipForward: (() -> Void)?
         var onNavigateLineUp: (() -> Void)?
         var onNavigateLineDown: (() -> Void)?
+        var onLookup: (() -> Void)?
         var onIncreaseFont: (() -> Void)?
         var onDecreaseFont: (() -> Void)?
         var onToggleOriginal: (() -> Void)?
@@ -2662,6 +2966,8 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
                 makeCommand(input: UIKeyCommand.inputRightArrow, action: #selector(handleSkipForward)),
                 makeCommand(input: UIKeyCommand.inputUpArrow, action: #selector(handleLineUp)),
                 makeCommand(input: UIKeyCommand.inputDownArrow, action: #selector(handleLineDown)),
+                makeCommand(input: "\r", action: #selector(handleLookup)),
+                makeCommand(input: "\n", action: #selector(handleLookup)),
                 makeCommand(input: "o", action: #selector(handleToggleOriginal)),
                 makeCommand(input: "o", modifiers: [.shift], action: #selector(handleToggleOriginal)),
                 makeCommand(input: "i", action: #selector(handleToggleTransliteration)),
@@ -2695,6 +3001,10 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
 
         @objc private func handleLineDown() {
             onNavigateLineDown?()
+        }
+
+        @objc private func handleLookup() {
+            onLookup?()
         }
 
         @objc private func handleIncreaseFont() {
