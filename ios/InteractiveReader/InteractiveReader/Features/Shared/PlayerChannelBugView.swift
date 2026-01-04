@@ -202,6 +202,30 @@ enum LanguageFlagRole: String {
     case translation
 }
 
+struct JobTypeGlyph: Equatable {
+    let icon: String
+    let label: String
+}
+
+enum JobTypeGlyphResolver {
+    static func glyph(for jobType: String?) -> JobTypeGlyph {
+        let normalized = (jobType ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch normalized {
+        case "pipeline", "book":
+            return JobTypeGlyph(icon: "📚", label: "Book job")
+        case "subtitle", "subtitles", "narrated_subtitle":
+            return JobTypeGlyph(icon: "🎞️", label: "Subtitle job")
+        case "youtube_dub", "dub":
+            return JobTypeGlyph(icon: "🎙️", label: "Dub video job")
+        case "video", "youtube":
+            return JobTypeGlyph(icon: "🎞️", label: "Video job")
+        default:
+            let label = normalized.isEmpty ? "Job" : "\(normalized) job"
+            return JobTypeGlyph(icon: "📦", label: label)
+        }
+    }
+}
+
 struct LanguageFlagEntry: Identifiable, Equatable {
     let role: LanguageFlagRole
     let emoji: String
@@ -626,6 +650,83 @@ struct PlayerLanguageFlagRow: View {
         return UIDevice.current.userInterfaceIdiom == .pad
         #else
         return false
+        #endif
+    }
+}
+
+struct JobTypeGlyphBadge: View {
+    let glyph: JobTypeGlyph
+
+    var body: some View {
+        Text(glyph.icon)
+            .font(glyphFont)
+            .frame(minWidth: 28, alignment: .center)
+            .accessibilityLabel(glyph.label)
+    }
+
+    private var glyphFont: Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: .caption1).pointSize
+        return .system(size: base * 2.0)
+        #else
+        return .system(size: 28)
+        #endif
+    }
+}
+
+struct LanguageFlagPairView: View {
+    let flags: [LanguageFlagEntry]
+
+    var body: some View {
+        let ordered = orderedFlags
+        if let first = ordered.first {
+            HStack(spacing: 6) {
+                Text(first.emoji)
+                    .font(flagFont)
+                if let second = ordered.dropFirst().first {
+                    Text("-")
+                        .font(connectorFont)
+                        .foregroundStyle(.secondary)
+                    Text(second.emoji)
+                        .font(flagFont)
+                }
+            }
+            .accessibilityLabel(accessibilityLabel(for: ordered))
+        }
+    }
+
+    private var orderedFlags: [LanguageFlagEntry] {
+        let original = flags.first(where: { $0.role == .original })
+        let translation = flags.first(where: { $0.role == .translation })
+        if let original, let translation {
+            return [original, translation]
+        }
+        return flags
+    }
+
+    private func accessibilityLabel(for flags: [LanguageFlagEntry]) -> String {
+        guard let first = flags.first else { return "Languages" }
+        if let second = flags.dropFirst().first {
+            return "\(first.label) to \(second.label)"
+        }
+        return first.label
+    }
+
+    private var flagFont: Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: .caption1).pointSize
+        return .system(size: base * 2.0)
+        #else
+        return .system(size: 28)
+        #endif
+    }
+
+    private var connectorFont: Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: .caption1).pointSize
+        return .system(size: base)
+        #else
+        return .system(size: 14)
         #endif
     }
 }

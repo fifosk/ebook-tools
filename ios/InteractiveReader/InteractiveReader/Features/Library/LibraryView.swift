@@ -17,6 +17,9 @@ struct LibraryView: View {
     @FocusState private var isSearchFocused: Bool
     @State private var resumeAvailability: [String: PlaybackResumeAvailability] = [:]
     @State private var iCloudStatus = PlaybackResumeStore.shared.iCloudStatus()
+    #if os(tvOS)
+    @State private var isSearchPresented = false
+    #endif
 
     var body: some View {
         VStack(spacing: 12) {
@@ -121,7 +124,9 @@ struct LibraryView: View {
         VStack(alignment: .leading, spacing: 12) {
             #if os(tvOS)
             headerButtons
-            searchRow
+            if isSearchPresented {
+                searchRow
+            }
             if let sectionPicker {
                 sectionPicker
             }
@@ -145,27 +150,54 @@ struct LibraryView: View {
                 .autocorrectionDisabled()
                 .focused($isSearchFocused)
                 .submitLabel(.search)
-                .onSubmit(handleRefresh)
+                .onSubmit {
+                    handleRefresh()
+                    #if os(tvOS)
+                    dismissSearch()
+                    #endif
+                }
             Button(action: handleRefresh) {
                 Image(systemName: "magnifyingglass")
             }
             .disabled(viewModel.isLoading)
+            #if os(tvOS)
+            Button("Cancel") {
+                dismissSearch()
+            }
+            #endif
         }
         .padding(.horizontal)
+        #if os(tvOS)
+        .onAppear {
+            DispatchQueue.main.async {
+                isSearchFocused = true
+            }
+        }
+        .onExitCommand {
+            dismissSearch()
+        }
+        #endif
     }
 
+    @ViewBuilder
     private var filterPicker: some View {
+        #if os(tvOS)
         Picker("Filter", selection: $viewModel.activeFilter) {
             ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
                 Text(filter.rawValue).tag(filter)
             }
         }
-        #if os(tvOS)
         .pickerStyle(.automatic)
-        #else
-        .pickerStyle(.segmented)
-        #endif
         .padding(.horizontal)
+        #else
+        Picker("Filter", selection: $viewModel.activeFilter) {
+            ForEach(LibraryViewModel.LibraryFilter.allCases) { filter in
+                Text(filter.rawValue).tag(filter)
+            }
+        }
+        .pickerStyle(.segmented)
+        .padding(.horizontal)
+        #endif
     }
 
     #if os(tvOS)
@@ -173,6 +205,11 @@ struct LibraryView: View {
         HStack(spacing: 16) {
             Button("Refresh", action: handleRefresh)
                 .disabled(viewModel.isLoading)
+            Button {
+                presentSearch()
+            } label: {
+                Image(systemName: "magnifyingglass")
+            }
             Button("Sync", action: handleSync)
                 .disabled(resumeUserId == nil)
             Button("Sign Out", action: onSignOut)
@@ -220,6 +257,20 @@ struct LibraryView: View {
         onRefresh()
     }
 
+    #if os(tvOS)
+    private func presentSearch() {
+        isSearchPresented = true
+        DispatchQueue.main.async {
+            isSearchFocused = true
+        }
+    }
+
+    private func dismissSearch() {
+        isSearchFocused = false
+        isSearchPresented = false
+    }
+    #endif
+
     private func handleSync() {
         guard let resumeUserId else { return }
         Task {
@@ -266,14 +317,14 @@ struct LibraryView: View {
         if let localEntry, let cloudEntry {
             let localLabel = resumeLabel(prefix: "L", entry: localEntry)
             let cloudLabel = resumeLabel(prefix: "C", entry: cloudEntry)
-            let label = "Resume \(localLabel) \(cloudLabel)"
+            let label = "\(localLabel) \(cloudLabel)"
             return .both(label: label)
         }
         if let localEntry {
-            let label = "Resume \(resumeLabel(prefix: "L", entry: localEntry))"
+            let label = resumeLabel(prefix: "L", entry: localEntry)
             return .local(label: label)
         }
-        let label = "Resume \(resumeLabel(prefix: "C", entry: cloudEntry))"
+        let label = resumeLabel(prefix: "C", entry: cloudEntry)
         return .cloud(label: label)
     }
 

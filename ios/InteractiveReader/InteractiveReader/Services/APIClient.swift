@@ -106,7 +106,11 @@ final class APIClient {
     }
 
     func fetchPipelineJobs() async throws -> PipelineJobListResponse {
-        let data = try await sendRequest(path: "/api/pipelines/jobs")
+        let cacheBuster = Int(Date().timeIntervalSince1970)
+        let data = try await sendRequest(
+            path: "/api/pipelines/jobs?ts=\(cacheBuster)",
+            cachePolicy: .reloadIgnoringLocalCacheData
+        )
         return try decode(PipelineJobListResponse.self, from: data)
     }
 
@@ -171,7 +175,8 @@ final class APIClient {
         method: String = "GET",
         body: Data? = nil,
         contentType: String? = nil,
-        accept: String = "application/json"
+        accept: String = "application/json",
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) async throws -> Data {
         guard !Task.isCancelled else {
             throw APIClientError.cancelled
@@ -180,6 +185,7 @@ final class APIClient {
         let requestURL = buildURL(with: path)
         var request = URLRequest(url: requestURL)
         request.httpMethod = method
+        request.cachePolicy = cachePolicy
         request.setValue(accept, forHTTPHeaderField: "Accept")
         if let body {
             request.httpBody = body

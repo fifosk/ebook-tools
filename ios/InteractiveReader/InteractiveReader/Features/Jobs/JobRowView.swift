@@ -27,17 +27,17 @@ struct JobRowView: View {
                     .minimumScaleFactor(titleScaleFactor)
                     .truncationMode(.tail)
                 HStack(spacing: 8) {
-                    Text(jobTypeLabel)
+                    LanguageFlagPairView(flags: languageFlags)
                         .font(metaFont)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(iconColor.opacity(0.18), in: Capsule())
-                    Text(statusLabel)
+                    JobTypeGlyphBadge(glyph: jobTypeGlyph)
                         .font(metaFont)
+                    Text(statusGlyph.icon)
+                        .font(statusGlyphFont)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .foregroundStyle(statusColor)
                         .background(statusColor.opacity(0.18), in: Capsule())
+                        .accessibilityLabel(statusGlyph.label)
                     Text(resumeStatus.label)
                         .font(metaFont)
                         .lineLimit(1)
@@ -75,6 +75,32 @@ struct JobRowView: View {
         .padding(.vertical, rowPadding)
     }
 
+    private var languageFlags: [LanguageFlagEntry] {
+        LanguageFlagResolver.resolveFlags(
+            originalLanguage: inputLanguage,
+            translationLanguage: translationLanguage
+        )
+    }
+
+    private var inputLanguage: String? {
+        metadataString(for: [
+            "input_language",
+            "original_language",
+            "source_language",
+            "translation_source_language",
+            "book_language"
+        ]) ?? metadataString(for: ["language"], maxDepth: 0)
+    }
+
+    private var translationLanguage: String? {
+        metadataString(for: [
+            "target_language",
+            "translation_language",
+            "target_languages",
+            "book_language"
+        ]) ?? metadataString(for: ["language"], maxDepth: 0)
+    }
+
     private var jobTitle: String {
         if let label = job.jobLabel?.nonEmptyValue {
             return label
@@ -89,21 +115,8 @@ struct JobRowView: View {
         return "Job \(job.jobId)"
     }
 
-    private var jobTypeLabel: String {
-        switch jobVariant {
-        case .book:
-            return "Book"
-        case .subtitles:
-            return "Subtitles"
-        case .video, .youtube:
-            return "Video"
-        case .dub:
-            return "Dubbing"
-        case .nas:
-            return "NAS"
-        case .job:
-            return "Job"
-        }
+    private var jobTypeGlyph: JobTypeGlyph {
+        JobTypeGlyphResolver.glyph(for: job.jobType)
     }
 
     private var jobIdLabel: String {
@@ -127,23 +140,32 @@ struct JobRowView: View {
         return Double(snapshot.completed) / Double(total)
     }
 
-    private var statusLabel: String {
+    private var statusGlyph: (icon: String, label: String) {
         switch job.displayStatus {
         case .pending:
-            return "Pending"
+            return ("⏳", "Pending")
         case .running:
-            return "Running"
+            return ("▶️", "Running")
         case .pausing:
-            return "Pausing"
+            return ("⏯️", "Pausing")
         case .paused:
-            return "Paused"
+            return ("⏸️", "Paused")
         case .completed:
-            return "Completed"
+            return ("✅", "Completed")
         case .failed:
-            return "Failed"
+            return ("❌", "Failed")
         case .cancelled:
-            return "Cancelled"
+            return ("🚫", "Cancelled")
         }
+    }
+
+    private var statusGlyphFont: Font {
+        #if os(iOS) || os(tvOS)
+        let base = UIFont.preferredFont(forTextStyle: .caption1).pointSize
+        return .system(size: base * 2.0)
+        #else
+        return .system(size: 28)
+        #endif
     }
 
     private var statusColor: Color {
@@ -288,6 +310,56 @@ struct JobRowView: View {
         #else
         return 5
         #endif
+    }
+
+    private func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {
+        let sources = [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
+        for source in sources {
+            if let found = metadataString(in: source, keys: keys, maxDepth: maxDepth) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func metadataString(
+        in metadata: [String: JSONValue],
+        keys: [String],
+        maxDepth: Int
+    ) -> String? {
+        for key in keys {
+            if let found = metadataString(in: metadata, key: key, maxDepth: maxDepth) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func metadataString(
+        in metadata: [String: JSONValue],
+        key: String,
+        maxDepth: Int
+    ) -> String? {
+        if let value = metadata[key]?.stringValue {
+            return value
+        }
+        guard maxDepth > 0 else { return nil }
+        for value in metadata.values {
+            if let nested = value.objectValue {
+                if let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
+                    return found
+                }
+            }
+            if case let .array(items) = value {
+                for entry in items {
+                    if let nested = entry.objectValue,
+                       let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
+                        return found
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     #if os(tvOS)

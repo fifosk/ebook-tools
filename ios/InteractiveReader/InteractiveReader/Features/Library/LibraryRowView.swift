@@ -40,14 +40,10 @@ struct LibraryRowView: View {
                     .minimumScaleFactor(0.85)
                     .foregroundStyle(.secondary)
                 HStack(spacing: 8) {
-                    Text(item.language)
+                    LanguageFlagPairView(flags: languageFlags)
                         .font(metaFont)
-                        .foregroundStyle(.secondary)
-                    Text(itemTypeLabel)
+                    JobTypeGlyphBadge(glyph: jobTypeGlyph)
                         .font(metaFont)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.accentColor.opacity(0.15), in: Capsule())
                     Text(resumeStatus.label)
                         .font(metaFont)
                         .lineLimit(1)
@@ -69,15 +65,38 @@ struct LibraryRowView: View {
         .padding(.vertical, rowPadding)
     }
 
-    private var itemTypeLabel: String {
-        switch item.itemType {
-        case "video":
-            return "Video"
-        case "narrated_subtitle":
-            return "Subtitles"
-        default:
-            return "Book"
-        }
+    private var languageFlags: [LanguageFlagEntry] {
+        LanguageFlagResolver.resolveFlags(
+            originalLanguage: originalLanguage,
+            translationLanguage: translationLanguage
+        )
+    }
+
+    private var originalLanguage: String? {
+        metadataString(for: [
+            "input_language",
+            "original_language",
+            "source_language",
+            "translation_source_language",
+            "book_language"
+        ]) ?? item.language
+    }
+
+    private var translationLanguage: String? {
+        metadataString(for: [
+            "target_language",
+            "translation_language",
+            "target_languages",
+            "book_language"
+        ]) ?? metadataString(for: ["language"], maxDepth: 0) ?? item.language
+    }
+
+    private var jobTypeGlyph: JobTypeGlyph {
+        JobTypeGlyphResolver.glyph(for: jobTypeValue)
+    }
+
+    private var jobTypeValue: String? {
+        metadataString(for: ["job_type", "jobType", "type"], maxDepth: 2) ?? item.itemType
     }
 
     private var coverWidth: CGFloat {
@@ -160,6 +179,51 @@ struct LibraryRowView: View {
         #endif
     }
 
+    private func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {
+        guard let metadata = item.metadata else { return nil }
+        return metadataString(in: metadata, keys: keys, maxDepth: maxDepth)
+    }
+
+    private func metadataString(
+        in metadata: [String: JSONValue],
+        keys: [String],
+        maxDepth: Int
+    ) -> String? {
+        for key in keys {
+            if let found = metadataString(in: metadata, key: key, maxDepth: maxDepth) {
+                return found
+            }
+        }
+        return nil
+    }
+
+    private func metadataString(
+        in metadata: [String: JSONValue],
+        key: String,
+        maxDepth: Int
+    ) -> String? {
+        if let value = metadata[key]?.stringValue {
+            return value
+        }
+        guard maxDepth > 0 else { return nil }
+        for value in metadata.values {
+            if let nested = value.objectValue {
+                if let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
+                    return found
+                }
+            }
+            if case let .array(items) = value {
+                for entry in items {
+                    if let nested = entry.objectValue,
+                       let found = metadataString(in: nested, key: key, maxDepth: maxDepth - 1) {
+                        return found
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
     #if os(tvOS)
     private func scaledTVOSFont(_ style: UIFont.TextStyle) -> Font {
         let size = UIFont.preferredFont(forTextStyle: style).pointSize * 0.5
@@ -176,7 +240,7 @@ extension LibraryRowView {
 
         static func none() -> ResumeStatus {
             ResumeStatus(
-                label: "Resume: none",
+                label: "None",
                 foreground: .secondary,
                 background: Color.secondary.opacity(0.15)
             )

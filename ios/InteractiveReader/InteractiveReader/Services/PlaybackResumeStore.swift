@@ -416,11 +416,22 @@ final class PlaybackResumeStore {
     }
 
     private func notifyChange(userId: String) {
-        NotificationCenter.default.post(
-            name: Self.didChangeNotification,
-            object: nil,
-            userInfo: ["userId": userId]
-        )
+        let payload: [String: String] = ["userId": userId]
+        if Thread.isMainThread {
+            NotificationCenter.default.post(
+                name: Self.didChangeNotification,
+                object: nil,
+                userInfo: payload
+            )
+        } else {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(
+                    name: Self.didChangeNotification,
+                    object: nil,
+                    userInfo: payload
+                )
+            }
+        }
     }
 
     private func recordName(for jobId: String, userId: String) -> String {

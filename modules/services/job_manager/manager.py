@@ -917,9 +917,23 @@ class PipelineJobManager:
     ) -> Dict[str, PipelineJob]:
         """Return a snapshot mapping of jobs respecting role-based visibility."""
 
+        stored = self._store.list()
         with self._lock:
             active_jobs = dict(self._jobs)
-        stored = self._store.list()
+            terminal_states = {
+                PipelineJobStatus.COMPLETED,
+                PipelineJobStatus.FAILED,
+                PipelineJobStatus.CANCELLED,
+                PipelineJobStatus.PAUSED,
+            }
+            stale_job_ids = [
+                job_id
+                for job_id, job in active_jobs.items()
+                if job_id not in stored and job.status in terminal_states
+            ]
+            for job_id in stale_job_ids:
+                self._jobs.pop(job_id, None)
+                active_jobs.pop(job_id, None)
         for job_id, metadata in stored.items():
             active_jobs.setdefault(job_id, self._persistence.build_job(metadata))
 

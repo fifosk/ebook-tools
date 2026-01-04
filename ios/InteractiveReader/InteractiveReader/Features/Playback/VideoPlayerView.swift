@@ -76,6 +76,12 @@ struct VideoPlayerView: View {
     @State private var isManualSubtitleNavigation = false
     @State private var pendingResumeTime: Double?
     @StateObject private var pronunciationSpeaker = VideoPronunciationSpeaker()
+    @State private var isTearingDown = false
+    #if os(iOS)
+    @State private var isVideoScrubGestureActive = false
+    @State private var videoScrubStartTime: Double = 0
+    @State private var videoViewportSize: CGSize = .zero
+    #endif
 
     private let subtitleFontScaleStep: CGFloat = 0.1
     private let subtitleFontScaleMin: CGFloat = 0.7
@@ -137,6 +143,11 @@ struct VideoPlayerView: View {
                     player: player,
                     onShowControls: handleUserInteraction
                 )
+                #if os(iOS)
+                .background(videoViewportReader)
+                .simultaneousGesture(videoTapGesture, including: .gesture)
+                .simultaneousGesture(videoScrubGesture, including: .gesture)
+                #endif
                 #if os(tvOS)
                 .focusable(false)
                 .allowsHitTesting(false)
@@ -276,11 +287,12 @@ struct VideoPlayerView: View {
         }
         #endif
         .onAppear {
+            isTearingDown = false
             coordinator.onPlaybackEnded = { [weak coordinator] in
                 guard let coordinator else { return }
                 let duration = coordinator.duration.isFinite && coordinator.duration > 0
                     ? coordinator.duration
-                    : coordinator.currentTime
+                : coordinator.currentTime
                 onPlaybackEnded?(duration)
             }
             pendingResumeTime = resumeTime
@@ -299,6 +311,7 @@ struct VideoPlayerView: View {
             coordinator.onPlaybackEnded = nil
         }
         .onChange(of: videoURL) { _, newURL in
+            isTearingDown = false
             subtitleSelection = nil
             subtitleCache.removeAll()
             pendingResumeTime = resumeTime
@@ -356,6 +369,7 @@ struct VideoPlayerView: View {
             #endif
         }
         .onReceive(coordinator.$currentTime) { _ in
+            guard !isTearingDown else { return }
             updateNowPlayingPlayback()
             if !isScrubbing {
                 scrubberValue = coordinator.currentTime
@@ -363,9 +377,10 @@ struct VideoPlayerView: View {
             if !coordinator.isPlaying {
                 syncSubtitleSelectionIfNeeded()
             }
-            onPlaybackProgress?(coordinator.currentTime, coordinator.isPlaying)
+            reportPlaybackProgress(time: coordinator.currentTime, isPlaying: coordinator.isPlaying)
         }
         .onReceive(coordinator.$isPlaying) { isPlaying in
+            guard !isTearingDown else { return }
             updateNowPlayingPlayback()
             #if os(tvOS)
             if isPlaying {
@@ -383,9 +398,10 @@ struct VideoPlayerView: View {
             } else {
                 syncSubtitleSelectionIfNeeded(force: true)
             }
-            onPlaybackProgress?(coordinator.currentTime, isPlaying)
+            reportPlaybackProgress(time: coordinator.currentTime, isPlaying: isPlaying)
         }
         .onReceive(coordinator.$duration) { _ in
+            guard !isTearingDown else { return }
             updateNowPlayingPlayback()
             if coordinator.duration.isFinite, coordinator.duration > 0 {
                 scrubberValue = min(scrubberValue, coordinator.duration)
@@ -400,6 +416,8 @@ struct VideoPlayerView: View {
             showSubtitleSettings = false
             controlsHideTask?.cancel()
             controlsHideTask = nil
+            isTearingDown = true
+            reportPlaybackProgress(time: resolvedPlaybackTime(), isPlaying: false, force: true)
             coordinator.reset()
             nowPlaying.clear()
         }
@@ -552,7 +570,7 @@ struct VideoPlayerView: View {
         }
         if !coordinator.isPlaying {
             if !showTVControls {
-                onPlaybackProgress?(coordinator.currentTime, coordinator.isPlaying)
+                reportPlaybackProgress(time: resolvedPlaybackTime(), isPlaying: coordinator.isPlaying)
                 dismiss()
                 return
             }
@@ -562,10 +580,32 @@ struct VideoPlayerView: View {
             }
             return
         }
-        onPlaybackProgress?(coordinator.currentTime, coordinator.isPlaying)
+        reportPlaybackProgress(time: resolvedPlaybackTime(), isPlaying: coordinator.isPlaying)
         dismiss()
     }
     #endif
+
+    private func reportPlaybackProgress(time: Double, isPlaying: Bool, force: Bool = false) {
+        guard let onPlaybackProgress else { return }
+        if isTearingDown && !force { return }
+        if Thread.isMainThread {
+            onPlaybackProgress(time, isPlaying)
+        } else {
+            DispatchQueue.main.async {
+                onPlaybackProgress(time, isPlaying)
+            }
+        }
+    }
+
+    private func resolvedPlaybackTime() -> Double {
+        if let player = coordinator.playerInstance() {
+            let seconds = player.currentTime().seconds
+            if seconds.isFinite {
+                return max(0, seconds)
+            }
+        }
+        return coordinator.currentTime
+    }
 
     private func scheduleControlsAutoHide() {
         #if os(tvOS)
@@ -583,6 +623,69 @@ struct VideoPlayerView: View {
         }
         #endif
     }
+
+    #if os(iOS)
+    private var videoTapGesture: some Gesture {
+        TapGesture()
+            .onEnded {
+                coordinator.togglePlayback()
+            }
+    }
+
+    private var videoScrubGesture: some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .local)
+            .onChanged { value in
+                guard !showSubtitleSettings else { return }
+                guard abs(value.translation.width) >= abs(value.translation.height) else { return }
+                beginVideoScrubGestureIfNeeded()
+                let duration = coordinator.duration
+                guard duration > 0 else { return }
+                let width = max(videoScrubWidth, 1)
+                let delta = Double(value.translation.width / width) * duration
+                let target = min(max(videoScrubStartTime + delta, 0), duration)
+                scrubberValue = target
+                coordinator.seek(to: target)
+            }
+            .onEnded { _ in
+                endVideoScrubGesture()
+            }
+    }
+
+    private var videoViewportReader: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .onAppear {
+                    videoViewportSize = proxy.size
+                }
+                .onChange(of: proxy.size) { _, newValue in
+                    videoViewportSize = newValue
+                }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private var videoScrubWidth: CGFloat {
+        if videoViewportSize.width > 0 {
+            return videoViewportSize.width
+        }
+        return UIScreen.main.bounds.width
+    }
+
+    private func beginVideoScrubGestureIfNeeded() {
+        guard !isVideoScrubGestureActive else { return }
+        isVideoScrubGestureActive = true
+        isScrubbing = true
+        videoScrubStartTime = coordinator.currentTime
+        scrubberValue = coordinator.currentTime
+    }
+
+    private func endVideoScrubGesture() {
+        guard isVideoScrubGestureActive else { return }
+        isVideoScrubGestureActive = false
+        isScrubbing = false
+        coordinator.seek(to: scrubberValue)
+    }
+    #endif
 
     private var shouldAutoHideControls: Bool {
         guard let player = coordinator.playerInstance() else { return false }

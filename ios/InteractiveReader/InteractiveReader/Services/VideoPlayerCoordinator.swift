@@ -64,7 +64,18 @@ final class VideoPlayerCoordinator: ObservableObject {
 
     func seek(to time: Double) {
         guard let player = player else { return }
-        let clamped = max(0, min(time, duration))
+        let requested = max(0, time)
+        let itemDuration = player.currentItem?.duration
+        let resolvedDuration: Double? = {
+            if duration.isFinite, duration > 0 {
+                return duration
+            }
+            if let itemDuration, itemDuration.isNumeric, itemDuration.seconds > 0 {
+                return itemDuration.seconds
+            }
+            return nil
+        }()
+        let clamped = resolvedDuration.map { min(requested, $0) } ?? requested
         let cmTime = CMTime(seconds: clamped, preferredTimescale: 600)
         player.seek(to: cmTime, toleranceBefore: .zero, toleranceAfter: .zero)
         currentTime = clamped

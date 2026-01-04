@@ -76,16 +76,6 @@ struct LibraryShellView: View {
             }
             handleSectionChange(activeSection)
         }
-        .onChange(of: viewModel.filteredItems) { _, newItems in
-            if isSplitLayout && selectedItem == nil && activeSection == .library {
-                selectedItem = newItems.first
-            }
-        }
-        .onChange(of: jobsViewModel.filteredJobs) { _, newJobs in
-            if isSplitLayout && selectedJob == nil && activeSection == .jobs {
-                selectedJob = newJobs.first
-            }
-        }
         .onChange(of: activeSection) { _, newValue in
             handleSectionChange(newValue)
         }
@@ -199,14 +189,8 @@ struct LibraryShellView: View {
         switch newValue {
         case .library:
             jobsViewModel.stopAutoRefresh()
-            if isSplitLayout && selectedItem == nil {
-                selectedItem = viewModel.filteredItems.first
-            }
         case .jobs:
             jobsViewModel.startAutoRefresh(using: appState)
-            if isSplitLayout && selectedJob == nil {
-                selectedJob = jobsViewModel.filteredJobs.first
-            }
         }
     }
 }
