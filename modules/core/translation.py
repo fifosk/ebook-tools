@@ -15,6 +15,7 @@ def translate_sentence_simple(
     target_language: str,
     *,
     include_transliteration: bool = False,
+    translation_provider: Optional[str] = None,
     client=None,
     progress_tracker=None,
 ):
@@ -25,6 +26,7 @@ def translate_sentence_simple(
         input_language,
         target_language,
         include_transliteration=include_transliteration,
+        translation_provider=translation_provider,
         client=client,
         progress_tracker=progress_tracker,
     )
@@ -36,6 +38,7 @@ def transliterate_sentence(
     *,
     client=None,
     transliterator: Optional[TransliterationService] = None,
+    transliteration_mode: Optional[str] = None,
     progress_tracker=None,
 ) -> str:
     """Return a transliteration for ``translated_sentence`` when supported."""
@@ -45,6 +48,7 @@ def transliterate_sentence(
         translated_sentence,
         target_language,
         client=client,
+        mode=transliteration_mode,
         progress_tracker=progress_tracker,
     )
     return result.text
@@ -56,6 +60,7 @@ def translate_batch(
     target_languages: Sequence[str],
     *,
     include_transliteration: bool = False,
+    translation_provider: Optional[str] = None,
     max_workers: Optional[int] = None,
     client=None,
     worker_pool=None,
@@ -68,6 +73,7 @@ def translate_batch(
         input_language,
         target_languages,
         include_transliteration=include_transliteration,
+        translation_provider=translation_provider,
         max_workers=max_workers,
         client=client,
         worker_pool=worker_pool,
@@ -119,6 +125,9 @@ def start_translation_pipeline(
     client=None,
     worker_pool: Optional[ThreadWorkerPool] = None,
     transliterator: Optional[TransliterationService] = None,
+    translation_provider: Optional[str] = None,
+    transliteration_mode: Optional[str] = None,
+    transliteration_client=None,
     include_transliteration: bool = False,
 ):
     """Start the background translation pipeline using the translation engine."""
@@ -136,5 +145,8 @@ def start_translation_pipeline(
         client=client,
         worker_pool=worker_pool,
         transliterator=transliterator,
+        translation_provider=translation_provider,
+        transliteration_mode=transliteration_mode,
+        transliteration_client=transliteration_client,
         include_transliteration=include_transliteration,
     )

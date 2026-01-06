@@ -15,6 +15,7 @@ from ...core.config import PipelineConfig
 from ...progress_tracker import ProgressEvent, ProgressSnapshot
 from ...services.pipeline_service import PipelineInput, PipelineRequest, PipelineResponse
 from ...services.file_locator import FileLocator
+from ...transliteration import resolve_local_transliteration_module
 from ...video.jobs import (
     VideoJob,
     VideoJobResult,
@@ -148,6 +149,9 @@ class PipelineInputPayload(BaseModel):
     generate_video: bool = False
     add_images: bool = False
     include_transliteration: bool = True
+    translation_provider: str = "llm"
+    transliteration_mode: str = "default"
+    transliteration_model: Optional[str] = None
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
     book_metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -757,6 +761,10 @@ class JobParameterSnapshot(BaseModel):
     split_batches: Optional[bool] = None
     include_transliteration: Optional[bool] = None
     add_images: Optional[bool] = None
+    translation_provider: Optional[str] = None
+    transliteration_mode: Optional[str] = None
+    transliteration_model: Optional[str] = None
+    transliteration_module: Optional[str] = None
 
 
 class ImageGenerationSummary(BaseModel):
@@ -1022,6 +1030,9 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     voice_overrides = _normalize_voice_overrides(inputs.get("voice_overrides"))
     include_transliteration = _coerce_bool(inputs.get("include_transliteration"))
     add_images = _coerce_bool(inputs.get("add_images"))
+    translation_provider = _coerce_str(inputs.get("translation_provider"))
+    transliteration_mode_raw = _coerce_str(inputs.get("transliteration_mode"))
+    transliteration_model_raw = _coerce_str(inputs.get("transliteration_model"))
 
     input_file = _coerce_str(inputs.get("input_file"))
     base_output_file = _coerce_str(inputs.get("base_output_file"))
@@ -1048,6 +1059,29 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         if override_voice_overrides:
             voice_overrides = override_voice_overrides
 
+    normalized_transliteration_mode = None
+    if transliteration_mode_raw:
+        normalized = transliteration_mode_raw.strip().lower().replace("_", "-")
+        if normalized in {"python", "python-module", "module", "local-module"}:
+            normalized_transliteration_mode = "python"
+        elif normalized in {"local-gemma3-12b", "gemma3-12b", "local-gemma"}:
+            normalized_transliteration_mode = "local_gemma3_12b"
+        else:
+            normalized_transliteration_mode = "default"
+
+    transliteration_model = None
+    transliteration_module = None
+    if normalized_transliteration_mode == "local_gemma3_12b":
+        transliteration_model = transliteration_model_raw or "gemma3:12b"
+        if transliteration_model == "gemma3-12b":
+            transliteration_model = "gemma3:12b"
+    elif normalized_transliteration_mode == "default":
+        transliteration_model = llm_model
+    elif normalized_transliteration_mode == "python":
+        target_for_module = target_languages[0] if target_languages else None
+        if target_for_module:
+            transliteration_module = resolve_local_transliteration_module(target_for_module)
+
     return JobParameterSnapshot(
         input_file=input_file,
         base_output_file=base_output_file,
@@ -1063,6 +1097,10 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         voice_overrides=voice_overrides,
         include_transliteration=include_transliteration,
         add_images=add_images,
+        translation_provider=translation_provider,
+        transliteration_mode=normalized_transliteration_mode,
+        transliteration_model=transliteration_model,
+        transliteration_module=transliteration_module,
     )
 
 

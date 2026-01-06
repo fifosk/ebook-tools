@@ -58,6 +58,9 @@ class PipelineInput:
     add_images: bool
     include_transliteration: bool
     tempo: float
+    translation_provider: str = "llm"
+    transliteration_mode: str = "default"
+    transliteration_model: Optional[str] = None
     book_metadata: PipelineMetadata = field(default_factory=PipelineMetadata)
     voice_overrides: Dict[str, str] = field(default_factory=dict)
     audio_bitrate_kbps: Optional[int] = None
@@ -78,6 +81,9 @@ class PipelineInput:
                     continue
                 sanitized[normalized_key] = normalized_value
             self.voice_overrides = sanitized
+        if isinstance(self.transliteration_model, str):
+            trimmed_model = self.transliteration_model.strip()
+            self.transliteration_model = trimmed_model or None
 
 
 @dataclass(slots=True)

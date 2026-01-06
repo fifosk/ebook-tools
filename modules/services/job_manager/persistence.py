@@ -14,6 +14,7 @@ from typing import Any, Dict, Mapping, Optional, Tuple
 from ..file_locator import FileLocator
 from ... import config_manager as cfg
 from ... import logging_manager
+from ...transliteration import resolve_local_transliteration_module
 from ..pipeline_service import (
     serialize_pipeline_request,
     serialize_pipeline_response,
@@ -96,6 +97,43 @@ def _normalize_language_list(value: Any) -> list[str]:
         trimmed = value.strip()
         return [trimmed] if trimmed else []
     return []
+
+
+def _normalize_option_label(value: Any) -> Optional[str]:
+    if isinstance(value, str):
+        trimmed = value.strip()
+        return trimmed or None
+    if isinstance(value, list):
+        for entry in value:
+            if isinstance(entry, str):
+                trimmed = entry.strip()
+                if trimmed:
+                    return trimmed
+    return None
+
+
+def _normalize_translation_provider(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = value.strip().lower()
+    if normalized in {"google", "googletrans", "googletranslate", "google-translate", "gtranslate", "gtrans"}:
+        return "googletrans"
+    if normalized in {"llm", "ollama", "default"}:
+        return "llm"
+    return normalized or None
+
+
+def _normalize_transliteration_mode(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized in {"python", "python-module", "module", "local-module"}:
+        return "python"
+    if normalized in {"local-gemma3-12b", "gemma3-12b", "local-gemma"}:
+        return "local_gemma3_12b"
+    if normalized in {"llm", "ollama", "default"}:
+        return "default"
+    return normalized or None
 
 
 def _read_language_key(section: Mapping[str, Any], key: str) -> Any:
@@ -232,6 +270,67 @@ def _apply_language_metadata(
     _set_if_blank(book_metadata, "target_language", target_language)
     _set_if_blank(book_metadata, "translation_language", target_language)
     _set_list_if_blank(book_metadata, "target_languages", target_languages)
+
+    translation_provider: Optional[str] = None
+    transliteration_mode: Optional[str] = None
+    transliteration_model_input: Optional[str] = None
+    for payload in (request_payload, resume_context, subtitle_metadata):
+        for section in _iter_language_sections(payload):
+            if translation_provider is None:
+                translation_provider = _normalize_translation_provider(
+                    _normalize_option_label(_read_language_key(section, "translation_provider"))
+                )
+            if transliteration_mode is None:
+                transliteration_mode = _normalize_transliteration_mode(
+                    _normalize_option_label(_read_language_key(section, "transliteration_mode"))
+                )
+            if transliteration_model_input is None:
+                transliteration_model_input = _normalize_option_label(
+                    _read_language_key(section, "transliteration_model")
+                )
+
+    llm_model: Optional[str] = None
+    for payload in (request_payload, resume_context):
+        if not isinstance(payload, Mapping):
+            continue
+        pipeline_overrides = payload.get("pipeline_overrides")
+        if isinstance(pipeline_overrides, Mapping):
+            llm_model = _normalize_option_label(pipeline_overrides.get("ollama_model")) or llm_model
+        config_section = payload.get("config")
+        if isinstance(config_section, Mapping):
+            llm_model = _normalize_option_label(config_section.get("ollama_model")) or llm_model
+        if llm_model:
+            break
+
+    if llm_model is None and isinstance(result_payload, Mapping):
+        pipeline_config = result_payload.get("pipeline_config")
+        if isinstance(pipeline_config, Mapping):
+            llm_model = _normalize_option_label(pipeline_config.get("ollama_model")) or llm_model
+
+    translation_model = None
+    if translation_provider == "googletrans":
+        translation_model = "googletrans"
+    elif translation_provider == "llm":
+        translation_model = llm_model
+
+    transliteration_model = None
+    transliteration_module = None
+    if transliteration_mode == "local_gemma3_12b":
+        transliteration_model = transliteration_model_input or "gemma3:12b"
+        if transliteration_model == "gemma3-12b":
+            transliteration_model = "gemma3:12b"
+    elif transliteration_mode == "default":
+        transliteration_model = llm_model
+    elif transliteration_mode == "python":
+        target_for_module = target_language or (target_languages[0] if target_languages else None)
+        if target_for_module:
+            transliteration_module = resolve_local_transliteration_module(target_for_module)
+
+    _set_if_blank(book_metadata, "translation_provider", translation_provider)
+    _set_if_blank(book_metadata, "translation_model", translation_model)
+    _set_if_blank(book_metadata, "transliteration_mode", transliteration_mode)
+    _set_if_blank(book_metadata, "transliteration_model", transliteration_model)
+    _set_if_blank(book_metadata, "transliteration_module", transliteration_module)
 
 
 def _extract_highlighting_policy(entry: Mapping[str, Any]) -> Optional[str]:

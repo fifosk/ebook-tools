@@ -26,12 +26,22 @@ from modules.text import split_highlight_tokens
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.llm_client import LLMClient
 from modules.transliteration import TransliterationService, get_transliterator
+from modules.language_constants import LANGUAGE_CODES
 
 logger = log_mgr.logger
 
 _TRANSLATION_RESPONSE_ATTEMPTS = 5
 _TRANSLATION_RETRY_DELAY_SECONDS = 1.0
 _LLM_REQUEST_ATTEMPTS = 4
+_GOOGLETRANS_PROVIDER_ALIASES = {
+    "google",
+    "googletrans",
+    "googletranslate",
+    "google-translate",
+    "gtranslate",
+    "gtrans",
+}
+_LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2,3}([_-][a-z0-9]{2,4})?$", regex.IGNORECASE)
 _SEGMENTATION_LANGS = {
     # Thai family
     "thai",
@@ -74,6 +84,85 @@ _DIACRITIC_PATTERNS = {
         "script_pattern": regex.compile(r"[\u0590-\u05FF]"),
     },
 }
+
+_GOOGLETRANS_LOCAL = threading.local()
+
+
+def _normalize_translation_provider(value: Optional[str]) -> str:
+    if not value:
+        return "llm"
+    normalized = value.strip().lower()
+    if normalized in _GOOGLETRANS_PROVIDER_ALIASES:
+        return "googletrans"
+    if normalized in {"llm", "ollama", "default"}:
+        return "llm"
+    return "llm"
+
+
+def _resolve_googletrans_language(value: Optional[str], *, fallback: Optional[str]) -> Optional[str]:
+    if value is None:
+        return fallback
+    cleaned = value.strip()
+    if not cleaned:
+        return fallback
+    normalized = cleaned.replace("_", "-").strip().lower()
+    if not normalized:
+        return fallback
+    if _LANG_CODE_PATTERN.match(normalized):
+        return normalized
+    for name, code in LANGUAGE_CODES.items():
+        if normalized == name.strip().lower():
+            return code.lower()
+    try:
+        from googletrans import LANGUAGES
+    except Exception:
+        return fallback or normalized
+    for code, name in LANGUAGES.items():
+        if normalized == name.strip().lower():
+            return code.lower()
+    return fallback or normalized
+
+
+def _get_googletrans_translator():
+    translator = getattr(_GOOGLETRANS_LOCAL, "translator", None)
+    if translator is None:
+        from googletrans import Translator
+
+        translator = Translator()
+        _GOOGLETRANS_LOCAL.translator = translator
+    return translator
+
+
+def _translate_with_googletrans(
+    sentence: str,
+    input_language: str,
+    target_language: str,
+    *,
+    progress_tracker: Optional["ProgressTracker"] = None,
+) -> str:
+    last_error: Optional[str] = None
+    for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
+        try:
+            translator = _get_googletrans_translator()
+            src_code = _resolve_googletrans_language(input_language, fallback="auto") or "auto"
+            dest_code = _resolve_googletrans_language(target_language, fallback=None) or "en"
+            result = translator.translate(sentence, src=src_code, dest=dest_code)
+            candidate = text_norm.collapse_whitespace((result.text or "").strip())
+            if candidate and not text_norm.is_placeholder_translation(candidate):
+                return candidate
+            last_error = "Empty translation response"
+        except Exception as exc:  # pragma: no cover - network/remote errors
+            last_error = str(exc) or "Google Translate request failed"
+        if progress_tracker is not None and last_error:
+            progress_tracker.record_retry("translation", last_error)
+        if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
+            time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
+    failure_reason = last_error or "Google Translate error"
+    return format_retry_failure(
+        "translation",
+        _TRANSLATION_RESPONSE_ATTEMPTS,
+        reason=failure_reason,
+    )
 
 
 class ThreadWorkerPool:
@@ -346,10 +435,20 @@ def translate_sentence_simple(
     target_language: str,
     *,
     include_transliteration: bool = False,
+    translation_provider: Optional[str] = None,
     client: Optional[LLMClient] = None,
     progress_tracker: Optional["ProgressTracker"] = None,
 ) -> str:
-    """Translate a sentence using the configured Ollama model."""
+    """Translate a sentence using the configured translation provider."""
+
+    provider = _normalize_translation_provider(translation_provider)
+    if provider == "googletrans":
+        return _translate_with_googletrans(
+            sentence,
+            input_language,
+            target_language,
+            progress_tracker=progress_tracker,
+        )
 
     wrapped_sentence = f"{prompt_templates.SOURCE_START}\n{sentence}\n{prompt_templates.SOURCE_END}"
     system_prompt = prompt_templates.make_translation_prompt(
@@ -578,6 +677,7 @@ def translate_batch(
     target_language: str | Sequence[str],
     *,
     include_transliteration: bool = False,
+    translation_provider: Optional[str] = None,
     max_workers: Optional[int] = None,
     client: Optional[LLMClient] = None,
     worker_pool: Optional[ThreadWorkerPool] = None,
@@ -601,6 +701,7 @@ def translate_batch(
                 input_language,
                 target,
                 include_transliteration=include_transliteration,
+                translation_provider=translation_provider,
                 client=resolved_client,
                 progress_tracker=progress_tracker,
             )
@@ -674,6 +775,9 @@ def start_translation_pipeline(
     client: Optional[LLMClient] = None,
     worker_pool: Optional[ThreadWorkerPool] = None,
     transliterator: Optional[TransliterationService] = None,
+    translation_provider: Optional[str] = None,
+    transliteration_mode: Optional[str] = None,
+    transliteration_client: Optional[LLMClient] = None,
     include_transliteration: bool = False,
 ) -> threading.Thread:
     """Spawn a background producer thread that streams translations into ``output_queue``."""
@@ -711,6 +815,7 @@ def start_translation_pipeline(
                         input_language,
                         target,
                         include_transliteration=include_transliteration,
+                        translation_provider=translation_provider,
                         client=local_client,
                         progress_tracker=progress_tracker,
                     )
@@ -729,8 +834,9 @@ def start_translation_pipeline(
                             transliteration_result = transliterator.transliterate(
                                 transliteration_source,
                                 target,
-                                client=local_client,
+                                client=transliteration_client or local_client,
                                 progress_tracker=progress_tracker,
+                                mode=transliteration_mode,
                             )
                             transliteration_text = transliteration_result.text.strip()
                 finally:

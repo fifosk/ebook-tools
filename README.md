@@ -560,7 +560,10 @@ which records chapter ranges derived from the EPUB spine/sections for LLM-driven
 range analysis and future chapter navigation.
 Book-level metadata includes explicit `input_language`/`original_language` plus
 `target_language`/`translation_language`/`target_languages` labels so clients can
-label tracks and select the right voices during lookups.
+label tracks and select the right voices during lookups. Translation strategy is
+captured via `translation_provider`/`translation_model` alongside
+`transliteration_mode`/`transliteration_model`/`transliteration_module` so
+dashboards can report which path produced the text.
 `metadata/sentences.json` is only written when no content index is available,
 since the sentence list is otherwise redundant.
 `MetadataLoader` in

@@ -71,6 +71,12 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
     if not isinstance(book_metadata, Mapping):
         book_metadata = {}
 
+    transliteration_model = None
+    raw_transliteration_model = data.get("transliteration_model")
+    if isinstance(raw_transliteration_model, str):
+        trimmed_model = raw_transliteration_model.strip()
+        transliteration_model = trimmed_model or None
+
     return PipelineInput(
         input_file=str(data.get("input_file") or ""),
         base_output_file=str(data.get("base_output_file") or ""),
@@ -90,6 +96,9 @@ def _build_pipeline_input(payload: Mapping[str, Any]) -> PipelineInput:
         generate_video=_coerce_bool(data.get("generate_video")),
         add_images=_coerce_bool(data.get("add_images"), False),
         include_transliteration=_coerce_bool(data.get("include_transliteration"), True),
+        translation_provider=str(data.get("translation_provider") or "llm"),
+        transliteration_mode=str(data.get("transliteration_mode") or "default"),
+        transliteration_model=transliteration_model,
         tempo=_coerce_float(data.get("tempo"), 1.0),
         book_metadata=PipelineMetadata.from_mapping(book_metadata),
     )

@@ -23,6 +23,21 @@ import { formatModelLabel } from '../utils/modelInfo';
 import { IMAGE_API_NODE_OPTIONS, resolveImageNodeLabel } from '../constants/imageNodes';
 
 const TERMINAL_STATES: PipelineJobStatus[] = ['completed', 'failed', 'cancelled'];
+const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
+  'google',
+  'googletrans',
+  'googletranslate',
+  'google-translate',
+  'gtranslate',
+  'gtrans'
+]);
+const TRANSLITERATION_PYTHON_ALIASES = new Set(['python', 'python-module', 'module', 'local-module']);
+const TRANSLITERATION_LOCAL_GEMMA_ALIASES = new Set([
+  'local-gemma3-12b',
+  'gemma3-12b',
+  'local-gemma'
+]);
+const TRANSLITERATION_DEFAULT_ALIASES = new Set(['default', 'llm', 'ollama']);
 type Props = {
   jobId: string;
   status: PipelineStatusResponse | undefined;
@@ -111,6 +126,77 @@ function normalizeMetadataValue(value: unknown): string {
     return value.trim();
   }
   return String(value);
+}
+
+function normalizeTranslationProvider(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return null;
+  }
+  if (GOOGLE_TRANSLATION_PROVIDER_ALIASES.has(normalized)) {
+    return 'googletrans';
+  }
+  if (normalized === 'llm' || normalized === 'ollama' || normalized === 'default') {
+    return 'llm';
+  }
+  return normalized;
+}
+
+function normalizeTransliterationMode(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase().replace('_', '-');
+  if (!normalized) {
+    return null;
+  }
+  if (TRANSLITERATION_PYTHON_ALIASES.has(normalized)) {
+    return 'python';
+  }
+  if (TRANSLITERATION_LOCAL_GEMMA_ALIASES.has(normalized)) {
+    return 'local_gemma3_12b';
+  }
+  if (TRANSLITERATION_DEFAULT_ALIASES.has(normalized)) {
+    return 'default';
+  }
+  return normalized;
+}
+
+function formatTranslationProviderLabel(
+  provider: string | null,
+  translationModel: string | null,
+  llmModel: string | null
+): string | null {
+  if (!provider) {
+    return null;
+  }
+  if (provider === 'googletrans') {
+    return 'Google Translate (googletrans)';
+  }
+  if (provider === 'llm') {
+    const modelLabel = formatModelLabel(translationModel ?? llmModel);
+    return modelLabel ? `LLM (${modelLabel})` : 'LLM';
+  }
+  return provider;
+}
+
+function formatTransliterationModeLabel(mode: string | null): string | null {
+  if (!mode) {
+    return null;
+  }
+  if (mode === 'python') {
+    return 'Python module';
+  }
+  if (mode === 'local_gemma3_12b') {
+    return 'Local gemma3:12b';
+  }
+  if (mode === 'default') {
+    return 'LLM';
+  }
+  return mode;
 }
 
 function formatTuningLabel(key: string): string {
@@ -652,6 +738,10 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
     pipelineResult && pipelineResult.pipeline_config && typeof pipelineResult.pipeline_config === 'object'
       ? (pipelineResult.pipeline_config as Record<string, unknown>)
       : null;
+  const pipelineMetadata =
+    pipelineResult && pipelineResult.book_metadata && typeof pipelineResult.book_metadata === 'object'
+      ? (pipelineResult.book_metadata as Record<string, unknown>)
+      : null;
   const languageValues = (parameters?.target_languages ?? []).filter(
     (value): value is string => typeof value === 'string' && value.trim().length > 0
   );
@@ -660,6 +750,32 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   const endSentence = parameters?.end_sentence ?? sentenceRange.end;
   const llmModelRaw = parameters?.llm_model ?? getStringField(pipelineConfig, 'ollama_model');
   const llmModel = formatModelLabel(llmModelRaw);
+  const translationProviderRaw =
+    parameters?.translation_provider ?? getStringField(pipelineMetadata, 'translation_provider');
+  const translationProvider = normalizeTranslationProvider(translationProviderRaw);
+  const translationModel = getStringField(pipelineMetadata, 'translation_model');
+  const translationModelLabel = translationModel ? formatModelLabel(translationModel) : null;
+  const translationProviderLabel = formatTranslationProviderLabel(
+    translationProvider,
+    translationModel,
+    llmModelRaw
+  );
+  const transliterationModeRaw =
+    parameters?.transliteration_mode ?? getStringField(pipelineMetadata, 'transliteration_mode');
+  const transliterationMode = normalizeTransliterationMode(transliterationModeRaw);
+  const transliterationModelRaw =
+    parameters?.transliteration_model ?? getStringField(pipelineMetadata, 'transliteration_model');
+  const transliterationModule =
+    parameters?.transliteration_module ?? getStringField(pipelineMetadata, 'transliteration_module');
+  const resolvedTransliterationModel =
+    transliterationModelRaw ?? (transliterationMode === 'default' ? llmModelRaw : null);
+  const transliterationModelLabel = resolvedTransliterationModel
+    ? formatModelLabel(resolvedTransliterationModel)
+    : null;
+  const transliterationModeLabel = formatTransliterationModeLabel(transliterationMode);
+  const showTransliterationModel =
+    Boolean(transliterationModelLabel) &&
+    (transliterationMode !== 'default' || translationProvider === 'googletrans');
   const retrySummary = status.retry_summary ?? null;
   const imageStats = status.image_generation ?? null;
   const imageEnabled = parameters?.add_images ?? (imageStats ? imageStats.enabled : null);
@@ -884,6 +1000,41 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
   }
   if (llmModel) {
     entries.push({ key: 'pipeline-llm-model', label: 'LLM model', value: llmModel });
+  }
+  if (translationProviderLabel) {
+    entries.push({
+      key: 'pipeline-translation-provider',
+      label: 'Translation provider',
+      value: translationProviderLabel
+    });
+  }
+  if (translationModelLabel && translationProvider === 'googletrans') {
+    entries.push({
+      key: 'pipeline-translation-model',
+      label: 'Translation model',
+      value: translationModelLabel
+    });
+  }
+  if (transliterationModeLabel) {
+    entries.push({
+      key: 'pipeline-transliteration-mode',
+      label: 'Transliteration mode',
+      value: transliterationModeLabel
+    });
+  }
+  if (showTransliterationModel) {
+    entries.push({
+      key: 'pipeline-transliteration-model',
+      label: 'Transliteration model',
+      value: transliterationModelLabel
+    });
+  }
+  if (transliterationModule) {
+    entries.push({
+      key: 'pipeline-transliteration-module',
+      label: 'Transliteration module',
+      value: transliterationModule
+    });
   }
   if (startSentence !== null) {
     entries.push({

@@ -308,6 +308,9 @@ class RenderPipeline:
         generate_video: bool,
         generate_images: bool = False,
         include_transliteration: bool = False,
+        translation_provider: Optional[str] = None,
+        transliteration_mode: Optional[str] = None,
+        transliteration_model: Optional[str] = None,
         book_metadata: Optional[dict] = None,
     ) -> Tuple[
         List[str],
@@ -407,6 +410,14 @@ class RenderPipeline:
         )
 
         translation_client = self._ensure_translation_client()
+        normalized_transliteration_mode = self._normalize_transliteration_mode(
+            transliteration_mode
+        )
+        transliteration_client = self._resolve_transliteration_client(
+            normalized_transliteration_mode,
+            translation_client,
+            transliteration_model=transliteration_model,
+        )
         worker_count = max(1, self._config.thread_count)
         active_translation_pool = self._external_translation_pool
         own_pool = False
@@ -430,6 +441,9 @@ class RenderPipeline:
                     written_mode=written_mode,
                     sentences_per_file=sentences_per_file,
                     include_transliteration=include_transliteration,
+                    translation_provider=translation_provider,
+                    transliteration_mode=normalized_transliteration_mode,
+                    transliteration_client=transliteration_client,
                     output_html=output_html,
                     output_pdf=output_pdf,
                     translation_client=translation_client,
@@ -457,6 +471,9 @@ class RenderPipeline:
                     written_mode=written_mode,
                     sentences_per_file=sentences_per_file,
                     include_transliteration=include_transliteration,
+                    translation_provider=translation_provider,
+                    transliteration_mode=normalized_transliteration_mode,
+                    transliteration_client=transliteration_client,
                     output_html=output_html,
                     output_pdf=output_pdf,
                     translation_client=translation_client,
@@ -603,6 +620,43 @@ class RenderPipeline:
                 debug=self._config.debug,
                 api_key=self._config.ollama_api_key,
                 llm_source=self._config.llm_source,
+                local_api_url=self._config.local_ollama_url,
+                cloud_api_url=self._config.cloud_ollama_url,
+                cloud_api_key=self._config.ollama_api_key,
+            )
+        return translation_client
+
+    def _normalize_transliteration_mode(self, mode: Optional[str]) -> str:
+        if not mode:
+            return "default"
+        normalized = mode.strip().lower().replace("_", "-")
+        if normalized in {"python", "python-module", "module", "local-module"}:
+            return "python"
+        if normalized in {"local-gemma3-12b", "gemma3-12b", "local-gemma"}:
+            return "local_gemma3_12b"
+        if normalized in {"default", "llm", "ollama"}:
+            return "default"
+        return "default"
+
+    def _resolve_transliteration_client(
+        self,
+        mode: str,
+        translation_client,
+        *,
+        transliteration_model: Optional[str] = None,
+    ):
+        if mode == "python":
+            return None
+        if mode == "local_gemma3_12b":
+            resolved_model = (transliteration_model or "").strip() or "gemma3:12b"
+            if resolved_model == "gemma3-12b":
+                resolved_model = "gemma3:12b"
+            return create_client(
+                model=resolved_model,
+                api_url=self._config.local_ollama_url,
+                debug=self._config.debug,
+                api_key=self._config.ollama_api_key,
+                llm_source="local",
                 local_api_url=self._config.local_ollama_url,
                 cloud_api_url=self._config.cloud_ollama_url,
                 cloud_api_key=self._config.ollama_api_key,
@@ -875,6 +929,9 @@ class RenderPipeline:
         written_mode: str,
         sentences_per_file: int,
         include_transliteration: bool,
+        translation_provider: Optional[str],
+        transliteration_mode: str,
+        transliteration_client,
         output_html: bool,
         output_pdf: bool,
         translation_client,
@@ -910,6 +967,7 @@ class RenderPipeline:
                 input_language,
                 batch_targets,
                 include_transliteration=include_transliteration,
+                translation_provider=translation_provider,
                 client=translation_client,
                 worker_pool=worker_pool,
                 max_workers=worker_count,
@@ -946,8 +1004,9 @@ class RenderPipeline:
                         candidate = transliterate_sentence(
                             fluent,
                             current_target,
-                            client=translation_client,
+                            client=transliteration_client,
                             transliterator=self._transliterator,
+                            transliteration_mode=transliteration_mode,
                         )
                         candidate = remove_quotes(candidate or "").strip()
                     if candidate:
@@ -1023,6 +1082,9 @@ class RenderPipeline:
         written_mode: str,
         sentences_per_file: int,
         include_transliteration: bool,
+        translation_provider: Optional[str],
+        transliteration_mode: str,
+        transliteration_client,
         output_html: bool,
         output_pdf: bool,
         translation_client,
@@ -1774,6 +1836,9 @@ class RenderPipeline:
             client=translation_client,
             worker_pool=worker_pool,
             transliterator=self._transliterator,
+            translation_provider=translation_provider,
+            transliteration_mode=transliteration_mode,
+            transliteration_client=transliteration_client,
             include_transliteration=include_transliteration,
         )
 
@@ -2328,8 +2393,9 @@ class RenderPipeline:
                             candidate = transliterate_sentence(
                                 fluent,
                                 item.target_language,
-                                client=translation_client,
+                                client=transliteration_client,
                                 transliterator=self._transliterator,
+                                transliteration_mode=transliteration_mode,
                             )
                             candidate = text_norm.collapse_whitespace(
                                 remove_quotes(candidate or "").strip()

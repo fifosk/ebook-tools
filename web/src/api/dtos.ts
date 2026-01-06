@@ -83,6 +83,9 @@ export interface PipelineInputPayload {
   generate_video: boolean;
   add_images: boolean;
   include_transliteration: boolean;
+  translation_provider?: string;
+  transliteration_mode?: string;
+  transliteration_model?: string | null;
   tempo: number;
   book_metadata: Record<string, unknown>;
 }
@@ -175,6 +178,10 @@ export interface JobParameterSnapshot {
   split_batches?: boolean | null;
   include_transliteration?: boolean | null;
   add_images?: boolean | null;
+  translation_provider?: string | null;
+  transliteration_mode?: string | null;
+  transliteration_model?: string | null;
+  transliteration_module?: string | null;
   target_height?: number | null;
   preserve_aspect_ratio?: boolean | null;
 }

@@ -15,6 +15,24 @@ logger = log_mgr.logger
 
 _TRANSLITERATION_ATTEMPTS = 3
 _TRANSLITERATION_RETRY_DELAY_SECONDS = 0.5
+_PYTHON_ONLY_MODES = {"python", "python_module", "module", "local_module"}
+_LANGUAGE_ALIASES = {
+    "arabic": {"arabic", "ar"},
+    "chinese": {
+        "chinese",
+        "zh",
+        "zh-cn",
+        "zh-tw",
+        "chinese (simplified)",
+        "chinese (traditional)",
+    },
+    "japanese": {"japanese", "ja"},
+}
+_LOCAL_MODULE_LABELS = {
+    "arabic": "camel_tools.buckwalter",
+    "chinese": "pypinyin",
+    "japanese": "pykakasi",
+}
 
 
 @dataclass(slots=True)
@@ -34,36 +52,29 @@ class TransliterationService:
         target_language: str,
         *,
         client: Optional[LLMClient] = None,
+        mode: Optional[str] = None,
         progress_tracker=None,
     ) -> TransliterationResult:
-        lang = target_language.lower()
+        lang = _normalize_language_hint(target_language)
+        mode_label = (mode or "").strip().lower()
+        python_only = mode_label in _PYTHON_ONLY_MODES
         with llm_client_manager.client_scope(client) as resolved_client:
             try:
-                if lang == "arabic":
-                    from camel_tools.transliteration import Transliterator
-
-                    transliterator = Transliterator("buckwalter")
-                    return TransliterationResult(
-                        transliterator.transliterate(sentence), used_llm=False
-                    )
-                if lang == "chinese":
-                    import pypinyin
-
-                    pinyin_list = pypinyin.lazy_pinyin(sentence)
-                    return TransliterationResult(" ".join(pinyin_list), used_llm=False)
-                if lang == "japanese":
-                    import pykakasi
-
-                    kks = pykakasi.kakasi()
-                    result = kks.convert(sentence)
-                    return TransliterationResult(
-                        " ".join(item["hepburn"] for item in result), used_llm=False
-                    )
+                local_text = _transliterate_with_python(sentence, lang)
+                if local_text:
+                    return TransliterationResult(local_text, used_llm=False)
             except Exception as exc:  # pragma: no cover - best-effort helper
                 if resolved_client.debug_enabled:
                     logger.debug(
                         "Non-LLM transliteration error for %s: %s", target_language, exc
                     )
+            if python_only:
+                failure_text = format_retry_failure(
+                    "transliteration",
+                    _TRANSLITERATION_ATTEMPTS,
+                    reason="Python transliteration unavailable for language",
+                )
+                return TransliterationResult(failure_text, used_llm=False)
 
             system_prompt = prompt_templates.make_transliteration_prompt(target_language)
             payload = prompt_templates.make_sentence_payload(
@@ -108,3 +119,42 @@ def get_transliterator() -> TransliterationService:
     """Return the process-wide default :class:`TransliterationService`."""
 
     return _default_transliterator
+
+
+def resolve_local_transliteration_module(target_language: str) -> Optional[str]:
+    """Return the python-module transliteration label for ``target_language`` when supported."""
+
+    lang = _normalize_language_hint(target_language)
+    for key, aliases in _LANGUAGE_ALIASES.items():
+        if lang in aliases:
+            return _LOCAL_MODULE_LABELS.get(key)
+    return None
+
+
+def _normalize_language_hint(value: str) -> str:
+    normalized = value.strip().lower()
+    normalized = normalized.replace("_", "-")
+    return normalized
+
+
+def _transliterate_with_python(sentence: str, lang: str) -> str:
+    for key, aliases in _LANGUAGE_ALIASES.items():
+        if lang not in aliases:
+            continue
+        if key == "arabic":
+            from camel_tools.transliteration import Transliterator
+
+            transliterator = Transliterator("buckwalter")
+            return transliterator.transliterate(sentence)
+        if key == "chinese":
+            import pypinyin
+
+            pinyin_list = pypinyin.lazy_pinyin(sentence)
+            return " ".join(pinyin_list)
+        if key == "japanese":
+            import pykakasi
+
+            kks = pykakasi.kakasi()
+            result = kks.convert(sentence)
+            return " ".join(item["hepburn"] for item in result)
+    return ""

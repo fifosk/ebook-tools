@@ -9,7 +9,7 @@ This guide explains how the Interactive Reader ingests timing metadata, binds it
 - **Timing endpoint (legacy/back-compat).** When a job still exposes `/api/jobs/{job_id}/timing`, `fetchJobTiming` hydrates the aggregated payload with `translation` and `original` tracks (legacy `mix` only for older jobs) plus audio availability flags (`web/src/api/client.ts:355-382`, `web/src/api/dtos.ts:369-420`). New jobs may not have this endpoint, in which case the viewer relies solely on chunk metadata.
 - **Chunk content.** `InteractiveTextViewer` also receives the raw transcript block for the selected chunk (paragraph text, token arrays, phase durations) via `PlayerPanel` so it can build paragraph/translation views even when word-level timing is absent (`web/src/components/PlayerPanel.tsx:2636-2740`).
 - **Content index.** `metadata/content_index.json` stores chapter ranges (title + sentence boundaries + alignment status) derived from EPUB sections. Jobs expose pointers through `book_metadata.content_index_path` / `content_index_url` so UIs or LLM tools can load chapter-level blocks.
-- **Language metadata.** `book_metadata` carries `input_language`/`original_language` and `target_language`/`translation_language` (plus `target_languages`) so clients can label tracks and pick the correct TTS voice when looking up words.
+- **Language metadata.** `book_metadata` carries `input_language`/`original_language` and `target_language`/`translation_language` (plus `target_languages`) so clients can label tracks and pick the correct TTS voice when looking up words. It also records `translation_provider`/`translation_model` plus `transliteration_mode`/`transliteration_model`/`transliteration_module` to describe how text was produced.
 
 ## 2. Loading & Selection Logic
 

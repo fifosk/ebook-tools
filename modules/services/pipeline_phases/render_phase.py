@@ -51,6 +51,9 @@ def execute_render_phase(
         generate_video=request.inputs.generate_video,
         generate_images=bool(getattr(request.inputs, "add_images", False)),
         include_transliteration=request.inputs.include_transliteration,
+        translation_provider=getattr(request.inputs, "translation_provider", None),
+        transliteration_mode=getattr(request.inputs, "transliteration_mode", None),
+        transliteration_model=getattr(request.inputs, "transliteration_model", None),
         book_metadata=metadata_result.metadata.as_dict(),
     )
     (

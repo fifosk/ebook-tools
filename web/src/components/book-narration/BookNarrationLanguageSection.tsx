@@ -2,6 +2,61 @@ import { useMemo } from 'react';
 import { buildLanguageOptions, sortLanguageLabelsByName } from '../../utils/languages';
 import LanguageSelect from '../LanguageSelect';
 
+const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
+  'google',
+  'googletrans',
+  'googletranslate',
+  'google-translate',
+  'gtranslate',
+  'gtrans'
+]);
+
+const TRANSLITERATION_MODE_OPTIONS = [
+  {
+    value: 'default',
+    label: 'Use selected LLM model',
+    description: 'Transliteration uses the selected LLM model when enabled.'
+  },
+  {
+    value: 'local_gemma3_12b',
+    label: 'Local Ollama gemma3:12b',
+    description: 'Transliteration runs on the local gemma3:12b model.'
+  },
+  {
+    value: 'python',
+    label: 'Python transliteration module',
+    description: 'Transliteration uses local python modules when available.'
+  }
+];
+
+function normalizeTranslationProvider(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return 'llm';
+  }
+  if (GOOGLE_TRANSLATION_PROVIDER_ALIASES.has(normalized)) {
+    return 'googletrans';
+  }
+  if (normalized === 'llm' || normalized === 'ollama' || normalized === 'default') {
+    return 'llm';
+  }
+  return normalized;
+}
+
+function normalizeTransliterationMode(value: string): string {
+  const normalized = value.trim().toLowerCase().replace('_', '-');
+  if (normalized === 'python' || normalized === 'python-module' || normalized === 'module' || normalized === 'local-module') {
+    return 'python';
+  }
+  if (normalized === 'local-gemma3-12b' || normalized === 'gemma3-12b' || normalized === 'local-gemma') {
+    return 'local_gemma3_12b';
+  }
+  if (normalized === 'default' || normalized === 'llm' || normalized === 'ollama') {
+    return 'default';
+  }
+  return 'default';
+}
+
 type BookNarrationLanguageSectionProps = {
   headingId: string;
   title: string;
@@ -10,6 +65,9 @@ type BookNarrationLanguageSectionProps = {
   targetLanguages: string[];
   customTargetLanguages: string;
   ollamaModel: string;
+  translationProvider: string;
+  transliterationMode: string;
+  transliterationModel: string;
   llmModels: string[];
   llmModelsLoading: boolean;
   llmModelsError: string | null;
@@ -33,6 +91,9 @@ type BookNarrationLanguageSectionProps = {
   onTargetLanguagesChange: (value: string[]) => void;
   onCustomTargetLanguagesChange: (value: string) => void;
   onOllamaModelChange: (value: string) => void;
+  onTranslationProviderChange: (value: string) => void;
+  onTransliterationModeChange: (value: string) => void;
+  onTransliterationModelChange: (value: string) => void;
   onSentencesPerOutputFileChange: (value: number) => void;
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
@@ -53,6 +114,9 @@ const BookNarrationLanguageSection = ({
   inputLanguage,
   targetLanguages,
   ollamaModel,
+  translationProvider,
+  transliterationMode,
+  transliterationModel,
   llmModels,
   llmModelsLoading,
   llmModelsError,
@@ -75,6 +139,9 @@ const BookNarrationLanguageSection = ({
   onInputLanguageChange,
   onTargetLanguagesChange,
   onOllamaModelChange,
+  onTranslationProviderChange,
+  onTransliterationModeChange,
+  onTransliterationModelChange,
   onSentencesPerOutputFileChange,
   onStartSentenceChange,
   onEndSentenceChange,
@@ -107,6 +174,17 @@ const BookNarrationLanguageSection = ({
       ),
     [inputLanguage, targetLanguage]
   );
+  const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
+  const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
+  const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
+  const showTransliterationModel = resolvedTransliterationMode === 'local_gemma3_12b';
+  const resolvedTransliterationModel = transliterationModel.trim();
+  const transliterationModelOptions = showTransliterationModel
+    ? Array.from(new Set(['gemma3:12b', ...modelOptions]))
+    : modelOptions;
+  const selectedTransliterationOption =
+    TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
+    TRANSLITERATION_MODE_OPTIONS[0];
   return (
     <section className="pipeline-card" aria-labelledby={headingId}>
       <header className="pipeline-card__header">
@@ -128,6 +206,22 @@ const BookNarrationLanguageSection = ({
           options={targetLanguageOptions}
           onChange={(value) => onTargetLanguagesChange(value ? [value] : [])}
         />
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            name="translation_provider"
+            checked={usesGoogleTranslate}
+            onChange={(event) =>
+              onTranslationProviderChange(event.target.checked ? 'googletrans' : 'llm')
+            }
+          />
+          Use Google Translate (googletrans) for translations
+        </label>
+        <small className="form-help-text">
+          {usesGoogleTranslate
+            ? 'Translations use googletrans; the LLM is only used for transliteration.'
+            : 'Translations use the LLM. Enable googletrans when the cloud model is slow.'}
+        </small>
         <label htmlFor="ollama_model">LLM model (optional)</label>
         <select
           id="ollama_model"
@@ -148,8 +242,50 @@ const BookNarrationLanguageSection = ({
             ? 'Loading available models…'
             : llmModelsError
             ? `Unable to load models (${llmModelsError}).`
+            : usesGoogleTranslate
+            ? 'Leave blank to use the default server model for transliteration.'
             : 'Leave blank to use the default server model.'}
         </small>
+        <label htmlFor="transliteration_mode">Transliteration mode</label>
+        <select
+          id="transliteration_mode"
+          name="transliteration_mode"
+          value={resolvedTransliterationMode}
+          onChange={(event) => onTransliterationModeChange(event.target.value)}
+        >
+          {TRANSLITERATION_MODE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <small className="form-help-text">
+          {selectedTransliterationOption.description} Transliteration only appears when enabled in
+          Output.
+        </small>
+        {showTransliterationModel ? (
+          <>
+            <label htmlFor="transliteration_model">Local transliteration model</label>
+            <input
+              id="transliteration_model"
+              name="transliteration_model"
+              type="text"
+              list="transliteration_model_list"
+              value={resolvedTransliterationModel}
+              onChange={(event) => onTransliterationModelChange(event.target.value)}
+              placeholder="gemma3:12b"
+            />
+            <datalist id="transliteration_model_list">
+              {transliterationModelOptions.map((model) => (
+                <option key={model} value={model} />
+              ))}
+            </datalist>
+            <small className="form-help-text">
+              Leave blank to use the default local model (gemma3:12b). You can also paste any
+              Ollama model name.
+            </small>
+          </>
+        ) : null}
         <div className="field-grid">
           <label htmlFor="sentences_per_output_file">
             Sentences per output file
