@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import re
 import time
+import unicodedata
 from dataclasses import dataclass
 from typing import Optional
 
@@ -15,7 +17,14 @@ logger = log_mgr.logger
 
 _TRANSLITERATION_ATTEMPTS = 3
 _TRANSLITERATION_RETRY_DELAY_SECONDS = 0.5
-_PYTHON_ONLY_MODES = {"python", "python_module", "module", "local_module"}
+_PYTHON_ONLY_MODES = {
+    "python",
+    "python-module",
+    "python_module",
+    "module",
+    "local-module",
+    "local_module",
+}
 _LANGUAGE_ALIASES = {
     "arabic": {"arabic", "ar"},
     "chinese": {
@@ -26,12 +35,47 @@ _LANGUAGE_ALIASES = {
         "chinese (simplified)",
         "chinese (traditional)",
     },
+    "hebrew": {"hebrew", "he", "iw"},
+    "hindi": {"hindi", "hi"},
     "japanese": {"japanese", "ja"},
+    "korean": {"korean", "ko"},
 }
 _LOCAL_MODULE_LABELS = {
     "arabic": "camel_tools.buckwalter",
     "chinese": "pypinyin",
+    "hebrew": "hebrew_keymap",
+    "hindi": "indic_transliteration",
     "japanese": "pykakasi",
+    "korean": "hangul-romanize",
+}
+_HEBREW_TRANSLITERATION_MAP = {
+    "א": "'",
+    "ב": "b",
+    "ג": "g",
+    "ד": "d",
+    "ה": "h",
+    "ו": "v",
+    "ז": "z",
+    "ח": "kh",
+    "ט": "t",
+    "י": "y",
+    "כ": "k",
+    "ך": "k",
+    "ל": "l",
+    "מ": "m",
+    "ם": "m",
+    "נ": "n",
+    "ן": "n",
+    "ס": "s",
+    "ע": "`",
+    "פ": "p",
+    "ף": "p",
+    "צ": "ts",
+    "ץ": "ts",
+    "ק": "k",
+    "ר": "r",
+    "ש": "sh",
+    "ת": "t",
 }
 
 
@@ -124,9 +168,11 @@ def get_transliterator() -> TransliterationService:
 def resolve_local_transliteration_module(target_language: str) -> Optional[str]:
     """Return the python-module transliteration label for ``target_language`` when supported."""
 
-    lang = _normalize_language_hint(target_language)
+    candidates = _language_candidates(target_language)
+    if not candidates:
+        return None
     for key, aliases in _LANGUAGE_ALIASES.items():
-        if lang in aliases:
+        if candidates.intersection(aliases):
             return _LOCAL_MODULE_LABELS.get(key)
     return None
 
@@ -134,12 +180,38 @@ def resolve_local_transliteration_module(target_language: str) -> Optional[str]:
 def _normalize_language_hint(value: str) -> str:
     normalized = value.strip().lower()
     normalized = normalized.replace("_", "-")
-    return normalized
+    normalized = re.sub(r"\(.*?\)", "", normalized)
+    normalized = re.sub(r"[^\w-]+", " ", normalized)
+    return " ".join(normalized.split())
+
+
+def _language_candidates(value: str) -> set[str]:
+    normalized = _normalize_language_hint(value)
+    if not normalized:
+        return set()
+    candidates = {normalized}
+    if " " in normalized:
+        candidates.add(normalized.split()[0])
+    if "-" in normalized:
+        candidates.add(normalized.split("-")[0])
+    return {candidate for candidate in candidates if candidate}
+
+
+def _strip_combining_marks(text: str) -> str:
+    return "".join(ch for ch in text if unicodedata.combining(ch) == 0)
+
+
+def _transliterate_hebrew(text: str) -> str:
+    stripped = _strip_combining_marks(text)
+    return "".join(_HEBREW_TRANSLITERATION_MAP.get(ch, ch) for ch in stripped)
 
 
 def _transliterate_with_python(sentence: str, lang: str) -> str:
+    candidates = _language_candidates(lang)
+    if not candidates:
+        return ""
     for key, aliases in _LANGUAGE_ALIASES.items():
-        if lang not in aliases:
+        if not candidates.intersection(aliases):
             continue
         if key == "arabic":
             from camel_tools.transliteration import Transliterator
@@ -151,10 +223,23 @@ def _transliterate_with_python(sentence: str, lang: str) -> str:
 
             pinyin_list = pypinyin.lazy_pinyin(sentence)
             return " ".join(pinyin_list)
+        if key == "hebrew":
+            return _transliterate_hebrew(sentence)
+        if key == "hindi":
+            from indic_transliteration import sanscript
+            from indic_transliteration.sanscript import transliterate
+
+            return transliterate(sentence, sanscript.DEVANAGARI, sanscript.ITRANS)
         if key == "japanese":
             import pykakasi
 
             kks = pykakasi.kakasi()
             result = kks.convert(sentence)
             return " ".join(item["hepburn"] for item in result)
+        if key == "korean":
+            from hangul_romanize import Transliter
+            from hangul_romanize.rule import academic
+
+            transliterator = Transliter(academic)
+            return transliterator.translit(sentence)
     return ""

@@ -2420,79 +2420,93 @@ private struct SubtitleSettingsPanel: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Subtitles")
-                    .font(.headline)
-                Spacer()
-                Button("Done") {
-                    onClose()
-                }
-                .font(.subheadline.weight(.semibold))
-            }
+            headerRow
             Divider()
                 .overlay(Color.white.opacity(0.25))
-
-            if segmentOptions.count > 1 {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Chunks")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                    ForEach(segmentOptions) { segment in
-                        Button {
-                            onSelectSegment?(segment.id)
-                        } label: {
-                            trackRow(label: segment.label, selected: segment.id == selectedSegmentID)
-                        }
-                    }
-                }
-
-                Divider()
-                    .overlay(Color.white.opacity(0.25))
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Tracks")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                Button {
-                    selectedTrack = nil
-                } label: {
-                    trackRow(label: "Subtitles Off", selected: selectedTrack == nil)
-                }
-                if tracks.isEmpty {
-                    Text("No subtitle tracks available.")
-                        .font(.caption)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .padding(.vertical, 4)
-                } else {
-                    ForEach(tracks) { track in
-                        Button {
-                            selectedTrack = track
-                        } label: {
-                            let label = "\(track.label) (\(track.format.label))"
-                            trackRow(label: label, selected: selectedTrack?.id == track.id)
-                        }
-                    }
-                }
-            }
-
+            scrollableOptions
             Divider()
                 .overlay(Color.white.opacity(0.25))
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Lines")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-                Toggle("Original", isOn: $visibility.showOriginal)
-                Toggle("Translation", isOn: $visibility.showTranslation)
-                Toggle("Transliteration", isOn: $visibility.showTransliteration)
-            }
-            .disabled(selectedTrack == nil)
+            lineVisibilityOptions
         }
         .padding(16)
         .frame(maxWidth: panelMaxWidth)
         .background(.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 16))
         .foregroundStyle(.white)
+    }
+
+    private var headerRow: some View {
+        HStack {
+            Text("Subtitles")
+                .font(.headline)
+            Spacer()
+            Button("Done") {
+                onClose()
+            }
+            .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private var scrollableOptions: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                if segmentOptions.count > 1 {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Chunks")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                        ForEach(segmentOptions) { segment in
+                            Button {
+                                onSelectSegment?(segment.id)
+                            } label: {
+                                trackRow(label: segment.label, selected: segment.id == selectedSegmentID)
+                            }
+                        }
+                    }
+
+                    Divider()
+                        .overlay(Color.white.opacity(0.25))
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Tracks")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.7))
+                    Button {
+                        selectedTrack = nil
+                    } label: {
+                        trackRow(label: "Subtitles Off", selected: selectedTrack == nil)
+                    }
+                    if tracks.isEmpty {
+                        Text("No subtitle tracks available.")
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.vertical, 4)
+                    } else {
+                        ForEach(tracks) { track in
+                            Button {
+                                selectedTrack = track
+                            } label: {
+                                let label = "\(track.label) (\(track.format.label))"
+                                trackRow(label: label, selected: selectedTrack?.id == track.id)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: panelScrollMaxHeight)
+    }
+
+    private var lineVisibilityOptions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Lines")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.7))
+            Toggle("Original", isOn: $visibility.showOriginal)
+            Toggle("Translation", isOn: $visibility.showTranslation)
+            Toggle("Transliteration", isOn: $visibility.showTransliteration)
+        }
+        .disabled(selectedTrack == nil)
     }
 
     private func trackRow(label: String, selected: Bool) -> some View {
@@ -2512,6 +2526,15 @@ private struct SubtitleSettingsPanel: View {
         return 640
         #else
         return 480
+        #endif
+    }
+
+    private var panelScrollMaxHeight: CGFloat {
+        let screenHeight = UIScreen.main.bounds.height
+        #if os(tvOS)
+        return max(260, screenHeight * 0.45)
+        #else
+        return max(220, screenHeight * 0.35)
         #endif
     }
 }
@@ -2549,36 +2572,23 @@ private struct VideoLinguistBubbleView: View {
     #if os(iOS)
     @State private var magnifyStartScale: CGFloat?
     #endif
+    #if os(tvOS)
+    @FocusState private var focusedControl: BubbleHeaderControl?
+    @State private var showingLanguagePicker = false
+    @State private var showingModelPicker = false
+
+    private enum BubbleHeaderControl: Hashable {
+        case language
+        case model
+        case decreaseFont
+        case increaseFont
+        case close
+    }
+    #endif
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Text("MyLinguist")
-                    .font(.headline)
-                Spacer(minLength: 8)
-                lookupLanguageMenu
-                modelMenu
-                fontSizeControls
-                #if os(iOS)
-                if let onResetFont {
-                    Button(action: onResetFont) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.caption.weight(.semibold))
-                            .padding(6)
-                            .background(.black.opacity(0.3), in: Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Reset size")
-                }
-                #endif
-                Button(action: onClose) {
-                    Image(systemName: "xmark")
-                        .font(.caption.weight(.semibold))
-                        .padding(6)
-                        .background(.black.opacity(0.3), in: Circle())
-                }
-                .buttonStyle(.plain)
-            }
+            headerControls
 
             Text(bubble.query)
                 .font(queryFont)
@@ -2600,8 +2610,72 @@ private struct VideoLinguistBubbleView: View {
         .clipShape(RoundedRectangle(cornerRadius: bubbleCornerRadius))
         .frame(maxWidth: bubbleWidth, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
+        #if os(tvOS)
+        .focusEffectDisabled()
+        .onAppear {
+            if focusedControl == nil {
+                focusedControl = bubbleFocusOrder.first
+            }
+        }
+        .onMoveCommand { direction in
+            handleBubbleFocusMove(direction)
+        }
+        #endif
         #if os(iOS)
         .simultaneousGesture(bubbleMagnifyGesture, including: .gesture)
+        #endif
+    }
+
+    private var headerControls: some View {
+        #if os(tvOS)
+        HStack(spacing: 8) {
+            Text("MyLinguist")
+                .font(.headline)
+            Spacer(minLength: 8)
+            lookupLanguageMenu
+            modelMenu
+            fontSizeControls
+            closeButton
+        }
+        #else
+        HStack(spacing: 8) {
+            Text("MyLinguist")
+                .font(.headline)
+            Spacer(minLength: 8)
+            lookupLanguageMenu
+            modelMenu
+            fontSizeControls
+            if let onResetFont {
+                Button(action: onResetFont) {
+                    Image(systemName: "arrow.counterclockwise")
+                        .font(.caption.weight(.semibold))
+                        .padding(6)
+                        .background(.black.opacity(0.3), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Reset size")
+            }
+            closeButton
+        }
+        #endif
+    }
+
+    private var closeButton: some View {
+        #if os(tvOS)
+        bubbleControlButton(
+            systemName: "xmark",
+            control: .close,
+            isEnabled: true,
+            action: onClose
+        )
+        #else
+        Button(action: onClose) {
+            Image(systemName: "xmark")
+                .font(.caption.weight(.semibold))
+                .padding(6)
+                .background(.black.opacity(0.3), in: Circle())
+        }
+        .buttonStyle(.plain)
         #endif
     }
 
@@ -2651,9 +2725,37 @@ private struct VideoLinguistBubbleView: View {
         }
     }
 
+    @ViewBuilder
     private var lookupLanguageMenu: some View {
         let entry = LanguageFlagResolver.flagEntry(for: lookupLanguage)
-        return Menu {
+        #if os(tvOS)
+        Button {
+            showingLanguagePicker = true
+        } label: {
+            bubbleControlLabel(isFocused: focusedControl == .language) {
+                Text(entry.emoji)
+            }
+        }
+        .buttonStyle(.plain)
+        .focused($focusedControl, equals: .language)
+        .focusEffectDisabled()
+        .accessibilityLabel("Lookup language")
+        .confirmationDialog("Lookup language", isPresented: $showingLanguagePicker, titleVisibility: .visible) {
+            ForEach(lookupLanguageOptions, id: \.self) { language in
+                let option = LanguageFlagResolver.flagEntry(for: language)
+                Button {
+                    onLookupLanguageChange(option.label)
+                } label: {
+                    if option.label == entry.label {
+                        Label("\(option.emoji) \(option.label)", systemImage: "checkmark")
+                    } else {
+                        Text("\(option.emoji) \(option.label)")
+                    }
+                }
+            }
+        }
+        #else
+        Menu {
             ForEach(lookupLanguageOptions, id: \.self) { language in
                 let option = LanguageFlagResolver.flagEntry(for: language)
                 Button {
@@ -2674,9 +2776,39 @@ private struct VideoLinguistBubbleView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Lookup language")
+        #endif
     }
 
+    @ViewBuilder
     private var modelMenu: some View {
+        #if os(tvOS)
+        Button {
+            showingModelPicker = true
+        } label: {
+            bubbleControlLabel(isFocused: focusedControl == .model) {
+                Text(llmModel)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .buttonStyle(.plain)
+        .focused($focusedControl, equals: .model)
+        .focusEffectDisabled()
+        .accessibilityLabel("Lookup model")
+        .confirmationDialog("Lookup model", isPresented: $showingModelPicker, titleVisibility: .visible) {
+            ForEach(llmModelOptions, id: \.self) { model in
+                Button {
+                    onLlmModelChange(model)
+                } label: {
+                    if model == llmModel {
+                        Label(model, systemImage: "checkmark")
+                    } else {
+                        Text(model)
+                    }
+                }
+            }
+        }
+        #else
         Menu {
             ForEach(llmModelOptions, id: \.self) { model in
                 Button {
@@ -2700,9 +2832,26 @@ private struct VideoLinguistBubbleView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Lookup model")
+        #endif
     }
 
     private var fontSizeControls: some View {
+        #if os(tvOS)
+        HStack(spacing: 6) {
+            bubbleControlButton(
+                title: "A-",
+                control: .decreaseFont,
+                isEnabled: canDecreaseFont,
+                action: onDecreaseFont
+            )
+            bubbleControlButton(
+                title: "A+",
+                control: .increaseFont,
+                isEnabled: canIncreaseFont,
+                action: onIncreaseFont
+            )
+        }
+        #else
         HStack(spacing: 4) {
             Button(action: onDecreaseFont) {
                 Text("A-")
@@ -2723,7 +2872,77 @@ private struct VideoLinguistBubbleView: View {
             .buttonStyle(.plain)
             .disabled(!canIncreaseFont)
         }
+        #endif
     }
+
+    #if os(tvOS)
+    private func bubbleControlButton(
+        title: String? = nil,
+        systemName: String? = nil,
+        control: BubbleHeaderControl,
+        isEnabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: {
+            guard isEnabled else { return }
+            action()
+        }) {
+            bubbleControlLabel(isFocused: focusedControl == control, isEnabled: isEnabled) {
+                if let title {
+                    Text(title)
+                } else if let systemName {
+                    Image(systemName: systemName)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+        .focused($focusedControl, equals: control)
+        .focusEffectDisabled()
+    }
+
+    private func bubbleControlLabel<Content: View>(
+        isFocused: Bool,
+        isEnabled: Bool = true,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        let baseOpacity = isEnabled ? 0.45 : 0.25
+        let backgroundOpacity = isFocused ? min(baseOpacity + 0.2, 0.7) : baseOpacity
+        return content()
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(isEnabled ? .white : .white.opacity(0.45))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Color.black.opacity(backgroundOpacity), in: Capsule())
+            .overlay(
+                Capsule()
+                    .stroke(isFocused ? Color.white.opacity(0.85) : Color.white.opacity(0.15), lineWidth: 1)
+            )
+            .animation(.easeInOut(duration: 0.12), value: isFocused)
+    }
+
+    private var bubbleFocusOrder: [BubbleHeaderControl] {
+        var order: [BubbleHeaderControl] = [.language, .model]
+        order.append(.decreaseFont)
+        order.append(.increaseFont)
+        order.append(.close)
+        return order
+    }
+
+    private func handleBubbleFocusMove(_ direction: MoveCommandDirection) {
+        guard direction == .left || direction == .right else { return }
+        let order = bubbleFocusOrder
+        guard !order.isEmpty else { return }
+        let current = focusedControl ?? order.first
+        guard let current else { return }
+        guard let index = order.firstIndex(of: current) else {
+            focusedControl = order.first
+            return
+        }
+        let delta = direction == .left ? -1 : 1
+        let nextIndex = max(0, min(order.count - 1, index + delta))
+        focusedControl = order[nextIndex]
+    }
+    #endif
 
     private var queryFont: Font {
         scaledFont(textStyle: .title3, weight: .semibold)
