@@ -20,6 +20,9 @@ export default defineConfig(({ mode }) => {
   });
 
   const httpsOptions = resolveHttpsOptions(env);
+  const serverPort = parsePort(env.VITE_DEV_PORT) ?? 5173;
+  const hmrHost = env.VITE_DEV_HMR_HOST;
+  const hmrConfig = hmrHost ? { host: hmrHost } : undefined;
 
   const buildConfig = {
     // Silence chunk size warnings; the app bundles many shared components by design.
@@ -44,6 +47,9 @@ export default defineConfig(({ mode }) => {
 
     server: {
       host: true,
+      port: serverPort,
+      strictPort: true,
+      hmr: hmrConfig,
       https: httpsOptions
     },
 
@@ -77,8 +83,16 @@ function resolveHttpsOptions(env: Record<string, string>): HttpsServerOptions | 
     return undefined;
   }
 
-  const certFile = resolveFilePath(certPath, 'VITE_DEV_HTTPS_CERT');
-  const keyFile = resolveFilePath(keyPath, 'VITE_DEV_HTTPS_KEY');
+  if (!certPath || !keyPath) {
+    console.warn("[WARN] HTTPS requested but VITE_DEV_HTTPS_CERT or VITE_DEV_HTTPS_KEY is missing; falling back to HTTP.");
+    return undefined;
+  }
+
+  const certFile = resolveFilePath(certPath, 'VITE_DEV_HTTPS_CERT', true);
+  const keyFile = resolveFilePath(keyPath, 'VITE_DEV_HTTPS_KEY', true);
+  if (!certFile || !keyFile) {
+    return undefined;
+  }
 
   const config: HttpsServerOptions = {
     cert: fs.readFileSync(certFile),
@@ -86,8 +100,10 @@ function resolveHttpsOptions(env: Record<string, string>): HttpsServerOptions | 
   };
 
   if (env.VITE_DEV_HTTPS_CA) {
-    const caFile = resolveFilePath(env.VITE_DEV_HTTPS_CA, 'VITE_DEV_HTTPS_CA');
-    config.ca = fs.readFileSync(caFile);
+    const caFile = resolveFilePath(env.VITE_DEV_HTTPS_CA, 'VITE_DEV_HTTPS_CA', true);
+    if (caFile) {
+      config.ca = fs.readFileSync(caFile);
+    }
   }
 
   return config;
@@ -101,9 +117,19 @@ function parseBooleanFlag(value: string | undefined): boolean | undefined {
   throw new Error(`Invalid boolean '${value}'`);
 }
 
-function resolveFilePath(target: string, envKey: string): string {
+function parsePort(value: string | undefined): number | undefined {
+  if (!value) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function resolveFilePath(target: string, envKey: string, allowMissing = false): string | undefined {
   const resolved = path.resolve(target);
   if (!fs.existsSync(resolved)) {
+    if (allowMissing) {
+      console.warn(`[WARN] ${envKey} -> file does not exist: ${resolved}. HTTPS disabled.`);
+      return undefined;
+    }
     throw new Error(`${envKey} -> file does not exist: ${resolved}`);
   }
   return resolved;
