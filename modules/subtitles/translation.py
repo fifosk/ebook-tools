@@ -75,6 +75,7 @@ def _translate_text(
     source_language: str,
     target_language: str,
     llm_model: Optional[str],
+    translation_provider: Optional[str] = None,
 ) -> str:
     """
     Translate subtitle text with optional model override and enforce that the
@@ -88,6 +89,7 @@ def _translate_text(
             target_language,
             include_transliteration=False,
             client=client_override,
+            translation_provider=translation_provider,
         )
 
     max_script_retries = 2

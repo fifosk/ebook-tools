@@ -53,7 +53,6 @@ def execute_render_phase(
         include_transliteration=request.inputs.include_transliteration,
         translation_provider=getattr(request.inputs, "translation_provider", None),
         transliteration_mode=getattr(request.inputs, "transliteration_mode", None),
-        transliteration_model=getattr(request.inputs, "transliteration_model", None),
         book_metadata=metadata_result.metadata.as_dict(),
     )
     (

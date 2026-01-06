@@ -18,9 +18,11 @@ def translate_dialogues(
     *,
     source_language: Optional[str],
     target_language: str,
+    translation_provider: Optional[str] = None,
     include_transliteration: bool,
     transliterator: Optional[TransliterationService],
     llm_model: Optional[str],
+    transliteration_mode: Optional[str] = None,
     tracker: Optional[ProgressTracker],
     offset: int,
     total_dialogues: int,
@@ -56,6 +58,7 @@ def translate_dialogues(
                     source_language=source_language or target_language,
                     target_language=target_language,
                     llm_model=llm_model,
+                    translation_provider=translation_provider,
                 )
                 translated_flag = True
                 if is_failure_annotation(translated_text):
@@ -68,6 +71,8 @@ def translate_dialogues(
                     transliterator,
                     translated_text or entry.translation,
                     target_language,
+                    transliteration_mode=transliteration_mode,
+                    llm_model=llm_model,
                 )
             except Exception:
                 transliteration_text = None

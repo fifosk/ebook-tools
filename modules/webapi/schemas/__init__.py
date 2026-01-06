@@ -151,7 +151,6 @@ class PipelineInputPayload(BaseModel):
     include_transliteration: bool = True
     translation_provider: str = "llm"
     transliteration_mode: str = "default"
-    transliteration_model: Optional[str] = None
     tempo: float = 1.0
     voice_overrides: Dict[str, str] = Field(default_factory=dict)
     book_metadata: Dict[str, Any] = Field(default_factory=dict)
@@ -281,6 +280,8 @@ class SubtitleSubmissionPayload(BaseModel):
     cleanup_source: bool = False
     mirror_batches_to_source_dir: bool = True
     llm_model: Optional[str] = None
+    translation_provider: Optional[str] = None
+    transliteration_mode: Optional[str] = None
 
 
 class SubtitleSourceListResponse(BaseModel):
@@ -574,6 +575,8 @@ class YoutubeDubRequest(BaseModel):
     original_mix_percent: Optional[float] = None
     flush_sentences: Optional[int] = None
     llm_model: Optional[str] = None
+    translation_provider: Optional[str] = None
+    transliteration_mode: Optional[str] = None
     split_batches: Optional[bool] = None
     stitch_batches: Optional[bool] = True
     include_transliteration: Optional[bool] = None
@@ -1032,7 +1035,6 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
     add_images = _coerce_bool(inputs.get("add_images"))
     translation_provider = _coerce_str(inputs.get("translation_provider"))
     transliteration_mode_raw = _coerce_str(inputs.get("transliteration_mode"))
-    transliteration_model_raw = _coerce_str(inputs.get("transliteration_model"))
 
     input_file = _coerce_str(inputs.get("input_file"))
     base_output_file = _coerce_str(inputs.get("base_output_file"))
@@ -1064,18 +1066,12 @@ def _build_pipeline_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         normalized = transliteration_mode_raw.strip().lower().replace("_", "-")
         if normalized in {"python", "python-module", "module", "local-module"}:
             normalized_transliteration_mode = "python"
-        elif normalized in {"local-gemma3-12b", "gemma3-12b", "local-gemma"}:
-            normalized_transliteration_mode = "local_gemma3_12b"
         else:
             normalized_transliteration_mode = "default"
 
     transliteration_model = None
     transliteration_module = None
-    if normalized_transliteration_mode == "local_gemma3_12b":
-        transliteration_model = transliteration_model_raw or "gemma3:12b"
-        if transliteration_model == "gemma3-12b":
-            transliteration_model = "gemma3:12b"
-    elif normalized_transliteration_mode == "default":
+    if normalized_transliteration_mode == "default":
         transliteration_model = llm_model
     elif normalized_transliteration_mode == "python":
         target_for_module = target_languages[0] if target_languages else None
@@ -1127,6 +1123,8 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
         target_languages=target_languages,
         subtitle_path=subtitle_path,
         llm_model=_coerce_str(options.get("llm_model")),
+        translation_provider=_coerce_str(options.get("translation_provider")),
+        transliteration_mode=_coerce_str(options.get("transliteration_mode")),
         worker_count=_coerce_int(options.get("worker_count")),
         batch_size=_coerce_int(options.get("batch_size")),
         show_original=_coerce_bool(options.get("show_original")),
@@ -1149,6 +1147,8 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
     original_mix_percent = _coerce_float(payload.get("original_mix_percent"))
     flush_sentences = _coerce_int(payload.get("flush_sentences"))
     llm_model = _coerce_str(payload.get("llm_model"))
+    translation_provider = _coerce_str(payload.get("translation_provider"))
+    transliteration_mode = _coerce_str(payload.get("transliteration_mode"))
     split_batches = _coerce_bool(payload.get("split_batches"))
 
     target_languages = [target_language] if target_language else []
@@ -1167,6 +1167,8 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
         original_mix_percent=original_mix_percent,
         flush_sentences=flush_sentences,
         llm_model=llm_model,
+        translation_provider=translation_provider,
+        transliteration_mode=transliteration_mode,
         split_batches=split_batches,
     )
 

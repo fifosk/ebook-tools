@@ -32,11 +32,6 @@ const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
   'gtrans'
 ]);
 const TRANSLITERATION_PYTHON_ALIASES = new Set(['python', 'python-module', 'module', 'local-module']);
-const TRANSLITERATION_LOCAL_GEMMA_ALIASES = new Set([
-  'local-gemma3-12b',
-  'gemma3-12b',
-  'local-gemma'
-]);
 const TRANSLITERATION_DEFAULT_ALIASES = new Set(['default', 'llm', 'ollama']);
 type Props = {
   jobId: string;
@@ -156,10 +151,10 @@ function normalizeTransliterationMode(value: unknown): string | null {
   if (TRANSLITERATION_PYTHON_ALIASES.has(normalized)) {
     return 'python';
   }
-  if (TRANSLITERATION_LOCAL_GEMMA_ALIASES.has(normalized)) {
-    return 'local_gemma3_12b';
-  }
   if (TRANSLITERATION_DEFAULT_ALIASES.has(normalized)) {
+    return 'default';
+  }
+  if (normalized.startsWith('local-gemma3') || normalized === 'gemma3-12b') {
     return 'default';
   }
   return normalized;
@@ -189,9 +184,6 @@ function formatTransliterationModeLabel(mode: string | null): string | null {
   }
   if (mode === 'python') {
     return 'Python module';
-  }
-  if (mode === 'local_gemma3_12b') {
-    return 'Local gemma3:12b';
   }
   if (mode === 'default') {
     return 'LLM';
@@ -823,6 +815,41 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
         value: translationLanguage
       });
     }
+    if (translationProviderLabel) {
+      entries.push({
+        key: 'subtitle-translation-provider',
+        label: 'Translation provider',
+        value: translationProviderLabel
+      });
+    }
+    if (translationModelLabel && translationProvider === 'googletrans') {
+      entries.push({
+        key: 'subtitle-translation-model',
+        label: 'Translation model',
+        value: translationModelLabel
+      });
+    }
+    if (transliterationModeLabel) {
+      entries.push({
+        key: 'subtitle-transliteration-mode',
+        label: 'Transliteration mode',
+        value: transliterationModeLabel
+      });
+    }
+    if (showTransliterationModel) {
+      entries.push({
+        key: 'subtitle-transliteration-model',
+        label: 'Transliteration model',
+        value: transliterationModelLabel
+      });
+    }
+    if (transliterationModule) {
+      entries.push({
+        key: 'subtitle-transliteration-module',
+        label: 'Transliteration module',
+        value: transliterationModule
+      });
+    }
     const detectedLanguage = getStringField(subtitleMetadata, 'detected_language');
     const detectedLanguageCode = getStringField(subtitleMetadata, 'detected_language_code');
     if (detectedLanguage || detectedLanguageCode) {
@@ -947,6 +974,41 @@ function buildJobParameterEntries(status: PipelineStatusResponse | undefined): J
         key: 'youtube-dub-target-language',
         label: 'Target language',
         value: targetLanguage
+      });
+    }
+    if (translationProviderLabel) {
+      entries.push({
+        key: 'youtube-dub-translation-provider',
+        label: 'Translation provider',
+        value: translationProviderLabel
+      });
+    }
+    if (translationModelLabel && translationProvider === 'googletrans') {
+      entries.push({
+        key: 'youtube-dub-translation-model',
+        label: 'Translation model',
+        value: translationModelLabel
+      });
+    }
+    if (transliterationModeLabel) {
+      entries.push({
+        key: 'youtube-dub-transliteration-mode',
+        label: 'Transliteration mode',
+        value: transliterationModeLabel
+      });
+    }
+    if (showTransliterationModel) {
+      entries.push({
+        key: 'youtube-dub-transliteration-model',
+        label: 'Transliteration model',
+        value: transliterationModelLabel
+      });
+    }
+    if (transliterationModule) {
+      entries.push({
+        key: 'youtube-dub-transliteration-module',
+        label: 'Transliteration module',
+        value: transliterationModule
       });
     }
     if (voice) {

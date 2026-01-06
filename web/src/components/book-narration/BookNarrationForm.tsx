@@ -250,7 +250,6 @@ type FormState = {
   include_transliteration: boolean;
   translation_provider: string;
   transliteration_mode: string;
-  transliteration_model: string;
   tempo: number;
   thread_count: string;
   queue_size: string;
@@ -321,7 +320,6 @@ const DEFAULT_FORM_STATE: FormState = {
   include_transliteration: true,
   translation_provider: 'llm',
   transliteration_mode: 'default',
-  transliteration_model: '',
   tempo: 1,
   thread_count: '',
   queue_size: '',
@@ -763,11 +761,6 @@ function applyConfigDefaults(previous: FormState, config: Record<string, unknown
   const transliterationMode = config['transliteration_mode'];
   if (typeof transliterationMode === 'string' && transliterationMode.trim()) {
     next.transliteration_mode = transliterationMode.trim();
-  }
-
-  const transliterationModel = config['transliteration_model'];
-  if (typeof transliterationModel === 'string' && transliterationModel.trim()) {
-    next.transliteration_model = transliterationModel.trim();
   }
 
   const tempo = coerceNumber(config['tempo']);
@@ -1832,10 +1825,6 @@ export function BookNarrationForm({
         typeof prefillParameters.transliteration_mode === 'string' && prefillParameters.transliteration_mode.trim()
           ? prefillParameters.transliteration_mode.trim()
           : previous.transliteration_mode;
-      const transliterationModel =
-        typeof prefillParameters.transliteration_model === 'string' && prefillParameters.transliteration_model.trim()
-          ? prefillParameters.transliteration_model.trim()
-          : previous.transliteration_model;
       const addImages =
         typeof prefillParameters.add_images === 'boolean' ? prefillParameters.add_images : previous.add_images;
       const voiceOverrides =
@@ -1860,7 +1849,6 @@ export function BookNarrationForm({
         include_transliteration: includeTransliteration,
         translation_provider: translationProvider,
         transliteration_mode: transliterationMode,
-        transliteration_model: transliterationModel,
         add_images: addImages,
         voice_overrides: voiceOverrides
       };
@@ -2845,10 +2833,6 @@ export function BookNarrationForm({
           include_transliteration: formState.include_transliteration,
           translation_provider: formState.translation_provider,
           transliteration_mode: formState.transliteration_mode,
-          transliteration_model:
-            formState.transliteration_mode === 'local_gemma3_12b'
-              ? formState.transliteration_model.trim() || null
-              : null,
           tempo: Number(formState.tempo),
           book_metadata: json.book_metadata
         }
@@ -2986,7 +2970,6 @@ export function BookNarrationForm({
             ollamaModel={formState.ollama_model}
             translationProvider={formState.translation_provider}
             transliterationMode={formState.transliteration_mode}
-            transliterationModel={formState.transliteration_model}
             llmModels={availableLlmModels}
             llmModelsLoading={isLoadingLlmModels}
             llmModelsError={llmModelError}
@@ -3012,7 +2995,6 @@ export function BookNarrationForm({
             onOllamaModelChange={(value) => handleChange('ollama_model', value)}
             onTranslationProviderChange={(value) => handleChange('translation_provider', value)}
             onTransliterationModeChange={(value) => handleChange('transliteration_mode', value)}
-            onTransliterationModelChange={(value) => handleChange('transliteration_model', value)}
             onSentencesPerOutputFileChange={(value) =>
               handleChange('sentences_per_output_file', value)
             }

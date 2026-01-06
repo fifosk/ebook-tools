@@ -310,7 +310,6 @@ class RenderPipeline:
         include_transliteration: bool = False,
         translation_provider: Optional[str] = None,
         transliteration_mode: Optional[str] = None,
-        transliteration_model: Optional[str] = None,
         book_metadata: Optional[dict] = None,
     ) -> Tuple[
         List[str],
@@ -416,7 +415,6 @@ class RenderPipeline:
         transliteration_client = self._resolve_transliteration_client(
             normalized_transliteration_mode,
             translation_client,
-            transliteration_model=transliteration_model,
         )
         worker_count = max(1, self._config.thread_count)
         active_translation_pool = self._external_translation_pool
@@ -632,35 +630,13 @@ class RenderPipeline:
         normalized = mode.strip().lower().replace("_", "-")
         if normalized in {"python", "python-module", "module", "local-module"}:
             return "python"
-        if normalized in {"local-gemma3-12b", "gemma3-12b", "local-gemma"}:
-            return "local_gemma3_12b"
         if normalized in {"default", "llm", "ollama"}:
             return "default"
         return "default"
 
-    def _resolve_transliteration_client(
-        self,
-        mode: str,
-        translation_client,
-        *,
-        transliteration_model: Optional[str] = None,
-    ):
+    def _resolve_transliteration_client(self, mode: str, translation_client):
         if mode == "python":
             return None
-        if mode == "local_gemma3_12b":
-            resolved_model = (transliteration_model or "").strip() or "gemma3:12b"
-            if resolved_model == "gemma3-12b":
-                resolved_model = "gemma3:12b"
-            return create_client(
-                model=resolved_model,
-                api_url=self._config.local_ollama_url,
-                debug=self._config.debug,
-                api_key=self._config.ollama_api_key,
-                llm_source="local",
-                local_api_url=self._config.local_ollama_url,
-                cloud_api_url=self._config.cloud_ollama_url,
-                cloud_api_key=self._config.ollama_api_key,
-            )
         return translation_client
 
     def _load_cover_image(

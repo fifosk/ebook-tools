@@ -10,6 +10,53 @@ import {
 } from './subtitleToolConfig';
 import styles from '../SubtitleToolPage.module.css';
 
+const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
+  'google',
+  'googletrans',
+  'googletranslate',
+  'google-translate',
+  'gtranslate',
+  'gtrans'
+]);
+
+const TRANSLITERATION_MODE_OPTIONS = [
+  {
+    value: 'default',
+    label: 'Use selected LLM model',
+    description: 'Transliteration uses the selected LLM model when enabled.'
+  },
+  {
+    value: 'python',
+    label: 'Python transliteration module',
+    description: 'Transliteration uses local python modules when available.'
+  }
+];
+
+function normalizeTranslationProvider(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return 'llm';
+  }
+  if (GOOGLE_TRANSLATION_PROVIDER_ALIASES.has(normalized)) {
+    return 'googletrans';
+  }
+  if (normalized === 'llm' || normalized === 'ollama' || normalized === 'default') {
+    return 'llm';
+  }
+  return normalized;
+}
+
+function normalizeTransliterationMode(value: string): string {
+  const normalized = value.trim().toLowerCase().replace('_', '-');
+  if (normalized === 'python' || normalized === 'python-module' || normalized === 'module' || normalized === 'local-module') {
+    return 'python';
+  }
+  if (normalized === 'default' || normalized === 'llm' || normalized === 'ollama') {
+    return 'default';
+  }
+  return 'default';
+}
+
 type SubtitleOptionsPanelProps = {
   inputLanguage: string;
   targetLanguage: string;
@@ -18,6 +65,8 @@ type SubtitleOptionsPanelProps = {
   availableModels: string[];
   modelsLoading: boolean;
   modelsError: string | null;
+  translationProvider: string;
+  transliterationMode: string;
   enableTransliteration: boolean;
   enableHighlight: boolean;
   generateAudioBook: boolean;
@@ -34,6 +83,8 @@ type SubtitleOptionsPanelProps = {
   onInputLanguageChange: (value: string) => void;
   onTargetLanguageChange: (value: string) => void;
   onModelChange: (value: string) => void;
+  onTranslationProviderChange: (value: string) => void;
+  onTransliterationModeChange: (value: string) => void;
   onEnableTransliterationChange: (value: boolean) => void;
   onEnableHighlightChange: (value: boolean) => void;
   onGenerateAudioBookChange: (value: boolean) => void;
@@ -56,6 +107,8 @@ export default function SubtitleOptionsPanel({
   availableModels,
   modelsLoading,
   modelsError,
+  translationProvider,
+  transliterationMode,
   enableTransliteration,
   enableHighlight,
   generateAudioBook,
@@ -72,6 +125,8 @@ export default function SubtitleOptionsPanel({
   onInputLanguageChange,
   onTargetLanguageChange,
   onModelChange,
+  onTranslationProviderChange,
+  onTransliterationModeChange,
   onEnableTransliterationChange,
   onEnableHighlightChange,
   onGenerateAudioBookChange,
@@ -85,6 +140,12 @@ export default function SubtitleOptionsPanel({
   onStartTimeChange,
   onEndTimeChange
 }: SubtitleOptionsPanelProps) {
+  const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
+  const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
+  const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
+  const selectedTransliterationOption =
+    TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
+    TRANSLITERATION_MODE_OPTIONS[0];
   return (
     <section className={styles.card}>
       <div className={styles.cardHeader}>
@@ -114,6 +175,21 @@ export default function SubtitleOptionsPanel({
           />
         </div>
         <div className="field">
+          <label>
+            <input
+              type="checkbox"
+              checked={usesGoogleTranslate}
+              onChange={(event) => onTranslationProviderChange(event.target.checked ? 'googletrans' : 'llm')}
+            />
+            Use Google Translate (googletrans) for translations
+          </label>
+          <small className="field-note">
+            {usesGoogleTranslate
+              ? 'Translations use googletrans; the LLM is only used for transliteration.'
+              : 'Translations use the LLM. Enable googletrans when the cloud model is slow.'}
+          </small>
+        </div>
+        <div className="field">
           <label className="field-label" htmlFor="subtitle-llm-model">LLM model (optional)</label>
           <select
             id="subtitle-llm-model"
@@ -138,7 +214,26 @@ export default function SubtitleOptionsPanel({
               ? 'Loading models from Ollama…'
               : modelsError
               ? `Unable to load models (${modelsError}).`
+              : usesGoogleTranslate
+              ? 'Leave blank to use the default server model for transliteration.'
               : 'Leave blank to use the default server model.'}
+          </small>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="subtitle-transliteration-mode">Transliteration mode</label>
+          <select
+            id="subtitle-transliteration-mode"
+            value={resolvedTransliterationMode}
+            onChange={(event) => onTransliterationModeChange(event.target.value)}
+          >
+            {TRANSLITERATION_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <small className="field-note">
+            {selectedTransliterationOption.description} Transliteration only appears when enabled.
           </small>
         </div>
         <div className="field-inline">

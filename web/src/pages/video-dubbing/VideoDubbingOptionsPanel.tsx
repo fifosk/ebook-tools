@@ -2,6 +2,53 @@ import LanguageSelect from '../../components/LanguageSelect';
 import { DEFAULT_LLM_MODEL, RESOLUTION_OPTIONS } from './videoDubbingConfig';
 import styles from '../VideoDubbingPage.module.css';
 
+const GOOGLE_TRANSLATION_PROVIDER_ALIASES = new Set([
+  'google',
+  'googletrans',
+  'googletranslate',
+  'google-translate',
+  'gtranslate',
+  'gtrans'
+]);
+
+const TRANSLITERATION_MODE_OPTIONS = [
+  {
+    value: 'default',
+    label: 'Use selected LLM model',
+    description: 'Transliteration uses the selected LLM model when enabled.'
+  },
+  {
+    value: 'python',
+    label: 'Python transliteration module',
+    description: 'Transliteration uses local python modules when available.'
+  }
+];
+
+function normalizeTranslationProvider(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) {
+    return 'llm';
+  }
+  if (GOOGLE_TRANSLATION_PROVIDER_ALIASES.has(normalized)) {
+    return 'googletrans';
+  }
+  if (normalized === 'llm' || normalized === 'ollama' || normalized === 'default') {
+    return 'llm';
+  }
+  return normalized;
+}
+
+function normalizeTransliterationMode(value: string): string {
+  const normalized = value.trim().toLowerCase().replace('_', '-');
+  if (normalized === 'python' || normalized === 'python-module' || normalized === 'module' || normalized === 'local-module') {
+    return 'python';
+  }
+  if (normalized === 'default' || normalized === 'llm' || normalized === 'ollama') {
+    return 'default';
+  }
+  return 'default';
+}
+
 type VideoDubbingOptionsPanelProps = {
   targetLanguage: string;
   sortedLanguageOptions: string[];
@@ -15,6 +62,8 @@ type VideoDubbingOptionsPanelProps = {
   llmModels: string[];
   isLoadingModels: boolean;
   modelError: string | null;
+  translationProvider: string;
+  transliterationMode: string;
   targetHeight: number;
   preserveAspectRatio: boolean;
   flushSentences: number;
@@ -28,6 +77,8 @@ type VideoDubbingOptionsPanelProps = {
   onVoiceChange: (value: string) => void;
   onPreviewVoice: () => void;
   onModelChange: (value: string) => void;
+  onTranslationProviderChange: (value: string) => void;
+  onTransliterationModeChange: (value: string) => void;
   onTargetHeightChange: (value: number) => void;
   onPreserveAspectRatioChange: (value: boolean) => void;
   onFlushSentencesChange: (value: number) => void;
@@ -52,6 +103,8 @@ export default function VideoDubbingOptionsPanel({
   llmModels,
   isLoadingModels,
   modelError,
+  translationProvider,
+  transliterationMode,
   targetHeight,
   preserveAspectRatio,
   flushSentences,
@@ -65,6 +118,8 @@ export default function VideoDubbingOptionsPanel({
   onVoiceChange,
   onPreviewVoice,
   onModelChange,
+  onTranslationProviderChange,
+  onTransliterationModeChange,
   onTargetHeightChange,
   onPreserveAspectRatioChange,
   onFlushSentencesChange,
@@ -75,6 +130,12 @@ export default function VideoDubbingOptionsPanel({
   onStartOffsetChange,
   onEndOffsetChange
 }: VideoDubbingOptionsPanelProps) {
+  const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
+  const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
+  const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
+  const selectedTransliterationOption =
+    TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
+    TRANSLITERATION_MODE_OPTIONS[0];
   return (
     <section className={styles.card}>
       <div className={styles.cardHeader}>
@@ -96,6 +157,19 @@ export default function VideoDubbingOptionsPanel({
             Matches the Subtitles page list; we will convert it to the correct language code automatically.
           </p>
         </label>
+        <label className={styles.fieldCheckbox}>
+          <input
+            type="checkbox"
+            checked={usesGoogleTranslate}
+            onChange={(event) => onTranslationProviderChange(event.target.checked ? 'googletrans' : 'llm')}
+          />
+          <span>Use Google Translate (googletrans) for translations</span>
+        </label>
+        <p className={styles.fieldHint}>
+          {usesGoogleTranslate
+            ? 'Translations use googletrans; the LLM is only used for transliteration.'
+            : 'Translations use the LLM. Enable googletrans when the cloud model is slow.'}
+        </p>
         <label className={styles.field}>
           <span>Voice / audio mode</span>
           <div className={styles.voiceRow}>
@@ -141,10 +215,27 @@ export default function VideoDubbingOptionsPanel({
             ))}
           </select>
           <p className={styles.fieldHint}>
-            Model used when translating subtitles before TTS (defaults to kimi-k2-thinking:cloud).
+            {usesGoogleTranslate
+              ? 'Model used for transliteration when googletrans is enabled.'
+              : 'Model used when translating subtitles before TTS (defaults to kimi-k2-thinking:cloud).'}
           </p>
           {isLoadingModels ? <p className={styles.status}>Loading models…</p> : null}
           {modelError ? <p className={styles.error}>{modelError}</p> : null}
+        </label>
+        <label className={styles.field}>
+          <span>Transliteration mode</span>
+          <select
+            className={styles.input}
+            value={resolvedTransliterationMode}
+            onChange={(event) => onTransliterationModeChange(event.target.value)}
+          >
+            {TRANSLITERATION_MODE_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className={styles.fieldHint}>{selectedTransliterationOption.description}</p>
         </label>
         <label className={styles.field}>
           <span>Target resolution</span>

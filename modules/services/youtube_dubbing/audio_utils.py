@@ -434,6 +434,7 @@ def _synthesise_track_from_ass(
     tempo: float,
     macos_reading_speed: int,
     llm_model: Optional[str],
+    translation_provider: Optional[str] = None,
     tracker=None,
     stop_event: Optional[threading.Event] = None,
     max_workers: Optional[int] = None,
@@ -469,6 +470,7 @@ def _synthesise_track_from_ass(
                     source_language=source_language or language,
                     target_language=language,
                     llm_model=llm_model,
+                    translation_provider=translation_provider,
                 )
                 if is_failure_annotation(translated_text):
                     translated_text = entry.translation

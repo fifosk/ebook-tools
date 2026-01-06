@@ -129,8 +129,8 @@ def _normalize_transliteration_mode(value: Optional[str]) -> Optional[str]:
     normalized = value.strip().lower().replace("_", "-")
     if normalized in {"python", "python-module", "module", "local-module"}:
         return "python"
-    if normalized in {"local-gemma3-12b", "gemma3-12b", "local-gemma"}:
-        return "local_gemma3_12b"
+    if normalized.startswith("local-gemma3") or normalized == "gemma3-12b":
+        return "default"
     if normalized in {"llm", "ollama", "default"}:
         return "default"
     return normalized or None
@@ -273,7 +273,6 @@ def _apply_language_metadata(
 
     translation_provider: Optional[str] = None
     transliteration_mode: Optional[str] = None
-    transliteration_model_input: Optional[str] = None
     for payload in (request_payload, resume_context, subtitle_metadata):
         for section in _iter_language_sections(payload):
             if translation_provider is None:
@@ -283,10 +282,6 @@ def _apply_language_metadata(
             if transliteration_mode is None:
                 transliteration_mode = _normalize_transliteration_mode(
                     _normalize_option_label(_read_language_key(section, "transliteration_mode"))
-                )
-            if transliteration_model_input is None:
-                transliteration_model_input = _normalize_option_label(
-                    _read_language_key(section, "transliteration_model")
                 )
 
     llm_model: Optional[str] = None
@@ -315,11 +310,7 @@ def _apply_language_metadata(
 
     transliteration_model = None
     transliteration_module = None
-    if transliteration_mode == "local_gemma3_12b":
-        transliteration_model = transliteration_model_input or "gemma3:12b"
-        if transliteration_model == "gemma3-12b":
-            transliteration_model = "gemma3:12b"
-    elif transliteration_mode == "default":
+    if transliteration_mode == "default":
         transliteration_model = llm_model
     elif transliteration_mode == "python":
         target_for_module = target_language or (target_languages[0] if target_languages else None)

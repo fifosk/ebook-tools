@@ -9,6 +9,44 @@ from typing import Dict, List, Mapping, Optional
 
 
 _HEX_COLOR_PATTERN = re.compile(r"^#?(?P<value>[0-9A-Fa-f]{6})$")
+_GOOGLE_TRANSLATION_PROVIDER_ALIASES = {
+    "google",
+    "googletrans",
+    "googletranslate",
+    "google-translate",
+    "gtranslate",
+    "gtrans",
+}
+_PYTHON_TRANSLITERATION_ALIASES = {
+    "python",
+    "python-module",
+    "module",
+    "local-module",
+}
+
+
+def _normalize_translation_provider(value: Optional[str]) -> str:
+    if not value:
+        return "llm"
+    normalized = value.strip().lower()
+    if normalized in _GOOGLE_TRANSLATION_PROVIDER_ALIASES:
+        return "googletrans"
+    if normalized in {"llm", "ollama", "default"}:
+        return "llm"
+    return normalized or "llm"
+
+
+def _normalize_transliteration_mode(value: Optional[str]) -> str:
+    if not value:
+        return "default"
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized in _PYTHON_TRANSLITERATION_ALIASES:
+        return "python"
+    if normalized.startswith("local-gemma3") or normalized == "gemma3-12b":
+        return "default"
+    if normalized in {"llm", "ollama", "default"}:
+        return "default"
+    return normalized or "default"
 
 
 def _normalise_hex_color(name: str, value: str) -> str:
@@ -119,6 +157,8 @@ class SubtitleJobOptions:
     output_format: str = "srt"
     color_palette: SubtitleColorPalette = field(default_factory=SubtitleColorPalette.default)
     llm_model: Optional[str] = None
+    translation_provider: Optional[str] = None
+    transliteration_mode: Optional[str] = None
     ass_font_size: Optional[int] = None
     ass_emphasis_scale: Optional[float] = None
     source_is_youtube: bool = False
@@ -163,6 +203,10 @@ class SubtitleJobOptions:
                 raise ValueError("end_time_offset must be greater than start_time_offset")
         llm_model_value = (self.llm_model or "").strip()
         object.__setattr__(self, "llm_model", llm_model_value or None)
+        translation_provider = _normalize_translation_provider(self.translation_provider)
+        object.__setattr__(self, "translation_provider", translation_provider)
+        transliteration_mode = _normalize_transliteration_mode(self.transliteration_mode)
+        object.__setattr__(self, "transliteration_mode", transliteration_mode)
         font_size_value = self.ass_font_size
         resolved_font_size = None
         if font_size_value is not None:
@@ -251,6 +295,18 @@ class SubtitleJobOptions:
             stripped = llm_model_raw.strip()
             if stripped:
                 llm_model = stripped
+        translation_provider_raw = data.get("translation_provider")
+        translation_provider = (
+            translation_provider_raw.strip()
+            if isinstance(translation_provider_raw, str) and translation_provider_raw.strip()
+            else None
+        )
+        transliteration_mode_raw = data.get("transliteration_mode")
+        transliteration_mode = (
+            transliteration_mode_raw.strip()
+            if isinstance(transliteration_mode_raw, str) and transliteration_mode_raw.strip()
+            else None
+        )
         generate_audio_raw = data.get("generate_audio_book")
         generate_audio_book = True
         if isinstance(generate_audio_raw, bool):
@@ -304,6 +360,8 @@ class SubtitleJobOptions:
             output_format=output_format_raw or "srt",
             color_palette=palette,
             llm_model=llm_model,
+            translation_provider=translation_provider,
+            transliteration_mode=transliteration_mode,
             ass_font_size=ass_font_size,
             ass_emphasis_scale=ass_emphasis_scale,
             source_is_youtube=bool(data.get("source_is_youtube", False)),
@@ -333,6 +391,10 @@ class SubtitleJobOptions:
             payload["end_time_offset"] = self.end_time_offset
         if self.llm_model:
             payload["llm_model"] = self.llm_model
+        if self.translation_provider:
+            payload["translation_provider"] = self.translation_provider
+        if self.transliteration_mode:
+            payload["transliteration_mode"] = self.transliteration_mode
         if self.ass_font_size is not None:
             payload["ass_font_size"] = self.ass_font_size
         if self.ass_emphasis_scale is not None:

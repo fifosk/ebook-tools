@@ -18,11 +18,6 @@ const TRANSLITERATION_MODE_OPTIONS = [
     description: 'Transliteration uses the selected LLM model when enabled.'
   },
   {
-    value: 'local_gemma3_12b',
-    label: 'Local Ollama gemma3:12b',
-    description: 'Transliteration runs on the local gemma3:12b model.'
-  },
-  {
     value: 'python',
     label: 'Python transliteration module',
     description: 'Transliteration uses local python modules when available.'
@@ -48,9 +43,6 @@ function normalizeTransliterationMode(value: string): string {
   if (normalized === 'python' || normalized === 'python-module' || normalized === 'module' || normalized === 'local-module') {
     return 'python';
   }
-  if (normalized === 'local-gemma3-12b' || normalized === 'gemma3-12b' || normalized === 'local-gemma') {
-    return 'local_gemma3_12b';
-  }
   if (normalized === 'default' || normalized === 'llm' || normalized === 'ollama') {
     return 'default';
   }
@@ -67,7 +59,6 @@ type BookNarrationLanguageSectionProps = {
   ollamaModel: string;
   translationProvider: string;
   transliterationMode: string;
-  transliterationModel: string;
   llmModels: string[];
   llmModelsLoading: boolean;
   llmModelsError: string | null;
@@ -93,7 +84,6 @@ type BookNarrationLanguageSectionProps = {
   onOllamaModelChange: (value: string) => void;
   onTranslationProviderChange: (value: string) => void;
   onTransliterationModeChange: (value: string) => void;
-  onTransliterationModelChange: (value: string) => void;
   onSentencesPerOutputFileChange: (value: number) => void;
   onStartSentenceChange: (value: number) => void;
   onEndSentenceChange: (value: string) => void;
@@ -116,7 +106,6 @@ const BookNarrationLanguageSection = ({
   ollamaModel,
   translationProvider,
   transliterationMode,
-  transliterationModel,
   llmModels,
   llmModelsLoading,
   llmModelsError,
@@ -141,7 +130,6 @@ const BookNarrationLanguageSection = ({
   onOllamaModelChange,
   onTranslationProviderChange,
   onTransliterationModeChange,
-  onTransliterationModelChange,
   onSentencesPerOutputFileChange,
   onStartSentenceChange,
   onEndSentenceChange,
@@ -177,11 +165,6 @@ const BookNarrationLanguageSection = ({
   const resolvedTranslationProvider = normalizeTranslationProvider(translationProvider);
   const usesGoogleTranslate = resolvedTranslationProvider === 'googletrans';
   const resolvedTransliterationMode = normalizeTransliterationMode(transliterationMode);
-  const showTransliterationModel = resolvedTransliterationMode === 'local_gemma3_12b';
-  const resolvedTransliterationModel = transliterationModel.trim();
-  const transliterationModelOptions = showTransliterationModel
-    ? Array.from(new Set(['gemma3:12b', ...modelOptions]))
-    : modelOptions;
   const selectedTransliterationOption =
     TRANSLITERATION_MODE_OPTIONS.find((option) => option.value === resolvedTransliterationMode) ??
     TRANSLITERATION_MODE_OPTIONS[0];
@@ -263,29 +246,6 @@ const BookNarrationLanguageSection = ({
           {selectedTransliterationOption.description} Transliteration only appears when enabled in
           Output.
         </small>
-        {showTransliterationModel ? (
-          <>
-            <label htmlFor="transliteration_model">Local transliteration model</label>
-            <input
-              id="transliteration_model"
-              name="transliteration_model"
-              type="text"
-              list="transliteration_model_list"
-              value={resolvedTransliterationModel}
-              onChange={(event) => onTransliterationModelChange(event.target.value)}
-              placeholder="gemma3:12b"
-            />
-            <datalist id="transliteration_model_list">
-              {transliterationModelOptions.map((model) => (
-                <option key={model} value={model} />
-              ))}
-            </datalist>
-            <small className="form-help-text">
-              Leave blank to use the default local model (gemma3:12b). You can also paste any
-              Ollama model name.
-            </small>
-          </>
-        ) : null}
         <div className="field-grid">
           <label htmlFor="sentences_per_output_file">
             Sentences per output file

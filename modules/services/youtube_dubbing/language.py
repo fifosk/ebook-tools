@@ -8,6 +8,7 @@ from typing import Optional
 from modules import language_policies
 from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.subtitles.language import _target_uses_non_latin_script
+from modules.llm_client import create_client
 from modules.transliteration import TransliterationService
 
 from .common import _LANGUAGE_TOKEN_PATTERN, logger
@@ -72,10 +73,28 @@ def _transliterate_text(
     transliterator: TransliterationService,
     text: str,
     language: str,
+    *,
+    transliteration_mode: Optional[str] = None,
+    llm_model: Optional[str] = None,
 ) -> str:
     """Return plain transliteration text from the service result."""
 
-    result = transliterator.transliterate(text, language)
+    resolved_mode = (transliteration_mode or "").strip().lower().replace("_", "-")
+    python_only = resolved_mode in {"python", "python-module", "module", "local-module"}
+    if llm_model and not python_only:
+        with create_client(model=llm_model) as client:
+            result = transliterator.transliterate(
+                text,
+                language,
+                client=client,
+                mode=transliteration_mode,
+            )
+    else:
+        result = transliterator.transliterate(
+            text,
+            language,
+            mode=transliteration_mode,
+        )
     if hasattr(result, "text"):
         try:
             return str(getattr(result, "text") or "")

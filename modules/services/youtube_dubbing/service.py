@@ -8,16 +8,60 @@ from typing import Any, List, Mapping, Optional, Sequence
 from modules.progress_tracker import ProgressTracker
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJob, PipelineJobManager, PipelineJobStatus
-from modules.transliteration import TransliterationService, get_transliterator
+from modules.transliteration import (
+    TransliterationService,
+    get_transliterator,
+    resolve_local_transliteration_module,
+)
 
 from .audio_utils import _clamp_original_mix
 from .common import _DEFAULT_FLUSH_SENTENCES, _TARGET_DUB_HEIGHT, _DubJobCancelled, logger
 from .dialogues import _clip_dialogues_to_window, _parse_dialogues, _validate_time_window
 from .generation import generate_dubbed_video
 from .stitching import stitch_dub_batches
-from .language import _find_language_token, _language_uses_non_latin, _resolve_language_code, _transliterate_text
+from .language import _find_language_token, _language_uses_non_latin, _resolve_language_code
 from .video_utils import _classify_video_source
 from .webvtt import _ensure_webvtt_for_video, _ensure_webvtt_variant
+
+
+_GOOGLE_TRANSLATION_PROVIDER_ALIASES = {
+    "google",
+    "googletrans",
+    "googletranslate",
+    "google-translate",
+    "gtranslate",
+    "gtrans",
+}
+_PYTHON_TRANSLITERATION_ALIASES = {
+    "python",
+    "python-module",
+    "module",
+    "local-module",
+}
+
+
+def _normalize_translation_provider(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = value.strip().lower()
+    if normalized in _GOOGLE_TRANSLATION_PROVIDER_ALIASES:
+        return "googletrans"
+    if normalized in {"llm", "ollama", "default"}:
+        return "llm"
+    return normalized or None
+
+
+def _normalize_transliteration_mode(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    normalized = value.strip().lower().replace("_", "-")
+    if normalized in _PYTHON_TRANSLITERATION_ALIASES:
+        return "python"
+    if normalized.startswith("local-gemma3") or normalized == "gemma3-12b":
+        return "default"
+    if normalized in {"llm", "ollama", "default"}:
+        return "default"
+    return normalized or None
 
 
 def _resolve_partial_video(path: Path) -> Path:
@@ -110,6 +154,10 @@ def _build_job_result(
     original_mix_percent: float,
     flush_sentences: int,
     llm_model: Optional[str],
+    translation_provider: Optional[str],
+    transliteration_mode: Optional[str],
+    transliteration_model: Optional[str],
+    transliteration_module: Optional[str],
     target_height: int,
     preserve_aspect_ratio: bool,
 ) -> dict:
@@ -130,6 +178,10 @@ def _build_job_result(
             "original_mix_percent": original_mix_percent,
             "flush_sentences": flush_sentences,
             "llm_model": llm_model,
+            "translation_provider": translation_provider,
+            "transliteration_mode": transliteration_mode,
+            "transliteration_model": transliteration_model,
+            "transliteration_module": transliteration_module,
             "written_paths": [path.as_posix() for path in written_paths],
             "split_batches": len(written_paths) > 1,
             "target_height": target_height,
@@ -154,6 +206,8 @@ def _run_dub_job(
     original_mix_percent: Optional[float] = None,
     flush_sentences: Optional[int] = None,
     llm_model: Optional[str] = None,
+    translation_provider: Optional[str] = None,
+    transliteration_mode: Optional[str] = None,
     split_batches: bool = False,
     stitch_batches: bool = True,
     include_transliteration: Optional[bool] = None,
@@ -186,6 +240,12 @@ def _run_dub_job(
         subtitle_storage_path: Path = subtitle_path
         subtitle_artifacts: List[Path] = []
         stitched_generated_files_snapshot: Optional[dict] = None
+        resolved_translation_provider = (
+            _normalize_translation_provider(translation_provider) or "llm"
+        )
+        resolved_transliteration_mode = (
+            _normalize_transliteration_mode(transliteration_mode) or "default"
+        )
         requested_transliteration = (
             _language_uses_non_latin(language_code)
             if include_transliteration is None
@@ -255,6 +315,8 @@ def _run_dub_job(
                 # transliteration track to avoid front-loading a long LLM pass here.
                 include_transliteration=False,
                 transliterator=None,
+                transliteration_mode=resolved_transliteration_mode,
+                llm_model=llm_model,
             )
             if vtt_variant:
                 subtitle_artifacts.append(vtt_variant)
@@ -328,6 +390,8 @@ def _run_dub_job(
                                 target_language=language_code,
                                 include_transliteration=include_transliteration_resolved,
                                 transliterator=transliterator if include_transliteration_resolved else None,
+                                transliteration_mode=resolved_transliteration_mode,
+                                llm_model=llm_model,
                             )
                             if vtt_variant:
                                 if vtt_variant not in subtitle_artifacts:
@@ -341,6 +405,8 @@ def _run_dub_job(
                                 target_language=language_code,
                                 include_transliteration=include_transliteration_resolved,
                                 transliterator=transliterator if include_transliteration_resolved else None,
+                                transliteration_mode=resolved_transliteration_mode,
+                                llm_model=llm_model,
                             )
                             if aligned_variant:
                                 if aligned_variant not in subtitle_artifacts:
@@ -417,6 +483,8 @@ def _run_dub_job(
             original_mix_percent=original_mix_percent,
             flush_sentences=flush_sentences,
             llm_model=llm_model,
+            translation_provider=resolved_translation_provider,
+            transliteration_mode=resolved_transliteration_mode,
             split_batches=split_batches,
             include_transliteration=include_transliteration_resolved,
             on_batch_written=_register_written_path,
@@ -456,6 +524,8 @@ def _run_dub_job(
                         language_code=language_code,
                         include_transliteration=include_transliteration_resolved,
                         transliterator=transliterator if include_transliteration_resolved else None,
+                        transliteration_mode=resolved_transliteration_mode,
+                        llm_model=llm_model,
                         target_height=target_height_resolved,
                         preserve_aspect_ratio=preserve_aspect_ratio,
                     )
@@ -603,6 +673,12 @@ def _run_dub_job(
         original_mix_percent=_clamp_original_mix(original_mix_percent),
         flush_sentences=flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
         llm_model=llm_model,
+        translation_provider=resolved_translation_provider,
+        transliteration_mode=resolved_transliteration_mode,
+        transliteration_model=llm_model if resolved_transliteration_mode == "default" else None,
+        transliteration_module=resolve_local_transliteration_module(language_code)
+        if resolved_transliteration_mode == "python"
+        else None,
         target_height=target_height_resolved,
         preserve_aspect_ratio=preserve_aspect_ratio,
     )
@@ -652,6 +728,8 @@ class YoutubeDubbingService:
         original_mix_percent: Optional[float] = None,
         flush_sentences: Optional[int] = None,
         llm_model: Optional[str] = None,
+        translation_provider: Optional[str] = None,
+        transliteration_mode: Optional[str] = None,
         split_batches: Optional[bool] = None,
         stitch_batches: Optional[bool] = None,
         include_transliteration: Optional[bool] = None,
@@ -684,6 +762,12 @@ class YoutubeDubbingService:
         language_code = _resolve_language_code(
             target_language or _find_language_token(resolved_subtitle) or "en"
         )
+        resolved_translation_provider = (
+            _normalize_translation_provider(translation_provider) or "llm"
+        )
+        resolved_transliteration_mode = (
+            _normalize_transliteration_mode(transliteration_mode) or "default"
+        )
         payload = {
             "video_path": resolved_video.as_posix(),
             "subtitle_path": resolved_subtitle.as_posix(),
@@ -699,6 +783,8 @@ class YoutubeDubbingService:
             "original_mix_percent": _clamp_original_mix(original_mix_percent),
             "flush_sentences": flush_sentences if flush_sentences is not None else _DEFAULT_FLUSH_SENTENCES,
             "llm_model": llm_model,
+            "translation_provider": resolved_translation_provider,
+            "transliteration_mode": resolved_transliteration_mode,
             "split_batches": bool(split_batches) if split_batches is not None else False,
             "stitch_batches": True if stitch_batches is None else bool(stitch_batches),
             "include_transliteration": include_transliteration,
@@ -724,6 +810,8 @@ class YoutubeDubbingService:
                 original_mix_percent=original_mix_percent,
                 flush_sentences=flush_sentences,
                 llm_model=llm_model,
+                translation_provider=resolved_translation_provider,
+                transliteration_mode=resolved_transliteration_mode,
                 split_batches=bool(split_batches) if split_batches is not None else False,
                 stitch_batches=True if stitch_batches is None else bool(stitch_batches),
                 include_transliteration=include_transliteration,

@@ -7,9 +7,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Sequence, Tuple
 
+from modules.llm_client import create_client
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.progress_tracker import ProgressTracker
-from modules.transliteration import TransliterationService, get_transliterator
+from modules.transliteration import (
+    TransliterationService,
+    get_transliterator,
+    resolve_local_transliteration_module,
+)
 from modules.translation_engine import _unexpected_script_used
 
 from .common import ASS_EXTENSION, SRT_EXTENSION, logger
@@ -341,6 +346,8 @@ def process_subtitle_file(
         "translation_source_language_code": _normalize_language_label(
             language_context.translation_source_language
         ),
+        "llm_model": options.llm_model,
+        "translation_provider": options.translation_provider,
         "origin_translation": {
             "active": language_context.origin_translation_needed,
             "source_language": language_context.translation_source_language,
@@ -355,6 +362,13 @@ def process_subtitle_file(
         "origin_translation_applied": language_context.origin_translation_needed,
         "highlight": options.highlight,
         "transliteration": transliteration_enabled,
+        "transliteration_mode": options.transliteration_mode,
+        "transliteration_model": options.llm_model
+        if options.transliteration_mode == "default"
+        else None,
+        "transliteration_module": resolve_local_transliteration_module(options.target_language)
+        if options.transliteration_mode == "python"
+        else None,
         "show_original": options.show_original,
         "batch_size": batch_size,
         "workers": worker_count,
@@ -402,6 +416,7 @@ def _process_cue(
             source_language=language_context.translation_source_language,
             target_language=options.target_language,
             llm_model=options.llm_model,
+            translation_provider=options.translation_provider,
         )
     )
     translation_failed = is_failure_annotation(translation)
@@ -431,6 +446,7 @@ def _process_cue(
                     source_language=language_context.translation_source_language,
                     target_language=language_context.origin_language,
                     llm_model=options.llm_model,
+                    translation_provider=options.translation_provider,
                 )
             )
         except Exception:  # pragma: no cover - best effort fallback
@@ -456,10 +472,20 @@ def _process_cue(
         and not translation_failed
     ):
         try:
-            transliteration_result = transliterator.transliterate(
-                translation,
-                options.target_language,
-            )
+            if options.llm_model and options.transliteration_mode != "python":
+                with create_client(model=options.llm_model) as client:
+                    transliteration_result = transliterator.transliterate(
+                        translation,
+                        options.target_language,
+                        client=client,
+                        mode=options.transliteration_mode,
+                    )
+            else:
+                transliteration_result = transliterator.transliterate(
+                    translation,
+                    options.target_language,
+                    mode=options.transliteration_mode,
+                )
         except Exception as exc:  # pragma: no cover - defensive fallbacks
             logger.debug(
                 "Transliteration failed for cue %s: %s", cue.index, exc, exc_info=True

@@ -179,6 +179,8 @@ def stitch_dub_batches(
     language_code: str,
     include_transliteration: bool,
     transliterator: Optional[TransliterationService],
+    transliteration_mode: Optional[str] = None,
+    llm_model: Optional[str] = None,
     target_height: int = _TARGET_DUB_HEIGHT,
     preserve_aspect_ratio: bool = True,
 ) -> Optional[Tuple[Path, Path, Path]]:
@@ -279,6 +281,8 @@ def stitch_dub_batches(
             target_language=language_code,
             include_transliteration=include_transliteration,
             transliterator=transliterator if include_transliteration else None,
+            transliteration_mode=transliteration_mode,
+            llm_model=llm_model,
         )
     except Exception:
         logger.debug("Unable to write stitched VTT to %s", stitched_vtt, exc_info=True)
@@ -296,6 +300,8 @@ def stitch_dub_batches(
                 offset_seconds=0.0,
                 include_transliteration=include_transliteration,
                 transliterator=transliterator if include_transliteration else None,
+                transliteration_mode=transliteration_mode,
+                llm_model=llm_model,
                 language_code=language_code,
                 ass_renderer=renderer,
             )

@@ -183,6 +183,8 @@ export default function SubtitleToolPage({
   const [endTime, setEndTime] = useState<string>('');
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>(DEFAULT_LLM_MODEL);
+  const [translationProvider, setTranslationProvider] = useState<string>('llm');
+  const [transliterationMode, setTransliterationMode] = useState<string>('default');
   const [modelsLoading, setModelsLoading] = useState<boolean>(false);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [isLoadingSources, setLoadingSources] = useState<boolean>(false);
@@ -247,6 +249,12 @@ export default function SubtitleToolPage({
     }
     if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
       setSelectedModel(prefillParameters.llm_model.trim());
+    }
+    if (prefillParameters.translation_provider && typeof prefillParameters.translation_provider === 'string') {
+      setTranslationProvider(prefillParameters.translation_provider.trim());
+    }
+    if (prefillParameters.transliteration_mode && typeof prefillParameters.transliteration_mode === 'string') {
+      setTransliterationMode(prefillParameters.transliteration_mode.trim());
     }
     const sourcePath =
       typeof prefillParameters.subtitle_path === 'string'
@@ -649,6 +657,12 @@ export default function SubtitleToolPage({
       if (selectedModel.trim()) {
         formData.append('llm_model', selectedModel.trim());
       }
+      if (translationProvider.trim()) {
+        formData.append('translation_provider', translationProvider.trim());
+      }
+      if (transliterationMode.trim()) {
+        formData.append('transliteration_mode', transliterationMode.trim());
+      }
       if (normalisedEndTime) {
         formData.append('end_time', normalisedEndTime);
       }
@@ -724,7 +738,9 @@ export default function SubtitleToolPage({
       outputFormat,
       assFontSize,
       assEmphasis,
-      mediaMetadataDraft
+      mediaMetadataDraft,
+      translationProvider,
+      transliterationMode
     ]
   );
 
@@ -826,6 +842,8 @@ export default function SubtitleToolPage({
             availableModels={availableModels}
             modelsLoading={modelsLoading}
             modelsError={modelsError}
+            translationProvider={translationProvider}
+            transliterationMode={transliterationMode}
             enableTransliteration={enableTransliteration}
             enableHighlight={enableHighlight}
             generateAudioBook={generateAudioBook}
@@ -842,6 +860,8 @@ export default function SubtitleToolPage({
             onInputLanguageChange={handleInputLanguageChange}
             onTargetLanguageChange={handleTargetLanguageChange}
             onModelChange={setSelectedModel}
+            onTranslationProviderChange={setTranslationProvider}
+            onTransliterationModeChange={setTransliterationMode}
             onEnableTransliterationChange={setEnableTransliteration}
             onEnableHighlightChange={setEnableHighlight}
             onGenerateAudioBookChange={setGenerateAudioBook}

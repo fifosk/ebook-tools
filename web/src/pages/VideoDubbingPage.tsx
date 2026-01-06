@@ -129,6 +129,8 @@ export default function VideoDubbingPage({
   const [targetHeight, setTargetHeight] = useState(480);
   const [preserveAspectRatio, setPreserveAspectRatio] = useState(true);
   const [llmModel, setLlmModel] = useState(DEFAULT_LLM_MODEL);
+  const [translationProvider, setTranslationProvider] = useState('llm');
+  const [transliterationMode, setTransliterationMode] = useState('default');
   const [splitBatches, setSplitBatches] = useState(true);
   const [stitchBatches, setStitchBatches] = useState(true);
   const [includeTransliteration, setIncludeTransliteration] = useState(true);
@@ -694,6 +696,12 @@ export default function VideoDubbingPage({
     if (prefillParameters.llm_model && typeof prefillParameters.llm_model === 'string') {
       setLlmModel(prefillParameters.llm_model.trim());
     }
+    if (prefillParameters.translation_provider && typeof prefillParameters.translation_provider === 'string') {
+      setTranslationProvider(prefillParameters.translation_provider.trim());
+    }
+    if (prefillParameters.transliteration_mode && typeof prefillParameters.transliteration_mode === 'string') {
+      setTransliterationMode(prefillParameters.transliteration_mode.trim());
+    }
     if (typeof prefillParameters.include_transliteration === 'boolean') {
       setIncludeTransliteration(prefillParameters.include_transliteration);
     } else {
@@ -989,6 +997,8 @@ export default function VideoDubbingPage({
         original_mix_percent: originalMixPercent,
         flush_sentences: flushSentences,
         llm_model: llmModel || undefined,
+        translation_provider: translationProvider || undefined,
+        transliteration_mode: transliterationMode || undefined,
         split_batches: splitBatches,
         stitch_batches: stitchBatches,
         include_transliteration: includeTransliteration,
@@ -1015,6 +1025,8 @@ export default function VideoDubbingPage({
     originalMixPercent,
     flushSentences,
     llmModel,
+    translationProvider,
+    transliterationMode,
     splitBatches,
     stitchBatches,
     includeTransliteration,
@@ -1192,6 +1204,8 @@ export default function VideoDubbingPage({
           llmModels={llmModels}
           isLoadingModels={isLoadingModels}
           modelError={modelError}
+          translationProvider={translationProvider}
+          transliterationMode={transliterationMode}
           targetHeight={targetHeight}
           preserveAspectRatio={preserveAspectRatio}
           flushSentences={flushSentences}
@@ -1205,6 +1219,8 @@ export default function VideoDubbingPage({
           onVoiceChange={setVoice}
           onPreviewVoice={() => void handlePreviewVoice()}
           onModelChange={setLlmModel}
+          onTranslationProviderChange={setTranslationProvider}
+          onTransliterationModeChange={setTransliterationMode}
           onTargetHeightChange={setTargetHeight}
           onPreserveAspectRatioChange={setPreserveAspectRatio}
           onFlushSentencesChange={setFlushSentences}
