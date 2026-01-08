@@ -1,0 +1,743 @@
+import SwiftUI
+#if os(iOS) || os(tvOS)
+import UIKit
+#endif
+
+extension InteractivePlayerView {
+    var baseContent: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            playerContent
+        }
+    }
+
+    var playerContent: some View {
+        ZStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 12) {
+                if let chunk = viewModel.selectedChunk {
+                    interactiveContent(for: chunk)
+                } else {
+                    Text("No interactive chunks were returned for this job.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+
+            if let chunk = viewModel.selectedChunk, (shouldShowHeaderOverlay || isTV) {
+                playerInfoOverlay(for: chunk)
+            }
+            if let chunk = viewModel.selectedChunk {
+                menuOverlay(for: chunk)
+            }
+            headerToggleButton
+            trackpadSwipeLayer
+            shortcutHelpOverlay
+            keyboardShortcutLayer
+        }
+        #if !os(tvOS)
+        .simultaneousGesture(menuToggleGesture, including: .subviews)
+        #endif
+        .onAppear {
+            loadLlmModelsIfNeeded()
+            refreshBookmarks()
+            guard let chunk = viewModel.selectedChunk else { return }
+            applyDefaultTrackSelection(for: chunk)
+            syncSelectedSentence(for: chunk)
+            configureReadingBed()
+            #if os(tvOS)
+            if !didSetInitialFocus {
+                didSetInitialFocus = true
+                Task { @MainActor in
+                    focusedArea = .transcript
+                }
+            }
+            #endif
+        }
+        .onChange(of: viewModel.selectedChunk?.id) { _, _ in
+            guard let chunk = viewModel.selectedChunk else { return }
+            clearLinguistState()
+            applyDefaultTrackSelection(for: chunk)
+            syncSelectedSentence(for: chunk)
+            if isMenuVisible && !audioCoordinator.isPlaying {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            } else {
+                frozenTranscriptSentences = nil
+            }
+        }
+        .onChange(of: trackAvailabilitySignature) { _, _ in
+            guard let chunk = viewModel.selectedChunk else { return }
+            applyDefaultTrackSelection(for: chunk)
+        }
+        .onChange(of: viewModel.highlightingTime) { _, _ in
+            guard !isMenuVisible else { return }
+            guard focusedArea != .controls else { return }
+            guard let chunk = viewModel.selectedChunk else { return }
+            if audioCoordinator.isPlaying {
+                return
+            }
+            syncSelectedSentence(for: chunk)
+        }
+        .onChange(of: viewModel.readingBedURL) { _, _ in
+            configureReadingBed()
+        }
+        .onChange(of: readingBedEnabled) { _, _ in
+            updateReadingBedPlayback()
+        }
+        .onChange(of: audioCoordinator.isPlaying) { _, isPlaying in
+            handleNarrationPlaybackChange(isPlaying: isPlaying)
+            if isPlaying {
+                clearLinguistState()
+            }
+            if isPlaying {
+                frozenTranscriptSentences = nil
+            } else if isMenuVisible, let chunk = viewModel.selectedChunk {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            }
+        }
+        .onChange(of: visibleTracks) { _, _ in
+            clearLinguistState()
+            if isMenuVisible, !audioCoordinator.isPlaying, let chunk = viewModel.selectedChunk {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            }
+        }
+        .onChange(of: isMenuVisible) { _, visible in
+            guard let chunk = viewModel.selectedChunk else { return }
+            if visible && !audioCoordinator.isPlaying {
+                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            } else {
+                frozenTranscriptSentences = nil
+            }
+            updateReadingBedPlayback()
+        }
+        .onChange(of: bookmarkIdentityKey) { _, _ in
+            refreshBookmarks()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
+            guard let jobId = resolvedBookmarkJobId else { return }
+            let userId = resolvedBookmarkUserId
+            if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
+                return
+            }
+            bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
+        }
+        .onChange(of: readingBedCoordinator.isPlaying) { _, isPlaying in
+            guard !isPlaying else { return }
+            guard readingBedEnabled else { return }
+            guard audioCoordinator.isPlaybackRequested else { return }
+            updateReadingBedPlayback()
+        }
+        .onDisappear {
+            readingBedPauseTask?.cancel()
+            readingBedPauseTask = nil
+            readingBedCoordinator.reset()
+            clearLinguistState()
+        }
+    }
+
+    var isPad: Bool {
+        #if os(iOS)
+        return UIDevice.current.userInterfaceIdiom == .pad
+        #else
+        return false
+        #endif
+    }
+
+    var isTV: Bool {
+        #if os(tvOS)
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    var isShortcutHelpVisible: Bool {
+        isShortcutHelpPinned || isShortcutHelpModifierActive
+    }
+
+    @ViewBuilder
+    func interactiveContent(for chunk: InteractiveChunk) -> some View {
+        let transcriptSentences = frozenTranscriptSentences ?? transcriptSentences(for: chunk)
+        InteractiveTranscriptView(
+            viewModel: viewModel,
+            audioCoordinator: audioCoordinator,
+            sentences: transcriptSentences,
+            selection: linguistSelection,
+            bubble: linguistBubble,
+            lookupLanguage: resolvedLookupLanguage,
+            lookupLanguageOptions: lookupLanguageOptions,
+            onLookupLanguageChange: { storedLookupLanguage = $0 },
+            llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
+            llmModelOptions: llmModelOptions,
+            onLlmModelChange: { storedLlmModel = $0 },
+            isMenuVisible: isMenuVisible,
+            trackFontScale: trackFontScale,
+            linguistFontScale: linguistFontScale,
+            canIncreaseLinguistFont: linguistFontScale < linguistFontScaleMax - 0.001,
+            canDecreaseLinguistFont: linguistFontScale > linguistFontScaleMin + 0.001,
+            focusedArea: $focusedArea,
+            onSkipSentence: { delta in
+                viewModel.skipSentence(forward: delta > 0)
+            },
+            onNavigateTrack: { delta in
+                handleTrackNavigation(delta, in: chunk)
+            },
+            onShowMenu: {
+                showMenu()
+            },
+            onHideMenu: {
+                hideMenu()
+            },
+            onLookup: {
+                handleLinguistLookup(in: chunk)
+            },
+            onLookupToken: { sentenceIndex, variantKind, tokenIndex, token in
+                handleLinguistLookup(
+                    sentenceIndex: sentenceIndex,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    token: token
+                )
+            },
+            onSeekToken: { sentenceIndex, sentenceNumber, variantKind, tokenIndex, seekTime in
+                handleTokenSeek(
+                    sentenceIndex: sentenceIndex,
+                    sentenceNumber: sentenceNumber,
+                    variantKind: variantKind,
+                    tokenIndex: tokenIndex,
+                    seekTime: seekTime,
+                    in: chunk
+                )
+            },
+            onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
+            onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
+            onSetTrackFontScale: { setTrackFontScale($0) },
+            onSetLinguistFontScale: { setLinguistFontScale($0) },
+            onCloseBubble: {
+                closeLinguistBubble()
+            },
+            onTogglePlayback: {
+                audioCoordinator.togglePlayback()
+            }
+        )
+        .padding(.top, transcriptTopPadding)
+    }
+
+    @ViewBuilder
+    func menuOverlay(for chunk: InteractiveChunk) -> some View {
+        if isMenuVisible {
+            let reelURLs = imageReelURLs(for: chunk)
+            VStack(alignment: .leading, spacing: 12) {
+                menuDragHandle
+                if let headerInfo {
+                    menuHeader(info: headerInfo, reelURLs: reelURLs)
+                }
+                if let summary = viewModel.highlightingSummary {
+                    Text(summary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                controlBar(chunk)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(menuBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .shadow(color: Color.black.opacity(0.25), radius: 12, x: 0, y: 6)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .accessibilityAddTraits(.isModal)
+            .zIndex(2)
+        }
+    }
+
+    @ViewBuilder
+    var keyboardShortcutLayer: some View {
+        #if os(iOS)
+        if isPad {
+            KeyboardCommandHandler(
+                onPlayPause: { audioCoordinator.togglePlayback() },
+                onPrevious: {
+                    if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: false)
+                    } else {
+                        handleWordNavigation(-1, in: viewModel.selectedChunk)
+                    }
+                },
+                onNext: {
+                    if audioCoordinator.isPlaying {
+                        viewModel.skipSentence(forward: true)
+                    } else {
+                        handleWordNavigation(1, in: viewModel.selectedChunk)
+                    }
+                },
+                onPreviousWord: { handleWordNavigation(-1, in: viewModel.selectedChunk) },
+                onNextWord: { handleWordNavigation(1, in: viewModel.selectedChunk) },
+                onLookup: {
+                    guard !audioCoordinator.isPlaying else { return }
+                    guard let chunk = viewModel.selectedChunk else { return }
+                    handleLinguistLookup(in: chunk)
+                },
+                onIncreaseFont: { adjustTrackFontScale(by: trackFontScaleStep) },
+                onDecreaseFont: { adjustTrackFontScale(by: -trackFontScaleStep) },
+                onToggleOriginal: { toggleTrackIfAvailable(.original) },
+                onToggleTransliteration: { toggleTrackIfAvailable(.transliteration) },
+                onToggleTranslation: { toggleTrackIfAvailable(.translation) },
+                onToggleOriginalAudio: { toggleAudioTrack(.original) },
+                onToggleTranslationAudio: { toggleAudioTrack(.translation) },
+                onIncreaseLinguistFont: { adjustLinguistFontScale(by: linguistFontScaleStep) },
+                onDecreaseLinguistFont: { adjustLinguistFontScale(by: -linguistFontScaleStep) },
+                onToggleShortcutHelp: { toggleShortcutHelp() },
+                onOptionKeyDown: { showShortcutHelpModifier() },
+                onOptionKeyUp: { hideShortcutHelpModifier() },
+                onShowMenu: {
+                    if audioCoordinator.isPlaying {
+                        showMenu()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleTrackNavigation(1, in: chunk)
+                    }
+                },
+                onHideMenu: {
+                    if audioCoordinator.isPlaying {
+                        hideMenu()
+                    } else if let chunk = viewModel.selectedChunk {
+                        handleTrackNavigation(-1, in: chunk)
+                    }
+                }
+            )
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(true)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    @ViewBuilder
+    var trackpadSwipeLayer: some View {
+        #if os(iOS)
+        if isPad {
+            TrackpadSwipeHandler(
+                onSwipeDown: { showMenu() },
+                onSwipeUp: { hideMenu() }
+            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .accessibilityHidden(true)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    @ViewBuilder
+    var shortcutHelpOverlay: some View {
+        #if os(iOS)
+        if isPad, isShortcutHelpVisible {
+            ShortcutHelpOverlayView(onDismiss: { dismissShortcutHelp() })
+                .transition(.opacity)
+                .zIndex(4)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    #if !os(tvOS)
+    var menuToggleGesture: some Gesture {
+        DragGesture(minimumDistance: 24, coordinateSpace: .local)
+            .onEnded { value in
+                let horizontal = value.translation.width
+                let vertical = value.translation.height
+                guard abs(vertical) > abs(horizontal) else { return }
+                if vertical > 24 {
+                    showMenu()
+                } else if vertical < -24 {
+                    hideMenu()
+                }
+            }
+    }
+    #endif
+
+    func showMenu() {
+        guard !isMenuVisible else { return }
+        guard viewModel.selectedChunk != nil else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            isMenuVisible = true
+        }
+        #if os(tvOS)
+        focusedArea = .controls
+        #endif
+    }
+
+    func hideMenu() {
+        guard isMenuVisible else { return }
+        withAnimation(.easeOut(duration: 0.2)) {
+            isMenuVisible = false
+        }
+        #if os(tvOS)
+        focusedArea = .transcript
+        #endif
+    }
+
+    func playerInfoOverlay(for chunk: InteractiveChunk) -> some View {
+        let variant = resolveInfoVariant()
+        let label = headerInfo?.itemTypeLabel.isEmpty == false ? headerInfo?.itemTypeLabel : "Job"
+        let slideLabel = slideIndicatorLabel(for: chunk)
+        let timelineLabel = audioTimelineLabel(for: chunk)
+        let showHeaderContent = !isHeaderCollapsed
+        return HStack(alignment: .top, spacing: 12) {
+            if showHeaderContent {
+                PlayerChannelBugView(variant: variant, label: label)
+                if let headerInfo {
+                    infoBadgeView(info: headerInfo)
+                }
+            }
+            Spacer(minLength: 12)
+            if showHeaderContent || isTV {
+                VStack(alignment: .trailing, spacing: 6) {
+                    if showHeaderContent {
+                        if let slideLabel {
+                            slideIndicatorView(label: slideLabel)
+                        }
+                        if let timelineLabel {
+                            audioTimelineView(label: timelineLabel)
+                        }
+                    }
+                    #if os(tvOS)
+                    tvHeaderTogglePill
+                    #endif
+                }
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 6)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .allowsHitTesting(isTV)
+        .zIndex(1)
+    }
+
+    func infoBadgeView(info: InteractivePlayerHeaderInfo) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            if info.coverURL != nil || info.secondaryCoverURL != nil {
+                PlayerCoverStackView(
+                    primaryURL: info.coverURL,
+                    secondaryURL: info.secondaryCoverURL,
+                    width: infoCoverWidth,
+                    height: infoCoverHeight,
+                    isTV: isTV
+                )
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(info.title.isEmpty ? "Untitled" : info.title)
+                    .font(infoTitleFont)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                if !info.author.isEmpty {
+                    Text(info.author)
+                        .font(infoMetaFont)
+                        .foregroundStyle(Color.white.opacity(0.75))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                if !info.languageFlags.isEmpty {
+                    PlayerLanguageFlagRow(
+                        flags: info.languageFlags,
+                        modelLabel: info.translationModel,
+                        isTV: isTV
+                    )
+                }
+            }
+        }
+    }
+
+    func slideIndicatorView(label: String) -> some View {
+        Text(label)
+            .font(infoIndicatorFont)
+            .foregroundStyle(Color.white.opacity(0.85))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.6))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+            )
+    }
+
+    func audioTimelineView(label: String) -> some View {
+        Text(label)
+            .font(infoIndicatorFont)
+            .foregroundStyle(Color.white.opacity(0.75))
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(
+                Capsule()
+                    .fill(Color.black.opacity(0.5))
+                    .overlay(
+                        Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
+                    )
+            )
+    }
+
+    var infoCoverWidth: CGFloat {
+        PlayerInfoMetrics.coverWidth(isTV: isTV)
+    }
+
+    var infoCoverHeight: CGFloat {
+        PlayerInfoMetrics.coverHeight(isTV: isTV)
+    }
+
+    var infoTitleFont: Font {
+        #if os(tvOS)
+        return .headline
+        #else
+        return .subheadline.weight(.semibold)
+        #endif
+    }
+
+    var infoMetaFont: Font {
+        #if os(tvOS)
+        return .callout
+        #else
+        return .caption
+        #endif
+    }
+
+    var infoIndicatorFont: Font {
+        #if os(tvOS)
+        return .callout.weight(.semibold)
+        #else
+        return .caption.weight(.semibold)
+        #endif
+    }
+
+    var infoHeaderReservedHeight: CGFloat {
+        #if os(tvOS)
+        return PlayerInfoMetrics.badgeHeight(isTV: true) + 24
+        #else
+        return PlayerInfoMetrics.badgeHeight(isTV: false) + (isPad ? 20 : 16)
+        #endif
+    }
+
+    var transcriptTopPadding: CGFloat {
+        #if os(iOS) || os(tvOS)
+        return isHeaderCollapsed ? 8 : infoHeaderReservedHeight
+        #else
+        return infoHeaderReservedHeight
+        #endif
+    }
+
+    var shouldShowHeaderOverlay: Bool {
+        return !isHeaderCollapsed
+    }
+
+    @ViewBuilder
+    var headerToggleButton: some View {
+        #if os(iOS)
+        if viewModel.selectedChunk != nil {
+            Button(action: toggleHeaderCollapsed) {
+                Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
+                    .font(.caption.weight(.semibold))
+                    .padding(6)
+                    .background(Color.black.opacity(0.45), in: Circle())
+                    .foregroundStyle(.white)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            .padding(.top, 6)
+            .padding(.trailing, 6)
+            .zIndex(2)
+        }
+        #else
+        EmptyView()
+        #endif
+    }
+
+    #if os(tvOS)
+    var tvHeaderTogglePill: some View {
+        Button(action: toggleHeaderCollapsed) {
+            Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.black.opacity(0.6), in: Capsule())
+                .foregroundStyle(.white)
+        }
+        .buttonStyle(.plain)
+        .focused($focusedArea, equals: .controls)
+        .accessibilityLabel(isHeaderCollapsed ? "Show header" : "Hide header")
+    }
+    #endif
+
+    func toggleHeaderCollapsed() {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isHeaderCollapsed.toggle()
+        }
+    }
+
+    func resolveInfoVariant() -> PlayerChannelVariant {
+        let rawLabel = (headerInfo?.itemTypeLabel ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = rawLabel.lowercased()
+        if lower.contains("subtitle") {
+            return .subtitles
+        }
+        if lower.contains("video") {
+            return .video
+        }
+        if lower.contains("book") || headerInfo?.author.isEmpty == false || headerInfo?.title.isEmpty == false {
+            return .book
+        }
+        return .job
+    }
+
+    func slideIndicatorLabel(for chunk: InteractiveChunk) -> String? {
+        guard let currentSentence = currentSentenceNumber(for: chunk) else { return nil }
+        let jobBounds = jobSentenceBounds
+        let jobStart = jobBounds.start ?? 1
+        let jobEnd = jobBounds.end
+        let displayCurrent = jobEnd.map { min(currentSentence, $0) } ?? currentSentence
+
+        var label = jobEnd != nil
+            ? "Playing sentence \(displayCurrent) of \(jobEnd ?? displayCurrent)"
+            : "Playing sentence \(displayCurrent)"
+
+        var suffixParts: [String] = []
+        if let jobEnd {
+            let span = max(jobEnd - jobStart, 0)
+            let ratio = span > 0 ? Double(displayCurrent - jobStart) / Double(span) : 1
+            if ratio.isFinite {
+                let percent = min(max(Int(round(ratio * 100)), 0), 100)
+                suffixParts.append("Job \(percent)%")
+            }
+        }
+        if let bookTotal = bookTotalSentences(jobEnd: jobEnd) {
+            let ratio = bookTotal > 0 ? Double(displayCurrent) / Double(bookTotal) : 1
+            if ratio.isFinite {
+                let percent = min(max(Int(round(ratio * 100)), 0), 100)
+                suffixParts.append("Book \(percent)%")
+            }
+        }
+        if !suffixParts.isEmpty {
+            label += " · " + suffixParts.joined(separator: " · ")
+        }
+        return label
+    }
+
+    func audioTimelineLabel(for chunk: InteractiveChunk) -> String? {
+        guard let metrics = audioTimelineMetrics(for: chunk) else { return nil }
+        let played = formatDurationLabel(metrics.played)
+        let remaining = formatDurationLabel(metrics.remaining)
+        return "\(played) / \(remaining) remaining"
+    }
+
+    func audioTimelineMetrics(
+        for chunk: InteractiveChunk
+    ) -> (played: Double, remaining: Double, total: Double)? {
+        guard let context = viewModel.jobContext else { return nil }
+        let chunks = context.chunks
+        guard let currentIndex = chunks.firstIndex(where: { $0.id == chunk.id }) else { return nil }
+        let preferredKind = selectedAudioKind(for: chunk)
+        let total = chunks.reduce(0.0) { partial, entry in
+            partial + resolvedAudioDuration(for: entry, preferredKind: preferredKind, isCurrent: entry.id == chunk.id)
+        }
+        guard total > 0 else { return nil }
+        let before = chunks.prefix(currentIndex).reduce(0.0) { partial, entry in
+            partial + resolvedAudioDuration(for: entry, preferredKind: preferredKind, isCurrent: false)
+        }
+        let currentDuration = resolvedAudioDuration(for: chunk, preferredKind: preferredKind, isCurrent: true)
+        let usesCombinedQueue = preferredKind == .combined && viewModel.usesCombinedQueue(for: chunk)
+        let currentTime = max(
+            usesCombinedQueue ? viewModel.combinedQueuePlaybackTime(for: chunk) : viewModel.playbackTime(for: chunk),
+            0
+        )
+        let within = currentDuration > 0 ? min(currentTime, currentDuration) : currentTime
+        let played = min(before + within, total)
+        let remaining = max(total - played, 0)
+        return (played, remaining, total)
+    }
+
+    func selectedAudioKind(for chunk: InteractiveChunk) -> InteractiveChunk.AudioOption.Kind? {
+        if let selectedID = viewModel.selectedAudioTrackID,
+           let option = chunk.audioOptions.first(where: { $0.id == selectedID }) {
+            return option.kind
+        }
+        return chunk.audioOptions.first?.kind
+    }
+
+    func resolvedAudioDuration(
+        for chunk: InteractiveChunk,
+        preferredKind: InteractiveChunk.AudioOption.Kind?,
+        isCurrent: Bool
+    ) -> Double {
+        let usesCombinedQueue = preferredKind == .combined && viewModel.usesCombinedQueue(for: chunk)
+        if isCurrent {
+            if usesCombinedQueue,
+               let duration = viewModel.combinedPlaybackDuration(for: chunk) {
+                return max(duration, 0)
+            }
+            if let duration = viewModel.timelineDuration(for: chunk) ?? viewModel.playbackDuration(for: chunk) {
+                return max(duration, 0)
+            }
+        }
+        if usesCombinedQueue,
+           let duration = viewModel.combinedPlaybackDuration(for: chunk) {
+            return max(duration, 0)
+        }
+        let option = chunk.audioOptions.first(where: { $0.kind == preferredKind }) ?? chunk.audioOptions.first
+        if let duration = option?.duration, duration > 0 {
+            return duration
+        }
+        if preferredKind == .combined,
+           let fallback = viewModel.fallbackDuration(for: chunk, kind: .combined),
+           fallback > 0 {
+            return fallback
+        }
+        if let option,
+           let fallback = viewModel.fallbackDuration(for: chunk, kind: option.kind),
+           fallback > 0 {
+            return fallback
+        }
+        let sentenceSum = chunk.sentences.compactMap { $0.totalDuration }.reduce(0, +)
+        if sentenceSum > 0 {
+            return sentenceSum
+        }
+        return 0
+    }
+
+    func formatDurationLabel(_ value: Double) -> String {
+        let total = max(0, Int(value.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let seconds = total % 60
+        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+    }
+
+    func currentSentenceNumber(for chunk: InteractiveChunk) -> Int? {
+        if let active = activeSentenceDisplay(for: chunk) {
+            if let number = active.sentenceNumber {
+                return number
+            }
+            if let start = chunk.startSentence {
+                return start + max(active.index, 0)
+            }
+            return active.index + 1
+        }
+        return nil
+    }
+
+    func bookTotalSentences(jobEnd: Int?) -> Int? {
+        if !viewModel.chapterEntries.isEmpty {
+            var maxEnd: Int?
+            for chapter in viewModel.chapterEntries {
+                let candidate = chapter.endSentence ?? chapter.startSentence
+                maxEnd = maxEnd.map { max($0, candidate) } ?? candidate
+            }
+            return maxEnd
+        }
+        return jobEnd
+    }
+}
