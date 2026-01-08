@@ -12,14 +12,18 @@ import textwrap
 from functools import lru_cache
 from pathlib import Path
 from threading import Lock
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, TYPE_CHECKING
 
 from pydub import AudioSegment
 
 from modules import config_manager as cfg
+from modules import fallbacks
 from modules import logging_manager as log_mgr
 from modules.audio.api import AudioService
 from modules.audio.backends import GTTSBackend, MacOSSayBackend, TTSBackendError
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from modules.progress_tracker import ProgressTracker
 
 logger = log_mgr.logger
 
@@ -570,11 +574,57 @@ def generate_audio(
     macos_reading_speed: int,
     *,
     config: Optional[Any] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
+    allow_gtts_fallback: bool = True,
 ) -> AudioSegment:
     """Generate spoken audio for ``text`` using the configured backend."""
 
+    fallback_voice = fallbacks.get_tts_fallback_voice(progress_tracker)
+    if fallback_voice:
+        selected_voice = fallback_voice
+        if fallback_voice != "gTTS":
+            allow_gtts_fallback = False
+
+    def _synthesize_gtts() -> AudioSegment:
+        try:
+            segment = _synthesize_with_gtts(text, lang_code, macos_reading_speed)
+        except Exception as exc:
+            if isinstance(exc, TTSBackendError):
+                raise
+            raise TTSBackendError(str(exc) or "gTTS synthesis failed") from exc
+        if len(segment) <= 0:
+            raise TTSBackendError("gTTS returned empty audio")
+        return segment
+
+    def _fallback_from_gtts(exc: Exception) -> AudioSegment:
+        error = exc if isinstance(exc, TTSBackendError) else TTSBackendError(
+            str(exc) or "gTTS synthesis failed"
+        )
+        fallback_voice = cfg.get_tts_fallback_voice()
+        fallbacks.record_tts_fallback(
+            progress_tracker,
+            trigger="gtts_error",
+            reason=str(error) or "gTTS synthesis failed",
+            source_voice="gTTS",
+            fallback_voice=fallback_voice,
+        )
+        if not fallback_voice or fallback_voice == "gTTS":
+            raise error
+        return generate_audio(
+            text,
+            lang_code,
+            fallback_voice,
+            macos_reading_speed,
+            config=config,
+            progress_tracker=progress_tracker,
+            allow_gtts_fallback=False,
+        )
+
     if selected_voice == "gTTS":
-        return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
+        try:
+            return _synthesize_gtts()
+        except Exception as exc:
+            return _fallback_from_gtts(exc)
 
     resolved_macos_voice = _resolve_macos_voice_name(selected_voice, lang_code)
     # Force the macOS backend when we have a resolvable macOS voice, regardless of default backend.
@@ -601,6 +651,8 @@ def generate_audio(
                     voice_name,
                     logger_obj=logger,
                 )
+                if not allow_gtts_fallback:
+                    raise
         else:
             logger.debug(
                 "Unable to resolve macOS voice '%s' for language '%s'; using gTTS fallback.",
@@ -613,7 +665,14 @@ def generate_audio(
             backend.name,
         )
 
-    return _synthesize_with_gtts(text, lang_code, macos_reading_speed)
+    if not allow_gtts_fallback:
+        raise TTSBackendError(
+            f"gTTS fallback disabled while using voice '{selected_voice}'"
+        )
+    try:
+        return _synthesize_gtts()
+    except Exception as exc:
+        return _fallback_from_gtts(exc)
 
 
 def get_voice_display_name(

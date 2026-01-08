@@ -273,7 +273,13 @@ def generate_dubbed_video(
                 _guard()
                 reading_speed = _apply_reading_speed_factor(macos_reading_speed, batch_pace)
                 sanitized = _sanitize_for_tts(entry.translation)
-                segment = generate_audio(sanitized, language_code, voice, reading_speed)
+                segment = generate_audio(
+                    sanitized,
+                    language_code,
+                    voice,
+                    reading_speed,
+                    progress_tracker=tracker,
+                )
                 normalized = _coerce_channels(segment.set_frame_rate(44100), 2)
                 return index, entry, normalized
 

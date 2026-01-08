@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { UIEvent } from 'react';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
+import { formatBookmarkTime, usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
@@ -71,6 +72,7 @@ type SearchCategory = Exclude<MediaCategory, 'audio'> | 'library';
 type PlaybackControls = {
   pause: () => void;
   play: () => void;
+  seek?: (time: number) => void;
 };
 
 type ReadingBedOverride = {
@@ -284,6 +286,7 @@ export default function PlayerPanel({
   const normalisedJobId = jobId ?? '';
   const mediaMemory = useMediaMemory({ jobId });
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
+  const { bookmarks, addBookmark, removeBookmark } = usePlaybackBookmarks({ jobId });
   const textScrollRef = useRef<HTMLDivElement | null>(null);
   const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
   const inlineAudioPlayingRef = useRef(false);
@@ -675,6 +678,16 @@ export default function PlayerPanel({
     return map;
   }, [media]);
 
+  const getMediaItem = useCallback(
+    (category: MediaCategory, id: string | null | undefined) => {
+      if (!id) {
+        return null;
+      }
+      return mediaIndex[category].get(id) ?? null;
+    },
+    [mediaIndex],
+  );
+
   const { coverUrl: displayCoverUrl, shouldShowCoverImage } = useCoverArt({
     jobId,
     origin,
@@ -766,14 +779,68 @@ export default function PlayerPanel({
     [canJumpToSentence, chunks, handleInteractiveSentenceJump, jobId, onOpenLibraryItem],
   );
 
-  const getMediaItem = useCallback(
-    (category: MediaCategory, id: string | null | undefined) => {
-      if (!id) {
-        return null;
+  const handleAddBookmark = useCallback(() => {
+    if (!jobId) {
+      return;
+    }
+    const sentence = activeSentenceNumber ?? null;
+    const activeAudioUrl = inlineAudioSelection;
+    const activeAudioPosition = activeAudioUrl ? getPosition(activeAudioUrl) : null;
+    const audioItem = activeAudioUrl ? getMediaItem('audio', activeAudioUrl) : null;
+    const baseId = audioItem ? deriveBaseId(audioItem) : null;
+    const labelParts: string[] = [];
+    if (sentence) {
+      labelParts.push(`Sentence ${sentence}`);
+    }
+    if (typeof activeAudioPosition === 'number' && Number.isFinite(activeAudioPosition)) {
+      labelParts.push(formatBookmarkTime(activeAudioPosition));
+    }
+    const label = labelParts.length > 0 ? labelParts.join(' · ') : 'Bookmark';
+    addBookmark({
+      kind: sentence ? 'sentence' : 'time',
+      label,
+      position: activeAudioPosition,
+      sentence,
+      mediaType: activeAudioUrl ? 'audio' : 'text',
+      mediaId: activeAudioUrl ?? null,
+      baseId,
+    });
+  }, [
+    activeSentenceNumber,
+    addBookmark,
+    deriveBaseId,
+    getMediaItem,
+    getPosition,
+    inlineAudioSelection,
+    jobId,
+  ]);
+
+  const handleJumpBookmark = useCallback(
+    (bookmark: { sentence?: number | null; position?: number | null; baseId?: string | null; mediaType?: MediaCategory | null }) => {
+      if (bookmark.sentence && canJumpToSentence) {
+        handleInteractiveSentenceJump(bookmark.sentence);
+        return;
       }
-      return mediaIndex[category].get(id) ?? null;
+      const approximateTime =
+        typeof bookmark.position === 'number' && Number.isFinite(bookmark.position)
+          ? bookmark.position
+          : null;
+      setPendingSelection({
+        baseId: bookmark.baseId ?? null,
+        preferredType: bookmark.mediaType ?? null,
+        offsetRatio: null,
+        approximateTime,
+        token: Date.now(),
+      });
     },
-    [mediaIndex],
+    [canJumpToSentence, handleInteractiveSentenceJump, setPendingSelection],
+  );
+
+  const handleRemoveBookmark = useCallback(
+    (bookmark: { id: string }) => {
+      removeBookmark(bookmark.id);
+    },
+    [removeBookmark],
   );
 
   const activeItemId = selectedItemIds.text;
@@ -1981,6 +2048,11 @@ export default function PlayerPanel({
     chapters: chapterEntries,
     activeChapterId,
     onChapterJump: handleChapterJump,
+    showBookmarks: Boolean(jobId),
+    bookmarks,
+    onAddBookmark: handleAddBookmark,
+    onJumpToBookmark: handleJumpBookmark,
+    onRemoveBookmark: handleRemoveBookmark,
     showExport: canExport,
     onExport: handleExport,
     exportDisabled: isExporting,

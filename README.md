@@ -826,6 +826,12 @@ rule. Create the folders manually if they do not already exist.
   the source is `local` or as a fallback from cloud requests.
 - **`ollama_cloud_url`**: Cloud endpoint leveraged when the source is `cloud`
   or when falling back from a failed local request.
+- **`translation_fallback_model`**: Local LLM model used when Google Translate
+  or the primary LLM path fails or times out (default: `gemma3:12b`).
+- **`translation_llm_timeout_seconds`**: Per-sentence timeout before switching
+  to the fallback LLM path (default: 60s).
+- **`tts_fallback_voice`**: macOS voice identifier used when gTTS fails to
+  synthesize audio (default: `macOS-auto`).
 - **`image_api_base_url`**: Base URL for the Draw Things / Stable Diffusion
   `txt2img` endpoint used for sentence images (example:
   `http://192.168.1.9:7860`).
@@ -839,10 +845,12 @@ rule. Create the folders manually if they do not already exist.
 
 These values accept overrides through CLI flags (`--ffmpeg-path`,
 `--ollama-url`, `--llm-source`) or the environment variables `FFMPEG_PATH`,
-`OLLAMA_URL`, `LLM_SOURCE`, and `EBOOK_AUDIO_BITRATE_KBPS`. You can also
-provide `OLLAMA_LOCAL_URL` and `OLLAMA_CLOUD_URL` to override the per-source
-endpoints. When both sources are configured, the runtime automatically retries
-the alternate adapter if the preferred endpoint is unavailable or rate limited.
+`OLLAMA_URL`, `LLM_SOURCE`, `EBOOK_AUDIO_BITRATE_KBPS`,
+`EBOOK_TRANSLATION_FALLBACK_MODEL`, `EBOOK_TRANSLATION_LLM_TIMEOUT_SECONDS`,
+and `EBOOK_TTS_FALLBACK_VOICE`. You can also provide `OLLAMA_LOCAL_URL` and
+`OLLAMA_CLOUD_URL` to override the per-source endpoints. When both sources are
+configured, the runtime automatically retries the alternate adapter if the
+preferred endpoint is unavailable or rate limited.
 
 Image service settings can also be supplied via `EBOOK_IMAGE_API_BASE_URL`,
 `EBOOK_IMAGE_API_TIMEOUT_SECONDS`, and `EBOOK_IMAGE_CONCURRENCY`.

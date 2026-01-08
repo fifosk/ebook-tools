@@ -10,6 +10,7 @@ type PlaybackControls = {
   pause: () => void;
   play: () => void;
   ensureFullscreen?: () => void;
+  seek?: (time: number) => void;
 };
 
 interface AudioStageProps {

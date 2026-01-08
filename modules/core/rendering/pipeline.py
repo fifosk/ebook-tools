@@ -763,6 +763,7 @@ class RenderPipeline:
             voice_overrides=self._config.voice_overrides,
             tts_backend=self._config.tts_backend,
             tts_executable_path=self._config.tts_executable_path or self._config.say_path,
+            progress_tracker=self._progress,
         )
 
     def _handle_sentence(

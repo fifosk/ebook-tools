@@ -144,6 +144,7 @@ def _build_job_result(
     subtitle_path: Path,
     source_subtitle_path: Optional[Path],
     source_kind: str,
+    source_language: Optional[str],
     language: str,
     voice: str,
     tempo: float,
@@ -168,6 +169,7 @@ def _build_job_result(
             "subtitle_path": subtitle_path.as_posix(),
             "source_subtitle_path": source_subtitle_path.as_posix() if source_subtitle_path else subtitle_path.as_posix(),
             "source_kind": source_kind,
+            "source_language": source_language,
             "language": language,
             "voice": voice,
             "tempo": tempo,
@@ -216,6 +218,7 @@ def _run_dub_job(
     file_locator: Optional[FileLocator] = None,
     source_subtitle_path: Optional[Path] = None,
     source_kind: str = "youtube",
+    source_language: Optional[str] = None,
 ) -> None:
     video_path = _resolve_partial_video(video_path)
     tracker = job.tracker or ProgressTracker()
@@ -663,6 +666,7 @@ def _run_dub_job(
         subtitle_path=subtitle_storage_path,
         source_subtitle_path=source_subtitle,
         source_kind=source_kind,
+        source_language=(source_language or "").strip() or None,
         language=language_code,
         voice=voice,
         tempo=tempo,
@@ -715,6 +719,7 @@ class YoutubeDubbingService:
         video_path: Path,
         subtitle_path: Path,
         *,
+        source_language: Optional[str] = None,
         target_language: Optional[str],
         voice: str,
         tempo: float,
@@ -759,6 +764,9 @@ class YoutubeDubbingService:
         tracker = ProgressTracker()
         stop_event = threading.Event()
         source_kind = _classify_video_source(resolved_video)
+        source_language_hint = (source_language or "").strip() or None
+        if source_language_hint is None:
+            source_language_hint = _find_language_token(resolved_subtitle)
         language_code = _resolve_language_code(
             target_language or _find_language_token(resolved_subtitle) or "en"
         )
@@ -773,6 +781,7 @@ class YoutubeDubbingService:
             "subtitle_path": resolved_subtitle.as_posix(),
             "source_subtitle_path": resolved_subtitle.as_posix(),
             "source_kind": source_kind,
+            "source_language": source_language_hint,
             "target_language": language_code,
             "voice": voice,
             "tempo": tempo,
@@ -820,6 +829,7 @@ class YoutubeDubbingService:
                 file_locator=self._job_manager.file_locator,
                 source_subtitle_path=resolved_subtitle,
                 source_kind=source_kind,
+                source_language=source_language_hint,
             )
 
         return self._job_manager.submit_background_job(

@@ -71,6 +71,7 @@ def _normalize_api_voice(
 
 if TYPE_CHECKING:  # pragma: no cover - typing helper
     from modules.integrations.audio_client import AudioAPIClient
+    from modules.progress_tracker import ProgressTracker
 else:  # pragma: no cover - runtime fallback when integrations are unavailable
     AudioAPIClient = Any  # type: ignore[assignment]
 
@@ -138,6 +139,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
         *,
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
+        progress_tracker: Optional["ProgressTracker"] = None,
     ) -> SynthesisResult:
         silence = AudioSegment.silent(duration=100)
 
@@ -340,6 +342,7 @@ class PollyAudioSynthesizer(AudioSynthesizer):
                 segment_voice,
                 macos_reading_speed,
                 config=backend_config,
+                progress_tracker=progress_tracker,
             )
             _record_voice(key, segment_voice)
             return segment

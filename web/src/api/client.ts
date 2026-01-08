@@ -73,6 +73,10 @@ import {
   ReadingBedEntry,
   ReadingBedListResponse,
   ReadingBedUpdateRequestPayload,
+  PlaybackBookmarkCreatePayload,
+  PlaybackBookmarkDeleteResponse,
+  PlaybackBookmarkEntry,
+  PlaybackBookmarkListResponse,
   SentenceImageInfoBatchResponse,
   SentenceImageInfoResponse,
   SentenceImageRegenerateRequestPayload,
@@ -677,6 +681,33 @@ export async function deleteReadingBed(bedId: string): Promise<ReadingBedDeleteR
     method: 'DELETE'
   });
   return handleResponse<ReadingBedDeleteResponse>(response);
+}
+
+export async function fetchPlaybackBookmarks(jobId: string): Promise<PlaybackBookmarkListResponse> {
+  const response = await apiFetch(`/api/bookmarks/${encodeURIComponent(jobId)}`);
+  return handleResponse<PlaybackBookmarkListResponse>(response);
+}
+
+export async function createPlaybackBookmark(
+  jobId: string,
+  payload: PlaybackBookmarkCreatePayload
+): Promise<PlaybackBookmarkEntry> {
+  const response = await apiFetch(`/api/bookmarks/${encodeURIComponent(jobId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<PlaybackBookmarkEntry>(response);
+}
+
+export async function deletePlaybackBookmark(
+  jobId: string,
+  bookmarkId: string
+): Promise<PlaybackBookmarkDeleteResponse> {
+  const response = await apiFetch(`/api/bookmarks/${encodeURIComponent(jobId)}/${encodeURIComponent(bookmarkId)}`, {
+    method: 'DELETE'
+  });
+  return handleResponse<PlaybackBookmarkDeleteResponse>(response);
 }
 
 export async function fetchJobMedia(jobId: string): Promise<PipelineMediaResponse> {

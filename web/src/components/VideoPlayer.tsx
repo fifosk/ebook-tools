@@ -40,6 +40,7 @@ interface VideoPlayerProps {
           pause: () => void;
           play: () => void;
           ensureFullscreen?: () => void;
+          seek?: (time: number) => void;
         }
       | null
   ) => void;
@@ -604,6 +605,18 @@ export default function VideoPlayer({
         }
       },
       ensureFullscreen: () => requestFullscreenPlayback(true),
+      seek: (time: number) => {
+        const element = elementRef.current;
+        if (!element) {
+          return;
+        }
+        const clamped = Number.isFinite(time) ? Math.max(time, 0) : 0;
+        try {
+          element.currentTime = clamped;
+        } catch (error) {
+          // Ignore assignment failures that can happen in non-media environments.
+        }
+      },
     };
     onRegisterControls(controls);
     return () => {

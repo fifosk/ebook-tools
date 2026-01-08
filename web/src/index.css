@@ -3281,6 +3281,117 @@ button.link-button:focus {
   color: #0f172a;
 }
 
+.player-panel__nav-button--bookmark {
+  font-size: 1rem;
+}
+
+.player-panel__nav-button--bookmark-active {
+  background: rgba(234, 179, 8, 0.2);
+  color: var(--color-text-heading);
+  box-shadow: 0 0 0 1px rgba(234, 179, 8, 0.3);
+}
+
+.player-panel__bookmark {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.player-panel__bookmark-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.35rem);
+  min-width: 220px;
+  max-width: 320px;
+  background: var(--color-surface-overlay, rgba(15, 23, 42, 0.95));
+  border: 1px solid var(--color-border-subtle, rgba(148, 163, 184, 0.2));
+  border-radius: 0.8rem;
+  padding: 0.65rem 0.7rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.35);
+  z-index: 20;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.player-panel__bookmark-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.player-panel__bookmark-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--color-text-heading);
+}
+
+.player-panel__bookmark-add {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--color-text-primary);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.player-panel__bookmark-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.player-panel__bookmark-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.player-panel__bookmark-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.player-panel__bookmark-jump {
+  appearance: none;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(15, 23, 42, 0.55);
+  color: var(--color-text-primary);
+  border-radius: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.78rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player-panel__bookmark-remove {
+  appearance: none;
+  border: none;
+  background: rgba(248, 113, 113, 0.18);
+  color: var(--color-text-primary);
+  border-radius: 999px;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.player-panel__bookmark-empty {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
 .player-panel__nav-button--audio:disabled {
   opacity: 0.6;
   transform: none;

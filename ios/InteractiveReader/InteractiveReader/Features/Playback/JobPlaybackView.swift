@@ -37,6 +37,7 @@ struct JobPlaybackView: View {
     #endif
 
     private let jobRefreshInterval: UInt64 = 6_000_000_000
+    private let summaryLengthLimit: Int = 320
 
     init(job: PipelineStatusResponse, autoPlayOnLoad: Binding<Bool> = .constant(true)) {
         self.job = job
@@ -152,7 +153,10 @@ struct JobPlaybackView: View {
                         jobProgressLabel: jobProgressLabel,
                         jobRemainingLabel: jobRemainingLabel,
                         onPlaybackProgress: handleVideoPlaybackProgress,
-                        onPlaybackEnded: handleVideoSegmentEnded
+                        onPlaybackEnded: handleVideoSegmentEnded,
+                        bookmarkUserId: resumeUserId,
+                        bookmarkJobId: currentJob.jobId,
+                        bookmarkItemType: resumeItemType
                     )
                     .frame(maxWidth: .infinity)
                     .aspectRatio(16 / 9, contentMode: .fit)
@@ -169,7 +173,10 @@ struct JobPlaybackView: View {
                         showsScrubber: false,
                         linguistInputLanguage: linguistInputLanguage,
                         linguistLookupLanguage: linguistLookupLanguage,
-                        headerInfo: interactiveHeaderInfo
+                        headerInfo: interactiveHeaderInfo,
+                        bookmarkUserId: resumeUserId,
+                        bookmarkJobId: currentJob.jobId,
+                        bookmarkItemType: resumeItemType
                     )
                 } else {
                     Text("No playable media found for this job.")
@@ -203,7 +210,10 @@ struct JobPlaybackView: View {
                     jobProgressLabel: jobProgressLabel,
                     jobRemainingLabel: jobRemainingLabel,
                     onPlaybackProgress: handleVideoPlaybackProgress,
-                    onPlaybackEnded: handleVideoSegmentEnded
+                    onPlaybackEnded: handleVideoSegmentEnded,
+                    bookmarkUserId: resumeUserId,
+                    bookmarkJobId: currentJob.jobId,
+                    bookmarkItemType: resumeItemType
                 )
                 .ignoresSafeArea()
             } else {
@@ -242,7 +252,10 @@ struct JobPlaybackView: View {
                         jobProgressLabel: jobProgressLabel,
                         jobRemainingLabel: jobRemainingLabel,
                         onPlaybackProgress: handleVideoPlaybackProgress,
-                        onPlaybackEnded: handleVideoSegmentEnded
+                        onPlaybackEnded: handleVideoSegmentEnded,
+                        bookmarkUserId: resumeUserId,
+                        bookmarkJobId: currentJob.jobId,
+                        bookmarkItemType: resumeItemType
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -438,6 +451,7 @@ struct JobPlaybackView: View {
             secondaryArtworkURL: secondaryCoverURL,
             languageFlags: languageFlags,
             translationModel: translationModelLabel,
+            summary: summaryText,
             channelVariant: jobVariant,
             channelLabel: channelLabel
         )
@@ -551,6 +565,19 @@ struct JobPlaybackView: View {
         metadataString(for: ["author", "book_author", "creator", "artist"]) ?? "Unknown author"
     }
 
+    private var summaryText: String? {
+        if let summary = resolvedYoutubeSummary {
+            return summary
+        }
+        if let summary = resolvedTvSummary {
+            return summary
+        }
+        if let summary = bookSummary {
+            return summary
+        }
+        return nil
+    }
+
     private var resolvedTvMetadata: [String: JSONValue]? {
         if let tvMetadata = subtitleTvMetadata?.mediaMetadata {
             return tvMetadata
@@ -569,6 +596,36 @@ struct JobPlaybackView: View {
             return nil
         }
         return youtube
+    }
+
+    private var resolvedYoutubeSummary: String? {
+        let summary = resolvedYoutubeMetadata?["summary"]?.stringValue
+        let description = resolvedYoutubeMetadata?["description"]?.stringValue
+        return normalizedSummary(summary ?? description)
+    }
+
+    private var resolvedTvSummary: String? {
+        guard let tvMetadata = resolvedTvMetadata else { return nil }
+        if let episode = tvMetadata["episode"]?.objectValue,
+           let summary = episode["summary"]?.stringValue {
+            return normalizedSummary(summary)
+        }
+        if let show = tvMetadata["show"]?.objectValue,
+           let summary = show["summary"]?.stringValue {
+            return normalizedSummary(summary)
+        }
+        return nil
+    }
+
+    private var bookSummary: String? {
+        if let metadata = jobMetadata,
+           let bookMetadata = extractBookMetadata(from: metadata) {
+            let summary = bookMetadata["book_summary"]?.stringValue
+                ?? bookMetadata["summary"]?.stringValue
+                ?? bookMetadata["description"]?.stringValue
+            return normalizedSummary(summary)
+        }
+        return normalizedSummary(metadataString(for: ["book_summary"], maxDepth: 4))
     }
 
     private var resolvedTvTitle: String? {
@@ -613,6 +670,23 @@ struct JobPlaybackView: View {
             return channel
         }
         return resolvedYoutubeMetadata?["uploader"]?.stringValue?.nonEmptyValue
+    }
+
+    private func normalizedSummary(_ value: String?) -> String? {
+        guard var value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else {
+            return nil
+        }
+        value = value.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        value = value.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+        if value.count > summaryLengthLimit {
+            let cutoff = max(summaryLengthLimit - 3, 0)
+            value = String(value.prefix(cutoff)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+        }
+        return value
     }
 
     private var jobVariant: PlayerChannelVariant {

@@ -19,6 +19,7 @@ struct VideoPlaybackMetadata {
     let secondaryArtworkURL: URL?
     let languageFlags: [LanguageFlagEntry]
     let translationModel: String?
+    let summary: String?
     let channelVariant: PlayerChannelVariant
     let channelLabel: String
 }
@@ -26,6 +27,12 @@ struct VideoPlaybackMetadata {
 struct VideoSegmentOption: Identifiable, Hashable {
     let id: String
     let label: String
+}
+
+private struct PendingVideoBookmarkSeek: Equatable {
+    let time: Double
+    let shouldPlay: Bool
+    let segmentId: String?
 }
 
 struct VideoPlayerView: View {
@@ -49,6 +56,9 @@ struct VideoPlayerView: View {
     let jobRemainingLabel: String?
     let onPlaybackProgress: ((Double, Bool) -> Void)?
     let onPlaybackEnded: ((Double) -> Void)?
+    let bookmarkUserId: String?
+    let bookmarkJobId: String?
+    let bookmarkItemType: String?
 
     @StateObject private var coordinator = VideoPlayerCoordinator()
     @State private var cues: [VideoSubtitleCue] = []
@@ -82,8 +92,10 @@ struct VideoPlayerView: View {
     @State private var subtitleActiveCueID: UUID?
     @State private var isManualSubtitleNavigation = false
     @State private var pendingResumeTime: Double?
+    @State private var pendingBookmarkSeek: PendingVideoBookmarkSeek?
     @StateObject private var pronunciationSpeaker = VideoPronunciationSpeaker()
     @State private var isTearingDown = false
+    @State private var bookmarks: [PlaybackBookmarkEntry] = []
     #if os(iOS)
     @State private var isVideoScrubGestureActive = false
     @State private var videoScrubStartTime: Double = 0
@@ -106,6 +118,26 @@ struct VideoPlayerView: View {
         #endif
     }
 
+    private var resolvedBookmarkUserId: String {
+        bookmarkUserId?.nonEmptyValue ?? "anonymous"
+    }
+
+    private var resolvedBookmarkJobId: String? {
+        bookmarkJobId?.nonEmptyValue
+    }
+
+    private var resolvedBookmarkItemType: String {
+        bookmarkItemType?.nonEmptyValue ?? "video"
+    }
+
+    private var bookmarkIdentityKey: String {
+        "\(resolvedBookmarkUserId)|\(resolvedBookmarkJobId ?? "")"
+    }
+
+    private var canUseBookmarks: Bool {
+        resolvedBookmarkJobId != nil
+    }
+
     init(
         videoURL: URL,
         subtitleTracks: [VideoSubtitleTrack],
@@ -123,7 +155,10 @@ struct VideoPlayerView: View {
         jobProgressLabel: String? = nil,
         jobRemainingLabel: String? = nil,
         onPlaybackProgress: ((Double, Bool) -> Void)? = nil,
-        onPlaybackEnded: ((Double) -> Void)? = nil
+        onPlaybackEnded: ((Double) -> Void)? = nil,
+        bookmarkUserId: String? = nil,
+        bookmarkJobId: String? = nil,
+        bookmarkItemType: String? = nil
     ) {
         self.videoURL = videoURL
         self.subtitleTracks = subtitleTracks
@@ -142,162 +177,14 @@ struct VideoPlayerView: View {
         self.jobRemainingLabel = jobRemainingLabel
         self.onPlaybackProgress = onPlaybackProgress
         self.onPlaybackEnded = onPlaybackEnded
+        self.bookmarkUserId = bookmarkUserId
+        self.bookmarkJobId = bookmarkJobId
+        self.bookmarkItemType = bookmarkItemType
     }
 
     var body: some View {
         ZStack {
-            if let player = coordinator.playerInstance() {
-                VideoPlayerControllerView(
-                    player: player,
-                    onShowControls: handleUserInteraction
-                )
-                #if os(iOS)
-                .background(videoViewportReader)
-                .simultaneousGesture(videoTapGesture, including: .gesture)
-                .simultaneousGesture(videoScrubGesture, including: .gesture)
-                #endif
-                #if os(tvOS)
-                .focusable(false)
-                .allowsHitTesting(false)
-                #endif
-                VideoPlayerOverlayView(
-                    cues: cues,
-                    currentTime: coordinator.currentTime,
-                    duration: coordinator.duration,
-                    subtitleError: subtitleError,
-                    tracks: orderedTracks,
-                    selectedTrack: $selectedTrack,
-                    subtitleVisibility: $subtitleVisibility,
-                    showSubtitleSettings: $showSubtitleSettings,
-                    showTVControls: $showTVControls,
-                    scrubberValue: $scrubberValue,
-                    isScrubbing: $isScrubbing,
-                    metadata: metadata,
-                    segmentOptions: segmentOptions,
-                    selectedSegmentID: selectedSegmentID,
-                    jobProgressLabel: jobProgressLabel,
-                    jobRemainingLabel: jobRemainingLabel,
-                    subtitleFontScale: subtitleFontScale,
-                    isPlaying: coordinator.isPlaying,
-                    subtitleSelection: subtitleSelection,
-                    subtitleBubble: subtitleBubble,
-                    lookupLanguage: resolvedLookupLanguage,
-                    lookupLanguageOptions: lookupLanguageOptions,
-                    onLookupLanguageChange: { storedLookupLanguage = $0 },
-                    llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
-                    llmModelOptions: llmModelOptions,
-                    onLlmModelChange: { storedLlmModel = $0 },
-                    subtitleLinguistFontScale: subtitleLinguistFontScale,
-                    canIncreaseSubtitleLinguistFont: canIncreaseSubtitleLinguistFont,
-                    canDecreaseSubtitleLinguistFont: canDecreaseSubtitleLinguistFont,
-                    isHeaderCollapsed: isHeaderCollapsed,
-                    onToggleHeaderCollapsed: toggleHeaderCollapsed,
-                    onResetSubtitleFont: {
-                        resetSubtitleFontScale()
-                    },
-                    onSetSubtitleFont: { value in
-                        setSubtitleFontScale(value)
-                    },
-                    onResetSubtitleBubbleFont: {
-                        resetSubtitleLinguistFontScale()
-                    },
-                    onSetSubtitleBubbleFont: { value in
-                        setSubtitleLinguistFontScale(value)
-                    },
-                    onPlayPause: {
-                        handleUserInteraction()
-                        coordinator.togglePlayback()
-                    },
-                    onSkipForward: {
-                        handleUserInteraction()
-                        coordinator.skip(by: 15)
-                    },
-                    onSkipBackward: {
-                        handleUserInteraction()
-                        coordinator.skip(by: -15)
-                    },
-                    onSeek: { time in
-                        handleUserInteraction()
-                        coordinator.seek(to: time)
-                    },
-                    onSkipSentence: { delta in
-                        handleSentenceSkip(delta)
-                    },
-                    onNavigateSubtitleWord: { delta in
-                        handleSubtitleWordNavigation(delta)
-                    },
-                    onNavigateSubtitleTrack: { delta in
-                        handleSubtitleTrackNavigation(delta)
-                    },
-                    onSubtitleLookup: {
-                        handleSubtitleLookup()
-                    },
-                    onSubtitleTokenLookup: { token in
-                        handleSubtitleTokenLookup(token)
-                    },
-                    onSubtitleTokenSeek: { token in
-                        handleSubtitleTokenSeek(token)
-                    },
-                    onIncreaseSubtitleLinguistFont: {
-                        adjustSubtitleLinguistFontScale(by: subtitleLinguistFontScaleStep)
-                    },
-                    onDecreaseSubtitleLinguistFont: {
-                        adjustSubtitleLinguistFontScale(by: -subtitleLinguistFontScaleStep)
-                    },
-                    onSelectSegment: { id in
-                        showSubtitleSettings = false
-                        onSelectSegment?(id)
-                    },
-                    onCloseSubtitleBubble: {
-                        closeSubtitleBubble()
-                    },
-                    onUserInteraction: handleUserInteraction
-                )
-                #if os(iOS)
-                if isPad {
-                    VideoKeyboardCommandHandler(
-                        onPlayPause: { coordinator.togglePlayback() },
-                        onSkipBackward: {
-                            if coordinator.isPlaying {
-                                handleSentenceSkip(-1)
-                            } else {
-                                handleSubtitleWordNavigation(-1)
-                            }
-                        },
-                        onSkipForward: {
-                            if coordinator.isPlaying {
-                                handleSentenceSkip(1)
-                            } else {
-                                handleSubtitleWordNavigation(1)
-                            }
-                        },
-                        onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
-                        onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
-                        onLookup: {
-                            guard !coordinator.isPlaying else { return }
-                            handleSubtitleLookup()
-                        },
-                        onIncreaseFont: { adjustSubtitleFontScale(by: subtitleFontScaleStep) },
-                        onDecreaseFont: { adjustSubtitleFontScale(by: -subtitleFontScaleStep) },
-                        onToggleOriginal: { toggleSubtitleVisibility(.original) },
-                        onToggleTransliteration: { toggleSubtitleVisibility(.transliteration) },
-                        onToggleTranslation: { toggleSubtitleVisibility(.translation) },
-                        onToggleShortcutHelp: { toggleShortcutHelp() },
-                        onOptionKeyDown: { showShortcutHelpModifier() },
-                        onOptionKeyUp: { hideShortcutHelpModifier() }
-                    )
-                    .frame(width: 0, height: 0)
-                    .accessibilityHidden(true)
-                }
-                if isPad, isShortcutHelpVisible {
-                    VideoShortcutHelpOverlayView(onDismiss: { dismissShortcutHelp() })
-                        .transition(.opacity)
-                        .zIndex(4)
-                }
-                #endif
-            } else {
-                ProgressView("Preparing video…")
-            }
+            playerContent
         }
         #if os(tvOS)
         .onExitCommand {
@@ -307,6 +194,7 @@ struct VideoPlayerView: View {
         .onAppear {
             isTearingDown = false
             loadLlmModelsIfNeeded()
+            refreshBookmarks()
             coordinator.onPlaybackEnded = { [weak coordinator] in
                 guard let coordinator else { return }
                 let duration = coordinator.duration.isFinite && coordinator.duration > 0
@@ -325,6 +213,7 @@ struct VideoPlayerView: View {
             showTVControls = true
             scheduleControlsAutoHide()
             applyPendingResumeIfPossible()
+            applyPendingBookmarkIfPossible()
         }
         .onDisappear {
             coordinator.onPlaybackEnded = nil
@@ -344,6 +233,7 @@ struct VideoPlayerView: View {
             showTVControls = true
             scheduleControlsAutoHide()
             applyPendingResumeIfPossible()
+            applyPendingBookmarkIfPossible()
         }
         .onChange(of: resumeActionID) { _, _ in
             pendingResumeTime = resumeTime ?? 0
@@ -354,6 +244,20 @@ struct VideoPlayerView: View {
                 pendingResumeTime = newValue
                 applyPendingResumeIfPossible()
             }
+        }
+        .onChange(of: selectedSegmentID) { _, _ in
+            applyPendingBookmarkIfPossible()
+        }
+        .onChange(of: bookmarkIdentityKey) { _, _ in
+            refreshBookmarks()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: PlaybackBookmarkStore.didChangeNotification)) { notification in
+            guard let jobId = resolvedBookmarkJobId else { return }
+            let userId = resolvedBookmarkUserId
+            if let changedUser = notification.userInfo?["userId"] as? String, changedUser != userId {
+                return
+            }
+            bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: userId)
         }
         .onChange(of: subtitleTracks) { _, _ in
             selectDefaultTrackIfNeeded()
@@ -428,6 +332,7 @@ struct VideoPlayerView: View {
                 scrubberValue = 0
             }
             applyPendingResumeIfPossible()
+            applyPendingBookmarkIfPossible()
         }
         .onDisappear {
             subtitleTask?.cancel()
@@ -440,6 +345,175 @@ struct VideoPlayerView: View {
             coordinator.reset()
             nowPlaying.clear()
         }
+    }
+
+    @ViewBuilder
+    private var playerContent: some View {
+        if let player = coordinator.playerInstance() {
+            playerSurface(player)
+            overlayView
+            #if os(iOS)
+            if isPad {
+                VideoKeyboardCommandHandler(
+                    onPlayPause: { coordinator.togglePlayback() },
+                    onSkipBackward: {
+                        if coordinator.isPlaying {
+                            handleSentenceSkip(-1)
+                        } else {
+                            handleSubtitleWordNavigation(-1)
+                        }
+                    },
+                    onSkipForward: {
+                        if coordinator.isPlaying {
+                            handleSentenceSkip(1)
+                        } else {
+                            handleSubtitleWordNavigation(1)
+                        }
+                    },
+                    onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
+                    onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
+                    onLookup: {
+                        guard !coordinator.isPlaying else { return }
+                        handleSubtitleLookup()
+                    },
+                    onIncreaseFont: { adjustSubtitleFontScale(by: subtitleFontScaleStep) },
+                    onDecreaseFont: { adjustSubtitleFontScale(by: -subtitleFontScaleStep) },
+                    onToggleOriginal: { toggleSubtitleVisibility(.original) },
+                    onToggleTransliteration: { toggleSubtitleVisibility(.transliteration) },
+                    onToggleTranslation: { toggleSubtitleVisibility(.translation) },
+                    onToggleShortcutHelp: { toggleShortcutHelp() },
+                    onOptionKeyDown: { showShortcutHelpModifier() },
+                    onOptionKeyUp: { hideShortcutHelpModifier() }
+                )
+                .frame(width: 0, height: 0)
+                .accessibilityHidden(true)
+            }
+            if isPad, isShortcutHelpVisible {
+                VideoShortcutHelpOverlayView(onDismiss: { dismissShortcutHelp() })
+                    .transition(.opacity)
+                    .zIndex(4)
+            }
+            #endif
+        } else {
+            ProgressView("Preparing video…")
+        }
+    }
+
+    @ViewBuilder
+    private func playerSurface(_ player: AVPlayer) -> some View {
+        VideoPlayerControllerView(
+            player: player,
+            onShowControls: handleUserInteraction
+        )
+        #if os(iOS)
+        .background(videoViewportReader)
+        .simultaneousGesture(videoTapGesture, including: .gesture)
+        .simultaneousGesture(videoScrubGesture, including: .gesture)
+        #endif
+        #if os(tvOS)
+        .focusable(false)
+        .allowsHitTesting(false)
+        #endif
+    }
+
+    private var overlayView: VideoPlayerOverlayView {
+        VideoPlayerOverlayView(
+            cues: cues,
+            currentTime: coordinator.currentTime,
+            duration: coordinator.duration,
+            subtitleError: subtitleError,
+            tracks: orderedTracks,
+            selectedTrack: $selectedTrack,
+            subtitleVisibility: $subtitleVisibility,
+            showSubtitleSettings: $showSubtitleSettings,
+            showTVControls: $showTVControls,
+            scrubberValue: $scrubberValue,
+            isScrubbing: $isScrubbing,
+            metadata: metadata,
+            segmentOptions: segmentOptions,
+            selectedSegmentID: selectedSegmentID,
+            jobProgressLabel: jobProgressLabel,
+            jobRemainingLabel: jobRemainingLabel,
+            bookmarks: bookmarks,
+            onAddBookmark: canUseBookmarks ? addBookmark : nil,
+            onJumpToBookmark: jumpToBookmark,
+            onRemoveBookmark: removeBookmark,
+            subtitleFontScale: subtitleFontScale,
+            isPlaying: coordinator.isPlaying,
+            subtitleSelection: subtitleSelection,
+            subtitleBubble: subtitleBubble,
+            lookupLanguage: resolvedLookupLanguage,
+            lookupLanguageOptions: lookupLanguageOptions,
+            onLookupLanguageChange: { storedLookupLanguage = $0 },
+            llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
+            llmModelOptions: llmModelOptions,
+            onLlmModelChange: { storedLlmModel = $0 },
+            subtitleLinguistFontScale: subtitleLinguistFontScale,
+            canIncreaseSubtitleLinguistFont: canIncreaseSubtitleLinguistFont,
+            canDecreaseSubtitleLinguistFont: canDecreaseSubtitleLinguistFont,
+            isHeaderCollapsed: isHeaderCollapsed,
+            onToggleHeaderCollapsed: toggleHeaderCollapsed,
+            onResetSubtitleFont: {
+                resetSubtitleFontScale()
+            },
+            onSetSubtitleFont: { value in
+                setSubtitleFontScale(value)
+            },
+            onResetSubtitleBubbleFont: {
+                resetSubtitleLinguistFontScale()
+            },
+            onSetSubtitleBubbleFont: { value in
+                setSubtitleLinguistFontScale(value)
+            },
+            onPlayPause: {
+                handleUserInteraction()
+                coordinator.togglePlayback()
+            },
+            onSkipForward: {
+                handleUserInteraction()
+                coordinator.skip(by: 15)
+            },
+            onSkipBackward: {
+                handleUserInteraction()
+                coordinator.skip(by: -15)
+            },
+            onSeek: { time in
+                handleUserInteraction()
+                coordinator.seek(to: time)
+            },
+            onSkipSentence: { delta in
+                handleSentenceSkip(delta)
+            },
+            onNavigateSubtitleWord: { delta in
+                handleSubtitleWordNavigation(delta)
+            },
+            onNavigateSubtitleTrack: { delta in
+                handleSubtitleTrackNavigation(delta)
+            },
+            onSubtitleLookup: {
+                handleSubtitleLookup()
+            },
+            onSubtitleTokenLookup: { token in
+                handleSubtitleTokenLookup(token)
+            },
+            onSubtitleTokenSeek: { token in
+                handleSubtitleTokenSeek(token)
+            },
+            onIncreaseSubtitleLinguistFont: {
+                adjustSubtitleLinguistFontScale(by: subtitleLinguistFontScaleStep)
+            },
+            onDecreaseSubtitleLinguistFont: {
+                adjustSubtitleLinguistFontScale(by: -subtitleLinguistFontScaleStep)
+            },
+            onSelectSegment: { id in
+                showSubtitleSettings = false
+                onSelectSegment?(id)
+            },
+            onCloseSubtitleBubble: {
+                closeSubtitleBubble()
+            },
+            onUserInteraction: handleUserInteraction
+        )
     }
 
     private var orderedTracks: [VideoSubtitleTrack] {
@@ -560,6 +634,184 @@ struct VideoPlayerView: View {
             coordinator.play()
         }
         self.pendingResumeTime = nil
+    }
+
+    private func applyPendingBookmarkIfPossible() {
+        guard let pendingBookmarkSeek else { return }
+        if let segmentId = pendingBookmarkSeek.segmentId,
+           segmentId != selectedSegmentID {
+            return
+        }
+        guard let player = coordinator.playerInstance() else { return }
+        let isReady = player.currentItem?.status == .readyToPlay
+        guard isReady || coordinator.duration > 0 else { return }
+        applyBookmarkSeek(time: pendingBookmarkSeek.time, shouldPlay: pendingBookmarkSeek.shouldPlay)
+        self.pendingBookmarkSeek = nil
+    }
+
+    private func applyBookmarkSeek(time: Double, shouldPlay: Bool) {
+        let clamped = max(0, time)
+        coordinator.seek(to: clamped)
+        if shouldPlay {
+            coordinator.play()
+        }
+    }
+
+    private func refreshBookmarks() {
+        guard let jobId = resolvedBookmarkJobId else {
+            bookmarks = []
+            return
+        }
+        bookmarks = PlaybackBookmarkStore.shared.bookmarks(for: jobId, userId: resolvedBookmarkUserId)
+        guard let configuration = appState.configuration else { return }
+        Task {
+            await syncRemoteBookmarks(jobId: jobId, configuration: configuration)
+        }
+    }
+
+    private func syncRemoteBookmarks(jobId: String, configuration: APIClientConfiguration) async {
+        do {
+            let client = APIClient(configuration: configuration)
+            let response = try await client.fetchPlaybackBookmarks(jobId: jobId)
+            let entries = response.bookmarks.map { payload in
+                PlaybackBookmarkEntry(
+                    id: payload.id,
+                    jobId: payload.jobId,
+                    itemType: payload.itemType ?? resolvedBookmarkItemType,
+                    kind: payload.kind,
+                    createdAt: payload.createdAt,
+                    label: payload.label,
+                    playbackTime: payload.position,
+                    sentenceNumber: payload.sentence,
+                    chunkId: payload.chunkId,
+                    segmentId: payload.segmentId
+                )
+            }
+            PlaybackBookmarkStore.shared.replaceBookmarks(entries, jobId: jobId, userId: resolvedBookmarkUserId)
+        } catch {
+            return
+        }
+    }
+
+    private func addBookmark() {
+        guard let jobId = resolvedBookmarkJobId else { return }
+        let time = (isScrubbing ? scrubberValue : coordinator.currentTime)
+        let clamped = max(0, time.isFinite ? time : 0)
+        let segmentLabel = segmentOptions.first(where: { $0.id == selectedSegmentID })?.label
+        var labelParts: [String] = []
+        if let segmentLabel, segmentOptions.count > 1 {
+            labelParts.append(segmentLabel)
+        }
+        labelParts.append(formatBookmarkTime(clamped))
+        let label = labelParts.joined(separator: " · ")
+        let entry = PlaybackBookmarkEntry(
+            id: UUID().uuidString,
+            jobId: jobId,
+            itemType: resolvedBookmarkItemType,
+            kind: .time,
+            createdAt: Date().timeIntervalSince1970,
+            label: label.isEmpty ? "Bookmark" : label,
+            playbackTime: clamped,
+            sentenceNumber: nil,
+            chunkId: nil,
+            segmentId: selectedSegmentID
+        )
+        guard let configuration = appState.configuration else {
+            PlaybackBookmarkStore.shared.addBookmark(entry, userId: resolvedBookmarkUserId)
+            return
+        }
+        Task {
+            let client = APIClient(configuration: configuration)
+            let payload = PlaybackBookmarkCreateRequest(
+                id: entry.id,
+                label: entry.label,
+                kind: entry.kind,
+                createdAt: entry.createdAt,
+                position: entry.playbackTime,
+                sentence: entry.sentenceNumber,
+                mediaType: "video",
+                mediaId: nil,
+                baseId: nil,
+                segmentId: entry.segmentId,
+                chunkId: entry.chunkId,
+                itemType: entry.itemType
+            )
+            do {
+                let response = try await client.createPlaybackBookmark(jobId: jobId, payload: payload)
+                let stored = PlaybackBookmarkEntry(
+                    id: response.id,
+                    jobId: response.jobId,
+                    itemType: response.itemType ?? entry.itemType,
+                    kind: response.kind,
+                    createdAt: response.createdAt,
+                    label: response.label,
+                    playbackTime: response.position,
+                    sentenceNumber: response.sentence,
+                    chunkId: response.chunkId,
+                    segmentId: response.segmentId
+                )
+                PlaybackBookmarkStore.shared.addBookmark(stored, userId: resolvedBookmarkUserId)
+            } catch {
+                PlaybackBookmarkStore.shared.addBookmark(entry, userId: resolvedBookmarkUserId)
+            }
+        }
+    }
+
+    private func jumpToBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        guard let time = bookmark.playbackTime else { return }
+        let shouldPlay = coordinator.isPlaying
+        if let segmentId = bookmark.segmentId, segmentId != selectedSegmentID {
+            guard let onSelectSegment else {
+                applyBookmarkSeek(time: time, shouldPlay: shouldPlay)
+                return
+            }
+            pendingBookmarkSeek = PendingVideoBookmarkSeek(
+                time: time,
+                shouldPlay: shouldPlay,
+                segmentId: segmentId
+            )
+            onSelectSegment(segmentId)
+            return
+        }
+        applyBookmarkSeek(time: time, shouldPlay: shouldPlay)
+    }
+
+    private func removeBookmark(_ bookmark: PlaybackBookmarkEntry) {
+        guard let jobId = resolvedBookmarkJobId else { return }
+        guard let configuration = appState.configuration else {
+            PlaybackBookmarkStore.shared.removeBookmark(
+                id: bookmark.id,
+                jobId: jobId,
+                userId: resolvedBookmarkUserId
+            )
+            return
+        }
+        Task {
+            let client = APIClient(configuration: configuration)
+            do {
+                let response = try await client.deletePlaybackBookmark(jobId: jobId, bookmarkId: bookmark.id)
+                if response.deleted {
+                    PlaybackBookmarkStore.shared.removeBookmark(
+                        id: bookmark.id,
+                        jobId: jobId,
+                        userId: resolvedBookmarkUserId
+                    )
+                }
+            } catch {
+                return
+            }
+        }
+    }
+
+    private func formatBookmarkTime(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let remainingSeconds = total % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, remainingSeconds)
+        }
+        return String(format: "%02d:%02d", minutes, remainingSeconds)
     }
 
     private func handleUserInteraction() {
@@ -1344,6 +1596,10 @@ private struct VideoPlayerOverlayView: View {
     let selectedSegmentID: String?
     let jobProgressLabel: String?
     let jobRemainingLabel: String?
+    let bookmarks: [PlaybackBookmarkEntry]
+    let onAddBookmark: (() -> Void)?
+    let onJumpToBookmark: (PlaybackBookmarkEntry) -> Void
+    let onRemoveBookmark: (PlaybackBookmarkEntry) -> Void
     let subtitleFontScale: CGFloat
     let isPlaying: Bool
     let subtitleSelection: VideoSubtitleWordSelection?
@@ -1447,6 +1703,76 @@ private struct VideoPlayerOverlayView: View {
                 focusTarget = nil
             }
         }
+        #endif
+    }
+
+    private var canShowBookmarks: Bool {
+        onAddBookmark != nil
+    }
+
+    @ViewBuilder
+    private var bookmarkMenu: some View {
+        if canShowBookmarks {
+            Menu {
+                bookmarkMenuContent
+            } label: {
+                bookmarkMenuLabel
+            }
+            #if os(tvOS)
+            .focused($focusTarget, equals: .control(.bookmark))
+            #endif
+        }
+    }
+
+    @ViewBuilder
+    private var bookmarkMenuContent: some View {
+        Button("Add Bookmark") {
+            onAddBookmark?()
+            onUserInteraction()
+        }
+        if bookmarks.isEmpty {
+            Text("No bookmarks yet.")
+                .foregroundStyle(.secondary)
+        } else {
+            Section("Jump") {
+                ForEach(bookmarks) { bookmark in
+                    Button(bookmark.label) {
+                        onJumpToBookmark(bookmark)
+                        onUserInteraction()
+                    }
+                }
+            }
+            Section("Remove") {
+                ForEach(bookmarks) { bookmark in
+                    Button(role: .destructive) {
+                        onRemoveBookmark(bookmark)
+                        onUserInteraction()
+                    } label: {
+                        Text(bookmark.label)
+                    }
+                }
+            }
+        }
+    }
+
+    private var bookmarkMenuLabel: some View {
+        #if os(tvOS)
+        tvControlLabel(
+            systemName: "bookmark",
+            label: "Bookmarks",
+            font: .callout.weight(.semibold),
+            isFocused: focusTarget == .control(.bookmark)
+        )
+        #else
+        Label("Bookmarks", systemImage: "bookmark")
+            .labelStyle(.titleAndIcon)
+            .font(.caption)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+            .foregroundStyle(.white)
         #endif
     }
 
@@ -1681,6 +2007,9 @@ private struct VideoPlayerOverlayView: View {
                             if hasOptions {
                                 subtitleButton
                             }
+                            if canShowBookmarks {
+                                bookmarkMenu
+                            }
                         }
                     }
                     HStack(alignment: .top, spacing: 12) {
@@ -1698,45 +2027,56 @@ private struct VideoPlayerOverlayView: View {
                             headerToggleButton
                         }
                     }
+                    if shouldShowHeaderInfo {
+                        summaryTickerView
+                    }
                 }
                 .padding(.top, 10 + iPadHeaderOffset)
                 .padding(.horizontal, 12)
             } else {
-                HStack(alignment: .top, spacing: 12) {
-                    #if !os(tvOS)
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.caption.weight(.semibold))
-                            .padding(8)
-                            .background(.black.opacity(0.45), in: Circle())
-                            .foregroundStyle(.white)
-                    }
-                    #endif
-                    if shouldShowHeaderInfo {
-                        infoHeaderContent
-                    }
-
-                    Spacer(minLength: 12)
-
-                    if timelineLabel != nil || hasOptions || !isTV {
-                        VStack(alignment: .trailing, spacing: 6) {
-                            if let segmentLabel, shouldShowHeaderInfo {
-                                videoTimelineView(label: segmentLabel)
-                            }
-                            if let timelineLabel, shouldShowHeaderInfo {
-                                videoTimelineView(label: timelineLabel)
-                            }
-                            #if os(tvOS)
-                            tvControls
-                            #else
-                            HStack(spacing: 8) {
-                                if hasOptions {
-                                    subtitleButton
-                                }
-                                headerToggleButton
-                            }
-                            #endif
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(alignment: .top, spacing: 12) {
+                        #if !os(tvOS)
+                        Button(action: { dismiss() }) {
+                            Image(systemName: "xmark")
+                                .font(.caption.weight(.semibold))
+                                .padding(8)
+                                .background(.black.opacity(0.45), in: Circle())
+                                .foregroundStyle(.white)
                         }
+                        #endif
+                        if shouldShowHeaderInfo {
+                            infoHeaderContent
+                        }
+
+                        Spacer(minLength: 12)
+
+                        if timelineLabel != nil || hasOptions || !isTV {
+                            VStack(alignment: .trailing, spacing: 6) {
+                                if let segmentLabel, shouldShowHeaderInfo {
+                                    videoTimelineView(label: segmentLabel)
+                                }
+                                if let timelineLabel, shouldShowHeaderInfo {
+                                    videoTimelineView(label: timelineLabel)
+                                }
+                                #if os(tvOS)
+                                tvControls
+                                #else
+                                HStack(spacing: 8) {
+                                    if hasOptions {
+                                        subtitleButton
+                                    }
+                                    if canShowBookmarks {
+                                        bookmarkMenu
+                                    }
+                                    headerToggleButton
+                                }
+                                #endif
+                            }
+                        }
+                    }
+                    if shouldShowHeaderInfo {
+                        summaryTickerView
                     }
                 }
                 .padding(.top, 10)
@@ -1829,25 +2169,30 @@ private struct VideoPlayerOverlayView: View {
         if showHeaderContent || isTV {
             let timelineLabel = videoTimelineLabel
             let segmentLabel = segmentHeaderLabel
-            HStack(alignment: .top, spacing: 12) {
-                if showHeaderContent {
-                    infoHeaderContent
-                }
-                Spacer(minLength: 12)
-                if showHeaderContent || isTV {
-                    VStack(alignment: .trailing, spacing: 6) {
-                        if showHeaderContent {
-                            if let segmentLabel {
-                                videoTimelineView(label: segmentLabel)
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(alignment: .top, spacing: 12) {
+                    if showHeaderContent {
+                        infoHeaderContent
+                    }
+                    Spacer(minLength: 12)
+                    if showHeaderContent || isTV {
+                        VStack(alignment: .trailing, spacing: 6) {
+                            if showHeaderContent {
+                                if let segmentLabel {
+                                    videoTimelineView(label: segmentLabel)
+                                }
+                                if let timelineLabel {
+                                    videoTimelineView(label: timelineLabel)
+                                }
                             }
-                            if let timelineLabel {
-                                videoTimelineView(label: timelineLabel)
+                            if isTV {
+                                tvHeaderTogglePill
                             }
-                        }
-                        if isTV {
-                            tvHeaderTogglePill
                         }
                     }
+                }
+                if showHeaderContent {
+                    summaryTickerView
                 }
             }
             .padding(.top, 6)
@@ -1878,6 +2223,15 @@ private struct VideoPlayerOverlayView: View {
                         Capsule().stroke(Color.white.opacity(0.18), lineWidth: 1)
                     )
             )
+    }
+
+    @ViewBuilder
+    private var summaryTickerView: some View {
+        if !isHeaderCollapsed,
+           !isPlaying,
+           let summary = metadata.summary?.nonEmptyValue {
+            SummaryTickerPill(text: summary, isTV: isTV)
+        }
     }
 
     private var videoTimelineLabel: String? {
@@ -1997,6 +2351,9 @@ private struct VideoPlayerOverlayView: View {
                 action: onSkipForward
             )
                 .focused($focusTarget, equals: .control(.skipForward))
+            if canShowBookmarks {
+                bookmarkMenu
+            }
             if hasOptions {
                 tvControlButton(
                     systemName: "captions.bubble",
@@ -2032,6 +2389,24 @@ private struct VideoPlayerOverlayView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
+            tvControlLabel(
+                systemName: systemName,
+                label: label,
+                font: font,
+                prominent: prominent,
+                isFocused: isFocused
+            )
+        }
+    }
+
+    private func tvControlLabel(
+        systemName: String,
+        label: String? = nil,
+        font: Font? = nil,
+        prominent: Bool = false,
+        isFocused: Bool = false
+    ) -> some View {
+        Group {
             if let label {
                 Label(label, systemImage: systemName)
                     .labelStyle(.titleAndIcon)
@@ -2291,6 +2666,7 @@ private enum TVFocusTarget: Hashable {
     case playPause
     case skipBackward
     case skipForward
+    case bookmark
     case captions
     case header
     case scrubber
@@ -3301,6 +3677,127 @@ private struct VideoKeyboardCommandHandler: UIViewControllerRepresentable {
     }
 }
 #endif
+
+private struct SummaryTickerPill: View {
+    let text: String
+    let isTV: Bool
+
+    var body: some View {
+        MarqueeText(
+            text: text,
+            font: tickerFont,
+            speed: tickerSpeed,
+            gap: tickerGap
+        )
+        .padding(.horizontal, 10)
+        .padding(.vertical, isTV ? 8 : 4)
+        .background(
+            Capsule()
+                .fill(Color.black.opacity(0.45))
+                .overlay(
+                    Capsule().stroke(Color.white.opacity(0.2), lineWidth: 1)
+                )
+        )
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityLabel(text)
+    }
+
+    private var tickerFont: Font {
+        #if os(tvOS)
+        return .callout.weight(.semibold)
+        #else
+        return .caption.weight(.semibold)
+        #endif
+    }
+
+    private var tickerSpeed: CGFloat {
+        isTV ? 36 : 28
+    }
+
+    private var tickerGap: CGFloat {
+        isTV ? 48 : 32
+    }
+}
+
+private struct MarqueeText: View {
+    let text: String
+    let font: Font
+    let speed: CGFloat
+    let gap: CGFloat
+
+    @State private var textWidth: CGFloat = 0
+    @State private var startTime = Date()
+
+    var body: some View {
+        GeometryReader { proxy in
+            let availableWidth = proxy.size.width
+            TimelineView(.animation) { timeline in
+                let shouldScroll = textWidth > availableWidth
+                let elapsed = timeline.date.timeIntervalSince(startTime)
+                let cycle = textWidth + gap
+                let rawOffset = CGFloat(elapsed) * speed
+                let offset = shouldScroll && cycle > 0
+                    ? -rawOffset.truncatingRemainder(dividingBy: cycle)
+                    : 0
+                HStack(spacing: gap) {
+                    marqueeText
+                    if shouldScroll {
+                        marqueeText
+                    }
+                }
+                .offset(x: offset)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .onChange(of: availableWidth) { _ in
+                    startTime = Date()
+                }
+                .onChange(of: text) { _ in
+                    startTime = Date()
+                }
+            }
+        }
+        .frame(height: marqueeHeight)
+        .clipped()
+    }
+
+    private var marqueeText: some View {
+        Text(text)
+            .font(font)
+            .foregroundStyle(Color.white.opacity(0.85))
+            .lineLimit(1)
+            .fixedSize()
+            .background(WidthReader(width: $textWidth))
+    }
+
+    private var marqueeHeight: CGFloat {
+        #if os(tvOS)
+        return 32
+        #else
+        return 18
+        #endif
+    }
+}
+
+private struct WidthPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct WidthReader: View {
+    @Binding var width: CGFloat
+
+    var body: some View {
+        GeometryReader { proxy in
+            Color.clear
+                .preference(key: WidthPreferenceKey.self, value: proxy.size.width)
+        }
+        .onPreferenceChange(WidthPreferenceKey.self) { value in
+            width = value
+        }
+    }
+}
 
 private final class VideoPronunciationSpeaker: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private let synthesizer = AVSpeechSynthesizer()

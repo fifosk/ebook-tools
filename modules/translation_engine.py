@@ -17,6 +17,7 @@ if TYPE_CHECKING:
     from modules.progress_tracker import ProgressTracker
 
 from modules import config_manager as cfg
+from modules import fallbacks
 from modules import logging_manager as log_mgr
 from modules import observability, prompt_templates
 from modules import llm_client_manager
@@ -86,6 +87,43 @@ _DIACRITIC_PATTERNS = {
 }
 
 _GOOGLETRANS_LOCAL = threading.local()
+_GOOGLETRANS_HEALTH_LOCK = threading.Lock()
+_GOOGLETRANS_HEALTH_STATE = {
+    "checked": False,
+    "ok": False,
+    "reason": None,
+}
+
+
+def _check_googletrans_health() -> tuple[bool, Optional[str]]:
+    with _GOOGLETRANS_HEALTH_LOCK:
+        if _GOOGLETRANS_HEALTH_STATE["checked"]:
+            return _GOOGLETRANS_HEALTH_STATE["ok"], _GOOGLETRANS_HEALTH_STATE["reason"]
+
+        reason: Optional[str] = None
+        try:
+            import httpcore  # noqa: F401
+        except Exception as exc:
+            reason = f"httpcore import failed: {exc}"
+        else:
+            if not hasattr(httpcore, "SyncHTTPTransport"):
+                reason = "httpcore.SyncHTTPTransport missing"
+
+        if reason is None:
+            try:
+                from googletrans import Translator
+
+                Translator()
+            except Exception as exc:
+                reason = f"googletrans init failed: {exc}"
+
+        ok = reason is None
+        _GOOGLETRANS_HEALTH_STATE["checked"] = True
+        _GOOGLETRANS_HEALTH_STATE["ok"] = ok
+        _GOOGLETRANS_HEALTH_STATE["reason"] = reason
+        if not ok:
+            logger.warning("Googletrans health check failed: %s", reason)
+        return ok, reason
 
 
 def _normalize_translation_provider(value: Optional[str]) -> str:
@@ -129,6 +167,8 @@ def _get_googletrans_translator():
         from googletrans import Translator
 
         translator = Translator()
+        if hasattr(translator, "raise_exception") and not hasattr(translator, "raise_Exception"):
+            setattr(translator, "raise_Exception", translator.raise_exception)
         _GOOGLETRANS_LOCAL.translator = translator
     return translator
 
@@ -139,7 +179,21 @@ def _translate_with_googletrans(
     target_language: str,
     *,
     progress_tracker: Optional["ProgressTracker"] = None,
-) -> str:
+) -> tuple[str, Optional[str]]:
+    health_ok, health_reason = _check_googletrans_health()
+    if not health_ok:
+        failure_reason = f"googletrans health check failed: {health_reason}"
+        if progress_tracker is not None:
+            progress_tracker.record_retry("translation", failure_reason)
+        return (
+            format_retry_failure(
+                "translation",
+                _TRANSLATION_RESPONSE_ATTEMPTS,
+                reason=failure_reason,
+            ),
+            failure_reason,
+        )
+
     last_error: Optional[str] = None
     for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
         try:
@@ -149,7 +203,7 @@ def _translate_with_googletrans(
             result = translator.translate(sentence, src=src_code, dest=dest_code)
             candidate = text_norm.collapse_whitespace((result.text or "").strip())
             if candidate and not text_norm.is_placeholder_translation(candidate):
-                return candidate
+                return candidate, None
             last_error = "Empty translation response"
         except Exception as exc:  # pragma: no cover - network/remote errors
             last_error = str(exc) or "Google Translate request failed"
@@ -158,11 +212,198 @@ def _translate_with_googletrans(
         if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
             time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
     failure_reason = last_error or "Google Translate error"
-    return format_retry_failure(
-        "translation",
-        _TRANSLATION_RESPONSE_ATTEMPTS,
-        reason=failure_reason,
+    return (
+        format_retry_failure(
+            "translation",
+            _TRANSLATION_RESPONSE_ATTEMPTS,
+            reason=failure_reason,
+        ),
+        failure_reason,
     )
+
+
+def _translate_with_llm(
+    sentence: str,
+    input_language: str,
+    target_language: str,
+    *,
+    include_transliteration: bool,
+    resolved_client: LLMClient,
+    progress_tracker: Optional["ProgressTracker"],
+    timeout_seconds: float,
+) -> tuple[str, Optional[str], float]:
+    wrapped_sentence = f"{prompt_templates.SOURCE_START}\n{sentence}\n{prompt_templates.SOURCE_END}"
+    system_prompt = prompt_templates.make_translation_prompt(
+        input_language,
+        target_language,
+        include_transliteration=include_transliteration,
+    )
+    payload = prompt_templates.make_sentence_payload(
+        wrapped_sentence,
+        model=resolved_client.model,
+        stream=True,
+        system_prompt=system_prompt,
+    )
+
+    start_time = time.perf_counter()
+    last_error: Optional[str] = None
+    best_translation: Optional[str] = None
+    best_score = -1
+    fatal_violation = False
+    for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
+        attempt_error: Optional[str] = None
+        response = resolved_client.send_chat_request(
+            payload,
+            max_attempts=_LLM_REQUEST_ATTEMPTS,
+            timeout=timeout_seconds,
+            validator=_valid_translation,
+            backoff_seconds=1.0,
+        )
+
+        if response.text:
+            cleaned_text = text_norm.collapse_whitespace(response.text.strip())
+            if cleaned_text and not text_norm.is_placeholder_translation(cleaned_text):
+                translation_text, transliteration_text = text_norm.split_translation_and_transliteration(
+                    cleaned_text
+                )
+                score = _letter_count(translation_text)
+                if score > best_score:
+                    best_translation = cleaned_text
+                    best_score = score
+                if _is_probable_transliteration(
+                    sentence, translation_text, target_language
+                ):
+                    attempt_error = "Transliteration returned instead of translation"
+                    if resolved_client.debug_enabled:
+                        logger.debug(
+                            "Retrying translation due to transliteration on attempt %s/%s",
+                            attempt,
+                            _TRANSLATION_RESPONSE_ATTEMPTS,
+                        )
+                elif _is_translation_too_short(sentence, translation_text):
+                    attempt_error = "Translation shorter than expected"
+                    if resolved_client.debug_enabled:
+                        logger.debug(
+                            "Retrying translation due to short response (%s/%s)",
+                            attempt,
+                            _TRANSLATION_RESPONSE_ATTEMPTS,
+                        )
+                else:
+                    missing_diacritics, label = _missing_required_diacritics(
+                        translation_text, target_language
+                    )
+                    if missing_diacritics:
+                        attempt_error = f"Missing {label or 'required diacritics'}"
+                        if resolved_client.debug_enabled:
+                            logger.debug(
+                                "Retrying translation due to missing diacritics (%s/%s)",
+                                attempt,
+                                _TRANSLATION_RESPONSE_ATTEMPTS,
+                            )
+                    if not attempt_error:
+                        script_mismatch, script_label = _unexpected_script_used(
+                            translation_text, target_language
+                        )
+                        if script_mismatch:
+                            attempt_error = (
+                                f"Unexpected script used; expected {script_label or 'target script'}"
+                            )
+                            fatal_violation = True
+                            if resolved_client.debug_enabled:
+                                logger.debug(
+                                    "Retrying translation due to unexpected script (%s/%s)",
+                                    attempt,
+                                    _TRANSLATION_RESPONSE_ATTEMPTS,
+                                )
+                if not attempt_error and _is_segmentation_ok(
+                    sentence, cleaned_text, target_language, translation_text=translation_text
+                ):
+                    elapsed = time.perf_counter() - start_time
+                    return cleaned_text, None, elapsed
+                if not attempt_error:
+                    attempt_error = "Unsegmented translation received"
+                    if resolved_client.debug_enabled:
+                        logger.debug(
+                            "Retrying translation due to missing word spacing (%s/%s)",
+                            attempt,
+                            _TRANSLATION_RESPONSE_ATTEMPTS,
+                        )
+            else:
+                attempt_error = "Placeholder translation received"
+                if resolved_client.debug_enabled:
+                    logger.debug(
+                        "Retrying translation due to placeholder response (%s/%s)",
+                        attempt,
+                        _TRANSLATION_RESPONSE_ATTEMPTS,
+                    )
+        else:
+            attempt_error = response.error or "Empty translation response"
+            if resolved_client.debug_enabled and response.error:
+                logger.debug(
+                    "Translation attempt %s/%s failed: %s",
+                    attempt,
+                    _TRANSLATION_RESPONSE_ATTEMPTS,
+                    response.error,
+                )
+
+        if attempt_error:
+            last_error = attempt_error
+            if resolved_client.debug_enabled:
+                logger.debug(
+                    "Translation attempt %s/%s failed validation: %s",
+                    attempt,
+                    _TRANSLATION_RESPONSE_ATTEMPTS,
+                    attempt_error,
+                )
+            if progress_tracker is not None:
+                progress_tracker.record_retry("translation", attempt_error)
+
+        if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
+            time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
+
+    elapsed = time.perf_counter() - start_time
+    if resolved_client.debug_enabled and last_error:
+        logger.debug("Translation failed after retries: %s", last_error)
+    if fatal_violation:
+        return (
+            format_retry_failure(
+                "translation",
+                _TRANSLATION_RESPONSE_ATTEMPTS,
+                reason=last_error or "script validation failed",
+            ),
+            last_error,
+            elapsed,
+        )
+    if last_error and "diacritic" in last_error.lower() and best_translation:
+        if resolved_client.debug_enabled:
+            logger.debug(
+                "Returning best available translation without diacritics after retries"
+            )
+        return best_translation, last_error, elapsed
+    if last_error and best_translation:
+        if resolved_client.debug_enabled:
+            logger.debug(
+                "Returning best available translation after retries despite error: %s",
+                last_error,
+            )
+        return best_translation, last_error, elapsed
+    failure_reason = last_error or "no response from LLM"
+    return (
+        format_retry_failure(
+            "translation",
+            _TRANSLATION_RESPONSE_ATTEMPTS,
+            reason=failure_reason,
+        ),
+        failure_reason,
+        elapsed,
+    )
+
+
+def _is_timeout_error(reason: Optional[str]) -> bool:
+    if not reason:
+        return False
+    lowered = reason.lower()
+    return "timeout" in lowered or "timed out" in lowered
 
 
 class ThreadWorkerPool:
@@ -442,170 +683,113 @@ def translate_sentence_simple(
     """Translate a sentence using the configured translation provider."""
 
     provider = _normalize_translation_provider(translation_provider)
-    if provider == "googletrans":
-        return _translate_with_googletrans(
+    timeout_seconds = cfg.get_translation_llm_timeout_seconds()
+    fallback_model = cfg.get_translation_fallback_model()
+    fallback_active = fallbacks.is_llm_fallback_active(progress_tracker)
+
+    if provider == "googletrans" and not fallback_active:
+        google_text, google_error = _translate_with_googletrans(
             sentence,
             input_language,
             target_language,
             progress_tracker=progress_tracker,
         )
+        if not is_failure_annotation(google_text):
+            return google_text
+        fallback_reason = google_error or "Google Translate error"
+        detail = fallbacks.record_translation_fallback(
+            progress_tracker,
+            trigger="googletrans_error",
+            reason=fallback_reason,
+            source_provider="googletrans",
+            fallback_model=fallback_model,
+        )
+        model_override = (detail or {}).get("fallback_model") if detail else None
+        model_override = model_override or fallback_model
+        if model_override:
+            fallback_client = fallbacks.get_fallback_llm_client(model_override)
+            with llm_client_manager.client_scope(fallback_client) as resolved_client:
+                translation, _error, _elapsed = _translate_with_llm(
+                    sentence,
+                    input_language,
+                    target_language,
+                    include_transliteration=include_transliteration,
+                    resolved_client=resolved_client,
+                    progress_tracker=progress_tracker,
+                    timeout_seconds=timeout_seconds,
+                )
+                return translation
+        return google_text
 
-    wrapped_sentence = f"{prompt_templates.SOURCE_START}\n{sentence}\n{prompt_templates.SOURCE_END}"
-    system_prompt = prompt_templates.make_translation_prompt(
-        input_language,
-        target_language,
-        include_transliteration=include_transliteration,
+    if provider == "googletrans" and fallback_active:
+        model_override = fallbacks.get_llm_fallback_model(progress_tracker) or fallback_model
+        fallback_client = (
+            fallbacks.get_fallback_llm_client(model_override) if model_override else None
+        )
+        with llm_client_manager.client_scope(fallback_client or client) as resolved_client:
+            translation, _error, _elapsed = _translate_with_llm(
+                sentence,
+                input_language,
+                target_language,
+                include_transliteration=include_transliteration,
+                resolved_client=resolved_client,
+                progress_tracker=progress_tracker,
+                timeout_seconds=timeout_seconds,
+            )
+            return translation
+
+    model_override = fallbacks.get_llm_fallback_model(progress_tracker) or None
+    fallback_client = (
+        fallbacks.get_fallback_llm_client(model_override) if fallback_active and model_override else None
     )
-
-    with llm_client_manager.client_scope(client) as resolved_client:
-        payload = prompt_templates.make_sentence_payload(
-            wrapped_sentence,
-            model=resolved_client.model,
-            stream=True,
-            system_prompt=system_prompt,
+    with llm_client_manager.client_scope(fallback_client or client) as resolved_client:
+        current_model = resolved_client.model
+        translation, last_error, elapsed = _translate_with_llm(
+            sentence,
+            input_language,
+            target_language,
+            include_transliteration=include_transliteration,
+            resolved_client=resolved_client,
+            progress_tracker=progress_tracker,
+            timeout_seconds=timeout_seconds,
         )
 
-        last_error: Optional[str] = None
-        best_translation: Optional[str] = None
-        best_score = -1
-        fatal_violation = False
-        for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
-            attempt_error: Optional[str] = None
-            response = resolved_client.send_chat_request(
-                payload,
-                max_attempts=_LLM_REQUEST_ATTEMPTS,
-                timeout=90,
-                validator=_valid_translation,
-                backoff_seconds=1.0,
+    if not fallback_active:
+        if timeout_seconds > 0 and elapsed > timeout_seconds:
+            reason = f"LLM response exceeded {timeout_seconds:.0f}s ({elapsed:.1f}s)"
+            fallbacks.record_translation_fallback(
+                progress_tracker,
+                trigger="llm_timeout",
+                reason=reason,
+                source_provider="llm",
+                fallback_model=fallback_model,
+                elapsed_seconds=elapsed,
             )
-
-            if response.text:
-                cleaned_text = text_norm.collapse_whitespace(response.text.strip())
-                if cleaned_text and not text_norm.is_placeholder_translation(cleaned_text):
-                    translation_text, transliteration_text = text_norm.split_translation_and_transliteration(
-                        cleaned_text
-                    )
-                    score = _letter_count(translation_text)
-                    if score > best_score:
-                        best_translation = cleaned_text
-                        best_score = score
-                    if _is_probable_transliteration(
-                        sentence, translation_text, target_language
-                    ):
-                        attempt_error = "Transliteration returned instead of translation"
-                        if resolved_client.debug_enabled:
-                            logger.debug(
-                                "Retrying translation due to transliteration on attempt %s/%s",
-                                attempt,
-                                _TRANSLATION_RESPONSE_ATTEMPTS,
-                            )
-                    elif _is_translation_too_short(sentence, translation_text):
-                        attempt_error = "Translation shorter than expected"
-                        if resolved_client.debug_enabled:
-                            logger.debug(
-                                "Retrying translation due to short response (%s/%s)",
-                                attempt,
-                                _TRANSLATION_RESPONSE_ATTEMPTS,
-                            )
-                    else:
-                        missing_diacritics, label = _missing_required_diacritics(
-                            translation_text, target_language
-                        )
-                        if missing_diacritics:
-                            attempt_error = f"Missing {label or 'required diacritics'}"
-                            if resolved_client.debug_enabled:
-                                logger.debug(
-                                    "Retrying translation due to missing diacritics (%s/%s)",
-                                    attempt,
-                                    _TRANSLATION_RESPONSE_ATTEMPTS,
-                                )
-                        if not attempt_error:
-                            script_mismatch, script_label = _unexpected_script_used(
-                                translation_text, target_language
-                            )
-                            if script_mismatch:
-                                attempt_error = (
-                                    f"Unexpected script used; expected {script_label or 'target script'}"
-                                )
-                                fatal_violation = True
-                                if resolved_client.debug_enabled:
-                                    logger.debug(
-                                        "Retrying translation due to unexpected script (%s/%s)",
-                                        attempt,
-                                        _TRANSLATION_RESPONSE_ATTEMPTS,
-                                    )
-                    if not attempt_error and _is_segmentation_ok(
-                        sentence, cleaned_text, target_language, translation_text=translation_text
-                    ):
-                        return cleaned_text
-                    if not attempt_error:
-                        attempt_error = "Unsegmented translation received"
-                        if resolved_client.debug_enabled:
-                            logger.debug(
-                                "Retrying translation due to missing word spacing (%s/%s)",
-                                attempt,
-                                _TRANSLATION_RESPONSE_ATTEMPTS,
-                            )
-                else:
-                    attempt_error = "Placeholder translation received"
-                    if resolved_client.debug_enabled:
-                        logger.debug(
-                            "Retrying translation due to placeholder response (%s/%s)",
-                            attempt,
-                            _TRANSLATION_RESPONSE_ATTEMPTS,
-                        )
-            else:
-                attempt_error = response.error or "Empty translation response"
-                if resolved_client.debug_enabled and response.error:
-                    logger.debug(
-                        "Translation attempt %s/%s failed: %s",
-                        attempt,
-                        _TRANSLATION_RESPONSE_ATTEMPTS,
-                        response.error,
-                    )
-
-            if attempt_error:
-                last_error = attempt_error
-                if resolved_client.debug_enabled:
-                    logger.debug(
-                        "Translation attempt %s/%s failed validation: %s",
-                        attempt,
-                        _TRANSLATION_RESPONSE_ATTEMPTS,
-                        attempt_error,
-                    )
-                if progress_tracker is not None:
-                    progress_tracker.record_retry("translation", attempt_error)
-
-            if attempt < _TRANSLATION_RESPONSE_ATTEMPTS:
-                time.sleep(_TRANSLATION_RETRY_DELAY_SECONDS)
-
-        if resolved_client.debug_enabled and last_error:
-            logger.debug("Translation failed after retries: %s", last_error)
-        if fatal_violation:
-            return format_retry_failure(
-                "translation",
-                _TRANSLATION_RESPONSE_ATTEMPTS,
-                reason=last_error or "script validation failed",
+        if is_failure_annotation(translation):
+            reason = last_error or "LLM translation failed"
+            trigger = "llm_timeout" if _is_timeout_error(reason) else "llm_error"
+            detail = fallbacks.record_translation_fallback(
+                progress_tracker,
+                trigger=trigger,
+                reason=reason,
+                source_provider="llm",
+                fallback_model=fallback_model,
             )
-        if last_error and "diacritic" in last_error.lower() and best_translation:
-            if resolved_client.debug_enabled:
-                logger.debug(
-                    "Returning best available translation without diacritics after retries"
-                )
-            return best_translation
-        if last_error and best_translation:
-            if resolved_client.debug_enabled:
-                logger.debug(
-                    "Returning best available translation after retries despite error: %s",
-                    last_error,
-                )
-            return best_translation
-    failure_reason = last_error or "no response from LLM"
-    return format_retry_failure(
-        "translation",
-        _TRANSLATION_RESPONSE_ATTEMPTS,
-        reason=failure_reason,
-    )
+            model_override = (detail or {}).get("fallback_model") if detail else None
+            model_override = model_override or fallback_model
+            if model_override and current_model.strip().lower() != model_override.strip().lower():
+                fallback_client = fallbacks.get_fallback_llm_client(model_override)
+                with llm_client_manager.client_scope(fallback_client) as resolved_client:
+                    translation, _error, _elapsed = _translate_with_llm(
+                        sentence,
+                        input_language,
+                        target_language,
+                        include_transliteration=include_transliteration,
+                        resolved_client=resolved_client,
+                        progress_tracker=progress_tracker,
+                        timeout_seconds=timeout_seconds,
+                    )
+    return translation
 
 
 def _is_segmentation_ok(

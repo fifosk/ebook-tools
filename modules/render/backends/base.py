@@ -1,13 +1,16 @@
 """Base protocol definitions for media rendering backends."""
 from __future__ import annotations
 
-from typing import Mapping, Optional, Protocol, Sequence, runtime_checkable
+from typing import Mapping, Optional, Protocol, Sequence, TYPE_CHECKING, runtime_checkable
 
 from pydub import AudioSegment
 
 from modules.audio.backends import get_default_backend_name
 from modules.audio.backends.base import SynthesisResult
 from modules.video.backends import BaseVideoRenderer as VideoRenderer
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from modules.progress_tracker import ProgressTracker
 
 
 _DEFAULT_TTS_BACKEND = get_default_backend_name()
@@ -34,6 +37,7 @@ class AudioSynthesizer(Protocol):
         *,
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
+        progress_tracker: Optional["ProgressTracker"] = None,
     ) -> SynthesisResult:
         """Render audio for a single translated sentence."""
 
@@ -71,6 +75,7 @@ class ExternalAudioSynthesizer(AudioSynthesizer):
         *,
         tts_backend: str = _DEFAULT_TTS_BACKEND,
         tts_executable_path: Optional[str] = None,
+        progress_tracker: Optional["ProgressTracker"] = None,
     ) -> SynthesisResult:
         raise NotImplementedError("External audio synthesizer backend has not been implemented yet")
 

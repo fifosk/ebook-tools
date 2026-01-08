@@ -211,6 +211,43 @@ function formatTuningValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
+function formatFallbackValue(value: Record<string, unknown>): string {
+  const parts: string[] = [];
+  const scope = normalizeTextValue(value['scope'] ?? null);
+  if (scope && scope !== 'translation') {
+    parts.push(`scope ${scope}`);
+  }
+  const model = normalizeTextValue(value['fallback_model'] ?? null);
+  if (model) {
+    parts.push(`model ${model}`);
+  }
+  const voice = normalizeTextValue(value['fallback_voice'] ?? null);
+  if (voice) {
+    parts.push(`voice ${voice}`);
+  }
+  const sourceProvider = normalizeTextValue(value['source_provider'] ?? null);
+  if (sourceProvider) {
+    parts.push(`source ${sourceProvider}`);
+  }
+  const sourceVoice = normalizeTextValue(value['source_voice'] ?? null);
+  if (sourceVoice) {
+    parts.push(`source ${sourceVoice}`);
+  }
+  const trigger = normalizeTextValue(value['trigger'] ?? null);
+  if (trigger) {
+    parts.push(`trigger ${trigger}`);
+  }
+  const elapsed = value['elapsed_seconds'];
+  if (typeof elapsed === 'number' && Number.isFinite(elapsed)) {
+    parts.push(`elapsed ${elapsed.toFixed(1)} s`);
+  }
+  const reason = normalizeTextValue(value['reason'] ?? null);
+  if (reason) {
+    parts.push(reason);
+  }
+  return parts.join(' | ');
+}
+
 function normaliseStringList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -1422,6 +1459,28 @@ export function JobProgress({
     });
     return sortTuningEntries(filtered);
   }, [status?.tuning]);
+  const fallbackEntries = useMemo(() => {
+    const generated = coerceRecord(status?.generated_files);
+    if (!generated) {
+      return [];
+    }
+    const entries: Array<[string, string]> = [];
+    const translationFallback = coerceRecord(generated['translation_fallback']);
+    if (translationFallback) {
+      const value = formatFallbackValue(translationFallback);
+      if (value) {
+        entries.push(['Translation fallback', value]);
+      }
+    }
+    const ttsFallback = coerceRecord(generated['tts_fallback']);
+    if (ttsFallback) {
+      const value = formatFallbackValue(ttsFallback);
+      if (value) {
+        entries.push(['TTS fallback', value]);
+      }
+    }
+    return entries;
+  }, [status?.generated_files]);
   const translations = pipelineResult?.written_blocks ?? [];
   const translationsUnavailable = Array.isArray(translations)
     ? translations.length > 0 && translations.every((block) => {
@@ -2001,6 +2060,19 @@ export function JobProgress({
               <div className="progress-metric" key={key}>
                 <strong>{formatTuningLabel(key)}</strong>
                 <span>{formatTuningValue(value)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      {fallbackEntries.length > 0 ? (
+        <div>
+          <h4>Fallbacks</h4>
+          <div className="progress-grid">
+            {fallbackEntries.map(([label, value]) => (
+              <div className="progress-metric" key={label}>
+                <strong>{label}</strong>
+                <span>{value}</span>
               </div>
             ))}
           </div>

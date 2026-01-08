@@ -424,6 +424,7 @@ export interface YoutubeDubRequest {
   video_path: string;
   subtitle_path: string;
   media_metadata?: Record<string, unknown> | null;
+  source_language?: string | null;
   target_language?: string | null;
   voice?: string | null;
   tempo?: number | null;
@@ -968,4 +969,48 @@ export interface ReadingBedUpdateRequestPayload {
 export interface ReadingBedDeleteResponse {
   deleted: boolean;
   default_id?: string | null;
+}
+
+export type PlaybackBookmarkKind = 'time' | 'sentence';
+export type PlaybackBookmarkMediaType = 'text' | 'audio' | 'video';
+
+export interface PlaybackBookmarkCreatePayload {
+  id?: string | null;
+  label: string;
+  kind?: PlaybackBookmarkKind;
+  created_at?: number | null;
+  position?: number | null;
+  sentence?: number | null;
+  media_type?: PlaybackBookmarkMediaType | null;
+  media_id?: string | null;
+  base_id?: string | null;
+  segment_id?: string | null;
+  chunk_id?: string | null;
+  item_type?: string | null;
+}
+
+export interface PlaybackBookmarkEntry {
+  id: string;
+  job_id: string;
+  item_type?: string | null;
+  kind: PlaybackBookmarkKind;
+  created_at: number;
+  label: string;
+  position?: number | null;
+  sentence?: number | null;
+  media_type?: PlaybackBookmarkMediaType | null;
+  media_id?: string | null;
+  base_id?: string | null;
+  segment_id?: string | null;
+  chunk_id?: string | null;
+}
+
+export interface PlaybackBookmarkListResponse {
+  job_id: string;
+  bookmarks: PlaybackBookmarkEntry[];
+}
+
+export interface PlaybackBookmarkDeleteResponse {
+  deleted: boolean;
+  bookmark_id: string;
 }

@@ -843,6 +843,7 @@ def generate_youtube_dub(
         job = youtube_dubbing_service.enqueue(
             video_path=video_path,
             subtitle_path=subtitle_path,
+            source_language=payload.source_language,
             target_language=target_language,
             voice=voice,
             tempo=tempo,

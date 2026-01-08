@@ -68,6 +68,10 @@ Keeping these pathways in mind will make it easier to reason about highlight fid
   that the frontend hydrates. Client code should always route through
   `MetadataLoader.for_job(job_id)` so the new chunked format and legacy single
   file stay interchangeable.
+- **Fallback metadata.** When translation or TTS falls back mid-job, the live
+  `generated_files` snapshot records `translation_fallback` / `tts_fallback`
+  (trigger, reason, fallback model/voice) so UIs can surface which path was
+  used during processing.
 - **Content index.** `modules/core/ingestion.py:build_content_index` derives chapter ranges from the EPUB and `PipelineJobPersistence` writes them to `metadata/content_index.json` with the URL pointers stored in `book_metadata`.
 - **Highlight controls.** `EBOOK_HIGHLIGHT_POLICY`,
   `char_weighted_highlighting_default`,

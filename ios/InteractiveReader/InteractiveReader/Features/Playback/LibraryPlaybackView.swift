@@ -27,6 +27,8 @@ struct LibraryPlaybackView: View {
     @State private var showVideoPlayer = false
     #endif
 
+    private let summaryLengthLimit: Int = 320
+
     init(item: LibraryItem, autoPlayOnLoad: Binding<Bool> = .constant(true)) {
         self.item = item
         self._autoPlayOnLoad = autoPlayOnLoad
@@ -131,7 +133,10 @@ struct LibraryPlaybackView: View {
                         nowPlaying: nowPlaying,
                         linguistInputLanguage: linguistInputLanguage,
                         linguistLookupLanguage: linguistLookupLanguage,
-                        onPlaybackProgress: handleVideoPlaybackProgress
+                        onPlaybackProgress: handleVideoPlaybackProgress,
+                        bookmarkUserId: resumeUserId,
+                        bookmarkJobId: item.jobId,
+                        bookmarkItemType: bookmarkItemType
                     )
                         .frame(maxWidth: .infinity)
                         .aspectRatio(16 / 9, contentMode: .fit)
@@ -148,7 +153,10 @@ struct LibraryPlaybackView: View {
                         showsScrubber: showsScrubber,
                         linguistInputLanguage: linguistInputLanguage,
                         linguistLookupLanguage: linguistLookupLanguage,
-                        headerInfo: interactiveHeaderInfo
+                        headerInfo: interactiveHeaderInfo,
+                        bookmarkUserId: resumeUserId,
+                        bookmarkJobId: item.jobId,
+                        bookmarkItemType: bookmarkItemType
                     )
                 } else {
                     Text("No playable media found for this entry.")
@@ -176,7 +184,10 @@ struct LibraryPlaybackView: View {
                     nowPlaying: nowPlaying,
                     linguistInputLanguage: linguistInputLanguage,
                     linguistLookupLanguage: linguistLookupLanguage,
-                    onPlaybackProgress: handleVideoPlaybackProgress
+                    onPlaybackProgress: handleVideoPlaybackProgress,
+                    bookmarkUserId: resumeUserId,
+                    bookmarkJobId: item.jobId,
+                    bookmarkItemType: bookmarkItemType
                 )
                 .ignoresSafeArea()
             } else {
@@ -209,7 +220,10 @@ struct LibraryPlaybackView: View {
                         nowPlaying: nowPlaying,
                         linguistInputLanguage: linguistInputLanguage,
                         linguistLookupLanguage: linguistLookupLanguage,
-                        onPlaybackProgress: handleVideoPlaybackProgress
+                        onPlaybackProgress: handleVideoPlaybackProgress,
+                        bookmarkUserId: resumeUserId,
+                        bookmarkJobId: item.jobId,
+                        bookmarkItemType: bookmarkItemType
                     )
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
@@ -358,6 +372,10 @@ struct LibraryPlaybackView: View {
         }
     }
 
+    private var bookmarkItemType: String {
+        item.itemType.nonEmptyValue ?? itemTypeLabel.lowercased()
+    }
+
     private var showsScrubber: Bool {
         item.itemType == "video"
     }
@@ -379,6 +397,19 @@ struct LibraryPlaybackView: View {
             "target_languages",
             "book_language"
         ]) ?? metadataString(for: ["language"], maxDepth: 0) ?? item.language
+    }
+
+    private var summaryText: String? {
+        if let summary = resolvedYoutubeSummary {
+            return summary
+        }
+        if let summary = resolvedTvSummary {
+            return summary
+        }
+        if let summary = bookSummary {
+            return summary
+        }
+        return nil
     }
 
     private var interactiveHeaderInfo: InteractivePlayerHeaderInfo {
@@ -510,6 +541,47 @@ struct LibraryPlaybackView: View {
         return nil
     }
 
+    private func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        let paths: [[String]] = [
+            ["result", "youtube_dub", "media_metadata"],
+            ["result", "subtitle", "metadata", "media_metadata"],
+            ["request", "media_metadata"],
+            ["media_metadata"]
+        ]
+        for path in paths {
+            if let value = nestedValue(metadata, path: path)?.objectValue {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
+        var current: JSONValue = .object(source)
+        for key in path {
+            guard let object = current.objectValue, let next = object[key] else { return nil }
+            current = next
+        }
+        return current
+    }
+
+    private func normalizedSummary(_ value: String?) -> String? {
+        guard var value = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !value.isEmpty
+        else {
+            return nil
+        }
+        value = value.replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+        value = value.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+        value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return nil }
+        if value.count > summaryLengthLimit {
+            let cutoff = max(summaryLengthLimit - 3, 0)
+            value = String(value.prefix(cutoff)).trimmingCharacters(in: .whitespacesAndNewlines) + "..."
+        }
+        return value
+    }
+
     private var imageReelURLs: [URL] {
         guard let chunk = viewModel.selectedChunk else { return [] }
         let hasExplicitImage = chunk.sentences.contains { sentence in
@@ -567,6 +639,45 @@ struct LibraryPlaybackView: View {
 
     private var translationModelLabel: String? {
         metadataString(for: ["llm_model", "ollama_model"])?.nonEmptyValue
+    }
+
+    private var resolvedTvMetadata: [String: JSONValue]? {
+        guard let metadata = item.metadata else { return nil }
+        return extractTvMediaMetadata(from: metadata)
+    }
+
+    private var resolvedYoutubeMetadata: [String: JSONValue]? {
+        if let tvMetadata = resolvedTvMetadata,
+           let youtube = tvMetadata["youtube"]?.objectValue {
+            return youtube
+        }
+        guard let metadata = item.metadata else { return nil }
+        return metadata["youtube"]?.objectValue
+    }
+
+    private var resolvedYoutubeSummary: String? {
+        let summary = resolvedYoutubeMetadata?["summary"]?.stringValue
+        let description = resolvedYoutubeMetadata?["description"]?.stringValue
+        return normalizedSummary(summary ?? description)
+    }
+
+    private var resolvedTvSummary: String? {
+        guard let tvMetadata = resolvedTvMetadata else { return nil }
+        if let episode = tvMetadata["episode"]?.objectValue,
+           let summary = episode["summary"]?.stringValue {
+            return normalizedSummary(summary)
+        }
+        if let show = tvMetadata["show"]?.objectValue,
+           let summary = show["summary"]?.stringValue {
+            return normalizedSummary(summary)
+        }
+        return nil
+    }
+
+    private var bookSummary: String? {
+        let summary = metadataString(for: ["book_summary"], maxDepth: 4)
+            ?? metadataString(for: ["summary"], maxDepth: 4)
+        return normalizedSummary(summary)
     }
 
     private var hasInteractiveChunks: Bool {
@@ -645,6 +756,7 @@ struct LibraryPlaybackView: View {
             secondaryArtworkURL: secondaryCoverURL,
             languageFlags: languageFlags,
             translationModel: translationModelLabel,
+            summary: summaryText,
             channelVariant: channelVariant,
             channelLabel: channelLabel
         )

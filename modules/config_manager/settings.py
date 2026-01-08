@@ -24,6 +24,9 @@ from .constants import (
     DEFAULT_MODEL,
     DEFAULT_OLLAMA_CLOUD_URL,
     DEFAULT_OLLAMA_URL,
+    DEFAULT_TRANSLATION_FALLBACK_MODEL,
+    DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS,
+    DEFAULT_TTS_FALLBACK_VOICE,
     VALID_LLM_SOURCES,
     DEFAULT_JOB_MAX_WORKERS,
     DEFAULT_LIBRARY_ROOT,
@@ -64,6 +67,9 @@ class EbookToolsSettings(BaseModel):
     )
     tts_executable_path: Optional[str] = None
     say_path: Optional[str] = None
+    translation_fallback_model: str = DEFAULT_TRANSLATION_FALLBACK_MODEL
+    translation_llm_timeout_seconds: float = DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS
+    tts_fallback_voice: str = DEFAULT_TTS_FALLBACK_VOICE
     audio_api_base_url: Optional[str] = None
     audio_api_timeout_seconds: float = 60.0
     audio_api_poll_interval_seconds: float = 1.0
@@ -241,6 +247,28 @@ class EnvironmentOverrides(BaseSettings):
             "AUDIO_API_POLL_INTERVAL_SECONDS",
             "EBOOK_AUDIO_API_POLL_INTERVAL",
             "EBOOK_AUDIO_API_POLL_INTERVAL_SECONDS",
+        ),
+    )
+    translation_fallback_model: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "EBOOK_TRANSLATION_FALLBACK_MODEL",
+            "EBOOK_LLM_FALLBACK_MODEL",
+        ),
+    )
+    translation_llm_timeout_seconds: Optional[float] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "EBOOK_TRANSLATION_LLM_TIMEOUT_SECONDS",
+            "EBOOK_TRANSLATION_TIMEOUT_SECONDS",
+            "EBOOK_LLM_TIMEOUT_SECONDS",
+        ),
+    )
+    tts_fallback_voice: Optional[str] = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "EBOOK_TTS_FALLBACK_VOICE",
+            "EBOOK_TTS_FALLBACK",
         ),
     )
 

@@ -83,6 +83,7 @@ def generate_audio_for_sentence(
     tts_executable_path: Optional[str] = None,
     *,
     audio_synthesizer: AudioSynthesizer | None = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> SynthesisResult:
     """Generate audio for a sentence using the configured synthesizer."""
 
@@ -104,6 +105,7 @@ def generate_audio_for_sentence(
         macos_reading_speed=macos_reading_speed,
         tts_backend=tts_backend,
         tts_executable_path=tts_executable_path,
+        progress_tracker=progress_tracker,
     )
 
 

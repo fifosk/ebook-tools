@@ -57,6 +57,8 @@
 		9217A4BA1C534A748FADF81B /* MediaURLResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44D6C5028734F099599CFC6 /* MediaURLResolver.swift */; };
 		A5B6C7D8E9F0123456789A12 /* PlaybackResumeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */; };
 		A5B6C7D8E9F0123456789A13 /* PlaybackResumeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */; };
+		B2F0F7C9A1B24E3F9C2D1112 /* PlaybackBookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */; };
+		B2F0F7C9A1B24E3F9C2D1113 /* PlaybackBookmarkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */; };
 		A860F02F70BE44A5B779EE50 /* LibraryShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EACAFCD435FB4D46926CB3F5 /* LibraryShellView.swift */; };
 		B643F5DE4A944A73AA8E986E /* VideoPlayerCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2B612A42FC410590D84E0A /* VideoPlayerCoordinator.swift */; };
 		C0A1B2C3D4E5F60718293A4C /* PlayerChannelBugView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */; };
@@ -112,6 +114,7 @@
 		9DA71448DFFD40C7929AE6AF /* NowPlayingCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowPlayingCoordinator.swift; sourceTree = "<group>"; };
 		A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackResumeStore.swift; sourceTree = "<group>"; };
 		A5B6C7D8E9F0123456789A11 /* InteractiveReader.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = InteractiveReader.entitlements; sourceTree = "<group>"; };
+		B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaybackBookmarkStore.swift; sourceTree = "<group>"; };
 		B44D6C5028734F099599CFC6 /* MediaURLResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaURLResolver.swift; sourceTree = "<group>"; };
 		B5E9902ED51249ED8DD110B9 /* TextPlayerTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextPlayerTimeline.swift; sourceTree = "<group>"; };
 		C0A1B2C3D4E5F60718293A4B /* PlayerChannelBugView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlayerChannelBugView.swift; sourceTree = "<group>"; };
@@ -269,6 +272,7 @@
 				6FDC3A2502F914D000A1D9A1 /* APIClient.swift */,
 				6FDC3A2602F914D000A1D9A1 /* AudioPlayerCoordinator.swift */,
 				A5B6C7D8E9F0123456789A10 /* PlaybackResumeStore.swift */,
+				B2F0F7C9A1B24E3F9C2D1111 /* PlaybackBookmarkStore.swift */,
 				9DA71448DFFD40C7929AE6AF /* NowPlayingCoordinator.swift */,
 				CC2B612A42FC410590D84E0A /* VideoPlayerCoordinator.swift */,
 			);
@@ -453,6 +457,7 @@
 				F3C1A2B4D5E6F7A8B9C0D1E7 /* SubtitleVisibility.swift in Sources */,
 				8E98B03FD5094BDD99935269 /* NowPlayingCoordinator.swift in Sources */,
 				A5B6C7D8E9F0123456789A12 /* PlaybackResumeStore.swift in Sources */,
+				B2F0F7C9A1B24E3F9C2D1112 /* PlaybackBookmarkStore.swift in Sources */,
 				B643F5DE4A944A73AA8E986E /* VideoPlayerCoordinator.swift in Sources */,
 				9217A4BA1C534A748FADF81B /* MediaURLResolver.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70825 /* JSONValue+Helpers.swift in Sources */,
@@ -496,6 +501,7 @@
 				F3C1A2B4D5E6F7A8B9C0D1E8 /* SubtitleVisibility.swift in Sources */,
 				1798B1602EF9F1A00092A8AF /* NowPlayingCoordinator.swift in Sources */,
 				A5B6C7D8E9F0123456789A13 /* PlaybackResumeStore.swift in Sources */,
+				B2F0F7C9A1B24E3F9C2D1113 /* PlaybackBookmarkStore.swift in Sources */,
 				1798B1612EF9F1A00092A8AF /* VideoPlayerCoordinator.swift in Sources */,
 				1798B1622EF9F1A00092A8AF /* MediaURLResolver.swift in Sources */,
 				C8D9E0F1A2B3C4D5E6F70835 /* JSONValue+Helpers.swift in Sources */,

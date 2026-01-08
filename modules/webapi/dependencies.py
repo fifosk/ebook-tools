@@ -30,6 +30,7 @@ from ..services.youtube_video_metadata_service import YoutubeVideoMetadataServic
 from ..services.video_service import VideoService
 from ..services.youtube_dubbing import YoutubeDubbingService
 from ..services.export_service import ExportService
+from ..services.bookmark_service import BookmarkService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
 from .jobs import PipelineJobManager
@@ -328,6 +329,13 @@ def get_export_service() -> ExportService:
         library_service=get_library_service(),
         file_locator=get_file_locator(),
     )
+
+
+@lru_cache
+def get_bookmark_service() -> BookmarkService:
+    """Return the shared :class:`BookmarkService` instance."""
+
+    return BookmarkService(file_locator=get_file_locator())
 
 
 @lru_cache

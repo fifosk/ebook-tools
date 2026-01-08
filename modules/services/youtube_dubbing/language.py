@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from modules import language_policies
 from modules.core.rendering.constants import LANGUAGE_CODES
@@ -12,6 +12,9 @@ from modules.llm_client import create_client
 from modules.transliteration import TransliterationService
 
 from .common import _LANGUAGE_TOKEN_PATTERN, logger
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from modules.progress_tracker import ProgressTracker
 
 _RTL_SCRIPT_PATTERN = re.compile(r"[\u0590-\u08FF]")
 _RTL_LANGUAGE_HINTS = {
@@ -76,6 +79,7 @@ def _transliterate_text(
     *,
     transliteration_mode: Optional[str] = None,
     llm_model: Optional[str] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> str:
     """Return plain transliteration text from the service result."""
 
@@ -88,12 +92,14 @@ def _transliterate_text(
                 language,
                 client=client,
                 mode=transliteration_mode,
+                progress_tracker=progress_tracker,
             )
     else:
         result = transliterator.transliterate(
             text,
             language,
             mode=transliteration_mode,
+            progress_tracker=progress_tracker,
         )
     if hasattr(result, "text"):
         try:

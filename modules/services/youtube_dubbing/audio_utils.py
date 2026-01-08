@@ -471,6 +471,7 @@ def _synthesise_track_from_ass(
                     target_language=language,
                     llm_model=llm_model,
                     translation_provider=translation_provider,
+                    progress_tracker=tracker,
                 )
                 if is_failure_annotation(translated_text):
                     translated_text = entry.translation
@@ -509,7 +510,13 @@ def _synthesise_track_from_ass(
     def _synthesise(index: int, entry: _AssDialogue) -> Tuple[int, _AssDialogue, AudioSegment]:
         _guard()
         sanitized = _sanitize_for_tts(entry.translation)
-        segment = generate_audio(sanitized, language, voice, macos_reading_speed)
+        segment = generate_audio(
+            sanitized,
+            language,
+            voice,
+            macos_reading_speed,
+            progress_tracker=tracker,
+        )
         fitted = _fit_segment_to_window(segment, entry.duration)
         normalized = _coerce_channels(fitted.set_frame_rate(target_rate), target_channels)
         return index, entry, normalized

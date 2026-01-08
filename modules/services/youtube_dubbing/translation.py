@@ -59,6 +59,7 @@ def translate_dialogues(
                     target_language=target_language,
                     llm_model=llm_model,
                     translation_provider=translation_provider,
+                    progress_tracker=tracker,
                 )
                 translated_flag = True
                 if is_failure_annotation(translated_text):
@@ -73,6 +74,7 @@ def translate_dialogues(
                     target_language,
                     transliteration_mode=transliteration_mode,
                     llm_model=llm_model,
+                    progress_tracker=tracker,
                 )
             except Exception:
                 transliteration_text = None

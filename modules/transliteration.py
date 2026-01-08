@@ -8,10 +8,12 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Optional
 
+from modules import config_manager as cfg
+from modules import fallbacks
 from modules import logging_manager as log_mgr, prompt_templates, text_normalization as text_norm
 from modules import llm_client_manager
 from modules.llm_client import LLMClient
-from modules.retry_annotations import format_retry_failure
+from modules.retry_annotations import format_retry_failure, is_failure_annotation
 
 logger = log_mgr.logger
 
@@ -79,6 +81,13 @@ _HEBREW_TRANSLITERATION_MAP = {
 }
 
 
+def _is_timeout_error(reason: Optional[str]) -> bool:
+    if not reason:
+        return False
+    lowered = reason.lower()
+    return "timeout" in lowered or "timed out" in lowered
+
+
 @dataclass(slots=True)
 class TransliterationResult:
     """Container returned by :class:`TransliterationService`."""
@@ -102,7 +111,51 @@ class TransliterationService:
         lang = _normalize_language_hint(target_language)
         mode_label = (mode or "").strip().lower()
         python_only = mode_label in _PYTHON_ONLY_MODES
-        with llm_client_manager.client_scope(client) as resolved_client:
+        fallback_model = fallbacks.get_llm_fallback_model(progress_tracker)
+        fallback_active = bool(fallback_model)
+        fallback_client = (
+            fallbacks.get_fallback_llm_client(fallback_model) if fallback_model else None
+        )
+
+        def _run_llm(resolved_client: LLMClient) -> tuple[TransliterationResult, Optional[str], float]:
+            system_prompt = prompt_templates.make_transliteration_prompt(target_language)
+            payload = prompt_templates.make_sentence_payload(
+                sentence,
+                model=resolved_client.model,
+                stream=False,
+                system_prompt=system_prompt,
+            )
+            last_error: Optional[str] = None
+            start_time = time.perf_counter()
+            for attempt in range(1, _TRANSLITERATION_ATTEMPTS + 1):
+                response = resolved_client.send_chat_request(
+                    payload, max_attempts=2, timeout=cfg.get_translation_llm_timeout_seconds()
+                )
+                if response.text:
+                    candidate = response.text.strip()
+                    if not text_norm.is_placeholder_value(candidate):
+                        elapsed = time.perf_counter() - start_time
+                        return TransliterationResult(candidate, used_llm=True), None, elapsed
+                    last_error = "Placeholder transliteration response"
+                else:
+                    last_error = response.error or "Empty transliteration response"
+                if progress_tracker is not None and last_error:
+                    progress_tracker.record_retry("transliteration", last_error)
+                if attempt < _TRANSLITERATION_ATTEMPTS:
+                    time.sleep(_TRANSLITERATION_RETRY_DELAY_SECONDS)
+            if resolved_client.debug_enabled and last_error:
+                logger.debug("LLM transliteration failed: %s", last_error)
+            elapsed = time.perf_counter() - start_time
+            failure_reason = last_error or "no response from LLM"
+            failure_text = format_retry_failure(
+                "transliteration",
+                _TRANSLITERATION_ATTEMPTS,
+                reason=failure_reason,
+            )
+            return TransliterationResult(failure_text, used_llm=False), failure_reason, elapsed
+
+        with llm_client_manager.client_scope(fallback_client or client) as resolved_client:
+            current_model = resolved_client.model
             try:
                 local_text = _transliterate_with_python(sentence, lang)
                 if local_text:
@@ -120,40 +173,39 @@ class TransliterationService:
                 )
                 return TransliterationResult(failure_text, used_llm=False)
 
-            system_prompt = prompt_templates.make_transliteration_prompt(target_language)
-            payload = prompt_templates.make_sentence_payload(
-                sentence,
-                model=resolved_client.model,
-                stream=False,
-                system_prompt=system_prompt,
-            )
+            result, last_error, elapsed = _run_llm(resolved_client)
 
-            last_error: Optional[str] = None
-            for attempt in range(1, _TRANSLITERATION_ATTEMPTS + 1):
-                response = resolved_client.send_chat_request(
-                    payload, max_attempts=2, timeout=60
+        if not fallback_active:
+            timeout_seconds = cfg.get_translation_llm_timeout_seconds()
+            if timeout_seconds > 0 and elapsed > timeout_seconds:
+                reason = f"LLM response exceeded {timeout_seconds:.0f}s ({elapsed:.1f}s)"
+                fallbacks.record_translation_fallback(
+                    progress_tracker,
+                    trigger="llm_timeout",
+                    reason=reason,
+                    source_provider="llm",
+                    fallback_model=cfg.get_translation_fallback_model(),
+                    scope="transliteration",
+                    elapsed_seconds=elapsed,
                 )
-                if response.text:
-                    candidate = response.text.strip()
-                    if not text_norm.is_placeholder_value(candidate):
-                        return TransliterationResult(candidate, used_llm=True)
-                    last_error = "Placeholder transliteration response"
-                else:
-                    last_error = response.error or "Empty transliteration response"
-                if progress_tracker is not None and last_error:
-                    progress_tracker.record_retry("transliteration", last_error)
-                if attempt < _TRANSLITERATION_ATTEMPTS:
-                    time.sleep(_TRANSLITERATION_RETRY_DELAY_SECONDS)
-            if resolved_client.debug_enabled and last_error:
-                logger.debug("LLM transliteration failed: %s", last_error)
+            if is_failure_annotation(result.text):
+                reason = last_error or "LLM transliteration failed"
+                trigger = "llm_timeout" if _is_timeout_error(reason) else "llm_error"
+                detail = fallbacks.record_translation_fallback(
+                    progress_tracker,
+                    trigger=trigger,
+                    reason=reason,
+                    source_provider="llm",
+                    fallback_model=cfg.get_translation_fallback_model(),
+                    scope="transliteration",
+                )
+                model_override = (detail or {}).get("fallback_model") if detail else None
+                if model_override and current_model.strip().lower() != model_override.strip().lower():
+                    fallback_client = fallbacks.get_fallback_llm_client(model_override)
+                    with llm_client_manager.client_scope(fallback_client) as fallback_resolved:
+                        result, _error, _elapsed = _run_llm(fallback_resolved)
 
-        failure_reason = last_error or "no response from LLM"
-        failure_text = format_retry_failure(
-            "transliteration",
-            _TRANSLITERATION_ATTEMPTS,
-            reason=failure_reason,
-        )
-        return TransliterationResult(failure_text, used_llm=False)
+        return result
 
 
 _default_transliterator = TransliterationService()

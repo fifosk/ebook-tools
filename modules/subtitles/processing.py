@@ -208,6 +208,7 @@ def process_subtitle_file(
                             stop_event,
                             renderer,
                             language_context,
+                            tracker,
                         ),
                         batch,
                     )
@@ -404,6 +405,7 @@ def _process_cue(
     stop_event,
     renderer: CueTextRenderer,
     language_context: SubtitleLanguageContext,
+    tracker: Optional[ProgressTracker],
 ) -> "_RenderedCueBatch":
     if _is_cancelled(stop_event):
         raise SubtitleJobCancelled("Subtitle job interrupted by cancellation request")
@@ -417,6 +419,7 @@ def _process_cue(
             target_language=options.target_language,
             llm_model=options.llm_model,
             translation_provider=options.translation_provider,
+            progress_tracker=tracker,
         )
     )
     translation_failed = is_failure_annotation(translation)
@@ -447,6 +450,7 @@ def _process_cue(
                     target_language=language_context.origin_language,
                     llm_model=options.llm_model,
                     translation_provider=options.translation_provider,
+                    progress_tracker=tracker,
                 )
             )
         except Exception:  # pragma: no cover - best effort fallback
@@ -479,12 +483,14 @@ def _process_cue(
                         options.target_language,
                         client=client,
                         mode=options.transliteration_mode,
+                        progress_tracker=tracker,
                     )
             else:
                 transliteration_result = transliterator.transliterate(
                     translation,
                     options.target_language,
                     mode=options.transliteration_mode,
+                    progress_tracker=tracker,
                 )
         except Exception as exc:  # pragma: no cover - defensive fallbacks
             logger.debug(

@@ -125,6 +125,25 @@ final class APIClient {
         return try decode(ReadingBedListResponse.self, from: data)
     }
 
+    func fetchPlaybackBookmarks(jobId: String) async throws -> PlaybackBookmarkListResponse {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendRequest(path: "/api/bookmarks/\(encoded)")
+        return try decode(PlaybackBookmarkListResponse.self, from: data)
+    }
+
+    func createPlaybackBookmark(jobId: String, payload: PlaybackBookmarkCreateRequest) async throws -> PlaybackBookmarkPayload {
+        let encoded = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let data = try await sendJSONRequest(path: "/api/bookmarks/\(encoded)", method: "POST", payload: payload)
+        return try decode(PlaybackBookmarkPayload.self, from: data)
+    }
+
+    func deletePlaybackBookmark(jobId: String, bookmarkId: String) async throws -> PlaybackBookmarkDeleteResponse {
+        let encodedJob = jobId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? jobId
+        let encodedBookmark = bookmarkId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? bookmarkId
+        let data = try await sendRequest(path: "/api/bookmarks/\(encodedJob)/\(encodedBookmark)", method: "DELETE")
+        return try decode(PlaybackBookmarkDeleteResponse.self, from: data)
+    }
+
     func login(username: String, password: String) async throws -> SessionStatusResponse {
         let payload = LoginRequestPayload(username: username, password: password)
         let data = try await sendJSONRequest(path: "/api/auth/login", method: "POST", payload: payload)

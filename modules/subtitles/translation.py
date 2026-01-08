@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from modules.llm_client import create_client
 from modules.retry_annotations import format_retry_failure, is_failure_annotation
 from modules.translation_engine import _unexpected_script_used, translate_sentence_simple
 
 from .common import logger
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from modules.progress_tracker import ProgressTracker
 
 
 _REPEATED_CHAR_PATTERN = re.compile(r"(.)\1{11,}")
@@ -76,6 +79,7 @@ def _translate_text(
     target_language: str,
     llm_model: Optional[str],
     translation_provider: Optional[str] = None,
+    progress_tracker: Optional["ProgressTracker"] = None,
 ) -> str:
     """
     Translate subtitle text with optional model override and enforce that the
@@ -90,6 +94,7 @@ def _translate_text(
             include_transliteration=False,
             client=client_override,
             translation_provider=translation_provider,
+            progress_tracker=progress_tracker,
         )
 
     max_script_retries = 2

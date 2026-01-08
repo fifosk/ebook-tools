@@ -53,6 +53,7 @@ class AudioGenerator(Protocol):
         voice_overrides: Mapping[str, str] | None,
         tempo: float,
         macos_reading_speed: int,
+        progress_tracker: Optional["ProgressTracker"] = None,
     ) -> AudioSegment | SynthesisResult:
         """Render audio for a single translated sentence."""
 
@@ -683,6 +684,7 @@ def audio_worker_body(
                     tempo=tempo,
                     macos_reading_speed=macos_reading_speed,
                     voice_overrides=voice_overrides,
+                    progress_tracker=progress_tracker,
                     tts_backend=tts_backend,
                     tts_executable_path=tts_executable_path,
                 )

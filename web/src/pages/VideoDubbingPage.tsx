@@ -990,6 +990,7 @@ export default function VideoDubbingPage({
         video_path: selectedVideo.path,
         subtitle_path: selectedSubtitle.path,
         media_metadata: mediaMetadataDraft ?? undefined,
+        source_language: subtitleLanguageLabel || subtitleLanguageCode || undefined,
         target_language: targetLanguageCode || undefined,
         voice: voice.trim() || 'gTTS',
         start_time_offset: startOffset.trim() || undefined,
@@ -1018,6 +1019,8 @@ export default function VideoDubbingPage({
   }, [
     selectedVideo,
     selectedSubtitle,
+    subtitleLanguageLabel,
+    subtitleLanguageCode,
     targetLanguageCode,
     voice,
     startOffset,

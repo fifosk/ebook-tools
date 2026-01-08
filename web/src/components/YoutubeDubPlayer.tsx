@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
+import { formatBookmarkTime, usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
 import VideoPlayer, { type SubtitleTrack } from './VideoPlayer';
 import { NavigationControls } from './player-panel/NavigationControls';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
@@ -25,7 +26,7 @@ import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataRespo
 import { coerceExportPath } from '../utils/storageResolver';
 import { downloadWithSaveAs } from '../utils/downloads';
 
-type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void };
+type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void; seek?: (time: number) => void };
 
 interface YoutubeDubPlayerProps {
   jobId: string;
@@ -240,6 +241,7 @@ export default function YoutubeDubPlayer({
   const { state: memoryState, rememberSelection, rememberPosition, getPosition, deriveBaseId } = useMediaMemory({
     jobId,
   });
+  const { bookmarks, addBookmark, removeBookmark } = usePlaybackBookmarks({ jobId });
   const [jobTvMetadata, setJobTvMetadata] = useState<Record<string, unknown> | null>(null);
   const [jobYoutubeMetadata, setJobYoutubeMetadata] = useState<Record<string, unknown> | null>(null);
 
@@ -437,6 +439,7 @@ export default function YoutubeDubPlayer({
   const controlsRef = useRef<PlaybackControls | null>(null);
   const lastActivatedVideoRef = useRef<string | null>(null);
   const localPositionRef = useRef<number>(0);
+  const pendingBookmarkSeekRef = useRef<{ videoId: string; time: number } | null>(null);
   const toggleCueVisibility = useCallback((key: 'original' | 'transliteration' | 'translation') => {
     setCueVisibility((current) => ({ ...current, [key]: !current[key] }));
   }, []);
@@ -795,9 +798,31 @@ export default function YoutubeDubPlayer({
     };
   }, [handleToggleFullscreen, toggleCueVisibility]);
 
-  const handleRegisterControls = useCallback((controls: PlaybackControls | null) => {
-    controlsRef.current = controls;
-  }, []);
+  const handleRegisterControls = useCallback(
+    (controls: PlaybackControls | null) => {
+      controlsRef.current = controls;
+      if (!controls) {
+        return;
+      }
+      const pending = pendingBookmarkSeekRef.current;
+      if (!pending || pending.videoId !== activeVideoId) {
+        return;
+      }
+      const clamped = Math.max(pending.time, 0);
+      localPositionRef.current = clamped;
+      const match = videoLookup.get(pending.videoId) ?? null;
+      const baseId = match ? deriveBaseId(match) : null;
+      rememberPosition({
+        mediaId: pending.videoId,
+        mediaType: 'video',
+        baseId,
+        position: clamped,
+      });
+      controls.seek?.(clamped);
+      pendingBookmarkSeekRef.current = null;
+    },
+    [activeVideoId, deriveBaseId, rememberPosition, videoLookup],
+  );
 
   const handlePlaybackRateChange = useCallback((rate: number) => {
     setPlaybackSpeed(normaliseTranslationSpeed(rate));
@@ -943,6 +968,77 @@ export default function YoutubeDubPlayer({
     [activeVideoId, deriveBaseId, rememberPosition, videoLookup],
   );
 
+  const handleAddBookmark = useCallback(() => {
+    if (!jobId || !activeVideoId) {
+      return;
+    }
+    const activeIndex = videoFiles.findIndex((file) => file.id === activeVideoId);
+    const activeLabel = videoFiles[activeIndex]?.name ?? (activeIndex >= 0 ? `Segment ${activeIndex + 1}` : null);
+    const fallbackPosition = getPosition(activeVideoId);
+    const position = Number.isFinite(localPositionRef.current) ? localPositionRef.current : fallbackPosition;
+    const labelParts: string[] = [];
+    if (videoFiles.length > 1 && activeLabel) {
+      labelParts.push(activeLabel);
+    }
+    if (Number.isFinite(position)) {
+      labelParts.push(formatBookmarkTime(position));
+    }
+    const label = labelParts.length > 0 ? labelParts.join(' · ') : 'Bookmark';
+    const match = videoLookup.get(activeVideoId) ?? null;
+    const baseId = match ? deriveBaseId(match) : null;
+    addBookmark({
+      kind: 'time',
+      label,
+      position,
+      mediaType: 'video',
+      mediaId: activeVideoId,
+      baseId,
+    });
+  }, [activeVideoId, addBookmark, deriveBaseId, getPosition, jobId, videoFiles, videoLookup]);
+
+  const applyBookmarkSeek = useCallback(
+    (videoId: string, time: number) => {
+      const clamped = Math.max(time, 0);
+      localPositionRef.current = clamped;
+      lastActivatedVideoRef.current = videoId;
+      const match = videoLookup.get(videoId) ?? null;
+      const baseId = match ? deriveBaseId(match) : null;
+      rememberPosition({
+        mediaId: videoId,
+        mediaType: 'video',
+        baseId,
+        position: clamped,
+      });
+      controlsRef.current?.seek?.(clamped);
+    },
+    [deriveBaseId, rememberPosition, videoLookup],
+  );
+
+  const handleJumpBookmark = useCallback(
+    (bookmark: { mediaId?: string | null; position?: number | null }) => {
+      const targetVideoId = bookmark.mediaId ?? activeVideoId;
+      if (!targetVideoId) {
+        return;
+      }
+      const targetTime =
+        typeof bookmark.position === 'number' && Number.isFinite(bookmark.position) ? bookmark.position : 0;
+      if (targetVideoId === activeVideoId) {
+        applyBookmarkSeek(targetVideoId, targetTime);
+        return;
+      }
+      pendingBookmarkSeekRef.current = { videoId: targetVideoId, time: targetTime };
+      setActiveVideoId(targetVideoId);
+    },
+    [activeVideoId, applyBookmarkSeek],
+  );
+
+  const handleRemoveBookmark = useCallback(
+    (bookmark: { id: string }) => {
+      removeBookmark(bookmark.id);
+    },
+    [removeBookmark],
+  );
+
   const playbackPosition =
     activeVideoId && lastActivatedVideoRef.current === activeVideoId ? localPositionRef.current : 0;
   const videoCount = videoFiles.length;
@@ -1008,6 +1104,18 @@ export default function YoutubeDubPlayer({
       onVideoPlaybackStateChange?.(false);
     };
   }, [onPlaybackStateChange, onVideoPlaybackStateChange]);
+
+  useEffect(() => {
+    const pending = pendingBookmarkSeekRef.current;
+    if (!pending || pending.videoId !== activeVideoId) {
+      return;
+    }
+    if (!controlsRef.current?.seek) {
+      return;
+    }
+    applyBookmarkSeek(pending.videoId, pending.time);
+    pendingBookmarkSeekRef.current = null;
+  }, [activeVideoId, applyBookmarkSeek]);
 
   useEffect(() => {
     const previousCount = previousFileCountRef.current;
@@ -1095,6 +1203,11 @@ export default function YoutubeDubPlayer({
           onSubtitleBackgroundOpacityChange={handleSubtitleBackgroundOpacityChange}
           showBackToLibrary={showBackToLibrary}
           onBackToLibrary={onBackToLibrary}
+          showBookmarks={Boolean(jobId)}
+          bookmarks={bookmarks}
+          onAddBookmark={activeVideoId ? handleAddBookmark : undefined}
+          onJumpToBookmark={handleJumpBookmark}
+          onRemoveBookmark={handleRemoveBookmark}
           showExport={canExport}
           onExport={handleExport}
           exportDisabled={isExporting}

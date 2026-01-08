@@ -18,6 +18,9 @@ from .constants import (
     DEFAULT_OUTPUT_RELATIVE,
     DEFAULT_QUEUE_SIZE,
     DEFAULT_JOB_MAX_WORKERS,
+    DEFAULT_TRANSLATION_FALLBACK_MODEL,
+    DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS,
+    DEFAULT_TTS_FALLBACK_VOICE,
     DEFAULT_COVERS_RELATIVE,
     DEFAULT_LIBRARY_ROOT,
     DEFAULT_SMB_BOOKS_PATH,
@@ -114,6 +117,40 @@ def get_ollama_url() -> str:
     return get_local_ollama_url()
 
 
+def get_translation_fallback_model() -> str:
+    """Return the configured LLM model for translation fallbacks."""
+
+    settings = get_settings()
+    candidate = getattr(settings, "translation_fallback_model", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return DEFAULT_TRANSLATION_FALLBACK_MODEL
+
+
+def get_translation_llm_timeout_seconds() -> float:
+    """Return the per-sentence LLM timeout threshold used to trigger fallbacks."""
+
+    settings = get_settings()
+    candidate = getattr(settings, "translation_llm_timeout_seconds", None)
+    try:
+        value = float(candidate)
+    except (TypeError, ValueError):
+        value = DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS
+    if value <= 0:
+        return DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS
+    return value
+
+
+def get_tts_fallback_voice() -> str:
+    """Return the configured fallback voice for TTS failures."""
+
+    settings = get_settings()
+    candidate = getattr(settings, "tts_fallback_voice", None)
+    if isinstance(candidate, str) and candidate.strip():
+        return candidate.strip()
+    return DEFAULT_TTS_FALLBACK_VOICE
+
+
 def get_library_root(*, create: bool = True) -> Path:
     """Return the configured library root directory, creating it when requested."""
 
@@ -144,6 +181,9 @@ __all__ = [
     "get_llm_source",
     "get_local_ollama_url",
     "get_ollama_url",
+    "get_translation_fallback_model",
+    "get_translation_llm_timeout_seconds",
+    "get_tts_fallback_voice",
     "get_library_root",
     "get_queue_size",
     "get_runtime_context",
@@ -170,6 +210,9 @@ __all__ = [
     "DEFAULT_OUTPUT_RELATIVE",
     "DEFAULT_QUEUE_SIZE",
     "DEFAULT_JOB_MAX_WORKERS",
+    "DEFAULT_TRANSLATION_FALLBACK_MODEL",
+    "DEFAULT_TRANSLATION_LLM_TIMEOUT_SECONDS",
+    "DEFAULT_TTS_FALLBACK_VOICE",
     "DEFAULT_COVERS_RELATIVE",
     "DEFAULT_SMB_BOOKS_PATH",
     "DEFAULT_SMB_OUTPUT_PATH",

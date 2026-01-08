@@ -565,6 +565,7 @@ class YoutubeDubRequest(BaseModel):
     video_path: str
     subtitle_path: str
     media_metadata: Optional[Dict[str, Any]] = None
+    source_language: Optional[str] = None
     target_language: Optional[str] = None
     voice: Optional[str] = None
     tempo: Optional[float] = None
@@ -1390,6 +1391,8 @@ class PipelineStatusResponse(BaseModel):
         generated_files = None
         if job.generated_files is not None:
             generated_files = copy.deepcopy(job.generated_files)
+        elif job.tracker is not None:
+            generated_files = job.tracker.get_generated_files() or None
 
         parameters = _build_job_parameters(job)
         image_generation = _build_image_generation_summary(
