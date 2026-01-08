@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { UIEvent } from 'react';
 import type { LiveMediaChunk, LiveMediaItem, LiveMediaState } from '../hooks/useLiveMedia';
 import { useMediaMemory } from '../hooks/useMediaMemory';
-import { formatBookmarkTime, usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
+import { usePlaybackBookmarks } from '../hooks/usePlaybackBookmarks';
 import { useWakeLock } from '../hooks/useWakeLock';
 import { useMyLinguist } from '../context/MyLinguistProvider';
 import {
@@ -10,51 +9,28 @@ import {
   FONT_SCALE_MAX,
   FONT_SCALE_MIN,
   FONT_SCALE_STEP,
-  MEDIA_CATEGORIES,
   MY_LINGUIST_FONT_SCALE_MAX,
   MY_LINGUIST_FONT_SCALE_MIN,
   MY_LINGUIST_FONT_SCALE_STEP,
   TRANSLATION_SPEED_MAX,
   TRANSLATION_SPEED_MIN,
   TRANSLATION_SPEED_STEP,
-  type MediaCategory,
-  type NavigationIntent,
 } from './player-panel/constants';
 import MediaSearchPanel from './MediaSearchPanel';
-import type {
-  LibraryItem,
-  MediaSearchResult,
-} from '../api/dtos';
-import {
-  appendAccessToken,
-  createExport,
-  fetchPipelineStatus,
-  resolveLibraryMediaUrl,
-  withBase,
-} from '../api/client';
+import type { LibraryItem } from '../api/dtos';
 import { PlayerPanelInteractiveDocument } from './player-panel/PlayerPanelInteractiveDocument';
-import { coerceExportPath, resolve as resolveStoragePath } from '../utils/storageResolver';
-import { downloadWithSaveAs } from '../utils/downloads';
 import {
   buildInteractiveAudioCatalog,
+  fallbackTextFromSentences,
   isAudioFileType,
 } from './player-panel/utils';
 import { enableDebugOverlay } from '../player/AudioSyncController';
-import type { LibraryOpenInput, LibraryOpenRequest, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
-import {
-  NavigationControls,
-  type ChapterNavigationEntry,
-  type NavigationControlsProps,
-} from './player-panel/NavigationControls';
+import type { LibraryOpenInput, MediaSelectionRequest, PlayerFeatureFlags, PlayerMode } from '../types/player';
+import { NavigationControls } from './player-panel/NavigationControls';
 import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
   deriveBaseIdFromReference,
-  extractMetadataFirstString,
-  extractMetadataText,
   findChunkIndexForBaseId,
-  normaliseBookSentenceCount,
-  resolveChunkBaseId,
-  resolveBaseIdFromResult,
 } from './player-panel/helpers';
 import { useCoverArt } from './player-panel/useCoverArt';
 import { useChunkMetadata } from './player-panel/useChunkMetadata';
@@ -68,108 +44,22 @@ import { useSubtitleInfo } from './player-panel/useSubtitleInfo';
 import { useTextPreview } from './player-panel/useTextPreview';
 import { ShortcutHelpOverlay } from './player-panel/ShortcutHelpOverlay';
 import { usePlayerShortcuts } from './player-panel/usePlayerShortcuts';
-type SearchCategory = Exclude<MediaCategory, 'audio'> | 'library';
-type PlaybackControls = {
-  pause: () => void;
-  play: () => void;
-  seek?: (time: number) => void;
-};
+import { usePlayerPanelJobInfo } from './player-panel/usePlayerPanelJobInfo';
+import { usePlayerPanelSelectionState } from './player-panel/usePlayerPanelSelectionState';
+import { usePlayerPanelPlaybackState } from './player-panel/usePlayerPanelPlaybackState';
+import { usePlayerPanelNavigation } from './player-panel/usePlayerPanelNavigation';
+import { usePlayerPanelExport } from './player-panel/usePlayerPanelExport';
+import { useMediaSessionActions, useMediaSessionMetadata } from './player-panel/useMediaSession';
+import { usePlayerPanelActions } from './player-panel/usePlayerPanelActions';
+import { buildInteractiveViewerProps, buildNavigationBaseProps } from './player-panel/playerPanelProps';
+import { useInteractiveFullscreenPreference } from './player-panel/useInteractiveFullscreenPreference';
+import { usePlayerPanelScrollMemory } from './player-panel/usePlayerPanelScrollMemory';
 
 type ReadingBedOverride = {
   id: string;
   label: string;
   url: string;
 };
-
-const toFiniteNumber = (value: unknown): number | null => {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return Math.trunc(value);
-  }
-  if (typeof value === 'string') {
-    const parsed = Number.parseFloat(value);
-    if (Number.isFinite(parsed)) {
-      return Math.trunc(parsed);
-    }
-  }
-  return null;
-};
-
-const normaliseContentIndexChapters = (payload: unknown): ChapterNavigationEntry[] => {
-  if (!payload || typeof payload !== 'object') {
-    return [];
-  }
-  const record = payload as Record<string, unknown>;
-  const rawChapters = record.chapters;
-  if (!Array.isArray(rawChapters)) {
-    return [];
-  }
-  const chapters: ChapterNavigationEntry[] = [];
-  rawChapters.forEach((entry, index) => {
-    if (!entry || typeof entry !== 'object') {
-      return;
-    }
-    const raw = entry as Record<string, unknown>;
-    const start =
-      toFiniteNumber(raw.start_sentence ?? raw.startSentence ?? raw.start) ?? null;
-    if (!start || start <= 0) {
-      return;
-    }
-    const sentenceCount =
-      toFiniteNumber(raw.sentence_count ?? raw.sentenceCount) ?? null;
-    let end = toFiniteNumber(raw.end_sentence ?? raw.endSentence ?? raw.end);
-    if (end === null && sentenceCount !== null) {
-      end = start + Math.max(sentenceCount - 1, 0);
-    }
-    const id =
-      (typeof raw.id === 'string' && raw.id.trim()) || `chapter-${index + 1}`;
-    const title =
-      (typeof raw.title === 'string' && raw.title.trim()) ||
-      (typeof raw.toc_label === 'string' && raw.toc_label.trim()) ||
-      `Chapter ${index + 1}`;
-    chapters.push({
-      id,
-      title,
-      startSentence: start,
-      endSentence: end ?? null,
-    });
-  });
-  return chapters;
-};
-
-const deriveSentenceCountFromChunks = (chunks: LiveMediaChunk[]): number | null => {
-  let maxSentence = 0;
-  let hasValue = false;
-  chunks.forEach((chunk) => {
-    if (!chunk) {
-      return;
-    }
-    const endSentence =
-      typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
-        ? Math.trunc(chunk.endSentence)
-        : null;
-    if (endSentence !== null) {
-      maxSentence = Math.max(maxSentence, endSentence);
-      hasValue = true;
-      return;
-    }
-    const startSentence =
-      typeof chunk.startSentence === 'number' && Number.isFinite(chunk.startSentence)
-        ? Math.trunc(chunk.startSentence)
-        : null;
-    const sentenceCount =
-      typeof chunk.sentenceCount === 'number' && Number.isFinite(chunk.sentenceCount)
-        ? Math.trunc(chunk.sentenceCount)
-        : Array.isArray(chunk.sentences) && chunk.sentences.length > 0
-          ? chunk.sentences.length
-          : null;
-    if (startSentence !== null && sentenceCount !== null) {
-      maxSentence = Math.max(maxSentence, startSentence + Math.max(sentenceCount - 1, 0));
-      hasValue = true;
-    }
-  });
-  return hasValue ? maxSentence : null;
-};
-
 interface PlayerPanelProps {
   jobId: string;
   jobType?: string | null;
@@ -224,25 +114,29 @@ export default function PlayerPanel({
   const searchEnabled = features.search !== false;
   const { baseFontScalePercent, setBaseFontScalePercent, adjustBaseFontScalePercent, toggle: toggleMyLinguist } =
     useMyLinguist();
-  const interactiveViewerAvailable = chunks.length > 0;
-  const [selectedItemIds, setSelectedItemIds] = useState<Record<MediaCategory, string | null>>(() => {
-    const initial: Record<MediaCategory, string | null> = {
-      text: null,
-      audio: null,
-      video: null,
-    };
-
-    MEDIA_CATEGORIES.forEach((category) => {
-      const firstItem = media[category][0];
-      initial[category] = firstItem?.url ?? null;
-    });
-
-    return initial;
+  const hasJobId = Boolean(jobId);
+  const normalisedJobId = jobId ?? '';
+  const mediaMemory = useMediaMemory({ jobId });
+  const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } =
+    mediaMemory;
+  const { bookmarks, addBookmark, removeBookmark } = usePlaybackBookmarks({ jobId });
+  const {
+    selectedItemIds,
+    setSelectedItemIds,
+    pendingSelection,
+    setPendingSelection,
+    pendingChunkSelection,
+    setPendingChunkSelection,
+    pendingTextScrollRatio,
+    setPendingTextScrollRatio,
+    getMediaItem,
+    updateSelection,
+  } = usePlayerPanelSelectionState({
+    media,
+    selectionRequest,
+    memoryState,
+    rememberSelection,
   });
-  const [pendingSelection, setPendingSelection] = useState<MediaSelectionRequest | null>(null);
-  const [pendingChunkSelection, setPendingChunkSelection] =
-    useState<{ index: number; token: number } | null>(null);
-  const [pendingTextScrollRatio, setPendingTextScrollRatio] = useState<number | null>(null);
   const [showOriginalAudio, setShowOriginalAudio] = useState<boolean>(() => {
     if (typeof window === 'undefined') {
       return true;
@@ -264,347 +158,79 @@ export default function PlayerPanel({
     return stored === 'true';
   });
   const [inlineAudioSelection, setInlineAudioSelection] = useState<string | null>(null);
-  const [isInlineAudioPlaying, setIsInlineAudioPlaying] = useState(false);
-  const resolveStoredInteractiveFullscreenPreference = () => {
-    if (typeof window === 'undefined') {
-      return false;
-    }
-    return window.localStorage.getItem('player.textFullscreenPreferred') === 'true';
-  };
-  const [isInteractiveFullscreen, setIsInteractiveFullscreen] = useState<boolean>(() =>
-    resolveStoredInteractiveFullscreenPreference(),
-  );
   const [panelAdvancedControlsOpen, setPanelAdvancedControlsOpen] = useState(false);
-  const interactiveFullscreenPreferenceRef = useRef<boolean>(isInteractiveFullscreen);
-  const updateInteractiveFullscreenPreference = useCallback((next: boolean) => {
-    interactiveFullscreenPreferenceRef.current = next;
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('player.textFullscreenPreferred', next ? 'true' : 'false');
-    }
-  }, []);
-  const hasJobId = Boolean(jobId);
-  const normalisedJobId = jobId ?? '';
-  const mediaMemory = useMediaMemory({ jobId });
-  const { state: memoryState, rememberSelection, rememberPosition, getPosition, findMatchingMediaId, deriveBaseId } = mediaMemory;
-  const { bookmarks, addBookmark, removeBookmark } = usePlaybackBookmarks({ jobId });
   const textScrollRef = useRef<HTMLDivElement | null>(null);
-  const inlineAudioControlsRef = useRef<PlaybackControls | null>(null);
-  const inlineAudioPlayingRef = useRef(false);
-  const mediaSessionTimeRef = useRef<number | null>(null);
-  const hasSkippedInitialRememberRef = useRef(false);
-  const updateInlineAudioPlaying = useCallback((next: boolean) => {
-    inlineAudioPlayingRef.current = next;
-    setIsInlineAudioPlaying(next);
-  }, []);
-  const pendingAutoPlayRef = useRef(false);
-  const [autoPlayToken, setAutoPlayToken] = useState(0);
-  const requestAutoPlay = useCallback(() => {
-    pendingAutoPlayRef.current = true;
-    setAutoPlayToken((value) => value + 1);
-  }, []);
-  const [hasInlineAudioControls, setHasInlineAudioControls] = useState(false);
+  const interactiveTextSettings = useInteractiveTextSettings();
   const {
     interactiveTextVisibility,
     toggleInteractiveTextLayer: handleToggleInteractiveTextLayer,
     translationSpeed,
-    setTranslationSpeed: handleTranslationSpeedChange,
     adjustTranslationSpeed,
     fontScalePercent,
-    setFontScalePercent: handleFontScaleChange,
     adjustFontScale,
     interactiveTextTheme,
-    setInteractiveTextTheme,
     interactiveBackgroundOpacityPercent,
-    setInteractiveBackgroundOpacityPercent,
     interactiveSentenceCardOpacityPercent,
-    setInteractiveSentenceCardOpacityPercent,
     resetInteractiveTextSettings,
-  } = useInteractiveTextSettings();
+  } = interactiveTextSettings;
+  const readingBedControls = useReadingBedControls({ bedOverride: readingBedOverride, playerMode });
   const {
     readingBedEnabled,
-    readingBedVolumePercent,
-    readingBedTrackSelection,
-    readingBedTrackOptions,
-    readingBedSupported,
     toggleReadingBed: handleToggleReadingBed,
-    onReadingBedVolumeChange: handleReadingBedVolumeChange,
-    onReadingBedTrackChange: handleReadingBedTrackChange,
     playReadingBed,
     resetReadingBed,
-  } = useReadingBedControls({ bedOverride: readingBedOverride, playerMode });
-  const [bookSentenceCount, setBookSentenceCount] = useState<number | null>(null);
-  const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
-  const [chapterEntries, setChapterEntries] = useState<ChapterNavigationEntry[]>([]);
-  const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
-  const [jobTranslationLanguage, setJobTranslationLanguage] = useState<string | null>(null);
-  const [jobScopeStartSentence, setJobScopeStartSentence] = useState<number | null>(null);
-  const [jobScopeEndSentence, setJobScopeEndSentence] = useState<number | null>(null);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (origin !== 'library' && playerMode !== 'export') {
-      return;
-    }
-    const original =
-      extractMetadataText(bookMetadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
-    const target =
-      extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ?? null;
-    setJobOriginalLanguage(original);
-    setJobTranslationLanguage(target);
-  }, [bookMetadata, origin, playerMode]);
-
-  useEffect(() => {
-    if (!jobId || origin === 'library' || playerMode === 'export') {
-      setJobScopeStartSentence(null);
-      setJobScopeEndSentence(null);
-      return;
-    }
-    let cancelled = false;
-    void fetchPipelineStatus(jobId)
-      .then((status) => {
-        if (cancelled) {
-          return;
-        }
-        const parameters = status.parameters;
-        const original =
-          typeof parameters?.input_language === 'string' && parameters.input_language.trim()
-            ? parameters.input_language.trim()
-            : null;
-        const targetLanguages = Array.isArray(parameters?.target_languages) ? parameters.target_languages : [];
-        const firstTarget =
-          typeof targetLanguages[0] === 'string' && targetLanguages[0].trim() ? targetLanguages[0].trim() : null;
-        const rawStart = toFiniteNumber(
-          parameters?.start_sentence ?? (parameters as Record<string, unknown> | null)?.startSentence
-        );
-        const rawEnd = toFiniteNumber(
-          parameters?.end_sentence ?? (parameters as Record<string, unknown> | null)?.endSentence
-        );
-        const normalizedStart = rawStart !== null && rawStart > 0 ? rawStart : null;
-        const normalizedEnd = rawEnd !== null && rawEnd > 0 ? rawEnd : null;
-        setJobOriginalLanguage(original);
-        setJobTranslationLanguage(firstTarget);
-        setJobScopeStartSentence(normalizedStart);
-        setJobScopeEndSentence(normalizedEnd);
-      })
-      .catch(() => {
-        if (cancelled) {
-          return;
-        }
-        setJobOriginalLanguage(null);
-        setJobTranslationLanguage(null);
-        setJobScopeStartSentence(null);
-        setJobScopeEndSentence(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [jobId, origin, playerMode]);
-  useEffect(() => {
-    setBookSentenceCount(null);
-    setJobScopeStartSentence(null);
-    setJobScopeEndSentence(null);
-  }, [jobId]);
-  useEffect(() => {
-    setChapterEntries([]);
-  }, [jobId]);
-  useEffect(() => {
-    setIsExporting(false);
-    setExportError(null);
-  }, [jobId]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!jobId || chunks.length === 0) {
-      setBookSentenceCount(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const metadataCount = normaliseBookSentenceCount(bookMetadata);
-    if (metadataCount !== null) {
-      setBookSentenceCount((current) => (current === metadataCount ? current : metadataCount));
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (bookSentenceCount !== null) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (playerMode === 'export') {
-      const derivedCount = deriveSentenceCountFromChunks(chunks);
-      if (derivedCount !== null) {
-        setBookSentenceCount((current) => (current === derivedCount ? current : derivedCount));
-      }
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const resolveTargetUrl = (): string | null => {
-      try {
-        return resolveStoragePath(jobId, 'metadata/sentences.json');
-      } catch (error) {
-        try {
-          const encodedJobId = encodeURIComponent(jobId);
-          return `/pipelines/jobs/${encodedJobId}/metadata/sentences.json`;
-        } catch {
-          return null;
-        }
-      }
-    };
-
-    const targetUrl = resolveTargetUrl();
-    if (!targetUrl || typeof fetch !== 'function') {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    (async () => {
-      try {
-        const response = await fetch(targetUrl, { credentials: 'include' });
-        if (!response.ok) {
-          return;
-        }
-
-        let payload: unknown = null;
-        if (typeof response.json === 'function') {
-          try {
-            payload = await response.json();
-          } catch {
-            payload = null;
-          }
-        }
-        if (payload === null && typeof response.text === 'function') {
-          try {
-            const raw = await response.text();
-            payload = JSON.parse(raw);
-          } catch {
-            payload = null;
-          }
-        }
-
-        const count = normaliseBookSentenceCount(payload);
-        if (cancelled || count === null) {
-          return;
-        }
-        setBookSentenceCount(count);
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn('Unable to load book sentence count', targetUrl, error);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bookMetadata, bookSentenceCount, chunks.length, jobId, playerMode]);
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!jobId) {
-      setChapterEntries([]);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const inlineIndex =
-      bookMetadata && typeof bookMetadata === 'object'
-        ? (bookMetadata as Record<string, unknown>).content_index
-        : null;
-    if (inlineIndex) {
-      const chapters = normaliseContentIndexChapters(inlineIndex);
-      if (chapters.length > 0) {
-        setChapterEntries(chapters);
-        return () => {
-          cancelled = true;
-        };
-      }
-    }
-
-    const contentIndexUrl =
-      extractMetadataText(bookMetadata, ['content_index_url', 'contentIndexUrl']) ?? null;
-    const contentIndexPath =
-      extractMetadataText(bookMetadata, ['content_index_path', 'contentIndexPath']) ?? null;
-    let targetUrl: string | null = contentIndexUrl;
-    if (playerMode === 'export') {
-      const candidate = contentIndexPath ?? contentIndexUrl;
-      if (candidate) {
-        targetUrl = coerceExportPath(candidate, jobId) ?? candidate;
-      }
-    } else if (!targetUrl && contentIndexPath) {
-      try {
-        if (origin === 'library') {
-          if (contentIndexPath.startsWith('/api/library/') || contentIndexPath.includes('://')) {
-            targetUrl = contentIndexPath;
-          } else {
-            targetUrl = resolveLibraryMediaUrl(jobId, contentIndexPath);
-          }
-        } else {
-          targetUrl = resolveStoragePath(jobId, contentIndexPath);
-        }
-      } catch (error) {
-        const encodedJobId = encodeURIComponent(jobId);
-        const sanitizedPath = contentIndexPath.replace(/^\/+/, '');
-        targetUrl = `/pipelines/jobs/${encodedJobId}/${encodeURI(sanitizedPath)}`;
-        if (import.meta.env.DEV) {
-          console.warn('Unable to resolve content index path', contentIndexPath, error);
-        }
-      }
-    }
-
-    if (!targetUrl || typeof fetch !== 'function') {
-      setChapterEntries([]);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    (async () => {
-      try {
-        const url = origin === 'library' && playerMode !== 'export' ? appendAccessToken(targetUrl) : targetUrl;
-        const response = await fetch(url, { credentials: 'include' });
-        if (!response.ok) {
-          return;
-        }
-        const payload = await response.json();
-        const chapters = normaliseContentIndexChapters(payload);
-        if (!cancelled) {
-          setChapterEntries(chapters);
-        }
-      } catch (error) {
-        if (import.meta.env.DEV) {
-          console.warn('Unable to load content index', targetUrl, error);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [bookMetadata, jobId, origin, playerMode]);
-
+  } = readingBedControls;
   const {
-    sentenceLookup,
-    jobStartSentence,
-    jobEndSentence,
-    canJumpToSentence,
-    sentenceJumpPlaceholder,
-    sentenceJumpValue,
-    sentenceJumpError,
-    onSentenceJumpChange: handleSentenceJumpChange,
-    onSentenceJumpSubmit: handleSentenceJumpSubmit,
-    onInteractiveSentenceJump: handleInteractiveSentenceJump,
-  } = useSentenceNavigation({
+    bookTitle,
+    bookAuthor,
+    bookYear,
+    bookGenre,
+    isBookLike,
+    channelBug,
+    sectionLabel,
+    loadingMessage,
+    emptyMediaMessage,
+    coverAltText,
+    bookSentenceCount,
+    chapterEntries,
+    jobOriginalLanguage,
+    jobTranslationLanguage,
+    jobScopeStartSentence,
+    jobScopeEndSentence,
+  } = usePlayerPanelJobInfo({
+    jobId,
+    jobType,
+    itemType,
+    origin,
+    playerMode,
+    bookMetadata,
+    chunks,
+  });
+  const [activeSentenceNumber, setActiveSentenceNumber] = useState<number | null>(null);
+  const {
+    inlineAudioPlayingRef,
+    mediaSessionTimeRef,
+    isInlineAudioPlaying,
+    hasInlineAudioControls,
+    requestAutoPlay,
+    handleInlineAudioPlaybackStateChange,
+    handleInlineAudioControlsRegistration,
+    handleInlineAudioProgress,
+    getInlineAudioPosition,
+    handlePauseActiveMedia,
+    handlePlayActiveMedia,
+    handleToggleActiveMedia,
+  } = usePlayerPanelPlaybackState({
+    inlineAudioSelection,
+    getMediaItem,
+    deriveBaseId,
+    rememberPosition,
+    getPosition,
+    readingBedEnabled,
+    playReadingBed,
+  });
+
+  const sentenceNavigation = useSentenceNavigation({
     chunks,
     mediaAudio: media.audio,
     showOriginalAudio,
@@ -614,6 +240,13 @@ export default function PlayerPanel({
     inlineAudioPlayingRef,
     onRequestSelection: setPendingSelection,
   });
+  const {
+    sentenceLookup,
+    jobStartSentence,
+    jobEndSentence,
+    canJumpToSentence,
+    onInteractiveSentenceJump: handleInteractiveSentenceJump,
+  } = sentenceNavigation;
 
   const handleActiveSentenceChange = useCallback((value: number | null) => {
     setActiveSentenceNumber(value);
@@ -642,51 +275,11 @@ export default function PlayerPanel({
   );
 
   useEffect(() => {
-    if (!selectionRequest) {
-      return;
-    }
-    setPendingSelection({
-      baseId: selectionRequest.baseId,
-      preferredType: selectionRequest.preferredType ?? null,
-      offsetRatio: selectionRequest.offsetRatio ?? null,
-      approximateTime: selectionRequest.approximateTime ?? null,
-      token: selectionRequest.token ?? Date.now(),
-    });
-  }, [selectionRequest]);
-
-  useEffect(() => {
     if (import.meta.env.DEV) {
       return enableDebugOverlay();
     }
     return undefined;
   }, []);
-  const mediaIndex = useMemo(() => {
-    const map: Record<MediaCategory, Map<string, LiveMediaItem>> = {
-      text: new Map(),
-      audio: new Map(),
-      video: new Map(),
-    };
-
-    MEDIA_CATEGORIES.forEach((category) => {
-      media[category].forEach((item) => {
-        if (item.url) {
-          map[category].set(item.url, item);
-        }
-      });
-    });
-
-    return map;
-  }, [media]);
-
-  const getMediaItem = useCallback(
-    (category: MediaCategory, id: string | null | undefined) => {
-      if (!id) {
-        return null;
-      }
-      return mediaIndex[category].get(id) ?? null;
-    },
-    [mediaIndex],
-  );
 
   const { coverUrl: displayCoverUrl, shouldShowCoverImage } = useCoverArt({
     jobId,
@@ -704,289 +297,26 @@ export default function PlayerPanel({
     libraryItem,
     playerMode,
   });
-
-  const handleSearchSelection = useCallback(
-    (result: MediaSearchResult, category: SearchCategory) => {
-      if (
-        category === 'text' &&
-        canJumpToSentence &&
-        result.job_id === jobId &&
-        typeof result.start_sentence === 'number' &&
-        Number.isFinite(result.start_sentence)
-      ) {
-        const startSentence = Math.trunc(result.start_sentence);
-        const endSentence =
-          typeof result.end_sentence === 'number' && Number.isFinite(result.end_sentence)
-            ? Math.max(Math.trunc(result.end_sentence), startSentence)
-            : startSentence;
-        const ratio =
-          typeof result.offset_ratio === 'number' && Number.isFinite(result.offset_ratio)
-            ? Math.min(Math.max(result.offset_ratio, 0), 1)
-            : null;
-        const span = Math.max(endSentence - startSentence, 0);
-        const targetSentence =
-          ratio !== null ? Math.max(startSentence + Math.round(span * ratio), 1) : Math.max(startSentence, 1);
-        handleInteractiveSentenceJump(targetSentence);
-        return;
-      }
-
-      const preferredCategory: MediaCategory | null = category === 'library' ? 'text' : category;
-      let baseId = resolveBaseIdFromResult(result, preferredCategory);
-      if (!baseId) {
-        if (typeof result.chunk_id === 'string' && result.chunk_id.trim()) {
-          baseId = deriveBaseIdFromReference(result.chunk_id) ?? result.chunk_id;
-        } else if (typeof result.range_fragment === 'string' && result.range_fragment.trim()) {
-          baseId = result.range_fragment.trim();
-        } else if (typeof result.chunk_index === 'number' && Number.isFinite(result.chunk_index)) {
-          const chunk = chunks[Math.trunc(result.chunk_index)];
-          baseId = chunk ? resolveChunkBaseId(chunk) ?? null : null;
-        }
-      }
-      const offsetRatio = typeof result.offset_ratio === 'number' ? result.offset_ratio : null;
-      const approximateTime =
-        typeof result.approximate_time_seconds === 'number' ? result.approximate_time_seconds : null;
-      const selection: MediaSelectionRequest = {
-        baseId,
-        preferredType: preferredCategory,
-        offsetRatio,
-        approximateTime,
-        token: Date.now(),
-      };
-
-      if (category === 'library') {
-        if (!result.job_id) {
-          return;
-        }
-        if (result.job_id === jobId) {
-          setPendingSelection(selection);
-          return;
-        }
-        const payload: LibraryOpenRequest = {
-          kind: 'library-open',
-          jobId: result.job_id,
-          selection,
-        };
-        onOpenLibraryItem?.(payload);
-        return;
-      }
-
-      if (result.job_id && result.job_id !== jobId) {
-        return;
-      }
-
-      setPendingSelection(selection);
-    },
-    [canJumpToSentence, chunks, handleInteractiveSentenceJump, jobId, onOpenLibraryItem],
-  );
-
-  const handleAddBookmark = useCallback(() => {
-    if (!jobId) {
-      return;
-    }
-    const sentence = activeSentenceNumber ?? null;
-    const activeAudioUrl = inlineAudioSelection;
-    const activeAudioPosition = activeAudioUrl ? getPosition(activeAudioUrl) : null;
-    const audioItem = activeAudioUrl ? getMediaItem('audio', activeAudioUrl) : null;
-    const baseId = audioItem ? deriveBaseId(audioItem) : null;
-    const labelParts: string[] = [];
-    if (sentence) {
-      labelParts.push(`Sentence ${sentence}`);
-    }
-    if (typeof activeAudioPosition === 'number' && Number.isFinite(activeAudioPosition)) {
-      labelParts.push(formatBookmarkTime(activeAudioPosition));
-    }
-    const label = labelParts.length > 0 ? labelParts.join(' · ') : 'Bookmark';
-    addBookmark({
-      kind: sentence ? 'sentence' : 'time',
-      label,
-      position: activeAudioPosition,
-      sentence,
-      mediaType: activeAudioUrl ? 'audio' : 'text',
-      mediaId: activeAudioUrl ?? null,
-      baseId,
-    });
-  }, [
-    activeSentenceNumber,
-    addBookmark,
-    deriveBaseId,
+  const {
+    handleSearchSelection,
+    handleAddBookmark,
+    handleJumpBookmark,
+    handleRemoveBookmark,
+  } = usePlayerPanelActions({
+    jobId,
+    chunks,
+    canJumpToSentence,
+    onInteractiveSentenceJump: handleInteractiveSentenceJump,
+    onOpenLibraryItem,
+    setPendingSelection,
     getMediaItem,
+    deriveBaseId,
     getPosition,
     inlineAudioSelection,
-    jobId,
-  ]);
-
-  const handleJumpBookmark = useCallback(
-    (bookmark: { sentence?: number | null; position?: number | null; baseId?: string | null; mediaType?: MediaCategory | null }) => {
-      if (bookmark.sentence && canJumpToSentence) {
-        handleInteractiveSentenceJump(bookmark.sentence);
-        return;
-      }
-      const approximateTime =
-        typeof bookmark.position === 'number' && Number.isFinite(bookmark.position)
-          ? bookmark.position
-          : null;
-      setPendingSelection({
-        baseId: bookmark.baseId ?? null,
-        preferredType: bookmark.mediaType ?? null,
-        offsetRatio: null,
-        approximateTime,
-        token: Date.now(),
-      });
-    },
-    [canJumpToSentence, handleInteractiveSentenceJump, setPendingSelection],
-  );
-
-  const handleRemoveBookmark = useCallback(
-    (bookmark: { id: string }) => {
-      removeBookmark(bookmark.id);
-    },
-    [removeBookmark],
-  );
-
-  const activeItemId = selectedItemIds.text;
-
-  const hasResolvedInitialTabRef = useRef(false);
-
-  useEffect(() => {
-    const rememberedType = memoryState.currentMediaType;
-    const rememberedId = memoryState.currentMediaId;
-    if (!rememberedType || !rememberedId) {
-      return;
-    }
-
-    if (!mediaIndex[rememberedType].has(rememberedId)) {
-      return;
-    }
-
-    setSelectedItemIds((current) => {
-      if (current[rememberedType] === rememberedId) {
-        return current;
-      }
-      return { ...current, [rememberedType]: rememberedId };
-    });
-
-  }, [memoryState.currentMediaId, memoryState.currentMediaType, mediaIndex]);
-
-  useEffect(() => {
-    setSelectedItemIds((current) => {
-      let changed = false;
-      const next: Record<MediaCategory, string | null> = { ...current };
-
-      MEDIA_CATEGORIES.forEach((category) => {
-        const items = media[category];
-        const currentId = current[category];
-
-        if (items.length === 0) {
-          if (currentId !== null) {
-            next[category] = null;
-            changed = true;
-          }
-          return;
-        }
-
-        const hasCurrent = currentId !== null && items.some((item) => item.url === currentId);
-
-        if (!hasCurrent) {
-          next[category] = items[0].url ?? null;
-          if (next[category] !== currentId) {
-            changed = true;
-          }
-        }
-      });
-
-      return changed ? next : current;
-    });
-  }, [media]);
-
-  useEffect(() => {
-    if (!activeItemId) {
-      return;
-    }
-
-    if (
-      !hasSkippedInitialRememberRef.current &&
-      memoryState.currentMediaType &&
-      memoryState.currentMediaId
-    ) {
-      hasSkippedInitialRememberRef.current = true;
-      return;
-    }
-
-    const currentItem = getMediaItem('text', activeItemId);
-    if (!currentItem) {
-      return;
-    }
-
-    rememberSelection({ media: currentItem });
-  }, [
-    activeItemId,
-    getMediaItem,
-    rememberSelection,
-    memoryState.currentMediaId,
-    memoryState.currentMediaType,
-  ]);
-
-  const handleSelectMedia = useCallback((category: MediaCategory, fileId: string) => {
-    setSelectedItemIds((current) => {
-      if (current[category] === fileId) {
-        return current;
-      }
-
-      return { ...current, [category]: fileId };
-    });
-  }, []);
-
-  const updateSelection = useCallback(
-    (category: MediaCategory, intent: NavigationIntent) => {
-      setSelectedItemIds((current) => {
-        const navigableItems = media[category].filter(
-          (item) => typeof item.url === 'string' && item.url.length > 0,
-        );
-        if (navigableItems.length === 0) {
-          return current;
-        }
-
-        const currentId = current[category];
-        const currentIndex = currentId
-          ? navigableItems.findIndex((item) => item.url === currentId)
-          : -1;
-
-        let nextIndex = currentIndex;
-        switch (intent) {
-          case 'first':
-            nextIndex = 0;
-            break;
-          case 'last':
-            nextIndex = navigableItems.length - 1;
-            break;
-          case 'previous':
-            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
-            break;
-          case 'next':
-            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, navigableItems.length - 1);
-            break;
-          default:
-            nextIndex = currentIndex;
-        }
-
-        if (nextIndex === currentIndex && currentId !== null) {
-          return current;
-        }
-
-        const nextItem = navigableItems[nextIndex];
-        if (!nextItem?.url) {
-          return current;
-        }
-
-        if (nextItem.url === currentId) {
-          return current;
-        }
-
-        return { ...current, [category]: nextItem.url };
-      });
-    },
-    [media],
-  );
+    activeSentenceNumber,
+    addBookmark,
+    removeBookmark,
+  });
 
   useEffect(() => {
     onVideoPlaybackStateChange?.(false);
@@ -1079,18 +409,7 @@ export default function PlayerPanel({
     activeTextChunkIndex,
   });
 
-  const {
-    activeAudioTracks,
-    visibleInlineAudioOptions,
-    inlineAudioUnavailable,
-    canToggleOriginalAudio,
-    canToggleTranslationAudio,
-    effectiveOriginalAudioEnabled,
-    effectiveTranslationAudioEnabled,
-    handleOriginalAudioToggle,
-    handleTranslationAudioToggle,
-    activeTimingTrack,
-  } = useInlineAudioOptions({
+  const inlineAudioOptions = useInlineAudioOptions({
     jobId,
     origin,
     playerMode,
@@ -1106,6 +425,18 @@ export default function PlayerPanel({
     setShowTranslationAudio,
     setInlineAudioSelection,
   });
+  const {
+    activeAudioTracks,
+    visibleInlineAudioOptions,
+    inlineAudioUnavailable,
+    canToggleOriginalAudio,
+    canToggleTranslationAudio,
+    effectiveOriginalAudioEnabled,
+    effectiveTranslationAudioEnabled,
+    handleOriginalAudioToggle,
+    handleTranslationAudioToggle,
+    activeTimingTrack,
+  } = inlineAudioOptions;
 
   usePendingSelection({
     pendingSelection,
@@ -1140,65 +471,24 @@ export default function PlayerPanel({
     updateSelection,
   });
 
-  const fallbackTextContent = useMemo(() => {
-    if (!resolvedActiveTextChunk || !Array.isArray(resolvedActiveTextChunk.sentences)) {
-      return '';
-    }
-    const blocks = resolvedActiveTextChunk.sentences
-      .map((sentence) => {
-        if (!sentence) {
-          return '';
-        }
-        const lines: string[] = [];
-        if (sentence.original?.text) {
-          lines.push(sentence.original.text);
-        }
-        if (sentence.translation?.text) {
-          lines.push(sentence.translation.text);
-        }
-        if (sentence.transliteration?.text) {
-          lines.push(sentence.transliteration.text);
-        }
-        return lines.filter(Boolean).join('\n');
-      })
-      .filter((block) => block.trim().length > 0);
-    return blocks.join('\n\n');
-  }, [resolvedActiveTextChunk]);
+  const fallbackTextContent = useMemo(
+    () => fallbackTextFromSentences(resolvedActiveTextChunk),
+    [resolvedActiveTextChunk],
+  );
   const interactiveViewerContent = (textPreview?.content ?? fallbackTextContent) || '';
   const interactiveViewerRaw = textPreview?.raw ?? fallbackTextContent;
   const canRenderInteractiveViewer =
     Boolean(resolvedActiveTextChunk) || interactiveViewerContent.trim().length > 0;
-  const shouldForceInteractiveViewer = isInteractiveFullscreen;
-  const handleInteractiveFullscreenToggle = useCallback(() => {
-    setIsInteractiveFullscreen((current) => {
-      const next = !current;
-      updateInteractiveFullscreenPreference(next);
-      return next;
-    });
-  }, [updateInteractiveFullscreenPreference]);
-
-  const handleExitInteractiveFullscreen = useCallback(() => {
-    updateInteractiveFullscreenPreference(false);
-    setIsInteractiveFullscreen(false);
-  }, [updateInteractiveFullscreenPreference]);
-  useEffect(() => {
-    if (!canRenderInteractiveViewer) {
-      if (!hasInteractiveChunks && isInteractiveFullscreen) {
-        updateInteractiveFullscreenPreference(false);
-        setIsInteractiveFullscreen(false);
-      }
-      return;
-    }
-    if (interactiveFullscreenPreferenceRef.current && !isInteractiveFullscreen) {
-      updateInteractiveFullscreenPreference(true);
-      setIsInteractiveFullscreen(true);
-    }
-  }, [
+  const {
+    isInteractiveFullscreen,
+    handleInteractiveFullscreenToggle,
+    handleExitInteractiveFullscreen,
+    resetInteractiveFullscreen,
+  } = useInteractiveFullscreenPreference({
     canRenderInteractiveViewer,
     hasInteractiveChunks,
-    isInteractiveFullscreen,
-    updateInteractiveFullscreenPreference,
-  ]);
+  });
+  const shouldForceInteractiveViewer = isInteractiveFullscreen;
   const hasTextItems = media.text.length > 0;
   const shouldShowInteractiveViewer = canRenderInteractiveViewer || shouldForceInteractiveViewer;
   const shouldShowEmptySelectionPlaceholder =
@@ -1206,49 +496,6 @@ export default function PlayerPanel({
   const shouldShowLoadingPlaceholder =
     Boolean(textLoading && selectedItem && !shouldForceInteractiveViewer);
   const shouldShowStandaloneError = Boolean(textError) && !shouldForceInteractiveViewer;
-  const navigableItems = useMemo(
-    () => media.text.filter((item) => typeof item.url === 'string' && item.url.length > 0),
-    [media.text],
-  );
-  const activeNavigableIndex = useMemo(() => {
-    const currentId = selectedItemIds.text;
-    if (!currentId) {
-      return navigableItems.length > 0 ? 0 : -1;
-    }
-
-    const matchIndex = navigableItems.findIndex((item) => item.url === currentId);
-    if (matchIndex >= 0) {
-      return matchIndex;
-    }
-
-    return navigableItems.length > 0 ? 0 : -1;
-  }, [navigableItems, selectedItemIds.text]);
-  const derivedNavigation = useMemo(() => {
-    if (navigableItems.length > 0) {
-      return {
-        mode: 'media' as const,
-        count: navigableItems.length,
-        index: Math.max(0, activeNavigableIndex),
-      };
-    }
-    if (chunks.length > 0) {
-      const index = activeTextChunkIndex >= 0 ? activeTextChunkIndex : 0;
-      return {
-        mode: 'chunks' as const,
-        count: chunks.length,
-        index: Math.max(0, Math.min(index, Math.max(chunks.length - 1, 0))),
-      };
-    }
-    return { mode: 'none' as const, count: 0, index: -1 };
-  }, [activeNavigableIndex, activeTextChunkIndex, chunks.length, navigableItems.length]);
-  const isFirstDisabled =
-    derivedNavigation.count === 0 || derivedNavigation.index <= 0;
-  const isPreviousDisabled =
-    derivedNavigation.count === 0 || derivedNavigation.index <= 0;
-  const isNextDisabled =
-    derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
-  const isLastDisabled =
-    derivedNavigation.count === 0 || derivedNavigation.index >= derivedNavigation.count - 1;
   const playbackControlsAvailable = hasInlineAudioControls;
   const isActiveMediaPlaying = isInlineAudioPlaying;
   const shouldHoldWakeLock = isInlineAudioPlaying;
@@ -1317,121 +564,23 @@ export default function PlayerPanel({
     setPendingChunkSelection(null);
   }, [activateChunk, chunks, pendingChunkSelection]);
 
-  const handleInlineAudioPlaybackStateChange = useCallback(
-    (state: 'playing' | 'paused') => {
-      updateInlineAudioPlaying(state === 'playing');
-    },
-    [updateInlineAudioPlaying],
-  );
+  const {
+    isFirstDisabled,
+    isPreviousDisabled,
+    isNextDisabled,
+    isLastDisabled,
+    handleNavigatePreservingPlayback,
+  } = usePlayerPanelNavigation({
+    mediaText: media.text,
+    selectedTextId: selectedItemIds.text,
+    chunks,
+    activeTextChunkIndex,
+    activateTextItem,
+    activateChunk,
+    updateSelection,
+    inlineAudioPlayingRef,
+  });
 
-  const handleInlineAudioControlsRegistration = useCallback((controls: PlaybackControls | null) => {
-    inlineAudioControlsRef.current = controls;
-    setHasInlineAudioControls(Boolean(controls));
-    if (!controls) {
-      updateInlineAudioPlaying(false);
-    }
-  }, [updateInlineAudioPlaying]);
-
-  const handleNavigate = useCallback(
-    (intent: NavigationIntent, options?: { autoPlay?: boolean }) => {
-      const autoPlay = options?.autoPlay ?? true;
-      if (navigableItems.length > 0) {
-        const currentId = selectedItemIds.text;
-        const currentIndex = currentId
-          ? navigableItems.findIndex((item) => item.url === currentId)
-          : -1;
-        const lastIndex = navigableItems.length - 1;
-        let nextIndex = currentIndex;
-        switch (intent) {
-          case 'first':
-            nextIndex = 0;
-            break;
-          case 'last':
-            nextIndex = lastIndex;
-            break;
-          case 'previous':
-            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
-            break;
-          case 'next':
-            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, lastIndex);
-            break;
-          default:
-            nextIndex = currentIndex;
-        }
-        if (nextIndex === currentIndex) {
-          return;
-        }
-        const nextItem = navigableItems[nextIndex];
-        if (!nextItem) {
-          return;
-        }
-        activateTextItem(nextItem, { autoPlay, scrollRatio: 0 });
-        return;
-      }
-
-      if (chunks.length > 0) {
-        const currentIndex = activeTextChunkIndex >= 0 ? activeTextChunkIndex : 0;
-        const lastIndex = chunks.length - 1;
-        let nextIndex = currentIndex;
-        switch (intent) {
-          case 'first':
-            nextIndex = 0;
-            break;
-          case 'last':
-            nextIndex = lastIndex;
-            break;
-          case 'previous':
-            nextIndex = currentIndex <= 0 ? 0 : currentIndex - 1;
-            break;
-          case 'next':
-            nextIndex = currentIndex < 0 ? 0 : Math.min(currentIndex + 1, lastIndex);
-            break;
-          default:
-            nextIndex = currentIndex;
-        }
-        if (nextIndex === currentIndex) {
-          return;
-        }
-        const targetChunk = chunks[nextIndex];
-        if (!targetChunk) {
-          return;
-        }
-        activateChunk(targetChunk, { autoPlay, scrollRatio: 0 });
-        return;
-      }
-
-      updateSelection('text', intent);
-    },
-    [activateChunk, activateTextItem, activeTextChunkIndex, chunks, navigableItems, selectedItemIds.text, updateSelection],
-  );
-
-  const handleNavigatePreservingPlayback = useCallback(
-    (intent: NavigationIntent) => {
-      handleNavigate(intent, { autoPlay: inlineAudioPlayingRef.current });
-    },
-    [handleNavigate],
-  );
-
-  const handlePauseActiveMedia = useCallback(() => {
-    inlineAudioControlsRef.current?.pause();
-    updateInlineAudioPlaying(false);
-  }, [updateInlineAudioPlaying]);
-
-  const handlePlayActiveMedia = useCallback(() => {
-    if (readingBedEnabled) {
-      playReadingBed();
-    }
-    inlineAudioControlsRef.current?.play();
-    updateInlineAudioPlaying(true);
-  }, [playReadingBed, readingBedEnabled, updateInlineAudioPlaying]);
-
-  const handleToggleActiveMedia = useCallback(() => {
-    if (isActiveMediaPlaying) {
-      handlePauseActiveMedia();
-    } else {
-      handlePlayActiveMedia();
-    }
-  }, [handlePauseActiveMedia, handlePlayActiveMedia, isActiveMediaPlaying]);
   const handlePanelAdvancedControlsToggle = useCallback(() => {
     setPanelAdvancedControlsOpen((value) => !value);
   }, []);
@@ -1490,71 +639,13 @@ export default function PlayerPanel({
     [handleMediaSessionTrackSkip],
   );
 
-  useEffect(() => {
-    if (typeof navigator === 'undefined') {
-      return;
-    }
-    const session = navigator.mediaSession;
-    if (!session || typeof session.setActionHandler !== 'function') {
-      return;
-    }
-    const setHandler = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
-      try {
-        session.setActionHandler(action, handler);
-      } catch {
-        // Ignore unsupported MediaSession actions.
-      }
-    };
-    if (!inlineAudioSelection) {
-      setHandler('play', null);
-      setHandler('pause', null);
-      setHandler('stop', null);
-      setHandler('nexttrack', null);
-      setHandler('previoustrack', null);
-      setHandler('seekforward', null);
-      setHandler('seekbackward', null);
-      setHandler('seekto', null);
-      return;
-    }
-    setHandler('play', () => {
-      handlePlayActiveMedia();
-    });
-    setHandler('pause', () => {
-      handlePauseActiveMedia();
-    });
-    setHandler('stop', () => {
-      handlePauseActiveMedia();
-    });
-    setHandler('nexttrack', () => {
-      handleMediaSessionTrackSkip(1);
-    });
-    setHandler('previoustrack', () => {
-      handleMediaSessionTrackSkip(-1);
-    });
-    setHandler('seekforward', () => {
-      handleMediaSessionTrackSkip(1);
-    });
-    setHandler('seekbackward', () => {
-      handleMediaSessionTrackSkip(-1);
-    });
-    setHandler('seekto', handleMediaSessionSeekTo);
-    return () => {
-      setHandler('play', null);
-      setHandler('pause', null);
-      setHandler('stop', null);
-      setHandler('nexttrack', null);
-      setHandler('previoustrack', null);
-      setHandler('seekforward', null);
-      setHandler('seekbackward', null);
-      setHandler('seekto', null);
-    };
-  }, [
-    handleMediaSessionSeekTo,
-    handleMediaSessionTrackSkip,
-    handlePauseActiveMedia,
-    handlePlayActiveMedia,
+  useMediaSessionActions({
     inlineAudioSelection,
-  ]);
+    onPlay: handlePlayActiveMedia,
+    onPause: handlePauseActiveMedia,
+    onTrackSkip: handleMediaSessionTrackSkip,
+    onSeekTo: handleMediaSessionSeekTo,
+  });
 
   const { showShortcutHelp, setShowShortcutHelp } = usePlayerShortcuts({
     canToggleOriginalAudio,
@@ -1582,114 +673,24 @@ export default function PlayerPanel({
       showMyLinguist={linguistEnabled}
     />
   );
-
-  const handleTextScroll = useCallback(
-    (event: UIEvent<HTMLElement>) => {
-      const mediaId = selectedItemIds.text;
-      if (!mediaId) {
-        return;
-      }
-
-      const current = getMediaItem('text', mediaId);
-      const baseId = current ? deriveBaseId(current) : null;
-      const target = event.currentTarget as HTMLElement;
-      rememberPosition({ mediaId, mediaType: 'text', baseId, position: target.scrollTop ?? 0 });
-    },
-    [selectedItemIds.text, getMediaItem, deriveBaseId, rememberPosition],
-  );
-
-  const handleInlineAudioProgress = useCallback(
-    (audioUrl: string, position: number) => {
-      if (!audioUrl) {
-        return;
-      }
-      if (audioUrl === inlineAudioSelection) {
-        mediaSessionTimeRef.current = position;
-      }
-      const current = getMediaItem('audio', audioUrl);
-      const baseId = current ? deriveBaseId(current) : null;
-      rememberPosition({ mediaId: audioUrl, mediaType: 'audio', baseId, position });
-    },
-    [deriveBaseId, getMediaItem, inlineAudioSelection, rememberPosition],
-  );
-
-  const getInlineAudioPosition = useCallback(
-    (audioUrl: string) => getPosition(audioUrl),
-    [getPosition],
-  );
-
-  useEffect(() => {
-    if (!pendingAutoPlayRef.current) {
-      return;
-    }
-    const controls = inlineAudioControlsRef.current;
-    if (!controls) {
-      return;
-    }
-    pendingAutoPlayRef.current = false;
-    controls.pause();
-    controls.play();
-  }, [autoPlayToken, hasInlineAudioControls, inlineAudioSelection]);
-
-  useEffect(() => {
-    const mediaId = selectedItemIds.text;
-    if (!mediaId) {
-      return;
-    }
-
-    const element = textScrollRef.current;
-    if (!element) {
-      return;
-    }
-
-    if (pendingTextScrollRatio !== null) {
-      const maxScroll = Math.max(element.scrollHeight - element.clientHeight, 0);
-      const target = Math.min(Math.max(pendingTextScrollRatio, 0), 1) * maxScroll;
-      try {
-        element.scrollTop = target;
-        if (typeof element.scrollTo === 'function') {
-          element.scrollTo({ top: target });
-        }
-      } catch (error) {
-        // Ignore scroll assignment failures in non-browser environments.
-      }
-
-      const current = getMediaItem('text', mediaId);
-      const baseId = current ? deriveBaseId(current) : null;
-      rememberPosition({ mediaId, mediaType: 'text', baseId, position: target });
-      setPendingTextScrollRatio(null);
-      return;
-    }
-
-    const storedPosition = textPlaybackPosition;
-    if (Math.abs(element.scrollTop - storedPosition) < 1) {
-      return;
-    }
-
-    try {
-      element.scrollTop = storedPosition;
-      if (typeof element.scrollTo === 'function') {
-        element.scrollTo({ top: storedPosition });
-      }
-    } catch (error) {
-      // Swallow assignment errors triggered by unsupported scrolling APIs in tests.
-    }
-  }, [
-    selectedItemIds.text,
-    textPlaybackPosition,
-    textPreview?.url,
+  const { handleTextScroll } = usePlayerPanelScrollMemory({
+    textScrollRef,
+    activeTextId: selectedItemIds.text,
     pendingTextScrollRatio,
+    setPendingTextScrollRatio,
+    textPlaybackPosition,
+    textPreviewUrl: textPreview?.url ?? null,
     getMediaItem,
     deriveBaseId,
     rememberPosition,
-  ]);
+  });
 
   useEffect(() => {
-    setIsInteractiveFullscreen(false);
+    resetInteractiveFullscreen();
     setPendingSelection(null);
     setPendingChunkSelection(null);
     setPendingTextScrollRatio(null);
-  }, [normalisedJobId]);
+  }, [normalisedJobId, resetInteractiveFullscreen]);
 
   useEffect(() => {
     onFullscreenChange?.(isInteractiveFullscreen);
@@ -1714,228 +715,35 @@ export default function PlayerPanel({
     resetReadingBed();
   }, [resetInteractiveTextSettings, resetReadingBed, setBaseFontScalePercent]);
 
-  const bookTitle = extractMetadataText(bookMetadata, ['book_title', 'title', 'book_name', 'name']);
-  const bookAuthor = extractMetadataText(bookMetadata, ['book_author', 'author', 'writer', 'creator']);
-  const bookYear = extractMetadataText(bookMetadata, ['book_year', 'year', 'publication_year', 'published_year', 'first_publish_year']);
-  const bookGenre = extractMetadataFirstString(bookMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
-  const isBookLike =
-    itemType === 'book' || (jobType ?? '').trim().toLowerCase().includes('book') || Boolean(bookTitle);
-  const canExport = playerMode !== 'export' && isBookLike && mediaComplete && (hasInteractiveChunks || hasTextItems);
-  const handleExport = useCallback(async () => {
-    if (!jobId || isExporting) {
-      return;
-    }
-    setIsExporting(true);
-    setExportError(null);
-    const payload = {
-      source_kind: origin === 'library' ? 'library' : 'job',
-      source_id: jobId,
-      player_type: 'interactive-text',
-    } as const;
-    try {
-      const result = await createExport(payload);
-      const resolved =
-        result.download_url.startsWith('http://') || result.download_url.startsWith('https://')
-          ? result.download_url
-          : withBase(result.download_url);
-      const downloadUrl = appendAccessToken(resolved);
-      await downloadWithSaveAs(downloadUrl, result.filename ?? null);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : 'Unable to export offline player.';
-      setExportError(message);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [appendAccessToken, createExport, downloadWithSaveAs, isExporting, jobId, origin, withBase]);
-  const channelBug = useMemo(() => {
-    const normalisedJobType = (jobType ?? '').trim().toLowerCase();
-    if (itemType === 'book') {
-      return { glyph: 'BK', label: 'Book' };
-    }
-    if (itemType === 'narrated_subtitle') {
-      return { glyph: 'SUB', label: 'Subtitles' };
-    }
-    if (itemType === 'video') {
-      return { glyph: 'TV', label: 'Video' };
-    }
-    if (normalisedJobType.includes('subtitle')) {
-      return { glyph: 'SUB', label: 'Subtitles' };
-    }
-    if (normalisedJobType.includes('book') || Boolean(bookTitle || bookAuthor)) {
-      return { glyph: 'BK', label: 'Book' };
-    }
-    return { glyph: 'JOB', label: 'Job' };
-  }, [bookAuthor, bookTitle, itemType, jobType]);
-  const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
-  const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
-  const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';
-
+  const exportState = usePlayerPanelExport({
+    jobId,
+    origin,
+    playerMode,
+    isBookLike,
+    mediaComplete,
+    hasInteractiveChunks,
+    hasTextItems,
+  });
   const hasAnyMedia = media.text.length + media.audio.length + media.video.length > 0;
-  const headingLabel = bookTitle ?? 'Player';
   const interactiveFontScale = fontScalePercent / 100;
-  const jobLabelParts: string[] = [];
-  if (bookAuthor) {
-    jobLabelParts.push(`By ${bookAuthor}`);
-  }
-  if (hasJobId) {
-    jobLabelParts.push(`Job ${jobId}`);
-  }
-  const jobLabel = jobLabelParts.join(' • ');
-  const coverAltText =
-    bookTitle && bookAuthor
-      ? `Cover of ${bookTitle} by ${bookAuthor}`
-      : bookTitle
-      ? `Cover of ${bookTitle}`
-      : bookAuthor
-      ? `Book cover for ${bookAuthor}`
-      : 'Book cover preview';
-  const nowPlayingSentenceLabel = useMemo(() => {
-    if (typeof activeSentenceNumber !== 'number' || !Number.isFinite(activeSentenceNumber)) {
-      return null;
-    }
-    const current = Math.max(Math.trunc(activeSentenceNumber), 1);
-    if (typeof jobEndSentence === 'number' && Number.isFinite(jobEndSentence) && jobEndSentence > 0) {
-      const end = Math.max(Math.trunc(jobEndSentence), 1);
-      return `Sentence ${Math.min(current, end)} of ${end}`;
-    }
-    return `Sentence ${current}`;
-  }, [activeSentenceNumber, jobEndSentence]);
-  const nowPlayingBaseTitle = useMemo(() => {
-    if (isSubtitleContext) {
-      const title = subtitleInfo.title?.trim();
-      if (title) {
-        return title;
-      }
-      const meta = subtitleInfo.meta?.trim();
-      if (meta) {
-        return meta;
-      }
-    }
-    const title = bookTitle?.trim();
-    return title || null;
-  }, [bookTitle, isSubtitleContext, subtitleInfo.meta, subtitleInfo.title]);
-  const nowPlayingTitle = useMemo(() => {
-    const base = nowPlayingBaseTitle ?? 'Interactive Reader';
-    if (nowPlayingSentenceLabel) {
-      return `${base} · ${nowPlayingSentenceLabel}`;
-    }
-    return base;
-  }, [nowPlayingBaseTitle, nowPlayingSentenceLabel]);
-  const nowPlayingArtist = useMemo(() => {
-    if (isSubtitleContext) {
-      const meta = subtitleInfo.meta?.trim();
-      return meta || null;
-    }
-    const author = bookAuthor?.trim();
-    return author || null;
-  }, [bookAuthor, isSubtitleContext, subtitleInfo.meta]);
-  const nowPlayingAlbum = useMemo(() => {
-    if (isSubtitleContext) {
-      const title = subtitleInfo.title?.trim();
-      return title || null;
-    }
-    const title = bookTitle?.trim();
-    return title || null;
-  }, [bookTitle, isSubtitleContext, subtitleInfo.title]);
-  const nowPlayingCoverUrl = useMemo(() => {
-    const candidate = isSubtitleContext
-      ? subtitleInfo.coverUrl ?? subtitleInfo.coverSecondaryUrl ?? null
-      : shouldShowCoverImage
-        ? displayCoverUrl
-        : null;
-    if (!candidate) {
-      return null;
-    }
-    if (typeof window === 'undefined') {
-      return candidate;
-    }
-    try {
-      return new URL(candidate, window.location.href).toString();
-    } catch {
-      return candidate;
-    }
-  }, [
-    displayCoverUrl,
-    isSubtitleContext,
-    shouldShowCoverImage,
-    subtitleInfo.coverSecondaryUrl,
-    subtitleInfo.coverUrl,
-  ]);
-  useEffect(() => {
-    if (typeof navigator === 'undefined' || typeof window === 'undefined') {
-      return;
-    }
-    const session = navigator.mediaSession;
-    if (!session) {
-      return;
-    }
-    if (!inlineAudioSelection && !isActiveMediaPlaying) {
-      try {
-        session.metadata = null;
-        session.playbackState = 'none';
-      } catch {
-        // Ignore metadata updates in unsupported environments.
-      }
-      return;
-    }
-    const metadata: MediaMetadataInit = {
-      title: nowPlayingTitle,
-    };
-    if (nowPlayingArtist) {
-      metadata.artist = nowPlayingArtist;
-    }
-    if (nowPlayingAlbum && nowPlayingAlbum !== nowPlayingTitle) {
-      metadata.album = nowPlayingAlbum;
-    }
-    if (nowPlayingCoverUrl) {
-      metadata.artwork = [
-        { src: nowPlayingCoverUrl, sizes: '512x512' },
-        { src: nowPlayingCoverUrl, sizes: '1024x1024' },
-      ];
-    }
-    const Metadata = window.MediaMetadata;
-    const applyMetadata = (payload: MediaMetadataInit) => {
-      if (typeof Metadata === 'function') {
-        session.metadata = new Metadata(payload);
-        return;
-      }
-      session.metadata = payload as unknown as MediaMetadata;
-    };
-    try {
-      applyMetadata(metadata);
-    } catch {
-      if (metadata.artwork) {
-        const { artwork, ...fallback } = metadata;
-        try {
-          applyMetadata(fallback);
-        } catch {
-          try {
-            session.metadata = null;
-          } catch {
-            // Ignore failures to clear metadata.
-          }
-        }
-      }
-    }
-    try {
-      session.playbackState = isActiveMediaPlaying ? 'playing' : 'paused';
-    } catch {
-      // Ignore unsupported playback state updates.
-    }
-  }, [
+
+  useMediaSessionMetadata({
     inlineAudioSelection,
     isActiveMediaPlaying,
-    nowPlayingAlbum,
-    nowPlayingArtist,
-    nowPlayingCoverUrl,
-    nowPlayingSentenceLabel,
-    nowPlayingTitle,
-  ]);
+    activeSentenceNumber,
+    jobEndSentence,
+    bookTitle,
+    bookAuthor,
+    subtitleInfo,
+    isSubtitleContext,
+    displayCoverUrl,
+    shouldShowCoverImage,
+  });
+
   const interactiveFullscreenLabel = isInteractiveFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
   const sentenceJumpListId = useId();
   const sentenceJumpInputId = useId();
   const sentenceJumpInputFullscreenId = useId();
-  const sentenceJumpDisabled = !canJumpToSentence;
   const sentenceJumpDatalist =
     sentenceLookup.suggestions.length > 0 ? (
       <datalist id={sentenceJumpListId}>
@@ -1957,115 +765,54 @@ export default function PlayerPanel({
   const chapterScopeStart = jobScopeStartSentence ?? jobStartSentence;
   const chapterScopeEnd = jobScopeEndSentence ?? jobEndSentence;
 
-  const navigationBaseProps = {
-    onNavigate: handleNavigatePreservingPlayback,
-    onToggleFullscreen: handleInteractiveFullscreenToggle,
-    onTogglePlayback: handleToggleActiveMedia,
-    controlsLayout: 'compact',
-    disableFirst: isFirstDisabled,
-    disablePrevious: isPreviousDisabled,
-    disableNext: isNextDisabled,
-    disableLast: isLastDisabled,
-    disablePlayback: isPlaybackDisabled,
-    disableFullscreen: isFullscreenDisabled,
-    isFullscreen: isInteractiveFullscreen,
-    isPlaying: isActiveMediaPlaying,
-    fullscreenLabel: interactiveFullscreenLabel,
-    showBackToLibrary: shouldShowBackToLibrary,
-    onBackToLibrary,
-    showOriginalAudioToggle: canToggleOriginalAudio,
-    onToggleOriginalAudio: handleOriginalAudioToggle,
-    originalAudioEnabled: effectiveOriginalAudioEnabled,
-    disableOriginalAudioToggle: !canToggleOriginalAudio,
-    showTranslationAudioToggle: canToggleTranslationAudio,
-    onToggleTranslationAudio: handleTranslationAudioToggle,
-    translationAudioEnabled: effectiveTranslationAudioEnabled,
-    disableTranslationAudioToggle: !canToggleTranslationAudio,
-    showCueLayerToggles: true,
-    cueVisibility: interactiveTextVisibility,
-    onToggleCueLayer: handleToggleInteractiveTextLayer,
-    showTranslationSpeed: true,
-    translationSpeed,
-    translationSpeedMin: TRANSLATION_SPEED_MIN,
-    translationSpeedMax: TRANSLATION_SPEED_MAX,
-    translationSpeedStep: TRANSLATION_SPEED_STEP,
-    onTranslationSpeedChange: handleTranslationSpeedChange,
-    showSubtitleScale: false,
-    showSubtitleBackgroundOpacity: false,
-    showSentenceJump: canJumpToSentence,
-    sentenceJumpValue,
-    sentenceJumpMin: sentenceLookup.min,
-    sentenceJumpMax: sentenceLookup.max,
-    sentenceJumpError,
-    sentenceJumpDisabled,
+  const navigationBaseProps = buildNavigationBaseProps({
+    navigation: {
+      onNavigate: handleNavigatePreservingPlayback,
+      onToggleFullscreen: handleInteractiveFullscreenToggle,
+      onTogglePlayback: handleToggleActiveMedia,
+      disableFirst: isFirstDisabled,
+      disablePrevious: isPreviousDisabled,
+      disableNext: isNextDisabled,
+      disableLast: isLastDisabled,
+      disablePlayback: isPlaybackDisabled,
+      disableFullscreen: isFullscreenDisabled,
+      isFullscreen: isInteractiveFullscreen,
+      isPlaying: isActiveMediaPlaying,
+      fullscreenLabel: interactiveFullscreenLabel,
+      showBackToLibrary: shouldShowBackToLibrary,
+      onBackToLibrary,
+    },
+    sentenceNavigation,
+    textSettings: interactiveTextSettings,
+    myLinguist: {
+      enabled: linguistEnabled,
+      baseFontScalePercent,
+      setBaseFontScalePercent,
+    },
+    inlineAudioOptions,
+    readingBedControls,
+    chapters: {
+      chapterEntries,
+      activeChapterId,
+      onChapterJump: handleChapterJump,
+    },
+    bookmarks: {
+      showBookmarks: Boolean(jobId),
+      bookmarks,
+      onAddBookmark: handleAddBookmark,
+      onJumpToBookmark: handleJumpBookmark,
+      onRemoveBookmark: handleRemoveBookmark,
+    },
+    exportState,
     sentenceJumpListId,
-    sentenceJumpPlaceholder,
-    onSentenceJumpChange: handleSentenceJumpChange,
-    onSentenceJumpSubmit: handleSentenceJumpSubmit,
-    showFontScale: true,
-    fontScalePercent,
-    fontScaleMin: FONT_SCALE_MIN,
-    fontScaleMax: FONT_SCALE_MAX,
-    fontScaleStep: FONT_SCALE_STEP,
-    onFontScaleChange: handleFontScaleChange,
-    showMyLinguistFontScale: linguistEnabled,
-    myLinguistFontScalePercent: baseFontScalePercent,
-    myLinguistFontScaleMin: MY_LINGUIST_FONT_SCALE_MIN,
-    myLinguistFontScaleMax: MY_LINGUIST_FONT_SCALE_MAX,
-    myLinguistFontScaleStep: MY_LINGUIST_FONT_SCALE_STEP,
-    onMyLinguistFontScaleChange: linguistEnabled ? setBaseFontScalePercent : undefined,
-    showInteractiveThemeControls: true,
-    interactiveTheme: interactiveTextTheme,
-    onInteractiveThemeChange: setInteractiveTextTheme,
-    showInteractiveBackgroundOpacity: true,
-    interactiveBackgroundOpacityPercent: interactiveBackgroundOpacityPercent,
-    interactiveBackgroundOpacityMin: 0,
-    interactiveBackgroundOpacityMax: 100,
-    interactiveBackgroundOpacityStep: 5,
-    onInteractiveBackgroundOpacityChange: setInteractiveBackgroundOpacityPercent,
-    showInteractiveSentenceCardOpacity: true,
-    interactiveSentenceCardOpacityPercent: interactiveSentenceCardOpacityPercent,
-    interactiveSentenceCardOpacityMin: 0,
-    interactiveSentenceCardOpacityMax: 100,
-    interactiveSentenceCardOpacityStep: 5,
-    onInteractiveSentenceCardOpacityChange: setInteractiveSentenceCardOpacityPercent,
+    sentenceTotals: {
+      activeSentenceNumber,
+      chapterScopeStart,
+      chapterScopeEnd,
+      bookSentenceCount,
+    },
     onResetLayout: handleResetInteractiveLayout,
-    showReadingBedToggle: true,
-    readingBedEnabled,
-    disableReadingBedToggle: !readingBedSupported,
-    onToggleReadingBed: handleToggleReadingBed,
-    showReadingBedVolume: true,
-    readingBedVolumePercent,
-    readingBedVolumeMin: 0,
-    readingBedVolumeMax: 100,
-    readingBedVolumeStep: 5,
-    onReadingBedVolumeChange: handleReadingBedVolumeChange,
-    showReadingBedTrack: true,
-    readingBedTrack: readingBedTrackSelection ?? '',
-    readingBedTrackOptions,
-    onReadingBedTrackChange: handleReadingBedTrackChange,
-    showChapterJump: chapterEntries.length > 0 && canJumpToSentence,
-    chapters: chapterEntries,
-    activeChapterId,
-    onChapterJump: handleChapterJump,
-    showBookmarks: Boolean(jobId),
-    bookmarks,
-    onAddBookmark: handleAddBookmark,
-    onJumpToBookmark: handleJumpBookmark,
-    onRemoveBookmark: handleRemoveBookmark,
-    showExport: canExport,
-    onExport: handleExport,
-    exportDisabled: isExporting,
-    exportBusy: isExporting,
-    exportLabel: isExporting ? 'Preparing export' : 'Export offline player',
-    exportTitle: isExporting ? 'Preparing export...' : 'Export offline player',
-    exportError,
-    activeSentenceNumber,
-    totalSentencesInBook: chapterScopeEnd,
-    jobStartSentence: chapterScopeStart,
-    bookTotalSentences: bookSentenceCount,
-  } satisfies Omit<NavigationControlsProps, 'context' | 'sentenceJumpInputId'>;
-
+  });
   const hasPanelAdvancedControls = Boolean(
     navigationBaseProps.showTranslationSpeed ||
       navigationBaseProps.showSubtitleScale ||
@@ -2113,64 +860,71 @@ export default function PlayerPanel({
     />
   ) : null;
 
-  const interactiveViewerProps = {
-    playerMode,
-    playerFeatures: {
-      linguist: linguistEnabled,
-      painter: painterEnabled,
+  const interactiveViewerProps = buildInteractiveViewerProps({
+    core: {
+      playerMode,
+      playerFeatures: {
+        linguist: linguistEnabled,
+        painter: painterEnabled,
+      },
+      content: interactiveViewerContent,
+      rawContent: interactiveViewerRaw,
+      chunk: resolvedActiveTextChunk,
+      chunks,
+      activeChunkIndex: activeTextChunkIndex,
+      bookSentenceCount,
+      jobStartSentence,
+      jobEndSentence,
+      jobOriginalLanguage,
+      jobTranslationLanguage,
+      cueVisibility: interactiveTextVisibility,
+      activeAudioUrl: inlineAudioSelection,
+      noAudioAvailable: inlineAudioUnavailable,
+      jobId,
+      onActiveSentenceChange: handleActiveSentenceChange,
+      onRequestSentenceJump: handleInteractiveSentenceJump,
+      onScroll: handleTextScroll,
+      onAudioProgress: handleInlineAudioProgress,
+      getStoredAudioPosition: getInlineAudioPosition,
+      onRegisterInlineAudioControls: handleInlineAudioControlsRegistration,
+      onInlineAudioPlaybackStateChange: handleInlineAudioPlaybackStateChange,
+      onRequestAdvanceChunk: handleInlineAudioEnded,
     },
-    content: interactiveViewerContent,
-    rawContent: interactiveViewerRaw,
-    chunk: resolvedActiveTextChunk,
-    chunks,
-    activeChunkIndex: activeTextChunkIndex,
-    totalSentencesInBook: bookSentenceCount,
-    bookTotalSentences: bookSentenceCount,
-    jobStartSentence,
-    jobEndSentence,
-    jobOriginalLanguage,
-    jobTranslationLanguage,
-    cueVisibility: interactiveTextVisibility,
-    activeAudioUrl: inlineAudioSelection,
-    noAudioAvailable: inlineAudioUnavailable,
-    jobId,
-    onActiveSentenceChange: handleActiveSentenceChange,
-    onRequestSentenceJump: handleInteractiveSentenceJump,
-    onScroll: handleTextScroll,
-    onAudioProgress: handleInlineAudioProgress,
-    getStoredAudioPosition: getInlineAudioPosition,
-    onRegisterInlineAudioControls: handleInlineAudioControlsRegistration,
-    onInlineAudioPlaybackStateChange: handleInlineAudioPlaybackStateChange,
-    onRequestAdvanceChunk: handleInlineAudioEnded,
-    isFullscreen: isInteractiveFullscreen,
-    onRequestExitFullscreen: handleExitInteractiveFullscreen,
-    fullscreenControls: isInteractiveFullscreen ? fullscreenMainControls : null,
-    fullscreenAdvancedControls: isInteractiveFullscreen ? fullscreenAdvancedControls : null,
-    shortcutHelpOverlay: isInteractiveFullscreen ? shortcutHelpOverlay : null,
-    translationSpeed,
-    audioTracks: activeAudioTracks,
-    activeTimingTrack,
-    originalAudioEnabled: effectiveOriginalAudioEnabled,
-    translationAudioEnabled: effectiveTranslationAudioEnabled,
-    fontScale: interactiveFontScale,
-    theme: interactiveTextTheme,
-    backgroundOpacityPercent: interactiveBackgroundOpacityPercent,
-    sentenceCardOpacityPercent: interactiveSentenceCardOpacityPercent,
-    infoGlyph: channelBug.glyph,
-    infoGlyphLabel: channelBug.label,
-    infoTitle: isSubtitleContext ? subtitleInfo.title : null,
-    infoMeta: isSubtitleContext ? subtitleInfo.meta : null,
-    infoCoverUrl: isSubtitleContext ? subtitleInfo.coverUrl : null,
-    infoCoverSecondaryUrl: isSubtitleContext ? subtitleInfo.coverSecondaryUrl : null,
-    infoCoverAltText: isSubtitleContext ? subtitleInfo.coverAltText : null,
-    infoCoverVariant: (isSubtitleContext ? 'subtitles' : null) as 'subtitles' | null,
-    bookTitle: bookTitle ?? headingLabel,
-    bookAuthor,
-    bookYear,
-    bookGenre,
-    bookCoverUrl: shouldShowCoverImage ? displayCoverUrl : null,
-    bookCoverAltText: coverAltText,
-  };
+    fullscreen: {
+      isFullscreen: isInteractiveFullscreen,
+      onRequestExitFullscreen: handleExitInteractiveFullscreen,
+      fullscreenControls: isInteractiveFullscreen ? fullscreenMainControls : null,
+      fullscreenAdvancedControls: isInteractiveFullscreen ? fullscreenAdvancedControls : null,
+      shortcutHelpOverlay: isInteractiveFullscreen ? shortcutHelpOverlay : null,
+    },
+    playback: {
+      translationSpeed,
+      audioTracks: activeAudioTracks,
+      activeTimingTrack,
+      originalAudioEnabled: effectiveOriginalAudioEnabled,
+      translationAudioEnabled: effectiveTranslationAudioEnabled,
+    },
+    appearance: {
+      fontScale: interactiveFontScale,
+      theme: interactiveTextTheme,
+      backgroundOpacityPercent: interactiveBackgroundOpacityPercent,
+      sentenceCardOpacityPercent: interactiveSentenceCardOpacityPercent,
+    },
+    info: {
+      channelBug,
+      isSubtitleContext,
+      subtitleInfo,
+    },
+    book: {
+      bookTitle,
+      bookAuthor,
+      bookYear,
+      bookGenre,
+      displayCoverUrl,
+      coverAltText,
+      shouldShowCoverImage,
+    },
+  });
 
   if (error) {
     return (

@@ -42,6 +42,14 @@ _GOOGLETRANS_PROVIDER_ALIASES = {
     "gtranslate",
     "gtrans",
 }
+_GOOGLETRANS_PSEUDO_SUFFIXES = {
+    "orig",
+    "original",
+    "auto",
+    "autogen",
+    "auto-generated",
+    "generated",
+}
 _LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2,3}([_-][a-z0-9]{2,4})?$", regex.IGNORECASE)
 _SEGMENTATION_LANGS = {
     # Thai family
@@ -137,6 +145,15 @@ def _normalize_translation_provider(value: Optional[str]) -> str:
     return "llm"
 
 
+def _strip_googletrans_pseudo_suffix(value: str) -> str:
+    if "-" not in value:
+        return value
+    parts = value.split("-")
+    if parts[-1] in _GOOGLETRANS_PSEUDO_SUFFIXES:
+        return "-".join(parts[:-1])
+    return value
+
+
 def _resolve_googletrans_language(value: Optional[str], *, fallback: Optional[str]) -> Optional[str]:
     if value is None:
         return fallback
@@ -146,18 +163,38 @@ def _resolve_googletrans_language(value: Optional[str], *, fallback: Optional[st
     normalized = cleaned.replace("_", "-").strip().lower()
     if not normalized:
         return fallback
+    normalized = _strip_googletrans_pseudo_suffix(normalized)
+    try:
+        from googletrans import LANGUAGES as googletrans_languages
+    except Exception:
+        googletrans_languages = None
+
+    def _coerce_googletrans_code(candidate: str) -> str:
+        candidate = _strip_googletrans_pseudo_suffix(candidate.replace("_", "-").strip().lower())
+        if not googletrans_languages:
+            return candidate
+        if candidate in googletrans_languages:
+            return candidate
+        if "-" in candidate:
+            base, suffix = candidate.split("-", 1)
+            if base in googletrans_languages:
+                return base
+            if base == "zh":
+                if suffix in {"hans", "cn", "sg", "my"}:
+                    return "zh-cn"
+                if suffix in {"hant", "tw", "hk", "mo"}:
+                    return "zh-tw"
+        return candidate
+
     if _LANG_CODE_PATTERN.match(normalized):
-        return normalized
+        return _coerce_googletrans_code(normalized)
     for name, code in LANGUAGE_CODES.items():
         if normalized == name.strip().lower():
-            return code.lower()
-    try:
-        from googletrans import LANGUAGES
-    except Exception:
-        return fallback or normalized
-    for code, name in LANGUAGES.items():
-        if normalized == name.strip().lower():
-            return code.lower()
+            return _coerce_googletrans_code(code)
+    if googletrans_languages:
+        for code, name in googletrans_languages.items():
+            if normalized == name.strip().lower():
+                return code.lower()
     return fallback or normalized
 
 

@@ -261,6 +261,40 @@ export function buildInteractiveAudioCatalog(
   return { playlist, nameMap, chunkIndexMap };
 }
 
+export function deriveSentenceCountFromChunks(chunks: LiveMediaChunk[]): number | null {
+  let maxSentence = 0;
+  let hasValue = false;
+  chunks.forEach((chunk) => {
+    if (!chunk) {
+      return;
+    }
+    const endSentence =
+      typeof chunk.endSentence === 'number' && Number.isFinite(chunk.endSentence)
+        ? Math.trunc(chunk.endSentence)
+        : null;
+    if (endSentence !== null) {
+      maxSentence = Math.max(maxSentence, endSentence);
+      hasValue = true;
+      return;
+    }
+    const startSentence =
+      typeof chunk.startSentence === 'number' && Number.isFinite(chunk.startSentence)
+        ? Math.trunc(chunk.startSentence)
+        : null;
+    const sentenceCount =
+      typeof chunk.sentenceCount === 'number' && Number.isFinite(chunk.sentenceCount)
+        ? Math.trunc(chunk.sentenceCount)
+        : Array.isArray(chunk.sentences) && chunk.sentences.length > 0
+          ? chunk.sentences.length
+          : null;
+    if (startSentence !== null && sentenceCount !== null) {
+      maxSentence = Math.max(maxSentence, startSentence + Math.max(sentenceCount - 1, 0));
+      hasValue = true;
+    }
+  });
+  return hasValue ? maxSentence : null;
+}
+
 export function chunkCacheKey(chunk: LiveMediaChunk): string | null {
   if (chunk.chunkId) {
     return `id:${chunk.chunkId}`;
