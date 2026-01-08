@@ -106,7 +106,7 @@ struct JobLoaderView: View {
                     audioCoordinator: viewModel.audioCoordinator,
                     showsScrubber: false
                 )
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: CGFloat.infinity)
             } else {
                 Text("No interactive content available.")
                     .foregroundStyle(.secondary)

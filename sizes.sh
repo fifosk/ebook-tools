@@ -35,4 +35,4 @@ find . -type f \( \
   ! -path "*.xcworkspace/*" \
 | xargs wc -l 2>/dev/null \
 | sort -nr \
-| head -20
+| head -25

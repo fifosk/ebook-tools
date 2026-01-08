@@ -1,6 +1,6 @@
 import type { TrackTimingPayload, WordTiming } from '../../api/dtos';
 import type { WordIndex } from '../../lib/timing/wordSync';
-import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
+import type { TextPlayerSentence, TextPlayerVariantKind } from '../../text-player/TextPlayer';
 
 export type SentenceFragment = {
   index: number;
@@ -90,4 +90,10 @@ export type TimelineSentenceRuntime = {
     translation?: TimelineVariantRuntime;
     transliteration?: TimelineVariantRuntime;
   };
+};
+
+export type TimelineDisplay = {
+  sentences: TextPlayerSentence[];
+  activeIndex: number;
+  effectiveTime: number;
 };

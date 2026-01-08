@@ -1,0 +1,321 @@
+import Foundation
+
+extension InteractivePlayerViewModel {
+    func loadJob(
+        jobId: String,
+        configuration: APIClientConfiguration,
+        origin: MediaOrigin = .job,
+        preferLiveMedia: Bool = false
+    ) async {
+        let trimmedJobId = jobId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedJobId.isEmpty else {
+            loadState = .error("Enter a job identifier before loading.")
+            return
+        }
+
+        loadState = .loading
+        self.jobId = trimmedJobId
+        apiBaseURL = configuration.apiBaseURL
+        authToken = configuration.authToken
+        apiConfiguration = configuration
+        mediaOrigin = origin
+        selectedChunkID = nil
+        selectedAudioTrackID = nil
+        selectedTimingURL = nil
+        preferredAudioKind = nil
+        audioDurationByURL = [:]
+        chunkMetadataLoaded = []
+        chunkMetadataLoading = []
+        jobContext = nil
+        mediaResponse = nil
+        timingResponse = nil
+        chapterEntries = []
+        readingBedCatalog = nil
+        readingBedURL = nil
+        selectedReadingBedID = nil
+        mediaResolver = nil
+        audioCoordinator.reset()
+        pendingSentenceJump = nil
+        stopLiveUpdates()
+
+        do {
+            let client = APIClient(configuration: configuration)
+            async let mediaTask: PipelineMediaResponse = {
+                switch origin {
+                case .library:
+                    return try await client.fetchLibraryMedia(jobId: trimmedJobId)
+                case .job:
+                    if preferLiveMedia {
+                        return try await client.fetchJobMediaLive(jobId: trimmedJobId)
+                    }
+                    return try await client.fetchJobMedia(jobId: trimmedJobId)
+                }
+            }()
+            async let timingTask = client.fetchJobTiming(jobId: trimmedJobId)
+            async let readingBedsTask: ReadingBedListResponse? = {
+                do {
+                    return try await client.fetchReadingBeds()
+                } catch {
+                    return nil
+                }
+            }()
+            let (media, timing) = try await (mediaTask, timingTask)
+            let readingBeds = await readingBedsTask
+            let resolver: MediaURLResolver
+            switch origin {
+            case .library:
+                resolver = MediaURLResolver(
+                    origin: .library(apiBaseURL: configuration.apiBaseURL, accessToken: configuration.authToken)
+                )
+            case .job:
+                let storageResolver = try StorageResolver(
+                    apiBaseURL: configuration.apiBaseURL,
+                    override: configuration.storageBaseURL
+                )
+                resolver = MediaURLResolver(
+                    origin: .storage(
+                        apiBaseURL: configuration.apiBaseURL,
+                        resolver: storageResolver,
+                        accessToken: configuration.authToken
+                    )
+                )
+            }
+            let context = try JobContextBuilder.build(
+                jobId: trimmedJobId,
+                media: media,
+                timing: timing,
+                resolver: resolver
+            )
+            jobContext = context
+            mediaResolver = resolver
+            mediaResponse = media
+            timingResponse = timing
+            readingBedCatalog = readingBeds
+            selectedReadingBedID = nil
+            readingBedURL = resolveReadingBedURL(from: readingBeds, selectedID: nil)
+            configureDefaultSelections()
+            loadState = .loaded
+        } catch is CancellationError {
+            loadState = .idle
+        } catch {
+            loadState = .error(error.localizedDescription)
+        }
+    }
+
+    func startLiveUpdates() {
+        guard mediaOrigin == .job else { return }
+        guard apiConfiguration != nil else { return }
+        stopLiveUpdates()
+        liveUpdateTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                await self.refreshLiveMedia()
+                if self.mediaResponse?.complete == true {
+                    break
+                }
+                try? await Task.sleep(nanoseconds: liveUpdateInterval)
+            }
+        }
+    }
+
+    func stopLiveUpdates() {
+        liveUpdateTask?.cancel()
+        liveUpdateTask = nil
+    }
+
+    func refreshLiveMedia() async {
+        guard mediaOrigin == .job else { return }
+        guard let configuration = apiConfiguration, let jobId, let resolver = mediaResolver else { return }
+        let client = APIClient(configuration: configuration)
+        do {
+            let liveMedia = try await client.fetchJobMediaLive(jobId: jobId)
+            guard shouldApplyLiveUpdate(current: mediaResponse, incoming: liveMedia) else { return }
+            let mergedMedia = mergeLiveMedia(current: mediaResponse, incoming: liveMedia)
+            let context = try JobContextBuilder.build(
+                jobId: jobId,
+                media: mergedMedia,
+                timing: timingResponse,
+                resolver: resolver
+            )
+            mediaResponse = mergedMedia
+            jobContext = context
+            if let selectedChunkID, context.chunk(withID: selectedChunkID) != nil {
+                return
+            }
+            configureDefaultSelections()
+        } catch {
+            return
+        }
+    }
+
+    func shouldApplyLiveUpdate(current: PipelineMediaResponse?, incoming: PipelineMediaResponse) -> Bool {
+        guard let current else { return true }
+        if current.complete != incoming.complete {
+            return true
+        }
+        if current.chunks.count != incoming.chunks.count {
+            return true
+        }
+        let currentKeys = Set(current.media.keys)
+        let incomingKeys = Set(incoming.media.keys)
+        if currentKeys != incomingKeys {
+            return true
+        }
+        for (key, incomingFiles) in incoming.media {
+            if (current.media[key]?.count ?? 0) != incomingFiles.count {
+                return true
+            }
+        }
+        return false
+    }
+
+    func mergeLiveMedia(
+        current: PipelineMediaResponse?,
+        incoming: PipelineMediaResponse
+    ) -> PipelineMediaResponse {
+        guard let current else { return incoming }
+        var currentByKey: [String: PipelineMediaChunk] = [:]
+        for (index, chunk) in current.chunks.enumerated() {
+            currentByKey[chunkKey(chunk, fallback: index)] = chunk
+        }
+        let mergedChunks = incoming.chunks.enumerated().map { index, chunk -> PipelineMediaChunk in
+            let key = chunkKey(chunk, fallback: index)
+            guard let existing = currentByKey[key],
+                  chunk.sentences.isEmpty,
+                  !existing.sentences.isEmpty else {
+                return chunk
+            }
+            return PipelineMediaChunk(
+                chunkID: chunk.chunkID,
+                rangeFragment: chunk.rangeFragment,
+                startSentence: chunk.startSentence,
+                endSentence: chunk.endSentence,
+                files: chunk.files,
+                sentences: existing.sentences,
+                metadataPath: chunk.metadataPath ?? existing.metadataPath,
+                metadataURL: chunk.metadataURL ?? existing.metadataURL,
+                sentenceCount: chunk.sentenceCount ?? existing.sentenceCount,
+                audioTracks: chunk.audioTracks.isEmpty ? existing.audioTracks : chunk.audioTracks
+            )
+        }
+        return PipelineMediaResponse(media: incoming.media, chunks: mergedChunks, complete: incoming.complete)
+    }
+
+    func chunkKey(_ chunk: PipelineMediaChunk, fallback: Int) -> String {
+        chunk.chunkID
+            ?? chunk.rangeFragment
+            ?? "chunk-\(fallback)"
+    }
+
+    func loadChunkMetadataIfNeeded(for chunkID: String) async {
+        guard let jobId, let resolver = mediaResolver else { return }
+        guard let currentMediaResponse = mediaResponse else { return }
+        guard !chunkMetadataLoaded.contains(chunkID) else { return }
+        guard !chunkMetadataLoading.contains(chunkID) else { return }
+
+        guard let index = resolveChunkIndex(chunkID, chunks: currentMediaResponse.chunks) else { return }
+        let chunk = currentMediaResponse.chunks[index]
+        if !chunk.sentences.isEmpty {
+            chunkMetadataLoaded.insert(chunkID)
+            return
+        }
+        let metadataURL = chunk.metadataURL?.nonEmptyValue
+        let metadataPath = chunk.metadataPath?.nonEmptyValue
+        var preferPathFirst = false
+        if let metadataURL,
+           let url = URL(string: metadataURL),
+           url.scheme?.lowercased() == "https",
+           let apiBaseURL = apiConfiguration?.apiBaseURL,
+           apiBaseURL.scheme?.lowercased() == "http",
+           metadataPath != nil {
+            preferPathFirst = true
+        }
+        var candidates: [String] = []
+        if preferPathFirst {
+            if let metadataPath { candidates.append(metadataPath) }
+            if let metadataURL, metadataURL != metadataPath { candidates.append(metadataURL) }
+        } else {
+            if let metadataURL { candidates.append(metadataURL) }
+            if let metadataPath, metadataPath != metadataURL { candidates.append(metadataPath) }
+        }
+        guard !candidates.isEmpty else { return }
+
+        chunkMetadataLoading.insert(chunkID)
+        defer { chunkMetadataLoading.remove(chunkID) }
+
+        do {
+            var payloadData: Data? = nil
+            for candidate in candidates {
+                guard let url = resolver.resolvePath(jobId: jobId, relativePath: candidate) else { continue }
+                var request = URLRequest(url: url)
+                request.setValue("application/json", forHTTPHeaderField: "Accept")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let httpResponse = response as? HTTPURLResponse,
+                      (200..<300).contains(httpResponse.statusCode) else {
+                    continue
+                }
+                payloadData = data
+                break
+            }
+            guard let payloadData else { return }
+            let decoder = JSONDecoder()
+            decoder.keyDecodingStrategy = .convertFromSnakeCase
+            let sentences: [ChunkSentenceMetadata]
+            if let payload = try? decoder.decode(ChunkMetadataPayload.self, from: payloadData) {
+                sentences = payload.sentences
+            } else if let payload = try? decoder.decode([ChunkSentenceMetadata].self, from: payloadData) {
+                sentences = payload
+            } else {
+                return
+            }
+            guard !sentences.isEmpty else { return }
+
+            var updatedChunks = currentMediaResponse.chunks
+            let updatedChunk = PipelineMediaChunk(
+                chunkID: chunk.chunkID,
+                rangeFragment: chunk.rangeFragment,
+                startSentence: chunk.startSentence,
+                endSentence: chunk.endSentence,
+                files: chunk.files,
+                sentences: sentences,
+                metadataPath: chunk.metadataPath,
+                metadataURL: chunk.metadataURL,
+                sentenceCount: chunk.sentenceCount ?? sentences.count,
+                audioTracks: chunk.audioTracks
+            )
+            updatedChunks[index] = updatedChunk
+            let refreshedMedia = PipelineMediaResponse(
+                media: currentMediaResponse.media,
+                chunks: updatedChunks,
+                complete: currentMediaResponse.complete
+            )
+            let context = try JobContextBuilder.build(
+                jobId: jobId,
+                media: refreshedMedia,
+                timing: timingResponse,
+                resolver: resolver
+            )
+            mediaResponse = refreshedMedia
+            jobContext = context
+            if let updatedChunk = context.chunk(withID: chunkID) {
+                attemptPendingSentenceJump(in: updatedChunk)
+            }
+            chunkMetadataLoaded.insert(chunkID)
+        } catch {
+            return
+        }
+    }
+
+    func resolveChunkIndex(_ chunkID: String, chunks: [PipelineMediaChunk]) -> Int? {
+        if let index = chunks.firstIndex(where: { $0.chunkID == chunkID }) {
+            return index
+        }
+        if chunkID.hasPrefix("chunk-") {
+            let raw = chunkID.replacingOccurrences(of: "chunk-", with: "")
+            if let index = Int(raw), chunks.indices.contains(index) {
+                return index
+            }
+        }
+        return nil
+    }
+}

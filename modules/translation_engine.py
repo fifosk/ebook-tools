@@ -169,7 +169,7 @@ def _resolve_googletrans_language(value: Optional[str], *, fallback: Optional[st
     except Exception:
         googletrans_languages = None
 
-    def _coerce_googletrans_code(candidate: str) -> str:
+    def _coerce_googletrans_code(candidate: str) -> Optional[str]:
         candidate = _strip_googletrans_pseudo_suffix(candidate.replace("_", "-").strip().lower())
         if not googletrans_languages:
             return candidate
@@ -184,17 +184,20 @@ def _resolve_googletrans_language(value: Optional[str], *, fallback: Optional[st
                     return "zh-cn"
                 if suffix in {"hant", "tw", "hk", "mo"}:
                     return "zh-tw"
-        return candidate
+        return None
 
     if _LANG_CODE_PATTERN.match(normalized):
-        return _coerce_googletrans_code(normalized)
+        resolved = _coerce_googletrans_code(normalized)
+        return resolved or fallback
     for name, code in LANGUAGE_CODES.items():
         if normalized == name.strip().lower():
-            return _coerce_googletrans_code(code)
+            resolved = _coerce_googletrans_code(code)
+            return resolved or fallback
     if googletrans_languages:
         for code, name in googletrans_languages.items():
             if normalized == name.strip().lower():
                 return code.lower()
+        return fallback
     return fallback or normalized
 
 
@@ -232,11 +235,26 @@ def _translate_with_googletrans(
         )
 
     last_error: Optional[str] = None
+    src_code = _resolve_googletrans_language(input_language, fallback="auto") or "auto"
+    dest_code = _resolve_googletrans_language(target_language, fallback=None)
+    if not dest_code:
+        failure_reason = (
+            f"Unsupported googletrans language: {target_language}"
+        )
+        if progress_tracker is not None:
+            progress_tracker.record_retry("translation", failure_reason)
+        return (
+            format_retry_failure(
+                "translation",
+                _TRANSLATION_RESPONSE_ATTEMPTS,
+                reason=failure_reason,
+            ),
+            failure_reason,
+        )
+
     for attempt in range(1, _TRANSLATION_RESPONSE_ATTEMPTS + 1):
         try:
             translator = _get_googletrans_translator()
-            src_code = _resolve_googletrans_language(input_language, fallback="auto") or "auto"
-            dest_code = _resolve_googletrans_language(target_language, fallback=None) or "en"
             result = translator.translate(sentence, src=src_code, dest=dest_code)
             candidate = text_norm.collapse_whitespace((result.text or "").strip())
             if candidate and not text_norm.is_placeholder_translation(candidate):
@@ -725,18 +743,29 @@ def translate_sentence_simple(
     fallback_active = fallbacks.is_llm_fallback_active(progress_tracker)
 
     if provider == "googletrans" and not fallback_active:
-        google_text, google_error = _translate_with_googletrans(
-            sentence,
-            input_language,
-            target_language,
-            progress_tracker=progress_tracker,
-        )
+        trigger = "googletrans_error"
+        dest_code = _resolve_googletrans_language(target_language, fallback=None)
+        if not dest_code:
+            google_error = f"Unsupported googletrans language: {target_language}"
+            google_text = format_retry_failure(
+                "translation",
+                _TRANSLATION_RESPONSE_ATTEMPTS,
+                reason=google_error,
+            )
+            trigger = "googletrans_unsupported_language"
+        else:
+            google_text, google_error = _translate_with_googletrans(
+                sentence,
+                input_language,
+                target_language,
+                progress_tracker=progress_tracker,
+            )
         if not is_failure_annotation(google_text):
             return google_text
         fallback_reason = google_error or "Google Translate error"
         detail = fallbacks.record_translation_fallback(
             progress_tracker,
-            trigger="googletrans_error",
+            trigger=trigger,
             reason=fallback_reason,
             source_provider="googletrans",
             fallback_model=fallback_model,
