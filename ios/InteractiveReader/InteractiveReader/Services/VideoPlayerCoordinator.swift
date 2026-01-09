@@ -6,6 +6,7 @@ final class VideoPlayerCoordinator: ObservableObject {
     @Published private(set) var currentTime: Double = 0
     @Published private(set) var duration: Double = 0
     @Published private(set) var isPlaying: Bool = false
+    @Published private(set) var playbackRate: Double = 1.0
 
     var onPlaybackEnded: (() -> Void)?
 
@@ -43,7 +44,13 @@ final class VideoPlayerCoordinator: ObservableObject {
 
     func play() {
         configureAudioSession()
-        player?.play()
+        guard let player = player else { return }
+        if #available(iOS 10.0, tvOS 10.0, *) {
+            player.playImmediately(atRate: Float(playbackRate))
+        } else {
+            player.play()
+            player.rate = Float(playbackRate)
+        }
     }
 
     func pause() {
@@ -59,6 +66,14 @@ final class VideoPlayerCoordinator: ObservableObject {
             pause()
         } else {
             play()
+        }
+    }
+
+    func setPlaybackRate(_ rate: Double) {
+        guard rate.isFinite, rate > 0 else { return }
+        playbackRate = rate
+        if isPlaying {
+            player?.rate = Float(rate)
         }
     }
 

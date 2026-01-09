@@ -45,6 +45,7 @@ struct VideoPlayerView: View {
     @State var showSubtitleSettings = false
     @State var showTVControls = true
     @AppStorage("player.headerCollapsed") var isHeaderCollapsed = false
+    @AppStorage("video.playbackRate") var playbackRateValue: Double = 1.0
     @State var scrubberValue: Double = 0
     @State var isScrubbing = false
     @State var controlsHideTask: Task<Void, Never>?
@@ -93,6 +94,15 @@ struct VideoPlayerView: View {
         #endif
     }
 
+    static let playbackRateOptions: [Double] = stride(from: 0.5, through: 1.5, by: 0.1).map { value in
+        (value * 10).rounded() / 10
+    }
+
+    static func clampPlaybackRate(_ value: Double) -> Double {
+        let clamped = min(max(value, 0.5), 1.5)
+        return (clamped * 10).rounded() / 10
+    }
+
     var resolvedBookmarkUserId: String {
         bookmarkUserId?.nonEmptyValue ?? "anonymous"
     }
@@ -111,6 +121,10 @@ struct VideoPlayerView: View {
 
     var canUseBookmarks: Bool {
         resolvedBookmarkJobId != nil
+    }
+
+    var resolvedPlaybackRate: Double {
+        Self.clampPlaybackRate(playbackRateValue)
     }
 
     init(
@@ -178,6 +192,11 @@ struct VideoPlayerView: View {
                 onPlaybackEnded?(duration)
             }
             pendingResumeTime = resumeTime
+            let resolvedRate = Self.clampPlaybackRate(playbackRateValue)
+            if resolvedRate != playbackRateValue {
+                playbackRateValue = resolvedRate
+            }
+            coordinator.setPlaybackRate(resolvedRate)
             coordinator.load(url: videoURL, autoPlay: autoPlay && resumeTime == nil)
             configureNowPlaying()
             updateNowPlayingMetadata()
@@ -198,6 +217,11 @@ struct VideoPlayerView: View {
             subtitleSelection = nil
             subtitleCache.removeAll()
             pendingResumeTime = resumeTime
+            let resolvedRate = Self.clampPlaybackRate(playbackRateValue)
+            if resolvedRate != playbackRateValue {
+                playbackRateValue = resolvedRate
+            }
+            coordinator.setPlaybackRate(resolvedRate)
             coordinator.load(url: newURL, autoPlay: autoPlay && resumeTime == nil)
             updateNowPlayingMetadata()
             updateNowPlayingPlayback()
@@ -219,6 +243,13 @@ struct VideoPlayerView: View {
                 pendingResumeTime = newValue
                 applyPendingResumeIfPossible()
             }
+        }
+        .onChange(of: playbackRateValue) { _, newValue in
+            let resolvedRate = Self.clampPlaybackRate(newValue)
+            if resolvedRate != newValue {
+                playbackRateValue = resolvedRate
+            }
+            coordinator.setPlaybackRate(resolvedRate)
         }
         .onChange(of: selectedSegmentID) { _, _ in
             applyPendingBookmarkIfPossible()

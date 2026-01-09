@@ -112,6 +112,11 @@ extension VideoPlayerView {
             canIncreaseSubtitleLinguistFont: canIncreaseSubtitleLinguistFont,
             canDecreaseSubtitleLinguistFont: canDecreaseSubtitleLinguistFont,
             isHeaderCollapsed: isHeaderCollapsed,
+            playbackRate: resolvedPlaybackRate,
+            playbackRateOptions: Self.playbackRateOptions,
+            onPlaybackRateChange: { rate in
+                playbackRateValue = Self.clampPlaybackRate(rate)
+            },
             onToggleHeaderCollapsed: toggleHeaderCollapsed,
             onResetSubtitleFont: {
                 resetSubtitleFontScale()

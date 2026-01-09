@@ -38,6 +38,9 @@ struct VideoPlayerOverlayView: View {
     let canIncreaseSubtitleLinguistFont: Bool
     let canDecreaseSubtitleLinguistFont: Bool
     let isHeaderCollapsed: Bool
+    let playbackRate: Double
+    let playbackRateOptions: [Double]
+    let onPlaybackRateChange: (Double) -> Void
     let onToggleHeaderCollapsed: () -> Void
     let onResetSubtitleFont: (() -> Void)?
     let onSetSubtitleFont: ((CGFloat) -> Void)?
@@ -155,6 +158,30 @@ struct VideoPlayerOverlayView: View {
             .disabled(!controlsFocusEnabled)
             #endif
         }
+    }
+
+    @ViewBuilder
+    private var speedMenu: some View {
+        Menu {
+            ForEach(playbackRateOptions, id: \.self) { rate in
+                Button {
+                    onPlaybackRateChange(rate)
+                    onUserInteraction()
+                } label: {
+                    if isCurrentRate(rate) {
+                        Label(playbackRateLabel(rate), systemImage: "checkmark")
+                    } else {
+                        Text(playbackRateLabel(rate))
+                    }
+                }
+            }
+        } label: {
+            speedMenuLabel
+        }
+        #if os(tvOS)
+        .focused($focusTarget, equals: .control(.speed))
+        .disabled(!controlsFocusEnabled)
+        #endif
     }
 
     @ViewBuilder
@@ -451,6 +478,7 @@ struct VideoPlayerOverlayView: View {
                             if canShowBookmarks {
                                 bookmarkMenu
                             }
+                            speedMenu
                         }
                     }
                     HStack(alignment: .top, spacing: 12) {
@@ -510,6 +538,7 @@ struct VideoPlayerOverlayView: View {
                                     if canShowBookmarks {
                                         bookmarkMenu
                                     }
+                                    speedMenu
                                     headerToggleButton
                                 }
                                 #endif
@@ -732,6 +761,27 @@ struct VideoPlayerOverlayView: View {
         }
     }
 
+    private var speedMenuLabel: some View {
+        #if os(tvOS)
+        tvControlLabel(
+            systemName: "speedometer",
+            label: "Speed",
+            font: .callout.weight(.semibold),
+            isFocused: focusTarget == .control(.speed)
+        )
+        #else
+        Label("Speed", systemImage: "speedometer")
+            .labelStyle(.titleAndIcon)
+            .font(.caption)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(.black.opacity(0.45), in: RoundedRectangle(cornerRadius: 8))
+            .foregroundStyle(.white)
+        #endif
+    }
+
     private var headerToggleButton: some View {
         Button(action: onToggleHeaderCollapsed) {
             Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
@@ -805,6 +855,7 @@ struct VideoPlayerOverlayView: View {
             if canShowBookmarks {
                 bookmarkMenu
             }
+            speedMenu
             if hasOptions {
                 tvControlButton(
                     systemName: "captions.bubble",
@@ -1003,6 +1054,15 @@ struct VideoPlayerOverlayView: View {
     }
     #endif
 
+    private func playbackRateLabel(_ rate: Double) -> String {
+        let percent = (rate * 100).rounded()
+        return "\(Int(percent))%"
+    }
+
+    private func isCurrentRate(_ rate: Double) -> Bool {
+        abs(rate - playbackRate) < 0.01
+    }
+
     private var selectedTrackLabel: String {
         if let selectedTrack {
             return trimmedTrackLabel(selectedTrack.label)
@@ -1135,6 +1195,7 @@ private enum TVFocusTarget: Hashable {
     case skipBackward
     case skipForward
     case bookmark
+    case speed
     case captions
     case header
     case scrubber
