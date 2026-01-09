@@ -76,11 +76,6 @@ struct VideoLinguistBubbleView: View {
         .frame(maxWidth: .infinity, alignment: .center)
         #if os(tvOS)
         .focusEffectDisabled()
-        .onAppear {
-            if focusedControl == nil {
-                focusedControl = bubbleFocusOrder.first
-            }
-        }
         .onMoveCommand { direction in
             handleBubbleFocusMove(direction)
         }
@@ -93,9 +88,6 @@ struct VideoLinguistBubbleView: View {
     private var headerControls: some View {
         #if os(tvOS)
         HStack(spacing: 8) {
-            Text("MyLinguist")
-                .font(.headline)
-            Spacer(minLength: 8)
             lookupLanguageMenu
             modelMenu
             fontSizeControls

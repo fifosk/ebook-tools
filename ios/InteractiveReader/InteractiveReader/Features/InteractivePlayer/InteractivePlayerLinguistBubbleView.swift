@@ -34,9 +34,11 @@ struct MyLinguistBubbleView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
+                #if !os(tvOS)
                 Text("MyLinguist")
                     .font(.headline)
                 Spacer(minLength: 8)
+                #endif
                 lookupLanguageMenu
                 modelMenu
                 fontSizeControls
