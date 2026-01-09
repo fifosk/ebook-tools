@@ -143,6 +143,8 @@ struct VideoPlayerOverlayView: View {
                 bookmarkMenuLabel
             }
             #if os(tvOS)
+            .focusable(controlsFocusEnabled)
+            .allowsHitTesting(controlsFocusEnabled)
             .focused($focusTarget, equals: .control(.bookmark))
             #endif
         }
@@ -739,6 +741,8 @@ struct VideoPlayerOverlayView: View {
                 .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
+        .focusable(controlsFocusEnabled)
+        .allowsHitTesting(controlsFocusEnabled)
         .focused($focusTarget, equals: .control(.header))
         .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
         .onMoveCommand { direction in
@@ -754,11 +758,19 @@ struct VideoPlayerOverlayView: View {
     #endif
 
     #if os(tvOS)
+    private var controlsFocusEnabled: Bool {
+        guard showTVControls, !showSubtitleSettings else { return false }
+        if case .some(.control) = focusTarget { return true }
+        return false
+    }
+
     private var tvControls: some View {
-        HStack(spacing: 14) {
+        let isControlsFocusEnabled = controlsFocusEnabled
+        return HStack(spacing: 14) {
             tvControlButton(
                 systemName: "gobackward.15",
                 isFocused: focusTarget == .control(.skipBackward),
+                isFocusable: isControlsFocusEnabled,
                 action: onSkipBackward
             )
                 .focused($focusTarget, equals: .control(.skipBackward))
@@ -766,12 +778,14 @@ struct VideoPlayerOverlayView: View {
                 systemName: isPlaying ? "pause.fill" : "play.fill",
                 prominent: true,
                 isFocused: focusTarget == .control(.playPause),
+                isFocusable: isControlsFocusEnabled,
                 action: onPlayPause
             )
                 .focused($focusTarget, equals: .control(.playPause))
             tvControlButton(
                 systemName: "goforward.15",
                 isFocused: focusTarget == .control(.skipForward),
+                isFocusable: isControlsFocusEnabled,
                 action: onSkipForward
             )
                 .focused($focusTarget, equals: .control(.skipForward))
@@ -783,7 +797,8 @@ struct VideoPlayerOverlayView: View {
                     systemName: "captions.bubble",
                     label: "Options",
                     font: .callout.weight(.semibold),
-                    isFocused: focusTarget == .control(.captions)
+                    isFocused: focusTarget == .control(.captions),
+                    isFocusable: isControlsFocusEnabled
                 ) {
                     showSubtitleSettings = true
                 }
@@ -810,6 +825,7 @@ struct VideoPlayerOverlayView: View {
         font: Font? = nil,
         prominent: Bool = false,
         isFocused: Bool = false,
+        isFocusable: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
@@ -821,6 +837,8 @@ struct VideoPlayerOverlayView: View {
                 isFocused: isFocused
             )
         }
+        .focusable(isFocusable)
+        .allowsHitTesting(isFocusable)
     }
 
     private func tvControlLabel(
@@ -871,7 +889,7 @@ struct VideoPlayerOverlayView: View {
                     TVScrubber(
                         value: $scrubberValue,
                         range: 0...max(duration, 1),
-                        isFocusable: showTVControls,
+                        isFocusable: controlsFocusEnabled,
                         onEditingChanged: { editing in
                             isScrubbing = editing
                             onUserInteraction()

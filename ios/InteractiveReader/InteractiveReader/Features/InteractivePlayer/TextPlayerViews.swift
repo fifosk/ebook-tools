@@ -58,6 +58,7 @@ struct TextPlayerSentenceView: View {
                     variant: variant,
                     sentenceState: sentence.state,
                     selectedTokenIndex: selectedTokenIndex(for: variant),
+                    shadowTokenIndex: shadowTokenIndex(for: variant),
                     fontScale: fontScale,
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
@@ -103,6 +104,17 @@ struct TextPlayerSentenceView: View {
     private func selectedTokenIndex(for variant: TextPlayerVariantDisplay) -> Int? {
         guard let selection, selection.sentenceIndex == sentence.index else { return nil }
         guard selection.variantKind == variant.kind else { return nil }
+        return selection.tokenIndex
+    }
+
+    private func shadowTokenIndex(for variant: TextPlayerVariantDisplay) -> Int? {
+        guard let selection, selection.sentenceIndex == sentence.index else { return nil }
+        let isTranslationPair = selection.variantKind == .translation || selection.variantKind == .transliteration
+        guard isTranslationPair else { return nil }
+        let isShadowVariant = (variant.kind == .translation && selection.variantKind == .transliteration)
+            || (variant.kind == .transliteration && selection.variantKind == .translation)
+        guard isShadowVariant else { return nil }
+        guard variant.tokens.indices.contains(selection.tokenIndex) else { return nil }
         return selection.tokenIndex
     }
 }
@@ -179,6 +191,7 @@ struct TokenWordView: View {
     let text: String
     let color: Color
     let isSelected: Bool
+    let isShadowSelected: Bool
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
     let cornerRadius: CGFloat
@@ -195,9 +208,9 @@ struct TokenWordView: View {
             .foregroundStyle(isSelected ? TextPlayerTheme.selectionText : color)
             .background(
                 Group {
-                    if isSelected {
+                    if isSelected || isShadowSelected {
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(TextPlayerTheme.selectionGlow)
+                            .fill(isSelected ? TextPlayerTheme.selectionGlow : TextPlayerTheme.selectionShadow)
                     }
                 }
             )
@@ -263,6 +276,7 @@ struct TextPlayerVariantView: View {
     let variant: TextPlayerVariantDisplay
     let sentenceState: TextPlayerSentenceState
     let selectedTokenIndex: Int?
+    let shadowTokenIndex: Int?
     let fontScale: CGFloat
     let onTokenLookup: ((Int, String) -> Void)?
     let onTokenSeek: ((Int, Double?) -> Void)?
@@ -319,6 +333,7 @@ struct TextPlayerVariantView: View {
                     text: token,
                     color: tokenColor(for: tokenState(for: index)),
                     isSelected: index == selectedTokenIndex,
+                    isShadowSelected: index == shadowTokenIndex,
                     horizontalPadding: tokenHorizontalPadding,
                     verticalPadding: tokenVerticalPadding,
                     cornerRadius: tokenCornerRadius,
@@ -470,6 +485,7 @@ enum TextPlayerTheme {
     static let transliteration = Color(red: 0.176, green: 0.831, blue: 0.749)
     static let progress = Color(red: 1.0, green: 0.549, blue: 0.0)
     static let selectionGlow = Color(red: 1.0, green: 0.549, blue: 0.0).opacity(0.6)
+    static let selectionShadow = Color(red: 1.0, green: 0.549, blue: 0.0).opacity(0.25)
     static let selectionText = Color.black
     static let originalCurrent = Color.white
     static let translationCurrent = Color(red: 0.996, green: 0.941, blue: 0.541)

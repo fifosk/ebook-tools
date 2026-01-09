@@ -236,6 +236,7 @@ struct SubtitleOverlayView: View {
             time: currentTime,
             visibility: visibility
         ) {
+            let shadowSelectionValue = shadowSelection(from: selection, in: display)
             ZStack(alignment: .topTrailing) {
                 VStack(spacing: 8) {
                     ForEach(display.lines) { line in
@@ -245,6 +246,7 @@ struct SubtitleOverlayView: View {
                             highlightEnd: display.highlightEnd,
                             currentTime: currentTime,
                             selection: selection,
+                            shadowSelection: shadowSelectionValue,
                             fontScale: clampedFontScale,
                             onTokenLookup: onTokenLookup,
                             onTokenSeek: onTokenSeek
@@ -280,6 +282,33 @@ struct SubtitleOverlayView: View {
         max(0.7, min(fontScale, 2.0))
     }
 
+    private func shadowSelection(
+        from selection: VideoSubtitleWordSelection?,
+        in display: VideoSubtitleDisplay
+    ) -> VideoSubtitleWordSelection? {
+        guard let selection else { return nil }
+        let targetKind: VideoSubtitleLineKind
+        switch selection.lineKind {
+        case .translation:
+            targetKind = .transliteration
+        case .transliteration:
+            targetKind = .translation
+        default:
+            return nil
+        }
+        let candidates = display.lines.filter { $0.kind == targetKind && !$0.tokens.isEmpty }
+        guard let targetLine = candidates.min(by: { abs($0.index - selection.lineIndex) < abs($1.index - selection.lineIndex) })
+            ?? candidates.first else {
+            return nil
+        }
+        guard targetLine.tokens.indices.contains(selection.tokenIndex) else { return nil }
+        return VideoSubtitleWordSelection(
+            lineKind: targetLine.kind,
+            lineIndex: targetLine.index,
+            tokenIndex: selection.tokenIndex
+        )
+    }
+
     #if os(iOS)
     private var magnifyGesture: some Gesture {
         MagnificationGesture()
@@ -304,6 +333,7 @@ private struct SubtitleTokenLineView: View {
     let highlightEnd: Double
     let currentTime: Double
     let selection: VideoSubtitleWordSelection?
+    let shadowSelection: VideoSubtitleWordSelection?
     let fontScale: CGFloat
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
     let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
@@ -316,6 +346,7 @@ private struct SubtitleTokenLineView: View {
                     text: token,
                     color: tokenColor(for: tokenState(for: index)),
                     isSelected: isSelectedToken(index),
+                    isShadowSelected: isShadowSelectedToken(index),
                     fontScale: fontScale,
                     horizontalPadding: tokenHorizontalPadding,
                     verticalPadding: tokenVerticalPadding,
@@ -384,6 +415,13 @@ private struct SubtitleTokenLineView: View {
         return selection.lineKind == line.kind
             && selection.lineIndex == line.index
             && selection.tokenIndex == index
+    }
+
+    private func isShadowSelectedToken(_ index: Int) -> Bool {
+        guard let shadowSelection else { return false }
+        return shadowSelection.lineKind == line.kind
+            && shadowSelection.lineIndex == line.index
+            && shadowSelection.tokenIndex == index
     }
 
     private func tokenState(for index: Int) -> SubtitleTokenState {
@@ -497,6 +535,7 @@ private struct SubtitleTokenWordView: View {
     let text: String
     let color: Color
     let isSelected: Bool
+    let isShadowSelected: Bool
     let fontScale: CGFloat
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
@@ -515,9 +554,9 @@ private struct SubtitleTokenWordView: View {
             .foregroundStyle(isSelected ? SubtitleOverlayTheme.selectionText : color)
             .background(
                 Group {
-                    if isSelected {
+                    if isSelected || isShadowSelected {
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(SubtitleOverlayTheme.selectionGlow)
+                            .fill(isSelected ? SubtitleOverlayTheme.selectionGlow : SubtitleOverlayTheme.selectionShadow)
                     }
                 }
             )
@@ -575,6 +614,7 @@ private enum SubtitleOverlayTheme {
     static let transliteration = Color(red: 0.176, green: 0.831, blue: 0.749)
     static let progress = Color(red: 1.0, green: 0.549, blue: 0.0)
     static let selectionGlow = Color(red: 1.0, green: 0.549, blue: 0.0).opacity(0.6)
+    static let selectionShadow = Color(red: 1.0, green: 0.549, blue: 0.0).opacity(0.25)
     static let selectionText = Color.black
     static let originalCurrent = Color.white
     static let translationCurrent = Color(red: 0.996, green: 0.941, blue: 0.541)
