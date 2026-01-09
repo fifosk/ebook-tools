@@ -287,4 +287,23 @@ extension VideoPlayerView {
         }
         return nil
     }
+
+    func wrappedLookupTokenIndex(
+        in tokens: [String],
+        startingAt index: Int,
+        direction: Int
+    ) -> Int? {
+        guard !tokens.isEmpty else { return nil }
+        let step = direction >= 0 ? 1 : -1
+        let count = tokens.count
+        var idx = index
+        for _ in 0..<count {
+            let wrapped = ((idx % count) + count) % count
+            if sanitizeLookupQuery(tokens[wrapped]) != nil {
+                return wrapped
+            }
+            idx += step
+        }
+        return nil
+    }
 }

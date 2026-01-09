@@ -68,6 +68,7 @@ struct SentenceRange: Hashable {
 enum InteractivePlayerFocusArea: Hashable {
     case controls
     case transcript
+    case bubble
 }
 
 struct ChapterNavigationEntry: Identifiable, Hashable {

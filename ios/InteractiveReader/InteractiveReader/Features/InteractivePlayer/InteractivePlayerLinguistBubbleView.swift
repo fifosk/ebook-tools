@@ -30,6 +30,8 @@ struct MyLinguistBubbleView: View {
     let onIncreaseFont: () -> Void
     let onDecreaseFont: () -> Void
     let onClose: () -> Void
+    let isFocusEnabled: Bool
+    let focusBinding: FocusState<InteractivePlayerFocusArea?>.Binding
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -49,6 +51,11 @@ struct MyLinguistBubbleView: View {
                         .background(.black.opacity(0.3), in: Circle())
                 }
                 .buttonStyle(.plain)
+                #if os(tvOS)
+                .focusable(isFocusEnabled)
+                .allowsHitTesting(isFocusEnabled)
+                .focused(focusBinding, equals: .bubble)
+                #endif
             }
 
             Text(bubble.query)
@@ -96,6 +103,11 @@ struct MyLinguistBubbleView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Lookup language")
+        #if os(tvOS)
+        .focusable(isFocusEnabled)
+        .allowsHitTesting(isFocusEnabled)
+        .focused(focusBinding, equals: .bubble)
+        #endif
     }
 
     private var modelMenu: some View {
@@ -122,6 +134,11 @@ struct MyLinguistBubbleView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Lookup model")
+        #if os(tvOS)
+        .focusable(isFocusEnabled)
+        .allowsHitTesting(isFocusEnabled)
+        .focused(focusBinding, equals: .bubble)
+        #endif
     }
 
     @ViewBuilder
@@ -164,6 +181,11 @@ struct MyLinguistBubbleView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canDecreaseFont)
+            #if os(tvOS)
+            .focusable(isFocusEnabled)
+            .allowsHitTesting(isFocusEnabled)
+            .focused(focusBinding, equals: .bubble)
+            #endif
             Button(action: onIncreaseFont) {
                 Text("A+")
                     .font(.caption.weight(.semibold))
@@ -173,6 +195,11 @@ struct MyLinguistBubbleView: View {
             }
             .buttonStyle(.plain)
             .disabled(!canIncreaseFont)
+            #if os(tvOS)
+            .focusable(isFocusEnabled)
+            .allowsHitTesting(isFocusEnabled)
+            .focused(focusBinding, equals: .bubble)
+            #endif
         }
     }
 

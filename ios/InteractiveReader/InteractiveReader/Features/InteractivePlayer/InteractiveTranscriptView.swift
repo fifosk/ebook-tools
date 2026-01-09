@@ -72,6 +72,13 @@ struct InteractiveTranscriptView: View {
             let bubbleReserve = bubble == nil ? 0 : max(bubbleHeight + stackSpacing, minBubbleReserve)
             let preferredTextHeight = (isPad && bubble != nil) ? availableHeight * 0.7 : availableHeight
             let textHeight = max(min(preferredTextHeight, availableHeight - bubbleReserve), 0)
+            let bubbleFocusEnabled: Bool = {
+                #if os(tvOS)
+                return focusedArea == .bubble
+                #else
+                return true
+                #endif
+            }()
 
             #if os(tvOS)
             VStack(alignment: .leading, spacing: stackSpacing) {
@@ -105,7 +112,9 @@ struct InteractiveTranscriptView: View {
                         onLlmModelChange: onLlmModelChange,
                         onIncreaseFont: onIncreaseLinguistFont,
                         onDecreaseFont: onDecreaseLinguistFont,
-                        onClose: onCloseBubble
+                        onClose: onCloseBubble,
+                        isFocusEnabled: bubbleFocusEnabled,
+                        focusBinding: $focusedArea
                     )
                     .background(GeometryReader { bubbleProxy in
                         Color.clear.preference(
@@ -139,21 +148,23 @@ struct InteractiveTranscriptView: View {
                         MyLinguistBubbleView(
                             bubble: bubble,
                             fontScale: linguistFontScale,
-                            canIncreaseFont: canIncreaseLinguistFont,
-                            canDecreaseFont: canDecreaseLinguistFont,
-                            lookupLanguage: lookupLanguage,
-                            lookupLanguageOptions: lookupLanguageOptions,
-                            onLookupLanguageChange: onLookupLanguageChange,
-                            llmModel: llmModel,
-                            llmModelOptions: llmModelOptions,
-                            onLlmModelChange: onLlmModelChange,
-                            onIncreaseFont: onIncreaseLinguistFont,
-                            onDecreaseFont: onDecreaseLinguistFont,
-                            onClose: onCloseBubble
-                        )
-                        .frame(maxWidth: .infinity, alignment: .top)
-                        .padding(.horizontal)
-                        .padding(.bottom, 6)
+                        canIncreaseFont: canIncreaseLinguistFont,
+                        canDecreaseFont: canDecreaseLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseLinguistFont,
+                        onDecreaseFont: onDecreaseLinguistFont,
+                        onClose: onCloseBubble,
+                        isFocusEnabled: bubbleFocusEnabled,
+                        focusBinding: $focusedArea
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    .padding(.horizontal)
+                    .padding(.bottom, 6)
                         .background(GeometryReader { bubbleProxy in
                             Color.clear.preference(
                                 key: InteractiveBubbleHeightKey.self,
@@ -187,22 +198,24 @@ struct InteractiveTranscriptView: View {
                         MyLinguistBubbleView(
                             bubble: bubble,
                             fontScale: linguistFontScale,
-                            canIncreaseFont: canIncreaseLinguistFont,
-                            canDecreaseFont: canDecreaseLinguistFont,
-                            lookupLanguage: lookupLanguage,
-                            lookupLanguageOptions: lookupLanguageOptions,
-                            onLookupLanguageChange: onLookupLanguageChange,
-                            llmModel: llmModel,
-                            llmModelOptions: llmModelOptions,
-                            onLlmModelChange: onLlmModelChange,
-                            onIncreaseFont: onIncreaseLinguistFont,
-                            onDecreaseFont: onDecreaseLinguistFont,
-                            onClose: onCloseBubble
-                        )
-                        .frame(maxWidth: .infinity, alignment: .top)
-                        .background(GeometryReader { bubbleProxy in
-                            Color.clear.preference(
-                                key: InteractiveBubbleHeightKey.self,
+                        canIncreaseFont: canIncreaseLinguistFont,
+                        canDecreaseFont: canDecreaseLinguistFont,
+                        lookupLanguage: lookupLanguage,
+                        lookupLanguageOptions: lookupLanguageOptions,
+                        onLookupLanguageChange: onLookupLanguageChange,
+                        llmModel: llmModel,
+                        llmModelOptions: llmModelOptions,
+                        onLlmModelChange: onLlmModelChange,
+                        onIncreaseFont: onIncreaseLinguistFont,
+                        onDecreaseFont: onDecreaseLinguistFont,
+                        onClose: onCloseBubble,
+                        isFocusEnabled: bubbleFocusEnabled,
+                        focusBinding: $focusedArea
+                    )
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    .background(GeometryReader { bubbleProxy in
+                        Color.clear.preference(
+                            key: InteractiveBubbleHeightKey.self,
                                 value: bubbleProxy.size.height
                             )
                         })

@@ -183,8 +183,11 @@ extension InteractivePlayerView {
               let variant = sentence.variants.first(where: { $0.kind == selection.variantKind }) else {
             return
         }
-        let nextIndex = selection.tokenIndex + delta
-        let resolvedIndex = variant.tokens.indices.contains(nextIndex) ? nextIndex : selection.tokenIndex
+        guard !variant.tokens.isEmpty else { return }
+        let direction = delta >= 0 ? 1 : -1
+        let candidate = selection.tokenIndex + direction
+        let tokenCount = variant.tokens.count
+        let resolvedIndex = ((candidate % tokenCount) + tokenCount) % tokenCount
         linguistSelection = TextPlayerWordSelection(
             sentenceIndex: sentence.index,
             variantKind: selection.variantKind,
@@ -193,13 +196,14 @@ extension InteractivePlayerView {
         scheduleAutoLinguistLookup(in: chunk)
     }
 
-    func handleTrackNavigation(_ delta: Int, in chunk: InteractiveChunk) {
+    @discardableResult
+    func handleTrackNavigation(_ delta: Int, in chunk: InteractiveChunk) -> Bool {
         if audioCoordinator.isPlaying {
             audioCoordinator.pause()
         }
-        guard let sentence = activeSentenceDisplay(for: chunk) else { return }
+        guard let sentence = activeSentenceDisplay(for: chunk) else { return false }
         let variants = sentence.variants
-        guard !variants.isEmpty else { return }
+        guard !variants.isEmpty else { return false }
         let currentSelection = resolvedSelection(for: chunk)
         let currentIndex: Int = {
             if let currentSelection,
@@ -212,7 +216,8 @@ extension InteractivePlayerView {
             }
             return 0
         }()
-        let nextIndex = (currentIndex + delta + variants.count) % variants.count
+        let nextIndex = currentIndex + delta
+        guard variants.indices.contains(nextIndex) else { return false }
         let targetVariant = variants[nextIndex]
         let fallbackIndex = targetVariant.currentIndex ?? 0
         let preferredTokenIndex = currentSelection?.tokenIndex ?? fallbackIndex
@@ -223,6 +228,7 @@ extension InteractivePlayerView {
             tokenIndex: clampedIndex
         )
         scheduleAutoLinguistLookup(in: chunk)
+        return true
     }
 
     func handleTokenSeek(

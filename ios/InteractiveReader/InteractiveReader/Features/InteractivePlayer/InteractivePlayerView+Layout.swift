@@ -70,7 +70,7 @@ extension InteractivePlayerView {
         }
         .onChange(of: viewModel.highlightingTime) { _, _ in
             guard !isMenuVisible else { return }
-            guard focusedArea != .controls else { return }
+            guard focusedArea != .controls && focusedArea != .bubble else { return }
             guard let chunk = viewModel.selectedChunk else { return }
             if audioCoordinator.isPlaying {
                 return
@@ -568,6 +568,8 @@ extension InteractivePlayerView {
                 .foregroundStyle(.white)
         }
         .buttonStyle(.plain)
+        .focusable(focusedArea == .controls)
+        .allowsHitTesting(focusedArea == .controls)
         .focused($focusedArea, equals: .controls)
         .accessibilityLabel(isHeaderCollapsed ? "Show header" : "Hide header")
     }

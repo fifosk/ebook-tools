@@ -118,13 +118,20 @@ struct InteractivePlayerView: View {
             .applyIf(!isMenuVisible) { view in
                 view.onMoveCommand { direction in
                     guard let chunk = viewModel.selectedChunk else { return }
+                    if focusedArea == .bubble {
+                        if direction == .up {
+                            focusedArea = .transcript
+                        }
+                        return
+                    }
                     if focusedArea == .controls {
                         if direction == .down {
                             focusedArea = .transcript
                         }
                         return
                     }
-                    guard focusedArea == .transcript else { return }
+                    let isTranscriptFocus = focusedArea == .transcript || focusedArea == nil
+                    guard isTranscriptFocus else { return }
                     switch direction {
                     case .left:
                         if audioCoordinator.isPlaying {
@@ -142,13 +149,25 @@ struct InteractivePlayerView: View {
                         if audioCoordinator.isPlaying {
                             focusedArea = .controls
                         } else {
-                            handleTrackNavigation(-1, in: chunk)
+                            let moved = handleTrackNavigation(-1, in: chunk)
+                            if moved {
+                                focusedArea = .transcript
+                            } else {
+                                focusedArea = .controls
+                            }
                         }
                     case .down:
                         if audioCoordinator.isPlaying {
                             showMenu()
                         } else {
-                            handleTrackNavigation(1, in: chunk)
+                            let moved = handleTrackNavigation(1, in: chunk)
+                            if moved {
+                                focusedArea = .transcript
+                            } else if linguistBubble != nil {
+                                focusedArea = .bubble
+                            } else {
+                                focusedArea = .transcript
+                            }
                         }
                     default:
                         break

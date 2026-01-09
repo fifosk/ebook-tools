@@ -177,9 +177,10 @@ extension VideoPlayerView {
         let selection = normalizedSelection(from: subtitleSelection, in: display)
             ?? defaultSubtitleSelection(in: display)
         guard let selection, let line = lineForSelection(selection, in: display) else { return }
+        guard !line.tokens.isEmpty else { return }
         let direction = delta >= 0 ? 1 : -1
         let startIndex = selection.tokenIndex + direction
-        guard let nextIndex = nextLookupTokenIndex(
+        guard let nextIndex = wrappedLookupTokenIndex(
             in: line.tokens,
             startingAt: startIndex,
             direction: direction
@@ -199,18 +200,28 @@ extension VideoPlayerView {
         guard !display.lines.isEmpty else { return false }
         let selection = normalizedSelection(from: subtitleSelection, in: display)
             ?? defaultSubtitleSelection(in: display)
-        let currentIndex = selection?.lineIndex ?? 0
-        let nextIndex = max(0, min(currentIndex + delta, display.lines.count - 1))
+        let currentLine = selection.flatMap { lineForSelection($0, in: display) } ?? display.lines[0]
+        let step = delta >= 0 ? 1 : -1
+        let currentIndex = display.lines.indices.contains(currentLine.index)
+            ? currentLine.index
+            : (display.lines.firstIndex(where: { $0.id == currentLine.id }) ?? 0)
+        let nextIndex = currentIndex + step
         guard display.lines.indices.contains(nextIndex) else { return false }
-        let moved = selection?.lineIndex != nextIndex
         let line = display.lines[nextIndex]
-        let tokenIndex = currentTokenIndex(
-            for: line,
+        let baseTokenIndex = selection?.tokenIndex ?? currentTokenIndex(
+            for: currentLine,
             cueStart: display.highlightStart,
             cueEnd: display.highlightEnd,
             time: coordinator.currentTime
         )
-        let resolvedIndex = nearestLookupTokenIndex(in: line.tokens, startingAt: tokenIndex) ?? tokenIndex
+        let clampedIndex = max(0, min(baseTokenIndex, max(0, line.tokens.count - 1)))
+        let resolvedIndex: Int = {
+            guard line.tokens.indices.contains(clampedIndex) else { return clampedIndex }
+            if sanitizeLookupQuery(line.tokens[clampedIndex]) != nil {
+                return clampedIndex
+            }
+            return nearestLookupTokenIndex(in: line.tokens, startingAt: clampedIndex) ?? clampedIndex
+        }()
         isManualSubtitleNavigation = true
         subtitleSelection = VideoSubtitleWordSelection(
             lineKind: line.kind,
@@ -218,7 +229,19 @@ extension VideoPlayerView {
             tokenIndex: resolvedIndex
         )
         scheduleAutoSubtitleLookup()
-        return moved
+        return true
+    }
+
+    func subtitleLineKinds(in display: VideoSubtitleDisplay) -> [VideoSubtitleLineKind] {
+        var seen = Set<VideoSubtitleLineKind>()
+        var ordered: [VideoSubtitleLineKind] = []
+        for line in display.lines {
+            if !seen.contains(line.kind) {
+                seen.insert(line.kind)
+                ordered.append(line.kind)
+            }
+        }
+        return ordered
     }
 
     func handleSentenceSkip(_ delta: Int) {
