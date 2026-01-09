@@ -9,12 +9,15 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { CSSProperties, ReactNode, UIEvent } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, ReactNode, UIEvent } from 'react';
 import type { AudioTrackMetadata } from '../api/dtos';
 import type { LiveMediaChunk } from '../hooks/useLiveMedia';
 import { DebugOverlay } from '../player/DebugOverlay';
 import '../styles/debug-overlay.css';
-import TextPlayer, { type TextPlayerVariantKind } from '../text-player/TextPlayer';
+import TextPlayer, {
+  type TextPlayerTokenSelection,
+  type TextPlayerVariantKind,
+} from '../text-player/TextPlayer';
 import { useLanguagePreferences } from '../context/LanguageProvider';
 import { useMyPainter } from '../context/MyPainterProvider';
 import type { InteractiveTextTheme } from '../types/interactiveTextTheme';
@@ -233,6 +236,7 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     resolvedAudioUrl,
     effectiveAudioUrl,
     inlineAudioPlayingRef,
+    isInlineAudioPlaying,
     audioTimelineText,
     audioTimelineTitle,
     sequenceDebugInfo,
@@ -281,6 +285,9 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     sequenceDebugEnabled,
   });
   const { legacyWordSyncEnabled, shouldUseWordSync, wordSyncSentences } = wordSync;
+  const [manualSelection, setManualSelection] = useState<TextPlayerTokenSelection | null>(null);
+  const activeTextSentence =
+    textPlayerSentences && textPlayerSentences.length > 0 ? textPlayerSentences[0] : null;
 
   const linguist = useLinguistBubble({
     containerRef,
@@ -334,7 +341,38 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
     onPointerCancelCapture: handlePointerCancelCapture,
     onBackgroundClick: handleInteractiveBackgroundClick,
     requestPositionUpdate: requestLinguistBubblePositionUpdate,
+    openTokenLookup: openLinguistTokenLookup,
   } = linguist;
+
+  useEffect(() => {
+    setManualSelection(null);
+  }, [activeTextSentence?.id]);
+
+  useEffect(() => {
+    if (isInlineAudioPlaying) {
+      setManualSelection(null);
+    }
+  }, [isInlineAudioPlaying]);
+
+  useEffect(() => {
+    if (isInlineAudioPlaying || !activeTextSentence) {
+      return;
+    }
+    const navigation = linguistBubble?.navigation ?? null;
+    if (!navigation || navigation.sentenceIndex !== activeTextSentence.index) {
+      return;
+    }
+    const variant = activeTextSentence.variants.find((entry) => entry.baseClass === navigation.variantKind);
+    if (!variant || variant.tokens.length === 0) {
+      return;
+    }
+    const clampedIndex = Math.max(0, Math.min(navigation.tokenIndex, variant.tokens.length - 1));
+    setManualSelection({
+      sentenceIndex: activeTextSentence.index,
+      variantKind: navigation.variantKind,
+      tokenIndex: clampedIndex,
+    });
+  }, [activeTextSentence, isInlineAudioPlaying, linguistBubble?.navigation]);
 
   const fullscreenRequestedRef = useRef(false);
   const fullscreenResyncPendingRef = useRef(false);
@@ -616,6 +654,180 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
   });
 
   const overlayAudioEl = playerCore?.getElement() ?? audioRef.current ?? null;
+  const { selection: textPlayerSelection, shadowSelection: textPlayerShadowSelection } = useMemo(() => {
+    if (!activeTextSentence) {
+      return { selection: null, shadowSelection: null };
+    }
+
+    const variantForKind = (kind: TextPlayerVariantKind) =>
+      activeTextSentence.variants.find((variant) => variant.baseClass === kind) ?? null;
+
+    const resolveSelection = (
+      variant: (typeof activeTextSentence.variants)[number] | null,
+    ): TextPlayerTokenSelection | null => {
+      if (!variant || variant.tokens.length === 0) {
+        return null;
+      }
+      const rawIndex =
+        typeof variant.currentIndex === 'number' && Number.isFinite(variant.currentIndex)
+          ? Math.trunc(variant.currentIndex)
+          : 0;
+      const clampedIndex = Math.max(0, Math.min(rawIndex, variant.tokens.length - 1));
+      return {
+        sentenceIndex: activeTextSentence.index,
+        variantKind: variant.baseClass,
+        tokenIndex: clampedIndex,
+      };
+    };
+
+    const normalizeSelection = (selection: TextPlayerTokenSelection | null): TextPlayerTokenSelection | null => {
+      if (!selection || selection.sentenceIndex !== activeTextSentence.index) {
+        return null;
+      }
+      const variant = variantForKind(selection.variantKind);
+      if (!variant || variant.tokens.length === 0) {
+        return null;
+      }
+      const clampedIndex = Math.max(0, Math.min(selection.tokenIndex, variant.tokens.length - 1));
+      return {
+        sentenceIndex: activeTextSentence.index,
+        variantKind: variant.baseClass,
+        tokenIndex: clampedIndex,
+      };
+    };
+
+    const defaultSelection =
+      resolveSelection(variantForKind('translation')) ??
+      resolveSelection(variantForKind('translit')) ??
+      resolveSelection(variantForKind('original'));
+
+    const navigation = linguistBubble?.navigation ?? null;
+    const bubbleSelection = navigation
+      ? normalizeSelection({
+          sentenceIndex: navigation.sentenceIndex,
+          variantKind: navigation.variantKind,
+          tokenIndex: navigation.tokenIndex,
+        })
+      : null;
+    const safeManualSelection = normalizeSelection(manualSelection);
+
+    const selection = isInlineAudioPlaying
+      ? defaultSelection
+      : safeManualSelection ?? bubbleSelection ?? defaultSelection;
+    const translationVariant = variantForKind('translation');
+    const translitVariant = variantForKind('translit');
+    let shadowSelection: TextPlayerTokenSelection | null = null;
+    if (
+      selection &&
+      translationVariant &&
+      translitVariant &&
+      translationVariant.tokens.length === translitVariant.tokens.length
+    ) {
+      const shadowIndex = selection.tokenIndex;
+      if (shadowIndex >= 0 && shadowIndex < translationVariant.tokens.length) {
+        if (selection.variantKind === 'translation') {
+          shadowSelection = {
+            sentenceIndex: activeTextSentence.index,
+            variantKind: 'translit',
+            tokenIndex: shadowIndex,
+          };
+        } else if (selection.variantKind === 'translit') {
+          shadowSelection = {
+            sentenceIndex: activeTextSentence.index,
+            variantKind: 'translation',
+            tokenIndex: shadowIndex,
+          };
+        }
+      }
+    }
+
+    return { selection, shadowSelection };
+  }, [activeTextSentence, isInlineAudioPlaying, linguistBubble?.navigation, manualSelection]);
+  const handleTextPlayerKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      if (isInlineAudioPlaying || !activeTextSentence) {
+        return;
+      }
+      const key = event.key;
+      const isArrow =
+        key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
+      if (key !== 'Enter' && !isArrow) {
+        return;
+      }
+      const variants = activeTextSentence.variants.filter((variant) => variant.tokens.length > 0);
+      if (variants.length === 0) {
+        return;
+      }
+      const fallbackSelection: TextPlayerTokenSelection = {
+        sentenceIndex: activeTextSentence.index,
+        variantKind: variants[0].baseClass,
+        tokenIndex: 0,
+      };
+      const current = textPlayerSelection ?? fallbackSelection;
+      const currentVariant =
+        variants.find((variant) => variant.baseClass === current.variantKind) ?? variants[0];
+      const tokenCount = currentVariant.tokens.length;
+      if (tokenCount === 0) {
+        return;
+      }
+
+      if (key === 'Enter') {
+        const tokenText = currentVariant.tokens[current.tokenIndex] ?? '';
+        if (!tokenText.trim()) {
+          return;
+        }
+        const selector = [
+          `[data-sentence-index="${current.sentenceIndex}"]`,
+          `[data-text-player-token="true"][data-text-player-variant="${current.variantKind}"][data-text-player-token-index="${current.tokenIndex}"]`,
+        ].join(' ');
+        const candidate = containerRef.current?.querySelector(selector);
+        const anchorElement = candidate instanceof HTMLElement ? candidate : null;
+        openLinguistTokenLookup(tokenText, current.variantKind, anchorElement, {
+          sentenceIndex: current.sentenceIndex,
+          tokenIndex: current.tokenIndex,
+          variantKind: current.variantKind,
+        });
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+
+      let nextSelection: TextPlayerTokenSelection | null = null;
+      if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        const delta = key === 'ArrowRight' ? 1 : -1;
+        let nextIndex = current.tokenIndex + delta;
+        if (nextIndex < 0) {
+          nextIndex = tokenCount - 1;
+        } else if (nextIndex >= tokenCount) {
+          nextIndex = 0;
+        }
+        nextSelection = {
+          sentenceIndex: activeTextSentence.index,
+          variantKind: currentVariant.baseClass,
+          tokenIndex: nextIndex,
+        };
+      } else {
+        const order = variants.map((variant) => variant.baseClass);
+        const currentPos = order.indexOf(currentVariant.baseClass);
+        const nextPos = key === 'ArrowUp' ? currentPos - 1 : currentPos + 1;
+        if (nextPos < 0 || nextPos >= order.length) {
+          return;
+        }
+        const nextVariant = variants[nextPos];
+        const clampedIndex = Math.max(0, Math.min(current.tokenIndex, nextVariant.tokens.length - 1));
+        nextSelection = {
+          sentenceIndex: activeTextSentence.index,
+          variantKind: nextVariant.baseClass,
+          tokenIndex: clampedIndex,
+        };
+      }
+
+      setManualSelection(nextSelection);
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [activeTextSentence, isInlineAudioPlaying, openLinguistTokenLookup, textPlayerSelection],
+  );
   const showTextPlayer =
     !(legacyWordSyncEnabled && shouldUseWordSync && wordSyncSentences && wordSyncSentences.length > 0) &&
     Boolean(textPlayerSentences && textPlayerSentences.length > 0);
@@ -806,6 +1018,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
               className="player-panel__interactive-text-scroll"
               data-testid="player-panel-document"
               onScroll={handleScroll}
+              onKeyDown={handleTextPlayerKeyDown}
+              tabIndex={0}
               onClickCapture={handleLinguistTokenClickCapture}
               onClick={handleInteractiveBackgroundClick}
               onPointerDownCapture={handlePointerDownCapture}
@@ -817,6 +1031,8 @@ const InteractiveTextViewer = forwardRef<HTMLDivElement | null, InteractiveTextV
                 <TextPlayer
                   sentences={textPlayerSentences ?? []}
                   onSeek={handleTokenSeek}
+                  selection={textPlayerSelection}
+                  shadowSelection={textPlayerShadowSelection}
                   footer={pinnedLinguistBubbleNode}
                 />
               ) : rawSentences.length > 0 ? (

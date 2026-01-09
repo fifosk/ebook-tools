@@ -11,9 +11,11 @@ import {
 import type {
   LinguistBubbleFloatingPlacement,
   LinguistBubbleState,
+  LinguistBubbleNavigation,
   SentenceFragment,
   TimelineDisplay,
 } from './types';
+import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
 import { useLinguistBubbleInteractions } from './useLinguistBubbleInteractions';
 import { useLinguistBubbleLayout } from './useLinguistBubbleLayout';
 import { useLinguistBubbleLookup } from './useLinguistBubbleLookup';
@@ -72,6 +74,12 @@ export type UseLinguistBubbleResult = {
   onPointerCancelCapture: (event: ReactPointerEvent<HTMLDivElement>) => void;
   onBackgroundClick: (event: ReactMouseEvent<HTMLDivElement>) => void;
   requestPositionUpdate: () => void;
+  openTokenLookup: (
+    query: string,
+    variantKind: TextPlayerVariantKind | null,
+    anchorElement: HTMLElement | null,
+    navigationOverride?: LinguistBubbleNavigation | null,
+  ) => void;
 };
 
 export function useLinguistBubble({
@@ -159,6 +167,37 @@ export function useLinguistBubble({
     layout.resetLayout();
   }, [layout.resetLayout, lookup.resetBubbleState, navigation.resetNavigation]);
 
+  const openTokenLookup = useCallback(
+    (
+      query: string,
+      variantKind: TextPlayerVariantKind | null,
+      anchorElement: HTMLElement | null,
+      navigationOverride: LinguistBubbleNavigation | null = null,
+    ) => {
+      if (!isEnabled) {
+        return;
+      }
+      const trimmed = query.trim();
+      if (!trimmed) {
+        return;
+      }
+      const rect =
+        anchorElement?.getBoundingClientRect() ?? containerRef.current?.getBoundingClientRect();
+      if (!rect) {
+        return;
+      }
+      lookup.openLinguistBubbleForRect(
+        trimmed,
+        rect,
+        'click',
+        variantKind,
+        anchorElement,
+        navigationOverride,
+      );
+    },
+    [containerRef, isEnabled, lookup],
+  );
+
   useEffect(() => {
     if (!linguistBubble) {
       return;
@@ -230,6 +269,7 @@ export function useLinguistBubble({
       onPointerCancelCapture: noopPointer,
       onBackgroundClick: interactions.onBackgroundClick,
       requestPositionUpdate: noop,
+      openTokenLookup: noop as UseLinguistBubbleResult['openTokenLookup'],
     };
   }
 
@@ -266,5 +306,6 @@ export function useLinguistBubble({
     onPointerCancelCapture: interactions.onPointerCancelCapture,
     onBackgroundClick: interactions.onBackgroundClick,
     requestPositionUpdate: layout.requestPositionUpdate,
+    openTokenLookup,
   };
 }

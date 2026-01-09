@@ -8,6 +8,7 @@ import { PlayerPanelShell } from './player-panel/PlayerPanelShell';
 import {
   appendAccessToken,
   createExport,
+  fetchPipelineStatus,
   fetchSubtitleTvMetadata,
   fetchYoutubeVideoMetadata,
   resolveLibraryMediaUrl,
@@ -15,6 +16,8 @@ import {
 } from '../api/client';
 import {
   DEFAULT_TRANSLATION_SPEED,
+  FONT_SCALE_STEP,
+  MY_LINGUIST_FONT_SCALE_STEP,
   TRANSLATION_SPEED_MAX,
   TRANSLATION_SPEED_MIN,
   TRANSLATION_SPEED_STEP,
@@ -25,6 +28,9 @@ import type { NavigationIntent } from './player-panel/constants';
 import type { LibraryItem, SubtitleTvMetadataResponse, YoutubeVideoMetadataResponse } from '../api/dtos';
 import { coerceExportPath } from '../utils/storageResolver';
 import { downloadWithSaveAs } from '../utils/downloads';
+import { buildLibraryBookMetadata } from '../utils/libraryMetadata';
+import { extractMetadataFirstString, extractMetadataText } from './player-panel/helpers';
+import { useMyLinguist } from '../context/MyLinguistProvider';
 
 type PlaybackControls = { pause: () => void; play: () => void; ensureFullscreen?: () => void; seek?: (time: number) => void };
 
@@ -41,7 +47,12 @@ interface YoutubeDubPlayerProps {
   showBackToLibrary?: boolean;
   onBackToLibrary?: () => void;
   libraryItem?: LibraryItem | null;
+  bookMetadata?: Record<string, unknown> | null;
 }
+
+const SUBTITLE_SCALE_MIN = 0.5;
+const SUBTITLE_SCALE_MAX = 2;
+const SUBTITLE_SCALE_STEP = FONT_SCALE_STEP / 100;
 
 function replaceUrlExtension(value: string, suffix: string): string | null {
   const trimmed = value.trim();
@@ -79,6 +90,18 @@ function coerceRecord(value: unknown): Record<string, unknown> | null {
     return null;
   }
   return value as Record<string, unknown>;
+}
+
+function readStringValue(source: Record<string, unknown> | null | undefined, key: string): string | null {
+  if (!source) {
+    return null;
+  }
+  const value = source[key];
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
 }
 
 function resolveLibraryAssetUrl(jobId: string, value: unknown): string | null {
@@ -205,8 +228,10 @@ export default function YoutubeDubPlayer({
   showBackToLibrary = false,
   onBackToLibrary,
   libraryItem = null,
+  bookMetadata = null,
 }: YoutubeDubPlayerProps) {
   const isExportMode = playerMode === 'export';
+  const { adjustBaseFontScalePercent } = useMyLinguist();
   const resolveMediaUrl = useCallback(
     (url: string) => {
       if (isExportMode) {
@@ -244,6 +269,8 @@ export default function YoutubeDubPlayer({
   const { bookmarks, addBookmark, removeBookmark } = usePlaybackBookmarks({ jobId });
   const [jobTvMetadata, setJobTvMetadata] = useState<Record<string, unknown> | null>(null);
   const [jobYoutubeMetadata, setJobYoutubeMetadata] = useState<Record<string, unknown> | null>(null);
+  const [jobOriginalLanguage, setJobOriginalLanguage] = useState<string | null>(null);
+  const [jobTranslationLanguage, setJobTranslationLanguage] = useState<string | null>(null);
 
   useEffect(() => {
     if (libraryItem || isExportMode) {
@@ -280,8 +307,73 @@ export default function YoutubeDubPlayer({
       cancelled = true;
     };
   }, [isExportMode, jobId, libraryItem]);
+
+  useEffect(() => {
+    if (!jobId) {
+      setJobOriginalLanguage(null);
+      setJobTranslationLanguage(null);
+      return;
+    }
+    if (libraryItem) {
+      const metadata = buildLibraryBookMetadata(libraryItem);
+      const original =
+        extractMetadataText(metadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
+      const target =
+        extractMetadataFirstString(metadata, ['target_language', 'translation_language', 'target_languages']) ??
+        null;
+      setJobOriginalLanguage(original);
+      setJobTranslationLanguage(target);
+      return;
+    }
+    if (bookMetadata) {
+      const original =
+        extractMetadataText(bookMetadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
+      const target =
+        extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ??
+        null;
+      setJobOriginalLanguage(original);
+      setJobTranslationLanguage(target);
+      return;
+    }
+    if (isExportMode) {
+      setJobOriginalLanguage(null);
+      setJobTranslationLanguage(null);
+      return;
+    }
+    let cancelled = false;
+    setJobOriginalLanguage(null);
+    setJobTranslationLanguage(null);
+    void fetchPipelineStatus(jobId)
+      .then((status) => {
+        if (cancelled) {
+          return;
+        }
+        const parameters = status.parameters;
+        const parameterRecord = coerceRecord(parameters);
+        const original =
+          typeof parameters?.input_language === 'string' && parameters.input_language.trim()
+            ? parameters.input_language.trim()
+            : readStringValue(parameterRecord, 'original_language');
+        const targetLanguages = Array.isArray(parameters?.target_languages) ? parameters.target_languages : [];
+        const firstTarget =
+          typeof targetLanguages[0] === 'string' && targetLanguages[0].trim() ? targetLanguages[0].trim() : null;
+        const targetLanguage =
+          readStringValue(parameterRecord, 'target_language') ?? readStringValue(parameterRecord, 'translation_language');
+        setJobOriginalLanguage(original);
+        setJobTranslationLanguage(firstTarget ?? targetLanguage);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setJobOriginalLanguage(null);
+          setJobTranslationLanguage(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bookMetadata, isExportMode, jobId, libraryItem]);
   const subtitleMap = useMemo(() => {
-    const priorities = ['vtt', 'srt', 'ass', 'text'];
+    const priorities = ['ass', 'vtt', 'srt', 'text'];
     const resolveSuffix = (value: string | null | undefined) => {
       if (!value) {
         return '';
@@ -369,24 +461,45 @@ export default function YoutubeDubPlayer({
           }
           return 0;
         });
-      const best = scored[0]?.entry;
-      if (best) {
-        map.set(videoId, [
-          {
-            url: resolveMediaUrl(best.url!),
-            label: best.name ?? best.url ?? 'Subtitles',
-            kind: 'subtitles',
-            language: (best as { language?: string }).language ?? undefined,
-          },
-        ]);
-        return;
+      const orderedEntries = scored.map((entry) => entry.entry);
+      if (orderedEntries.length > 0) {
+        const seen = new Set<string>();
+        const unique = orderedEntries.filter((entry) => {
+          const url = entry.url ?? '';
+          if (!url || seen.has(url)) {
+            return false;
+          }
+          seen.add(url);
+          return true;
+        });
+        if (unique.length > 0) {
+          map.set(
+            videoId,
+            unique.map((entry) => ({
+              url: resolveMediaUrl(entry.url!),
+              label: entry.name ?? entry.url ?? 'Subtitles',
+              kind: 'subtitles',
+              language: (entry as { language?: string }).language ?? undefined,
+            })),
+          );
+          return;
+        }
       }
       const filtered = matches.filter((entry) => typeof entry.url === 'string' && entry.url.length > 0);
       if (filtered.length > 0) {
+        const seen = new Set<string>();
         map.set(
           videoId,
           filtered
             .sort((a, b) => formatRank(a) - formatRank(b))
+            .filter((entry) => {
+              const url = entry.url ?? '';
+              if (!url || seen.has(url)) {
+                return false;
+              }
+              seen.add(url);
+              return true;
+            })
             .map((entry) => ({
               url: resolveMediaUrl(entry.url!),
               label: entry.name ?? entry.url ?? 'Subtitles',
@@ -407,7 +520,7 @@ export default function YoutubeDubPlayer({
     if (!videoUrl) {
       return [];
     }
-    const candidates = ['.vtt', '.srt', '.ass']
+    const candidates = ['.ass', '.vtt', '.srt']
       .map((suffix) => replaceUrlExtension(videoUrl, suffix))
       .filter((candidate): candidate is string => Boolean(candidate));
     if (candidates.length === 0) {
@@ -753,51 +866,6 @@ export default function YoutubeDubPlayer({
     };
   }, [isFullscreen, activeVideoId]);
 
-  useEffect(() => {
-    if (typeof window === 'undefined') {
-      return undefined;
-    }
-    const isTypingTarget = (target: EventTarget | null): boolean => {
-      if (!target || !(target instanceof HTMLElement)) {
-        return false;
-      }
-      const tag = target.tagName;
-      if (!tag) {
-        return false;
-      }
-      return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.altKey || event.metaKey || event.ctrlKey || isTypingTarget(event.target)) {
-        return;
-      }
-      const key = event.key?.toLowerCase();
-      if (key === 'f') {
-        handleToggleFullscreen();
-        event.preventDefault();
-        return;
-      }
-      if (key === 'o') {
-        toggleCueVisibility('original');
-        event.preventDefault();
-        return;
-      }
-      if (key === 'i') {
-        toggleCueVisibility('transliteration');
-        event.preventDefault();
-        return;
-      }
-      if (key === 'p') {
-        toggleCueVisibility('translation');
-        event.preventDefault();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleToggleFullscreen, toggleCueVisibility]);
-
   const handleRegisterControls = useCallback(
     (controls: PlaybackControls | null) => {
       controlsRef.current = controls;
@@ -831,6 +899,85 @@ export default function YoutubeDubPlayer({
   const handleSubtitleToggle = useCallback(() => {
     setSubtitlesEnabled((current) => !current);
   }, []);
+  const adjustSubtitleScale = useCallback((direction: 'increase' | 'decrease') => {
+    setSubtitleScale((current) => {
+      const delta = direction === 'increase' ? SUBTITLE_SCALE_STEP : -SUBTITLE_SCALE_STEP;
+      const next = Math.min(Math.max(current + delta, SUBTITLE_SCALE_MIN), SUBTITLE_SCALE_MAX);
+      const snapped = Math.round(next * 100) / 100;
+      return Math.abs(snapped - current) < 1e-4 ? current : snapped;
+    });
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const isTypingTarget = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName;
+      if (!tag) {
+        return false;
+      }
+      return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.altKey || event.metaKey || isTypingTarget(event.target)) {
+        return;
+      }
+      const key = event.key?.toLowerCase();
+      const code = event.code;
+      const isPlusKey =
+        key === '+' || key === '=' || code === 'Equal' || code === 'NumpadAdd';
+      const isMinusKey =
+        key === '-' || key === '_' || code === 'Minus' || code === 'NumpadSubtract';
+
+      if (event.ctrlKey) {
+        if (isPlusKey) {
+          adjustBaseFontScalePercent(MY_LINGUIST_FONT_SCALE_STEP);
+          event.preventDefault();
+        } else if (isMinusKey) {
+          adjustBaseFontScalePercent(-MY_LINGUIST_FONT_SCALE_STEP);
+          event.preventDefault();
+        }
+        return;
+      }
+      if (key === 'f') {
+        handleToggleFullscreen();
+        event.preventDefault();
+        return;
+      }
+      if (key === 'o') {
+        toggleCueVisibility('original');
+        event.preventDefault();
+        return;
+      }
+      if (key === 'i') {
+        toggleCueVisibility('transliteration');
+        event.preventDefault();
+        return;
+      }
+      if (key === 'p') {
+        toggleCueVisibility('translation');
+        event.preventDefault();
+        return;
+      }
+      if (isPlusKey && !event.shiftKey) {
+        adjustSubtitleScale('increase');
+        event.preventDefault();
+        return;
+      }
+      if (isMinusKey && !event.shiftKey) {
+        adjustSubtitleScale('decrease');
+        event.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [adjustBaseFontScalePercent, adjustSubtitleScale, handleToggleFullscreen, toggleCueVisibility]);
 
   const cuePreferenceKey = useMemo(() => `youtube-dub-cue-preference-${jobId}`, [jobId]);
   const subtitleScaleKey = useMemo(() => `youtube-dub-subtitle-scale-${jobId}`, [jobId]);
@@ -886,7 +1033,7 @@ export default function YoutubeDubPlayer({
         return;
       }
       setSubtitleScale((current) => {
-        const next = Math.min(Math.max(parsed, 0.5), 2);
+        const next = Math.min(Math.max(parsed, SUBTITLE_SCALE_MIN), SUBTITLE_SCALE_MAX);
         return Math.abs(next - current) < 1e-3 ? current : next;
       });
     } catch (error) {
@@ -1086,7 +1233,7 @@ export default function YoutubeDubPlayer({
     if (!Number.isFinite(value)) {
       return;
     }
-    const clamped = Math.min(Math.max(value, 0.5), 2);
+    const clamped = Math.min(Math.max(value, SUBTITLE_SCALE_MIN), SUBTITLE_SCALE_MAX);
     setSubtitleScale(clamped);
   }, []);
   const handleSubtitleBackgroundOpacityChange = useCallback((value: number) => {
@@ -1191,9 +1338,9 @@ export default function YoutubeDubPlayer({
           onTranslationSpeedChange={handleTranslationSpeedChange}
           showSubtitleScale
           subtitleScale={subtitleScale}
-          subtitleScaleMin={0.5}
-          subtitleScaleMax={2}
-          subtitleScaleStep={0.25}
+          subtitleScaleMin={SUBTITLE_SCALE_MIN}
+          subtitleScaleMax={SUBTITLE_SCALE_MAX}
+          subtitleScaleStep={SUBTITLE_SCALE_STEP}
           onSubtitleScaleChange={handleSubtitleScaleChange}
           showSubtitleBackgroundOpacity
           subtitleBackgroundOpacityPercent={subtitleBackgroundOpacityPercent}
@@ -1235,6 +1382,9 @@ export default function YoutubeDubPlayer({
             resetPlaybackPosition(id);
             setActiveVideoId(id);
           }}
+          jobId={jobId}
+          jobOriginalLanguage={jobOriginalLanguage}
+          jobTranslationLanguage={jobTranslationLanguage}
           infoBadge={infoBadge}
           autoPlay
           onPlaybackEnded={handlePlaybackEnded}

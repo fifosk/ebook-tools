@@ -149,9 +149,9 @@ export function useLinguistBubbleLookup({
       });
 
       const jobPreferredInputLanguage =
-        variantKind === 'translation'
-          ? resolvedJobTranslationLanguage
-          : variantKind === 'original' || variantKind === 'translit'
+        variantKind === 'translation' || variantKind === 'translit'
+          ? resolvedJobTranslationLanguage ?? resolvedJobOriginalLanguage
+          : variantKind === 'original'
             ? resolvedJobOriginalLanguage
             : null;
       const resolvedInputLanguage =

@@ -16,6 +16,9 @@ interface VideoPlayerProps {
   files: VideoFile[];
   activeId: string | null;
   onSelectFile: (fileId: string) => void;
+  jobId?: string | null;
+  jobOriginalLanguage?: string | null;
+  jobTranslationLanguage?: string | null;
   infoBadge?: {
     title?: string | null;
     meta?: string | null;
@@ -59,6 +62,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { CSSProperties } from 'react';
 import { formatMediaDropdownLabel } from '../utils/mediaLabels';
 import PlayerChannelBug from './PlayerChannelBug';
+import SubtitleTrackOverlay from './video-subtitles/SubtitleTrackOverlay';
 
 const DEFAULT_PLAYBACK_RATE = 1;
 
@@ -164,6 +168,27 @@ function selectPrimarySubtitleTrack(tracks: SubtitleTrack[]): SubtitleTrack | nu
   return vtt ?? tracks[0] ?? null;
 }
 
+function selectAssSubtitleTrack(tracks: SubtitleTrack[]): SubtitleTrack | null {
+  if (!tracks || tracks.length === 0) {
+    return null;
+  }
+  return (
+    tracks.find((track) => {
+      const candidate = track.url ?? '';
+      const withoutQuery = candidate.split(/[?#]/)[0] ?? '';
+      return withoutQuery.toLowerCase().endsWith('.ass');
+    }) ?? null
+  );
+}
+
+function isAssSubtitleTrack(track: SubtitleTrack | null): boolean {
+  if (!track?.url) {
+    return false;
+  }
+  const withoutQuery = track.url.split(/[?#]/)[0] ?? '';
+  return withoutQuery.toLowerCase().endsWith('.ass');
+}
+
 function isNativeWebkitFullscreen(video: HTMLVideoElement | null): boolean {
   if (!video) {
     return false;
@@ -176,6 +201,9 @@ export default function VideoPlayer({
   files,
   activeId,
   onSelectFile,
+  jobId = null,
+  jobOriginalLanguage = null,
+  jobTranslationLanguage = null,
   infoBadge = null,
   autoPlay = false,
   onPlaybackEnded,
@@ -216,6 +244,7 @@ export default function VideoPlayer({
   const getFullscreenTarget = useCallback(() => fullscreenRef.current ?? elementRef.current, []);
 
   const activeSubtitleTrack = useMemo(() => selectPrimarySubtitleTrack(tracks), [tracks]);
+  const overlaySubtitleTrack = useMemo(() => selectAssSubtitleTrack(tracks), [tracks]);
   const resolvedSubtitleBackgroundOpacity = useMemo(
     () => sanitiseOpacity(subtitleBackgroundOpacity),
     [subtitleBackgroundOpacity],
@@ -227,6 +256,7 @@ export default function VideoPlayer({
   const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
   const allowCrossOrigin = !isFileProtocol;
   const [processedSubtitleUrl, setProcessedSubtitleUrl] = useState<string>(EMPTY_VTT_DATA_URL);
+  const [subtitleOverlayActive, setSubtitleOverlayActive] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [secondaryCoverFailed, setSecondaryCoverFailed] = useState(false);
   useEffect(() => {
@@ -334,7 +364,9 @@ export default function VideoPlayer({
       }
 
       const nextSrc = subtitlesEnabled && track?.url ? processedSubtitleUrl : EMPTY_VTT_DATA_URL;
-      const wantsEnabled = Boolean(subtitlesEnabled && track?.url && nextSrc !== EMPTY_VTT_DATA_URL);
+      const wantsEnabled = Boolean(
+        subtitlesEnabled && track?.url && nextSrc !== EMPTY_VTT_DATA_URL && !subtitleOverlayActive && !isAssSubtitleTrack(track),
+      );
 
       const setTrackSrc = (src: string) => {
         if (trackElement.getAttribute('src') !== src) {
@@ -410,7 +442,7 @@ export default function VideoPlayer({
       }
       bumpRevision();
     },
-    [processedSubtitleUrl, subtitlesEnabled],
+    [processedSubtitleUrl, subtitlesEnabled, subtitleOverlayActive],
   );
 
   const requestFullscreenPlayback = useCallback((force = false) => {
@@ -1139,6 +1171,18 @@ export default function VideoPlayer({
               <track ref={subtitleTrackElementRef} kind="subtitles" label="Subtitles" srcLang="und" default />
               Your browser does not support the video element.
             </video>
+            <SubtitleTrackOverlay
+              videoRef={elementRef}
+              track={overlaySubtitleTrack}
+              enabled={subtitlesEnabled}
+              cueVisibility={cueVisibility}
+              subtitleScale={subtitleScale}
+              subtitleBackgroundOpacity={resolvedSubtitleBackgroundOpacity}
+              onOverlayActiveChange={setSubtitleOverlayActive}
+              jobId={jobId}
+              jobOriginalLanguage={jobOriginalLanguage}
+              jobTranslationLanguage={jobTranslationLanguage}
+            />
           </div>
         </div>
         <div className="video-player__selector">

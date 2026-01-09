@@ -123,7 +123,7 @@
 
 .wordBase {
   cursor: pointer;
-  transition: color 140ms ease, text-shadow 140ms ease;
+  transition: color 140ms ease, text-shadow 140ms ease, box-shadow 140ms ease;
 }
 
 .wordOriginal {
@@ -175,6 +175,17 @@
 
 .wordTranslationFuture {
   color: var(--tp-translation, #34d399);
+}
+
+.wordSelected {
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.35);
+  border-radius: 0.35rem;
+}
+
+.wordShadow {
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.18);
+  border-radius: 0.35rem;
 }
 
 .wordSpacer {

@@ -12,6 +12,12 @@ export interface TextPlayerVariantDisplay {
   seekTimes?: number[];
 }
 
+export type TextPlayerTokenSelection = {
+  sentenceIndex: number;
+  tokenIndex: number;
+  variantKind: TextPlayerVariantKind;
+};
+
 export interface TextPlayerSentence {
   id: string;
   index: number;
@@ -23,6 +29,8 @@ export interface TextPlayerSentence {
 interface TextPlayerProps {
   sentences: TextPlayerSentence[];
   onSeek?: (time: number) => void;
+  selection?: TextPlayerTokenSelection | null;
+  shadowSelection?: TextPlayerTokenSelection | null;
   belowTracks?: React.ReactNode;
   footer?: React.ReactNode;
 }
@@ -76,6 +84,8 @@ function renderVariant(
   sentenceIndex: number,
   variant: TextPlayerVariantDisplay,
   onSeek?: (time: number) => void,
+  selection?: TextPlayerTokenSelection | null,
+  shadowSelection?: TextPlayerTokenSelection | null,
 ) {
   if (!variant.tokens.length) {
     return null;
@@ -102,6 +112,14 @@ function renderVariant(
   const content: React.ReactNode[] = [];
   variant.tokens.forEach((token, index) => {
     const classNames = [styles.wordBase, baseClassName];
+    const isSelected =
+      selection?.sentenceIndex === sentenceIndex &&
+      selection.variantKind === variant.baseClass &&
+      selection.tokenIndex === index;
+    const isShadow =
+      shadowSelection?.sentenceIndex === sentenceIndex &&
+      shadowSelection.variantKind === variant.baseClass &&
+      shadowSelection.tokenIndex === index;
 
     if (sentenceState === 'future') {
       classNames.push(futureClassName);
@@ -115,6 +133,13 @@ function renderVariant(
       classNames.push(currentClassName);
     } else {
       classNames.push(futureClassName);
+    }
+
+    if (isSelected) {
+      classNames.push(styles.wordSelected);
+    }
+    if (isShadow) {
+      classNames.push(styles.wordShadow);
     }
 
     const tokenKey = `${variant.baseClass}-${sentenceIndex}-${index}`;
@@ -177,7 +202,14 @@ function renderVariant(
   );
 }
 
-const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek, belowTracks, footer }) => {
+const TextPlayer: React.FC<TextPlayerProps> = ({
+  sentences,
+  onSeek,
+  selection = null,
+  shadowSelection = null,
+  belowTracks,
+  footer,
+}) => {
   if (!sentences.length) {
     return (
       <div className={styles.frame} data-text-player-frame="true">
@@ -209,7 +241,7 @@ const TextPlayer: React.FC<TextPlayerProps> = ({ sentences, onSeek, belowTracks,
             data-sentence-index={sentence.index}
           >
             {sentence.variants.map((variant) =>
-              renderVariant(sentence.state, sentence.index, variant, onSeek)
+              renderVariant(sentence.state, sentence.index, variant, onSeek, selection, shadowSelection)
             )}
           </div>
         );

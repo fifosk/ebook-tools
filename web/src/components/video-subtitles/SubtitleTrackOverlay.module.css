@@ -1,0 +1,84 @@
+.overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: clamp(1.2rem, 4vh, 2.6rem);
+  padding: 0 3vw;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: center;
+  z-index: 4;
+  pointer-events: none;
+  --subtitle-overlay-bg: rgba(0, 0, 0, 0.6);
+  --subtitle-overlay-scale: 1;
+}
+
+.overlay:focus-visible {
+  outline: 2px solid rgba(56, 189, 248, 0.8);
+  outline-offset: 4px;
+  border-radius: 1rem;
+}
+
+.trackRow {
+  pointer-events: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.32rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 0.85rem;
+  background: var(--subtitle-overlay-bg);
+  font-size: calc(1rem * var(--subtitle-overlay-scale));
+  line-height: 1.5;
+  text-align: center;
+  backdrop-filter: blur(6px);
+}
+
+.token {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  transition: color 140ms ease, text-shadow 140ms ease, box-shadow 140ms ease;
+}
+
+.token:focus-visible {
+  outline: 2px solid rgba(251, 191, 36, 0.8);
+  outline-offset: 2px;
+  border-radius: 0.35rem;
+}
+
+.tokenOriginal {
+  color: #facc15;
+}
+
+.tokenTranslation {
+  color: #34d399;
+}
+
+.tokenTransliteration {
+  color: #2dd4bf;
+}
+
+.tokenPast {
+  color: #fb923c;
+}
+
+.tokenCurrent {
+  color: #fef08a;
+  text-shadow: 0 0 10px rgba(52, 211, 153, 0.55);
+}
+
+.tokenSelected {
+  color: #fef08a;
+  text-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
+}
+
+.tokenShadow {
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.25);
+  border-radius: 0.35rem;
+}

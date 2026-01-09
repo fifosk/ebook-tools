@@ -91,6 +91,7 @@ export default function ExportPlayerApp() {
         mediaComplete={snapshot.complete}
         isLoading={false}
         error={null}
+        bookMetadata={(manifest.book_metadata as Record<string, unknown> | null) ?? null}
         playerMode="export"
       />
     );
