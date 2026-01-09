@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from . import PipelineRequestPayload
+from .pipeline_requests import PipelineRequestPayload
 
 
 class BookCreationRequest(BaseModel):

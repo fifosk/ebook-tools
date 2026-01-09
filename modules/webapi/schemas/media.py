@@ -7,7 +7,8 @@ from typing import Dict, Optional
 from typing_extensions import Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from . import AudioSynthesisRequest, VideoRenderRequestPayload
+from ...services.video_payloads import VideoRenderRequestPayload
+from .audio_synthesis import AudioSynthesisRequest
 
 
 class MediaAPISettings(BaseModel):
