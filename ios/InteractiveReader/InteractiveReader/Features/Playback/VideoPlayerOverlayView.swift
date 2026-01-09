@@ -68,25 +68,33 @@ struct VideoPlayerOverlayView: View {
     @FocusState private var focusTarget: VideoPlayerFocusTarget?
     @State private var pendingSkipTask: Task<Void, Never>?
     @State private var pendingSkipDirection: MoveCommandDirection?
+    @State private var suppressControlFocus = false
+    @State private var suppressFocusTask: Task<Void, Never>?
     #endif
     var body: some View {
         overlayContent
     }
 
     private var overlayContent: some View {
-        ZStack {
+        Group {
             #if os(tvOS)
-            tvOverlay
-            #else
-            iosOverlay
-            #endif
-            #if os(tvOS)
-            infoHeaderOverlay
-            #endif
-            if showSubtitleSettings {
-                subtitleSettingsOverlay
+            ZStack(alignment: .top) {
+                tvOverlay
+                infoHeaderOverlay
+                if showSubtitleSettings {
+                    subtitleSettingsOverlay
+                }
             }
+            #else
+            ZStack {
+                iosOverlay
+                if showSubtitleSettings {
+                    subtitleSettingsOverlay
+                }
+            }
+            #endif
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(.easeInOut(duration: 0.2), value: showSubtitleSettings)
         #if os(tvOS)
         .onAppear {
@@ -143,9 +151,8 @@ struct VideoPlayerOverlayView: View {
                 bookmarkMenuLabel
             }
             #if os(tvOS)
-            .focusable(controlsFocusEnabled)
-            .allowsHitTesting(controlsFocusEnabled)
             .focused($focusTarget, equals: .control(.bookmark))
+            .disabled(!controlsFocusEnabled)
             #endif
         }
     }
@@ -221,6 +228,7 @@ struct VideoPlayerOverlayView: View {
             }
             .padding(.horizontal, 60)
             .padding(.bottom, 36)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .onPlayPauseCommand {
                 onPlayPause()
                 onUserInteraction()
@@ -232,6 +240,7 @@ struct VideoPlayerOverlayView: View {
             }
             .padding(.horizontal, 60)
             .padding(.bottom, 36)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .onPlayPauseCommand {
                 onPlayPause()
                 onUserInteraction()
@@ -281,6 +290,7 @@ struct VideoPlayerOverlayView: View {
             SubtitleOverlayView(
                 cues: cues,
                 currentTime: currentTime,
+                isPlaying: isPlaying,
                 visibility: subtitleVisibility,
                 fontScale: subtitleFontScale,
                 selection: subtitleSelection,
@@ -328,10 +338,13 @@ struct VideoPlayerOverlayView: View {
                     } else {
                         let moved = onNavigateSubtitleTrack(-1)
                         if moved {
+                            suppressControlFocusTemporarily()
                             focusTarget = .subtitles
                         } else if subtitleBubble != nil {
+                            suppressControlFocus = false
                             focusTarget = .bubble
                         } else {
+                            suppressControlFocus = false
                             focusTarget = .control(.header)
                         }
                     }
@@ -341,8 +354,10 @@ struct VideoPlayerOverlayView: View {
                     }
                     let moved = onNavigateSubtitleTrack(1)
                     if moved {
+                        suppressControlFocusTemporarily()
                         focusTarget = .subtitles
                     } else {
+                        suppressControlFocus = false
                         showTVControls = true
                         focusTarget = .control(.playPause)
                     }
@@ -628,8 +643,7 @@ struct VideoPlayerOverlayView: View {
                 RoundedRectangle(cornerRadius: headerBackgroundCornerRadius)
                     .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .allowsHitTesting(isTV)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
     }
     #endif
@@ -732,7 +746,16 @@ struct VideoPlayerOverlayView: View {
 
     #if os(tvOS)
     private var tvHeaderTogglePill: some View {
-        Button(action: onToggleHeaderCollapsed) {
+        TVActionButton(
+            isFocusable: headerFocusEnabled,
+            isFocused: focusTarget == .control(.header),
+            onMoveUp: nil,
+            onMoveDown: {
+                showTVControls = true
+                focusTarget = .control(.playPause)
+            },
+            action: onToggleHeaderCollapsed
+        ) {
             Image(systemName: isHeaderCollapsed ? "chevron.down" : "chevron.up")
                 .font(.caption.weight(.semibold))
                 .padding(.horizontal, 8)
@@ -740,28 +763,18 @@ struct VideoPlayerOverlayView: View {
                 .background(Color.black.opacity(0.6), in: Capsule())
                 .foregroundStyle(.white)
         }
-        .buttonStyle(.plain)
-        .focusable(controlsFocusEnabled)
-        .allowsHitTesting(controlsFocusEnabled)
         .focused($focusTarget, equals: .control(.header))
         .accessibilityLabel(isHeaderCollapsed ? "Show info header" : "Hide info header")
-        .onMoveCommand { direction in
-            if direction == .down {
-                if !isPlaying, subtitleBubble != nil {
-                    focusTarget = .bubble
-                } else {
-                    focusTarget = showTVControls ? .control(.playPause) : .subtitles
-                }
-            }
-        }
     }
     #endif
 
     #if os(tvOS)
     private var controlsFocusEnabled: Bool {
-        guard showTVControls, !showSubtitleSettings else { return false }
-        if case .some(.control) = focusTarget { return true }
-        return false
+        showTVControls && !showSubtitleSettings && !suppressControlFocus
+    }
+
+    private var headerFocusEnabled: Bool {
+        !showSubtitleSettings
     }
 
     private var tvControls: some View {
@@ -808,11 +821,7 @@ struct VideoPlayerOverlayView: View {
         .onMoveCommand { direction in
             guard !showSubtitleSettings else { return }
             if direction == .up {
-                if isPlaying {
-                    focusTarget = .control(.header)
-                } else {
-                    focusTarget = .subtitles
-                }
+                focusTarget = .control(.header)
             } else if direction == .down {
                 focusTarget = .subtitles
             }
@@ -828,7 +837,17 @@ struct VideoPlayerOverlayView: View {
         isFocusable: Bool = true,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        TVActionButton(
+            isFocusable: isFocusable,
+            isFocused: isFocused,
+            onMoveUp: {
+                focusTarget = .control(.header)
+            },
+            onMoveDown: {
+                focusTarget = .subtitles
+            },
+            action: action
+        ) {
             tvControlLabel(
                 systemName: systemName,
                 label: label,
@@ -837,8 +856,6 @@ struct VideoPlayerOverlayView: View {
                 isFocused: isFocused
             )
         }
-        .focusable(isFocusable)
-        .allowsHitTesting(isFocusable)
     }
 
     private func tvControlLabel(
@@ -957,6 +974,15 @@ struct VideoPlayerOverlayView: View {
         scrubberValue = displayTime
         focusTarget = .control(.scrubber)
         onUserInteraction()
+    }
+
+    private func suppressControlFocusTemporarily() {
+        suppressFocusTask?.cancel()
+        suppressControlFocus = true
+        suppressFocusTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 150_000_000)
+            suppressControlFocus = false
+        }
     }
     #endif
 
@@ -1118,6 +1144,36 @@ private enum VideoPlayerFocusTarget: Hashable {
     case subtitles
     case bubble
     case control(TVFocusTarget)
+}
+
+private struct TVActionButton<Label: View>: View {
+    let isFocusable: Bool
+    let isFocused: Bool
+    let onMoveUp: (() -> Void)?
+    let onMoveDown: (() -> Void)?
+    let action: () -> Void
+    let label: () -> Label
+
+    var body: some View {
+        Button(action: action) {
+            label()
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .disabled(!isFocusable)
+        .focusEffectDisabled()
+        .onMoveCommand { direction in
+            guard isFocused else { return }
+            switch direction {
+            case .up:
+                onMoveUp?()
+            case .down:
+                onMoveDown?()
+            default:
+                break
+            }
+        }
+    }
 }
 
 private struct TVScrubber: View {

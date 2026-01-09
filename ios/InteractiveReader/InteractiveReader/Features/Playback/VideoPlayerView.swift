@@ -48,6 +48,7 @@ struct VideoPlayerView: View {
     @State var scrubberValue: Double = 0
     @State var isScrubbing = false
     @State var controlsHideTask: Task<Void, Never>?
+    @State var forceHideControlsOnPlay = false
     @AppStorage("video.subtitle.fontScale") var subtitleFontScaleValue: Double =
         Double(VideoPlayerView.defaultSubtitleFontScale)
     @AppStorage("video.subtitle.bubbleFontScale") var subtitleLinguistFontScaleValue: Double = 1.0
@@ -281,7 +282,15 @@ struct VideoPlayerView: View {
             updateNowPlayingPlayback()
             #if os(tvOS)
             if isPlaying {
-                scheduleControlsAutoHide()
+                if forceHideControlsOnPlay {
+                    forceHideControlsOnPlay = false
+                    controlsHideTask?.cancel()
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        showTVControls = false
+                    }
+                } else {
+                    scheduleControlsAutoHide()
+                }
             } else {
                 controlsHideTask?.cancel()
                 showTVControls = true

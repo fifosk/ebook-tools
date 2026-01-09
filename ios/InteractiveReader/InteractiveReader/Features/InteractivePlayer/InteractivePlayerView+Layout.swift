@@ -90,8 +90,11 @@ extension InteractivePlayerView {
             }
             if isPlaying {
                 frozenTranscriptSentences = nil
-            } else if isMenuVisible, let chunk = viewModel.selectedChunk {
-                frozenTranscriptSentences = transcriptSentences(for: chunk)
+            } else if let chunk = viewModel.selectedChunk {
+                syncPausedSelection(for: chunk)
+                if isMenuVisible {
+                    frozenTranscriptSentences = transcriptSentences(for: chunk)
+                }
             }
         }
         .onChange(of: visibleTracks) { _, _ in
@@ -169,6 +172,7 @@ extension InteractivePlayerView {
             llmModel: resolvedLlmModel ?? MyLinguistPreferences.defaultLlmModel,
             llmModelOptions: llmModelOptions,
             onLlmModelChange: { storedLlmModel = $0 },
+            playbackPrimaryKind: playbackPrimaryKind(for: chunk),
             isMenuVisible: isMenuVisible,
             trackFontScale: trackFontScale,
             linguistFontScale: linguistFontScale,
@@ -579,6 +583,34 @@ extension InteractivePlayerView {
         withAnimation(.easeInOut(duration: 0.2)) {
             isHeaderCollapsed.toggle()
         }
+    }
+
+    func playbackPrimaryKind(for chunk: InteractiveChunk) -> TextPlayerVariantKind? {
+        guard audioCoordinator.isPlaying else { return nil }
+        let activeTrack = viewModel.activeTimingTrack(for: chunk)
+        switch activeTrack {
+        case .original:
+            if visibleTracks.contains(.original) {
+                return .original
+            }
+            if visibleTracks.contains(.translation) {
+                return .translation
+            }
+            if visibleTracks.contains(.transliteration) {
+                return .transliteration
+            }
+        case .translation, .mix:
+            if visibleTracks.contains(.translation) {
+                return .translation
+            }
+            if visibleTracks.contains(.transliteration) {
+                return .transliteration
+            }
+            if visibleTracks.contains(.original) {
+                return .original
+            }
+        }
+        return nil
     }
 
     func resolveInfoVariant() -> PlayerChannelVariant {

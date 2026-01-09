@@ -121,7 +121,8 @@ extension InteractivePlayerView {
     }
 
     func activeSentenceDisplay(for chunk: InteractiveChunk) -> TextPlayerSentenceDisplay? {
-        transcriptSentences(for: chunk).first
+        let sentences = frozenTranscriptSentences ?? transcriptSentences(for: chunk)
+        return sentences.first
     }
 
     func preferredNavigationKind(for chunk: InteractiveChunk) -> TextPlayerVariantKind {
@@ -172,6 +173,38 @@ extension InteractivePlayerView {
             variantKind: variant.kind,
             tokenIndex: clampedIndex
         )
+    }
+
+    func syncPausedSelection(for chunk: InteractiveChunk) {
+        guard !audioCoordinator.isPlaying else { return }
+        guard linguistSelection == nil else { return }
+        guard let sentence = activeSentenceDisplay(for: chunk) else { return }
+        let availableVariants = sentence.variants.filter { variant in
+            visibleTracks.contains(variant.kind) && !variant.tokens.isEmpty
+        }
+        let targetVariant = availableVariants.first(where: { $0.kind == .translation })
+            ?? availableVariants.first
+            ?? sentence.variants.first(where: { !$0.tokens.isEmpty })
+        guard let targetVariant else { return }
+        let tokenIndex = activeTokenIndex(for: targetVariant)
+        linguistSelection = TextPlayerWordSelection(
+            sentenceIndex: sentence.index,
+            variantKind: targetVariant.kind,
+            tokenIndex: tokenIndex
+        )
+    }
+
+    private func activeTokenIndex(for variant: TextPlayerVariantDisplay) -> Int {
+        guard !variant.tokens.isEmpty else { return 0 }
+        let rawIndex: Int
+        if let currentIndex = variant.currentIndex {
+            rawIndex = currentIndex
+        } else if variant.revealedCount > 0 {
+            rawIndex = variant.revealedCount - 1
+        } else {
+            rawIndex = 0
+        }
+        return max(0, min(rawIndex, variant.tokens.count - 1))
     }
 
     func handleWordNavigation(_ delta: Int, in chunk: InteractiveChunk) {

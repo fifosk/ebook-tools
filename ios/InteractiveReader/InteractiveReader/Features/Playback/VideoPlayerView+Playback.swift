@@ -61,11 +61,10 @@ extension VideoPlayerView {
             return
         }
         if !coordinator.isPlaying {
-            if !showTVControls {
-                reportPlaybackProgress(time: resolvedPlaybackTime(), isPlaying: coordinator.isPlaying)
-                dismiss()
-                return
-            }
+            #if os(tvOS)
+            forceHideControlsOnPlay = true
+            controlsHideTask?.cancel()
+            #endif
             coordinator.play()
             withAnimation(.easeInOut(duration: 0.2)) {
                 showTVControls = false

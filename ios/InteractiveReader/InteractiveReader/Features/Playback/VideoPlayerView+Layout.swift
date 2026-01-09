@@ -8,50 +8,52 @@ extension VideoPlayerView {
     @ViewBuilder
     var playerContent: some View {
         if let player = coordinator.playerInstance() {
-            playerSurface(player)
-            overlayView
-            #if os(iOS)
-            if isPad {
-                VideoKeyboardCommandHandler(
-                    onPlayPause: { coordinator.togglePlayback() },
-                    onSkipBackward: {
-                        if coordinator.isPlaying {
-                            handleSentenceSkip(-1)
-                        } else {
-                            handleSubtitleWordNavigation(-1)
-                        }
-                    },
-                    onSkipForward: {
-                        if coordinator.isPlaying {
-                            handleSentenceSkip(1)
-                        } else {
-                            handleSubtitleWordNavigation(1)
-                        }
-                    },
-                    onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
-                    onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
-                    onLookup: {
-                        guard !coordinator.isPlaying else { return }
-                        handleSubtitleLookup()
-                    },
-                    onIncreaseFont: { adjustSubtitleFontScale(by: subtitleFontScaleStep) },
-                    onDecreaseFont: { adjustSubtitleFontScale(by: -subtitleFontScaleStep) },
-                    onToggleOriginal: { toggleSubtitleVisibility(.original) },
-                    onToggleTransliteration: { toggleSubtitleVisibility(.transliteration) },
-                    onToggleTranslation: { toggleSubtitleVisibility(.translation) },
-                    onToggleShortcutHelp: { toggleShortcutHelp() },
-                    onOptionKeyDown: { showShortcutHelpModifier() },
-                    onOptionKeyUp: { hideShortcutHelpModifier() }
-                )
-                .frame(width: 0, height: 0)
-                .accessibilityHidden(true)
+            ZStack {
+                playerSurface(player)
+                overlayView
+                #if os(iOS)
+                if isPad {
+                    VideoKeyboardCommandHandler(
+                        onPlayPause: { coordinator.togglePlayback() },
+                        onSkipBackward: {
+                            if coordinator.isPlaying {
+                                handleSentenceSkip(-1)
+                            } else {
+                                handleSubtitleWordNavigation(-1)
+                            }
+                        },
+                        onSkipForward: {
+                            if coordinator.isPlaying {
+                                handleSentenceSkip(1)
+                            } else {
+                                handleSubtitleWordNavigation(1)
+                            }
+                        },
+                        onNavigateLineUp: { _ = handleSubtitleTrackNavigation(-1) },
+                        onNavigateLineDown: { _ = handleSubtitleTrackNavigation(1) },
+                        onLookup: {
+                            guard !coordinator.isPlaying else { return }
+                            handleSubtitleLookup()
+                        },
+                        onIncreaseFont: { adjustSubtitleFontScale(by: subtitleFontScaleStep) },
+                        onDecreaseFont: { adjustSubtitleFontScale(by: -subtitleFontScaleStep) },
+                        onToggleOriginal: { toggleSubtitleVisibility(.original) },
+                        onToggleTransliteration: { toggleSubtitleVisibility(.transliteration) },
+                        onToggleTranslation: { toggleSubtitleVisibility(.translation) },
+                        onToggleShortcutHelp: { toggleShortcutHelp() },
+                        onOptionKeyDown: { showShortcutHelpModifier() },
+                        onOptionKeyUp: { hideShortcutHelpModifier() }
+                    )
+                    .frame(width: 0, height: 0)
+                    .accessibilityHidden(true)
+                }
+                if isPad, isShortcutHelpVisible {
+                    VideoShortcutHelpOverlayView(onDismiss: { dismissShortcutHelp() })
+                        .transition(.opacity)
+                        .zIndex(4)
+                }
+                #endif
             }
-            if isPad, isShortcutHelpVisible {
-                VideoShortcutHelpOverlayView(onDismiss: { dismissShortcutHelp() })
-                    .transition(.opacity)
-                    .zIndex(4)
-            }
-            #endif
         } else {
             ProgressView("Preparing video…")
         }

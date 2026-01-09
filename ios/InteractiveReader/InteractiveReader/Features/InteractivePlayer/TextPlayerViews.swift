@@ -9,6 +9,7 @@ struct TextPlayerFrame: View {
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
     let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
     let fontScale: CGFloat
+    let playbackPrimaryKind: TextPlayerVariantKind?
 
     var body: some View {
         VStack(spacing: 10) {
@@ -22,6 +23,7 @@ struct TextPlayerFrame: View {
                     TextPlayerSentenceView(
                         sentence: sentence,
                         selection: selection,
+                        playbackPrimaryKind: playbackPrimaryKind,
                         onTokenLookup: onTokenLookup,
                         onTokenSeek: onTokenSeek,
                         fontScale: fontScale
@@ -47,11 +49,13 @@ struct TextPlayerFrame: View {
 struct TextPlayerSentenceView: View {
     let sentence: TextPlayerSentenceDisplay
     let selection: TextPlayerWordSelection?
+    let playbackPrimaryKind: TextPlayerVariantKind?
     let onTokenLookup: ((Int, TextPlayerVariantKind, Int, String) -> Void)?
     let onTokenSeek: ((Int, Int?, TextPlayerVariantKind, Int, Double?) -> Void)?
     let fontScale: CGFloat
 
     var body: some View {
+        let playbackPrimaryIndex = playbackPrimaryTokenIndex()
         VStack(spacing: 8) {
             ForEach(sentence.variants) { variant in
                 TextPlayerVariantView(
@@ -59,6 +63,8 @@ struct TextPlayerSentenceView: View {
                     sentenceState: sentence.state,
                     selectedTokenIndex: selectedTokenIndex(for: variant),
                     shadowTokenIndex: shadowTokenIndex(for: variant),
+                    playbackTokenIndex: playbackTokenIndex(for: variant, primaryIndex: playbackPrimaryIndex),
+                    playbackShadowIndex: playbackShadowIndex(for: variant, primaryIndex: playbackPrimaryIndex),
                     fontScale: fontScale,
                     onTokenLookup: { tokenIndex, token in
                         onTokenLookup?(sentence.index, variant.kind, tokenIndex, token)
@@ -116,6 +122,46 @@ struct TextPlayerSentenceView: View {
         guard isShadowVariant else { return nil }
         guard variant.tokens.indices.contains(selection.tokenIndex) else { return nil }
         return selection.tokenIndex
+    }
+
+    private func playbackPrimaryTokenIndex() -> Int? {
+        guard sentence.state == .active else { return nil }
+        guard let playbackPrimaryKind else { return nil }
+        guard let variant = sentence.variants.first(where: { $0.kind == playbackPrimaryKind }) else { return nil }
+        if let currentIndex = variant.currentIndex {
+            return currentIndex
+        }
+        if variant.revealedCount > 0 {
+            return max(0, min(variant.revealedCount - 1, variant.tokens.count - 1))
+        }
+        return nil
+    }
+
+    private func playbackTokenIndex(
+        for variant: TextPlayerVariantDisplay,
+        primaryIndex: Int?
+    ) -> Int? {
+        guard sentence.state == .active else { return nil }
+        guard let playbackPrimaryKind else { return nil }
+        guard variant.kind == playbackPrimaryKind else { return nil }
+        guard let primaryIndex, variant.tokens.indices.contains(primaryIndex) else { return nil }
+        return primaryIndex
+    }
+
+    private func playbackShadowIndex(
+        for variant: TextPlayerVariantDisplay,
+        primaryIndex: Int?
+    ) -> Int? {
+        guard sentence.state == .active else { return nil }
+        guard let playbackPrimaryKind else { return nil }
+        guard let primaryIndex else { return nil }
+        let isTranslationPair = playbackPrimaryKind == .translation || playbackPrimaryKind == .transliteration
+        guard isTranslationPair else { return nil }
+        let isShadowVariant = (variant.kind == .translation && playbackPrimaryKind == .transliteration)
+            || (variant.kind == .transliteration && playbackPrimaryKind == .translation)
+        guard isShadowVariant else { return nil }
+        guard variant.tokens.indices.contains(primaryIndex) else { return nil }
+        return primaryIndex
     }
 }
 
@@ -192,6 +238,8 @@ struct TokenWordView: View {
     let color: Color
     let isSelected: Bool
     let isShadowSelected: Bool
+    let isPlaybackSelected: Bool
+    let isPlaybackShadowSelected: Bool
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
     let cornerRadius: CGFloat
@@ -199,18 +247,20 @@ struct TokenWordView: View {
     let onLookup: (() -> Void)?
 
     var body: some View {
+        let isPrimaryHighlight = isSelected || isPlaybackSelected
+        let isShadowHighlight = !isPrimaryHighlight && (isShadowSelected || isPlaybackShadowSelected)
         Text(text)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
             .allowsTightening(true)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .foregroundStyle(isSelected ? TextPlayerTheme.selectionText : color)
+            .foregroundStyle(isPrimaryHighlight ? TextPlayerTheme.selectionText : color)
             .background(
                 Group {
-                    if isSelected || isShadowSelected {
+                    if isPrimaryHighlight || isShadowHighlight {
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(isSelected ? TextPlayerTheme.selectionGlow : TextPlayerTheme.selectionShadow)
+                            .fill(isPrimaryHighlight ? TextPlayerTheme.selectionGlow : TextPlayerTheme.selectionShadow)
                     }
                 }
             )
@@ -277,6 +327,8 @@ struct TextPlayerVariantView: View {
     let sentenceState: TextPlayerSentenceState
     let selectedTokenIndex: Int?
     let shadowTokenIndex: Int?
+    let playbackTokenIndex: Int?
+    let playbackShadowIndex: Int?
     let fontScale: CGFloat
     let onTokenLookup: ((Int, String) -> Void)?
     let onTokenSeek: ((Int, Double?) -> Void)?
@@ -334,6 +386,8 @@ struct TextPlayerVariantView: View {
                     color: tokenColor(for: tokenState(for: index)),
                     isSelected: index == selectedTokenIndex,
                     isShadowSelected: index == shadowTokenIndex,
+                    isPlaybackSelected: index == playbackTokenIndex,
+                    isPlaybackShadowSelected: index == playbackShadowIndex,
                     horizontalPadding: tokenHorizontalPadding,
                     verticalPadding: tokenVerticalPadding,
                     cornerRadius: tokenCornerRadius,

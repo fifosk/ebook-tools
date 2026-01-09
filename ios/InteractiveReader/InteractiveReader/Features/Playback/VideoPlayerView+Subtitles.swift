@@ -115,7 +115,10 @@ extension VideoPlayerView {
     }
 
     func defaultSubtitleSelection(in display: VideoSubtitleDisplay) -> VideoSubtitleWordSelection? {
-        guard let line = display.lines.first, !line.tokens.isEmpty else { return nil }
+        let preferredLine = display.lines.first(where: { $0.kind == .translation })
+            ?? display.lines.first(where: { $0.kind == .unknown })
+            ?? display.lines.first
+        guard let line = preferredLine, !line.tokens.isEmpty else { return nil }
         let tokenIndex = currentTokenIndex(
             for: line,
             cueStart: display.highlightStart,
@@ -137,6 +140,14 @@ extension VideoPlayerView {
         time: Double
     ) -> Int {
         guard !line.tokens.isEmpty else { return 0 }
+        if let styles = line.tokenStyles {
+            if let current = styles.firstIndex(where: { $0 == .highlightCurrent }) {
+                return current
+            }
+            if let lastPrior = styles.lastIndex(where: { $0 == .highlightPrior }) {
+                return lastPrior
+            }
+        }
         let clamped = min(max(time, cueStart), cueEnd)
         let epsilon = 1e-3
         if clamped >= cueEnd - epsilon {

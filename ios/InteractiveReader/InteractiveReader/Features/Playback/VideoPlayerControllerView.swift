@@ -14,6 +14,7 @@ struct VideoPlayerControllerView: UIViewControllerRepresentable {
         controller.player = player
         #if os(tvOS)
         controller.showsPlaybackControls = false
+        controller.view.isUserInteractionEnabled = false
         #else
         controller.showsPlaybackControls = true
         #endif
@@ -36,6 +37,7 @@ struct VideoPlayerControllerView: UIViewControllerRepresentable {
         if let controller = controller as? FocusablePlayerViewController {
             controller.onShowControls = onShowControls
         }
+        controller.view.isUserInteractionEnabled = false
         #endif
     }
 }

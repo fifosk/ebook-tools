@@ -215,9 +215,16 @@ enum VideoSubtitleDisplayBuilder {
     }
 }
 
+private struct SubtitlePlaybackHighlight: Equatable {
+    let kind: VideoSubtitleLineKind
+    let lineIndex: Int
+    let tokenIndex: Int
+}
+
 struct SubtitleOverlayView: View {
     let cues: [VideoSubtitleCue]
     let currentTime: Double
+    let isPlaying: Bool
     let visibility: SubtitleVisibility
     let fontScale: CGFloat
     let selection: VideoSubtitleWordSelection?
@@ -236,6 +243,11 @@ struct SubtitleOverlayView: View {
             time: currentTime,
             visibility: visibility
         ) {
+            let playbackHighlight = playbackHighlight(in: display)
+            let playbackShadowHighlight = playbackShadowHighlight(
+                for: playbackHighlight,
+                in: display
+            )
             let shadowSelectionValue = shadowSelection(from: selection, in: display)
             ZStack(alignment: .topTrailing) {
                 VStack(spacing: 8) {
@@ -247,6 +259,8 @@ struct SubtitleOverlayView: View {
                             currentTime: currentTime,
                             selection: selection,
                             shadowSelection: shadowSelectionValue,
+                            playbackHighlight: playbackHighlight,
+                            playbackShadowHighlight: playbackShadowHighlight,
                             fontScale: clampedFontScale,
                             onTokenLookup: onTokenLookup,
                             onTokenSeek: onTokenSeek
@@ -280,6 +294,95 @@ struct SubtitleOverlayView: View {
 
     private var clampedFontScale: CGFloat {
         max(0.7, min(fontScale, 2.0))
+    }
+
+    private func playbackHighlight(in display: VideoSubtitleDisplay) -> SubtitlePlaybackHighlight? {
+        guard isPlaying else { return nil }
+        guard let line = playbackPrimaryLine(in: display) else { return nil }
+        guard let tokenIndex = playbackTokenIndex(for: line, in: display) else { return nil }
+        return SubtitlePlaybackHighlight(
+            kind: line.kind,
+            lineIndex: line.index,
+            tokenIndex: tokenIndex
+        )
+    }
+
+    private func playbackPrimaryLine(in display: VideoSubtitleDisplay) -> VideoSubtitleDisplayLine? {
+        let lines = display.lines.filter { !$0.tokens.isEmpty }
+        guard !lines.isEmpty else { return nil }
+        if let highlighted = lines.first(where: { $0.tokenStyles?.contains(.highlightCurrent) == true }) {
+            return highlighted
+        }
+        if let highlighted = lines.first(where: { $0.tokenStyles?.contains(.highlightPrior) == true }) {
+            return highlighted
+        }
+        if let translation = lines.first(where: { $0.kind == .translation }) {
+            return translation
+        }
+        if let transliteration = lines.first(where: { $0.kind == .transliteration }) {
+            return transliteration
+        }
+        if let original = lines.first(where: { $0.kind == .original }) {
+            return original
+        }
+        return lines.first
+    }
+
+    private func playbackTokenIndex(
+        for line: VideoSubtitleDisplayLine,
+        in display: VideoSubtitleDisplay
+    ) -> Int? {
+        guard !line.tokens.isEmpty else { return nil }
+        if let styles = line.tokenStyles {
+            if let current = styles.firstIndex(where: { $0 == .highlightCurrent }) {
+                return current
+            }
+            if let lastPrior = styles.lastIndex(where: { $0 == .highlightPrior }) {
+                return lastPrior
+            }
+        }
+        let clampedTime = min(max(currentTime, display.highlightStart), display.highlightEnd)
+        let tokenRevealCutoff = clampedTime.isFinite ? clampedTime : display.highlightStart
+        let epsilon = 1e-3
+        if tokenRevealCutoff >= display.highlightEnd - epsilon {
+            return line.tokens.count - 1
+        }
+        let revealedCount = line.revealTimes.filter { $0 <= tokenRevealCutoff + epsilon }.count
+        if revealedCount > 0 {
+            return min(revealedCount - 1, line.tokens.count - 1)
+        }
+        if tokenRevealCutoff >= display.highlightStart - epsilon {
+            return 0
+        }
+        return nil
+    }
+
+    private func playbackShadowHighlight(
+        for playbackHighlight: SubtitlePlaybackHighlight?,
+        in display: VideoSubtitleDisplay
+    ) -> SubtitlePlaybackHighlight? {
+        guard let playbackHighlight else { return nil }
+        let targetKind: VideoSubtitleLineKind
+        switch playbackHighlight.kind {
+        case .translation:
+            targetKind = .transliteration
+        case .transliteration:
+            targetKind = .translation
+        default:
+            return nil
+        }
+        let candidates = display.lines.filter { $0.kind == targetKind && !$0.tokens.isEmpty }
+        guard let targetLine = candidates.min(by: {
+            abs($0.index - playbackHighlight.lineIndex) < abs($1.index - playbackHighlight.lineIndex)
+        }) else {
+            return nil
+        }
+        guard targetLine.tokens.indices.contains(playbackHighlight.tokenIndex) else { return nil }
+        return SubtitlePlaybackHighlight(
+            kind: targetLine.kind,
+            lineIndex: targetLine.index,
+            tokenIndex: playbackHighlight.tokenIndex
+        )
     }
 
     private func shadowSelection(
@@ -334,6 +437,8 @@ private struct SubtitleTokenLineView: View {
     let currentTime: Double
     let selection: VideoSubtitleWordSelection?
     let shadowSelection: VideoSubtitleWordSelection?
+    let playbackHighlight: SubtitlePlaybackHighlight?
+    let playbackShadowHighlight: SubtitlePlaybackHighlight?
     let fontScale: CGFloat
     let onTokenLookup: ((VideoSubtitleTokenReference) -> Void)?
     let onTokenSeek: ((VideoSubtitleTokenReference) -> Void)?
@@ -347,6 +452,8 @@ private struct SubtitleTokenLineView: View {
                     color: tokenColor(for: tokenState(for: index)),
                     isSelected: isSelectedToken(index),
                     isShadowSelected: isShadowSelectedToken(index),
+                    isPlaybackSelected: isPlaybackSelectedToken(index),
+                    isPlaybackShadowSelected: isPlaybackShadowSelectedToken(index),
                     fontScale: fontScale,
                     horizontalPadding: tokenHorizontalPadding,
                     verticalPadding: tokenVerticalPadding,
@@ -389,23 +496,6 @@ private struct SubtitleTokenLineView: View {
         return min(max(count, 0), line.tokens.count)
     }
 
-    private var currentIndex: Int? {
-        let epsilon = 1e-3
-        if line.tokens.isEmpty {
-            return nil
-        }
-        if tokenRevealCutoff >= highlightEnd - epsilon {
-            return line.tokens.count - 1
-        }
-        if revealedCount > 0 {
-            return min(revealedCount - 1, line.tokens.count - 1)
-        }
-        if tokenRevealCutoff >= highlightStart - epsilon {
-            return 0
-        }
-        return nil
-    }
-
     private var displayTokenIndices: [Int] {
         Array(line.tokens.indices)
     }
@@ -422,6 +512,20 @@ private struct SubtitleTokenLineView: View {
         return shadowSelection.lineKind == line.kind
             && shadowSelection.lineIndex == line.index
             && shadowSelection.tokenIndex == index
+    }
+
+    private func isPlaybackSelectedToken(_ index: Int) -> Bool {
+        guard let playbackHighlight else { return false }
+        guard line.kind == playbackHighlight.kind else { return false }
+        guard line.index == playbackHighlight.lineIndex else { return false }
+        return playbackHighlight.tokenIndex == index
+    }
+
+    private func isPlaybackShadowSelectedToken(_ index: Int) -> Bool {
+        guard let playbackShadowHighlight else { return false }
+        guard line.kind == playbackShadowHighlight.kind else { return false }
+        guard line.index == playbackShadowHighlight.lineIndex else { return false }
+        return playbackShadowHighlight.tokenIndex == index
     }
 
     private func tokenState(for index: Int) -> SubtitleTokenState {
@@ -536,6 +640,8 @@ private struct SubtitleTokenWordView: View {
     let color: Color
     let isSelected: Bool
     let isShadowSelected: Bool
+    let isPlaybackSelected: Bool
+    let isPlaybackShadowSelected: Bool
     let fontScale: CGFloat
     let horizontalPadding: CGFloat
     let verticalPadding: CGFloat
@@ -544,6 +650,8 @@ private struct SubtitleTokenWordView: View {
     let onLookup: () -> Void
 
     var body: some View {
+        let isPrimaryHighlight = isSelected || isPlaybackSelected
+        let isShadowHighlight = !isPrimaryHighlight && (isShadowSelected || isPlaybackShadowSelected)
         Text(text)
             .lineLimit(1)
             .minimumScaleFactor(0.7)
@@ -551,12 +659,12 @@ private struct SubtitleTokenWordView: View {
             .font(tokenFont)
             .padding(.horizontal, horizontalPadding)
             .padding(.vertical, verticalPadding)
-            .foregroundStyle(isSelected ? SubtitleOverlayTheme.selectionText : color)
+            .foregroundStyle(isPrimaryHighlight ? SubtitleOverlayTheme.selectionText : color)
             .background(
                 Group {
-                    if isSelected || isShadowSelected {
+                    if isPrimaryHighlight || isShadowHighlight {
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(isSelected ? SubtitleOverlayTheme.selectionGlow : SubtitleOverlayTheme.selectionShadow)
+                            .fill(isPrimaryHighlight ? SubtitleOverlayTheme.selectionGlow : SubtitleOverlayTheme.selectionShadow)
                     }
                 }
             )

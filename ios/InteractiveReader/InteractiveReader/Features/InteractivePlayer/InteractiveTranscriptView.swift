@@ -23,6 +23,7 @@ struct InteractiveTranscriptView: View {
     let llmModel: String
     let llmModelOptions: [String]
     let onLlmModelChange: (String) -> Void
+    let playbackPrimaryKind: TextPlayerVariantKind?
     let isMenuVisible: Bool
     let trackFontScale: CGFloat
     let linguistFontScale: CGFloat
@@ -87,7 +88,8 @@ struct InteractiveTranscriptView: View {
                     selection: selection,
                     onTokenLookup: onLookupToken,
                     onTokenSeek: onSeekToken,
-                    fontScale: trackFontScale
+                    fontScale: trackFontScale,
+                    playbackPrimaryKind: playbackPrimaryKind
                 )
                     .frame(maxWidth: .infinity, maxHeight: textHeight, alignment: .top)
                     .contentShape(Rectangle())
@@ -132,7 +134,8 @@ struct InteractiveTranscriptView: View {
                         selection: selection,
                         onTokenLookup: onLookupToken,
                         onTokenSeek: onSeekToken,
-                        fontScale: trackFontScale
+                        fontScale: trackFontScale,
+                        playbackPrimaryKind: playbackPrimaryKind
                     )
                         .frame(
                             maxWidth: .infinity,
@@ -181,7 +184,8 @@ struct InteractiveTranscriptView: View {
                         selection: selection,
                         onTokenLookup: onLookupToken,
                         onTokenSeek: onSeekToken,
-                        fontScale: trackFontScale
+                        fontScale: trackFontScale,
+                        playbackPrimaryKind: playbackPrimaryKind
                     )
                         .frame(
                             maxWidth: .infinity,
