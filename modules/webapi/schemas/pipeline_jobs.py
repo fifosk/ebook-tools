@@ -24,6 +24,7 @@ class JobParameterSnapshot(BaseModel):
     input_file: Optional[str] = None
     base_output_file: Optional[str] = None
     input_language: Optional[str] = None
+    source_language: Optional[str] = None
     target_languages: List[str] = Field(default_factory=list)
     start_sentence: Optional[int] = None
     end_sentence: Optional[int] = None
@@ -422,6 +423,7 @@ def _build_subtitle_parameters(payload: Mapping[str, Any]) -> Optional[JobParame
 def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobParameterSnapshot]:
     video_path = _coerce_str(payload.get("video_path"))
     subtitle_path = _coerce_str(payload.get("subtitle_path"))
+    source_language = _coerce_str(payload.get("source_language"))
     target_language = _coerce_str(payload.get("target_language"))
     voice = _coerce_str(payload.get("voice"))
     tempo = _coerce_float(payload.get("tempo"))
@@ -442,6 +444,8 @@ def _build_youtube_dub_parameters(payload: Mapping[str, Any]) -> Optional[JobPar
         input_file=video_path,
         video_path=video_path,
         subtitle_path=subtitle_path,
+        input_language=source_language,
+        source_language=source_language,
         target_languages=target_languages,
         selected_voice=voice,
         tempo=tempo,

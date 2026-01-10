@@ -4,21 +4,42 @@ import UIKit
 #endif
 
 struct JobRowView: View {
+    @EnvironmentObject var appState: AppState
     let job: PipelineStatusResponse
     let resumeStatus: LibraryRowView.ResumeStatus
 
     var body: some View {
         HStack(spacing: rowSpacing) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(iconColor.opacity(0.2))
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(iconColor.opacity(0.4), lineWidth: 1)
-                Image(systemName: iconName)
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(iconColor)
+            if let coverURL {
+                AsyncImage(url: coverURL) { phase in
+                    if let image = phase.image {
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    } else if phase.error != nil {
+                        coverPlaceholder
+                    } else {
+                        ProgressView()
+                    }
+                }
+                .frame(width: coverWidth, height: coverHeight)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(iconColor.opacity(0.35), lineWidth: 1)
+                )
+            } else {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(iconColor.opacity(0.2))
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(iconColor.opacity(0.4), lineWidth: 1)
+                    Image(systemName: iconName)
+                        .font(.system(size: iconSize, weight: .semibold))
+                        .foregroundStyle(iconColor)
+                }
+                .frame(width: iconFrame, height: iconFrame)
             }
-            .frame(width: iconFrame, height: iconFrame)
 
             VStack(alignment: .leading, spacing: textSpacing) {
                 Text(jobTitle)
@@ -310,6 +331,208 @@ struct JobRowView: View {
         #else
         return 5
         #endif
+    }
+
+    private var coverURL: URL? {
+        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .dub else { return nil }
+        let candidates = coverCandidates()
+        for candidate in candidates {
+            if let url = resolveCoverCandidate(candidate) {
+                return url
+            }
+        }
+        return nil
+    }
+
+    private var coverWidth: CGFloat {
+        coverHeight * 16 / 9
+    }
+
+    private var coverHeight: CGFloat {
+        iconFrame
+    }
+
+    private var coverPlaceholder: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: 10)
+                .fill(iconColor.opacity(0.15))
+            Image(systemName: iconName)
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundStyle(iconColor.opacity(0.85))
+        }
+    }
+
+    private func coverCandidates() -> [String] {
+        var candidates: [String] = []
+        var seen = Set<String>()
+
+        func add(_ value: String?) {
+            guard let trimmed = value?.nonEmptyValue else { return }
+            guard !seen.contains(trimmed) else { return }
+            seen.insert(trimmed)
+            candidates.append(trimmed)
+        }
+
+        add(metadataString(for: ["thumbnail"], maxDepth: 6))
+        add(metadataString(for: ["cover_url", "cover", "poster"], maxDepth: 4))
+        add(metadataString(for: ["job_cover_asset_url", "job_cover_asset", "book_cover_file"], maxDepth: 4))
+        if let fallback = resolveYoutubeThumbnailFallback() {
+            add(fallback)
+        }
+        return candidates
+    }
+
+    private func resolveYoutubeThumbnailFallback() -> String? {
+        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .dub else { return nil }
+        let sources = [
+            job.jobLabel,
+            metadataString(for: ["video_id", "videoId"], maxDepth: 6),
+            metadataString(for: ["video_path", "subtitle_path", "source_name", "source_path"], maxDepth: 4),
+            metadataString(for: ["input_file", "input_path"], maxDepth: 3),
+        ]
+        for source in sources {
+            guard let source, let id = extractYoutubeVideoId(from: source) else { continue }
+            return "https://i.ytimg.com/vi/\(id)/hqdefault.jpg"
+        }
+        return nil
+    }
+
+    private func extractYoutubeVideoId(from value: String) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        if let url = URL(string: trimmed), let id = extractYoutubeVideoId(from: url) {
+            return id
+        }
+        if let id = extractBracketedYoutubeId(from: trimmed) {
+            return id
+        }
+        if let id = extractIdBeforeToken(in: trimmed, token: "_yt") {
+            return id
+        }
+        return nil
+    }
+
+    private func extractYoutubeVideoId(from url: URL) -> String? {
+        let host = url.host?.lowercased() ?? ""
+        let pathComponents = url.path.split(separator: "/").map(String.init)
+        if host.contains("youtu.be"), let first = pathComponents.first, isValidYoutubeID(first) {
+            return first
+        }
+        if host.contains("youtube.com") {
+            if url.path.contains("/watch") {
+                let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+                let id = components?.queryItems?.first(where: { $0.name == "v" })?.value
+                if let id, isValidYoutubeID(id) {
+                    return id
+                }
+            }
+            if let shortsIndex = pathComponents.firstIndex(of: "shorts"),
+               pathComponents.indices.contains(shortsIndex + 1) {
+                let id = pathComponents[shortsIndex + 1]
+                if isValidYoutubeID(id) {
+                    return id
+                }
+            }
+            if let embedIndex = pathComponents.firstIndex(of: "embed"),
+               pathComponents.indices.contains(embedIndex + 1) {
+                let id = pathComponents[embedIndex + 1]
+                if isValidYoutubeID(id) {
+                    return id
+                }
+            }
+        }
+        return nil
+    }
+
+    private func extractBracketedYoutubeId(from value: String) -> String? {
+        var searchRange = value.startIndex..<value.endIndex
+        while let open = value.range(of: "[", options: [], range: searchRange)?.lowerBound {
+            let afterOpen = value.index(after: open)
+            guard let closeRange = value.range(of: "]", options: [], range: afterOpen..<value.endIndex) else {
+                break
+            }
+            let candidate = String(value[afterOpen..<closeRange.lowerBound])
+            let suffix = value[closeRange.upperBound...].lowercased()
+            if isValidYoutubeID(candidate), suffix.hasPrefix("_yt") || suffix.hasPrefix(".yt") || suffix.hasPrefix("-yt") || suffix.contains("youtube") {
+                return candidate
+            }
+            searchRange = closeRange.upperBound..<value.endIndex
+        }
+        return nil
+    }
+
+    private func extractIdBeforeToken(in value: String, token: String) -> String? {
+        let lowered = value.lowercased()
+        guard let range = lowered.range(of: token) else { return nil }
+        let endIndex = range.lowerBound
+        let prefix = value[..<endIndex]
+        let validChars = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
+        var buffer = ""
+        for character in prefix.reversed() {
+            guard let scalar = character.unicodeScalars.first, validChars.contains(scalar) else { break }
+            buffer.append(character)
+            if buffer.count >= 11 {
+                break
+            }
+        }
+        let reversed = String(buffer.reversed())
+        return isValidYoutubeID(reversed) ? reversed : nil
+    }
+
+    private func isValidYoutubeID(_ value: String) -> Bool {
+        guard value.count == 11 else { return false }
+        let validChars = CharacterSet(charactersIn: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-")
+        return value.unicodeScalars.allSatisfy { validChars.contains($0) }
+    }
+
+    private func resolveCoverCandidate(_ candidate: String) -> URL? {
+        let trimmed = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let normalized = normalizeCoverCandidate(trimmed)
+        if let url = URL(string: normalized), url.scheme != nil {
+            return appendAccessTokenIfNeeded(url)
+        }
+        guard let base = appState.apiBaseURL else {
+            return URL(string: normalized)
+        }
+        if let url = URL(string: normalized, relativeTo: base) {
+            return appendAccessTokenIfNeeded(url)
+        }
+        return nil
+    }
+
+    private func appendAccessTokenIfNeeded(_ url: URL) -> URL {
+        guard let token = appState.authToken, !token.isEmpty else {
+            return url
+        }
+        guard let apiHost = appState.apiBaseURL?.host?.lowercased(),
+              let urlHost = url.host?.lowercased(),
+              apiHost == urlHost
+        else {
+            return url
+        }
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: true) else {
+            return url
+        }
+        var items = components.queryItems ?? []
+        if items.contains(where: { $0.name == "access_token" }) {
+            return url
+        }
+        items.append(URLQueryItem(name: "access_token", value: token))
+        components.queryItems = items
+        return components.url ?? url
+    }
+
+    private func normalizeCoverCandidate(_ candidate: String) -> String {
+        if candidate.hasPrefix("//") {
+            return "https:" + candidate
+        }
+        let lower = candidate.lowercased()
+        if lower.hasPrefix("http://"),
+           (lower.contains("youtube.com") || lower.contains("ytimg.com") || lower.contains("youtu.be")) {
+            return "https://" + candidate.dropFirst("http://".count)
+        }
+        return candidate
     }
 
     private func metadataString(for keys: [String], maxDepth: Int = 4) -> String? {

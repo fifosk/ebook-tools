@@ -152,6 +152,7 @@ export interface JobParameterSnapshot {
   input_file?: string | null;
   base_output_file?: string | null;
   input_language?: string | null;
+  source_language?: string | null;
   target_languages?: string[];
   start_sentence?: number | null;
   end_sentence?: number | null;

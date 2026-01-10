@@ -131,8 +131,8 @@ function buildTracks(lines: AssSubtitleLine[]): AssSubtitleCue['tracks'] {
     return tracks;
   }
   if (lines.length === 2) {
-    tracks.translation = lines[0];
-    tracks.transliteration = lines[1];
+    tracks.original = lines[0];
+    tracks.translation = lines[1];
     return tracks;
   }
   if (lines.length === 1) {

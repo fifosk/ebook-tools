@@ -38,7 +38,6 @@ const EMPTY_VISIBILITY = {
   translation: true,
   transliteration: true,
 };
-
 function clampScale(value: number | null | undefined): number {
   if (!Number.isFinite(value) || !value) {
     return 1;
@@ -569,7 +568,31 @@ export default function SubtitleTrackOverlay({
         return;
       }
       const key = event.key;
-      if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown' && key !== 'Enter') {
+      const isArrow =
+        key === 'ArrowLeft' || key === 'ArrowRight' || key === 'ArrowUp' || key === 'ArrowDown';
+      const isSpace = key === ' ' || event.code === 'Space';
+      if (!isArrow && key !== 'Enter' && !isSpace) {
+        return;
+      }
+      if (isSpace) {
+        const video = videoRef.current;
+        if (video) {
+          if (video.paused) {
+            void video.play().catch(() => {
+              /* Ignore play failures. */
+            });
+          } else {
+            try {
+              video.pause();
+            } catch {
+              /* Ignore pause failures. */
+            }
+          }
+        }
+        event.preventDefault();
+        return;
+      }
+      if (isPlaying) {
         return;
       }
       if (key === 'Enter') {
@@ -624,7 +647,7 @@ export default function SubtitleTrackOverlay({
       const nextIndex = Math.min(current.index, nextTokens.length - 1);
       setSelection({ track: nextTrack, index: nextIndex });
     },
-    [overlayActive, selection, tracks, visibleTracks, lookup],
+    [overlayActive, visibleTracks, isPlaying, selection, tracks, lookup, videoRef],
   );
 
   const translationTokens = tracks.translation?.tokens ?? null;

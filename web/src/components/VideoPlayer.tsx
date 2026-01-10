@@ -55,6 +55,7 @@ interface VideoPlayerProps {
     translation: boolean;
   };
   subtitleScale?: number;
+  myLinguistScale?: number;
   subtitleBackgroundOpacity?: number;
 }
 
@@ -223,6 +224,7 @@ export default function VideoPlayer({
   tracks = [],
   cueVisibility = { original: true, transliteration: true, translation: true },
   subtitleScale = 1,
+  myLinguistScale,
   subtitleBackgroundOpacity,
 }: VideoPlayerProps) {
   const playlistSelectId = useId();
@@ -345,6 +347,12 @@ export default function VideoPlayer({
   const videoStyle = useMemo(() => {
     return { '--subtitle-scale': subtitleScale } as CSSProperties;
   }, [subtitleScale]);
+  const canvasStyle = useMemo(() => {
+    if (!Number.isFinite(myLinguistScale ?? NaN) || !myLinguistScale) {
+      return undefined;
+    }
+    return { '--my-linguist-font-scale': String(myLinguistScale) } as CSSProperties;
+  }, [myLinguistScale]);
 
   useEffect(() => {
     if (!subtitlesEnabled || !activeSubtitleTrack?.url) {
@@ -1185,7 +1193,7 @@ export default function VideoPlayer({
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage" ref={fullscreenRef}>
-          <div className="video-player__canvas">
+          <div className="video-player__canvas" style={canvasStyle}>
             {infoBadge && showInfoHeader ? (
               <div className="player-panel__player-info-header video-player__info-header" aria-hidden="true">
                 <div className="video-player__info-header-left">
