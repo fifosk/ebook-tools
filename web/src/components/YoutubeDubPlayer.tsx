@@ -317,7 +317,14 @@ export default function YoutubeDubPlayer({
     if (libraryItem) {
       const metadata = buildLibraryBookMetadata(libraryItem);
       const original =
-        extractMetadataText(metadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
+        extractMetadataText(metadata, [
+          'input_language',
+          'original_language',
+          'source_language',
+          'translation_source_language',
+          'language',
+          'lang',
+        ]) ?? null;
       const target =
         extractMetadataFirstString(metadata, ['target_language', 'translation_language', 'target_languages']) ??
         null;
@@ -327,7 +334,14 @@ export default function YoutubeDubPlayer({
     }
     if (bookMetadata) {
       const original =
-        extractMetadataText(bookMetadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
+        extractMetadataText(bookMetadata, [
+          'input_language',
+          'original_language',
+          'source_language',
+          'translation_source_language',
+          'language',
+          'lang',
+        ]) ?? null;
       const target =
         extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ??
         null;
@@ -353,7 +367,9 @@ export default function YoutubeDubPlayer({
         const original =
           typeof parameters?.input_language === 'string' && parameters.input_language.trim()
             ? parameters.input_language.trim()
-            : readStringValue(parameterRecord, 'original_language');
+            : readStringValue(parameterRecord, 'original_language') ??
+              readStringValue(parameterRecord, 'source_language') ??
+              readStringValue(parameterRecord, 'translation_source_language');
         const targetLanguages = Array.isArray(parameters?.target_languages) ? parameters.target_languages : [];
         const firstTarget =
           typeof targetLanguages[0] === 'string' && targetLanguages[0].trim() ? targetLanguages[0].trim() : null;

@@ -61,6 +61,10 @@ interface VideoPlayerProps {
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { formatMediaDropdownLabel } from '../utils/mediaLabels';
+import { formatDurationLabel } from '../utils/timeFormatters';
+import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
+import { normalizeLanguageLabel } from '../utils/languages';
+import EmojiIcon from './EmojiIcon';
 import PlayerChannelBug from './PlayerChannelBug';
 import SubtitleTrackOverlay from './video-subtitles/SubtitleTrackOverlay';
 
@@ -259,12 +263,18 @@ export default function VideoPlayer({
   const [subtitleOverlayActive, setSubtitleOverlayActive] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [secondaryCoverFailed, setSecondaryCoverFailed] = useState(false);
+  const [playbackClock, setPlaybackClock] = useState({ current: 0, duration: 0 });
+  const playbackClockRef = useRef({ current: 0, duration: 0 });
   useEffect(() => {
     setCoverFailed(false);
   }, [infoBadge?.coverUrl]);
   useEffect(() => {
     setSecondaryCoverFailed(false);
   }, [infoBadge?.coverSecondaryUrl]);
+  useEffect(() => {
+    playbackClockRef.current = { current: 0, duration: 0 };
+    setPlaybackClock({ current: 0, duration: 0 });
+  }, [activeFile?.id]);
   const artVariant = useMemo(() => {
     const glyph = (infoBadge?.glyph ?? '').trim().toLowerCase();
     if (glyph === 'bk' || glyph === 'book') {
@@ -284,6 +294,54 @@ export default function VideoPlayer({
     }
     return 'video';
   }, [infoBadge?.glyph]);
+
+  const languageFlags = useMemo(() => {
+    const hasOriginal = Boolean((jobOriginalLanguage ?? '').trim());
+    const hasTranslation = Boolean((jobTranslationLanguage ?? '').trim());
+    if (!hasOriginal && !hasTranslation) {
+      return [];
+    }
+    const originalLabel = normalizeLanguageLabel(jobOriginalLanguage) || 'Unknown';
+    const translationLabel = normalizeLanguageLabel(jobTranslationLanguage) || 'Unknown';
+    return [
+      {
+        role: 'original',
+        label: originalLabel,
+        flag: resolveLanguageFlag(jobOriginalLanguage ?? originalLabel) ?? DEFAULT_LANGUAGE_FLAG,
+      },
+      {
+        role: 'translation',
+        label: translationLabel,
+        flag: resolveLanguageFlag(jobTranslationLanguage ?? translationLabel) ?? DEFAULT_LANGUAGE_FLAG,
+      },
+    ];
+  }, [jobOriginalLanguage, jobTranslationLanguage]);
+  const segmentLabel = useMemo(() => {
+    if (files.length <= 1) {
+      return null;
+    }
+    const index = activeFile ? files.findIndex((file) => file.id === activeFile.id) : -1;
+    const resolvedIndex = index >= 0 ? index + 1 : 1;
+    return `Video ${resolvedIndex} / ${files.length}`;
+  }, [activeFile, files]);
+  const timelineLabel = useMemo(() => {
+    if (!Number.isFinite(playbackClock.duration) || playbackClock.duration <= 0) {
+      return null;
+    }
+    const played = Math.min(Math.max(playbackClock.current, 0), playbackClock.duration);
+    const remaining = Math.max(playbackClock.duration - played, 0);
+    return `${formatDurationLabel(played)} / ${formatDurationLabel(remaining)} remaining`;
+  }, [playbackClock.current, playbackClock.duration]);
+  const showInfoHeader = Boolean(
+    infoBadge &&
+      (infoBadge.title ||
+        infoBadge.meta ||
+        infoBadge.coverUrl ||
+        infoBadge.glyph ||
+        languageFlags.length > 0 ||
+        segmentLabel ||
+        timelineLabel),
+  );
   const videoStyle = useMemo(() => {
     return { '--subtitle-scale': subtitleScale } as CSSProperties;
   }, [subtitleScale]);
@@ -678,6 +736,21 @@ export default function VideoPlayer({
     }
   }, [autoPlay]);
 
+  const updatePlaybackClock = useCallback(() => {
+    const element = elementRef.current;
+    if (!element) {
+      return;
+    }
+    const nextCurrent = Number.isFinite(element.currentTime) ? Math.max(0, Math.floor(element.currentTime)) : 0;
+    const nextDuration = Number.isFinite(element.duration) ? Math.max(0, Math.floor(element.duration)) : 0;
+    const last = playbackClockRef.current;
+    if (last.current === nextCurrent && last.duration === nextDuration) {
+      return;
+    }
+    playbackClockRef.current = { current: nextCurrent, duration: nextDuration };
+    setPlaybackClock({ current: nextCurrent, duration: nextDuration });
+  }, []);
+
   useEffect(() => {
     attemptAutoplay();
   }, [attemptAutoplay, activeFile?.id]);
@@ -699,7 +772,8 @@ export default function VideoPlayer({
     } catch (error) {
       // Ignore assignment failures that can happen in non-media test environments.
     }
-  }, [playbackPosition, activeFile?.id]);
+    updatePlaybackClock();
+  }, [playbackPosition, activeFile?.id, updatePlaybackClock]);
 
   useEffect(() => {
     const element = elementRef.current;
@@ -732,9 +806,18 @@ export default function VideoPlayer({
     if (!element) {
       return;
     }
-
+    updatePlaybackClock();
     onPlaybackPositionChange?.(element.currentTime ?? 0);
-  }, [onPlaybackPositionChange]);
+  }, [onPlaybackPositionChange, updatePlaybackClock]);
+
+  const handleLoadedData = useCallback(() => {
+    attemptAutoplay();
+    updatePlaybackClock();
+  }, [attemptAutoplay, updatePlaybackClock]);
+
+  const handleLoadedMetadata = useCallback(() => {
+    updatePlaybackClock();
+  }, [updatePlaybackClock]);
 
   const handlePlay = useCallback(() => {
     onPlaybackStateChange?.('playing');
@@ -1103,44 +1186,66 @@ export default function VideoPlayer({
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage" ref={fullscreenRef}>
           <div className="video-player__canvas">
-            {infoBadge &&
-            (infoBadge.title || infoBadge.meta || infoBadge.coverUrl || infoBadge.glyph) ? (
-              <div className="player-panel__player-info-header" aria-hidden="true">
-                <PlayerChannelBug
-                  glyph={(infoBadge.glyph ?? '').trim() || 'TV'}
-                  label={infoBadge.glyphLabel}
-                />
-                {infoBadge.coverUrl && !coverFailed ? (
-                  <div className="player-panel__player-info-art" data-variant={artVariant}>
-                    <img
-                      className="player-panel__player-info-art-main"
-                      src={infoBadge.coverUrl}
-                      alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
-                      onError={() => setCoverFailed(true)}
-                      loading="lazy"
-                    />
-                    {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
+            {infoBadge && showInfoHeader ? (
+              <div className="player-panel__player-info-header video-player__info-header" aria-hidden="true">
+                <div className="video-player__info-header-left">
+                  <PlayerChannelBug
+                    glyph={(infoBadge.glyph ?? '').trim() || 'TV'}
+                    label={infoBadge.glyphLabel}
+                  />
+                  {infoBadge.coverUrl && !coverFailed ? (
+                    <div className="player-panel__player-info-art" data-variant={artVariant}>
                       <img
-                        className="player-panel__player-info-art-secondary"
-                        src={infoBadge.coverSecondaryUrl}
-                        alt=""
-                        aria-hidden="true"
-                        onError={() => setSecondaryCoverFailed(true)}
+                        className="player-panel__player-info-art-main"
+                        src={infoBadge.coverUrl}
+                        alt={infoBadge.coverAltText ?? (infoBadge.title ? `Cover for ${infoBadge.title}` : 'Cover')}
+                        onError={() => setCoverFailed(true)}
                         loading="lazy"
                       />
-                    ) : null}
-                  </div>
-                ) : null}
-                {infoBadge.title || infoBadge.meta ? (
-                  <div className="player-panel__interactive-book-badge player-panel__player-info-badge">
-                    <div className="player-panel__interactive-book-badge-text">
-                      {infoBadge.title ? (
-                        <span className="player-panel__interactive-book-badge-title">{infoBadge.title}</span>
-                      ) : null}
-                      {infoBadge.meta ? (
-                        <span className="player-panel__interactive-book-badge-meta">{infoBadge.meta}</span>
+                      {infoBadge.coverSecondaryUrl && !secondaryCoverFailed ? (
+                        <img
+                          className="player-panel__player-info-art-secondary"
+                          src={infoBadge.coverSecondaryUrl}
+                          alt=""
+                          aria-hidden="true"
+                          onError={() => setSecondaryCoverFailed(true)}
+                          loading="lazy"
+                        />
                       ) : null}
                     </div>
+                  ) : null}
+                  {infoBadge.title || infoBadge.meta || languageFlags.length > 0 ? (
+                    <div className="video-player__info-badge">
+                      <div className="video-player__info-text">
+                        {infoBadge.title ? (
+                          <span className="video-player__info-title">{infoBadge.title}</span>
+                        ) : null}
+                        {infoBadge.meta ? (
+                          <span className="video-player__info-meta">{infoBadge.meta}</span>
+                        ) : null}
+                        {languageFlags.length > 0 ? (
+                          <div className="video-player__info-flags">
+                            {languageFlags.map((entry, index) => (
+                              <div className="video-player__info-flag-group" key={`${entry.role}-${entry.label}`}>
+                                <span className="video-player__info-flag">
+                                  <EmojiIcon emoji={entry.flag} className="video-player__info-flag-emoji" />
+                                  <span className="video-player__info-flag-label">{entry.label}</span>
+                                </span>
+                                {index < languageFlags.length - 1 ? (
+                                  <span className="video-player__info-flag-sep">to</span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+                {segmentLabel || timelineLabel ? (
+                  <div className="video-player__info-header-right">
+                    {segmentLabel ? <span className="video-player__info-pill">{segmentLabel}</span> : null}
+                    {timelineLabel ? <span className="video-player__info-pill">{timelineLabel}</span> : null}
                   </div>
                 ) : null}
               </div>
@@ -1165,7 +1270,9 @@ export default function VideoPlayer({
               onPlay={handlePlay}
               onPause={handlePause}
               onEnded={handleEnded}
-              onLoadedData={attemptAutoplay}
+              onLoadedData={handleLoadedData}
+              onLoadedMetadata={handleLoadedMetadata}
+              onDurationChange={handleLoadedMetadata}
               onTimeUpdate={handleTimeUpdate}
             >
               <track ref={subtitleTrackElementRef} kind="subtitles" label="Subtitles" srcLang="und" default />

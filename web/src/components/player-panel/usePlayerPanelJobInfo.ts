@@ -66,7 +66,14 @@ export function usePlayerPanelJobInfo({
       return;
     }
     const original =
-      extractMetadataText(bookMetadata, ['input_language', 'original_language', 'language', 'lang']) ?? null;
+      extractMetadataText(bookMetadata, [
+        'input_language',
+        'original_language',
+        'source_language',
+        'translation_source_language',
+        'language',
+        'lang',
+      ]) ?? null;
     const target =
       extractMetadataFirstString(bookMetadata, ['target_language', 'translation_language', 'target_languages']) ??
       null;
@@ -87,13 +94,21 @@ export function usePlayerPanelJobInfo({
           return;
         }
         const parameters = status.parameters;
+        const parameterRecord = parameters && typeof parameters === 'object' ? (parameters as Record<string, unknown>) : null;
         const original =
           typeof parameters?.input_language === 'string' && parameters.input_language.trim()
             ? parameters.input_language.trim()
-            : null;
+            : extractMetadataText(parameterRecord, [
+                'original_language',
+                'source_language',
+                'translation_source_language',
+              ]);
         const targetLanguages = Array.isArray(parameters?.target_languages) ? parameters.target_languages : [];
         const firstTarget =
           typeof targetLanguages[0] === 'string' && targetLanguages[0].trim() ? targetLanguages[0].trim() : null;
+        const fallbackTarget =
+          extractMetadataFirstString(parameterRecord, ['target_language', 'translation_language', 'target_languages']) ??
+          null;
         const rawStart = toFiniteNumber(
           parameters?.start_sentence ?? (parameters as Record<string, unknown> | null)?.startSentence,
         );
@@ -103,7 +118,7 @@ export function usePlayerPanelJobInfo({
         const normalizedStart = rawStart !== null && rawStart > 0 ? rawStart : null;
         const normalizedEnd = rawEnd !== null && rawEnd > 0 ? rawEnd : null;
         setJobOriginalLanguage(original);
-        setJobTranslationLanguage(firstTarget);
+        setJobTranslationLanguage(firstTarget ?? fallbackTarget);
         setJobScopeStartSentence(normalizedStart);
         setJobScopeEndSentence(normalizedEnd);
       })

@@ -4673,6 +4673,128 @@ button.link-button:focus {
   max-width: calc(100% - 1.5rem);
 }
 
+.video-player__info-header {
+  width: 100%;
+  padding: 0.45rem 0.65rem;
+  border-radius: 1rem;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85), rgba(2, 6, 23, 0.55));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
+  backdrop-filter: blur(10px);
+  gap: 0.75rem;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.video-player__info-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.video-player__info-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.video-player__info-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(226, 232, 240, 0.82);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.video-player__info-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.video-player__info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+}
+
+.video-player__info-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.25;
+  max-width: 18rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-player__info-meta {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: rgba(226, 232, 240, 0.78);
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.video-player__info-flags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.video-player__info-flag-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.video-player__info-flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(15, 23, 42, 0.55);
+  color: rgba(226, 232, 240, 0.92);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.video-player__info-flag-emoji {
+  font-size: 0.82rem;
+}
+
+.video-player__info-flag-label {
+  white-space: nowrap;
+}
+
+.video-player__info-flag-sep {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148, 163, 184, 0.8);
+}
+
 .player-panel__player-info-header .player-panel__interactive-book-badge {
   position: static;
   top: auto;
@@ -4787,6 +4909,47 @@ button.link-button:focus {
 .video-player__stage:fullscreen .player-panel__player-info-header,
 .video-player__stage:-webkit-full-screen .player-panel__player-info-header {
   gap: 1.1rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-header,
+.video-player__stage:-webkit-full-screen .video-player__info-header {
+  padding: 0.85rem 1.1rem;
+  border-radius: 1.35rem;
+  gap: 1rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-title,
+.video-player__stage:-webkit-full-screen .video-player__info-title {
+  font-size: 1.4rem;
+  max-width: 36rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-meta,
+.video-player__stage:-webkit-full-screen .video-player__info-meta {
+  font-size: 1.02rem;
+  max-width: 40rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-flag,
+.video-player__stage:-webkit-full-screen .video-player__info-flag {
+  padding: 0.32rem 0.8rem;
+  font-size: 0.95rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-flag-emoji,
+.video-player__stage:-webkit-full-screen .video-player__info-flag-emoji {
+  font-size: 1.1rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-flag-sep,
+.video-player__stage:-webkit-full-screen .video-player__info-flag-sep {
+  font-size: 0.78rem;
+}
+
+.video-player__stage:fullscreen .video-player__info-pill,
+.video-player__stage:-webkit-full-screen .video-player__info-pill {
+  padding: 0.34rem 0.9rem;
+  font-size: 0.95rem;
 }
 
 .player-panel__interactive--fullscreen .player-panel__player-info-art-secondary,
