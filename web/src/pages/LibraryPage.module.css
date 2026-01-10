@@ -93,6 +93,10 @@
   gap: 0.5rem;
 }
 
+.accessPanel {
+  margin-top: 1rem;
+}
+
 .detailsJobGlyph {
   display: inline-flex;
   align-items: center;

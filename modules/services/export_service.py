@@ -19,6 +19,7 @@ from modules.core.rendering.constants import LANGUAGE_CODES
 from modules.metadata_manager import MetadataLoader
 from modules.services.file_locator import FileLocator
 from modules.services.pipeline_service import PipelineService
+from modules.permissions import can_access, resolve_access_policy
 from modules.library import LibraryService, LibraryEntry
 
 
@@ -618,6 +619,19 @@ class ExportService:
             entry = self._library_service.repository.get_entry_by_id(source_id)
             if entry is None:
                 raise ExportServiceError(f"Library entry {source_id} not found.")
+            metadata_payload = entry.metadata.data if hasattr(entry.metadata, "data") else {}
+            owner_id = entry.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
+            if isinstance(owner_id, str):
+                owner_id = owner_id.strip() or None
+            policy = resolve_access_policy(metadata_payload.get("access"), default_visibility="public")
+            if not can_access(
+                policy,
+                owner_id=owner_id,
+                user_id=user_id,
+                user_role=user_role,
+                permission="view",
+            ):
+                raise PermissionError("Not authorized to export this library entry")
             job_root = Path(entry.library_path)
             metadata = self._load_manifest(job_root)
             generated_files = self._load_generated_files(job_root, metadata)

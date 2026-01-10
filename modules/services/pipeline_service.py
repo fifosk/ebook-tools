@@ -7,13 +7,14 @@ import json
 import threading
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Mapping, Optional
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional
 from uuid import uuid4
 
 from .. import config_manager as cfg
 from .. import logging_manager as log_mgr
 from .. import metadata_manager
 from .. import observability
+from ..permissions import merge_access_policy, resolve_access_policy
 from ..core import ingestion
 from ..core.config import PipelineConfig
 from ..progress_tracker import ProgressTracker
@@ -507,11 +508,42 @@ class PipelineService:
         *,
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
+        permission: str = "view",
     ) -> "PipelineJob":
         """Return the job associated with ``job_id``."""
 
         return self._job_manager.get(
             job_id,
+            user_id=user_id,
+            user_role=user_role,
+            permission=permission,
+        )
+
+    def update_job_access(
+        self,
+        job_id: str,
+        *,
+        visibility: Optional[str] = None,
+        grants: Optional[Iterable[Mapping[str, Any]]] = None,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
+    ) -> "PipelineJob":
+        """Update the access policy for ``job_id`` and return the updated job."""
+
+        def _mutate(job: "PipelineJob") -> None:
+            default_visibility = "private" if job.user_id else "public"
+            existing = resolve_access_policy(job.access, default_visibility=default_visibility)
+            merged = merge_access_policy(
+                existing,
+                visibility=visibility,
+                grants=grants,
+                actor_id=user_id,
+            )
+            job.access = merged.to_dict()
+
+        return self._job_manager.mutate_job(
+            job_id,
+            _mutate,
             user_id=user_id,
             user_role=user_role,
         )

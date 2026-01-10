@@ -6,6 +6,8 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+from .access import AccessPolicyPayload
+
 
 class LibraryItemPayload(BaseModel):
     """Serializable representation of a library entry."""
@@ -24,6 +26,8 @@ class LibraryItemPayload(BaseModel):
     cover_path: Optional[str] = Field(alias="coverPath", default=None)
     isbn: Optional[str] = None
     source_path: Optional[str] = Field(alias="sourcePath", default=None)
+    owner_id: Optional[str] = Field(alias="ownerId", default=None)
+    access: Optional[AccessPolicyPayload] = None
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
     class Config:

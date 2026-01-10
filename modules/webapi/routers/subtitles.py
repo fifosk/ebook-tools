@@ -90,6 +90,13 @@ from ..schemas import (
 
 router = APIRouter(prefix="/api/subtitles", tags=["subtitles"])
 logger = log_mgr.get_logger().getChild("webapi.subtitles")
+_ALLOWED_ROLES = {"editor", "admin"}
+
+
+def _ensure_editor(request_user: RequestUserContext) -> None:
+    role = (request_user.user_role or "").strip().lower()
+    if role not in _ALLOWED_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
 def _as_bool(value: Optional[str | bool], default: bool = False) -> bool:
@@ -294,9 +301,11 @@ def _infer_language_from_name(path: Path) -> Optional[str]:
 def list_subtitle_sources(
     directory: Optional[str] = None,
     service: SubtitleService = Depends(get_subtitle_service),
+    request_user: RequestUserContext = Depends(get_request_user),
 ) -> SubtitleSourceListResponse:
     """Return discoverable subtitle files (.srt/.vtt plus generated .ass)."""
 
+    _ensure_editor(request_user)
     base_path = Path(directory).expanduser() if directory else None
     try:
         entries = service.list_sources(base_path)
@@ -328,9 +337,11 @@ def list_subtitle_sources(
 def delete_subtitle_source(
     payload: SubtitleDeleteRequest,
     service: SubtitleService = Depends(get_subtitle_service),
+    request_user: RequestUserContext = Depends(get_request_user),
 ) -> SubtitleDeleteResponse:
     """Delete a subtitle source and any mirrored HTML transcript."""
 
+    _ensure_editor(request_user)
     base_dir = Path(payload.base_dir).expanduser() if payload.base_dir else service.default_source_dir
     subtitle_path = Path(payload.subtitle_path).expanduser()
     try:
@@ -387,9 +398,13 @@ def _serialize_youtube_tracks(listing) -> YoutubeSubtitleListResponse:
 
 
 @router.get("/youtube/subtitles", response_model=YoutubeSubtitleListResponse)
-def list_youtube_subtitles(url: str) -> YoutubeSubtitleListResponse:
+def list_youtube_subtitles(
+    url: str,
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeSubtitleListResponse:
     """Return available YouTube subtitle languages for ``url``."""
 
+    _ensure_editor(request_user)
     try:
         listing = list_available_subtitles(url)
     except Exception as exc:
@@ -405,9 +420,11 @@ def list_youtube_subtitles(url: str) -> YoutubeSubtitleListResponse:
 def download_youtube_subtitle(
     payload: YoutubeSubtitleDownloadRequest,
     service: SubtitleService = Depends(get_subtitle_service),
+    request_user: RequestUserContext = Depends(get_request_user),
 ) -> YoutubeSubtitleDownloadResponse:
     """Download a YouTube subtitle track into the subtitle NAS directory."""
 
+    _ensure_editor(request_user)
     language = payload.language.strip()
     if not language:
         raise HTTPException(
@@ -576,9 +593,11 @@ def _parse_tempo_value(value: Optional[float | str]) -> float:
 @router.post("/youtube/video", response_model=YoutubeVideoDownloadResponse)
 def download_youtube_video(
     payload: YoutubeVideoDownloadRequest,
+    request_user: RequestUserContext = Depends(get_request_user),
 ) -> YoutubeVideoDownloadResponse:
     """Download a YouTube video to the NAS directory."""
 
+    _ensure_editor(request_user)
     target_root = Path(payload.output_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
     timestamp_value = _parse_timestamp(payload.timestamp)
     try:
@@ -635,6 +654,7 @@ def list_youtube_library(
 ) -> YoutubeNasLibraryResponse:
     """Return downloaded YouTube videos discovered in the NAS path."""
 
+    _ensure_editor(request_user)
     target_root = Path(base_dir or DEFAULT_YOUTUBE_VIDEO_ROOT).expanduser()
     try:
         videos = list_downloaded_videos(target_root)
@@ -652,9 +672,13 @@ def list_youtube_library(
 
 
 @router.get("/youtube/subtitle-streams", response_model=YoutubeInlineSubtitleListResponse)
-def list_inline_subtitle_streams_from_video(video_path: str) -> YoutubeInlineSubtitleListResponse:
+def list_inline_subtitle_streams_from_video(
+    video_path: str,
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeInlineSubtitleListResponse:
     """List embedded subtitle streams for a video without extracting them."""
 
+    _ensure_editor(request_user)
     resolved = Path(video_path).expanduser()
     try:
         streams = list_inline_subtitle_streams(resolved)
@@ -687,9 +711,11 @@ def list_inline_subtitle_streams_from_video(video_path: str) -> YoutubeInlineSub
 @router.post("/youtube/extract-subtitles", response_model=YoutubeSubtitleExtractionResponse)
 def extract_inline_subtitles_from_video(
     payload: YoutubeSubtitleExtractionRequest,
+    request_user: RequestUserContext = Depends(get_request_user),
 ) -> YoutubeSubtitleExtractionResponse:
     """Extract embedded subtitle tracks from a NAS video into SRT files."""
 
+    _ensure_editor(request_user)
     video_path = Path(payload.video_path).expanduser()
     try:
         extracted = extract_inline_subtitles(video_path, languages=payload.languages)
@@ -719,9 +745,13 @@ def extract_inline_subtitles_from_video(
 
 
 @router.post("/youtube/delete-subtitle", response_model=YoutubeSubtitleDeleteResponse)
-def delete_youtube_subtitle(payload: YoutubeSubtitleDeleteRequest) -> YoutubeSubtitleDeleteResponse:
+def delete_youtube_subtitle(
+    payload: YoutubeSubtitleDeleteRequest,
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> YoutubeSubtitleDeleteResponse:
     """Delete a NAS subtitle and its mirrored companions."""
 
+    _ensure_editor(request_user)
     video_path = Path(payload.video_path).expanduser()
     subtitle_path = Path(payload.subtitle_path).expanduser()
 
@@ -762,6 +792,7 @@ def delete_youtube_video(
 ) -> YoutubeVideoDeleteResponse:
     """Delete a downloaded YouTube video when no linked jobs reference it."""
 
+    _ensure_editor(request_user)
     video_path = Path(payload.video_path).expanduser()
     linked_jobs = _index_youtube_video_jobs(job_manager, request_user)
     token = _normalize_path_token(video_path)
@@ -799,6 +830,7 @@ def generate_youtube_dub(
 ) -> YoutubeDubResponse:
     """Generate a dubbed audio track from an ASS subtitle and mux it into the video."""
 
+    _ensure_editor(request_user)
     video_path = Path(payload.video_path).expanduser()
     subtitle_path = Path(payload.subtitle_path).expanduser()
 
@@ -888,9 +920,12 @@ def generate_youtube_dub(
 
 
 @router.get("/models", response_model=LLMModelListResponse)
-def list_subtitle_models() -> LLMModelListResponse:
+def list_subtitle_models(
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> LLMModelListResponse:
     """Return available Ollama models for subtitle translations."""
 
+    _ensure_editor(request_user)
     try:
         models = list_available_llm_models()
     except Exception as exc:
@@ -941,6 +976,7 @@ async def submit_subtitle_job(
 ):
     """Submit a subtitle processing job."""
 
+    _ensure_editor(request_user)
     if file is None and not source_path:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -1184,6 +1220,7 @@ def lookup_subtitle_tv_metadata_preview(
 ) -> SubtitleTvMetadataPreviewResponse:
     """Lookup TV metadata for a subtitle filename (used before submitting jobs)."""
 
+    _ensure_editor(request_user)
     try:
         payload = metadata_service.lookup_tv_metadata_for_source(
             lookup.source_name,
@@ -1261,6 +1298,7 @@ def lookup_youtube_video_metadata_preview(
 ) -> YoutubeVideoMetadataPreviewResponse:
     """Lookup YouTube metadata for a filename/URL (used before submitting jobs)."""
 
+    _ensure_editor(request_user)
     try:
         payload = metadata_service.lookup_youtube_metadata_for_source(
             lookup.source_name,

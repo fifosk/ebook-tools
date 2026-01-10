@@ -8,9 +8,15 @@
       "metadata": {}
     },
     {
-      "username": "standard-user",
+      "username": "editor",
       "password_hash": "89znYLQFygXtkKFL7idH0A$8ac752544b496d363fa2b9a369a2ee14cf9b46808a2de41d856f35c133c71a8f",
       "roles": ["editor"],
+      "metadata": {}
+    },
+    {
+      "username": "viewer",
+      "password_hash": "89znYLQFygXtkKFL7idH0A$8ac752544b496d363fa2b9a369a2ee14cf9b46808a2de41d856f35c133c71a8f",
+      "roles": ["viewer"],
       "metadata": {}
     }
   ]

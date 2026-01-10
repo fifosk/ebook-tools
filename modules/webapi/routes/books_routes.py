@@ -13,6 +13,7 @@ from fastapi.responses import FileResponse, Response
 from PIL import Image, ImageOps
 
 from modules.library import LibraryNotFoundError, LibrarySync
+from modules.permissions import can_access, normalize_role, resolve_access_policy
 
 from ... import config_manager as cfg
 from ...core import ingestion
@@ -41,15 +42,24 @@ router = APIRouter()
 _COVER_TARGET_SIZE = (600, 900)
 _COVER_ALLOWED_CONTENT_TYPES = {"image/jpeg", "image/jpg", "image/png", "image/webp"}
 _COVER_ALLOWED_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
+_ALLOWED_ROLES = {"admin", "editor"}
+
+
+def _ensure_editor(request_user: RequestUserContext) -> None:
+    role = normalize_role(request_user.user_role) or ""
+    if role not in _ALLOWED_ROLES:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
 
 
 @router.get("/files/content-index", response_model=BookContentIndexResponse)
 async def get_book_content_index(
     input_file: str,
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return chapter metadata for a selected EPUB file."""
 
+    _ensure_editor(request_user)
     trimmed = (input_file or "").strip()
     if not trimmed:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="input_file is required")
@@ -166,9 +176,11 @@ def _guess_cover_media_type(path: Path) -> str:
 @router.get("/files", response_model=PipelineFileBrowserResponse)
 async def list_pipeline_files(
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Return available ebook and output paths for client-side file pickers."""
 
+    _ensure_editor(request_user)
     with context_provider.activation({}, {}) as context:
         ebooks = _list_ebook_files(context.books_dir)
         outputs = _list_output_entries(context.output_dir)
@@ -185,9 +197,11 @@ async def list_pipeline_files(
 async def upload_pipeline_ebook(
     file: UploadFile = File(...),
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Persist an uploaded EPUB file into the configured books directory."""
 
+    _ensure_editor(request_user)
     content_type = (file.content_type or "").lower()
     if not file.filename:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Filename required")
@@ -303,9 +317,11 @@ async def upload_cover_file(
 async def delete_pipeline_ebook(
     payload: PipelineFileDeleteRequest,
     context_provider: RuntimeContextProvider = Depends(get_runtime_context_provider),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     """Remove an existing EPUB from the configured books directory."""
 
+    _ensure_editor(request_user)
     with context_provider.activation({}, {}) as context:
         books_dir = context.books_dir
         target = (books_dir / payload.path).resolve()
@@ -368,10 +384,32 @@ async def fetch_job_cover(
     cover_path = _find_job_cover_path(metadata_root)
 
     if (cover_path is None or not cover_path.is_file()) and library_sync is not None:
-        try:
-            library_cover = library_sync.find_cover_asset(job_id)
-        except LibraryNotFoundError:
-            library_cover = None
+        item = library_sync.get_item(job_id)
+        if item is not None:
+            metadata_payload = item.metadata.data if hasattr(item.metadata, "data") else {}
+            owner_id = item.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
+            if isinstance(owner_id, str):
+                owner_id = owner_id.strip() or None
+            policy = resolve_access_policy(metadata_payload.get("access"), default_visibility="public")
+            if not can_access(
+                policy,
+                owner_id=owner_id,
+                user_id=request_user.user_id,
+                user_role=request_user.user_role,
+                permission="view",
+            ):
+                permission_denied = True
+                library_cover = None
+            else:
+                try:
+                    library_cover = library_sync.find_cover_asset(job_id)
+                except LibraryNotFoundError:
+                    library_cover = None
+        else:
+            try:
+                library_cover = library_sync.find_cover_asset(job_id)
+            except LibraryNotFoundError:
+                library_cover = None
         if library_cover is not None and library_cover.is_file():
             cover_path = library_cover
 

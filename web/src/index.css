@@ -5699,6 +5699,7 @@ button.link-button:focus {
   position: relative;
   display: flex;
   flex-direction: column;
+  touch-action: pan-y;
 }
 
 .audio-player__element,

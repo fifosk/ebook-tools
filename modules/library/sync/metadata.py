@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, Mapping, Optional, Type
 
 from modules.library.library_models import LibraryEntry, MetadataSnapshot
+from modules.permissions import resolve_access_policy
 
 from conf.sync_config import UNKNOWN_LANGUAGE
 
@@ -111,6 +112,13 @@ def build_entry(
     metadata.setdefault("created_at", created_at)
     metadata["updated_at"] = updated_at
 
+    owner_id = metadata.get("user_id") or metadata.get("owner_id")
+    if isinstance(owner_id, str):
+        owner_id = owner_id.strip() or None
+    else:
+        owner_id = None
+    access_policy = resolve_access_policy(metadata.get("access"), default_visibility="public")
+
     metadata["item_type"] = infer_item_type(metadata)
     if metadata["item_type"] == "video":
         apply_video_defaults(metadata, job_root)
@@ -162,6 +170,8 @@ def build_entry(
         cover_path=cover_path,
         isbn=isbn,
         source_path=source_relative,
+        owner_id=owner_id,
+        visibility=access_policy.visibility,
         metadata=MetadataSnapshot(metadata=metadata),
     )
 

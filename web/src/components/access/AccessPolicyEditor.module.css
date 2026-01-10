@@ -1,0 +1,196 @@
+.editor {
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  background: var(--color-card-alt, #f9fafb);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.title {
+  margin: 0 0 0.25rem;
+  font-size: 0.95rem;
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #475467);
+}
+
+.metaItem {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.metaLabel {
+  font-weight: 600;
+}
+
+.visibilityGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 180px;
+}
+
+.fieldLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted, #475467);
+}
+
+.select,
+.input {
+  padding: 0.45rem 0.6rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: var(--color-card-bg, #ffffff);
+  color: inherit;
+  font-size: 0.85rem;
+}
+
+.grants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.linkButton {
+  border: none;
+  background: transparent;
+  color: var(--color-sidebar-link-active-text, #1d4ed8);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+}
+
+.emptyState {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--color-text-muted, #475467);
+}
+
+.grantList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.grantRow {
+  display: grid;
+  grid-template-columns: minmax(90px, 120px) minmax(140px, 1fr) minmax(140px, 200px) auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.65rem;
+  background: var(--color-card-bg, #ffffff);
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  position: relative;
+}
+
+.subjectField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.permissions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.checkboxLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+}
+
+.removeButton {
+  border: none;
+  background: transparent;
+  color: #b42318;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.grantMeta {
+  grid-column: 1 / -1;
+  font-size: 0.75rem;
+  color: var(--color-text-muted, #475467);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.primaryButton,
+.secondaryButton {
+  padding: 0.45rem 0.85rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.primaryButton {
+  border: none;
+  background: var(--color-sidebar-link-active-text, #1d4ed8);
+  color: #fff;
+}
+
+.secondaryButton {
+  border: 1px solid var(--color-border-subtle, #d0d5dd);
+  background: #fff;
+  color: var(--color-text-primary, #101828);
+}
+
+.error {
+  color: #b42318;
+  font-size: 0.85rem;
+}
+
+.notice {
+  color: #067647;
+  font-size: 0.85rem;
+}
+
+.noticeMuted {
+  font-size: 0.8rem;
+  color: var(--color-text-muted, #475467);
+}
+
+@media (max-width: 720px) {
+  .grantRow {
+    grid-template-columns: 1fr;
+  }
+  .actions {
+    justify-content: flex-start;
+  }
+}

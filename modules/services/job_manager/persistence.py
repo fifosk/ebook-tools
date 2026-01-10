@@ -495,6 +495,7 @@ class PipelineJobPersistence:
             retry_summary=copy.deepcopy(retry_summary),
             user_id=job.user_id,
             user_role=job.user_role,
+            access=copy.deepcopy(job.access) if job.access is not None else None,
             generated_files=copy.deepcopy(normalized_files)
             if normalized_files is not None
             else None,
@@ -550,6 +551,7 @@ class PipelineJobPersistence:
             else None,
             user_id=metadata.user_id,
             user_role=metadata.user_role,
+            access=copy.deepcopy(metadata.access) if metadata.access is not None else None,
             generated_files=copy.deepcopy(normalized_files)
             if normalized_files is not None
             else None,

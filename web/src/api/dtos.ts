@@ -137,6 +137,30 @@ export interface PipelineResponsePayload {
   generated_files?: Record<string, unknown> | null;
 }
 
+export type AccessPermission = 'view' | 'edit';
+export type AccessVisibility = 'private' | 'public';
+export type AccessSubjectType = 'user' | 'role';
+
+export interface AccessGrant {
+  subjectType: AccessSubjectType;
+  subjectId: string;
+  permissions: AccessPermission[];
+  grantedBy?: string | null;
+  grantedAt?: string | null;
+}
+
+export interface AccessPolicy {
+  visibility: AccessVisibility;
+  grants: AccessGrant[];
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AccessPolicyUpdatePayload {
+  visibility?: AccessVisibility;
+  grants?: AccessGrant[];
+}
+
 export interface ImageGenerationSummary {
   enabled: boolean;
   expected?: number | null;
@@ -199,6 +223,7 @@ export interface PipelineStatusResponse {
   tuning: Record<string, unknown> | null;
   user_id?: string | null;
   user_role?: string | null;
+  access?: AccessPolicy | null;
   generated_files?: Record<string, unknown> | null;
   parameters?: JobParameterSnapshot | null;
   media_completed?: boolean | null;
@@ -591,6 +616,8 @@ export interface LibraryItem {
   coverPath?: string | null;
   isbn?: string | null;
   sourcePath?: string | null;
+  ownerId?: string | null;
+  access?: AccessPolicy | null;
   metadata: Record<string, unknown>;
 }
 

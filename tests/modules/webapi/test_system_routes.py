@@ -9,7 +9,10 @@ def test_pipeline_defaults_endpoint_returns_config() -> None:
     app = create_app()
 
     with TestClient(app) as client:
-        response = client.get("/api/pipelines/defaults")
+        response = client.get(
+            "/api/pipelines/defaults",
+            headers={"X-User-Id": "tester", "X-User-Role": "editor"},
+        )
 
     assert response.status_code == 200
     payload = response.json()

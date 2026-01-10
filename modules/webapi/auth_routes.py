@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 
 from ..user_management import AuthService
+from modules.permissions import normalize_role
 from ..user_management.user_store_base import UserRecord
 from .dependencies import get_auth_service
 from .schemas import (
@@ -37,8 +38,9 @@ def _require_token(authorization: str | None) -> str:
 
 def _primary_role(record: UserRecord) -> str:
     if record.roles:
-        return record.roles[0]
-    return "user"
+        normalized = normalize_role(record.roles[0])
+        return normalized or record.roles[0]
+    return "viewer"
 
 
 def _resolve_last_login(record: UserRecord, session_data: dict[str, str] | None) -> str | None:

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import type { LiveMediaChunk, LiveMediaItem } from '../../hooks/useLiveMedia';
 import type { AudioTrackMetadata } from '../../api/dtos';
-import { appendAccessToken, buildStorageUrl, resolveLibraryMediaUrl } from '../../api/client';
+import {
+  appendAccessToken,
+  appendAccessTokenToStorageUrl,
+  buildStorageUrl,
+  resolveLibraryMediaUrl,
+} from '../../api/client';
 import { coerceExportPath } from '../../utils/storageResolver';
 import { formatChunkLabel, isAudioFileType } from './utils';
 import { isCombinedAudioCandidate, isOriginalAudioCandidate } from './helpers';
@@ -89,13 +94,13 @@ export function useInlineAudioOptions({
         return coerceExportPath(trimmed, normalisedJobId);
       }
       if (trimmed.includes('://')) {
-        return trimmed;
+        return appendAccessTokenToStorageUrl(trimmed);
       }
       if (trimmed.startsWith('/')) {
         if (origin === 'library') {
           return appendAccessToken(trimmed);
         }
-        return trimmed;
+        return appendAccessTokenToStorageUrl(trimmed);
       }
       if (origin === 'library') {
         const resolved = resolveLibraryMediaUrl(normalisedJobId, trimmed);

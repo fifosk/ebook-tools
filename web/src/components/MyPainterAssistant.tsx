@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { appendAccessToken, fetchSentenceImageInfo, regenerateSentenceImage, resolveLibraryMediaUrl } from '../api/client';
+import {
+  appendAccessToken,
+  buildStorageUrl,
+  fetchSentenceImageInfo,
+  regenerateSentenceImage,
+  resolveLibraryMediaUrl,
+} from '../api/client';
 import type { SentenceImageRegenerateRequestPayload } from '../api/dtos';
 import { useMyPainter, type MyPainterSentenceContext } from '../context/MyPainterProvider';
-import { resolve as resolveStoragePath } from '../utils/storageResolver';
 import styles from './MyPainterAssistant.module.css';
 
 type PanelSize = { width: number; height: number };
@@ -342,7 +347,7 @@ export default function MyPainterAssistant() {
 	      const baseUrl =
 	        targetSentence?.mediaOrigin === 'library'
 	          ? resolveLibraryMediaUrl(jobId, rawPath)
-	          : resolveStoragePath(jobId, rawPath);
+	          : buildStorageUrl(rawPath, jobId);
 	      if (!baseUrl) {
 	        return null;
 	      }

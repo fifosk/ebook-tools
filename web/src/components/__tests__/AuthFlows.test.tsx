@@ -316,11 +316,11 @@ describe('authentication flows', () => {
     expect(screen.getByText(/No users registered yet/i)).toBeInTheDocument();
   });
 
-  it('hides admin controls for standard users', async () => {
+  it('hides admin controls for viewers', async () => {
     const user = userEvent.setup();
     const sessionResponse = {
       token: 'test-token',
-      user: { username: 'sarah', role: 'standard_user', last_login: '2024-03-01T12:00:00Z' }
+      user: { username: 'sarah', role: 'viewer', last_login: '2024-03-01T12:00:00Z' }
     };
 
     vi.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL) => {

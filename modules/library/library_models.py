@@ -107,6 +107,8 @@ class LibraryEntry:
     cover_path: Optional[str] = None
     isbn: Optional[str] = None
     source_path: Optional[str] = None
+    owner_id: Optional[str] = None
+    visibility: str = "public"
     metadata: MetadataSnapshot = field(default_factory=MetadataSnapshot)
 
     @property
@@ -128,6 +130,8 @@ class LibraryEntry:
             "cover_path": self.cover_path,
             "isbn": self.isbn,
             "source_path": self.source_path,
+            "owner_id": self.owner_id,
+            "visibility": self.visibility,
             "metadata": dict(self.metadata.data),
         }
         payload["media_completed"] = self.metadata.is_media_completed()

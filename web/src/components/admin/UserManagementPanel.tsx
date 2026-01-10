@@ -14,7 +14,7 @@ interface UserManagementPanelProps {
   currentUser: string;
 }
 
-type RoleOption = 'admin' | 'standard_user';
+type RoleOption = 'admin' | 'editor' | 'viewer';
 
 type ProfileDraft = {
   email: string;
@@ -115,7 +115,7 @@ export default function UserManagementPanel({ currentUser }: UserManagementPanel
   const [formState, setFormState] = useState<CreateUserFormState>({
     username: '',
     password: '',
-    role: 'standard_user',
+    role: 'viewer',
     email: '',
     firstName: '',
     lastName: ''
@@ -170,7 +170,7 @@ export default function UserManagementPanel({ currentUser }: UserManagementPanel
     setFormState({
       username: '',
       password: '',
-      role: 'standard_user',
+      role: 'viewer',
       email: '',
       firstName: '',
       lastName: ''
@@ -436,7 +436,8 @@ export default function UserManagementPanel({ currentUser }: UserManagementPanel
               }
               disabled={isCreating}
             >
-              <option value="standard_user">Standard user</option>
+              <option value="viewer">Viewer</option>
+              <option value="editor">Editor</option>
               <option value="admin">Administrator</option>
             </select>
           </label>

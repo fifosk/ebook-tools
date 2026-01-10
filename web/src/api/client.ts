@@ -23,6 +23,7 @@ import {
   MediaSearchResponse,
   ExportRequestPayload,
   ExportResponse,
+  AccessPolicyUpdatePayload,
   UserAccountResponse,
   UserCreateRequestPayload,
   UserListResponse,
@@ -636,6 +637,20 @@ export async function refreshPipelineMetadata(jobId: string): Promise<PipelineSt
   return handleResponse<PipelineStatusResponse>(response);
 }
 
+export async function updateJobAccess(
+  jobId: string,
+  payload: AccessPolicyUpdatePayload
+): Promise<PipelineStatusResponse> {
+  const response = await apiFetch(`/api/pipelines/${encodeURIComponent(jobId)}/access`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<PipelineStatusResponse>(response);
+}
+
 export async function fetchJobTiming(jobId: string, signal?: AbortSignal): Promise<JobTimingResponse | null> {
   const response = await apiFetch(`/api/jobs/${encodeURIComponent(jobId)}/timing`, {
     signal,
@@ -1098,15 +1113,71 @@ export function resolveJobCoverUrl(jobId: string): string | null {
   return withBase(`/api/pipelines/${encoded}/cover`);
 }
 
+function shouldAppendAccessTokenToStorage(url: string): boolean {
+  const token = getAuthToken();
+  if (!token) {
+    return false;
+  }
+  const trimmed = url.trim();
+  if (!trimmed) {
+    return false;
+  }
+  if (trimmed.startsWith('data:') || trimmed.startsWith('blob:')) {
+    return false;
+  }
+  if (!/^[a-z]+:\/\//i.test(trimmed)) {
+    return true;
+  }
+  try {
+    const target = new URL(trimmed);
+    const origins = new Set<string>();
+
+    const addOrigin = (value: string | null | undefined) => {
+      if (!value) {
+        return;
+      }
+      try {
+        origins.add(
+          new URL(value, typeof window !== 'undefined' ? window.location.origin : undefined).origin
+        );
+      } catch (error) {
+        // Ignore invalid base URLs.
+      }
+    };
+
+    addOrigin(API_BASE_URL);
+    addOrigin(STORAGE_BASE_URL);
+    if (typeof window !== 'undefined') {
+      origins.add(window.location.origin);
+    }
+    return origins.has(target.origin);
+  } catch (error) {
+    return false;
+  }
+}
+
+function maybeAppendAccessTokenToStorage(url: string): string {
+  if (!shouldAppendAccessTokenToStorage(url)) {
+    return url;
+  }
+  return appendAccessToken(url);
+}
+
+export function appendAccessTokenToStorageUrl(url: string): string {
+  return maybeAppendAccessTokenToStorage(url);
+}
+
 export function buildStorageUrl(path: string, jobId?: string | null): string {
   const trimmedPath = (path ?? '').trim();
   if (!trimmedPath) {
-    return resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
+    const resolved = resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
+    return maybeAppendAccessTokenToStorage(resolved);
   }
 
   const normalisedPath = trimmedPath.replace(/^\/+/, '');
   if (!normalisedPath) {
-    return resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
+    const resolved = resolveStoragePath(null, null, STORAGE_BASE_URL, API_BASE_URL);
+    return maybeAppendAccessTokenToStorage(resolved);
   }
 
   const normalisedJobId = (jobId ?? '').trim().replace(/^\/+/, '').replace(/\/+$/, '');
@@ -1116,12 +1187,13 @@ export function buildStorageUrl(path: string, jobId?: string | null): string {
     const jobIndex = segments.findIndex((segment) => segment === normalisedJobId);
     if (jobIndex >= 0) {
       const fileSegment = segments.slice(jobIndex + 1).join('/');
-      return resolveStoragePath(
+      const resolved = resolveStoragePath(
         normalisedJobId,
         fileSegment,
         STORAGE_BASE_URL,
         API_BASE_URL
       );
+      return maybeAppendAccessTokenToStorage(resolved);
     }
 
     if (
@@ -1130,35 +1202,38 @@ export function buildStorageUrl(path: string, jobId?: string | null): string {
       segments[1] === normalisedJobId
     ) {
       const fileSegment = segments.slice(2).join('/');
-      return resolveStoragePath(
+      const resolved = resolveStoragePath(
         normalisedJobId,
         fileSegment,
         STORAGE_BASE_URL,
         API_BASE_URL
       );
+      return maybeAppendAccessTokenToStorage(resolved);
     }
 
     const firstSegment = segments[0]?.toLowerCase() ?? '';
     const requiresJobPrefix = firstSegment !== 'covers' && firstSegment !== 'storage' && firstSegment !== 'jobs';
     if (requiresJobPrefix) {
-      return resolveStoragePath(
+      const resolved = resolveStoragePath(
         normalisedJobId,
         normalisedPath,
         STORAGE_BASE_URL,
         API_BASE_URL
       );
+      return maybeAppendAccessTokenToStorage(resolved);
     }
   }
 
   const [jobSegment, ...rest] = segments;
   const fileSegment = rest.length > 0 ? rest.join('/') : '';
 
-  return resolveStoragePath(
+  const resolved = resolveStoragePath(
     jobSegment || null,
     fileSegment,
     STORAGE_BASE_URL,
     API_BASE_URL
   );
+  return maybeAppendAccessTokenToStorage(resolved);
 }
 
 export function resolveSubtitleDownloadUrl(
@@ -1362,6 +1437,20 @@ export async function updateLibraryMetadata(
   payload: LibraryMetadataUpdatePayload
 ): Promise<LibraryItem> {
   const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+  return handleResponse<LibraryItem>(response);
+}
+
+export async function updateLibraryAccess(
+  jobId: string,
+  payload: AccessPolicyUpdatePayload
+): Promise<LibraryItem> {
+  const response = await apiFetch(`/api/library/items/${encodeURIComponent(jobId)}/access`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json'

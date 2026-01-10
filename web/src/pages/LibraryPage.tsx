@@ -1,5 +1,10 @@
 import { ChangeEvent, FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import type { LibraryItem, LibraryViewMode, LibraryMetadataUpdatePayload } from '../api/dtos';
+import type {
+  AccessPolicyUpdatePayload,
+  LibraryItem,
+  LibraryViewMode,
+  LibraryMetadataUpdatePayload
+} from '../api/dtos';
 import {
   applyLibraryIsbn,
   appendAccessToken,
@@ -9,6 +14,7 @@ import {
   reindexLibrary,
   resolveLibraryMediaUrl,
   searchLibrary,
+  updateLibraryAccess,
   updateLibraryMetadata,
   uploadLibrarySource,
   withBase,
@@ -16,11 +22,14 @@ import {
 } from '../api/client';
 import LibraryList from '../components/LibraryList';
 import LibraryToolbar from '../components/LibraryToolbar';
+import AccessPolicyEditor from '../components/access/AccessPolicyEditor';
 import styles from './LibraryPage.module.css';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import { downloadWithSaveAs } from '../utils/downloads';
+import { canAccessPolicy, normalizeRole } from '../utils/accessControl';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
 import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
+import { useAuth } from '../components/AuthProvider';
 
 const PAGE_SIZE = 25;
 
@@ -217,6 +226,11 @@ function resolveGenre(item: LibraryItem | null | undefined): string {
 }
 
 function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: LibraryPageProps) {
+  const { session } = useAuth();
+  const sessionUser = session?.user ?? null;
+  const userId = sessionUser?.username ?? null;
+  const normalizedRole = normalizeRole(sessionUser?.role ?? null);
+  const isAdmin = normalizedRole === 'admin';
   const [query, setQuery] = useState('');
   const [effectiveQuery, setEffectiveQuery] = useState('');
   const [view, setView] = useState<LibraryViewMode>('flat');
@@ -248,6 +262,29 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const [isbnFetchError, setIsbnFetchError] = useState<string | null>(null);
   const [isFetchingIsbn, setIsFetchingIsbn] = useState(false);
   const [pendingFocus, setPendingFocus] = useState<{ jobId: string; itemType: LibraryItemType; token: number } | null>(null);
+
+  const resolveItemPermissions = useCallback(
+    (item: LibraryItem) => {
+      const ownerId = item.ownerId ?? null;
+      const defaultVisibility = 'public';
+      const canView = canAccessPolicy(item.access ?? null, {
+        ownerId,
+        userId,
+        userRole: normalizedRole,
+        permission: 'view',
+        defaultVisibility
+      });
+      const canEdit = canAccessPolicy(item.access ?? null, {
+        ownerId,
+        userId,
+        userRole: normalizedRole,
+        permission: 'edit',
+        defaultVisibility
+      });
+      return { canView, canEdit, canExport: canView };
+    },
+    [normalizedRole, userId]
+  );
 
   const handleQueryChange = useCallback(
     (value: string) => {
@@ -381,6 +418,11 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
   const openLibraryItem = useCallback(
     (item: LibraryItem) => {
+      const permissions = resolveItemPermissions(item);
+      if (!permissions.canView) {
+        window.alert('You are not authorized to play this entry.');
+        return;
+      }
       selectLibraryItem(item);
       if (onPlay) {
         const itemType = resolveItemType(item);
@@ -399,7 +441,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         onPlay(payload);
       }
     },
-    [onPlay, selectLibraryItem]
+    [onPlay, resolveItemPermissions, selectLibraryItem]
   );
 
   const handleOpen = useCallback((item: LibraryItem) => {
@@ -408,6 +450,11 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
   const handleRemoveEntry = useCallback(
     async (item: LibraryItem) => {
+      const permissions = resolveItemPermissions(item);
+      if (!permissions.canEdit) {
+        window.alert('You are not authorized to remove this library entry.');
+        return;
+      }
       if (!window.confirm(`Remove job ${item.jobId} from the library? This cannot be undone.`)) {
         return;
       }
@@ -433,11 +480,16 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         });
       }
     },
-    [items.length, page]
+    [items.length, page, resolveItemPermissions]
   );
 
   const handleExportEntry = useCallback(
     async (item: LibraryItem) => {
+      const permissions = resolveItemPermissions(item);
+      if (!permissions.canExport) {
+        window.alert('You are not authorized to export this entry.');
+        return;
+      }
       if (mutating[item.jobId]) {
         return;
       }
@@ -470,7 +522,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         });
       }
     },
-    [appendAccessToken, createExport, downloadWithSaveAs, mutating, withBase]
+    [appendAccessToken, createExport, downloadWithSaveAs, mutating, resolveItemPermissions, withBase]
   );
 
   const handleReindex = useCallback(async () => {
@@ -508,9 +560,14 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
 
   const handleEditMetadata = useCallback(
     (item: LibraryItem) => {
+      const permissions = resolveItemPermissions(item);
+      if (!permissions.canEdit) {
+        window.alert('You are not authorized to edit this entry.');
+        return;
+      }
       startEditingItem(item);
     },
-    [startEditingItem]
+    [resolveItemPermissions, startEditingItem]
   );
 
   const handleEditCancel = useCallback(() => {
@@ -590,6 +647,11 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
       if (!selectedItem) {
         return;
       }
+      const permissions = resolveItemPermissions(selectedItem);
+      if (!permissions.canEdit) {
+        setEditError('You are not authorized to edit this entry.');
+        return;
+      }
       setIsSaving(true);
       setEditError(null);
 
@@ -637,7 +699,38 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         setIsSaving(false);
       }
     },
-    [editValues, selectedItem]
+    [editValues, resolveItemPermissions, selectedItem]
+  );
+
+  const handleUpdateAccess = useCallback(
+    async (payload: AccessPolicyUpdatePayload) => {
+      if (!selectedItem) {
+        throw new Error('Select a library entry to update access.');
+      }
+      const permissions = resolveItemPermissions(selectedItem);
+      if (!permissions.canEdit) {
+        throw new Error('You are not authorized to update access for this entry.');
+      }
+      const jobId = selectedItem.jobId;
+      setMutating((previous) => ({ ...previous, [jobId]: true }));
+      try {
+        const updated = await updateLibraryAccess(jobId, payload);
+        setItems((previous) =>
+          previous.map((entry) => (entry.jobId === updated.jobId ? updated : entry))
+        );
+        setSelectedItem(updated);
+      } finally {
+        setMutating((previous) => {
+          if (!previous[jobId]) {
+            return previous;
+          }
+          const next = { ...previous };
+          delete next[jobId];
+          return next;
+        });
+      }
+    },
+    [resolveItemPermissions, selectedItem]
   );
 
   const totalPages = useMemo(() => {
@@ -662,6 +755,10 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const selectedGenre = useMemo(() => resolveGenre(selectedItem), [selectedItem]);
   const selectedJobType = useMemo(() => extractJobType(selectedItem?.metadata) ?? null, [selectedItem]);
   const selectedJobGlyph = useMemo(() => getJobTypeGlyph(selectedJobType), [selectedJobType]);
+  const selectedPermissions = useMemo(
+    () => (selectedItem ? resolveItemPermissions(selectedItem) : null),
+    [resolveItemPermissions, selectedItem]
+  );
 
   const bookItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'book'), [items]);
   const videoItems = useMemo(() => items.filter((item) => resolveItemType(item) === 'video'), [items]);
@@ -736,7 +833,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
         view={view}
         onViewChange={(nextView) => setView(nextView)}
         isLoading={isLoading}
-        onReindex={handleReindex}
+        onReindex={isAdmin ? handleReindex : undefined}
         onRefresh={() => setRefreshKey((key) => key + 1)}
         isReindexing={isReindexing}
       />
@@ -783,6 +880,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
               onExport={handleExportEntry}
               onRemove={handleRemoveEntry}
               onEditMetadata={handleEditMetadata}
+              resolvePermissions={resolveItemPermissions}
               selectedJobId={selectedItem?.jobId}
               mutating={mutating}
             />
@@ -875,6 +973,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                   type="button"
                   className={styles.primaryButton}
                   onClick={handlePlay}
+                  disabled={!selectedPermissions?.canView}
                 >
                   Play
                 </button>
@@ -882,7 +981,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                   type="button"
                   className={styles.secondaryButton}
                   onClick={() => startEditingItem(selectedItem)}
-                  disabled={isSaving || Boolean(mutating[selectedItem.jobId])}
+                  disabled={isSaving || Boolean(mutating[selectedItem.jobId]) || !selectedPermissions?.canEdit}
                 >
                   Edit
                 </button>
@@ -891,6 +990,16 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                     Media is still finalizing or was previously removed for this entry.
                   </span>
                 ) : null}
+              </div>
+              <div className={styles.accessPanel}>
+                <AccessPolicyEditor
+                  policy={selectedItem.access ?? null}
+                  ownerId={selectedItem.ownerId ?? null}
+                  defaultVisibility="public"
+                  canEdit={Boolean(selectedPermissions?.canEdit)}
+                  onSave={handleUpdateAccess}
+                  title="Sharing"
+                />
               </div>
               {isEditing ? (
                 <>

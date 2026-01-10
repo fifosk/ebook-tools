@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .audio import GTTSLanguage, MacOSVoice, VoiceInventoryResponse, VoiceMatchResponse
+from .access import AccessGrantPayload, AccessPolicyPayload, AccessPolicyUpdateRequest
 from .auth import (
     LoginRequestPayload,
     PasswordChangeRequestPayload,
@@ -128,6 +129,9 @@ from .video_jobs import VideoJobResultPayload, VideoJobStatusResponse, VideoJobS
 
 __all__ = [
     "AudioGenerationParameters",
+    "AccessGrantPayload",
+    "AccessPolicyPayload",
+    "AccessPolicyUpdateRequest",
     "AudioSynthesisError",
     "AudioSynthesisRequest",
     "AudioTrackMetadata",

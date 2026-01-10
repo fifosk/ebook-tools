@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
-import { fetchJobMedia, fetchLiveJobMedia } from '../api/client';
+import { appendAccessTokenToStorageUrl, fetchJobMedia, fetchLiveJobMedia } from '../api/client';
 import {
   AudioTrackMetadata,
   PipelineMediaFile,
@@ -733,13 +733,30 @@ function deriveRelativePath(jobId: string | null | undefined, rawPath: string | 
   return null;
 }
 
+function tokeniseStorageUrl(url: string | null): string | null {
+  if (!url) {
+    return null;
+  }
+  if (url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  return appendAccessTokenToStorageUrl(url);
+}
+
 function resolveFileUrl(
   jobId: string | null | undefined,
   entry: Record<string, unknown>,
 ): string | null {
   const explicitUrl = toStringOrNull(entry.url);
   if (explicitUrl) {
-    return explicitUrl;
+    if (!explicitUrl.includes('://') && !explicitUrl.startsWith('/') && !explicitUrl.startsWith('data:') && !explicitUrl.startsWith('blob:')) {
+      try {
+        return tokeniseStorageUrl(resolveStoragePath(jobId ?? null, explicitUrl));
+      } catch (error) {
+        console.warn('Unable to resolve storage URL for generated media', error);
+      }
+    }
+    return tokeniseStorageUrl(explicitUrl);
   }
 
   const relativePath =
@@ -748,7 +765,7 @@ function resolveFileUrl(
 
   if (relativePath) {
     try {
-      return resolveStoragePath(jobId ?? null, relativePath);
+      return tokeniseStorageUrl(resolveStoragePath(jobId ?? null, relativePath));
     } catch (error) {
       console.warn('Unable to resolve storage URL for generated media', error);
     }
@@ -756,7 +773,7 @@ function resolveFileUrl(
 
   const fallbackPath = toStringOrNull(entry.path);
   if (fallbackPath && fallbackPath.includes('://')) {
-    return fallbackPath;
+    return tokeniseStorageUrl(fallbackPath);
   }
 
   return null;

@@ -8,6 +8,7 @@ from typing import Any, List, Mapping, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from modules.library import LibraryError, LibrarySync
+from modules.permissions import can_access, resolve_access_policy
 
 from ...services.file_locator import FileLocator
 from ...services.pipeline_service import PipelineService
@@ -156,6 +157,21 @@ async def search_pipeline_media(
     if job is None and library_item is None:  # pragma: no cover - defensive guard
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
 
+    if job is None and library_item is not None:
+        metadata_payload = library_item.metadata.data if hasattr(library_item.metadata, "data") else {}
+        owner_id = library_item.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
+        if isinstance(owner_id, str):
+            owner_id = owner_id.strip() or None
+        policy = resolve_access_policy(metadata_payload.get("access"), default_visibility="public")
+        if not can_access(
+            policy,
+            owner_id=owner_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+            permission="view",
+        ):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access library item")
+
     jobs_to_search: List[PipelineJob | _LibrarySearchJobAdapter] = []
     library_job_ids: set[str] = set()
     if job is not None:
@@ -248,6 +264,8 @@ async def search_pipeline_media(
                 query=normalized_query,
                 page=1,
                 limit=min(available_slots, limit),
+                user_id=request_user.user_id,
+                user_role=request_user.user_role,
             )
         except LibraryError:
             library_search = None

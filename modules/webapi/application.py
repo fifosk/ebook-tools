@@ -12,10 +12,11 @@ from pathlib import Path
 import socket
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
+from starlette.datastructures import Headers, MutableHeaders
 from starlette.responses import Response
-from starlette.types import Scope
+from starlette.types import ASGIApp, Receive, Scope, Send
+from urllib.parse import urlparse
+from fastapi.staticfiles import StaticFiles
 
 from modules import config_manager as cfg
 from modules import load_environment
@@ -275,6 +276,139 @@ def _parse_cors_origins(raw_value: str | None) -> tuple[list[str], bool]:
     return tokens, True
 
 
+def _normalize_origin(value: str | None) -> str | None:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    try:
+        parsed = urlparse(candidate)
+    except ValueError:
+        return None
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
+def _normalize_host(value: str | None) -> str | None:
+    if not value:
+        return None
+    host = value.strip().lower()
+    if not host:
+        return None
+    if host.startswith("["):
+        end = host.find("]")
+        if end >= 0:
+            return host[1:end]
+        return host
+    if ":" in host:
+        return host.split(":", 1)[0]
+    return host
+
+
+class DynamicCORSMiddleware:
+    """CORS middleware with a host-based fallback for paired UI/API origins."""
+
+    def __init__(
+        self,
+        app: ASGIApp,
+        *,
+        allowed_origins: list[str],
+        allow_credentials: bool,
+        allow_methods: list[str],
+        allow_headers: list[str],
+        expose_headers: list[str],
+    ) -> None:
+        self.app = app
+        self.allowed_origins = {_normalize_origin(origin) for origin in allowed_origins}
+        self.allowed_origins.discard(None)
+        self.allow_all_origins = "*" in allowed_origins
+        self.allow_credentials = allow_credentials
+        self.allow_methods = allow_methods
+        self.allow_headers = allow_headers
+        self.expose_headers = expose_headers
+
+    def _origin_allowed(self, origin: str, headers: Headers) -> bool:
+        normalized = _normalize_origin(origin)
+        if normalized is None:
+            return False
+        if self.allow_all_origins:
+            return True
+        if normalized in self.allowed_origins:
+            return True
+
+        origin_host = _normalize_host(urlparse(normalized).hostname)
+        request_host = _normalize_host(headers.get("host"))
+        if not origin_host or not request_host:
+            return False
+        if origin_host == request_host:
+            return True
+        if request_host.startswith("api."):
+            return origin_host == request_host[len("api.") :]
+        if request_host.startswith("api-"):
+            return origin_host == request_host[len("api-") :]
+        return False
+
+    def _apply_cors_headers(self, headers: MutableHeaders, origin: str) -> None:
+        headers["Access-Control-Allow-Origin"] = origin
+        if self.allow_credentials:
+            headers["Access-Control-Allow-Credentials"] = "true"
+        if self.expose_headers:
+            headers["Access-Control-Expose-Headers"] = ", ".join(self.expose_headers)
+        vary = headers.get("Vary")
+        if not vary:
+            headers["Vary"] = "Origin"
+        elif "origin" not in {value.strip().lower() for value in vary.split(",")}:
+            headers["Vary"] = f"{vary}, Origin"
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        headers = Headers(scope=scope)
+        origin = headers.get("origin")
+        if not origin or not self._origin_allowed(origin, headers):
+            await self.app(scope, receive, send)
+            return
+
+        is_preflight = (
+            scope["method"] == "OPTIONS"
+            and "access-control-request-method" in headers
+        )
+        if is_preflight:
+            response = Response(status_code=204)
+            response_headers = response.headers
+            self._apply_cors_headers(response_headers, origin)
+            if self.allow_methods:
+                if "*" in self.allow_methods:
+                    response_headers["Access-Control-Allow-Methods"] = headers.get(
+                        "access-control-request-method", ""
+                    )
+                else:
+                    response_headers["Access-Control-Allow-Methods"] = ", ".join(self.allow_methods)
+            if self.allow_headers:
+                if "*" in self.allow_headers:
+                    response_headers["Access-Control-Allow-Headers"] = headers.get(
+                        "access-control-request-headers", ""
+                    )
+                else:
+                    response_headers["Access-Control-Allow-Headers"] = ", ".join(self.allow_headers)
+            if "Access-Control-Max-Age" not in response_headers:
+                response_headers["Access-Control-Max-Age"] = "600"
+            await response(scope, receive, send)
+            return
+
+        async def send_wrapper(message: dict) -> None:
+            if message["type"] == "http.response.start":
+                response_headers = MutableHeaders(scope=message)
+                self._apply_cors_headers(response_headers, origin)
+            await send(message)
+
+        await self.app(scope, receive, send_wrapper)
+
+
 def _resolve_static_assets_config() -> StaticAssetsConfig | None:
     """Determine whether to serve the bundled SPA and, if so, how."""
 
@@ -310,8 +444,8 @@ def _configure_cors(app: FastAPI) -> None:
         return
 
     app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allowed_origins,
+        DynamicCORSMiddleware,
+        allowed_origins=allowed_origins,
         allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"] + list(RANGE_REQUEST_HEADERS),

@@ -33,6 +33,8 @@ from ..schemas import (
     BookOpenLibraryMetadataPreviewResponse,
     BookOpenLibraryMetadataResponse,
 )
+from ..schemas.access import AccessPolicyPayload, AccessPolicyUpdateRequest
+from modules.permissions import resolve_access_policy
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -119,6 +121,9 @@ async def submit_pipeline(
 ):
     """Submit a pipeline execution request and return an identifier."""
 
+    if (request_user.user_role or "").strip().lower() not in {"admin", "editor"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+
     resolved_config = context_provider.resolve_config(payload.config)
     context_overrides = dict(payload.environment_overrides)
     context_overrides.update(payload.pipeline_overrides)
@@ -141,6 +146,56 @@ async def submit_pipeline(
         created_at=job.created_at,
         job_type=job.job_type,
     )
+
+
+@router.get("/{job_id}/access", response_model=AccessPolicyPayload)
+async def get_job_access(
+    job_id: str,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AccessPolicyPayload:
+    try:
+        job = pipeline_service.get_job(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    default_visibility = "private" if job.user_id else "public"
+    policy = resolve_access_policy(job.access, default_visibility=default_visibility)
+    return AccessPolicyPayload.model_validate(policy.to_dict())
+
+
+@router.patch("/{job_id}/access", response_model=PipelineStatusResponse)
+async def update_job_access(
+    job_id: str,
+    payload: AccessPolicyUpdateRequest,
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> PipelineStatusResponse:
+    if not request_user.user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing session token")
+
+    try:
+        job = pipeline_service.update_job_access(
+            job_id,
+            visibility=payload.visibility,
+            grants=[grant.model_dump(by_alias=True) for grant in payload.grants]
+            if payload.grants is not None
+            else None,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:  # pragma: no cover - FastAPI handles error path
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+    return PipelineStatusResponse.from_job(job)
 
 
 @router.post("/{job_id}/metadata/refresh", response_model=PipelineStatusResponse)

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePipelineEvents } from '../hooks/usePipelineEvents';
 import { appendAccessToken, resolveJobCoverUrl } from '../api/client';
 import {
+  AccessPolicyUpdatePayload,
   PipelineResponsePayload,
   PipelineStatusResponse,
   ProgressEventPayload
@@ -9,6 +10,7 @@ import {
 import { resolveMediaCompletion } from '../utils/mediaFormatters';
 import { getStatusGlyph } from '../utils/status';
 import { resolveImageNodeLabel } from '../constants/imageNodes';
+import AccessPolicyEditor from './access/AccessPolicyEditor';
 import { JobProgressMediaMetadata } from './job-progress/JobProgressMediaMetadata';
 import { buildJobParameterEntries } from './job-progress/jobProgressParameters';
 import {
@@ -43,6 +45,7 @@ type Props = {
   onReload: () => void;
   onCopy?: () => void;
   onMoveToLibrary?: () => void;
+  onUpdateAccess?: (payload: AccessPolicyUpdatePayload) => Promise<void>;
   isReloading?: boolean;
   isMutating?: boolean;
   canManage: boolean;
@@ -62,6 +65,7 @@ export function JobProgress({
   onReload,
   onCopy,
   onMoveToLibrary,
+  onUpdateAccess,
   isReloading = false,
   isMutating = false,
   canManage
@@ -268,6 +272,9 @@ export function JobProgress({
   const jobParameterEntries = useMemo(() => buildJobParameterEntries(status), [status]);
   const statusGlyph = getStatusGlyph(statusValue);
   const jobLabel = useMemo(() => normalizeTextValue(status?.job_label) ?? null, [status?.job_label]);
+  const ownerId = typeof status?.user_id === 'string' ? status.user_id : null;
+  const accessPolicy = status?.access ?? null;
+  const accessDefaultVisibility = ownerId ? 'private' : 'public';
 
   const imageGenerationEnabled = useMemo(() => {
     const parametersEnabled = status?.parameters?.add_images;
@@ -383,6 +390,15 @@ export function JobProgress({
           </dl>
         </div>
       ) : null}
+      <div className="job-card__section">
+        <AccessPolicyEditor
+          policy={accessPolicy}
+          ownerId={ownerId}
+          defaultVisibility={accessDefaultVisibility}
+          canEdit={canManage}
+          onSave={onUpdateAccess}
+        />
+      </div>
       {isBookJob && imageClusterNodes.length > 0 ? (
         <div className="job-card__section">
           <h4>Image cluster</h4>

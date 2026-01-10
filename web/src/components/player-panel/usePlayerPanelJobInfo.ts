@@ -3,11 +3,12 @@ import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
 import type { ChapterNavigationEntry } from './NavigationControls';
 import type { PlayerMode } from '../../types/player';
 import {
-  appendAccessToken,
+  appendAccessTokenToStorageUrl,
+  buildStorageUrl,
   fetchPipelineStatus,
   resolveLibraryMediaUrl,
 } from '../../api/client';
-import { coerceExportPath, resolve as resolveStoragePath } from '../../utils/storageResolver';
+import { coerceExportPath } from '../../utils/storageResolver';
 import { normaliseContentIndexChapters, toFiniteNumber } from '../../utils/contentIndex';
 import {
   extractMetadataFirstString,
@@ -182,7 +183,7 @@ export function usePlayerPanelJobInfo({
 
     const resolveTargetUrl = (): string | null => {
       try {
-        return resolveStoragePath(jobId, 'metadata/sentences.json');
+        return buildStorageUrl('metadata/sentences.json', jobId);
       } catch (error) {
         try {
           const encodedJobId = encodeURIComponent(jobId);
@@ -202,7 +203,7 @@ export function usePlayerPanelJobInfo({
 
     (async () => {
       try {
-        const response = await fetch(targetUrl, { credentials: 'include' });
+        const response = await fetch(appendAccessTokenToStorageUrl(targetUrl), { credentials: 'include' });
         if (!response.ok) {
           return;
         }
@@ -283,7 +284,7 @@ export function usePlayerPanelJobInfo({
             targetUrl = resolveLibraryMediaUrl(jobId, contentIndexPath);
           }
         } else {
-          targetUrl = resolveStoragePath(jobId, contentIndexPath);
+          targetUrl = buildStorageUrl(contentIndexPath, jobId);
         }
       } catch (error) {
         const encodedJobId = encodeURIComponent(jobId);
@@ -304,7 +305,7 @@ export function usePlayerPanelJobInfo({
 
     (async () => {
       try {
-        const url = origin === 'library' && playerMode !== 'export' ? appendAccessToken(targetUrl) : targetUrl;
+        const url = playerMode !== 'export' ? appendAccessTokenToStorageUrl(targetUrl) : targetUrl;
         const response = await fetch(url, { credentials: 'include' });
         if (!response.ok) {
           return;

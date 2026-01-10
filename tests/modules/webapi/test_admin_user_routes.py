@@ -20,7 +20,7 @@ def _build_auth_service(tmp_path) -> Tuple[AuthService, str, str]:
     )
 
     service.user_store.create_user("admin", "secret", roles=["admin"])
-    service.user_store.create_user("member", "secret", roles=["standard_user"])
+    service.user_store.create_user("member", "secret", roles=["viewer"])
 
     admin_token = service.session_manager.create_session("admin")
     member_token = service.session_manager.create_session("member")
@@ -81,7 +81,7 @@ def test_create_user_provisions_account(admin_client) -> None:
         json={
             "username": "newbie",
             "password": "hunter2",
-            "roles": ["standard_user"],
+            "roles": ["viewer"],
             "email": "newbie@example.com",
             "first_name": "New",
             "last_name": "User",
@@ -193,4 +193,3 @@ def test_delete_user_rejects_self_deletion(admin_client) -> None:
     )
 
     assert response.status_code == 400
-

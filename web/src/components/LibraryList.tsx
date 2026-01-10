@@ -17,9 +17,16 @@ type Props = {
   onExport?: (item: LibraryItem) => void;
   onRemove: (item: LibraryItem) => void;
   onEditMetadata: (item: LibraryItem) => void;
+  resolvePermissions?: (item: LibraryItem) => LibraryItemPermissions;
   selectedJobId?: string | null;
   mutating?: Record<string, boolean>;
   variant?: 'card' | 'embedded';
+};
+
+type LibraryItemPermissions = {
+  canView: boolean;
+  canEdit: boolean;
+  canExport: boolean;
 };
 
 type AuthorGroup = {
@@ -754,6 +761,7 @@ function LibraryList({
   onExport,
   onRemove,
   onEditMetadata,
+  resolvePermissions,
   selectedJobId,
   mutating = {},
   variant = 'card'
@@ -771,10 +779,25 @@ function LibraryList({
     }
   };
 
-  const renderActions = (item: LibraryItem) => {
+  const resolveItemPermissions = (item: LibraryItem): LibraryItemPermissions => {
+    if (!resolvePermissions) {
+      return { canView: true, canEdit: true, canExport: true };
+    }
+    const resolved = resolvePermissions(item);
+    return {
+      canView: resolved.canView,
+      canEdit: resolved.canEdit,
+      canExport: resolved.canExport
+    };
+  };
+
+  const renderActions = (item: LibraryItem, permissions: LibraryItemPermissions) => {
     const isExportReady = item.mediaCompleted;
     const exportTitle = isExportReady ? 'Export offline player' : 'Export available after media completes';
     const isMutating = Boolean(mutating[item.jobId]);
+    const canView = permissions.canView;
+    const canEdit = permissions.canEdit;
+    const canExport = permissions.canExport && canView;
     return (
       <div className={styles.actions}>
         <button
@@ -782,9 +805,11 @@ function LibraryList({
           className={styles.actionIconButton}
           onClick={(event) => {
             event.stopPropagation();
-            onOpen(item);
+            if (canView) {
+              onOpen(item);
+            }
           }}
-          disabled={isMutating}
+          disabled={isMutating || !canView}
           aria-label="Play"
           title="Play"
         >
@@ -796,9 +821,11 @@ function LibraryList({
           className={styles.actionIconButton}
           onClick={(event) => {
             event.stopPropagation();
-            onEditMetadata(item);
+            if (canEdit) {
+              onEditMetadata(item);
+            }
           }}
-          disabled={isMutating}
+          disabled={isMutating || !canEdit}
           aria-label="Edit"
           title="Edit"
         >
@@ -811,11 +838,11 @@ function LibraryList({
             className={styles.actionIconButton}
             onClick={(event) => {
               event.stopPropagation();
-              if (isExportReady) {
+              if (isExportReady && canExport) {
                 onExport(item);
               }
             }}
-            disabled={isMutating || !isExportReady}
+            disabled={isMutating || !isExportReady || !canExport}
             aria-label="Export offline player"
             title={exportTitle}
           >
@@ -828,9 +855,11 @@ function LibraryList({
           className={styles.actionIconButton}
           onClick={(event) => {
             event.stopPropagation();
-            onRemove(item);
+            if (canEdit) {
+              onRemove(item);
+            }
           }}
-          disabled={isMutating}
+          disabled={isMutating || !canEdit}
           aria-label="Delete"
           title="Delete"
           data-variant="danger"
@@ -902,64 +931,73 @@ function LibraryList({
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr
-                  key={item.jobId}
-                  className={selectedJobId === item.jobId ? styles.tableRowActive : undefined}
-                  onClick={() => handleSelect(item)}
-                >
-                  {isBookLayout ? (
-                    <>
-                      <td className={styles.cellBook}>
-                        {renderBookCell(item, {
-                          onOpen: () => onOpen(item),
-                          disabled: Boolean(mutating[item.jobId]),
-                        })}
-                      </td>
-                      <td>{renderLanguageLabel(item.language)}</td>
-                      <td>{renderStatusBadge(item)}</td>
-                      <td>{formatTimestamp(item.updatedAt)}</td>
-                      <td>{renderActions(item)}</td>
-                    </>
-                  ) : isSubtitleLayout ? (
-                    <>
-                      <td className={styles.cellSubtitle}>
-                        {renderSubtitleCell(item, {
-                          onOpen: () => onOpen(item),
-                          disabled: Boolean(mutating[item.jobId]),
-                        })}
-                      </td>
-                      <td>{renderLanguageLabel(item.language)}</td>
-                      <td>{renderStatusBadge(item)}</td>
-                      <td>{formatTimestamp(item.updatedAt)}</td>
-                      <td>{renderActions(item)}</td>
-                    </>
-                  ) : isVideoLayout ? (
-                    <>
-                      <td className={styles.cellVideo}>
-                        {renderVideoCell(item, {
-                          onOpen: () => onOpen(item),
-                          disabled: Boolean(mutating[item.jobId]),
-                        })}
-                      </td>
-                      <td>{renderLanguageLabel(item.language)}</td>
-                      <td>{renderStatusBadge(item)}</td>
-                      <td>{formatTimestamp(item.updatedAt)}</td>
-                      <td>{renderActions(item)}</td>
-                    </>
-                  ) : (
-                    <>
-                      <td className={styles.cellTitle}>{resolveTitle(item)}</td>
-                      <td>{renderJobTypeGlyph(item)}</td>
-                      <td className={styles.cellAuthor}>{resolveAuthor(item)}</td>
-                      <td>{renderLanguageLabel(item.language)}</td>
-                      <td>{renderStatusBadge(item)}</td>
-                      <td>{formatTimestamp(item.updatedAt)}</td>
-                      <td>{renderActions(item)}</td>
-                    </>
-                  )}
-                </tr>
-              ))}
+              {items.map((item) => {
+                const permissions = resolveItemPermissions(item);
+                const isBusy = Boolean(mutating[item.jobId]);
+                const isDisabled = isBusy || !permissions.canView;
+                return (
+                  <tr
+                    key={item.jobId}
+                    className={selectedJobId === item.jobId ? styles.tableRowActive : undefined}
+                    onClick={() => {
+                      if (permissions.canView) {
+                        handleSelect(item);
+                      }
+                    }}
+                  >
+                    {isBookLayout ? (
+                      <>
+                        <td className={styles.cellBook}>
+                          {renderBookCell(item, {
+                            onOpen: () => onOpen(item),
+                            disabled: isDisabled,
+                          })}
+                        </td>
+                        <td>{renderLanguageLabel(item.language)}</td>
+                        <td>{renderStatusBadge(item)}</td>
+                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{renderActions(item, permissions)}</td>
+                      </>
+                    ) : isSubtitleLayout ? (
+                      <>
+                        <td className={styles.cellSubtitle}>
+                          {renderSubtitleCell(item, {
+                            onOpen: () => onOpen(item),
+                            disabled: isDisabled,
+                          })}
+                        </td>
+                        <td>{renderLanguageLabel(item.language)}</td>
+                        <td>{renderStatusBadge(item)}</td>
+                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{renderActions(item, permissions)}</td>
+                      </>
+                    ) : isVideoLayout ? (
+                      <>
+                        <td className={styles.cellVideo}>
+                          {renderVideoCell(item, {
+                            onOpen: () => onOpen(item),
+                            disabled: isDisabled,
+                          })}
+                        </td>
+                        <td>{renderLanguageLabel(item.language)}</td>
+                        <td>{renderStatusBadge(item)}</td>
+                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{renderActions(item, permissions)}</td>
+                      </>
+                    ) : (
+                      <>
+                        <td className={styles.cellTitle}>{resolveTitle(item)}</td>
+                        <td>{renderJobTypeGlyph(item)}</td>
+                        <td className={styles.cellAuthor}>{resolveAuthor(item)}</td>
+                        <td>{renderLanguageLabel(item.language)}</td>
+                        <td>{renderStatusBadge(item)}</td>
+                        <td>{formatTimestamp(item.updatedAt)}</td>
+                        <td>{renderActions(item, permissions)}</td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -980,22 +1018,29 @@ function LibraryList({
                   <div key={entry.language}>
                     <h4 className={styles.languageHeader}>{renderLanguageLabel(entry.language)}</h4>
                     <ul className={styles.itemList}>
-                      {entry.items.map((item) => (
-                        <li
-                          key={item.jobId}
-                          className={styles.itemCard}
-                          onClick={() => handleSelect(item)}
-                        >
-                          <div className={styles.itemHeader}>
-                            <span>Job {item.jobId}</span>
-                            {renderStatusBadge(item)}
-                          </div>
-                          <div className={styles.itemMeta}>
-                            Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
-                          </div>
-                          {renderActions(item)}
-                        </li>
-                      ))}
+                      {entry.items.map((item) => {
+                        const permissions = resolveItemPermissions(item);
+                        return (
+                          <li
+                            key={item.jobId}
+                            className={styles.itemCard}
+                            onClick={() => {
+                              if (permissions.canView) {
+                                handleSelect(item);
+                              }
+                            }}
+                          >
+                            <div className={styles.itemHeader}>
+                              <span>Job {item.jobId}</span>
+                              {renderStatusBadge(item)}
+                            </div>
+                            <div className={styles.itemMeta}>
+                              Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
+                            </div>
+                            {renderActions(item, permissions)}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}
@@ -1020,22 +1065,29 @@ function LibraryList({
                   <div key={book.bookTitle}>
                     <h4 className={styles.languageHeader}>{book.bookTitle}</h4>
                     <ul className={styles.itemList}>
-                      {book.items.map((item) => (
-                        <li
-                          key={item.jobId}
-                          className={styles.itemCard}
-                          onClick={() => handleSelect(item)}
-                        >
-                          <div className={styles.itemHeader}>
-                            <span>Job {item.jobId}</span>
-                            {renderStatusBadge(item)}
-                          </div>
-                          <div className={styles.itemMeta}>
-                            Language {renderLanguageLabel(item.language)} · Job {renderJobTypeGlyph(item)} · Updated {formatTimestamp(item.updatedAt)}
-                          </div>
-                          {renderActions(item)}
-                        </li>
-                      ))}
+                      {book.items.map((item) => {
+                        const permissions = resolveItemPermissions(item);
+                        return (
+                          <li
+                            key={item.jobId}
+                            className={styles.itemCard}
+                            onClick={() => {
+                              if (permissions.canView) {
+                                handleSelect(item);
+                              }
+                            }}
+                          >
+                            <div className={styles.itemHeader}>
+                              <span>Job {item.jobId}</span>
+                              {renderStatusBadge(item)}
+                            </div>
+                            <div className={styles.itemMeta}>
+                              Language {renderLanguageLabel(item.language)} · Job {renderJobTypeGlyph(item)} · Updated {formatTimestamp(item.updatedAt)}
+                            </div>
+                            {renderActions(item, permissions)}
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                 ))}
@@ -1059,22 +1111,29 @@ function LibraryList({
                 <div key={book.bookTitle}>
                   <h4 className={styles.languageHeader}>{book.bookTitle}</h4>
                   <ul className={styles.itemList}>
-                    {book.items.map((item) => (
-                      <li
-                        key={item.jobId}
-                        className={styles.itemCard}
-                        onClick={() => handleSelect(item)}
-                      >
-                        <div className={styles.itemHeader}>
-                          <span>Job {item.jobId}</span>
-                          {renderStatusBadge(item)}
-                        </div>
-                        <div className={styles.itemMeta}>
-                          Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
-                        </div>
-                        {renderActions(item)}
-                      </li>
-                    ))}
+                    {book.items.map((item) => {
+                      const permissions = resolveItemPermissions(item);
+                      return (
+                        <li
+                          key={item.jobId}
+                          className={styles.itemCard}
+                          onClick={() => {
+                            if (permissions.canView) {
+                              handleSelect(item);
+                            }
+                          }}
+                        >
+                          <div className={styles.itemHeader}>
+                            <span>Job {item.jobId}</span>
+                            {renderStatusBadge(item)}
+                          </div>
+                          <div className={styles.itemMeta}>
+                            Updated {formatTimestamp(item.updatedAt)} · Job {renderJobTypeGlyph(item)} · Library path {item.libraryPath}
+                          </div>
+                          {renderActions(item, permissions)}
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}

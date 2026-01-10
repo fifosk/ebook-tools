@@ -610,6 +610,7 @@ async def get_sentence_image_info_batch(
         library_repository=library_repository,
         request_user=request_user,
         job_manager=job_manager,
+        permission="edit",
     )
 
     def _load_batch() -> Tuple[List[SentenceImageInfoResponse], List[int]]:

@@ -13,7 +13,13 @@ from fastapi.responses import StreamingResponse
 
 from .... import config_manager as cfg
 from ....services.file_locator import FileLocator
-from ...dependencies import get_file_locator
+from ....services.pipeline_service import PipelineService
+from ...dependencies import (
+    RequestUserContext,
+    get_file_locator,
+    get_pipeline_service,
+    get_request_user,
+)
 
 storage_router = APIRouter()
 
@@ -123,9 +129,9 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
         return False
 
     if range_header and "," in range_header:
-        # Some clients (notably iOS) may request multiple ranges. We only support a single
-        # contiguous range, so fall back to streaming the full payload instead of failing.
-        range_header = None
+        # Some clients (notably iOS Safari) request multiple ranges. Honor the first range
+        # so the response stays 206 instead of reverting to a full-body 200.
+        range_header = range_header.split(",", 1)[0].strip()
 
     if range_header:
         try:
@@ -141,7 +147,7 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
             "Content-Range": f"bytes {start}-{end}/{file_size}",
             "Accept-Ranges": "bytes",
         }
-    else:
+    if not range_header:
         start = 0
         end = file_size - 1 if file_size > 0 else -1
         status_code = status.HTTP_200_OK
@@ -158,6 +164,8 @@ def _stream_local_file(resolved_path: Path, range_header: str | None = None) -> 
     headers["Content-Disposition"] = (
         f'{disposition}; filename="{safe_ascii}"; filename*=UTF-8\'\'{quoted_utf8}'
     )
+    if media_type and media_type.startswith(("video/", "audio/")):
+        headers["X-Accel-Buffering"] = "no"
 
     body_iterator = _iter_file_chunks(resolved_path, start, end)
     return StreamingResponse(
@@ -215,15 +223,40 @@ def _resolve_cover_download_path(filename: str) -> Path:
     return candidate
 
 
+def _ensure_job_access(
+    job_id: str,
+    *,
+    pipeline_service: PipelineService,
+    request_user: RequestUserContext,
+) -> None:
+    try:
+        pipeline_service.get_job(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
+
+
 @storage_router.get("/jobs/{job_id}/files/{filename:path}")
 async def download_job_file(
     job_id: str,
     filename: str,
     file_locator: FileLocator = Depends(get_file_locator),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
     range_header: str | None = Header(default=None, alias="Range"),
 ):
     """Stream the requested job file supporting optional byte ranges."""
 
+    _ensure_job_access(
+        job_id,
+        pipeline_service=pipeline_service,
+        request_user=request_user,
+    )
     return await _download_job_file(job_id, filename, file_locator, range_header)
 
 
@@ -232,10 +265,17 @@ async def download_job_file_without_prefix(
     job_id: str,
     filename: str,
     file_locator: FileLocator = Depends(get_file_locator),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
     range_header: str | None = Header(default=None, alias="Range"),
 ):
     """Stream job files that were referenced without the legacy ``/files`` prefix."""
 
+    _ensure_job_access(
+        job_id,
+        pipeline_service=pipeline_service,
+        request_user=request_user,
+    )
     return await _download_job_file(job_id, filename, file_locator, range_header)
 
 

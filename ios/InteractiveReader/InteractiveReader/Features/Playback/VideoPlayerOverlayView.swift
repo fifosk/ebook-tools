@@ -584,9 +584,16 @@ struct VideoPlayerOverlayView: View {
     private var subtitleDragGesture: some Gesture {
         DragGesture(minimumDistance: 10, coordinateSpace: .local)
             .onChanged { value in
+                guard abs(value.translation.height) >= abs(value.translation.width) else {
+                    return
+                }
                 subtitleDragTranslation = value.translation.height
             }
             .onEnded { value in
+                guard abs(value.translation.height) >= abs(value.translation.width) else {
+                    subtitleDragTranslation = 0
+                    return
+                }
                 let proposedHeight = subtitleVerticalOffset + value.translation.height
                 subtitleVerticalOffset = min(proposedHeight, 0)
                 subtitleDragTranslation = 0

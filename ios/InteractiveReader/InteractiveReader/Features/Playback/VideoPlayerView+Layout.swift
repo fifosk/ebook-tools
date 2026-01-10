@@ -12,6 +12,9 @@ extension VideoPlayerView {
                 playerSurface(player)
                 overlayView
                 #if os(iOS)
+                    .simultaneousGesture(videoScrubGesture, including: .gesture)
+                #endif
+                #if os(iOS)
                 if isPad {
                     VideoKeyboardCommandHandler(
                         onPlayPause: { coordinator.togglePlayback() },

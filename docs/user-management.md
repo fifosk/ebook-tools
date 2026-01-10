@@ -31,9 +31,9 @@ introduce custom semantics. A common pattern is:
 
 | Role    | Intended capabilities |
 |---------|----------------------|
-| `admin` | Create, list, update, and delete users; run the pipeline; manage infrastructure secrets. |
-| `editor`| Run the pipeline and upload assets but not manage other users. |
-| `viewer`| Inspect generated artefacts without modifying configuration. |
+| `admin` | Full access: manage users, jobs, and library items. |
+| `editor`| Create and manage owned jobs or library items; view items shared with them. |
+| `viewer`| View or export public/shared library items only; no edits. |
 
 Use `AuthService.require_role("admin")` or
 `AuthService.require_role("editor", "admin")` to gate APIs or CLI handlers. A

@@ -23,6 +23,12 @@ from ..pipeline_service import (
     PipelineRequest,
     serialize_pipeline_request,
 )
+from ...permissions import (
+    can_access,
+    default_job_access,
+    is_admin_role,
+    resolve_access_policy,
+)
 from .job import PipelineJob, PipelineJobStatus
 from .lifecycle import compute_resume_context
 from .metadata import PipelineJobMetadata
@@ -94,7 +100,12 @@ class PipelineJobManager:
             store=self._store,
             persistence=self._persistence,
             request_factory=self._request_factory,
-            authorize=self._assert_job_access,
+            authorize=lambda job, user_id, user_role: self._assert_job_access(
+                job,
+                user_id=user_id,
+                user_role=user_role,
+                permission="edit",
+            ),
         )
         hooks = PipelineJobExecutorHooks(
             on_start=self._log_job_started,
@@ -267,6 +278,7 @@ class PipelineJobManager:
             resume_context=copy.deepcopy(request_payload),
             user_id=user_id,
             user_role=user_role,
+            access=default_job_access(user_id).to_dict(),
         )
         tuning_summary = self._tuner.build_tuning_summary(request)
         job.tuning_summary = tuning_summary if tuning_summary else None
@@ -334,6 +346,7 @@ class PipelineJobManager:
             resume_context=None,
             user_id=user_id,
             user_role=user_role,
+            access=default_job_access(user_id).to_dict(),
         )
 
         if setup is not None:
@@ -394,7 +407,7 @@ class PipelineJobManager:
         """Apply ``mutator`` to the persisted job and store the updated snapshot."""
 
         job = self._get_unchecked(job_id)
-        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role, permission="edit")
 
         with self._lock:
             target = self._jobs.get(job_id) or job
@@ -674,7 +687,7 @@ class PipelineJobManager:
 
     @staticmethod
     def _is_admin(user_role: Optional[str]) -> bool:
-        return bool(user_role and user_role.lower() == "admin")
+        return is_admin_role(user_role)
 
     def _get_unchecked(self, job_id: str) -> PipelineJob:
         """Return ``job_id`` without applying authorization checks."""
@@ -728,13 +741,21 @@ class PipelineJobManager:
         *,
         user_id: Optional[str],
         user_role: Optional[str],
+        permission: str = "view",
     ) -> None:
-        if self._is_admin(user_role):
+        default_visibility = "private" if job.user_id else "public"
+        policy = resolve_access_policy(job.access, default_visibility=default_visibility)
+        if can_access(
+            policy,
+            owner_id=job.user_id,
+            user_id=user_id,
+            user_role=user_role,
+            permission=permission,
+        ):
             return
-        if job.user_id is None:
-            return
-        if user_id is None or job.user_id != user_id:
-            raise PermissionError("Not authorized to manage this job")
+        if permission == "edit":
+            raise PermissionError("Not authorized to modify this job")
+        raise PermissionError("Not authorized to access this job")
 
     def get(
         self,
@@ -742,11 +763,14 @@ class PipelineJobManager:
         *,
         user_id: Optional[str] = None,
         user_role: Optional[str] = None,
+        permission: str = "view",
     ) -> PipelineJob:
         """Return the job associated with ``job_id``."""
 
         job = self._get_unchecked(job_id)
-        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+        self._assert_job_access(
+            job, user_id=user_id, user_role=user_role, permission=permission
+        )
         return job
 
     def pause_job(
@@ -812,7 +836,7 @@ class PipelineJobManager:
         """Restart a finished/failed job with the same settings, wiping generated outputs."""
 
         job = self._get_unchecked(job_id)
-        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role, permission="edit")
 
         if job.job_type not in {"pipeline", "book"}:
             raise ValueError(f"Restart is not supported for job type '{job.job_type}'")
@@ -975,13 +999,19 @@ class PipelineJobManager:
 
         if self._is_admin(user_role):
             return active_jobs
-        if user_id:
-            return {
-                job_id: job
-                for job_id, job in active_jobs.items()
-                if job.user_id == user_id
-            }
-        return active_jobs
+        filtered: Dict[str, PipelineJob] = {}
+        for job_id, job in active_jobs.items():
+            default_visibility = "private" if job.user_id else "public"
+            policy = resolve_access_policy(job.access, default_visibility=default_visibility)
+            if can_access(
+                policy,
+                owner_id=job.user_id,
+                user_id=user_id,
+                user_role=user_role,
+                permission="view",
+            ):
+                filtered[job_id] = job
+        return filtered
 
     def refresh_metadata(
         self,
@@ -998,7 +1028,7 @@ class PipelineJobManager:
         if job is None:
             stored_metadata = self._store.get(job_id)
             job = self._persistence.build_job(stored_metadata)
-        self._assert_job_access(job, user_id=user_id, user_role=user_role)
+        self._assert_job_access(job, user_id=user_id, user_role=user_role, permission="edit")
 
         if job.job_type not in {"pipeline", "book"}:
             raise ValueError(f"Metadata refresh is not available for job type '{job.job_type}'")

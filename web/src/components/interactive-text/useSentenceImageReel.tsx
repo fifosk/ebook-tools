@@ -1,9 +1,14 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { MutableRefObject, ReactNode } from 'react';
-import { appendAccessToken, fetchSentenceImageInfoBatch, resolveLibraryMediaUrl } from '../../api/client';
+import {
+  appendAccessToken,
+  buildStorageUrl,
+  fetchSentenceImageInfoBatch,
+  resolveLibraryMediaUrl,
+} from '../../api/client';
 import type { AudioTrackMetadata, ChunkSentenceMetadata, SentenceImageInfoResponse } from '../../api/dtos';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
-import { coerceExportPath, resolve as resolveStoragePath } from '../../utils/storageResolver';
+import { coerceExportPath } from '../../utils/storageResolver';
 import { SentenceImageReel, type SentenceImageFrame } from './SentenceImageReel';
 import type { TimelineSentenceRuntime } from './types';
 import type { ExportPlayerManifest } from '../../types/exportPlayer';
@@ -266,7 +271,7 @@ export function useSentenceImageReel({
     try {
       return isLibraryMediaOrigin
         ? resolveLibraryMediaUrl(jobId, relativePath)
-        : resolveStoragePath(jobId, relativePath);
+        : buildStorageUrl(relativePath, jobId);
     } catch {
       return null;
     }
@@ -842,7 +847,7 @@ export function useSentenceImageReel({
       try {
         const baseUrl = isLibraryMediaOrigin
           ? resolveLibraryMediaUrl(jobId, relativePath)
-          : resolveStoragePath(jobId, relativePath);
+          : buildStorageUrl(relativePath, jobId);
         if (!baseUrl) {
           return null;
         }

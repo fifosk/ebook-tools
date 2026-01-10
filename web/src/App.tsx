@@ -14,6 +14,7 @@ import Sidebar from './components/Sidebar';
 import MyLinguistAssistant from './components/MyLinguistAssistant';
 import MyPainterAssistant from './components/MyPainterAssistant';
 import {
+  AccessPolicyUpdatePayload,
   LibraryItem,
   PipelineRequestPayload,
   JobParameterSnapshot,
@@ -30,7 +31,8 @@ import {
   refreshPipelineMetadata,
   resumeJob,
   restartJob,
-  submitPipeline
+  submitPipeline,
+  updateJobAccess
 } from './api/client';
 import { useTheme } from './components/ThemeProvider';
 import type { ThemeMode } from './components/ThemeProvider';
@@ -41,6 +43,7 @@ import UserManagementPanel from './components/admin/UserManagementPanel';
 import ReadingBedsPanel from './components/admin/ReadingBedsPanel';
 import { resolveMediaCompletion } from './utils/mediaFormatters';
 import { buildLibraryBookMetadata } from './utils/libraryMetadata';
+import { canAccessPolicy, normalizeRole } from './utils/accessControl';
 import type { LibraryOpenInput, MediaSelectionRequest } from './types/player';
 import { isLibraryOpenRequest } from './types/player';
 
@@ -103,6 +106,20 @@ const BOOK_NARRATION_SECTION_TO_VIEW: Record<BookNarrationFormSection, PipelineM
   submit: 'pipeline:submit'
 };
 
+const JOB_CREATION_VIEWS = new Set<SelectedView>([
+  CREATE_BOOK_VIEW,
+  SUBTITLES_VIEW,
+  YOUTUBE_SUBTITLES_VIEW,
+  YOUTUBE_DUB_VIEW
+]);
+
+const isJobCreationView = (view: SelectedView): boolean => {
+  if (typeof view === 'string' && view.startsWith('pipeline:')) {
+    return true;
+  }
+  return JOB_CREATION_VIEWS.has(view);
+};
+
 export function App() {
   const isDualTrackDemo =
     typeof window !== 'undefined' && window.location.pathname.startsWith('/demo/dual-track');
@@ -151,7 +168,24 @@ export function App() {
   const isAuthenticated = Boolean(session);
   const sessionUser = session?.user ?? null;
   const sessionUsername = sessionUser?.username ?? null;
-  const isAdmin = sessionUser?.role === 'admin';
+  const normalizedRole = normalizeRole(sessionUser?.role ?? null);
+  const isAdmin = normalizedRole === 'admin';
+  const canScheduleJobs = normalizedRole === 'admin' || normalizedRole === 'editor';
+
+  useEffect(() => {
+    if (!sessionUser) {
+      return;
+    }
+    if (!canScheduleJobs && isJobCreationView(selectedView)) {
+      setSelectedView(LIBRARY_VIEW);
+    }
+    if (
+      !isAdmin &&
+      (selectedView === ADMIN_USER_MANAGEMENT_VIEW || selectedView === ADMIN_READING_BEDS_VIEW)
+    ) {
+      setSelectedView(LIBRARY_VIEW);
+    }
+  }, [canScheduleJobs, isAdmin, selectedView, sessionUser]);
 
   const handleLogin = useCallback(
     async (username: string, password: string) => {
@@ -420,6 +454,10 @@ export function App() {
   );
 
   const handleSubmit = useCallback(async (payload: PipelineRequestPayload) => {
+    if (!canScheduleJobs) {
+      setSubmitError('You need editor access to submit new jobs.');
+      return;
+    }
     setIsSubmitting(true);
     setSubmitError(null);
     try {
@@ -451,7 +489,7 @@ export function App() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [refreshJobs]);
+  }, [canScheduleJobs, refreshJobs]);
 
   const handleProgressEvent = useCallback((jobId: string, event: ProgressEventPayload) => {
     setJobs((previous) => {
@@ -540,13 +578,36 @@ export function App() {
     }
   }, [jobs, refreshJobs]);
 
+  const resolveJobPermissions = useCallback(
+    (status: PipelineStatusResponse | undefined | null) => {
+      if (!status) {
+        return { canView: false, canManage: false };
+      }
+      const ownerId = typeof status.user_id === 'string' ? status.user_id : null;
+      const defaultVisibility = ownerId ? 'private' : 'public';
+      const canView = canAccessPolicy(status.access ?? null, {
+        ownerId,
+        userId: sessionUsername,
+        userRole: normalizedRole,
+        permission: 'view',
+        defaultVisibility
+      });
+      const canManage = canAccessPolicy(status.access ?? null, {
+        ownerId,
+        userId: sessionUsername,
+        userRole: normalizedRole,
+        permission: 'edit',
+        defaultVisibility
+      });
+      return { canView, canManage };
+    },
+    [normalizedRole, sessionUsername]
+  );
+
   const performJobAction = useCallback(
     async (jobId: string, action: JobAction) => {
       const entry = jobs[jobId];
-      const owner = typeof entry?.status?.user_id === 'string' ? entry.status.user_id : null;
-      const canManage = Boolean(
-        isAdmin || !owner || (sessionUsername && owner === sessionUsername)
-      );
+      const { canManage } = resolveJobPermissions(entry?.status);
       if (!entry || !canManage) {
         console.warn(`Skipping ${action} for unauthorized job`, jobId);
         return;
@@ -623,7 +684,51 @@ export function App() {
         await refreshJobs();
       }
     },
-    [isAdmin, jobs, refreshJobs, sessionUsername]
+    [jobs, refreshJobs, resolveJobPermissions]
+  );
+
+  const handleUpdateJobAccess = useCallback(
+    async (jobId: string, payload: AccessPolicyUpdatePayload) => {
+      const entry = jobs[jobId];
+      const { canManage } = resolveJobPermissions(entry?.status);
+      if (!entry || !canManage) {
+        window.alert('You are not authorized to update this job.');
+        return;
+      }
+      setMutatingJobs((previous) => ({ ...previous, [jobId]: true }));
+      try {
+        const updated = await updateJobAccess(jobId, payload);
+        const resolvedCompletion = resolveMediaCompletion(updated);
+        const normalizedStatus =
+          resolvedCompletion !== null ? { ...updated, media_completed: resolvedCompletion } : updated;
+        setJobs((previous) => {
+          const current = previous[jobId];
+          if (!current) {
+            return previous;
+          }
+          return {
+            ...previous,
+            [jobId]: {
+              ...current,
+              status: normalizedStatus
+            }
+          };
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to update job access.';
+        window.alert(message);
+      } finally {
+        setMutatingJobs((previous) => {
+          if (!previous[jobId]) {
+            return previous;
+          }
+          const next = { ...previous };
+          delete next[jobId];
+          return next;
+        });
+      }
+    },
+    [jobs, resolveJobPermissions]
   );
 
   const handleVideoPlaybackStateChange = useCallback(
@@ -689,6 +794,10 @@ export function App() {
 
   const handleCopyJob = useCallback(
     (jobId: string) => {
+      if (!canScheduleJobs) {
+        window.alert('You need editor access to create new jobs.');
+        return;
+      }
       const entry = jobs[jobId];
       const parameters = entry?.status?.parameters ?? null;
       if (!parameters) {
@@ -721,7 +830,7 @@ export function App() {
       setPendingInputFile(inputFile);
       setSelectedView('pipeline:source');
     },
-    [jobs]
+    [canScheduleJobs, jobs]
   );
 
   const handleRestartJob = useCallback(
@@ -742,6 +851,11 @@ export function App() {
       const entry = jobs[jobId];
       if (!entry?.status) {
         window.alert('Job metadata is unavailable; refresh and try again.');
+        return;
+      }
+      const { canManage } = resolveJobPermissions(entry.status);
+      if (!canManage) {
+        window.alert('You are not authorized to move this job into the library.');
         return;
       }
 
@@ -783,7 +897,7 @@ export function App() {
         await refreshJobs();
       }
     },
-    [jobs, refreshJobs]
+    [jobs, refreshJobs, resolveJobPermissions]
   );
 
   const handleOpenPlayerForJob = useCallback(() => {
@@ -889,12 +1003,23 @@ export function App() {
 
   const handleSidebarSelectView = useCallback(
     (view: SelectedView) => {
+      if (!canScheduleJobs && isJobCreationView(view)) {
+        window.alert('You need editor access to submit jobs.');
+        return;
+      }
+      if (
+        !isAdmin &&
+        (view === ADMIN_USER_MANAGEMENT_VIEW || view === ADMIN_READING_BEDS_VIEW)
+      ) {
+        window.alert('Administrator access required.');
+        return;
+      }
       if (view === SUBTITLES_VIEW) {
         setSubtitleRefreshKey((value) => value + 1);
       }
       setSelectedView(view);
     },
-    [setSelectedView, setSubtitleRefreshKey]
+    [canScheduleJobs, isAdmin, setSelectedView, setSubtitleRefreshKey]
   );
 
   const handleSubtitleJobCreated = useCallback(
@@ -944,10 +1069,7 @@ export function App() {
 
   const jobList: JobState[] = useMemo(() => {
     return Object.entries(jobs).map(([jobId, entry]) => {
-      const owner = typeof entry.status?.user_id === 'string' ? entry.status.user_id : null;
-      const canManage = Boolean(
-        isAdmin || !owner || (sessionUsername && owner === sessionUsername)
-      );
+      const { canView, canManage } = resolveJobPermissions(entry.status);
       const resolvedStatus = entry.status
         ? {
             ...entry.status,
@@ -961,10 +1083,11 @@ export function App() {
         latestEvent: entry.latestEvent,
         isReloading: Boolean(reloadingJobs[jobId]),
         isMutating: Boolean(mutatingJobs[jobId]),
-        canManage
+        canManage,
+        canView
       };
     });
-  }, [isAdmin, jobs, mutatingJobs, reloadingJobs, sessionUsername]);
+  }, [jobs, mutatingJobs, reloadingJobs, resolveJobPermissions]);
 
   const sortedJobs = useMemo(() => {
     return [...jobList].sort((a, b) => {
@@ -975,7 +1098,7 @@ export function App() {
   }, [jobList]);
 
   const sidebarJobs = useMemo(() => {
-    return sortedJobs.filter((job) => job.canManage);
+    return sortedJobs.filter((job) => job.canView ?? job.canManage);
   }, [sortedJobs]);
 
   const subtitleJobStates = useMemo(() => {
@@ -1007,7 +1130,7 @@ export function App() {
       return undefined;
     }
     const job = jobList.find((entry) => entry.jobId === activeJobId);
-    if (job && !job.canManage) {
+    if (job && !(job.canView ?? job.canManage)) {
       return undefined;
     }
     return job;
@@ -1179,6 +1302,7 @@ export function App() {
           onSelectJob={handleSelectSidebarJob}
           onOpenPlayer={handleOpenPlayerForJob}
           isAdmin={isAdmin}
+          canScheduleJobs={canScheduleJobs}
           createBookView={CREATE_BOOK_VIEW}
           libraryView={LIBRARY_VIEW}
           subtitlesView={SUBTITLES_VIEW}
@@ -1337,7 +1461,7 @@ export function App() {
               focusRequest={libraryFocusRequest}
               onConsumeFocusRequest={handleConsumeLibraryFocusRequest}
             />
-          ) : isCreateBookView ? (
+          ) : isCreateBookView && canScheduleJobs ? (
             <section>
               <CreateBookPage
                 onJobSubmitted={(jobId) => {
@@ -1352,7 +1476,7 @@ export function App() {
             </section>
           ) : (
             <>
-              {isAddBookView ? (
+              {isAddBookView && canScheduleJobs ? (
                 <section>
                   <NewImmersiveBookPage
                     activeSection={activePipelineSection ?? 'source'}
@@ -1366,7 +1490,7 @@ export function App() {
                   />
                 </section>
               ) : null}
-              {isSubtitlesView ? (
+              {isSubtitlesView && canScheduleJobs ? (
                 <section>
                   <SubtitleToolPage
                     subtitleJobs={subtitleJobStates}
@@ -1378,12 +1502,12 @@ export function App() {
                   />
                 </section>
               ) : null}
-              {isYoutubeSubtitlesView ? (
+              {isYoutubeSubtitlesView && canScheduleJobs ? (
                 <section>
                   <YoutubeVideoPage />
                 </section>
               ) : null}
-              {isYoutubeDubView ? (
+              {isYoutubeDubView && canScheduleJobs ? (
                 <section>
                   <VideoDubbingPage
                     jobs={youtubeDubJobStates}
@@ -1408,8 +1532,9 @@ export function App() {
                       onDelete={() => handleDeleteJob(selectedJob.jobId)}
                       onRestart={() => handleRestartJob(selectedJob.jobId)}
                       onReload={() => handleReloadJob(selectedJob.jobId)}
-                      onCopy={() => handleCopyJob(selectedJob.jobId)}
+                      onCopy={canScheduleJobs ? () => handleCopyJob(selectedJob.jobId) : undefined}
                       onMoveToLibrary={() => handleMoveJobToLibrary(selectedJob.jobId)}
+                      onUpdateAccess={(payload) => handleUpdateJobAccess(selectedJob.jobId, payload)}
                       isReloading={selectedJob.isReloading}
                       isMutating={selectedJob.isMutating}
                       canManage={selectedJob.canManage}

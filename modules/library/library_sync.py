@@ -9,10 +9,11 @@ import os
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 from uuid import uuid4
 
 from modules import logging_manager
+from modules.permissions import merge_access_policy, resolve_access_policy
 from modules.fsutils import AtomicMoveError, ChecksumMismatchError, DirectoryLock, atomic_move
 from modules.services.file_locator import FileLocator
 from modules.services.job_manager import PipelineJobManager
@@ -569,6 +570,47 @@ class LibrarySync:
         self._repository.add_entry(updated_item)
         return updated_item
 
+    def update_access(
+        self,
+        job_id: str,
+        *,
+        visibility: Optional[str] = None,
+        grants: Optional[Iterable[Mapping[str, Any]]] = None,
+        actor_id: Optional[str] = None,
+    ) -> LibraryEntry:
+        """Persist access policy updates for ``job_id``."""
+
+        item = self._repository.get_entry_by_id(job_id)
+        if not item:
+            raise LibraryNotFoundError(f"Job {job_id} is not stored in the library")
+
+        job_root = Path(item.library_path)
+        if not job_root.exists():
+            raise LibraryNotFoundError(f"Job {job_id} is missing from the library filesystem")
+
+        with DirectoryLock(job_root):
+            metadata = file_ops.load_metadata(job_root)
+            existing = resolve_access_policy(metadata.get("access"), default_visibility="public")
+            merged = merge_access_policy(
+                existing,
+                visibility=visibility,
+                grants=grants,
+                actor_id=actor_id,
+            )
+            metadata["access"] = merged.to_dict()
+            metadata["updated_at"] = utils.current_timestamp()
+            file_ops.write_metadata(job_root, metadata)
+
+        updated_item = metadata_utils.build_entry(
+            metadata,
+            job_root,
+            error_cls=LibraryError,
+            normalize_status=lambda value: utils.normalize_status(value, error_cls=LibraryError),
+            current_timestamp=utils.current_timestamp,
+        )
+        self._repository.add_entry(updated_item)
+        return updated_item
+
     def refresh_metadata(self, job_id: str) -> LibraryEntry:
         """Recompute metadata for ``job_id`` using the shared metadata manager."""
 
@@ -746,6 +788,8 @@ class LibrarySync:
         page: int = 1,
         limit: int = 25,
         sort: str = "updated_at_desc",
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
     ) -> LibrarySearchResult:
         """Query the Library index with optional filters and grouping."""
 
@@ -770,6 +814,8 @@ class LibrarySync:
             sort_desc=sort_desc,
             view=view,
             serializer=self.serialize_item,
+            user_id=user_id,
+            user_role=user_role,
         )
         return LibrarySearchResult(
             total=total,
@@ -937,6 +983,9 @@ class LibrarySync:
         else:
             metadata_payload = {}
 
+        access_policy = resolve_access_policy(
+            metadata_payload.get("access"), default_visibility=item.visibility or "public"
+        )
         payload = {
             "job_id": item.id,
             "author": item.author or "",
@@ -951,6 +1000,9 @@ class LibrarySync:
             "cover_path": item.cover_path,
             "isbn": item.isbn,
             "source_path": item.source_path,
+            "owner_id": item.owner_id,
+            "visibility": access_policy.visibility,
+            "access": access_policy.to_dict(),
             "metadata": metadata_payload,
         }
         media_completed = bool(metadata_payload.get("media_completed"))

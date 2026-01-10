@@ -40,6 +40,7 @@ class PipelineJobMetadata:
     tuning_summary: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    access: Optional[Dict[str, Any]] = None
     generated_files: Optional[Dict[str, Any]] = None
     media_completed: Optional[bool] = None
     chunk_manifest: Optional[Dict[str, Any]] = None
@@ -76,6 +77,8 @@ class PipelineJobMetadata:
             payload["user_id"] = self.user_id
         if self.user_role is not None:
             payload["user_role"] = self.user_role
+        if self.access is not None:
+            payload["access"] = _stable_copy(self.access)
         if self.generated_files is not None:
             payload["generated_files"] = _stable_copy(self.generated_files)
         if self.media_completed is not None:
@@ -114,6 +117,7 @@ class PipelineJobMetadata:
             tuning_summary=data.get("tuning_summary"),
             user_id=data.get("user_id"),
             user_role=data.get("user_role"),
+            access=data.get("access"),
             generated_files=data.get("generated_files"),
             media_completed=data.get("media_completed"),
             chunk_manifest=data.get("chunk_manifest"),

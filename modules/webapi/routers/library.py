@@ -11,7 +11,13 @@ from typing import Any, Dict, Literal, Mapping, Optional
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Response, UploadFile, status
 from fastapi.concurrency import run_in_threadpool
 
-from ..dependencies import get_library_service, get_library_sync
+from ..dependencies import (
+    get_library_service,
+    get_library_sync,
+    get_pipeline_service,
+    get_request_user,
+    RequestUserContext,
+)
 from ..routes.media_routes import _stream_local_file
 from ..schemas import (
     LibraryItemPayload,
@@ -23,6 +29,8 @@ from ..schemas import (
     LibraryIsbnUpdateRequest,
     LibraryReindexResponse,
     LibrarySearchResponse,
+    AccessPolicyPayload,
+    AccessPolicyUpdateRequest,
     PipelineMediaChunk,
     PipelineMediaFile,
     PipelineMediaResponse,
@@ -30,11 +38,14 @@ from ..schemas import (
 from ...library import (
     LibraryConflictError,
     LibraryError,
+    LibraryEntry,
     LibraryNotFoundError,
     LibraryService,
     LibrarySync,
 )
 from ... import logging_manager
+from ...services.pipeline_service import PipelineService
+from modules.permissions import can_access, resolve_access_policy
 
 
 router = APIRouter(prefix="/api/library", tags=["library"])
@@ -46,12 +57,63 @@ mimetypes.add_type("text/x-srt", ".srt")
 mimetypes.add_type("text/plain", ".ass")
 
 
+def _library_owner_id(item: LibraryEntry) -> str | None:
+    if item.owner_id:
+        return item.owner_id
+    metadata = item.metadata.data if hasattr(item.metadata, "data") else {}
+    owner = metadata.get("user_id") or metadata.get("owner_id")
+    if isinstance(owner, str):
+        trimmed = owner.strip()
+        return trimmed or None
+    return None
+
+
+def _resolve_library_access(item: LibraryEntry):
+    metadata = item.metadata.data if hasattr(item.metadata, "data") else {}
+    return resolve_access_policy(metadata.get("access"), default_visibility="public")
+
+
+def _ensure_library_access(
+    item: LibraryEntry,
+    request_user: RequestUserContext,
+    *,
+    permission: str,
+) -> None:
+    policy = _resolve_library_access(item)
+    owner_id = _library_owner_id(item)
+    if can_access(
+        policy,
+        owner_id=owner_id,
+        user_id=request_user.user_id,
+        user_role=request_user.user_role,
+        permission=permission,
+    ):
+        return
+    detail = "Not authorized to access library item"
+    if permission == "edit":
+        detail = "Not authorized to modify library item"
+    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+
+
 @router.post("/move/{job_id}", response_model=LibraryMoveResponse)
 async def move_job_to_library(
     job_id: str,
     payload: LibraryMoveRequest | None = None,
     sync: LibrarySync = Depends(get_library_sync),
+    pipeline_service: PipelineService = Depends(get_pipeline_service),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    try:
+        pipeline_service.get_job(
+            job_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+            permission="edit",
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found") from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc
     try:
         item = sync.move_to_library(
             job_id,
@@ -81,6 +143,7 @@ async def list_library_items(
     limit: int = Query(default=25, ge=1, le=100),
     sort: Literal["updated_at_desc", "updated_at_asc"] = Query(default="updated_at_desc"),
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
     try:
         result = sync.search(
@@ -94,6 +157,8 @@ async def list_library_items(
             page=page,
             limit=limit,
             sort=sort,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
         )
     except LibraryError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
@@ -114,7 +179,11 @@ async def list_library_items(
 async def remove_library_media(
     job_id: str,
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
     try:
         updated_item, removed = sync.remove_media(job_id)
     except LibraryNotFoundError as exc:
@@ -135,7 +204,11 @@ async def remove_library_media(
 async def remove_library_entry(
     job_id: str,
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
     try:
         sync.remove_entry(job_id)
     except LibraryNotFoundError as exc:
@@ -150,7 +223,11 @@ async def update_library_metadata(
     job_id: str,
     payload: LibraryMetadataUpdateRequest,
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
     try:
         updated_item = sync.update_metadata(
             job_id,
@@ -171,12 +248,56 @@ async def update_library_metadata(
     return LibraryItemPayload.model_validate(serialized)
 
 
+@router.get("/items/{job_id}/access", response_model=AccessPolicyPayload)
+async def get_library_access(
+    job_id: str,
+    sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> AccessPolicyPayload:
+    item = sync.get_item(job_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Library item not found")
+    _ensure_library_access(item, request_user, permission="view")
+    policy = _resolve_library_access(item)
+    return AccessPolicyPayload.model_validate(policy.to_dict())
+
+
+@router.patch("/items/{job_id}/access", response_model=LibraryItemPayload)
+async def update_library_access(
+    job_id: str,
+    payload: AccessPolicyUpdateRequest,
+    sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
+) -> LibraryItemPayload:
+    item = sync.get_item(job_id)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Library item not found")
+    _ensure_library_access(item, request_user, permission="edit")
+    try:
+        updated_item = sync.update_access(
+            job_id,
+            visibility=payload.visibility,
+            grants=[grant.model_dump(by_alias=True) for grant in payload.grants]
+            if payload.grants is not None
+            else None,
+            actor_id=request_user.user_id,
+        )
+    except LibraryError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    serialized = sync.serialize_item(updated_item)
+    return LibraryItemPayload.model_validate(serialized)
+
+
 @router.post("/items/{job_id}/upload-source", response_model=LibraryItemPayload)
 async def upload_library_source(
     job_id: str,
     file: UploadFile = File(...),
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
     if not file.filename:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -223,7 +344,11 @@ async def apply_isbn_metadata(
     job_id: str,
     payload: LibraryIsbnUpdateRequest,
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
     try:
         updated_item = sync.apply_isbn_metadata(job_id, payload.isbn)
     except LibraryNotFoundError as exc:
@@ -239,7 +364,11 @@ async def apply_isbn_metadata(
 async def refresh_library_metadata(
     job_id: str,
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="edit")
     try:
         refreshed_item = sync.refresh_metadata(job_id)
     except LibraryNotFoundError as exc:
@@ -264,7 +393,12 @@ async def lookup_isbn_metadata(
 
 
 @router.post("/reindex", response_model=LibraryReindexResponse)
-async def reindex_library(service: LibraryService = Depends(get_library_service)):
+async def reindex_library(
+    service: LibraryService = Depends(get_library_service),
+    request_user: RequestUserContext = Depends(get_request_user),
+):
+    if (request_user.user_role or "").strip().lower() != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator role required")
     indexed = service.rebuild_index()
     return LibraryReindexResponse(indexed=indexed)
 
@@ -274,7 +408,11 @@ async def get_library_media(
     job_id: str,
     summary: bool = Query(False),
     sync: LibrarySync = Depends(get_library_sync),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="view")
     start = time.perf_counter()
     try:
         media_map, chunk_records, complete = await run_in_threadpool(
@@ -364,7 +502,11 @@ async def download_library_media(
     relative_path: str,
     sync: LibrarySync = Depends(get_library_sync),
     range_header: str | None = Header(default=None, alias="Range"),
+    request_user: RequestUserContext = Depends(get_request_user),
 ):
+    item = sync.get_item(job_id)
+    if item is not None:
+        _ensure_library_access(item, request_user, permission="view")
     try:
         resolved = sync.resolve_media_file(job_id, relative_path)
     except LibraryNotFoundError as exc:

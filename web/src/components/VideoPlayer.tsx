@@ -60,7 +60,8 @@ interface VideoPlayerProps {
 }
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react';
+import { appendAccessTokenToStorageUrl, getAuthToken } from '../api/client';
 import { formatMediaDropdownLabel } from '../utils/mediaLabels';
 import { formatDurationLabel } from '../utils/timeFormatters';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
@@ -194,6 +195,14 @@ function isAssSubtitleTrack(track: SubtitleTrack | null): boolean {
   return withoutQuery.toLowerCase().endsWith('.ass');
 }
 
+function isSafariBrowser(): boolean {
+  if (typeof navigator === 'undefined') {
+    return false;
+  }
+  const ua = navigator.userAgent;
+  return /safari/i.test(ua) && !/(chrome|chromium|crios|fxios|edg)/i.test(ua);
+}
+
 function isNativeWebkitFullscreen(video: HTMLVideoElement | null): boolean {
   if (!video) {
     return false;
@@ -230,6 +239,7 @@ export default function VideoPlayer({
   const playlistSelectId = useId();
   const elementRef = useRef<HTMLVideoElement | null>(null);
   const fullscreenRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const fullscreenRequestedRef = useRef(false);
   const nativeFullscreenRef = useRef(false);
   const nativeFullscreenReentryRef = useRef(false);
@@ -240,17 +250,35 @@ export default function VideoPlayer({
   const pendingSubtitleTrackRef = useRef<SubtitleTrack | null>(null);
   const [subtitleRevision, setSubtitleRevision] = useState(0);
   const cueTextCacheRef = useRef<WeakMap<TextTrackCue, string>>(new WeakMap());
-  const labels = files.map((file, index) => ({
+  const authToken = getAuthToken();
+  const resolvedFiles = useMemo(
+    () =>
+      files.map((file) => ({
+        ...file,
+        url: appendAccessTokenToStorageUrl(file.url),
+        poster: file.poster ? appendAccessTokenToStorageUrl(file.poster) : file.poster,
+      })),
+    [files, authToken],
+  );
+  const resolvedTracks = useMemo(
+    () =>
+      tracks.map((track) => ({
+        ...track,
+        url: track.url ? appendAccessTokenToStorageUrl(track.url) : track.url,
+      })),
+    [tracks, authToken],
+  );
+  const labels = resolvedFiles.map((file, index) => ({
     id: file.id,
     label: formatMediaDropdownLabel(file.name ?? file.url, `Video ${index + 1}`),
   }));
 
-  const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+  const activeFile = activeId ? resolvedFiles.find((file) => file.id === activeId) ?? null : null;
 
   const getFullscreenTarget = useCallback(() => fullscreenRef.current ?? elementRef.current, []);
 
-  const activeSubtitleTrack = useMemo(() => selectPrimarySubtitleTrack(tracks), [tracks]);
-  const overlaySubtitleTrack = useMemo(() => selectAssSubtitleTrack(tracks), [tracks]);
+  const activeSubtitleTrack = useMemo(() => selectPrimarySubtitleTrack(resolvedTracks), [resolvedTracks]);
+  const overlaySubtitleTrack = useMemo(() => selectAssSubtitleTrack(resolvedTracks), [resolvedTracks]);
   const resolvedSubtitleBackgroundOpacity = useMemo(
     () => sanitiseOpacity(subtitleBackgroundOpacity),
     [subtitleBackgroundOpacity],
@@ -259,14 +287,27 @@ export default function VideoPlayer({
     () => sanitiseOpacityPercent(subtitleBackgroundOpacity),
     [subtitleBackgroundOpacity],
   );
+  const [subtitleOverlayActive, setSubtitleOverlayActive] = useState(false);
   const isFileProtocol = typeof window !== 'undefined' && window.location.protocol === 'file:';
   const allowCrossOrigin = !isFileProtocol;
+  const isSafari = isSafariBrowser();
+  const hasAssOverlay = Boolean(overlaySubtitleTrack);
+  const disableNativeTrack = subtitleOverlayActive || (isSafari && hasAssOverlay);
+  const crossOriginMode = allowCrossOrigin && !isSafari ? 'use-credentials' : undefined;
+  const deferAssLoad = isSafari;
   const [processedSubtitleUrl, setProcessedSubtitleUrl] = useState<string>(EMPTY_VTT_DATA_URL);
-  const [subtitleOverlayActive, setSubtitleOverlayActive] = useState(false);
   const [coverFailed, setCoverFailed] = useState(false);
   const [secondaryCoverFailed, setSecondaryCoverFailed] = useState(false);
   const [playbackClock, setPlaybackClock] = useState({ current: 0, duration: 0 });
   const playbackClockRef = useRef({ current: 0, duration: 0 });
+  const scrubStateRef = useRef({
+    pointerId: null as number | null,
+    active: false,
+    startX: 0,
+    startY: 0,
+    startTime: 0,
+    width: 0,
+  });
   useEffect(() => {
     setCoverFailed(false);
   }, [infoBadge?.coverUrl]);
@@ -319,13 +360,13 @@ export default function VideoPlayer({
     ];
   }, [jobOriginalLanguage, jobTranslationLanguage]);
   const segmentLabel = useMemo(() => {
-    if (files.length <= 1) {
+    if (resolvedFiles.length <= 1) {
       return null;
     }
-    const index = activeFile ? files.findIndex((file) => file.id === activeFile.id) : -1;
+    const index = activeFile ? resolvedFiles.findIndex((file) => file.id === activeFile.id) : -1;
     const resolvedIndex = index >= 0 ? index + 1 : 1;
-    return `Video ${resolvedIndex} / ${files.length}`;
-  }, [activeFile, files]);
+    return `Video ${resolvedIndex} / ${resolvedFiles.length}`;
+  }, [activeFile, resolvedFiles]);
   const timelineLabel = useMemo(() => {
     if (!Number.isFinite(playbackClock.duration) || playbackClock.duration <= 0) {
       return null;
@@ -355,7 +396,7 @@ export default function VideoPlayer({
   }, [myLinguistScale]);
 
   useEffect(() => {
-    if (!subtitlesEnabled || !activeSubtitleTrack?.url) {
+    if (!subtitlesEnabled || !activeSubtitleTrack?.url || disableNativeTrack) {
       setProcessedSubtitleUrl(EMPTY_VTT_DATA_URL);
       return;
     }
@@ -407,7 +448,14 @@ export default function VideoPlayer({
         URL.revokeObjectURL(revokedUrl);
       }
     };
-  }, [activeSubtitleTrack?.url, isFileProtocol, resolvedSubtitleBackgroundOpacityPercent, subtitleScale, subtitlesEnabled]);
+  }, [
+    activeSubtitleTrack?.url,
+    disableNativeTrack,
+    isFileProtocol,
+    resolvedSubtitleBackgroundOpacityPercent,
+    subtitleScale,
+    subtitlesEnabled,
+  ]);
 
   const applySubtitleTrack = useCallback(
     (track: SubtitleTrack | null) => {
@@ -429,9 +477,10 @@ export default function VideoPlayer({
         // Ignore attribute failures in unsupported environments.
       }
 
-      const nextSrc = subtitlesEnabled && track?.url ? processedSubtitleUrl : EMPTY_VTT_DATA_URL;
+      const nextSrc =
+        subtitlesEnabled && track?.url && !disableNativeTrack ? processedSubtitleUrl : EMPTY_VTT_DATA_URL;
       const wantsEnabled = Boolean(
-        subtitlesEnabled && track?.url && nextSrc !== EMPTY_VTT_DATA_URL && !subtitleOverlayActive && !isAssSubtitleTrack(track),
+        subtitlesEnabled && track?.url && nextSrc !== EMPTY_VTT_DATA_URL && !disableNativeTrack && !isAssSubtitleTrack(track),
       );
 
       const setTrackSrc = (src: string) => {
@@ -508,7 +557,7 @@ export default function VideoPlayer({
       }
       bumpRevision();
     },
-    [processedSubtitleUrl, subtitlesEnabled, subtitleOverlayActive],
+    [disableNativeTrack, processedSubtitleUrl, subtitlesEnabled],
   );
 
   const requestFullscreenPlayback = useCallback((force = false) => {
@@ -758,6 +807,113 @@ export default function VideoPlayer({
     playbackClockRef.current = { current: nextCurrent, duration: nextDuration };
     setPlaybackClock({ current: nextCurrent, duration: nextDuration });
   }, []);
+
+  const shouldIgnoreScrubTarget = useCallback((target: EventTarget | null): boolean => {
+    if (!target || !(target instanceof HTMLElement)) {
+      return false;
+    }
+    return Boolean(target.closest('.player-panel__my-linguist-bubble'));
+  }, []);
+
+  const clearScrubState = useCallback(() => {
+    scrubStateRef.current.pointerId = null;
+    scrubStateRef.current.active = false;
+  }, []);
+
+  useEffect(() => {
+    clearScrubState();
+  }, [activeFile?.id, clearScrubState]);
+
+  const handleScrubPointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.button !== 0 || !event.isPrimary) {
+        return;
+      }
+      if (shouldIgnoreScrubTarget(event.target)) {
+        return;
+      }
+      const element = elementRef.current;
+      if (!element) {
+        return;
+      }
+      const rect = canvasRef.current?.getBoundingClientRect() ?? element.getBoundingClientRect();
+      const width = Math.max(rect.width || 0, element.clientWidth || 0, 1);
+      scrubStateRef.current = {
+        pointerId: event.pointerId,
+        active: false,
+        startX: event.clientX,
+        startY: event.clientY,
+        startTime: Number.isFinite(element.currentTime) ? element.currentTime : 0,
+        width,
+      };
+    },
+    [shouldIgnoreScrubTarget],
+  );
+
+  const handleScrubPointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const state = scrubStateRef.current;
+      if (state.pointerId === null || event.pointerId !== state.pointerId) {
+        return;
+      }
+      const element = elementRef.current;
+      if (!element) {
+        return;
+      }
+      const deltaX = event.clientX - state.startX;
+      const deltaY = event.clientY - state.startY;
+      const threshold = 12;
+      if (!state.active) {
+        if (Math.abs(deltaX) < threshold || Math.abs(deltaX) < Math.abs(deltaY)) {
+          return;
+        }
+        state.active = true;
+        try {
+          (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+        } catch {
+          /* Ignore pointer capture failures. */
+        }
+      }
+      const duration = element.duration;
+      if (!Number.isFinite(duration) || duration <= 0) {
+        return;
+      }
+      const width = state.width > 0 ? state.width : 1;
+      const deltaSeconds = (deltaX / width) * duration;
+      const nextTime = Math.max(0, Math.min(state.startTime + deltaSeconds, duration));
+      if (Math.abs(element.currentTime - nextTime) < 0.02) {
+        return;
+      }
+      try {
+        element.currentTime = nextTime;
+      } catch {
+        return;
+      }
+      updatePlaybackClock();
+      onPlaybackPositionChange?.(nextTime);
+      event.preventDefault();
+    },
+    [onPlaybackPositionChange, updatePlaybackClock],
+  );
+
+  const handleScrubPointerEnd = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const state = scrubStateRef.current;
+      if (state.pointerId === null || event.pointerId !== state.pointerId) {
+        return;
+      }
+      if (state.active) {
+        event.preventDefault();
+      }
+      try {
+        (event.currentTarget as HTMLElement).releasePointerCapture(event.pointerId);
+      } catch {
+        /* Ignore pointer capture failures. */
+      }
+      clearScrubState();
+    },
+    [clearScrubState],
+  );
 
   useEffect(() => {
     attemptAutoplay();
@@ -1193,7 +1349,15 @@ export default function VideoPlayer({
       ) : null}
       <div className={['video-player', isTheaterMode ? 'video-player--enlarged' : null].filter(Boolean).join(' ')}>
         <div className="video-player__stage" ref={fullscreenRef}>
-          <div className="video-player__canvas" style={canvasStyle}>
+          <div
+            className="video-player__canvas"
+            ref={canvasRef}
+            style={canvasStyle}
+            onPointerDown={handleScrubPointerDown}
+            onPointerMove={handleScrubPointerMove}
+            onPointerUp={handleScrubPointerEnd}
+            onPointerCancel={handleScrubPointerEnd}
+          >
             {infoBadge && showInfoHeader ? (
               <div className="player-panel__player-info-header video-player__info-header" aria-hidden="true">
                 <div className="video-player__info-header-left">
@@ -1264,7 +1428,7 @@ export default function VideoPlayer({
               style={videoStyle}
               data-testid="video-player"
               controls
-              crossOrigin={allowCrossOrigin ? 'anonymous' : undefined}
+              crossOrigin={crossOriginMode}
               src={activeFile.url}
               poster={activeFile.poster}
               autoPlay={autoPlay}
@@ -1290,6 +1454,7 @@ export default function VideoPlayer({
               videoRef={elementRef}
               track={overlaySubtitleTrack}
               enabled={subtitlesEnabled}
+              deferLoadUntilPlay={deferAssLoad}
               cueVisibility={cueVisibility}
               subtitleScale={subtitleScale}
               subtitleBackgroundOpacity={resolvedSubtitleBackgroundOpacity}

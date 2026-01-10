@@ -66,14 +66,14 @@ describe('UserManagementPanel', () => {
     await user.type(screen.getByLabelText(/^First name/i), 'Bob');
     await user.type(screen.getByLabelText(/Last name/i), 'Builder');
     await user.type(screen.getByLabelText(/Temporary password/i), 'secretpass!');
-    await user.selectOptions(screen.getByLabelText(/Role/i), 'standard_user');
+    await user.selectOptions(screen.getByLabelText(/Role/i), 'viewer');
     await user.click(screen.getByRole('button', { name: /Create user/i }));
 
     await waitFor(() =>
       expect(createUserMock).toHaveBeenCalledWith({
         username: 'bob',
         password: 'secretpass!',
-        roles: ['standard_user'],
+        roles: ['viewer'],
         email: 'bob@example.com',
         first_name: 'Bob',
         last_name: 'Builder'
@@ -98,7 +98,7 @@ describe('UserManagementPanel', () => {
       },
       {
         username: 'bob',
-        roles: ['standard_user'],
+        roles: ['viewer'],
         status: 'active',
         metadata: {},
         email: 'bob@example.com',
@@ -181,7 +181,7 @@ describe('UserManagementPanel', () => {
       },
       {
         username: 'bob',
-        roles: ['standard_user'],
+        roles: ['viewer'],
         status: 'active',
         metadata: {},
         email: 'bob@example.com',

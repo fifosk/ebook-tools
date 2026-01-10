@@ -16,10 +16,11 @@ interface AudioPlayerProps {
   onPlaybackStateChange?: (state: 'playing' | 'paused') => void;
 }
 
-import { useCallback, useEffect, useId, useRef } from 'react';
+import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
 import PlayerCore from '../player/PlayerCore';
 import { usePlayerCore } from '../hooks/usePlayerCore';
 import { formatMediaDropdownLabel } from '../utils/mediaLabels';
+import { appendAccessTokenToStorageUrl, getAuthToken } from '../api/client';
 
 export default function AudioPlayer({
   files,
@@ -35,12 +36,21 @@ export default function AudioPlayer({
   const { ref: attachCore, core } = usePlayerCore();
   const lastReportedTime = useRef<number | null>(null);
   const playlistSelectId = useId();
-  const labels = files.map((file, index) => ({
+  const authToken = getAuthToken();
+  const resolvedFiles = useMemo(
+    () =>
+      files.map((file) => ({
+        ...file,
+        url: appendAccessTokenToStorageUrl(file.url),
+      })),
+    [files, authToken],
+  );
+  const labels = resolvedFiles.map((file, index) => ({
     id: file.id,
     label: formatMediaDropdownLabel(file.name ?? file.url, `Track ${index + 1}`),
   }));
 
-  const activeFile = activeId ? files.find((file) => file.id === activeId) ?? null : null;
+  const activeFile = activeId ? resolvedFiles.find((file) => file.id === activeId) ?? null : null;
 
   useEffect(() => {
     if (!onRegisterControls) {
@@ -146,7 +156,7 @@ export default function AudioPlayer({
     onPlaybackEnded?.();
   }, [onPlaybackEnded, onPlaybackStateChange]);
 
-  if (files.length === 0) {
+  if (resolvedFiles.length === 0) {
     return (
       <div className="audio-player" role="status">
         Waiting for audio files…

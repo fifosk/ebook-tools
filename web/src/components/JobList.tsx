@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import {
+  AccessPolicyUpdatePayload,
   PipelineResponsePayload,
   PipelineStatusResponse,
   ProgressEventPayload
@@ -15,6 +16,7 @@ export interface JobState {
   isReloading: boolean;
   isMutating: boolean;
   canManage: boolean;
+  canView?: boolean;
 }
 
 type Props = {
@@ -26,6 +28,7 @@ type Props = {
   onDeleteJob: (jobId: string) => void;
   onReloadJob: (jobId: string) => void;
   onRestartJob?: (jobId: string) => void;
+  onUpdateAccess?: (jobId: string, payload: AccessPolicyUpdatePayload) => Promise<void>;
 };
 
 export function JobList({
@@ -36,7 +39,8 @@ export function JobList({
   onCancelJob,
   onDeleteJob,
   onReloadJob,
-  onRestartJob
+  onRestartJob,
+  onUpdateAccess
 }: Props) {
   const sortedJobs = useMemo(() => {
     return [...jobs].sort((a, b) => {
@@ -112,6 +116,9 @@ export function JobList({
                   isReloading={job.isReloading}
                   isMutating={job.isMutating}
                   canManage={job.canManage}
+                  onUpdateAccess={
+                    onUpdateAccess ? (payload) => onUpdateAccess(job.jobId, payload) : undefined
+                  }
                 />
               </details>
             );

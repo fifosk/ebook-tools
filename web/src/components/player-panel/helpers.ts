@@ -1,7 +1,12 @@
 import type { ChunkSentenceMetadata, LibraryItem, MediaSearchResult } from '../../api/dtos';
-import { appendAccessToken, buildStorageUrl, resolveLibraryMediaUrl } from '../../api/client';
+import {
+  appendAccessToken,
+  appendAccessTokenToStorageUrl,
+  buildStorageUrl,
+  resolveLibraryMediaUrl,
+} from '../../api/client';
 import type { LiveMediaChunk } from '../../hooks/useLiveMedia';
-import { coerceExportPath, resolve as resolveStoragePath } from '../../utils/storageResolver';
+import { coerceExportPath } from '../../utils/storageResolver';
 import type { MediaCategory } from './constants';
 import { MEDIA_CATEGORIES } from './constants';
 
@@ -435,7 +440,7 @@ export async function requestChunkMetadata(
             targetUrl = resolveLibraryMediaUrl(jobId, metadataPath);
           }
         } else {
-          targetUrl = resolveStoragePath(jobId, metadataPath);
+          targetUrl = buildStorageUrl(metadataPath, jobId);
         }
       } catch (error) {
         if (jobId) {
@@ -454,7 +459,7 @@ export async function requestChunkMetadata(
   }
 
   try {
-    const url = origin === 'library' && !isExportMode ? appendAccessToken(targetUrl) : targetUrl;
+    const url = !isExportMode ? appendAccessTokenToStorageUrl(targetUrl) : targetUrl;
     const response = await fetch(url, { credentials: 'include' });
     if (!response.ok) {
       throw new Error(`Chunk metadata request failed with status ${response.status}`);

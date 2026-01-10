@@ -9,6 +9,7 @@ from fastapi import HTTPException, status
 
 from ....services.file_locator import FileLocator
 from ....library import LibraryRepository
+from ....permissions import can_access, resolve_access_policy
 from ...dependencies import RequestUserContext
 
 
@@ -35,17 +36,32 @@ def _resolve_job_root(
     library_repository: LibraryRepository,
     request_user: RequestUserContext,
     job_manager: Any,
+    permission: str = "view",
 ) -> Path:
     try:
         job_manager.get(
             job_id,
             user_id=request_user.user_id,
             user_role=request_user.user_role,
+            permission=permission,
         )
     except KeyError:
         entry = library_repository.get_entry_by_id(job_id)
         if entry is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found")
+        metadata_payload = entry.metadata.data if hasattr(entry.metadata, "data") else {}
+        owner_id = entry.owner_id or metadata_payload.get("user_id") or metadata_payload.get("owner_id")
+        if isinstance(owner_id, str):
+            owner_id = owner_id.strip() or None
+        policy = resolve_access_policy(metadata_payload.get("access"), default_visibility="public")
+        if not can_access(
+            policy,
+            owner_id=owner_id,
+            user_id=request_user.user_id,
+            user_role=request_user.user_role,
+            permission=permission,
+        ):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access media")
         job_root = Path(entry.library_path)
     except PermissionError as exc:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc)) from exc

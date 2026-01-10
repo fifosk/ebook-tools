@@ -33,6 +33,7 @@ from ..services.export_service import ExportService
 from ..services.bookmark_service import BookmarkService
 from ..user_management import AuthService, LocalUserStore, SessionManager
 from ..video.backends import create_video_renderer
+from modules.permissions import normalize_role
 from .jobs import PipelineJobManager
 
 
@@ -454,7 +455,7 @@ def get_request_user(
     if header_user_id:
         user_id = header_user_id.strip() or None
         role_value = (header_user_role or "").strip()
-        user_role = role_value.lower() if role_value else None
+        user_role = normalize_role(role_value) if role_value else None
         return RequestUserContext(user_id=user_id, user_role=user_role)
 
     token = _extract_bearer_token(authorization)
@@ -471,7 +472,5 @@ def get_request_user(
     if record.roles:
         primary = record.roles[0]
         if isinstance(primary, str):
-            normalized = primary.strip()
-            if normalized:
-                role = normalized.lower()
+            role = normalize_role(primary)
     return RequestUserContext(user_id=record.username, user_role=role)

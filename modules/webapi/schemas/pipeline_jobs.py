@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Mapping, Optional
 from pydantic import BaseModel, Field
 
 from ...services.file_locator import FileLocator
+from modules.permissions import resolve_access_policy
+from .access import AccessPolicyPayload
 from ...transliteration import resolve_local_transliteration_module
 from ..jobs import PipelineJob, PipelineJobStatus
 from .pipeline_results import PipelineResponsePayload
@@ -588,6 +590,7 @@ class PipelineStatusResponse(BaseModel):
     tuning: Optional[Dict[str, Any]] = None
     user_id: Optional[str] = None
     user_role: Optional[str] = None
+    access: Optional[AccessPolicyPayload] = None
     generated_files: Optional[Dict[str, Any]] = None
     parameters: Optional[JobParameterSnapshot] = None
     media_completed: Optional[bool] = None
@@ -645,6 +648,9 @@ class PipelineStatusResponse(BaseModel):
             latest_event=latest_event,
             generated_files=generated_files,
         )
+        default_visibility = "private" if job.user_id else "public"
+        access_policy = resolve_access_policy(job.access, default_visibility=default_visibility)
+        access_payload = AccessPolicyPayload.model_validate(access_policy.to_dict())
 
         return cls(
             job_id=job.job_id,
@@ -659,6 +665,7 @@ class PipelineStatusResponse(BaseModel):
             tuning=dict(job.tuning_summary) if job.tuning_summary else None,
             user_id=job.user_id,
             user_role=job.user_role,
+            access=access_payload,
             generated_files=generated_files,
             parameters=parameters,
             media_completed=job.media_completed,

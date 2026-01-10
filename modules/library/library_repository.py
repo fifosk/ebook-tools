@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, Iterable, Iterator, List, Mapping, Optional, Sequence, Tuple
 
 from modules.library.sync import metadata as metadata_utils
+from modules.permissions import resolve_access_policy
 
 from .library_models import LibraryEntry, MetadataSnapshot
 
@@ -59,8 +60,14 @@ class LibraryRepository:
         limit: int = 25,
         offset: int = 0,
         sort_desc: bool = True,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
     ) -> List[LibraryEntry]:
         join_sql, where_sql, params = self._compose_filters(query, filters or {})
+        access_sql, access_params = self._compose_access_filter(user_id, user_role)
+        if access_sql:
+            where_sql = f"{where_sql} AND {access_sql}" if where_sql else access_sql
+            params.update(access_params)
         order_clause = (
             "ORDER BY library_items.updated_at DESC"
             if sort_desc
@@ -89,8 +96,14 @@ class LibraryRepository:
         *,
         query: Optional[str] = None,
         filters: Mapping[str, Optional[str]] | None = None,
+        user_id: Optional[str] = None,
+        user_role: Optional[str] = None,
     ) -> int:
         join_sql, where_sql, params = self._compose_filters(query, filters or {})
+        access_sql, access_params = self._compose_access_filter(user_id, user_role)
+        if access_sql:
+            where_sql = f"{where_sql} AND {access_sql}" if where_sql else access_sql
+            params.update(access_params)
         where_prefix = f"WHERE {where_sql}" if where_sql else ""
         sql = f"""
             SELECT COUNT(*) AS total
@@ -150,6 +163,8 @@ class LibraryRepository:
             cover_path=payload.get("cover_path"),
             isbn=payload.get("isbn"),
             source_path=payload.get("source_path"),
+            owner_id=payload.get("owner_id"),
+            visibility=payload.get("visibility") or "public",
             metadata=MetadataSnapshot(metadata=payload.get("metadata", {})),
         )
         self._upsert(updated_entry)
@@ -164,6 +179,7 @@ class LibraryRepository:
         with self.connect() as connection:
             connection.execute("DELETE FROM library_items")
             connection.execute("DELETE FROM books")
+            connection.execute("DELETE FROM library_item_grants")
             library_rows = [
                 self._entry_to_db_row(entry)
                 for entry in entries
@@ -177,12 +193,12 @@ class LibraryRepository:
                 INSERT INTO library_items (
                     id, author, book_title, item_type, genre, language, status,
                     created_at, updated_at, library_path, cover_path,
-                    isbn, source_path, meta_json
+                    isbn, source_path, owner_id, visibility, meta_json
                 )
                 VALUES (
                     :id, :author, :book_title, :item_type, :genre, :language, :status,
                     :created_at, :updated_at, :library_path, :cover_path,
-                    :isbn, :source_path, :meta_json
+                    :isbn, :source_path, :owner_id, :visibility, :meta_json
                 )
                 """,
                 library_rows,
@@ -198,6 +214,9 @@ class LibraryRepository:
                 """,
                 book_rows,
             )
+            for entry in entries:
+                policy = self._extract_access_policy(entry)
+                self._write_grants(connection, entry.id, policy)
 
     def sync_from_filesystem(self, library_root: Optional[Path] = None) -> int:
         """Scan metadata files on disk and refresh the SQLite index."""
@@ -243,6 +262,12 @@ class LibraryRepository:
         job_id = str(metadata.get("job_id") or "").strip()
         if not job_id:
             return None
+        owner_id = metadata.get("user_id") or metadata.get("owner_id")
+        if isinstance(owner_id, str):
+            owner_id = owner_id.strip() or None
+        else:
+            owner_id = None
+        access_policy = resolve_access_policy(metadata.get("access"), default_visibility="public")
         author = str(metadata.get("author") or "").strip()
         book_title = str(metadata.get("book_title") or "").strip()
         genre = metadata.get("genre")
@@ -270,6 +295,8 @@ class LibraryRepository:
             cover_path=str(cover_path) if cover_path else None,
             isbn=str(isbn) if isbn else None,
             source_path=str(source_path) if source_path else None,
+            owner_id=owner_id,
+            visibility=access_policy.visibility,
             metadata=snapshot,
         )
 
@@ -305,6 +332,52 @@ class LibraryRepository:
         where_sql = " AND ".join(where_clauses)
         return join_sql, where_sql, params
 
+    def _compose_access_filter(
+        self,
+        user_id: Optional[str],
+        user_role: Optional[str],
+    ) -> Tuple[str, Dict[str, Any]]:
+        normalized_role = (user_role or "").strip().lower()
+        normalized_user = (user_id or "").strip()
+        if normalized_role == "admin":
+            return "", {}
+        if not normalized_user and not normalized_role:
+            return "library_items.visibility = 'public'", {}
+
+        clauses: List[str] = ["library_items.visibility = 'public'"]
+        params: Dict[str, Any] = {}
+        if normalized_user:
+            clauses.append("library_items.owner_id = :access_user_id")
+            clauses.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM library_item_grants grants
+                    WHERE grants.entry_id = library_items.id
+                      AND grants.subject_type = 'user'
+                      AND grants.subject_id = :access_user_id
+                      AND grants.permission IN ('view', 'edit')
+                )
+                """
+            )
+            params["access_user_id"] = normalized_user
+        if normalized_role:
+            clauses.append(
+                """
+                EXISTS (
+                    SELECT 1
+                    FROM library_item_grants grants
+                    WHERE grants.entry_id = library_items.id
+                      AND grants.subject_type = 'role'
+                      AND grants.subject_id = :access_user_role
+                      AND grants.permission IN ('view', 'edit')
+                )
+                """
+            )
+            params["access_user_role"] = normalized_role
+
+        return f"({' OR '.join(clauses)})", params
+
     def _entry_to_db_row(self, entry: LibraryEntry) -> Dict[str, Any]:
         return {
             "id": entry.id,
@@ -320,6 +393,8 @@ class LibraryRepository:
             "cover_path": entry.cover_path,
             "isbn": entry.isbn,
             "source_path": entry.source_path,
+            "owner_id": entry.owner_id,
+            "visibility": entry.visibility,
             "meta_json": entry.metadata.to_json(),
         }
 
@@ -354,6 +429,8 @@ class LibraryRepository:
             cover_path=row["cover_path"] if "cover_path" in row.keys() else None,
             isbn=row["isbn"] if "isbn" in row.keys() else None,
             source_path=row["source_path"] if "source_path" in row.keys() else None,
+            owner_id=row["owner_id"] if "owner_id" in row.keys() else None,
+            visibility=row["visibility"] if "visibility" in row.keys() else "public",
             metadata=snapshot,
         )
 
@@ -366,12 +443,12 @@ class LibraryRepository:
                 INSERT INTO library_items (
                     id, author, book_title, item_type, genre, language, status,
                     created_at, updated_at, library_path, cover_path,
-                    isbn, source_path, meta_json
+                    isbn, source_path, owner_id, visibility, meta_json
                 )
                 VALUES (
                     :id, :author, :book_title, :item_type, :genre, :language, :status,
                     :created_at, :updated_at, :library_path, :cover_path,
-                    :isbn, :source_path, :meta_json
+                    :isbn, :source_path, :owner_id, :visibility, :meta_json
                 )
                 ON CONFLICT(id) DO UPDATE SET
                     author=excluded.author,
@@ -386,6 +463,8 @@ class LibraryRepository:
                     cover_path=excluded.cover_path,
                     isbn=excluded.isbn,
                     source_path=excluded.source_path,
+                    owner_id=excluded.owner_id,
+                    visibility=excluded.visibility,
                     meta_json=excluded.meta_json;
                 """,
                 payload,
@@ -410,6 +489,51 @@ class LibraryRepository:
                     updated_at=excluded.updated_at;
                 """,
                 book_payload,
+            )
+            policy = self._extract_access_policy(entry)
+            self._write_grants(connection, entry.id, policy)
+
+    @staticmethod
+    def _extract_access_policy(entry: LibraryEntry):
+        metadata_payload = (
+            dict(entry.metadata.data)
+            if isinstance(entry.metadata, MetadataSnapshot)
+            else dict(entry.metadata or {})
+        )
+        default_visibility = entry.visibility or "public"
+        return resolve_access_policy(metadata_payload.get("access"), default_visibility=default_visibility)
+
+    @staticmethod
+    def _write_grants(
+        connection: sqlite3.Connection,
+        entry_id: str,
+        policy,
+    ) -> None:
+        connection.execute("DELETE FROM library_item_grants WHERE entry_id = ?", (entry_id,))
+        rows: list[Dict[str, Any]] = []
+        for grant in policy.grants:
+            for permission in grant.permissions:
+                rows.append(
+                    {
+                        "entry_id": entry_id,
+                        "subject_type": grant.subject_type,
+                        "subject_id": grant.subject_id,
+                        "permission": permission,
+                        "granted_by": grant.granted_by,
+                        "granted_at": grant.granted_at,
+                    }
+                )
+        if rows:
+            connection.executemany(
+                """
+                INSERT OR REPLACE INTO library_item_grants (
+                    entry_id, subject_type, subject_id, permission, granted_by, granted_at
+                )
+                VALUES (
+                    :entry_id, :subject_type, :subject_id, :permission, :granted_by, :granted_at
+                )
+                """,
+                rows,
             )
 
     def _apply_migrations(self, connection: sqlite3.Connection) -> None:

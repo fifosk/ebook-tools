@@ -45,17 +45,21 @@ def search_entries(
     sort_desc: bool,
     view: str,
     serializer: Callable[[LibraryEntry], Dict[str, Any]],
+    user_id: Optional[str] = None,
+    user_role: Optional[str] = None,
 ) -> Tuple[int, List[LibraryEntry], Optional[List[Dict[str, Any]]]]:
     """Execute a search against the repository with grouping support."""
 
     normalized_filters = utils.compact_filters(dict(filters))
-    total = repository.count_entries(query=query, filters=normalized_filters)
+    total = repository.count_entries(query=query, filters=normalized_filters, user_id=user_id, user_role=user_role)
     items = repository.list_entries(
         query=query,
         filters=normalized_filters,
         limit=limit,
         offset=offset,
         sort_desc=sort_desc,
+        user_id=user_id,
+        user_role=user_role,
     )
     groups = build_groups(items, view=view, serializer=serializer)
     return total, items, groups

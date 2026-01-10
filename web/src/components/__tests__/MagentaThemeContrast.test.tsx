@@ -105,6 +105,7 @@ describe('Magenta theme contrast', () => {
         onSelectJob={() => {}}
         onOpenPlayer={() => {}}
         isAdmin={false}
+        canScheduleJobs={true}
         createBookView={'books:create' as SelectedView}
         libraryView={'library:list' as SelectedView}
         subtitlesView={'subtitles:home' as SelectedView}
