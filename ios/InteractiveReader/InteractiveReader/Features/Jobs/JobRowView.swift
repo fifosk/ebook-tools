@@ -334,8 +334,10 @@ struct JobRowView: View {
     }
 
     private var coverURL: URL? {
-        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .dub else { return nil }
-        let candidates = coverCandidates()
+        let youtubeFallback = resolveYoutubeThumbnailFallback()
+        let supportsVideoCover = jobVariant == .youtube || jobVariant == .video || jobVariant == .dub
+        guard supportsVideoCover || youtubeFallback != nil else { return nil }
+        let candidates = coverCandidates(youtubeFallback: youtubeFallback)
         for candidate in candidates {
             if let url = resolveCoverCandidate(candidate) {
                 return url
@@ -362,7 +364,7 @@ struct JobRowView: View {
         }
     }
 
-    private func coverCandidates() -> [String] {
+    private func coverCandidates(youtubeFallback: String?) -> [String] {
         var candidates: [String] = []
         var seen = Set<String>()
 
@@ -376,14 +378,14 @@ struct JobRowView: View {
         add(metadataString(for: ["thumbnail"], maxDepth: 6))
         add(metadataString(for: ["cover_url", "cover", "poster"], maxDepth: 4))
         add(metadataString(for: ["job_cover_asset_url", "job_cover_asset", "book_cover_file"], maxDepth: 4))
-        if let fallback = resolveYoutubeThumbnailFallback() {
-            add(fallback)
-        }
+        add(youtubeFallback)
         return candidates
     }
 
     private func resolveYoutubeThumbnailFallback() -> String? {
-        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .dub else { return nil }
+        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .dub || jobVariant == .subtitles else {
+            return nil
+        }
         let sources = [
             job.jobLabel,
             metadataString(for: ["video_id", "videoId"], maxDepth: 6),
