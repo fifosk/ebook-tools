@@ -4,7 +4,8 @@ import SwiftUI
 extension JobPlaybackView {
     var videoMetadata: VideoPlaybackMetadata {
         let channelLabel: String
-        switch jobVariant {
+        let channelVariant = videoChannelVariant
+        switch channelVariant {
         case .subtitles:
             channelLabel = "Subtitles"
         case .youtube:
@@ -13,6 +14,8 @@ extension JobPlaybackView {
             channelLabel = "Dubbing"
         case .video:
             channelLabel = "Video"
+        case .tv:
+            channelLabel = "TV"
         case .nas:
             channelLabel = "NAS"
         case .book, .job:
@@ -30,9 +33,16 @@ extension JobPlaybackView {
             languageFlags: languageFlags,
             translationModel: translationModelLabel,
             summary: summaryText,
-            channelVariant: jobVariant,
+            channelVariant: channelVariant,
             channelLabel: channelLabel
         )
+    }
+
+    var videoChannelVariant: PlayerChannelVariant {
+        if isTvSeries {
+            return .tv
+        }
+        return jobVariant
     }
 
     var videoTitleOverride: String? {
@@ -187,6 +197,18 @@ extension JobPlaybackView {
         return nil
     }
 
+    var isTvSeries: Bool {
+        guard let tvMetadata = resolvedTvMetadata else { return false }
+        if let kind = tvMetadata["kind"]?.stringValue?.lowercased(),
+           kind == "tv_episode" {
+            return true
+        }
+        if tvMetadata["show"]?.objectValue != nil || tvMetadata["episode"]?.objectValue != nil {
+            return true
+        }
+        return false
+    }
+
     var bookSummary: String? {
         if let metadata = jobMetadata,
            let bookMetadata = extractBookMetadata(from: metadata) {
@@ -266,7 +288,7 @@ extension JobPlaybackView {
 
     var shouldFetchTvMetadata: Bool {
         switch jobVariant {
-        case .subtitles, .youtube, .dub, .video:
+        case .subtitles, .youtube, .dub, .video, .tv:
             return true
         case .book, .nas, .job:
             return false
@@ -277,7 +299,7 @@ extension JobPlaybackView {
         switch jobVariant {
         case .youtube, .dub:
             return true
-        case .book, .subtitles, .video, .nas, .job:
+        case .book, .subtitles, .video, .tv, .nas, .job:
             return false
         }
     }
@@ -290,6 +312,8 @@ extension JobPlaybackView {
             return "Subtitles"
         case .video, .youtube:
             return "Video"
+        case .tv:
+            return "TV"
         case .dub:
             return "Dubbing"
         case .nas:

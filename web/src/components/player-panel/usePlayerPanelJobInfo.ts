@@ -10,10 +10,13 @@ import {
 } from '../../api/client';
 import { coerceExportPath } from '../../utils/storageResolver';
 import { normaliseContentIndexChapters, toFiniteNumber } from '../../utils/contentIndex';
+import { isTvSeriesMetadata } from '../../utils/jobGlyphs';
 import {
+  coerceRecord,
   extractMetadataFirstString,
   extractMetadataText,
   normaliseBookSentenceCount,
+  readNestedValue,
 } from './helpers';
 import { deriveSentenceCountFromChunks } from './utils';
 
@@ -333,8 +336,47 @@ export function usePlayerPanelJobInfo({
   const bookGenre = extractMetadataFirstString(bookMetadata, ['genre', 'book_genre', 'series_genre', 'category', 'subjects']);
   const isBookLike =
     itemType === 'book' || (jobType ?? '').trim().toLowerCase().includes('book') || Boolean(bookTitle);
+  const youtubeMetadata = useMemo(() => {
+    if (!bookMetadata || typeof bookMetadata !== 'object') {
+      return null;
+    }
+    const payload = bookMetadata as Record<string, unknown>;
+    const direct = coerceRecord(payload['youtube']);
+    if (direct) {
+      return direct;
+    }
+    const mediaMetadataCandidate =
+      readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+      readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
+      readNestedValue(payload, ['request', 'media_metadata']) ??
+      readNestedValue(payload, ['media_metadata']) ??
+      null;
+    const mediaMetadata = coerceRecord(mediaMetadataCandidate);
+    return coerceRecord(mediaMetadata?.['youtube']);
+  }, [bookMetadata]);
+  const tvMetadata = useMemo(() => {
+    if (!bookMetadata || typeof bookMetadata !== 'object') {
+      return null;
+    }
+    const payload = bookMetadata as Record<string, unknown>;
+    const candidate =
+      readNestedValue(payload, ['result', 'youtube_dub', 'media_metadata']) ??
+      readNestedValue(payload, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+      readNestedValue(payload, ['request', 'media_metadata']) ??
+      readNestedValue(payload, ['media_metadata']) ??
+      null;
+    return coerceRecord(candidate);
+  }, [bookMetadata]);
+  const hasYoutubeMetadata = Boolean(youtubeMetadata);
+  const hasTvSeriesMetadata = isTvSeriesMetadata(tvMetadata);
   const channelBug = useMemo(() => {
     const normalisedJobType = (jobType ?? '').trim().toLowerCase();
+    if (normalisedJobType.includes('youtube') || hasYoutubeMetadata) {
+      return { glyph: 'YT', label: 'YouTube' };
+    }
+    if (hasTvSeriesMetadata) {
+      return { glyph: 'TV', label: 'TV series' };
+    }
     if (itemType === 'book') {
       return { glyph: 'BK', label: 'Book' };
     }
@@ -342,16 +384,19 @@ export function usePlayerPanelJobInfo({
       return { glyph: 'SUB', label: 'Subtitles' };
     }
     if (itemType === 'video') {
-      return { glyph: 'TV', label: 'Video' };
+      return { glyph: 'VID', label: 'Video' };
     }
     if (normalisedJobType.includes('subtitle')) {
       return { glyph: 'SUB', label: 'Subtitles' };
+    }
+    if (normalisedJobType.includes('video')) {
+      return { glyph: 'VID', label: 'Video' };
     }
     if (normalisedJobType.includes('book') || Boolean(bookTitle || bookAuthor)) {
       return { glyph: 'BK', label: 'Book' };
     }
     return { glyph: 'JOB', label: 'Job' };
-  }, [bookAuthor, bookTitle, itemType, jobType]);
+  }, [bookAuthor, bookTitle, hasTvSeriesMetadata, hasYoutubeMetadata, itemType, jobType]);
   const sectionLabel = bookTitle ? `Player for ${bookTitle}` : 'Player';
   const loadingMessage = bookTitle ? `Loading generated media for ${bookTitle}…` : 'Loading generated media…';
   const emptyMediaMessage = bookTitle ? `No generated media yet for ${bookTitle}.` : 'No generated media yet.';

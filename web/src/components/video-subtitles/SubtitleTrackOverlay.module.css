@@ -9,15 +9,23 @@
   gap: 0.45rem;
   align-items: center;
   z-index: 4;
-  pointer-events: none;
+  pointer-events: auto;
+  transform: translateY(var(--subtitle-overlay-offset, 0px));
+  transition: transform 140ms ease;
   --subtitle-overlay-bg: rgba(0, 0, 0, 0.6);
   --subtitle-overlay-scale: 1;
+  touch-action: none;
 }
 
 .overlay:focus-visible {
   outline: 2px solid rgba(56, 189, 248, 0.8);
   outline-offset: 4px;
   border-radius: 1rem;
+}
+
+.overlay[data-dragging='true'] {
+  transition: none;
+  cursor: ns-resize;
 }
 
 .trackRow {

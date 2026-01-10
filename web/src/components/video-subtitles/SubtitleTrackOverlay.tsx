@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject } from 'react';
+import type { CSSProperties, KeyboardEvent as ReactKeyboardEvent, MutableRefObject, PointerEvent as ReactPointerEvent } from 'react';
 import type { TextPlayerVariantKind } from '../../text-player/TextPlayer';
 import { MyLinguistBubble } from '../interactive-text/MyLinguistBubble';
 import { MY_LINGUIST_BUBBLE_MAX_CHARS } from '../interactive-text/constants';
@@ -38,6 +38,7 @@ const EMPTY_VISIBILITY = {
   translation: true,
   transliteration: true,
 };
+const SUBTITLE_VERTICAL_OFFSET_KEY = 'video.subtitle.verticalOffset';
 function clampScale(value: number | null | undefined): number {
   if (!Number.isFinite(value) || !value) {
     return 1;
@@ -90,6 +91,11 @@ function findCueInsertIndex(cues: AssSubtitleCue[], time: number): number {
     }
   }
   return result;
+}
+
+function clampOffset(value: number, containerHeight: number): number {
+  const maxUp = Math.max(120, Math.min(containerHeight * 0.45, 360));
+  return Math.min(0, Math.max(value, -maxUp));
 }
 
 function toVariantKind(track: TrackKind): TextPlayerVariantKind {
@@ -222,11 +228,27 @@ export default function SubtitleTrackOverlay({
   });
   const [assReadyToLoad, setAssReadyToLoad] = useState(!deferLoadUntilPlay);
   const [cues, setCues] = useState<AssSubtitleCue[]>([]);
+  const shouldLoadAss =
+    enabled &&
+    assReadyToLoad &&
+    typeof track?.url === 'string' &&
+    track.url.toLowerCase().split(/[?#]/)[0]?.endsWith('.ass');
+  const overlayActive = enabled && shouldLoadAss && cues.length > 0;
   const [activeCueIndex, setActiveCueIndex] = useState(-1);
   const activeCueIndexRef = useRef(-1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [bubble, setBubble] = useState<LinguistBubbleState | null>(null);
+  const [verticalOffset, setVerticalOffset] = useState(0);
+  const [isDraggingSubtitles, setIsDraggingSubtitles] = useState(false);
+  const dragStateRef = useRef({
+    pointerId: null as number | null,
+    startX: 0,
+    startY: 0,
+    startOffset: 0,
+    active: false,
+    ignoreClick: false,
+  });
   const linguistRequestCounterRef = useRef(0);
   const anchorRectRef = useRef<DOMRect | null>(null);
   const anchorElementRef = useRef<HTMLElement | null>(null);
@@ -273,13 +295,150 @@ export default function SubtitleTrackOverlay({
     setBubble(null);
   }, [layout]);
 
+  const resumePlaybackAndDefocus = useCallback(() => {
+    closeBubble();
+    const video = videoRef.current;
+    if (video && video.paused) {
+      video.play().catch(() => {
+        /* Ignore play failures. */
+      });
+    }
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement as HTMLElement | null;
+      if (active && overlayRef.current?.contains(active)) {
+        active.blur();
+        return;
+      }
+    }
+    overlayRef.current?.blur();
+  }, [closeBubble, videoRef]);
+
+  const resolveContainerHeight = useCallback(() => {
+    if (overlayRef.current?.parentElement) {
+      const rect = overlayRef.current.parentElement.getBoundingClientRect();
+      if (rect.height > 0) {
+        return rect.height;
+      }
+    }
+    if (typeof window !== 'undefined') {
+      return window.innerHeight || 0;
+    }
+    return 0;
+  }, []);
+
+  const clampSubtitleOffset = useCallback(
+    (value: number) => clampOffset(value, resolveContainerHeight()),
+    [resolveContainerHeight],
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !overlayActive) {
+      return;
+    }
+    const raw = window.localStorage.getItem(SUBTITLE_VERTICAL_OFFSET_KEY);
+    if (!raw) {
+      return;
+    }
+    const parsed = Number.parseFloat(raw);
+    if (!Number.isFinite(parsed)) {
+      return;
+    }
+    setVerticalOffset(clampSubtitleOffset(parsed));
+  }, [clampSubtitleOffset, overlayActive]);
+
+  const handleSubtitlePointerDown = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (!overlayActive || event.button !== 0 || !event.isPrimary) {
+        return;
+      }
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest('.player-panel__my-linguist-bubble')) {
+        return;
+      }
+      dragStateRef.current = {
+        pointerId: event.pointerId,
+        startX: event.clientX,
+        startY: event.clientY,
+        startOffset: verticalOffset,
+        active: false,
+        ignoreClick: false,
+      };
+    },
+    [overlayActive, verticalOffset],
+  );
+
+  const handleSubtitlePointerMove = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const state = dragStateRef.current;
+      if (state.pointerId === null || event.pointerId !== state.pointerId) {
+        return;
+      }
+      const deltaX = event.clientX - state.startX;
+      const deltaY = event.clientY - state.startY;
+      if (!state.active) {
+        if (Math.abs(deltaY) < 10 || Math.abs(deltaY) < Math.abs(deltaX)) {
+          return;
+        }
+        state.active = true;
+        state.ignoreClick = true;
+        setIsDraggingSubtitles(true);
+      }
+      const nextOffset = clampSubtitleOffset(state.startOffset + deltaY);
+      if (Math.abs(nextOffset - verticalOffset) > 0.5) {
+        setVerticalOffset(nextOffset);
+      }
+      event.preventDefault();
+    },
+    [clampSubtitleOffset, verticalOffset],
+  );
+
+  const handleSubtitlePointerEnd = useCallback(
+    (event: ReactPointerEvent<HTMLDivElement>) => {
+      const state = dragStateRef.current;
+      if (state.pointerId === null || event.pointerId !== state.pointerId) {
+        return;
+      }
+      if (state.active) {
+        event.preventDefault();
+        setIsDraggingSubtitles(false);
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(SUBTITLE_VERTICAL_OFFSET_KEY, String(verticalOffset));
+          window.setTimeout(() => {
+            dragStateRef.current.ignoreClick = false;
+          }, 0);
+        } else {
+          dragStateRef.current.ignoreClick = false;
+        }
+      }
+      dragStateRef.current.pointerId = null;
+      dragStateRef.current.active = false;
+    },
+    [verticalOffset],
+  );
+
   useEffect(() => {
     if (!bubble) {
       return;
     }
+    const isTypingTarget = (target: EventTarget | null): boolean => {
+      if (!target || !(target instanceof HTMLElement)) {
+        return false;
+      }
+      const tag = target.tagName;
+      if (!tag) {
+        return false;
+      }
+      return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' || event.key === 'Esc') {
-        closeBubble();
+      if (event.defaultPrevented || event.altKey || event.metaKey || isTypingTarget(event.target)) {
+        return;
+      }
+      const key = event.key;
+      const isSpace = key === ' ' || event.code === 'Space';
+      if (key === 'Escape' || key === 'Esc' || isSpace) {
+        resumePlaybackAndDefocus();
+        event.preventDefault();
       }
     };
     const handlePointer = (event: PointerEvent) => {
@@ -300,7 +459,7 @@ export default function SubtitleTrackOverlay({
       window.removeEventListener('keydown', handleKeyDown, true);
       window.removeEventListener('pointerdown', handlePointer, true);
     };
-  }, [bubble, closeBubble, layout.bubbleRef]);
+  }, [bubble, layout.bubbleRef, resumePlaybackAndDefocus]);
 
   useEffect(() => {
     setAssReadyToLoad(!deferLoadUntilPlay);
@@ -341,12 +500,6 @@ export default function SubtitleTrackOverlay({
       }
     };
   }, [assReadyToLoad, deferLoadUntilPlay, videoRef]);
-
-  const shouldLoadAss =
-    enabled &&
-    assReadyToLoad &&
-    typeof track?.url === 'string' &&
-    track.url.toLowerCase().split(/[?#]/)[0]?.endsWith('.ass');
 
   useEffect(() => {
     if (!shouldLoadAss || typeof fetch !== 'function' || typeof window === 'undefined') {
@@ -397,8 +550,6 @@ export default function SubtitleTrackOverlay({
     void run();
     return () => controller.abort();
   }, [shouldLoadAss, track?.url]);
-
-  const overlayActive = enabled && shouldLoadAss && cues.length > 0;
 
   useEffect(() => {
     onOverlayActiveChange?.(overlayActive);
@@ -472,6 +623,32 @@ export default function SubtitleTrackOverlay({
       video.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [cues, overlayActive, videoRef]);
+
+  useEffect(() => {
+    if (!overlayActive || isPlaying || typeof document === 'undefined') {
+      return;
+    }
+    const active = document.activeElement as HTMLElement | null;
+    if (active) {
+      if (active.isContentEditable) {
+        return;
+      }
+      const tag = active.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        return;
+      }
+      if (overlayRef.current && overlayRef.current.contains(active)) {
+        return;
+      }
+    }
+    if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+      window.requestAnimationFrame(() => {
+        overlayRef.current?.focus({ preventScroll: true });
+      });
+    } else {
+      overlayRef.current?.focus();
+    }
+  }, [isPlaying, overlayActive]);
 
   const activeCue = activeCueIndex >= 0 ? cues[activeCueIndex] ?? null : null;
   const tracks = activeCue?.tracks ?? {};
@@ -662,21 +839,8 @@ export default function SubtitleTrackOverlay({
       if (!isArrow && key !== 'Enter' && !isSpace) {
         return;
       }
-      if (isSpace) {
-        const video = videoRef.current;
-        if (video) {
-          if (video.paused) {
-            void video.play().catch(() => {
-              /* Ignore play failures. */
-            });
-          } else {
-            try {
-              video.pause();
-            } catch {
-              /* Ignore pause failures. */
-            }
-          }
-        }
+      if (key === 'Escape' || key === 'Esc' || isSpace) {
+        resumePlaybackAndDefocus();
         event.preventDefault();
         return;
       }
@@ -727,7 +891,17 @@ export default function SubtitleTrackOverlay({
       const nextIndex = Math.min(current.index, nextTokens.length - 1);
       setSelection({ track: nextTrack, index: nextIndex });
     },
-    [overlayActive, visibleTracks, isPlaying, selection, tracks, lookup, videoRef, openSelectionLookup],
+    [
+      overlayActive,
+      visibleTracks,
+      isPlaying,
+      selection,
+      tracks,
+      lookup,
+      videoRef,
+      openSelectionLookup,
+      resumePlaybackAndDefocus,
+    ],
   );
 
   const translationTokens = tracks.translation?.tokens ?? null;
@@ -849,6 +1023,7 @@ export default function SubtitleTrackOverlay({
   const overlayStyle: CSSProperties = {
     '--subtitle-overlay-bg': `rgba(0, 0, 0, ${backgroundOpacity})`,
     '--subtitle-overlay-scale': String(scaleValue),
+    '--subtitle-overlay-offset': `${verticalOffset}px`,
   } as CSSProperties;
 
   return (
@@ -858,6 +1033,11 @@ export default function SubtitleTrackOverlay({
       style={overlayStyle}
       tabIndex={0}
       onKeyDown={handleKeyDown}
+      onPointerDown={handleSubtitlePointerDown}
+      onPointerMove={handleSubtitlePointerMove}
+      onPointerUp={handleSubtitlePointerEnd}
+      onPointerCancel={handleSubtitlePointerEnd}
+      data-dragging={isDraggingSubtitles ? 'true' : undefined}
       aria-label="Subtitle tracks"
     >
       {visibleTracks.map((trackKey) => {
@@ -910,6 +1090,10 @@ export default function SubtitleTrackOverlay({
                   data-track={trackKey}
                   onClick={(event) => {
                     event.stopPropagation();
+                    if (dragStateRef.current.ignoreClick) {
+                      dragStateRef.current.ignoreClick = false;
+                      return;
+                    }
                     activateToken(trackKey, index, event.currentTarget);
                   }}
                 >

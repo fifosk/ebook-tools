@@ -682,19 +682,20 @@ export default function YoutubeDubPlayer({
       })() ??
       null;
 
-    const glyph = !isLibrary
-      ? 'DUB'
-      : kind === 'tv_episode'
-        ? 'TV'
-        : youtubeMetadata
-          ? 'YT'
+    const isYoutubeVideo = Boolean(youtubeMetadata);
+    const glyph = isYoutubeVideo
+      ? 'YT'
+      : !isLibrary
+        ? 'DUB'
+        : kind === 'tv_episode'
+          ? 'TV'
           : 'NAS';
-    const glyphLabel = !isLibrary
-      ? 'Dubbed video'
-      : kind === 'tv_episode'
-        ? 'TV episode'
-        : youtubeMetadata
-          ? 'YouTube video'
+    const glyphLabel = isYoutubeVideo
+      ? 'YouTube video'
+      : !isLibrary
+        ? 'Dubbed video'
+        : kind === 'tv_episode'
+          ? 'TV episode'
           : 'NAS video';
 
     const metaParts: string[] = [];

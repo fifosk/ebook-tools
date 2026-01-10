@@ -14,6 +14,7 @@ enum PlayerChannelVariant {
     case book
     case subtitles
     case video
+    case tv
     case youtube
     case nas
     case dub
@@ -93,11 +94,17 @@ struct PlayerChannelBugView: View {
             ZStack {
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .fill(gradient)
+                if variant == .youtube {
+                    youtubeLogo
+                } else if variant == .tv {
+                    tubeTvLogo
+                } else {
+                    Image(systemName: iconName)
+                        .font(.system(size: iconSize, weight: .semibold))
+                        .foregroundStyle(Color.white)
+                }
                 RoundedRectangle(cornerRadius: cornerRadius)
                     .stroke(Color.white.opacity(0.28), lineWidth: 1)
-                Image(systemName: iconName)
-                    .font(.system(size: iconSize, weight: .semibold))
-                    .foregroundStyle(Color.white)
             }
             .frame(width: logoSize, height: logoSize)
             .shadow(color: Color.black.opacity(0.35), radius: 8, x: 0, y: 6)
@@ -137,6 +144,8 @@ struct PlayerChannelBugView: View {
             return "captions.bubble"
         case .video, .youtube:
             return "play.rectangle"
+        case .tv:
+            return "tv"
         case .nas:
             return "tray.2"
         case .dub:
@@ -155,8 +164,10 @@ struct PlayerChannelBugView: View {
             colors = [Color(red: 0.39, green: 0.40, blue: 0.95), Color(red: 0.22, green: 0.74, blue: 0.97)]
         case .video:
             colors = [Color(red: 0.13, green: 0.77, blue: 0.37), Color(red: 0.08, green: 0.72, blue: 0.65)]
+        case .tv:
+            colors = [Color(red: 0.06, green: 0.45, blue: 0.56), Color(red: 0.02, green: 0.62, blue: 0.78)]
         case .youtube:
-            colors = [Color(red: 0.94, green: 0.27, blue: 0.27), Color(red: 0.86, green: 0.15, blue: 0.15)]
+            colors = [Color(red: 0.06, green: 0.09, blue: 0.16), Color(red: 0.01, green: 0.02, blue: 0.09)]
         case .nas:
             colors = [Color(red: 0.39, green: 0.46, blue: 0.55), Color(red: 0.20, green: 0.25, blue: 0.33)]
         case .dub:
@@ -165,6 +176,27 @@ struct PlayerChannelBugView: View {
             colors = [Color(red: 0.58, green: 0.64, blue: 0.72), Color(red: 0.28, green: 0.33, blue: 0.41)]
         }
         return LinearGradient(colors: colors, startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    private var youtubeLogo: some View {
+        let markWidth = logoSize * 0.8
+        let markHeight = logoSize * 0.52
+        let cornerRadius = markHeight * 0.28
+        return ZStack {
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(Color(red: 1, green: 0, blue: 0))
+                .frame(width: markWidth, height: markHeight)
+            PlayTriangle()
+                .fill(Color.white)
+                .frame(width: markHeight * 0.45, height: markHeight * 0.45)
+                .offset(x: markHeight * 0.04)
+        }
+    }
+
+    private var tubeTvLogo: some View {
+        let markWidth = logoSize * 0.74
+        let markHeight = logoSize * 0.62
+        return TubeTVGlyphMark(width: markWidth, height: markHeight, color: .white)
     }
 
     private var logoSize: CGFloat {
@@ -204,6 +236,82 @@ struct PlayerChannelBugView: View {
     }
 }
 
+private struct PlayTriangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct YoutubeGlyphMark: View {
+    let width: CGFloat
+    let height: CGFloat
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: height * 0.28, style: .continuous)
+                .fill(Color(red: 1, green: 0, blue: 0))
+            PlayTriangle()
+                .fill(Color.white)
+                .frame(width: height * 0.42, height: height * 0.42)
+                .offset(x: height * 0.04)
+        }
+        .frame(width: width, height: height)
+    }
+}
+
+private struct TubeTVGlyphMark: View {
+    let width: CGFloat
+    let height: CGFloat
+    let color: Color
+
+    var body: some View {
+        TubeTVShape()
+            .stroke(
+                color,
+                style: StrokeStyle(
+                    lineWidth: max(1.2, height * 0.12),
+                    lineCap: .round,
+                    lineJoin: .round
+                )
+            )
+            .frame(width: width, height: height)
+    }
+}
+
+private struct TubeTVShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let width = rect.width
+        let height = rect.height
+        let bodyRect = CGRect(
+            x: rect.minX + width * 0.05,
+            y: rect.minY + height * 0.18,
+            width: width * 0.9,
+            height: height * 0.62
+        )
+        let screenRect = bodyRect.insetBy(dx: bodyRect.width * 0.18, dy: bodyRect.height * 0.2)
+        let antennaHeight = height * 0.2
+        let baseY = bodyRect.maxY + height * 0.08
+        let baseHalf = width * 0.18
+        let antennaSpan = width * 0.2
+
+        var path = Path()
+        path.addRoundedRect(in: bodyRect, cornerSize: CGSize(width: bodyRect.height * 0.22, height: bodyRect.height * 0.22))
+        path.addRoundedRect(in: screenRect, cornerSize: CGSize(width: screenRect.height * 0.18, height: screenRect.height * 0.18))
+        path.move(to: CGPoint(x: bodyRect.midX, y: bodyRect.minY))
+        path.addLine(to: CGPoint(x: bodyRect.midX - antennaSpan, y: bodyRect.minY - antennaHeight))
+        path.move(to: CGPoint(x: bodyRect.midX, y: bodyRect.minY))
+        path.addLine(to: CGPoint(x: bodyRect.midX + antennaSpan, y: bodyRect.minY - antennaHeight))
+        path.move(to: CGPoint(x: bodyRect.midX - baseHalf, y: baseY))
+        path.addLine(to: CGPoint(x: bodyRect.midX + baseHalf, y: baseY))
+        return path
+    }
+}
+
 enum LanguageFlagRole: String {
     case original
     case translation
@@ -212,19 +320,30 @@ enum LanguageFlagRole: String {
 struct JobTypeGlyph: Equatable {
     let icon: String
     let label: String
+    let variant: PlayerChannelVariant?
+
+    init(icon: String, label: String, variant: PlayerChannelVariant? = nil) {
+        self.icon = icon
+        self.label = label
+        self.variant = variant
+    }
 }
 
 enum JobTypeGlyphResolver {
     static func glyph(for jobType: String?) -> JobTypeGlyph {
         let normalized = (jobType ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if normalized.contains("youtube") {
+            let label = normalized.contains("dub") ? "YouTube dub job" : "YouTube job"
+            return JobTypeGlyph(icon: "YT", label: label, variant: .youtube)
+        }
         switch normalized {
         case "pipeline", "book":
             return JobTypeGlyph(icon: "📚", label: "Book job")
         case "subtitle", "subtitles", "narrated_subtitle":
             return JobTypeGlyph(icon: "🎞️", label: "Subtitle job")
-        case "youtube_dub", "dub":
+        case "dub":
             return JobTypeGlyph(icon: "🎙️", label: "Dub video job")
-        case "video", "youtube":
+        case "video":
             return JobTypeGlyph(icon: "🎞️", label: "Video job")
         default:
             let label = normalized.isEmpty ? "Job" : "\(normalized) job"
@@ -694,19 +813,46 @@ struct JobTypeGlyphBadge: View {
     let glyph: JobTypeGlyph
 
     var body: some View {
-        Text(glyph.icon)
-            .font(glyphFont)
-            .frame(minWidth: 28, alignment: .center)
-            .accessibilityLabel(glyph.label)
+        Group {
+            if glyph.variant == .youtube {
+                YoutubeGlyphMark(width: youtubeWidth, height: youtubeHeight)
+            } else if glyph.variant == .tv {
+                TubeTVGlyphMark(width: tubeTvWidth, height: tubeTvHeight, color: .primary)
+            } else {
+                Text(glyph.icon)
+                    .font(glyphFont)
+            }
+        }
+        .frame(minWidth: 28, alignment: .center)
+        .accessibilityLabel(glyph.label)
+    }
+
+    private var youtubeHeight: CGFloat {
+        glyphPointSize * 0.7
+    }
+
+    private var youtubeWidth: CGFloat {
+        youtubeHeight * 1.6
+    }
+
+    private var tubeTvHeight: CGFloat {
+        glyphPointSize * 0.7
+    }
+
+    private var tubeTvWidth: CGFloat {
+        tubeTvHeight * 1.3
+    }
+
+    private var glyphPointSize: CGFloat {
+        #if os(iOS) || os(tvOS)
+        return UIFont.preferredFont(forTextStyle: .caption1).pointSize * 2.0
+        #else
+        return 28
+        #endif
     }
 
     private var glyphFont: Font {
-        #if os(iOS) || os(tvOS)
-        let base = UIFont.preferredFont(forTextStyle: .caption1).pointSize
-        return .system(size: base * 2.0)
-        #else
-        return .system(size: 28)
-        #endif
+        .system(size: glyphPointSize)
     }
 }
 

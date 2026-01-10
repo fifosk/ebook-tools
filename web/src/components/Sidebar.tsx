@@ -6,8 +6,10 @@ import {
 import type { SelectedView } from '../App';
 import type { JobState } from './JobList';
 import EmojiIcon from './EmojiIcon';
+import JobTypeGlyphBadge from './JobTypeGlyphBadge';
 import { getStatusGlyph } from '../utils/status';
-import { getJobTypeGlyph } from '../utils/jobGlyphs';
+import { getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
+import { coerceRecord, readNestedValue } from './player-panel/helpers';
 
 const SIDEBAR_STAGE_GLYPHS: Record<string, { icon: string; tooltip: string }> = {
   'stitching.start': { icon: '🧵', tooltip: 'Stitching batches' },
@@ -289,8 +291,27 @@ function resolveSidebarStage(job: JobState): { icon: string; tooltip: string } |
   return SIDEBAR_STAGE_GLYPHS[stage] ?? null;
 }
 
-function resolveJobGlyph(jobType: string): { icon: string; label: string } {
-  return getJobTypeGlyph(jobType);
+function resolveJobTvMetadata(job: JobState): Record<string, unknown> | null {
+  const payload = job.status?.result ?? null;
+  if (!payload || typeof payload !== 'object') {
+    return null;
+  }
+  const record = payload as Record<string, unknown>;
+  const candidate =
+    readNestedValue(record, ['youtube_dub', 'media_metadata']) ??
+    readNestedValue(record, ['subtitle', 'metadata', 'media_metadata']) ??
+    readNestedValue(record, ['result', 'youtube_dub', 'media_metadata']) ??
+    readNestedValue(record, ['result', 'subtitle', 'metadata', 'media_metadata']) ??
+    readNestedValue(record, ['request', 'media_metadata']) ??
+    readNestedValue(record, ['media_metadata']) ??
+    null;
+  return coerceRecord(candidate);
+}
+
+function resolveJobGlyph(job: JobState): { icon: string; label: string; variant?: 'youtube' | 'tv' } {
+  const tvMetadata = resolveJobTvMetadata(job);
+  const isTvSeries = isTvSeriesMetadata(tvMetadata);
+  return getJobTypeGlyph(job.status.job_type, { isTvSeries });
 }
 
 function resolveSidebarProgress(job: JobState): number | null {
@@ -387,7 +408,7 @@ export function Sidebar({
     ? sidebarJobs.find((job) => job.jobId === activeJobId) ?? null
     : null;
   const activeJobLabel = activeJob ? resolveSidebarLabel(activeJob) : null;
-  const activeJobGlyph = activeJob ? resolveJobGlyph(activeJob.status.job_type) : null;
+  const activeJobGlyph = activeJob ? resolveJobGlyph(activeJob) : null;
   const activeJobLanguage = activeJob ? resolveSidebarLanguage(activeJob) : null;
   const activeJobImageWait = activeJob ? resolveImageWaitStatus(activeJob) : null;
   const activeJobStatus = activeJob
@@ -416,9 +437,7 @@ export function Sidebar({
             {activeJob ? (
               <span className="sidebar__player-label-text" title={activeJobLabel?.tooltip ?? `Job ${activeJob.jobId}`}>
                 {activeJobGlyph ? (
-                  <span className="sidebar__job-type" title={activeJobGlyph.label} aria-label={activeJobGlyph.label}>
-                    {activeJobGlyph.icon}
-                  </span>
+                  <JobTypeGlyphBadge glyph={activeJobGlyph} className="sidebar__job-type" />
                 ) : null}
                 <span className="sidebar__player-label-text-inner">
                   {activeJobLabel?.label ?? `Job ${activeJob.jobId}`}
@@ -551,7 +570,7 @@ export function Sidebar({
 	                  const languageMeta = resolveSidebarLanguage(job);
 	                  const nameMeta = resolveSidebarLabel(job);
 	                  const progressPercent = resolveSidebarProgress(job);
-	                  const glyph = resolveJobGlyph(job.status.job_type);
+	                  const glyph = resolveJobGlyph(job);
 	                  const stageGlyph = resolveSidebarStage(job);
 	                  return (
 	                    <li key={job.jobId}>
@@ -585,13 +604,7 @@ export function Sidebar({
                               {imageWait.percent}%
                             </span>
                           ) : null}
-                          <span
-                            className="sidebar__job-type"
-                            title={glyph.label}
-                            aria-label={glyph.label}
-                          >
-                            {glyph.icon}
-                          </span>
+                          <JobTypeGlyphBadge glyph={glyph} className="sidebar__job-type" />
 		                          {languageMeta.flag ? (
 		                            <EmojiIcon
 		                              className="sidebar__job-flag"
@@ -633,7 +646,7 @@ export function Sidebar({
 	                  const languageMeta = resolveSidebarLanguage(job);
 	                  const nameMeta = resolveSidebarLabel(job);
 	                  const progressPercent = resolveSidebarProgress(job);
-	                  const glyph = resolveJobGlyph(job.status.job_type);
+	                  const glyph = resolveJobGlyph(job);
 	                  const stageGlyph = resolveSidebarStage(job);
 	                  return (
 	                    <li key={job.jobId}>
@@ -667,13 +680,7 @@ export function Sidebar({
                               {imageWait.percent}%
                             </span>
                           ) : null}
-                          <span
-                            className="sidebar__job-type"
-                            title={glyph.label}
-                            aria-label={glyph.label}
-                          >
-                            {glyph.icon}
-                          </span>
+                          <JobTypeGlyphBadge glyph={glyph} className="sidebar__job-type" />
 		                          {languageMeta.flag ? (
 		                            <EmojiIcon
 		                              className="sidebar__job-flag"
@@ -715,7 +722,7 @@ export function Sidebar({
 	                  const languageMeta = resolveSidebarLanguage(job);
 	                  const nameMeta = resolveSidebarLabel(job);
 	                  const progressPercent = resolveSidebarProgress(job);
-	                  const glyph = resolveJobGlyph(job.status.job_type);
+	                  const glyph = resolveJobGlyph(job);
 	                  const stageGlyph = resolveSidebarStage(job);
 	                  return (
 	                    <li key={job.jobId}>
@@ -749,13 +756,7 @@ export function Sidebar({
                               {imageWait.percent}%
                             </span>
                           ) : null}
-                          <span
-                            className="sidebar__job-type"
-                            title={glyph.label}
-                            aria-label={glyph.label}
-                          >
-                            {glyph.icon}
-                          </span>
+                          <JobTypeGlyphBadge glyph={glyph} className="sidebar__job-type" />
 		                          {languageMeta.flag ? (
 		                            <EmojiIcon
 		                              className="sidebar__job-flag"

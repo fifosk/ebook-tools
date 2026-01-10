@@ -137,7 +137,14 @@ struct JobRowView: View {
     }
 
     private var jobTypeGlyph: JobTypeGlyph {
-        JobTypeGlyphResolver.glyph(for: job.jobType)
+        let resolved = JobTypeGlyphResolver.glyph(for: job.jobType)
+        if resolved.variant == .youtube {
+            return resolved
+        }
+        if isTvSeries {
+            return JobTypeGlyph(icon: "TV", label: "TV series", variant: .tv)
+        }
+        return resolved
     }
 
     private var jobIdLabel: String {
@@ -209,6 +216,9 @@ struct JobRowView: View {
         if type.contains("youtube") {
             return .youtube
         }
+        if isTvSeries {
+            return .tv
+        }
         if type.contains("dub") {
             return .dub
         }
@@ -235,6 +245,8 @@ struct JobRowView: View {
             return "captions.bubble"
         case .video, .youtube:
             return "play.rectangle"
+        case .tv:
+            return "tv"
         case .nas:
             return "tray.2"
         case .dub:
@@ -252,6 +264,8 @@ struct JobRowView: View {
             return Color(red: 0.34, green: 0.55, blue: 0.92)
         case .video, .youtube:
             return Color(red: 0.16, green: 0.77, blue: 0.45)
+        case .tv:
+            return Color(red: 0.06, green: 0.45, blue: 0.56)
         case .nas:
             return Color(red: 0.5, green: 0.55, blue: 0.63)
         case .dub:
@@ -335,7 +349,7 @@ struct JobRowView: View {
 
     private var coverURL: URL? {
         let youtubeFallback = resolveYoutubeThumbnailFallback()
-        let supportsVideoCover = jobVariant == .youtube || jobVariant == .video || jobVariant == .dub
+        let supportsVideoCover = jobVariant == .youtube || jobVariant == .video || jobVariant == .tv || jobVariant == .dub
         guard supportsVideoCover || youtubeFallback != nil else { return nil }
         let candidates = coverCandidates(youtubeFallback: youtubeFallback)
         for candidate in candidates {
@@ -383,7 +397,7 @@ struct JobRowView: View {
     }
 
     private func resolveYoutubeThumbnailFallback() -> String? {
-        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .dub || jobVariant == .subtitles else {
+        guard jobVariant == .youtube || jobVariant == .video || jobVariant == .tv || jobVariant == .dub || jobVariant == .subtitles else {
             return nil
         }
         let sources = [
@@ -545,6 +559,54 @@ struct JobRowView: View {
             }
         }
         return nil
+    }
+
+    private var isTvSeries: Bool {
+        guard let metadata = tvMetadata else { return false }
+        if let kind = metadata["kind"]?.stringValue?.lowercased(),
+           kind == "tv_episode" {
+            return true
+        }
+        if metadata["show"]?.objectValue != nil || metadata["episode"]?.objectValue != nil {
+            return true
+        }
+        return false
+    }
+
+    private var tvMetadata: [String: JSONValue]? {
+        let sources = [job.result?.objectValue, job.parameters?.objectValue].compactMap { $0 }
+        for source in sources {
+            if let value = extractTvMediaMetadata(from: source) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        let paths: [[String]] = [
+            ["youtube_dub", "media_metadata"],
+            ["subtitle", "metadata", "media_metadata"],
+            ["result", "youtube_dub", "media_metadata"],
+            ["result", "subtitle", "metadata", "media_metadata"],
+            ["request", "media_metadata"],
+            ["media_metadata"]
+        ]
+        for path in paths {
+            if let value = nestedValue(metadata, path: path)?.objectValue {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
+        var current: JSONValue = .object(source)
+        for key in path {
+            guard let object = current.objectValue, let next = object[key] else { return nil }
+            current = next
+        }
+        return current
     }
 
     private func metadataString(

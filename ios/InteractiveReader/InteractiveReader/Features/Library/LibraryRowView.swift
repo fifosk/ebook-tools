@@ -92,11 +92,35 @@ struct LibraryRowView: View {
     }
 
     private var jobTypeGlyph: JobTypeGlyph {
-        JobTypeGlyphResolver.glyph(for: jobTypeValue)
+        let resolved = JobTypeGlyphResolver.glyph(for: jobTypeValue)
+        if resolved.variant == .youtube {
+            return resolved
+        }
+        if isTvSeries {
+            return JobTypeGlyph(icon: "TV", label: "TV series", variant: .tv)
+        }
+        return resolved
     }
 
     private var jobTypeValue: String? {
         metadataString(for: ["job_type", "jobType", "type"], maxDepth: 2) ?? item.itemType
+    }
+
+    private var isTvSeries: Bool {
+        guard let metadata = tvMetadata else { return false }
+        if let kind = metadata["kind"]?.stringValue?.lowercased(),
+           kind == "tv_episode" {
+            return true
+        }
+        if metadata["show"]?.objectValue != nil || metadata["episode"]?.objectValue != nil {
+            return true
+        }
+        return false
+    }
+
+    private var tvMetadata: [String: JSONValue]? {
+        guard let metadata = item.metadata else { return nil }
+        return extractTvMediaMetadata(from: metadata)
     }
 
     private var coverWidth: CGFloat {
@@ -222,6 +246,30 @@ struct LibraryRowView: View {
             }
         }
         return nil
+    }
+
+    private func extractTvMediaMetadata(from metadata: [String: JSONValue]) -> [String: JSONValue]? {
+        let paths: [[String]] = [
+            ["result", "youtube_dub", "media_metadata"],
+            ["result", "subtitle", "metadata", "media_metadata"],
+            ["request", "media_metadata"],
+            ["media_metadata"]
+        ]
+        for path in paths {
+            if let value = nestedValue(metadata, path: path)?.objectValue {
+                return value
+            }
+        }
+        return nil
+    }
+
+    private func nestedValue(_ source: [String: JSONValue], path: [String]) -> JSONValue? {
+        var current: JSONValue = .object(source)
+        for key in path {
+            guard let object = current.objectValue, let next = object[key] else { return nil }
+            current = next
+        }
+        return current
     }
 
     #if os(tvOS)

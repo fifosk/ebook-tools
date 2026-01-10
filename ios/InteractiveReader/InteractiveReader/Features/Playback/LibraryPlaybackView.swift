@@ -646,6 +646,18 @@ struct LibraryPlaybackView: View {
         return extractTvMediaMetadata(from: metadata)
     }
 
+    private var isTvSeriesMetadata: Bool {
+        guard let tvMetadata = resolvedTvMetadata else { return false }
+        if let kind = tvMetadata["kind"]?.stringValue?.lowercased(),
+           kind == "tv_episode" {
+            return true
+        }
+        if tvMetadata["show"]?.objectValue != nil || tvMetadata["episode"]?.objectValue != nil {
+            return true
+        }
+        return false
+    }
+
     private var resolvedYoutubeMetadata: [String: JSONValue]? {
         if let tvMetadata = resolvedTvMetadata,
            let youtube = tvMetadata["youtube"]?.objectValue {
@@ -738,7 +750,15 @@ struct LibraryPlaybackView: View {
     private var videoMetadata: VideoPlaybackMetadata {
         let title = item.bookTitle.isEmpty ? "Video" : item.bookTitle
         let subtitle = item.author.isEmpty ? nil : item.author
+        let isYoutubeVideo = resolvedYoutubeMetadata != nil
+        let isTvSeries = isTvSeriesMetadata
         let channelVariant: PlayerChannelVariant = {
+            if isYoutubeVideo {
+                return .youtube
+            }
+            if isTvSeries {
+                return .tv
+            }
             switch item.itemType {
             case "narrated_subtitle":
                 return .subtitles
@@ -746,7 +766,11 @@ struct LibraryPlaybackView: View {
                 return .video
             }
         }()
-        let channelLabel = item.itemType == "narrated_subtitle" ? "Subtitles" : "Video"
+        let channelLabel = isYoutubeVideo
+            ? "YouTube"
+            : isTvSeries
+                ? "TV"
+                : (item.itemType == "narrated_subtitle" ? "Subtitles" : "Video")
         return VideoPlaybackMetadata(
             title: title,
             subtitle: subtitle,

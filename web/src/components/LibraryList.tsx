@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import type { LibraryItem, LibraryViewMode } from '../api/dtos';
 import { appendAccessToken, resolveLibraryMediaUrl } from '../api/client';
 import { DEFAULT_LANGUAGE_FLAG, resolveLanguageFlag } from '../constants/languageCodes';
-import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
+import { extractJobType, getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
+import JobTypeGlyphBadge from './JobTypeGlyphBadge';
 import { normalizeLanguageLabel } from '../utils/languages';
 import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/libraryMetadata';
 import { getStatusGlyph } from '../utils/status';
@@ -96,11 +97,10 @@ function resolveJobType(item: LibraryItem): string {
 
 function renderJobTypeGlyph(item: LibraryItem) {
   const jobType = resolveJobType(item);
-  const glyph = getJobTypeGlyph(jobType);
+  const tvMetadata = extractTvMediaMetadata(item);
+  const glyph = getJobTypeGlyph(jobType, { isTvSeries: isTvSeriesMetadata(tvMetadata) });
   return (
-    <span className={styles.jobGlyph} title={glyph.label} aria-label={glyph.label}>
-      {glyph.icon}
-    </span>
+    <JobTypeGlyphBadge glyph={glyph} className={styles.jobGlyph} />
   );
 }
 

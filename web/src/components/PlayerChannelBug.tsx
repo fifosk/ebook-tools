@@ -9,7 +9,7 @@ function formatTwoDigits(value: number): string {
   return Math.trunc(value).toString().padStart(2, '0');
 }
 
-type ChannelLogoVariant = 'book' | 'subtitles' | 'video' | 'youtube' | 'nas' | 'dub' | 'job';
+type ChannelLogoVariant = 'book' | 'subtitles' | 'video' | 'tv' | 'youtube' | 'nas' | 'dub' | 'job';
 
 function resolveVariant(glyph: string): ChannelLogoVariant {
   const normalized = glyph.trim().toLowerCase();
@@ -26,9 +26,10 @@ function resolveVariant(glyph: string): ChannelLogoVariant {
     case 'yt':
     case 'youtube':
       return 'youtube';
+    case 'tv':
+      return 'tv';
     case 'nas':
       return 'nas';
-    case 'tv':
     case 'vid':
     case 'video':
       return 'video';
@@ -102,14 +103,18 @@ function renderLogoIcon(variant: ChannelLogoVariant) {
     case 'youtube':
       return (
         <svg className="player-panel__channel-logo-icon" viewBox="0 0 24 24" role="img" focusable="false">
-          <path
-            d="M7.6 8.3h8.8c1.4 0 2.6 1.1 2.6 2.6v2.2c0 1.4-1.1 2.6-2.6 2.6H7.6c-1.4 0-2.6-1.1-2.6-2.6V10.9c0-1.4 1.1-2.6 2.6-2.6Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-          />
-          <path d="M11 10.6l4 2.1-4 2.1v-4.2Z" fill="currentColor" />
+          <rect x="3" y="6.5" width="18" height="11" rx="3.2" fill="#ff0000" />
+          <path d="M10 9.5l5 2.5-5 2.5v-5Z" fill="#ffffff" />
+        </svg>
+      );
+    case 'tv':
+      return (
+        <svg className="player-panel__channel-logo-icon" viewBox="0 0 24 24" role="img" focusable="false">
+          <rect x="4" y="7.5" width="16" height="9.5" rx="2.6" fill="none" stroke="currentColor" strokeWidth="1.6" />
+          <rect x="7" y="9.5" width="10" height="5.3" rx="1.4" fill="none" stroke="currentColor" strokeWidth="1.4" />
+          <path d="M12 7.5l-2.4-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M12 7.5l2.4-2.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <path d="M9 18.5h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       );
     case 'nas':

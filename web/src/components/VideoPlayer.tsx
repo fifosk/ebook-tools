@@ -1362,7 +1362,7 @@ export default function VideoPlayer({
               <div className="player-panel__player-info-header video-player__info-header" aria-hidden="true">
                 <div className="video-player__info-header-left">
                   <PlayerChannelBug
-                    glyph={(infoBadge.glyph ?? '').trim() || 'TV'}
+                    glyph={(infoBadge.glyph ?? '').trim() || 'VID'}
                     label={infoBadge.glyphLabel}
                   />
                   {infoBadge.coverUrl && !coverFailed ? (

@@ -28,7 +28,8 @@ import { extractLibraryBookMetadata, resolveLibraryCoverUrl } from '../utils/lib
 import { downloadWithSaveAs } from '../utils/downloads';
 import { canAccessPolicy, normalizeRole } from '../utils/accessControl';
 import type { LibraryOpenInput, LibraryOpenRequest } from '../types/player';
-import { extractJobType, getJobTypeGlyph } from '../utils/jobGlyphs';
+import { extractJobType, getJobTypeGlyph, isTvSeriesMetadata } from '../utils/jobGlyphs';
+import JobTypeGlyphBadge from '../components/JobTypeGlyphBadge';
 import { useAuth } from '../components/AuthProvider';
 
 const PAGE_SIZE = 25;
@@ -754,7 +755,12 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
   const selectedAuthor = useMemo(() => resolveAuthor(selectedItem), [selectedItem]);
   const selectedGenre = useMemo(() => resolveGenre(selectedItem), [selectedItem]);
   const selectedJobType = useMemo(() => extractJobType(selectedItem?.metadata) ?? null, [selectedItem]);
-  const selectedJobGlyph = useMemo(() => getJobTypeGlyph(selectedJobType), [selectedJobType]);
+  const tvMetadata = useMemo(() => extractTvMediaMetadata(selectedItem), [selectedItem]);
+  const youtubeMetadata = useMemo(() => extractYoutubeVideoMetadata(tvMetadata), [tvMetadata]);
+  const selectedJobGlyph = useMemo(
+    () => getJobTypeGlyph(selectedJobType, { isTvSeries: isTvSeriesMetadata(tvMetadata) }),
+    [selectedJobType, tvMetadata]
+  );
   const selectedPermissions = useMemo(
     () => (selectedItem ? resolveItemPermissions(selectedItem) : null),
     [resolveItemPermissions, selectedItem]
@@ -789,8 +795,6 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
     return resolveLibraryCoverUrl(selectedItem, selectedBookMetadata);
   }, [selectedBookMetadata, selectedItem]);
 
-  const tvMetadata = useMemo(() => extractTvMediaMetadata(selectedItem), [selectedItem]);
-  const youtubeMetadata = useMemo(() => extractYoutubeVideoMetadata(tvMetadata), [tvMetadata]);
   const tvPoster = useMemo(() => {
     if (!selectedItem) {
       return null;
@@ -903,9 +907,7 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
           {selectedItem ? (
             <>
               <h2 className={styles.detailsTitle}>
-                <span className={styles.detailsJobGlyph} title={selectedJobGlyph.label} aria-label={selectedJobGlyph.label}>
-                  {selectedJobGlyph.icon}
-                </span>
+                <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyph} />
                 {selectedTitle}
               </h2>
               {selectedItemType !== 'book' && (tvPoster || tvStill) ? (
@@ -1125,7 +1127,9 @@ function LibraryPage({ onPlay, focusRequest = null, onConsumeFocusRequest }: Lib
                       : 'Book'}
                 </li>
                 <li className={styles.detailItem}>
-                  <strong>Job:</strong> {selectedJobGlyph.icon} {selectedJobType ?? '—'}
+                  <strong>Job:</strong>{' '}
+                  <JobTypeGlyphBadge glyph={selectedJobGlyph} className={styles.detailsJobGlyphInline} />{' '}
+                  {selectedJobType ?? '—'}
                 </li>
                 <li className={styles.detailItem}>
                   <strong>ISBN:</strong> {selectedItem.isbn && selectedItem.isbn.trim() ? selectedItem.isbn : '—'}
