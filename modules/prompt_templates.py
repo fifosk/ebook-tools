@@ -4,8 +4,11 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional
 
+import regex
+
 from modules import config_manager as cfg
 from modules import language_policies
+from modules.language_constants import LANGUAGE_CODES
 
 SOURCE_START = "<<<BEGIN_SOURCE_TEXT>>>"
 SOURCE_END = "<<<END_SOURCE_TEXT>>>"
@@ -57,6 +60,31 @@ _DIACRITIC_REQUIREMENTS = {
 
 _ROMANI_ALIASES = {"romani", "rom", "romany"}
 _PASHTO_ALIASES = {"pashto", "ps", "pushto", "pashtu"}
+_LANGUAGE_NAME_TO_CODE = {name.casefold(): code for name, code in LANGUAGE_CODES.items()}
+_LANGUAGE_CODE_TO_NAME = {code.casefold(): name for name, code in LANGUAGE_CODES.items()}
+_LANG_CODE_PATTERN = regex.compile(r"^[a-z]{2,3}(?:[_-][a-z0-9]{2,4})?$", regex.IGNORECASE)
+_LANG_CODE_IN_PARENS = regex.compile(r"\(([a-z]{2,3}(?:[_-][a-z0-9]{2,4})?)\)", regex.IGNORECASE)
+
+
+def _format_language_descriptor(language: str) -> str:
+    cleaned = (language or "").strip()
+    if not cleaned:
+        return cleaned
+    if _LANG_CODE_IN_PARENS.search(cleaned):
+        return cleaned
+    lowered = cleaned.casefold()
+    code = _LANGUAGE_NAME_TO_CODE.get(lowered)
+    if code:
+        return f"{cleaned} ({code})"
+    normalized = lowered.replace("_", "-")
+    if _LANG_CODE_PATTERN.match(normalized):
+        name = _LANGUAGE_CODE_TO_NAME.get(normalized)
+        if name is None:
+            base = normalized.split("-", 1)[0]
+            name = _LANGUAGE_CODE_TO_NAME.get(base)
+        if name:
+            return f"{name} ({cleaned})"
+    return cleaned
 
 def make_translation_prompt(
     source_language: str,
@@ -67,10 +95,12 @@ def make_translation_prompt(
 ) -> str:
     """Build a translation prompt tailored to the desired mode."""
 
-    target_lower = target_language.lower()
+    target_lower = (target_language or "").lower()
+    source_descriptor = _format_language_descriptor(source_language)
+    target_descriptor = _format_language_descriptor(target_language)
 
     instructions = [
-        f"Translate the following text from {source_language} to {target_language}.",
+        f"Translate the following text from {source_descriptor} to {target_descriptor}.",
         f"The source text is placed between the markers {SOURCE_START} and {SOURCE_END}.",
         "Never include those markers (or variations such as <<<, >>>, <<, >>) in your response.",
         "Provide ONLY the translated text on the FIRST LINE without commentary or labels.",
@@ -122,7 +152,12 @@ def make_translation_prompt(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
             )
 
-    instructions.extend(language_policies.script_prompt_instructions(target_language))
+    instructions.extend(
+        language_policies.script_prompt_instructions(
+            target_language,
+            allow_transliteration=include_transliteration,
+        )
+    )
 
     if target_lower in _ROMANI_ALIASES:
         instructions.append(
@@ -149,17 +184,18 @@ def make_translation_batch_prompt(
 ) -> str:
     """Build a translation prompt for JSON batch requests."""
 
-    target_lower = target_language.lower()
+    target_lower = (target_language or "").lower()
+    source_descriptor = _format_language_descriptor(source_language)
+    target_descriptor = _format_language_descriptor(target_language)
 
     instructions = [
-        f"Translate each item from {source_language} to {target_language}.",
+        f"Translate each item from {source_descriptor} to {target_descriptor}.",
         "The input is a JSON object with an `items` array; each item includes an `id` and `text`.",
         "Return ONLY valid JSON with an `items` array of objects.",
-        "Each output item MUST include `id`, `translation`, and `transliteration` fields.",
         "Never include markdown, code fences, commentary, or labels.",
         "Do not include the source text in the response.",
-        "The `translation` and `transliteration` values must be single-line strings without line breaks.",
-        "If you cannot translate an item, return an empty string for `translation` (and `transliteration`).",
+        "The `translation` value must be a single-line string without line breaks.",
+        "If you cannot translate an item, return an empty string for `translation`.",
     ]
 
     if mode == "literal":
@@ -184,6 +220,10 @@ def make_translation_batch_prompt(
                 )
 
     if include_transliteration:
+        instructions.append("Each output item MUST include `id`, `translation`, and `transliteration` fields.")
+        instructions.append(
+            "The `translation` and `transliteration` values must be single-line strings without line breaks."
+        )
         instructions.append(
             "Populate the `transliteration` field ONLY when a transliteration is appropriate; otherwise use an empty string."
         )
@@ -204,9 +244,15 @@ def make_translation_batch_prompt(
                 "When providing the Khmer transliteration (Latin script), keep it on ONE LINE and separate words with SPACES; avoid labels or extra commentary."
             )
     else:
-        instructions.append("Always return an empty string for `transliteration`.")
+        instructions.append("Each output item MUST include `id` and `translation` fields.")
+        instructions.append("Do NOT include a `transliteration` field in the response.")
 
-    instructions.extend(language_policies.script_prompt_instructions(target_language))
+    instructions.extend(
+        language_policies.script_prompt_instructions(
+            target_language,
+            allow_transliteration=include_transliteration,
+        )
+    )
 
     if target_lower in _ROMANI_ALIASES:
         instructions.append(
@@ -227,9 +273,10 @@ def make_translation_batch_prompt(
 def make_transliteration_prompt(target_language: str) -> str:
     """Prompt for requesting a transliteration from the model."""
 
-    target_lower = target_language.lower()
+    target_lower = (target_language or "").lower()
+    target_descriptor = _format_language_descriptor(target_language)
     instructions = [
-        f"Transliterate the following sentence in {target_language} for English pronunciation.",
+        f"Transliterate the following sentence in {target_descriptor} for English pronunciation.",
         "Provide ONLY the transliteration on a SINGLE LINE without ANY additional text or commentary.",
         "Preserve word boundaries with spaces; do not add labels or punctuation beyond what is needed for pronunciation.",
     ]

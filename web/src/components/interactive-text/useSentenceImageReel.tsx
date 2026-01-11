@@ -277,6 +277,21 @@ export function useSentenceImageReel({
     }
   }, [isExportMode, isLibraryMediaOrigin, jobId]);
 
+  const hasImageMetadata = useMemo(() => {
+    const entries = chunk?.sentences ?? null;
+    if (!entries || entries.length === 0) {
+      return false;
+    }
+    return entries.some((entry) => {
+      const imagePayload = entry?.image ?? null;
+      return Boolean(
+        (typeof imagePayload?.path === 'string' && imagePayload.path.trim()) ||
+          (typeof entry?.image_path === 'string' && entry.image_path.trim()) ||
+          (typeof entry?.imagePath === 'string' && entry.imagePath.trim()),
+      );
+    });
+  }, [chunk?.sentences]);
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       return;
@@ -284,6 +299,9 @@ export function useSentenceImageReel({
     setImagePromptPlanSummary(null);
     imagePromptPlanRetryRef.current = 0;
     if (isExportMode) {
+      return;
+    }
+    if (!hasImageMetadata) {
       return;
     }
     if (!imagePromptPlanSummaryUrl) {
@@ -338,7 +356,7 @@ export function useSentenceImageReel({
         window.clearTimeout(retryTimer);
       }
     };
-  }, [imagePromptPlanSummaryUrl]);
+  }, [hasImageMetadata, imagePromptPlanSummaryUrl, isExportMode]);
 
   const batchStartCandidatesFromFiles = useMemo(() => {
     const files = chunk?.files ?? [];

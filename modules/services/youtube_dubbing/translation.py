@@ -107,6 +107,8 @@ def translate_dialogues(
                             (translation_line or raw_candidate).strip()
                         )
                         inline_translit = text_norm.collapse_whitespace(inline_translit or "")
+                        if inline_translit and not text_norm.is_latin_heavy(inline_translit):
+                            inline_translit = ""
                     else:
                         translation_line = ""
                     if not translation_line or _looks_like_gibberish_translation(

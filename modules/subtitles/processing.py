@@ -255,6 +255,8 @@ def process_subtitle_file(
                             )
                             translation_line = _normalize_text(translation_line or raw_text)
                             inline_translit = _normalize_text(inline_translit or "")
+                            if inline_translit and not text_norm.is_latin_heavy(inline_translit):
+                                inline_translit = ""
                             if not translation_line:
                                 continue
                             if _looks_like_gibberish_translation(
@@ -550,8 +552,13 @@ def _process_cue(
         and not translation_failed
     ):
         try:
+            candidate_override = ""
             if transliteration_override:
-                transliteration_text = _normalize_text(transliteration_override)
+                candidate_override = _normalize_text(transliteration_override)
+                if not text_norm.is_latin_heavy(candidate_override):
+                    candidate_override = ""
+            if candidate_override:
+                transliteration_text = candidate_override
             elif options.llm_model and options.transliteration_mode != "python":
                 with create_client(model=options.llm_model) as client:
                     transliteration_result = transliterator.transliterate(

@@ -1154,6 +1154,8 @@ def _parse_batch_translation_payload(
                 raw_transliteration = inline_translit
         translation = text_norm.collapse_whitespace(raw_translation.strip())
         transliteration = text_norm.collapse_whitespace(raw_transliteration.strip())
+        if include_transliteration and transliteration and not text_norm.is_latin_heavy(transliteration):
+            transliteration = ""
         results[item_id] = (translation, transliteration)
     return results
 

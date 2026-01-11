@@ -10,12 +10,15 @@ from typing import Sequence
 _WHITESPACE_PATTERN = re.compile(r"\s+")
 _HTML_TAG_PATTERN = re.compile(r"<[^>]+>")
 _ASS_TAG_PATTERN = re.compile(r"\{[^}]*\}")
+_ASS_INLINE_BREAKS = ("\\h", "\\N", "\\n")
 
 
 def _normalize_text(value: str) -> str:
     normalized = unicodedata.normalize("NFC", value or "")
     normalized = html.unescape(normalized)
     normalized = _HTML_TAG_PATTERN.sub(" ", normalized)
+    for marker in _ASS_INLINE_BREAKS:
+        normalized = normalized.replace(marker, " ")
     normalized = normalized.replace("“", '"').replace("”", '"')
     normalized = normalized.replace("‘", "'").replace("’", "'")
     normalized = _WHITESPACE_PATTERN.sub(" ", normalized)
@@ -29,6 +32,8 @@ def _normalize_rendered_lines(lines: Sequence[str]) -> str:
     without_ass = _ASS_TAG_PATTERN.sub(" ", joined)
     without_html = _HTML_TAG_PATTERN.sub(" ", without_ass)
     normalized = html.unescape(without_html)
+    for marker in _ASS_INLINE_BREAKS:
+        normalized = normalized.replace(marker, " ")
     normalized = _WHITESPACE_PATTERN.sub(" ", normalized)
     return normalized.strip().casefold()
 

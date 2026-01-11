@@ -58,13 +58,18 @@ def _iter_response_lines(text: str) -> Iterable[str]:
     return (line.strip() for line in normalized if line.strip())
 
 
+def is_latin_heavy(value: str) -> bool:
+    """Return True when ``value`` contains mostly Latin characters."""
+
+    if not value:
+        return False
+    latin_count = len(_LATIN_PATTERN.findall(value))
+    non_latin_count = len(_NON_LATIN_LETTER_PATTERN.findall(value))
+    return latin_count > 0 and latin_count >= non_latin_count
+
+
 def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
     """Return the translation line plus any transliteration content."""
-
-    def _is_latin_heavy(value: str) -> bool:
-        latin_count = len(_LATIN_PATTERN.findall(value))
-        non_latin_count = len(_NON_LATIN_LETTER_PATTERN.findall(value))
-        return latin_count > 0 and latin_count >= non_latin_count
 
     def _split_inline_transliteration(value: str) -> Tuple[str, str]:
         """
@@ -83,7 +88,7 @@ def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
         if (
             _NON_LATIN_LETTER_PATTERN.search(left)
             and _LATIN_PATTERN.search(right)
-            and _is_latin_heavy(right)
+            and is_latin_heavy(right)
         ):
             return left.strip(), right
         return value, ""
@@ -100,7 +105,7 @@ def split_translation_and_transliteration(text: str) -> Tuple[str, str]:
         if idx == 0:
             translation_parts.append(cleaned_line)
             continue
-        if _is_latin_heavy(cleaned_line):
+        if is_latin_heavy(cleaned_line):
             transliteration_parts.append(_strip_known_prefix(cleaned_line, _TRANSLITERATION_PREFIXES))
         else:
             translation_parts.append(cleaned_line)
@@ -147,6 +152,7 @@ def is_placeholder_translation(text: str) -> bool:
 
 __all__ = [
     "extract_primary_translation",
+    "is_latin_heavy",
     "is_placeholder_translation",
     "is_placeholder_value",
     "split_translation_and_transliteration",

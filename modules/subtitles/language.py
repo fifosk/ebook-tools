@@ -22,19 +22,37 @@ def _normalize_language_label(value: str) -> str:
     return normalized
 
 
+def _base_language_label(value: str) -> str:
+    if not value:
+        return ""
+    trimmed = value.strip()
+    for sep in ("-", "_"):
+        if sep in trimmed:
+            return trimmed.split(sep, 1)[0]
+    return trimmed
+
+
 def _target_uses_non_latin_script(language: str) -> bool:
     """Return True when ``language`` should receive transliteration output."""
 
     normalized = _normalize_language_label(language)
+    base_normalized = _normalize_language_label(_base_language_label(language))
     if not normalized:
         return False
     # Accept both human-readable names and language codes.
     for candidate in NON_LATIN_LANGUAGES:
-        if _normalize_language_label(candidate) == normalized:
+        candidate_normalized = _normalize_language_label(candidate)
+        if candidate_normalized == normalized or candidate_normalized == base_normalized:
             return True
     for name, code in LANGUAGE_CODES.items():
         if name in NON_LATIN_LANGUAGES and _normalize_language_label(code) == normalized:
             return True
+        if name in NON_LATIN_LANGUAGES and _normalize_language_label(code) == base_normalized:
+            return True
+        if name in NON_LATIN_LANGUAGES and base_normalized:
+            code_normalized = _normalize_language_label(code)
+            if code_normalized.startswith(base_normalized):
+                return True
     return False
 
 
@@ -56,14 +74,20 @@ def _target_uses_cyrillic_script(language: str) -> bool:
     """Return True when ``language`` commonly uses a Cyrillic script."""
 
     normalized = _normalize_language_label(language)
+    base_normalized = _normalize_language_label(_base_language_label(language))
     if not normalized:
         return False
     for candidate in _CYRILLIC_LANGUAGES:
-        if _normalize_language_label(candidate) == normalized:
+        candidate_normalized = _normalize_language_label(candidate)
+        if candidate_normalized == normalized or candidate_normalized == base_normalized:
             return True
     for name, code in LANGUAGE_CODES.items():
-        if name in _CYRILLIC_LANGUAGES and _normalize_language_label(code) == normalized:
-            return True
+        if name in _CYRILLIC_LANGUAGES:
+            code_normalized = _normalize_language_label(code)
+            if code_normalized == normalized or code_normalized == base_normalized:
+                return True
+            if base_normalized and code_normalized.startswith(base_normalized):
+                return True
     return False
 
 

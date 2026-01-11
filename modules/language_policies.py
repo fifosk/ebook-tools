@@ -296,13 +296,22 @@ def script_policy_for(target_language: str) -> Optional[ScriptPolicy]:
     return None
 
 
-def script_prompt_instructions(target_language: str) -> List[str]:
+def script_prompt_instructions(
+    target_language: str,
+    *,
+    allow_transliteration: bool = False,
+) -> List[str]:
     """Return the prompt lines needed to enforce a target script."""
 
     policy = script_policy_for(target_language)
     if not policy:
         return []
-    return [policy.instruction, SCRIPT_ENFORCEMENT_SUFFIX]
+    if not allow_transliteration:
+        return [policy.instruction, SCRIPT_ENFORCEMENT_SUFFIX]
+    return [
+        f"{policy.instruction} (This requirement applies to the translation text only.)",
+        "If a transliteration line/field is requested, it should use Latin script and be kept separate from the translation.",
+    ]
 
 
 def script_counts(value: str) -> Dict[str, int]:

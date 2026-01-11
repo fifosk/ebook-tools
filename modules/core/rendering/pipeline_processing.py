@@ -131,6 +131,8 @@ def process_sequential(
             inline_transliteration = text_norm.collapse_whitespace(
                 remove_quotes(inline_transliteration or "").strip()
             )
+            if inline_transliteration and not text_norm.is_latin_heavy(inline_transliteration):
+                inline_transliteration = ""
 
             should_transliterate = (
                 include_transliteration
@@ -142,6 +144,8 @@ def process_sequential(
                 candidate = text_norm.collapse_whitespace(
                     remove_quotes(inline_transliteration or "").strip()
                 )
+                if candidate and not text_norm.is_latin_heavy(candidate):
+                    candidate = ""
                 if not candidate:
                     candidate = transliterate_sentence(
                         fluent,
@@ -350,6 +354,8 @@ def process_pipeline(
                 inline_transliteration = text_norm.collapse_whitespace(
                     remove_quotes(inline_transliteration or "").strip()
                 )
+                if inline_transliteration and not text_norm.is_latin_heavy(inline_transliteration):
+                    inline_transliteration = ""
                 should_transliterate = (
                     include_transliteration
                     and item.target_language in NON_LATIN_LANGUAGES
@@ -362,6 +368,8 @@ def process_pipeline(
                             (item.transliteration or inline_transliteration or "")
                         ).strip()
                     )
+                    if candidate and not text_norm.is_latin_heavy(candidate):
+                        candidate = ""
                     if not candidate:
                         candidate = transliterate_sentence(
                             fluent,
